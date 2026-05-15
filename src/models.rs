@@ -968,6 +968,40 @@ pub struct ServerMetrics {
     pub total_vram_used: u64,
 }
 
+/// GPU device buffer reported by llama-server during model loading.
+#[derive(Debug, Clone)]
+pub struct GPUBuffer {
+    pub device: String,
+    pub buffer_size_mib: f64,
+}
+
+/// Progress information during model loading, parsed from llama-server log output.
+#[derive(Debug, Clone)]
+pub struct LoadProgress {
+    /// Total number of layers in the model.
+    pub layers_total: Option<u32>,
+    /// Number of layers already offloaded to GPU.
+    pub layers_loaded: Option<u32>,
+    /// Number of tensors loaded (counted from dot-lines in log).
+    pub tensors_loaded: u32,
+    /// Estimated total tensor count based on model architecture.
+    pub tensors_total: u32,
+    /// GPU device buffers with their sizes.
+    pub buffers: Vec<GPUBuffer>,
+}
+
+impl Default for LoadProgress {
+    fn default() -> Self {
+        Self {
+            layers_total: None,
+            layers_loaded: None,
+            tensors_loaded: 0,
+            tensors_total: 0,
+            buffers: Vec::new(),
+        }
+    }
+}
+
 /// A llama.cpp release from GitHub.
 #[derive(Debug, Clone)]
 pub struct LlamaCppRelease {

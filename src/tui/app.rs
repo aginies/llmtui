@@ -1,7 +1,7 @@
 use crate::backend::server::ServerHandle;
 use crate::config::{Config, LogEntry, Profile};
 use crate::models::{
-    DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
+    GPUBuffer, DiscoveredModel, LoadProgress, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
 };
 use chrono::Local;
 use ratatui::style::{Color, Modifier, Style};
@@ -150,6 +150,7 @@ pub struct App {
     pub global_mode: GlobalMode,
     pub loading_phases: Vec<LoadingPhase>,
     pub loading_progress: f32,
+    pub load_progress: LoadProgress,
     pub cancelled: Option<Arc<AtomicBool>>,
     pub server_handle: Option<ServerHandle>,
     pub metrics_task_handle: Option<tokio::task::JoinHandle<()>>,
@@ -177,7 +178,7 @@ pub struct App {
     pub pending_search_load: Option<(String, u32)>, // (query, offset)
      /// Whether search results are currently being loaded.
     pub search_loading: bool,
-}
+ }
 
 impl App {
     pub fn new(config: Config) -> Self {
@@ -236,6 +237,7 @@ impl App {
             global_mode: GlobalMode::Normal,
             loading_phases: Vec::new(),
             loading_progress: 0.0,
+            load_progress: Default::default(),
             cancelled: None,
             server_handle: None,
             metrics_task_handle: None,
@@ -337,7 +339,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 self.loading_phases.push(LoadingPhase::LoadingMeta);
             }
         }
-        if upper.contains("LOADED TENSORS") || upper.contains("TENSORS") {
+        if upper.contains("LOAD_TENSORS:") {
             self.last_error_message = None;
             if !self.loading_phases.contains(&LoadingPhase::LoadingTensors) {
                 self.loading_phases.push(LoadingPhase::LoadingTensors);
@@ -346,6 +348,85 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         if upper.contains("SERVER LISTENING") || upper.contains("HTTP SERVER LISTENING") {
             if !self.loading_phases.contains(&LoadingPhase::ServerListening) {
                 self.loading_phases.push(LoadingPhase::ServerListening);
+            }
+        }
+
+        // Parse tensor loading progress from llama-server log output
+        if self.loading_phases.contains(&LoadingPhase::LoadingTensors) {
+            // offloading N repeating layers to GPU
+            if upper.contains("OFFLOADING") && upper.contains("REPEATING LAYERS") {
+                if let Some(pos) = msg.find("offloading") {
+                    let rest = &msg[pos + "offloading".len()..];
+                    if let Some(colon_pos) = rest.find(':') {
+                        let rest = rest[colon_pos + 1..].trim_start();
+                        let end = rest.find(' ').unwrap_or(rest.len());
+                        if let Ok(count) = rest[..end].trim().parse::<u32>() {
+                            self.load_progress.layers_total = Some(count);
+                        }
+                    }
+                }
+            }
+
+            // offloaded X/Y layers to GPU
+            if upper.contains("OFFLOADED") && upper.contains("LAYERS") {
+                if let Some(pos) = msg.find("offloaded") {
+                    let rest = &msg[pos + "offloaded".len()..];
+                    if let Some(slash) = rest.find('/') {
+                        let before = rest[..slash].trim();
+                        let after = rest[slash + 1..].trim();
+                        if let Ok(loaded) = before.parse::<u32>() {
+                            self.load_progress.layers_loaded = Some(loaded);
+                        }
+                        if let Ok(total) = after.split_whitespace().next().unwrap_or("").parse::<u32>() {
+                            self.load_progress.layers_total = Some(total);
+                        }
+                    }
+                    // Also handle "offloaded N layers" without Y
+                    if self.load_progress.layers_loaded.is_none() {
+                        let rest = rest.trim_start();
+                        let end = rest.find(' ').unwrap_or(rest.len());
+                        if let Ok(count) = rest[..end].trim().parse::<u32>() {
+                            self.load_progress.layers_loaded = Some(count);
+                        }
+                    }
+                }
+            }
+
+            // CPU_Mapped model buffer size = X MiB
+            // Vulkan0 model buffer size = X MiB
+            for keyword in &["model buffer size", "kv buffer size"] {
+                if let Some(pos) = msg.to_lowercase().find(keyword) {
+                    let before = &msg[..pos];
+                    let device = before.split_whitespace().last().unwrap_or("").to_string();
+                    if !device.is_empty() {
+                        let rest = &msg[pos + keyword.len()..];
+                        if let Some(eq_pos) = rest.find('=') {
+                            let after = rest[eq_pos + 1..].trim();
+                            let end = after.find(|c: char| !c.is_digit(10) && c != '.').unwrap_or(after.len());
+                            if let Ok(mib) = after[..end].parse::<f64>() {
+                                // Update existing buffer or add new one
+                                let exists = self.load_progress.buffers.iter_mut().find(|b| b.device == device);
+                                if let Some(buf) = exists {
+                                    buf.buffer_size_mib = mib;
+                                } else {
+                                    self.load_progress.buffers.push(GPUBuffer {
+                                        device,
+                                        buffer_size_mib: mib,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Count dots from the progress line (each dot = 1% of tensor loading)
+            // Lines like "......................................................"
+            if msg.trim().chars().all(|c| c == '.' || c == ' ') && !msg.trim().is_empty() {
+                let dot_count = msg.trim().chars().filter(|&c| c == '.').count() as u32;
+                if dot_count > self.load_progress.tensors_loaded {
+                    self.load_progress.tensors_loaded = dot_count;
+                }
             }
         }
 
@@ -407,11 +488,53 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             self.reset_loading_state();
         }
 
-        // Update progress based on observed phases
-        let total_phases = 4; // ServerStarting, Model, Meta, Tensors
-        let seen = self.loading_phases.len();
-        if seen > 0 {
-            self.loading_progress = (seen as f32) / (total_phases as f32);
+        // Update progress based on observed phases and tensor loading details
+        // Phase weights: ServerStarting=8%, LoadingModel=7%, Meta=7%, Tensors=70%, Listening=8%
+        const PHASE_WEIGHTS: [(LoadingPhase, f32); 5] = [
+            (LoadingPhase::ServerStarting, 0.08),
+            (LoadingPhase::LoadingModel, 0.07),
+            (LoadingPhase::LoadingMeta, 0.07),
+            (LoadingPhase::LoadingTensors, 0.70),
+            (LoadingPhase::ServerListening, 0.08),
+        ];
+
+        let mut phase_progress: f32 = 0.0;
+        for (phase, weight) in &PHASE_WEIGHTS {
+            if self.loading_phases.contains(phase) {
+                phase_progress += weight;
+            }
+        }
+
+        // During tensor loading, refine progress using dot count (each dot = 1%)
+        if self.loading_phases.contains(&LoadingPhase::LoadingTensors)
+            && !self.loading_phases.contains(&LoadingPhase::Complete)
+        {
+            // Estimate total tensors from model architecture if not already set
+            if self.load_progress.tensors_total == 0 {
+                let total_layers = self.load_progress.layers_total.unwrap_or(self.model_total_layers);
+                let n_head = self.model_n_head;
+                let layers = total_layers as u32;
+                let kv_ratio = if n_head > 0 && self.model_n_kv_head > 0 {
+                    self.model_n_kv_head as f64 / n_head as f64
+                } else {
+                    1.0
+                };
+                let estimated = 2.0 * layers as f64 + layers as f64 * (1.0 + 2.0 * kv_ratio) + layers as f64 * 3.0;
+                self.load_progress.tensors_total = estimated.round() as u32;
+            }
+
+            if self.load_progress.tensors_total > 0 {
+                let tensor_fraction = self.load_progress.tensors_loaded as f32 / self.load_progress.tensors_total as f32;
+                // Clamp to [0, 1]
+                let tensor_fraction = tensor_fraction.min(1.0);
+                // Map tensor progress over the 70% weight
+                phase_progress = (PHASE_WEIGHTS[0].1 + PHASE_WEIGHTS[1].1 + PHASE_WEIGHTS[2].1)
+                    + tensor_fraction * PHASE_WEIGHTS[3].1;
+            }
+        }
+
+        if phase_progress > 0.0 {
+            self.loading_progress = phase_progress;
         }
 
         // Trim before pushing to prevent memory spikes
@@ -463,6 +586,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 // Not loaded and not loading, reset progress
                 self.loading_progress = 0.0;
                 self.loading_phases.clear();
+                self.load_progress = Default::default();
             }
         } else {
             let default_params = self.config.default.clone();
@@ -481,6 +605,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     pub fn reset_loading_state(&mut self) {
         self.loading_phases.clear();
         self.loading_progress = 0.0;
+        self.load_progress = Default::default();
         
         // Revert any Loading models to Failed
         let mut to_revert = Vec::new();

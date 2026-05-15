@@ -101,9 +101,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                 Span::styled("LOADING", Style::default().fg(Color::Yellow)),
             ]));
 
-            // Show loading progress
+            // Show loading progress with details
             if app.loading_progress > 0.0 && app.loading_progress < 1.0 {
-                let bar_width = area.width.saturating_sub(12) as usize;
+                let bar_width = area.width.saturating_sub(2) as usize;
                 let filled = (app.loading_progress * bar_width as f32) as usize;
                 let bar = format!(
                     "[{}{}] {:.0}%",
@@ -111,14 +111,41 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                     "░".repeat(bar_width.saturating_sub(filled)),
                     app.loading_progress * 100.0
                 );
-                let phase = app.loading_phases.last().map(|p| p.label()).unwrap_or("Loading...");
                 lines.push(Line::from(vec![
                     Span::styled(bar, Style::default().fg(Color::Yellow)),
                 ]));
-                lines.push(Line::from(vec![
-                    Span::styled("  ", Style::default()),
-                    Span::styled(phase, Style::default().fg(Color::Cyan)),
-                ]));
+
+                // Build detail line from available data
+                let mut detail_parts = Vec::new();
+                if let (Some(loaded), Some(total)) = (app.load_progress.layers_loaded, app.load_progress.layers_total) {
+                    detail_parts.push(format!("({}/{})", loaded, total));
+                }
+                if app.load_progress.tensors_loaded > 0 {
+                    detail_parts.push(format!("{} tensors", app.load_progress.tensors_loaded));
+                }
+                let total_gpu: f64 = app.load_progress.buffers.iter()
+                    .filter(|b| b.device != "CPU_Mapped" && b.device != "CPU_Cached")
+                    .map(|b| b.buffer_size_mib)
+                    .sum();
+                if total_gpu > 0.0 {
+                    detail_parts.push(format!("{} VRAM", format_mem((total_gpu * 1024.0 * 1024.0) as u64)));
+                }
+
+                let phase = app.loading_phases.last().map(|p| p.label()).unwrap_or("Loading...");
+                if detail_parts.is_empty() {
+                    lines.push(Line::from(vec![
+                        Span::styled("  ", Style::default()),
+                        Span::styled(phase, Style::default().fg(Color::Cyan)),
+                    ]));
+                } else {
+                    let detail = detail_parts.join(", ");
+                    lines.push(Line::from(vec![
+                        Span::styled("  ", Style::default()),
+                        Span::styled(phase, Style::default().fg(Color::Cyan)),
+                        Span::raw(" "),
+                        Span::styled(detail, Style::default().fg(Color::Magenta)),
+                    ]));
+                }
             }
         }
         Some(crate::models::ModelState::Failed { error }) => {
