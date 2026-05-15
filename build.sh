@@ -12,7 +12,8 @@ usage() {
     echo ""
     echo "Commands:"
     echo "  build     - Build the project (debug)"
-    echo "  run       - Build and run"
+    echo "  run       - Build and run (TUI mode)"
+    echo "  serve     - Build and serve a model (llama-server)"
     echo "  release   - Build with release profile"
     echo "  clean     - Remove build artifacts"
     echo "  format    - Format code with rustfmt"
@@ -29,7 +30,12 @@ cmd_build() {
 
 cmd_run() {
     cmd_build "$@"
-    cargo run "$@"
+    cargo run -- tui "$@"
+}
+
+cmd_serve() {
+    cmd_build "$@"
+    cargo run -- serve "$@"
 }
 
 cmd_release() {
@@ -65,6 +71,7 @@ cmd_clippy() {
 case "${1:-help}" in
     build)   shift; cmd_build "$@" ;;
     run)     shift; cmd_run "$@" ;;
+    serve)   shift; cmd_serve "$@" ;;
     release) shift; cmd_release "$@" ;;
     clean)   shift; cmd_clean "$@" ;;
     format)  shift; cmd_format "$@" ;;

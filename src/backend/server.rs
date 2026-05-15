@@ -350,6 +350,11 @@ pub async fn spawn_server(
     }
 
     // Resolve the backend binary (downloads if needed)
+    let backend_name = match settings.backend {
+        Backend::Cpu => "llama-server-cpu",
+        Backend::Vulkan => "llama-server-vulkan",
+    };
+    log_tx.send(format!("Downloading {} binary...", backend_name)).await.ok();
     let binary = match crate::backend::hub::resolve_backend_binary(settings.backend).await {
         Ok(path) => {
             if !path.exists() {
