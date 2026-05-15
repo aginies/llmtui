@@ -159,12 +159,6 @@ pub struct App {
     pub needs_redraw: bool,
     /// Last error message captured from the log (used for Failed state display).
     pub last_error_message: Option<String>,
-    /// File watcher for the server log (notify crate).
-    #[allow(dead_code)]
-    pub log_watch: Option<(
-        notify::RecommendedWatcher,
-        std::sync::mpsc::Sender<std::path::PathBuf>,
-    )>,
     /// Cached file modification time for debouncing metadata parsing.
     last_metadata_parse: (std::path::PathBuf, std::time::SystemTime),
 }
@@ -238,7 +232,6 @@ impl App {
             metrics_model_name: Arc::new(std::sync::Mutex::new(None)),
             loaded_model_names: Arc::new(std::sync::Mutex::new(Vec::new())),
             needs_redraw: true,
-            log_watch: None,
             last_error_message: None,
             last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         }

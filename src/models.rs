@@ -1021,7 +1021,12 @@ pub fn estimate_vram_mib(
     let gpu_layers = if settings.gpu_layers < 0 {
         if total_layers > 0 { total_layers } else { 32 } // fallback if total_layers unknown
     } else {
-        settings.gpu_layers.unsigned_abs() as u32
+        let requested = settings.gpu_layers.unsigned_abs() as u32;
+        if total_layers > 0 {
+            requested.min(total_layers)
+        } else {
+            requested
+        }
     };
 
     // Model weights loaded into VRAM: proportional to GPU layers.

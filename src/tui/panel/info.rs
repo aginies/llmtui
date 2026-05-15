@@ -33,7 +33,12 @@ pub fn max_context_for_vram(
     let gpu_layers = if gpu_layers < 0 {
         if total_layers > 0 { total_layers as f64 } else { 32.0 }
     } else {
-        gpu_layers.unsigned_abs() as f64
+        let requested = gpu_layers.unsigned_abs() as f64;
+        if total_layers > 0 {
+            requested.min(total_layers as f64)
+        } else {
+            requested
+        }
     };
 
     let model_vram = if total_layers > 0 && gpu_layers > 0.0 {

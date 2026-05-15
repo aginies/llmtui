@@ -299,15 +299,6 @@ async fn main() -> Result<()> {
                             
                             app.sync_rx = Some(sync_rx);
                             app.sync_task_handle = Some(_sync_task_handle);
-                            
-                            // Set up file watcher for the server log.
-                            let data_dir = dirs::data_local_dir()
-                                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
-                                .join("llm-manager");
-                            let log_path = data_dir.join("llm-manager.log");
-                            if let Err(e) = setup_log_watcher(&mut app, &log_path) {
-                                app.add_log(&format!("Failed to set up log watcher: {}", e));
-                            }
                         }
                         Ok(Err(e)) => {
                             app.loading_progress = 1.0;
@@ -429,9 +420,6 @@ async fn main() -> Result<()> {
                     }
                     app.sync_rx = None;
                     
-                    // Stop log file watcher
-                    app.log_watch = None;
-                    
                     // Reset all model states to Available since the server is gone
                     // (But keep Failed states so the user sees the error message)
                     let mut names_to_reset = Vec::new();
@@ -460,9 +448,8 @@ async fn main() -> Result<()> {
         if let Some(rx) = &mut app.download_rx {
             while let Ok(state) = rx.try_recv() {
                 // Find matching download and update in-place, or append new
-                let key = format!("{}|{}", state.model_id, state.filename);
                 if let Some(idx) = app.download_progress.iter().position(|d| {
-                    format!("{}|{}", d.model_id, d.filename) == key
+                    d.model_id == state.model_id && d.filename == state.filename
                 }) {
                     app.download_progress[idx] = state;
                 } else {
@@ -789,37 +776,3 @@ fn resolve_models_dir(cli_value: &Option<String>) -> PathBuf {
     }
 }
 
-/// Set up a file watcher for the server log using the notify crate.
-fn setup_log_watcher(app: &mut App, log_path: &std::path::Path) -> anyhow::Result<()> {
-    use notify::event::{EventKind, ModifyKind};
-    use notify::{Event, RecommendedWatcher, Watcher};
-
-    let (tx, _rx) = std::sync::mpsc::channel();
-    let tx_clone = tx.clone();
-    let mut watcher = RecommendedWatcher::new(
-        move |res: Result<Event, _>| {
-            if let Ok(event) = res {
-                if matches!(
-                    event.kind,
-                    EventKind::Modify(ModifyKind::Data(_)) | EventKind::Modify(ModifyKind::Name(_))
-                ) && !event.paths.is_empty()
-                {
-                    let _ = tx_clone.send(event.paths[0].clone());
-                }
-            }
-        },
-        notify::Config::default(),
-    )?;
-
-    if watcher.watch(log_path, notify::RecursiveMode::NonRecursive).is_err() {
-        // Silently ignore watcher errors — log file may not exist yet or be inaccessible
-        return Ok(());
-    }
-
-    // Store the watcher and sender in app.
-    // The receiver is never polled here; the main loop uses the channel
-    // to know when the log file changed and reads new lines.
-    app.log_watch = Some((watcher, tx));
-
-    Ok(())
-}
