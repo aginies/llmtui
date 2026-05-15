@@ -41,7 +41,7 @@ fn clean_host(host: &str) -> String {
 
 /// Build the full llama-server command line from settings.
 /// Returns (Command, display_string) where the string is suitable for logging.
-fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, settings: &ModelSettings, _config: &Config) -> (Command, String) {
+pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, settings: &ModelSettings, _config: &Config) -> (Command, String) {
     let mut cmd = Command::new(binary);
     let mut parts: Vec<String> = vec![binary.display().to_string()];
 

@@ -12,7 +12,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     debug!("Key: {:?}", key);
 
     // Skip all if in CmdLine overlay
-    if app.global_mode == GlobalMode::CmdLine {
+    if matches!(app.global_mode, GlobalMode::CmdLine { .. }) {
         match key.code {
             KeyCode::Esc => {
                 app.global_mode = GlobalMode::Normal;
@@ -173,11 +173,17 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('k')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
-            // Toggle CmdLine panel (hidden shortcut)
-            if app.cmd_line.is_some() {
-                app.global_mode = GlobalMode::CmdLine;
-                app.set_redraw();
-            }
+            // Toggle CmdLine overlay (hidden shortcut) — compute on demand
+            let binary = app.config.llama_server.clone();
+            let model = app.selected_model().cloned();
+            let (_cmd, cmd_line) = crate::backend::server::build_server_cmd(
+                &binary,
+                model.as_ref(),
+                &app.settings,
+                &app.config,
+            );
+            app.global_mode = GlobalMode::CmdLine { cmd_line };
+            app.set_redraw();
             return;
         }
         KeyCode::Char('/') => {

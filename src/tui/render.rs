@@ -38,13 +38,33 @@ pub fn render(f: &mut Frame, app: &mut App) {
     }
 
     // CmdLine full-screen overlay
-    if app.global_mode == GlobalMode::CmdLine {
+    if let GlobalMode::CmdLine { cmd_line } = &app.global_mode {
         let area = f.area();
-        let cmd = app.cmd_line.as_deref().unwrap_or("(no command)");
-        let lines: Vec<Line> = cmd
-            .split('\n')
-            .map(|line| Line::from(Span::raw(line)))
-            .collect();
+        let width = area.width as usize;
+        // Render each character as its own Span so the terminal can select them.
+        // Wrap long lines by splitting at word boundaries.
+        let mut lines: Vec<Line> = Vec::new();
+        for raw_line in cmd_line.split('\n') {
+            let mut chars: Vec<Span> = Vec::new();
+            let mut count = 0usize;
+            for ch in raw_line.chars() {
+                if ch == ' ' {
+                    chars.push(Span::from(" "));
+                    count += 1;
+                } else {
+                    if count >= width {
+                        lines.push(Line::from(chars));
+                        chars = Vec::new();
+                        count = 0;
+                    }
+                    chars.push(Span::from(ch.to_string()));
+                    count += 1;
+                }
+            }
+            if !chars.is_empty() {
+                lines.push(Line::from(chars));
+            }
+        }
         let paragraph = Paragraph::new(lines);
         f.render_widget(paragraph, area);
         return;
