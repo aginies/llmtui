@@ -64,14 +64,6 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 parts.push(Span::raw(" fullscreen"));
             }
         }
-        crate::tui::app::ModelsMode::Download { state } => {
-            parts.push(Span::styled("DOWNLOADING", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)));
-            parts.push(Span::raw(" "));
-            parts.push(Span::styled(&state.model_id, Style::default().fg(Color::Cyan)));
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("c", Style::default().fg(Color::Cyan)));
-            parts.push(Span::raw(" cancel"));
-        }
         crate::tui::app::ModelsMode::List => {
             if app.active_panel == crate::tui::app::ActivePanel::Profiles {
                 parts.push(Span::styled("PROFILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
@@ -101,6 +93,7 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 let panel_label = match app.active_panel {
                     crate::tui::app::ActivePanel::Models => "MODELS",
                     crate::tui::app::ActivePanel::Log => "LOG",
+                    crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
                     crate::tui::app::ActivePanel::ServerSettings => "SERVER SETTINGS",
                     crate::tui::app::ActivePanel::LlmSettings => "LLM SETTINGS",
                     crate::tui::app::ActivePanel::SearchReadme => "README",
@@ -109,10 +102,13 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 };
                 parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
                 parts.push(Span::raw("  "));
+                if app.active_panel == crate::tui::app::ActivePanel::Downloads {
+                    parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" nav  "));
+                    parts.push(Span::styled("c", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" cancel  "));
+                }
                 if app.active_panel == crate::tui::app::ActivePanel::ServerSettings {
-                    let field = if app.server_settings_selected_idx == 0 { "Host" } else { "Backend" };
-                    parts.push(Span::styled(field, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
-                    parts.push(Span::raw("  "));
                     parts.push(Span::styled("Enter", Style::default().fg(Color::Yellow)));
                     parts.push(Span::raw(" toggle  "));
                 }
@@ -159,11 +155,11 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
             parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
             parts.push(Span::raw(" profiles"));
         }
+        _ => {}
     }
 
     Line::from(parts)
 }
-
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     if area.height < 3 {
         return;

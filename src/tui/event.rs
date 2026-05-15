@@ -41,6 +41,23 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('c')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
+            if !app.download_progress.is_empty() {
+                if let Some(idx) = app.download_scroll_state.selected() {
+                    let mut cancelled_name = None;
+                    if let Some(state) = app.download_progress.get_mut(idx) {
+                        if let Some(token) = &state.cancel_token {
+                            token.store(true, std::sync::atomic::Ordering::Relaxed);
+                            state.cancelled = true;
+                            cancelled_name = Some(state.filename.clone());
+                        }
+                    }
+                    if let Some(name) = cancelled_name {
+                        app.add_log(format!("Cancelling download of {}...", name));
+                        app.set_redraw();
+                        return;
+                    }
+                }
+            }
             app.running = false;
             return;
         }
@@ -281,19 +298,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Handle download mode
-    if let ModelsMode::Download { state } = &mut app.models_mode {
-        if key.code == KeyCode::Char('c') {
-            if let Some(cancelled) = &app.cancelled {
-                cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
-            }
-            state.cancelled = true;
-            app.add_log("Download cancelled");
-            return;
-        }
-        return;
-    }
-
     // Handle files mode
     let is_files = matches!(app.models_mode, ModelsMode::Files { .. });
     if is_files {
@@ -405,12 +409,61 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match app.active_panel {
         ActivePanel::Models => handle_models_key(app, key).await,
         ActivePanel::Log => handle_log_key(app, key),
+        ActivePanel::Downloads => handle_downloads_key(app, key),
         ActivePanel::ServerSettings => { /* handled above */ }
         ActivePanel::LlmSettings => handle_settings_key(app, key),
         ActivePanel::Profiles => handle_profiles_key(app, key),
         ActivePanel::SystemPromptPresets => handle_system_prompt_presets_key(app, key),
         ActivePanel::SearchReadme => handle_readme_key(app, key),
     }
+}
+
+fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => {
+            let i = match app.download_scroll_state.selected() {
+                Some(i) => {
+                    if i == 0 {
+                        app.download_progress.len() - 1
+                    } else {
+                        i - 1
+                    }
+                }
+                None => 0,
+            };
+            app.download_scroll_state.select(Some(i));
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            let i = match app.download_scroll_state.selected() {
+                Some(i) => {
+                    if i >= app.download_progress.len() - 1 {
+                        0
+                    } else {
+                        i + 1
+                    }
+                }
+                None => 0,
+            };
+            app.download_scroll_state.select(Some(i));
+        }
+        KeyCode::Char('c') => {
+            if let Some(idx) = app.download_scroll_state.selected() {
+                let mut cancelled_name = None;
+                if let Some(state) = app.download_progress.get_mut(idx) {
+                    if let Some(token) = &state.cancel_token {
+                        token.store(true, std::sync::atomic::Ordering::Relaxed);
+                        state.cancelled = true;
+                        cancelled_name = Some(state.filename.clone());
+                    }
+                }
+                if let Some(name) = cancelled_name {
+                    app.add_log(format!("Cancelling download of {}...", name));
+                }
+            }
+        }
+        _ => {}
+    }
+    app.set_redraw();
 }
 
 async fn fetch_readme_for_selected(app: &mut App, model_id: String) {

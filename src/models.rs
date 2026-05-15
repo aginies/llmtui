@@ -68,6 +68,7 @@ pub struct DownloadState {
     pub downloaded_bytes: u64,
     pub status: DownloadStatus,
     pub cancelled: bool,
+    pub cancel_token: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
     pub start_time: std::time::Instant,
     pub bytes_per_second: f64,
 }
@@ -81,6 +82,7 @@ impl DownloadState {
             downloaded_bytes: 0,
             status: DownloadStatus::Downloading,
             cancelled: false,
+            cancel_token: None,
             start_time: std::time::Instant::now(),
             bytes_per_second: 0.0,
         }

@@ -20,6 +20,7 @@ use gguf_rs;
 pub enum ActivePanel {
     Models,
     Log,
+    Downloads,
     ServerSettings,
     LlmSettings,
     Profiles,
@@ -658,7 +659,14 @@ impl App {
     pub fn focus_next(&mut self) {
         self.active_panel = match self.active_panel {
             ActivePanel::Models => ActivePanel::Log,
-            ActivePanel::Log => ActivePanel::ServerSettings,
+            ActivePanel::Log => {
+                if !self.download_progress.is_empty() {
+                    ActivePanel::Downloads
+                } else {
+                    ActivePanel::ServerSettings
+                }
+            }
+            ActivePanel::Downloads => ActivePanel::ServerSettings,
             ActivePanel::ServerSettings => ActivePanel::LlmSettings,
             ActivePanel::LlmSettings => ActivePanel::Models,
             _ => ActivePanel::Models,
@@ -670,7 +678,14 @@ impl App {
         self.active_panel = match self.active_panel {
             ActivePanel::Models => ActivePanel::LlmSettings,
             ActivePanel::LlmSettings => ActivePanel::ServerSettings,
-            ActivePanel::ServerSettings => ActivePanel::Log,
+            ActivePanel::ServerSettings => {
+                if !self.download_progress.is_empty() {
+                    ActivePanel::Downloads
+                } else {
+                    ActivePanel::Log
+                }
+            }
+            ActivePanel::Downloads => ActivePanel::Log,
             ActivePanel::Log => ActivePanel::Models,
             _ => ActivePanel::Models,
         };

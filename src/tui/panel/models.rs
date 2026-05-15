@@ -47,6 +47,7 @@ pub fn render_download_panel(
     downloads: &[crate::models::DownloadState],
     total_speed: f64,
     scroll_state: &mut TableState,
+    is_focused: bool,
 ) {
     if downloads.is_empty() {
         return;
@@ -59,10 +60,12 @@ pub fn render_download_panel(
     } else {
         format!(" {} Downloads ({}) ", count, total_speed_str)
     };
+    
+    let border_color = if is_focused { Color::Green } else { Color::Yellow };
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow));
+        .border_style(Style::default().fg(border_color));
 
     // Show all active downloads in a table
     let rows: Vec<Row> = downloads
@@ -108,7 +111,12 @@ pub fn render_download_panel(
         Constraint::Length(14),
     ];
 
-    let table = Table::new(rows, widths).header(Row::new(headers)).block(block);
+    let table = Table::new(rows, widths)
+        .header(Row::new(headers))
+        .block(block)
+        .row_highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD))
+        .highlight_symbol(">> ");
+
     f.render_stateful_widget(table, area, scroll_state);
 }
 

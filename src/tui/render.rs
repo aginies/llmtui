@@ -112,7 +112,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .split(log_area);
             panel::log::render(f, chunks[0], app);
             let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
-            panel::models::render_download_panel(f, chunks[1], &app.download_progress, total_speed, &mut app.download_scroll_state);
+            panel::models::render_download_panel(f, chunks[1], &app.download_progress, total_speed, &mut app.download_scroll_state, app.active_panel == ActivePanel::Downloads);
         } else {
             panel::log::render(f, log_area, app);
         }
@@ -131,7 +131,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .split(readme_area);
             panel::readme::render(f, chunks[0], app);
             let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
-            panel::models::render_download_panel(f, chunks[1], &app.download_progress, total_speed, &mut app.download_scroll_state);
+            panel::models::render_download_panel(f, chunks[1], &app.download_progress, total_speed, &mut app.download_scroll_state, app.active_panel == ActivePanel::Downloads);
         } else {
             panel::readme::render(f, readme_area, app);
         }
@@ -326,6 +326,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             &app.download_progress,
             total_speed,
             &mut app.download_scroll_state,
+            app.active_panel == ActivePanel::Downloads,
         );
     } else {
         panel::log::render(f, chunks[3], app);

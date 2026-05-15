@@ -144,8 +144,10 @@ async fn main() -> Result<()> {
             }
             let tx = app.download_tx.as_ref().unwrap().clone();
             let tx_clone = tx.clone();
+            let cancelled_for_state = cancelled_clone.clone();
             tokio::spawn(async move {
                 let mut state = DownloadState::new(model_id_clone.clone(), filename_clone.clone(), 0);
+                state.cancel_token = Some(cancelled_for_state);
                 let result = hub::download_file(&model_id_clone, &filename_clone, &url_clone, &dest, &mut state, cancelled_clone, tx_clone).await;
                 if let Err(e) = result {
                     state.status = crate::models::DownloadStatus::Error(e.to_string());
@@ -495,6 +497,16 @@ async fn main() -> Result<()> {
                 !matches!(d.status, crate::models::DownloadStatus::Complete | crate::models::DownloadStatus::Error(_))
             });
             app.downloading = !app.download_progress.is_empty();
+            if !app.downloading {
+                app.download_scroll_state.select(None);
+                if app.active_panel == crate::tui::app::ActivePanel::Downloads {
+                    app.active_panel = crate::tui::app::ActivePanel::Log;
+                }
+            } else if let Some(idx) = app.download_scroll_state.selected() {
+                if idx >= app.download_progress.len() {
+                    app.download_scroll_state.select(Some(app.download_progress.len() - 1));
+                }
+            }
             app.set_redraw();
         }
 
