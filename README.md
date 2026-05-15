@@ -15,6 +15,8 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - **Log panel** — expand/collapse with Enter/Esc
 - **HuggingFace URL links** — navigate to model pages from Model Info
 - **Version picker** — select llama.cpp binary versions per backend (CPU, Vulkan, ROCm)
+- **CmdLine overlay** — full-screen view of the computed llama-server command line (`Ctrl+K`)
+- **Export to script** — write the llama-server command to `/tmp/test_llamaserver.sh` from the CmdLine overlay (`e`)
 
 ## Prerequisites
 
@@ -60,6 +62,7 @@ A convenience script is included for common operations:
 - `/` — Search models
 - `l` — Load / `u` — Unload
 - `Ctrl+H` — Help
+- `Ctrl+K` — CmdLine overlay
 
 ### Backend selection
 
@@ -82,6 +85,12 @@ Select llama.cpp binary versions per backend (CPU, Vulkan, ROCm) from the "LLama
 - `Esc` — Exit
 
 Binaries are stored in `~/.local/share/llm-manager/bin/llama-server-{backend}-{version}/`. Switching versions is instant — no re-download.
+
+### CmdLine overlay
+
+Press `Ctrl+K` to view the full command line that would be executed to start the llama.cpp server. The overlay shows the binary path, model path, and all parameters (threads, context size, GPU layers, temperatures, samplers, etc.) so you can copy or inspect the exact invocation.
+
+From the CmdLine overlay, press `e` to export the command to `/tmp/test_llamaserver.sh` as a bash script (overwrites if it exists).
 
 ## Configuration
 
