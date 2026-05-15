@@ -15,11 +15,10 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         Span::styled("--- Loading ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let loading_names = vec!["Context", "Prompt", "Reasoning Mode", "Keep in memory (mlock)"];
+    let loading_names = vec!["Context", "Prompt", "Keep in memory (mlock)"];
     let loading_vals = vec![
         format!("{}", settings.context_length),
         format!("{}", settings.system_prompt_preset_name),
-        format!("{}", settings.reasoning_mode),
         format!("{}", settings.mlock),
     ];
 
@@ -133,30 +132,30 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
     let dirty = match current_idx {
         0 => settings.context_length != cached.context_length,
         1 => settings.system_prompt_preset_name != cached.system_prompt_preset_name,
-        2 => settings.reasoning_mode != cached.reasoning_mode,
-        3 => settings.mlock != cached.mlock,
-        4 => settings.gpu_layers != cached.gpu_layers,
-        5 => settings.flash_attn != cached.flash_attn,
-        6 => settings.kv_cache_offload != cached.kv_cache_offload,
-        7 => settings.cache_type_k != cached.cache_type_k,
-        8 => settings.cache_type_v != cached.cache_type_v,
-        9 => settings.expert_count != cached.expert_count,
-        11 => settings.uniform_cache != cached.uniform_cache,
-        12 => settings.max_concurrent_predictions != cached.max_concurrent_predictions,
-        13 => settings.seed != cached.seed,
-        14 => (settings.temperature - cached.temperature).abs() > 0.001,
-        15 => settings.top_k != cached.top_k,
-        16 => (settings.top_p - cached.top_p).abs() > 0.001,
-        17 => (settings.min_p - cached.min_p).abs() > 0.001,
-        18 => settings.max_tokens != cached.max_tokens,
-        19 => (settings.repeat_penalty - cached.repeat_penalty).abs() > 0.001,
-        20 => settings.repeat_last_n != cached.repeat_last_n,
-        21 => match (settings.presence_penalty, cached.presence_penalty) {
+        2 => settings.mlock != cached.mlock,
+        3 => settings.gpu_layers != cached.gpu_layers,
+        4 => settings.flash_attn != cached.flash_attn,
+        5 => settings.kv_cache_offload != cached.kv_cache_offload,
+        6 => settings.cache_type_k != cached.cache_type_k,
+        7 => settings.cache_type_v != cached.cache_type_v,
+        8 => settings.expert_count != cached.expert_count,
+        9 => settings.batch_size != cached.batch_size,
+        10 => settings.uniform_cache != cached.uniform_cache,
+        11 => settings.max_concurrent_predictions != cached.max_concurrent_predictions,
+        12 => settings.seed != cached.seed,
+        13 => (settings.temperature - cached.temperature).abs() > 0.001,
+        14 => settings.top_k != cached.top_k,
+        15 => (settings.top_p - cached.top_p).abs() > 0.001,
+        16 => (settings.min_p - cached.min_p).abs() > 0.001,
+        17 => settings.max_tokens != cached.max_tokens,
+        18 => (settings.repeat_penalty - cached.repeat_penalty).abs() > 0.001,
+        19 => settings.repeat_last_n != cached.repeat_last_n,
+        20 => match (settings.presence_penalty, cached.presence_penalty) {
             (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
             (None, None) => false,
             _ => true,
         },
-        22 => match (settings.frequency_penalty, cached.frequency_penalty) {
+        21 => match (settings.frequency_penalty, cached.frequency_penalty) {
             (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
             (None, None) => false,
             _ => true,

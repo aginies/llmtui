@@ -24,6 +24,19 @@ pub fn render(f: &mut Frame, app: &mut App) {
         return;
     }
 
+    // Panel-specific help overlay
+    if app.panel_help {
+        let area = f.area();
+        let help_area = Rect {
+            x: area.width.saturating_sub(50) / 2,
+            y: area.height.saturating_sub(25) / 2,
+            width: 50,
+            height: 25,
+        };
+        panel::help::render_panel(f, help_area, app);
+        return;
+    }
+
     if app.global_mode == GlobalMode::ExitConfirmation {
         let area = f.area();
         let popup_area = Rect {
@@ -561,6 +574,12 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 parts.push(Span::raw(" log  "));
                 parts.push(Span::styled("Ctrl+H", Style::default().fg(Color::Cyan)));
                 parts.push(Span::raw(" help  "));
+                if app.panel_help {
+                    parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" help  "));
+                }
+                parts.push(Span::styled("Ctrl+Shift+H", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" global help  "));
                 parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
                 parts.push(Span::raw(" profiles"));
             }

@@ -154,6 +154,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             cache_reuse: dp.cache_reuse,
             webui: dp.webui,
             router_max_models: dp.router_max_models,
+            server_mode: dp.server_mode,
             max_tokens: dp.max_tokens,
             cache_type: dp.cache_type,
             backend: dp.backend,
@@ -528,6 +529,30 @@ impl std::fmt::Display for Backend {
     }
 }
 
+/// Server mode: normal (single model) or router (multiple models).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ServerMode {
+    #[serde(rename = "normal")]
+    Normal,
+    #[serde(rename = "router")]
+    Router,
+}
+
+impl Default for ServerMode {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
+impl std::fmt::Display for ServerMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ServerMode::Normal => write!(f, "Normal"),
+            ServerMode::Router => write!(f, "Router"),
+        }
+    }
+}
+
 /// Mode for parsing reasoning tags from model responses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReasoningMode {
@@ -698,6 +723,8 @@ pub struct ModelSettings {
     pub webui: bool,
     /// Maximum number of models to load in router mode.
     pub router_max_models: u32,
+    /// Server mode: normal (single model) or router (multiple models).
+    pub server_mode: ServerMode,
 
     // ── Other ────────────────────────────────────────────────
 
@@ -785,6 +812,7 @@ impl Default for ModelSettings {
             cache_reuse: 0,
             webui: false,
             router_max_models: 4,
+            server_mode: ServerMode::Normal,
 
             // Other
             max_tokens: Some(2048),

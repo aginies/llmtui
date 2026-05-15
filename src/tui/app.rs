@@ -4,6 +4,7 @@ use crate::models::{
     DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
 };
 use chrono::Local;
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::TableState;
 
 use std::collections::VecDeque;
@@ -147,6 +148,8 @@ pub struct App {
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,
     pub needs_redraw: bool,
+    pub panel_help: bool,
+    pub panel_help_offset: u16,
     /// Last error message captured from the log (used for Failed state display).
     pub last_error_message: Option<String>,
     /// Cached file modification time for debouncing metadata parsing.
@@ -220,6 +223,8 @@ impl App {
             metrics_model_name: Arc::new(std::sync::Mutex::new(None)),
             loaded_model_names: Arc::new(std::sync::Mutex::new(Vec::new())),
             needs_redraw: true,
+            panel_help: false,
+            panel_help_offset: 0,
             last_error_message: None,
             last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         }
@@ -745,7 +750,6 @@ impl App {
             || s.threads_batch != c.threads_batch
             || s.mlock != c.mlock
             || s.system_prompt_preset_name != c.system_prompt_preset_name
-            || s.reasoning_mode != c.reasoning_mode
             || s.gpu_layers != c.gpu_layers
             || s.flash_attn != c.flash_attn
             || s.kv_cache_offload != c.kv_cache_offload
@@ -818,6 +822,133 @@ impl App {
         
         self.add_log(&format!("Deleted profile: {}", profile_name), crate::config::LogLevel::Info);
         true
+    }
+
+    pub fn panel_help_lines(&self) -> Vec<ratatui::text::Line<'static>> {
+        use ratatui::text::{Line, Span};
+        let y = Style::default().fg(Color::Yellow);
+
+        match self.active_panel {
+            ActivePanel::Models => vec![
+                Line::from(Span::styled("MODELS PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Displays your local GGUF models and their status."),
+                Line::from(""),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y.clone()), Span::raw("  Navigate model list")]),
+                Line::from(vec![Span::styled("Enter / l", y.clone()), Span::raw("  Load selected model into server")]),
+                Line::from(vec![Span::styled("u", y.clone()), Span::raw("  Unload model from server")]),
+                Line::from(vec![Span::styled("Ctrl+D", y.clone()), Span::raw("  Delete model (with confirmation)")]),
+                Line::from(""),
+                Line::from("In search mode (/):"),
+                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Execute search")]),
+                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Exit search")]),
+                Line::from(vec![Span::styled("l", y.clone()), Span::raw("  View available GGUF files")]),
+                Line::from(vec![Span::styled("S", y.clone()), Span::raw("  Cycle sort order")]),
+                Line::from(vec![Span::styled("R", y.clone()), Span::raw("  Fetch and view README")]),
+            ],
+            ActivePanel::Log => vec![
+                Line::from(Span::styled("LOG PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Live output from the llama.cpp server."),
+                Line::from(""),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y.clone()), Span::raw("  Scroll log")]),
+                Line::from(vec![Span::styled("g", y.clone()), Span::raw("  Jump to bottom")]),
+                Line::from(vec![Span::styled("G", y.clone()), Span::raw("  Jump to top")]),
+                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Expand log (fills screen)")]),
+                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Collapse log")]),
+            ],
+            ActivePanel::Downloads => vec![
+                Line::from(Span::styled("DOWNLOADS PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Shows active downloads from HuggingFace."),
+                Line::from(""),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y.clone()), Span::raw("  Select download")]),
+                Line::from(vec![Span::styled("c", y.clone()), Span::raw("  Cancel selected download")]),
+            ],
+            ActivePanel::ServerSettings => vec![
+                Line::from(Span::styled("SERVER SETTINGS", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Configuration for the llama.cpp server."),
+                Line::from(""),
+                Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Select setting")]),
+                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Toggle value")]),
+                Line::from(vec![Span::styled("h / l / Left / Right", y.clone()), Span::raw("  Adjust value")]),
+                Line::from(""),
+                Line::from(vec![Span::styled("Host", y.clone()), Span::raw("  Bind address (127.0.0.1 or 0.0.0.0)")]),
+                Line::from(vec![Span::styled("Backend", y.clone()), Span::raw("  Acceleration backend (cpu / vulkan)")]),
+                Line::from(vec![Span::styled("Threads", y.clone()), Span::raw("  CPU threads for generation (1 to max)")]),
+                Line::from(vec![Span::styled("Threads Batch", y.clone()), Span::raw("  CPU threads for batch processing (1 to 32)")]),
+            ],
+            ActivePanel::LlmSettings => vec![
+                Line::from(Span::styled("LLM SETTINGS", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Fine-tuned settings for loading and running a model."),
+                Line::from(""),
+                Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Navigate settings")]),
+                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Apply value")]),
+                Line::from(vec![Span::styled("h / l / Left / Right", y.clone()), Span::raw("  Adjust value")]),
+                Line::from(vec![Span::styled("0-9, -, .", y.clone()), Span::raw("  Type numeric value")]),
+                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Cancel edit")]),
+                Line::from(""),
+                Line::from(vec![Span::styled("Ctrl+S", y.clone()), Span::raw("  Save settings for selected model")]),
+                Line::from(vec![Span::styled("Ctrl+R", y.clone()), Span::raw("  Reset to defaults")]),
+                Line::from(vec![Span::styled("Ctrl+E", y.clone()), Span::raw("  Toggle enabled/disabled")]),
+                Line::from(""),
+                Line::from(vec![Span::styled("Context", y.clone()), Span::raw("  Prompt context size in tokens")]),
+                Line::from(vec![Span::styled("Prompt", y.clone()), Span::raw("  System prompt preset")]),
+                Line::from(vec![Span::styled("Keep in memory", y.clone()), Span::raw("  Lock model in RAM (mlock)")]),
+                Line::from(vec![Span::styled("GPU Layers", y.clone()), Span::raw("  Layers on GPU (-1 = all)")]),
+                Line::from(vec![Span::styled("Flash Attention", y.clone()), Span::raw("  Enable flash attention")]),
+                Line::from(vec![Span::styled("KV Cache Offload", y.clone()), Span::raw("  Offload KV cache to RAM")]),
+                Line::from(vec![Span::styled("Cache Type K / V", y.clone()), Span::raw("  Quantize KV cache for K and V")]),
+                Line::from(vec![Span::styled("Active Experts", y.clone()), Span::raw("  MoE experts per token (-1 = auto)")]),
+                Line::from(vec![Span::styled("Eval Batch", y.clone()), Span::raw("  Batch size for evaluation")]),
+                Line::from(vec![Span::styled("Unified KV", y.clone()), Span::raw("  Share KV cache across sequences")]),
+                Line::from(vec![Span::styled("Max Concurrent Pred", y.clone()), Span::raw("  Max models loaded simultaneously")]),
+                Line::from(vec![Span::styled("Seed", y.clone()), Span::raw("  RNG seed (-1 = random)")]),
+                Line::from(vec![Span::styled("Temp", y.clone()), Span::raw("  Sampling temperature")]),
+                Line::from(vec![Span::styled("Top-k", y.clone()), Span::raw("  Top-k sampling")]),
+                Line::from(vec![Span::styled("Top-p", y.clone()), Span::raw("  Top-p (nucleus) sampling")]),
+                Line::from(vec![Span::styled("Min P", y.clone()), Span::raw("  Minimum probability threshold")]),
+                Line::from(vec![Span::styled("Max Tokens", y.clone()), Span::raw("  Max output tokens")]),
+                Line::from(vec![Span::styled("Rep. Penalty", y.clone()), Span::raw("  Penalize repetition")]),
+                Line::from(vec![Span::styled("Rep. Last N", y.clone()), Span::raw("  Window for repeat penalty")]),
+                Line::from(vec![Span::styled("Presence", y.clone()), Span::raw("  Presence penalty")]),
+                Line::from(vec![Span::styled("Frequency", y.clone()), Span::raw("  Frequency penalty")]),
+            ],
+            ActivePanel::Profiles => vec![
+                Line::from(Span::styled("PROFILES PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Saved presets of settings for quick switching."),
+                Line::from(""),
+                Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Select profile")]),
+                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Apply profile settings")]),
+                Line::from(vec![Span::styled("s", y.clone()), Span::raw("  Save current settings as new profile")]),
+                Line::from(vec![Span::styled("d", y.clone()), Span::raw("  Delete user profile")]),
+                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Back to settings")]),
+            ],
+            ActivePanel::SystemPromptPresets => vec![
+                Line::from(Span::styled("SYSTEM PROMPT PRESETS", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Named system prompts for different use cases."),
+                Line::from(""),
+                Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Select preset")]),
+                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Apply preset")]),
+                Line::from(vec![Span::styled("e", y.clone()), Span::raw("  Edit selected preset")]),
+                Line::from(vec![Span::styled("n", y.clone()), Span::raw("  Create new preset")]),
+                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Back to settings")]),
+            ],
+            ActivePanel::SearchReadme => vec![
+                Line::from(Span::styled("README PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("README documentation for the selected model."),
+                Line::from(""),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y.clone()), Span::raw("  Scroll")]),
+                Line::from(vec![Span::styled("h / l", y.clone()), Span::raw("  Scroll horizontally")]),
+                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Expand to fullscreen")]),
+                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Collapse / Exit")]),
+            ],
+        }
     }
 
     pub fn reset_to_defaults(&mut self) {

@@ -11,7 +11,7 @@ use super::info::ModelInfoPair;
 use super::settings;
 use crate::tui::app::App;
 
-const SERVER_SETTINGS_HEIGHT: u16 = 6;
+const SERVER_SETTINGS_HEIGHT: u16 = 7;
 
 pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     if area.height < 2 || area.width < 10 {
@@ -135,6 +135,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
     let backend_name = format!("{}", app.settings.backend);
     let threads_val = format!("{}", app.settings.threads);
     let threads_batch_val = format!("{}", app.settings.threads_batch);
+    let mode_val = format!("{}", app.settings.server_mode);
 
     let mut lines = Vec::new();
     let mut count = 0;
@@ -142,6 +143,10 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false);
+    lines.push(Line::from(vec![
+        Span::styled(format!("  Current: {mode_val}"), Style::default().fg(Color::DarkGray)),
+    ]));
     lines.push(Line::from(vec![
         Span::styled("  (Enter/Arrows to change)", Style::default().fg(Color::DarkGray)),
     ]));

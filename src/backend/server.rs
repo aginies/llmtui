@@ -41,25 +41,29 @@ fn clean_host(host: &str) -> String {
 
 /// Build the full llama-server command line from settings.
 /// Returns (Command, display_string) where the string is suitable for logging.
-fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, settings: &ModelSettings, config: &Config) -> (Command, String) {
+fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, settings: &ModelSettings, _config: &Config) -> (Command, String) {
     let mut cmd = Command::new(binary);
     let mut parts: Vec<String> = vec![binary.display().to_string()];
 
     // ── Model ───────────────────────────────────────────────
-    // Always include models-dir so other models can be loaded via API
-    cmd.arg("--models-dir").arg(&config.models_dir);
-    parts.push("--models-dir".to_string());
-    parts.push(config.models_dir.display().to_string());
-
     if let Some(model) = model {
-        cmd.arg("-m").arg(&model.path);
-        parts.push("-m".to_string());
-        parts.push(model.path.display().to_string());
+        if settings.server_mode == crate::models::ServerMode::Normal {
+            cmd.arg("-m").arg(&model.path);
+            parts.push("-m".to_string());
+            parts.push(model.path.display().to_string());
 
-        // Add alias for router mode identification (uses the unique relative path)
-        cmd.arg("--alias").arg(&model.display_name);
-        parts.push("--alias".to_string());
-        parts.push(model.display_name.clone());
+            // Add alias for router mode identification (uses the unique relative path)
+            cmd.arg("--alias").arg(&model.display_name);
+            parts.push("--alias".to_string());
+            parts.push(model.display_name.clone());
+        } else {
+            // Router mode: use --models-max instead of loading a specific model
+            if settings.router_max_models > 0 {
+                add_arg(&mut cmd, "--models-max", settings.router_max_models);
+                parts.push("--models-max".to_string());
+                parts.push(settings.router_max_models.to_string());
+            }
+        }
     } else {
         // Pure router mode
         if settings.router_max_models > 0 {
@@ -177,9 +181,9 @@ fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, s
     }
 
     if settings.expert_count > 0 {
-        cmd.arg("--override-kv").arg(format!("llama.expert_used_count:int:{}", settings.expert_count));
+        cmd.arg("--override-kv").arg(format!("llama.expert_used_count=int:int:{}", settings.expert_count));
         parts.push("--override-kv".to_string());
-        parts.push(format!("llama.expert_used_count:int:{}", settings.expert_count));
+        parts.push(format!("llama.expert_used_count=int:int:{}", settings.expert_count));
     }
 
     cmd.arg("-fa").arg(if settings.flash_attn { "on" } else { "off" });

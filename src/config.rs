@@ -171,6 +171,7 @@ pub struct ModelOverride {
     // Server
     pub cache_prompt: Option<bool>,
     pub cache_reuse: Option<u32>,
+    pub server_mode: Option<crate::models::ServerMode>,
 
     // Other
     pub max_tokens: Option<u32>,
@@ -234,6 +235,7 @@ impl ModelOverride {
             rope_freq_scale: Some(s.rope_freq_scale),
             cache_prompt: Some(s.cache_prompt),
             cache_reuse: Some(s.cache_reuse),
+            server_mode: Some(s.server_mode),
             max_tokens: s.max_tokens,
             cache_type: Some(s.cache_type.clone()),
             reasoning_mode: Some(s.reasoning_mode),
@@ -298,6 +300,7 @@ impl ModelOverride {
         base.rope_freq_scale = self.rope_freq_scale.unwrap_or(base.rope_freq_scale);
         base.cache_prompt = self.cache_prompt.unwrap_or(base.cache_prompt);
         base.cache_reuse = self.cache_reuse.unwrap_or(base.cache_reuse);
+        base.server_mode = self.server_mode.clone().unwrap_or(base.server_mode.clone());
         base.max_tokens = self.max_tokens;
         base.cache_type = self.cache_type.clone().unwrap_or(base.cache_type.clone());
     }
@@ -329,7 +332,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 temperature: Some(0.8),
                 top_p: Some(0.95),
                 uniform_cache: Some(true),
-                reasoning_mode: Some(crate::models::ReasoningMode::Gemma),
                 ..Default::default()
             },
         },
@@ -508,6 +510,8 @@ pub struct DefaultParams {
     pub webui: bool,
     #[serde(default)]
     pub router_max_models: u32,
+    #[serde(default)]
+    pub server_mode: crate::models::ServerMode,
 
     // Other
     #[serde(default = "default_max_tokens")]
@@ -604,6 +608,7 @@ impl Default for DefaultParams {
             cache_reuse: 0,
             webui: false,
             router_max_models: 4,
+            server_mode: crate::models::ServerMode::Normal,
 
             // Other
             max_tokens: None,

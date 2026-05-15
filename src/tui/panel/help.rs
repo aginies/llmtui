@@ -20,9 +20,9 @@ pub fn render(f: &mut Frame, area: Rect, _app: &App) {
 
     // Title
     let title = Paragraph::new(Line::from(vec![
-        Span::styled("Keyboard Shortcuts", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled("Global Help", Style::default().add_modifier(Modifier::BOLD)),
         Span::styled(" — ", Style::default()),
-        Span::styled("Press Ctrl+H or Esc to close", Style::default().fg(Color::DarkGray)),
+        Span::styled("Press Ctrl+Shift+H or Esc to close", Style::default().fg(Color::DarkGray)),
     ]))
     .block(Block::default().borders(Borders::ALL).title(" HELP "))
     .style(Style::default().fg(Color::White));
@@ -96,7 +96,11 @@ pub fn render(f: &mut Frame, area: Rect, _app: &App) {
         ]),
         Line::from(vec![
             Span::styled("Ctrl+H", Style::default().fg(Color::Yellow)),
-            Span::raw("  Show/hide help"),
+            Span::raw("  Panel help (contextual)"),
+        ]),
+        Line::from(vec![
+            Span::styled("Ctrl+Shift+H", Style::default().fg(Color::Yellow)),
+            Span::raw("  Global help (this screen)"),
         ]),
         Line::from(vec![
             Span::styled("p", Style::default().fg(Color::Yellow)),
@@ -145,7 +149,40 @@ pub fn render(f: &mut Frame, area: Rect, _app: &App) {
     f.render_widget(list, chunks[1]);
 
     // Footer
-    let footer = Paragraph::new("Press Ctrl+H or Esc to close")
+    let footer = Paragraph::new("Press Ctrl+Shift+H or Esc to close")
         .style(Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD));
+    f.render_widget(footer, chunks[2]);
+}
+
+pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
+    let chunks = Layout::default()
+        .direction(ratatui::layout::Direction::Vertical)
+        .constraints([
+            Constraint::Length(2),   // title
+            Constraint::Fill(1),     // scrollable content
+            Constraint::Length(1),   // footer
+        ])
+        .split(area);
+
+    // Title
+    let title = Paragraph::new(Line::from(vec![
+        Span::styled("Help", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(" — ", Style::default()),
+        Span::styled("Esc to close", Style::default().fg(Color::DarkGray)),
+    ]))
+    .block(Block::default().borders(Borders::ALL).title(" "))
+    .style(Style::default().fg(Color::White));
+    f.render_widget(title, chunks[0]);
+
+    // Scrollable content
+    let lines = app.panel_help_lines();
+    let paragraph = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title(" "))
+        .scroll((app.panel_help_offset, 0));
+    f.render_widget(paragraph, chunks[1]);
+
+    // Footer
+    let footer = Paragraph::new("j/k scroll · Esc close")
+        .style(Style::default().fg(Color::DarkGray));
     f.render_widget(footer, chunks[2]);
 }
