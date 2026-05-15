@@ -11,6 +11,17 @@ use crate::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, LoadingPhase};
 pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     debug!("Key: {:?}", key);
 
+    // Skip all if in CmdLine overlay
+    if app.global_mode == GlobalMode::CmdLine {
+        match key.code {
+            KeyCode::Esc => {
+                app.global_mode = GlobalMode::Normal;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     // Skip all if in exit confirmation
     if app.global_mode == GlobalMode::ExitConfirmation {
         match key.code {
@@ -157,6 +168,16 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             // Focus Log
             app.active_panel = ActivePanel::Log;
             app.set_redraw();
+            return;
+        }
+        KeyCode::Char('k')
+            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+        {
+            // Toggle CmdLine panel (hidden shortcut)
+            if app.cmd_line.is_some() {
+                app.global_mode = GlobalMode::CmdLine;
+                app.set_redraw();
+            }
             return;
         }
         KeyCode::Char('/') => {

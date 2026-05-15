@@ -73,6 +73,29 @@ Top-level layout: status bar → top panels → active model → log. The models
 
 Download runs in a spawned tokio task. Cancellation uses `Arc<AtomicBool>` shared between the task and the UI. Pressing `c` sets the flag; the download loop checks it each iteration.
 
+### LLM Settings panel (22 fields, `src/tui/panel/settings.rs`, `src/tui/event.rs`)
+
+The settings panel has 22 fields organized into 4 groups:
+
+```
+Loading (0-2):   Context length, System prompt preset, Keep in memory (mlock)
+GPU (3-8):       GPU Layers, Flash Attention, KV Cache Offload, Cache Type K, Cache Type V, Active Experts
+Evaluation (9-11): Eval Batch, Unified KV, Max Concurrent Predictions
+Sampling (12-17): Seed, Temperature, Top-k, Top-p, Min P, Max Tokens
+Repetition (18-21): Repetition Penalty, Rep. Last N, Presence Penalty, Frequency Penalty
+```
+
+Each group is rendered with a header line. Arrow keys adjust values; `+`/`-` for coarse, `Left`/`Right` for fine. Toggle fields (Flash Attention, Unified KV, Keep in memory) respond to `e`/`Ctrl+E`.
+
+**Dirty tracking** (`is_settings_dirty` in `app.rs`) compares each field index-by-index. When a field is dirty, its label is rendered in yellow.
+
+**Index consistency** — all indices must be identical across:
+- `settings.rs` dirty check match arms (line ~133)
+- `event.rs` `apply_numeric_setting` / `adjust_setting` match arms
+- `event.rs` `handle_settings_key` toggle shortcuts (`e` / `Ctrl+E`)
+- `event.rs` comment block (line ~836)
+- `app.rs` `is_settings_dirty` match arms
+
 ## Coding rules
 
 ### Dependencies

@@ -37,6 +37,19 @@ pub fn render(f: &mut Frame, app: &mut App) {
         return;
     }
 
+    // CmdLine full-screen overlay
+    if app.global_mode == GlobalMode::CmdLine {
+        let area = f.area();
+        let cmd = app.cmd_line.as_deref().unwrap_or("(no command)");
+        let lines: Vec<Line> = cmd
+            .split('\n')
+            .map(|line| Line::from(Span::raw(line)))
+            .collect();
+        let paragraph = Paragraph::new(lines);
+        f.render_widget(paragraph, area);
+        return;
+    }
+
     if app.global_mode == GlobalMode::ExitConfirmation {
         let area = f.area();
         let popup_area = Rect {

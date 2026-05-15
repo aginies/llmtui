@@ -224,7 +224,8 @@ async fn main() -> Result<()> {
             if handle.is_finished() {
                 if let Some(handle) = app.spawn_task_handle.take() {
                     match handle.await {
-                        Ok(Ok((_model_name, server_handle, _cmd))) => {
+                        Ok(Ok((_model_name, server_handle, cmd))) => {
+                            app.cmd_line = Some(cmd);
                             let port = server_handle.port;
                             let pid = server_handle.pid;
                             let host = server_handle.host.clone();

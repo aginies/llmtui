@@ -59,6 +59,7 @@ pub enum GlobalMode {
     DeleteConfirmation,
     ResetConfirmation,
     ExitConfirmation,
+    CmdLine,
 }
 
 /// Phase of model loading.
@@ -154,6 +155,8 @@ pub struct App {
     pub last_error_message: Option<String>,
     /// Cached file modification time for debouncing metadata parsing.
     last_metadata_parse: (std::path::PathBuf, std::time::SystemTime),
+    /// Last known llama-server command line (shown with Ctrl+K).
+    pub cmd_line: Option<String>,
 }
 
 impl App {
@@ -227,6 +230,7 @@ impl App {
             panel_help_offset: 0,
             last_error_message: None,
             last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
+            cmd_line: None,
         }
     }
 
