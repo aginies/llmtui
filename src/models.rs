@@ -822,6 +822,77 @@ impl Default for ModelSettings {
     }
 }
 
+impl ModelSettings {
+    /// Create ModelSettings from config defaults, applying model-specific overrides.
+    pub fn from_config(config: &crate::config::Config) -> Self {
+        let mut settings = Self::default();
+        settings.threads = config.default.threads;
+        settings.threads_batch = config.default.threads_batch;
+        settings.batch_size = config.default.batch_size;
+        settings.ubatch_size = config.default.ubatch_size;
+        settings.cache_type_k = config.default.cache_type_k.clone();
+        settings.cache_type_v = config.default.cache_type_v.clone();
+        settings.keep = config.default.keep;
+        settings.swa_full = config.default.swa_full;
+        settings.mlock = config.default.mlock;
+        settings.mmap = config.default.mmap;
+        settings.numa = config.default.numa.clone();
+        settings.uniform_cache = config.default.uniform_cache;
+        settings.kv_cache_offload = config.default.kv_cache_offload;
+        settings.system_prompt = config.default.system_prompt.clone();
+        settings.system_prompt_preset_name = config.default.system_prompt_preset_name.clone();
+        settings.reasoning_mode = config.default.reasoning_mode;
+        settings.gpu_layers = config.default.gpu_layers;
+        settings.split_mode = config.default.split_mode.clone();
+        settings.tensor_split = config.default.tensor_split.clone();
+        settings.main_gpu = config.default.main_gpu;
+        settings.fit = config.default.fit;
+        settings.lora = config.default.lora.clone();
+        settings.lora_scaled = config.default.lora_scaled.clone();
+        settings.rpc = config.default.rpc.clone();
+        settings.embedding = config.default.embedding;
+        settings.flash_attn = config.default.flash_attn;
+        settings.jinja = config.default.jinja;
+        settings.chat_template = config.default.chat_template.clone();
+        settings.expert_count = config.default.expert_count;
+        settings.seed = config.default.seed;
+        settings.temperature = config.default.temperature;
+        settings.top_k = config.default.top_k;
+        settings.top_p = config.default.top_p;
+        settings.min_p = config.default.min_p;
+        settings.typical_p = config.default.typical_p;
+        settings.mirostat = config.default.mirostat.clone();
+        settings.mirostat_lr = config.default.mirostat_lr;
+        settings.mirostat_ent = config.default.mirostat_ent;
+        settings.ignore_eos = config.default.ignore_eos;
+        settings.samplers = config.default.samplers.clone();
+        settings.repeat_penalty = config.default.repeat_penalty;
+        settings.repeat_last_n = config.default.repeat_last_n;
+        settings.presence_penalty = config.default.presence_penalty;
+        settings.frequency_penalty = config.default.frequency_penalty;
+        settings.dry_multiplier = config.default.dry_multiplier;
+        settings.dry_base = config.default.dry_base;
+        settings.dry_allowed_length = config.default.dry_allowed_length;
+        settings.dry_penalty_last_n = config.default.dry_penalty_last_n;
+        settings.rope_scaling = config.default.rope_scaling.clone();
+        settings.rope_scale = config.default.rope_scale;
+        settings.rope_freq_base = config.default.rope_freq_base;
+        settings.rope_freq_scale = config.default.rope_freq_scale;
+        settings.host = config.default.host.clone();
+        settings.port = config.default.port;
+        settings.timeout = config.default.timeout;
+        settings.cache_prompt = config.default.cache_prompt;
+        settings.cache_reuse = config.default.cache_reuse;
+        settings.webui = config.default.webui;
+        settings.router_max_models = config.default.router_max_models;
+        settings.server_mode = config.default.server_mode.clone();
+        settings.max_tokens = config.default.max_tokens;
+        settings.cache_type = config.default.cache_type.clone();
+        settings.backend = config.default.backend.clone();
+        settings
+    }
+}
+
 /// A discovered model file.
 #[derive(Debug, Clone)]
 pub struct DiscoveredModel {

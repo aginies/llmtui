@@ -99,23 +99,6 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         add_setting(&mut lines, &mut total_count, settings, cached, &sampling_names[i], &val, selected, edit_buf, editing);
     }
 
-    // ── Repetition Control ───────────────────────────────────
-    lines.push(Line::from(vec![
-        Span::styled("--- Repetition ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
-    ]));
-
-    let rep_names = vec!["Frequency"];
-    let rep_vals = vec![
-        settings.frequency_penalty.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "Disabled".to_string()),
-    ];
-
-    for (i, val) in rep_vals.into_iter().enumerate() {
-        if total_count == selected {
-            selected_line_idx = lines.len();
-        }
-        add_setting(&mut lines, &mut total_count, settings, cached, &rep_names[i], &val, selected, edit_buf, editing);
-    }
-
     let height = lines.len();
     (lines, total_count, height, selected_line_idx)
 }

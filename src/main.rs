@@ -1,6 +1,7 @@
 mod backend;
 mod config;
 mod models;
+mod serve;
 mod tui;
 
 use std::path::PathBuf;
@@ -20,22 +21,42 @@ use tracing_subscriber::prelude::*;
 
 #[derive(Parser)]
 #[command(name = "llm-manager", about = "Manage and chat with local LLMs")]
-struct Cli {
-    /// Path to models directory
-    #[arg(short, long)]
-    models_dir: Option<String>,
+enum Cli {
+    /// Manage and chat with local LLMs (TUI mode, default)
+    #[command(name = "tui", about = "Start the terminal UI")]
+    Tui {
+        /// Path to models directory
+        #[arg(short, long)]
+        models_dir: Option<String>,
 
-    /// Path to llama-server binary
-    #[arg(short, long, default_value = "llama-server")]
-    llama_server: String,
+        /// Path to llama-server binary
+        #[arg(short, long, default_value = "llama-server")]
+        llama_server: String,
 
-    /// Backend to use (cpu, vulkan)
-    #[arg(short, long, default_value = "vulkan")]
-    backend: String,
+        /// Backend to use (cpu, vulkan)
+        #[arg(short, long, default_value = "vulkan")]
+        backend: String,
 
-    /// Path to config file
-    #[arg(short, long)]
-    config: Option<String>,
+        /// Path to config file
+        #[arg(short, long)]
+        config: Option<String>,
+    },
+
+    /// Serve a model using llama-server with all config.yaml settings
+    #[command(name = "serve", about = "Serve a model with llama-server")]
+    Serve {
+        /// Path to the model file (.gguf)
+        #[arg(short, long)]
+        model: String,
+
+        /// Apply a settings profile (e.g. qwen, llama, mistral)
+        #[arg(short, long)]
+        profile: Option<String>,
+
+        /// Path to config file
+        #[arg(short, long)]
+        config: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -58,27 +79,36 @@ async fn main() -> Result<()> {
 
     info!("Logging to {}", log_path.display());
 
-    let cli = Cli::parse();
-    let config_path = cli.config.map(PathBuf::from).unwrap_or(Config::config_path());
+    match Cli::parse() {
+        Cli::Serve { model, profile, config } => {
+            serve::serve_model(&model, profile.as_deref(), config.as_deref()).await
+        }
+        Cli::Tui {
+            models_dir,
+            llama_server,
+            backend,
+            config,
+        } => {
+            let config_path = config.map(PathBuf::from).unwrap_or(Config::config_path());
 
-    // Load or create config
-    let config = if config_path.exists() {
-        Config::load().map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
-    } else {
-        let mut c = Config::default();
-        c.models_dir = resolve_models_dir(&cli.models_dir);
-        c.llama_server = PathBuf::from(&cli.llama_server);
-        c.save().map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
-        c
-    };
+            // Load or create config
+            let config = if config_path.exists() {
+                Config::load().map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
+            } else {
+                let mut c = Config::default();
+                c.models_dir = resolve_models_dir(&models_dir);
+                c.llama_server = PathBuf::from(&llama_server);
+                c.save().map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
+                c
+            };
 
-    // Apply CLI backend override
-    let backend = match cli.backend.to_lowercase().as_str() {
-        "vulkan" => Backend::Vulkan,
-        _ => Backend::Cpu,
-    };
-    let mut config = config;
-    config.default.backend = backend;
+            // Apply CLI backend override
+            let backend = match backend.to_lowercase().as_str() {
+                "vulkan" => Backend::Vulkan,
+                _ => Backend::Cpu,
+            };
+            let mut config = config;
+            config.default.backend = backend;
 
     // Ensure models directory exists
     std::fs::create_dir_all(&config.models_dir)?;
@@ -741,7 +771,9 @@ async fn main() -> Result<()> {
     )?;
     crossterm::terminal::disable_raw_mode()?;
 
-    Ok(())
+        Ok(())
+        }
+    }
 }
 
 /// Scan a directory (recursively) for .gguf model files.
