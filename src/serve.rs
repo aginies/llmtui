@@ -1,6 +1,8 @@
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
+use tokio::select;
 use tracing::info;
 
 use crate::backend::server;
@@ -59,11 +61,19 @@ fn resolve_llama_server(llama_server_path: &PathBuf) -> Result<PathBuf> {
 /// 2. Resolves the model path
 /// 3. Fetches settings from config overrides, profiles, and defaults
 /// 4. Builds and spawns the llama-server command
-/// 5. Streams output to stdout/stderr until killed
+/// 5. Optionally starts an API proxy server on a separate port
+/// 6. Streams output to stdout/stderr until killed
 ///
 /// Usage:
 ///   llm-manager serve --model /path/to/model.gguf [--profile qwen] [--config /path/to/config.yaml]
-pub async fn serve_model(model_path: &str, profile_name: Option<&str>, config_path: Option<&str>) -> Result<()> {
+///   llm-manager serve --model model.gguf --api-port 49222 --api-key secret
+pub async fn serve_model(
+    model_path: &str,
+    profile_name: Option<&str>,
+    config_path: Option<&str>,
+    api_port: Option<u16>,
+    api_key: Option<String>,
+) -> Result<()> {
     // Load config from explicit path or default location
     let config = match config_path {
         Some(p) => {
@@ -165,11 +175,45 @@ pub async fn serve_model(model_path: &str, profile_name: Option<&str>, config_pa
     info!("llama-server started (pid={})", child.id().unwrap_or(0));
     info!("Press Ctrl+C to stop the server");
 
-    // Wait for the process to exit
-    let status = child
-        .wait()
-        .await
-        .context("Failed to wait for llama-server")?;
+    let server_pid = child.id().unwrap_or(0);
+
+    // Optionally start the API proxy server
+    let api_server_handle = if let Some(port) = api_port {
+        let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
+        let model_name = model.display_name.clone();
+        let server_port = settings.port;
+        let api_key_clone = api_key.clone();
+        let handle = tokio::spawn(crate::serve_api::start_api_server(
+            addr,
+            api_key_clone,
+            server_port,
+            model_name,
+            server_pid,
+        ));
+        info!("API proxy server enabled on http://127.0.0.1:{}", port);
+        Some(handle)
+    } else {
+        None
+    };
+
+    // Wait for either llama-server or API server to exit
+    let status = select! {
+        status = child.wait() => {
+            status.context("Failed to wait for llama-server")?
+        }
+        _ = async {
+            if let Some(handle) = api_server_handle {
+                let _ = handle.await;
+            }
+        } => {
+            child.wait().await.context("Failed to wait for llama-server")?
+        }
+    };
+
+    // Kill the other process if both are running
+    if !status.success() {
+        let _ = child.kill().await;
+    }
 
     if status.success() {
         info!("llama-server exited normally");

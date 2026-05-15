@@ -23,6 +23,24 @@ usage() {
     echo "  help      - Show this help"
 }
 
+examples() {
+    echo ""
+    echo "Examples:"
+    echo "  $0                    # Show help"
+    echo "  $0 build              # Build debug binary"
+    echo "  $0 release            # Build release binary"
+    echo "  $0 run                # Build and launch TUI"
+    echo "  $0 serve --model /path/to/model.gguf  # Serve a GGUF model"
+    echo "  $0 serve --model model.gguf --profile qwen  # Serve with profile"
+    echo "  $0 serve --model model.gguf --api-port 49222  # Serve + API proxy"
+    echo "  $0 serve --model model.gguf --api-port 49222 --api-key secret  # Serve + auth"
+    echo "  $0 format             # Format source code"
+    echo "  $0 clippy             # Run clippy lints"
+    echo "  $0 check              # Quick compilation check"
+    echo "  $0 clean              # Remove target/"
+    echo "  $0 release --features vulkan  # Release with Vulkan feature"
+}
+
 cmd_build() {
     echo "Building llm-manager..."
     cargo build "$@"
@@ -78,10 +96,11 @@ case "${1:-help}" in
     check)   shift; cmd_check "$@" ;;
     test)    shift; cmd_test "$@" ;;
     clippy)  shift; cmd_clippy "$@" ;;
-    help|--help|-h) usage ;;
+    help|--help|-h) usage; examples ;;
     *)
         echo "Unknown command: $1"
         usage
+        examples
         exit 1
         ;;
 esac

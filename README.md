@@ -52,6 +52,33 @@ A convenience script is included for common operations:
 ./build.sh clippy     # Run clippy
 ```
 
+### Serve mode
+
+Run a model directly with llama-server and expose an OpenAI-compatible API:
+
+```bash
+# Serve a model with API proxy on port 49222
+./build.sh serve --model /path/to/model.gguf --api-port 49222
+
+# Serve with a settings profile
+./build.sh serve --model model.gguf --profile qwen
+
+# Serve with API key authentication (Bearer token)
+./build.sh serve --model model.gguf --api-port 49222 --api-key secret
+```
+
+The API proxy forwards requests to the running llama-server instance and exposes these endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/chat/completions` | POST | Chat completions |
+| `/v1/completions` | POST | Completions |
+| `/v1/embeddings` | POST | Embeddings |
+| `/v1/models` | GET | List models |
+| `/health` | GET | Health check |
+| `/metrics` | GET | Prometheus metrics |
+| `/api/status` | GET | Server status (pid, uptime, loaded models) |
+
 ### Keyboard shortcuts
 
 - `j` / `k` — Navigate up/down

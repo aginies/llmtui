@@ -2,6 +2,7 @@ mod backend;
 mod config;
 mod models;
 mod serve;
+mod serve_api;
 mod tui;
 
 use std::path::PathBuf;
@@ -57,6 +58,14 @@ enum Cli {
         /// Path to config file
         #[arg(short, long)]
         config: Option<String>,
+
+        /// Start an API proxy server on the given port
+        #[arg(long)]
+        api_port: Option<u16>,
+
+        /// API key for authentication (Bearer token)
+        #[arg(long)]
+        api_key: Option<String>,
     },
 }
 
@@ -81,8 +90,8 @@ async fn main() -> Result<()> {
     info!("Logging to {}", log_path.display());
 
     match Cli::parse() {
-        Cli::Serve { model, profile, config } => {
-            serve::serve_model(&model, profile.as_deref(), config.as_deref()).await
+        Cli::Serve { model, profile, config, api_port, api_key } => {
+            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key).await
         }
         Cli::Tui {
             models_dir,
