@@ -252,21 +252,6 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         parts.push(settings.samplers.to_string());
     }
 
-    // ── Repetition ───────────────────────────────────────────
-    add_arg(&mut cmd, "--repeat-penalty", format!("{:.2}", settings.repeat_penalty));
-    parts.push("--repeat-penalty".to_string());
-    parts.push(format!("{:.2}", settings.repeat_penalty));
-
-    add_arg(&mut cmd, "--repeat-last-n", settings.repeat_last_n);
-    parts.push("--repeat-last-n".to_string());
-    parts.push(settings.repeat_last_n.to_string());
-
-    if let Some(presence) = settings.presence_penalty {
-        add_arg(&mut cmd, "--presence-penalty", format!("{:.2}", presence));
-        parts.push("--presence-penalty".to_string());
-        parts.push(format!("{:.2}", presence));
-    }
-
     if let Some(frequency) = settings.frequency_penalty {
         add_arg(&mut cmd, "--frequency-penalty", format!("{:.2}", frequency));
         parts.push("--frequency-penalty".to_string());

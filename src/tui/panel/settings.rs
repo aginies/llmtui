@@ -104,11 +104,8 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         Span::styled("--- Repetition ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let rep_names = vec!["Rep. Penalty", "Rep. Last N", "Presence", "Frequency"];
+    let rep_names = vec!["Frequency"];
     let rep_vals = vec![
-        format!("{:.2}", settings.repeat_penalty),
-        format!("{}", settings.repeat_last_n),
-        settings.presence_penalty.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "Disabled".to_string()),
         settings.frequency_penalty.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "Disabled".to_string()),
     ];
 
