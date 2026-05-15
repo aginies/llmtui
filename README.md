@@ -6,7 +6,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 
 ## Features
 
-- **Search models** on HuggingFace by name (filters to GGUF models, 100 results per page)
+- **Search models** on HuggingFace by name (filters to GGUF models, 70 results per page)
 - **Download** GGUF model files with progress tracking
 - **Load/unload** models via llama.cpp server
 - **Chat** with loaded models in the terminal

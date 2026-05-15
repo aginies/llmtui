@@ -53,7 +53,7 @@ pub async fn list_releases() -> Result<Vec<crate::models::LlamaCppRelease>> {
 
 /// Search models on HuggingFace.
 ///
-/// `limit` is the number of results per page (default 100, max 200).
+/// `limit` is the number of results per page (default 70, max 200).
 /// `offset` is the number of results to skip (for pagination).
 pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<crate::models::SearchResult>, usize)> {
     let url = format!(

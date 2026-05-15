@@ -712,7 +712,7 @@ async fn main() -> Result<()> {
                 let query_clone = if is_append { Some(query.clone()) } else { None };
                 let offset_clone = offset;
                 let search_handle = tokio::spawn(async move {
-                    hub::search_models(&query_clone.unwrap_or_default(), 100, offset_clone).await
+                    hub::search_models(&query_clone.unwrap_or_default(), 70, offset_clone).await
                 });
 
                 match search_handle.await {
