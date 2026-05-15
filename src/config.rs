@@ -306,7 +306,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 temperature: Some(0.6),
                 top_k: Some(20),
                 top_p: Some(0.9),
-                max_tokens: Some(512),
+                max_tokens: Some(2048),
                 repeat_penalty: Some(1.2),
                 uniform_cache: Some(true),
                 ..Default::default()
@@ -586,7 +586,7 @@ impl Default for DefaultParams {
             router_max_models: 4,
 
             // Other
-            max_tokens: 256,
+            max_tokens: 2048,
             cache_type: CacheType::F16,
             backend: Backend::Vulkan,
         }

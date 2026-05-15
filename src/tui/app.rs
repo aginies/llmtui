@@ -734,6 +734,7 @@ impl App {
         let s = &self.settings;
         let c = &self.model_settings_cache;
         s.context_length != c.context_length
+            || s.mlock != c.mlock
             || s.system_prompt_preset_name != c.system_prompt_preset_name
             || s.reasoning_mode != c.reasoning_mode
             || s.gpu_layers != c.gpu_layers

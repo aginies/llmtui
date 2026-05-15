@@ -15,11 +15,12 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         Span::styled("--- Loading ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let loading_names = vec!["Context", "Prompt", "Reasoning Mode"];
+    let loading_names = vec!["Context", "Prompt", "Reasoning Mode", "Keep in memory (mlock)"];
     let loading_vals = vec![
         format!("{}", settings.context_length),
         format!("{}", settings.system_prompt_preset_name),
         format!("{}", settings.reasoning_mode),
+        format!("{}", settings.mlock),
     ];
 
     for (i, val) in loading_vals.into_iter().enumerate() {
@@ -58,10 +59,11 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         Span::styled("--- Evaluation ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let eval_names = vec!["Eval Batch", "Unified KV"];
+    let eval_names = vec!["Eval Batch", "Unified KV", "Max Concurrent Pred"];
     let eval_vals = vec![
         format!("{}", settings.batch_size),
         format!("{}", settings.uniform_cache),
+        format!("{}", settings.parallel),
     ];
 
     for (i, val) in eval_vals.into_iter().enumerate() {
@@ -127,23 +129,25 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
         0 => settings.context_length != cached.context_length,
         1 => settings.system_prompt_preset_name != cached.system_prompt_preset_name,
         2 => settings.reasoning_mode != cached.reasoning_mode,
-        3 => settings.gpu_layers != cached.gpu_layers,
-        4 => settings.flash_attn != cached.flash_attn,
-        5 => settings.kv_cache_offload != cached.kv_cache_offload,
-        6 => settings.cache_type_k != cached.cache_type_k,
-        7 => settings.cache_type_v != cached.cache_type_v,
-        8 => settings.batch_size != cached.batch_size,
-        9 => settings.uniform_cache != cached.uniform_cache,
-        10 => settings.seed != cached.seed,
-        11 => (settings.temperature - cached.temperature).abs() > 0.001,
-        12 => settings.top_k != cached.top_k,
-        13 => (settings.top_p - cached.top_p).abs() > 0.001,
-        14 => (settings.min_p - cached.min_p).abs() > 0.001,
-        15 => settings.max_tokens != cached.max_tokens,
-        16 => (settings.repeat_penalty - cached.repeat_penalty).abs() > 0.001,
-        17 => settings.repeat_last_n != cached.repeat_last_n,
-        18 => (settings.presence_penalty - cached.presence_penalty).abs() > 0.001,
-        19 => (settings.frequency_penalty - cached.frequency_penalty).abs() > 0.001,
+        3 => settings.mlock != cached.mlock,
+        4 => settings.gpu_layers != cached.gpu_layers,
+        5 => settings.flash_attn != cached.flash_attn,
+        6 => settings.kv_cache_offload != cached.kv_cache_offload,
+        7 => settings.cache_type_k != cached.cache_type_k,
+        8 => settings.cache_type_v != cached.cache_type_v,
+        9 => settings.batch_size != cached.batch_size,
+        10 => settings.uniform_cache != cached.uniform_cache,
+        11 => false, // Global Parallel
+        12 => settings.seed != cached.seed,
+        13 => (settings.temperature - cached.temperature).abs() > 0.001,
+        14 => settings.top_k != cached.top_k,
+        15 => (settings.top_p - cached.top_p).abs() > 0.001,
+        16 => (settings.min_p - cached.min_p).abs() > 0.001,
+        17 => settings.max_tokens != cached.max_tokens,
+        18 => (settings.repeat_penalty - cached.repeat_penalty).abs() > 0.001,
+        19 => settings.repeat_last_n != cached.repeat_last_n,
+        20 => (settings.presence_penalty - cached.presence_penalty).abs() > 0.001,
+        21 => (settings.frequency_penalty - cached.frequency_penalty).abs() > 0.001,
         _ => false,
     };
 

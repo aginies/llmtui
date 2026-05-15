@@ -779,7 +779,7 @@ impl Default for ModelSettings {
             router_max_models: 4,
 
             // Other
-            max_tokens: 256,
+            max_tokens: 2048,
             cache_type: CacheType::F16,
             backend: Backend::Vulkan,
         }
