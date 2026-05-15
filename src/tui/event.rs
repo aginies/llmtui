@@ -681,7 +681,8 @@ fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, ma
         18 => { if let Ok(v) = buf.parse::<f32>() { settings.repeat_penalty = v.clamp(1.0, 2.0); } }
         19 => { if let Ok(v) = buf.parse::<i32>() { settings.repeat_last_n = v; } }
         20 => { if let Ok(v) = buf.parse::<f32>() { settings.presence_penalty = v.clamp(-2.0, 2.0); } }
-        21 => { if let Ok(v) = buf.parse::<f32>() { settings.frequency_penalty = v.clamp(-2.0, 2.0); } }        _ => {}
+        21 => { if let Ok(v) = buf.parse::<f32>() { settings.frequency_penalty = v.clamp(-2.0, 2.0); } }
+        _ => {}
     }
 }
 
@@ -700,6 +701,7 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, max_thre
         // GPU Offload
         5 => settings.gpu_layers = (settings.gpu_layers + delta).max(0),
         6 => settings.flash_attn = !settings.flash_attn,
+        7 => settings.kv_cache_offload = !settings.kv_cache_offload,
         8 => settings.cache_type_k = if delta > 0 { settings.cache_type_k.next() } else { settings.cache_type_k.prev() },
         9 => settings.cache_type_v = if delta > 0 { settings.cache_type_v.next() } else { settings.cache_type_v.prev() },
         // Evaluation
@@ -748,7 +750,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else {
-                let count = 21; // Total editable LLM settings
+                let count = 22; // Total editable LLM settings
                 app.settings_selected_idx = (app.settings_selected_idx + 1).min(count - 1);
                 app.set_redraw();
             }

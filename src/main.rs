@@ -221,7 +221,6 @@ async fn main() -> Result<()> {
         if let Some(handle) = &app.spawn_task_handle {
             if handle.is_finished() {
                 if let Some(handle) = app.spawn_task_handle.take() {
-                    let tx = app.spawn_log_tx.take().unwrap();
                     match handle.await {
                         Ok(Ok((_model_name, server_handle, _cmd))) => {
                             let port = server_handle.port;
@@ -239,7 +238,6 @@ async fn main() -> Result<()> {
                             let task_host = host.clone();
                             let task_port = port;
                             let task_pid = pid;
-                            let _log_tx_metrics = tx.clone();
                             let metrics_model_name = app.metrics_model_name.clone();
                             app.add_log("Starting metrics polling...");
                             let _task_handle = tokio::spawn(async move {
@@ -348,23 +346,20 @@ async fn main() -> Result<()> {
                         *lock = Some(model_name_clone.clone());
                     }
 
-                   tokio::spawn(async move {
-                        match server::load_model(&host, port, &model_name_clone, model_path_clone.as_deref()).await {
-                            Ok(()) => {
-                                // Send a completion message through spawn_log_tx so add_log() detects the phase transition.
-                                if let Some(tx) = sync_tx_err.clone() {
-                                    let _ = tx.send(format!("Model {} loaded via API successfully", model_name_clone)).await;
-                                }
-                            }
-                            Err(e) => {
-                                if let Some(tx) = sync_tx_err.clone() {
-                                    let _ = tx.send(format!("ERROR: Failed to load {} via API: {}", model_name_clone, e)).await;
-                                }
+                    let log_tx = app.spawn_log_tx.clone();
+                    let model_name_err = model_name_clone.clone();
+                    
+                    tokio::spawn(async move {
+                        if let Err(e) = server::load_model(&host, port, &model_name_clone, model_path_clone.as_deref()).await {
+                            let err_msg = format!("ERROR: Failed to load model {}: {}", model_name_err, e);
+                            if let Some(tx) = log_tx {
+                                let _ = tx.send(err_msg).await;
+                            } else {
+                                eprintln!("{}", err_msg);
                             }
                         }
                     });
 
-                    
                     // Set initial state for this model
                     app.model_states.insert(model_name, crate::models::ModelState::Loading);
                 }
@@ -414,8 +409,6 @@ async fn main() -> Result<()> {
 
         // Start pending server kill
         if let Some(handle) = app.pending_kill.take() {
-            let port = handle.port;
-            let pid = handle.pid;
             match server::kill_server(handle).await {
                 Ok(()) => {
                     app.add_log("Server stopped");
