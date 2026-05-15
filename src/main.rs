@@ -355,7 +355,7 @@ async fn main() -> Result<()> {
                             }
                             // Mark the failed model so it's visible in the UI
                             app.last_error_message = Some(e);
-                            app.reset_loading_state();
+                            app.reset_loading_state(true);
                         }
                         Err(e) => {
                             app.loading_progress = 1.0;

@@ -160,20 +160,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             ]));
         }
         _ => {
+            // Only show the global last_error_message if it's a Router/Server crash 
+            // and no model is selected or the selected model isn't loaded.
             if let Some(error) = &app.last_error_message {
-                if let Some(m) = model {
-                    lines.push(Line::from(vec![
-                        Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
-                        Span::styled(&m.name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                    ]));
+                if error.contains("Router Crash") {
                     lines.push(Line::from(vec![
                         Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
                         Span::styled(error, Style::default().fg(Color::Red)),
                     ]));
                 } else {
                     lines.push(Line::from(vec![
-                        Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(error, Style::default().fg(Color::Red)),
+                        Span::styled(" (no active metrics for selected model)", Style::default().fg(Color::DarkGray)),
                     ]));
                 }
             } else {

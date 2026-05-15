@@ -490,7 +490,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 }
 
                 self.last_error_message = Some(error_msg);
-                self.reset_loading_state();
+                self.reset_loading_state(is_crash);
             }
         }
 
@@ -608,28 +608,25 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     }
 
     /// Reset loading state (progress bar and model status) on failure.
-    pub fn reset_loading_state(&mut self) {
+    pub fn reset_loading_state(&mut self, is_crash: bool) {
         self.loading_phases.clear();
         self.loading_progress = 0.0;
         self.load_progress = Default::default();
         
-        // Revert any Loading models to Failed
-        let mut to_revert = Vec::new();
-        for (name, state) in &self.model_states {
-            if matches!(state, ModelState::Loading) {
-                to_revert.push(name.clone());
-            }
-        }
-        // Downgrade any Loaded models to Failed
+        // Models to fail: always any that were Loading. 
+        // If it's a crash, also fail all that were Loaded.
         let mut to_fail = Vec::new();
         for (name, state) in &self.model_states {
-            if matches!(state, ModelState::Loaded { .. }) {
+            if matches!(state, ModelState::Loading) {
+                to_fail.push(name.clone());
+            } else if is_crash && matches!(state, ModelState::Loaded { .. }) {
                 to_fail.push(name.clone());
             }
         }
-        // Remove from loaded list
-        for name in to_revert.iter().chain(to_fail.iter()) {
-            self.loaded_model_names.lock().unwrap().retain(|n| n != name);
+
+        // Remove from loaded list and set to Failed
+        for name in to_fail {
+            self.loaded_model_names.lock().unwrap().retain(|n| n != &name);
             let error = self.last_error_message.clone().unwrap_or_else(|| {
                 let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
                 format!("Last Failed to load a model ({})", timestamp)
