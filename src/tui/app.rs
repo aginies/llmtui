@@ -768,6 +768,7 @@ impl App {
             || s.keep != c.keep
             || s.mmap != c.mmap
             || s.numa != c.numa
+            || s.expert_count != c.expert_count
     }
 
     /// Delete a user profile by index in the merged display list.

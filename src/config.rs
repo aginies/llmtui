@@ -137,6 +137,7 @@ pub struct ModelOverride {
     pub flash_attn: Option<bool>,
     pub jinja: Option<bool>,
     pub chat_template: Option<String>,
+    pub expert_count: Option<i32>,
 
     // Sampling
     pub seed: Option<i32>,
@@ -207,6 +208,7 @@ impl ModelOverride {
             flash_attn: Some(s.flash_attn),
             jinja: Some(s.jinja),
             chat_template: s.chat_template.clone(),
+            expert_count: Some(s.expert_count),
             seed: Some(s.seed),
             temperature: Some(s.temperature),
             top_k: Some(s.top_k),
@@ -269,6 +271,7 @@ impl ModelOverride {
         base.flash_attn = self.flash_attn.unwrap_or(base.flash_attn);
         base.jinja = self.jinja.unwrap_or(base.jinja);
         base.chat_template = self.chat_template.clone();
+        base.expert_count = self.expert_count.unwrap_or(base.expert_count);
         base.reasoning_mode = self.reasoning_mode.unwrap_or(base.reasoning_mode);
         base.seed = self.seed.unwrap_or(base.seed);
         base.temperature = self.temperature.unwrap_or(base.temperature);
@@ -435,6 +438,8 @@ pub struct DefaultParams {
     pub jinja: bool,
     #[serde(default)]
     pub chat_template: Option<String>,
+    #[serde(default)]
+    pub expert_count: i32,
 
     // Sampling
     #[serde(default)]
@@ -560,6 +565,7 @@ impl Default for DefaultParams {
             flash_attn: true,
             jinja: true,
             chat_template: None,
+            expert_count: -1,
 
             // Sampling
             seed: -1,

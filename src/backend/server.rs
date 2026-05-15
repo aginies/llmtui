@@ -175,7 +175,13 @@ fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, s
         cmd.arg("--embedding");
         parts.push("--embedding".to_string());
     }
-    
+
+    if settings.expert_count > 0 {
+        cmd.arg("--override-kv").arg(format!("llama.expert_used_count:int:{}", settings.expert_count));
+        parts.push("--override-kv".to_string());
+        parts.push(format!("llama.expert_used_count:int:{}", settings.expert_count));
+    }
+
     cmd.arg("-fa").arg(if settings.flash_attn { "on" } else { "off" });
     parts.push("-fa".to_string());
     parts.push(if settings.flash_attn { "on" } else { "off" }.to_string());

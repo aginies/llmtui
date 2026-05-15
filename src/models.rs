@@ -121,6 +121,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             rpc: dp.rpc,
             embedding: dp.embedding,
             flash_attn: dp.flash_attn,
+            expert_count: dp.expert_count,
             jinja: dp.jinja,
             chat_template: dp.chat_template,
             seed: dp.seed,
@@ -619,6 +620,8 @@ pub struct ModelSettings {
     pub embedding: bool,
     /// Enable Flash Attention.
     pub flash_attn: bool,
+    /// Active experts per token (MoE models, -1 = model default).
+    pub expert_count: i32,
     /// Use Jinja template engine for chat.
     pub jinja: bool,
     /// Custom chat template string.
@@ -741,6 +744,7 @@ impl Default for ModelSettings {
             rpc: String::new(),
             embedding: false,
             flash_attn: true,
+            expert_count: -1,
             jinja: true,
             chat_template: None,
 

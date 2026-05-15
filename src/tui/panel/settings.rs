@@ -34,7 +34,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         Span::styled("--- GPU Offload ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let gpu_names = vec!["GPU Layers", "Flash Attention", "KV Cache Offload", "Cache Type K", "Cache Type V"];
+    let gpu_names = vec!["GPU Layers", "Flash Attention", "KV Cache Offload", "Cache Type K", "Cache Type V", "Active Experts"];
     let gpu_vals = vec![
         if settings.gpu_layers < 0 {
             format!("all ({total_layers} layers)",)
@@ -45,6 +45,11 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         format!("{}", settings.kv_cache_offload),
         settings.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
         settings.cache_type_v.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
+        if settings.expert_count > 0 {
+            format!("{}", settings.expert_count)
+        } else {
+            "Disabled".to_string()
+        },
     ];
 
     for (i, val) in gpu_vals.into_iter().enumerate() {
@@ -135,23 +140,23 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
         6 => settings.kv_cache_offload != cached.kv_cache_offload,
         7 => settings.cache_type_k != cached.cache_type_k,
         8 => settings.cache_type_v != cached.cache_type_v,
-        9 => settings.batch_size != cached.batch_size,
-        10 => settings.uniform_cache != cached.uniform_cache,
-        11 => settings.max_concurrent_predictions != cached.max_concurrent_predictions,
-        12 => settings.seed != cached.seed,
-        13 => (settings.temperature - cached.temperature).abs() > 0.001,
-        14 => settings.top_k != cached.top_k,
-        15 => (settings.top_p - cached.top_p).abs() > 0.001,
-        16 => (settings.min_p - cached.min_p).abs() > 0.001,
-        17 => settings.max_tokens != cached.max_tokens,
-        18 => (settings.repeat_penalty - cached.repeat_penalty).abs() > 0.001,
-        19 => settings.repeat_last_n != cached.repeat_last_n,
-        20 => match (settings.presence_penalty, cached.presence_penalty) {
+        9 => settings.expert_count != cached.expert_count,
+        11 => settings.uniform_cache != cached.uniform_cache,
+        12 => settings.max_concurrent_predictions != cached.max_concurrent_predictions,
+        13 => settings.seed != cached.seed,
+        14 => (settings.temperature - cached.temperature).abs() > 0.001,
+        15 => settings.top_k != cached.top_k,
+        16 => (settings.top_p - cached.top_p).abs() > 0.001,
+        17 => (settings.min_p - cached.min_p).abs() > 0.001,
+        18 => settings.max_tokens != cached.max_tokens,
+        19 => (settings.repeat_penalty - cached.repeat_penalty).abs() > 0.001,
+        20 => settings.repeat_last_n != cached.repeat_last_n,
+        21 => match (settings.presence_penalty, cached.presence_penalty) {
             (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
             (None, None) => false,
             _ => true,
         },
-        21 => match (settings.frequency_penalty, cached.frequency_penalty) {
+        22 => match (settings.frequency_penalty, cached.frequency_penalty) {
             (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
             (None, None) => false,
             _ => true,
