@@ -336,28 +336,150 @@ pub fn render(f: &mut Frame, app: &mut App) {
 fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
     let mut parts = Vec::new();
 
-    // Search mode indicator
-    if let ModelsMode::Search { query, .. } = &app.models_mode {
-        let mode = if query.is_empty() {
-            "SEARCH MODE"
-        } else {
-            "SEARCHING..."
-        };
-        parts.push(Span::styled(
-            format!("{} | ESC to exit | -> to fetch README", mode),
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-        ));
-        parts.push(Span::raw("  "));
+    match &app.models_mode {
+        crate::tui::app::ModelsMode::Search { query: _, sort_by, show_readme, .. } => {
+            parts.push(Span::styled("SEARCH", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            parts.push(Span::raw(" "));
+            parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw(" search  "));
+            parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw(" exit  "));
+            parts.push(Span::styled("l", Style::default().fg(Color::Yellow)));
+            parts.push(Span::raw(" files  "));
+            parts.push(Span::styled("S", Style::default().fg(Color::Yellow)));
+            parts.push(Span::raw(" sort  "));
+            if *show_readme {
+                if app.readme_expanded {
+                    parts.push(Span::styled("R", Style::default().fg(Color::Yellow)));
+                    parts.push(Span::raw(" fullscreen  "));
+                    parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" collapse  "));
+                } else {
+                    parts.push(Span::styled("R", Style::default().fg(Color::Yellow)));
+                    parts.push(Span::raw(" README  "));
+                }
+            } else {
+                parts.push(Span::styled("R", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" README  "));
+            }
+            parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw(" navigate  "));
+            parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
+        }
+        crate::tui::app::ModelsMode::Files { model_id, .. } => {
+            parts.push(Span::styled("FILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            parts.push(Span::raw(" "));
+            parts.push(Span::styled(model_id, Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("Enter", Style::default().fg(Color::Yellow)));
+            parts.push(Span::raw(" download"));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw(" back"));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw(" navigate"));
+            if app.readme_expanded {
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" collapse"));
+            } else {
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("R", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" fullscreen"));
+            }
+        }
+        crate::tui::app::ModelsMode::List => {
+            if app.active_panel == crate::tui::app::ActivePanel::Profiles {
+                parts.push(Span::styled("PROFILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" nav  "));
+                parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" apply  "));
+                parts.push(Span::styled("s", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" save  "));
+                parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" done"));
+            } else if app.active_panel == crate::tui::app::ActivePanel::SystemPromptPresets {
+                parts.push(Span::styled("PROMPTS", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" nav  "));
+                parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" apply  "));
+                parts.push(Span::styled("e", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" edit  "));
+                parts.push(Span::styled("n", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" new  "));
+                parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" done"));
+            } else {
+                let panel_label = match app.active_panel {
+                    crate::tui::app::ActivePanel::Models => "MODELS",
+                    crate::tui::app::ActivePanel::Log => "LOG",
+                    crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
+                    crate::tui::app::ActivePanel::ServerSettings => "SERVER SETTINGS",
+                    crate::tui::app::ActivePanel::LlmSettings => "LLM SETTINGS",
+                    crate::tui::app::ActivePanel::SearchReadme => "README",
+                    _ => "APP",
+                };
+                parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+                parts.push(Span::raw("  "));
+                if app.active_panel == crate::tui::app::ActivePanel::Downloads {
+                    parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" nav  "));
+                    parts.push(Span::styled("c", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" cancel  "));
+                }
+                if app.active_panel == crate::tui::app::ActivePanel::ServerSettings {
+                    parts.push(Span::styled("Enter", Style::default().fg(Color::Yellow)));
+                    parts.push(Span::raw(" toggle  "));
+                }
+                if app.active_panel == crate::tui::app::ActivePanel::LlmSettings {
+                    parts.push(Span::styled("Ctrl+S", Style::default().fg(Color::Yellow)));
+                    parts.push(Span::raw(" save  "));
+                    if app.is_settings_dirty() {
+                        parts.push(Span::styled("*unsaved*", Style::default().fg(Color::Red)));
+                    }
+                }
+                parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" panels  "));
+            }
+            if app.active_panel == crate::tui::app::ActivePanel::Log {
+                if app.log_expanded {
+                    parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" collapse  "));
+                } else {
+                    parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" expand  "));
+                }
+            }
+            if app.active_panel == crate::tui::app::ActivePanel::SearchReadme {
+                if app.readme_expanded {
+                    parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" collapse  "));
+                } else {
+                    parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+                    parts.push(Span::raw(" expand  "));
+                }
+            }
+            parts.push(Span::styled("/", Style::default().fg(Color::Yellow)));
+            parts.push(Span::raw(" search  "));
+            parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw(" nav  "));
+            parts.push(Span::styled("l", Style::default().fg(Color::Yellow)));
+            parts.push(Span::raw(" load  "));
+            parts.push(Span::styled("u", Style::default().fg(Color::Yellow)));
+            parts.push(Span::raw(" unload  "));
+            parts.push(Span::styled("g/G", Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw(" log  "));
+            parts.push(Span::styled("Ctrl+H", Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw(" help  "));
+            parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
+            parts.push(Span::raw(" profiles"));
+        }
     }
-
-    // Model name
-    if let Some(model) = app.selected_model() {
-        parts.push(Span::styled(model.name.as_str(), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
-        parts.push(Span::raw("  "));
-    }
-
-    // Backend
-    parts.push(Span::styled(format!("{}", app.settings.backend), Style::default().fg(Color::DarkGray)));
 
     if parts.is_empty() {
         return Line::from("");

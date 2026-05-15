@@ -679,40 +679,63 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.server_settings_selected_idx = (app.server_settings_selected_idx + 1).min(2);
+            app.server_settings_selected_idx = (app.server_settings_selected_idx + 1).min(4);
             app.set_redraw();
         }
         KeyCode::Enter => {
-            if app.server_settings_selected_idx == 0 {
-                // Toggle host
-                app.settings.host = if app.settings.host == "127.0.0.1" {
-                    "0.0.0.0".to_string()
-                } else {
-                    "127.0.0.1".to_string()
-                };
-            } else if app.server_settings_selected_idx == 1 {
-                // Cycle backend
-                app.settings.backend = match app.settings.backend {
-                    crate::models::Backend::Cpu => crate::models::Backend::Vulkan,
-                    crate::models::Backend::Vulkan => crate::models::Backend::Cpu,
-                };
-                app.update_vram_estimate();
-            } else {
-                // Cycle parallel (1-10)
-                app.settings.parallel = (app.settings.parallel % 10) + 1;
-                app.update_vram_estimate();
+            match app.server_settings_selected_idx {
+                0 => {
+                    // Toggle host
+                    app.settings.host = if app.settings.host == "127.0.0.1" {
+                        "0.0.0.0".to_string()
+                    } else {
+                        "127.0.0.1".to_string()
+                    };
+                }
+                1 => {
+                    // Cycle backend
+                    app.settings.backend = match app.settings.backend {
+                        crate::models::Backend::Cpu => crate::models::Backend::Vulkan,
+                        crate::models::Backend::Vulkan => crate::models::Backend::Cpu,
+                    };
+                    app.update_vram_estimate();
+                }
+                2 => {
+                    // Cycle parallel (1-10)
+                    app.settings.parallel = (app.settings.parallel % 10) + 1;
+                    app.update_vram_estimate();
+                }
+                3 => {
+                    // Cycle threads (1-max)
+                    app.settings.threads = (app.settings.threads % app.max_threads) + 1;
+                }
+                4 => {
+                    // Cycle threads batch (1-32)
+                    app.settings.threads_batch = (app.settings.threads_batch % 32) + 1;
+                }
+                _ => {}
             }
             sync_global_settings(app);
             app.set_redraw();
         }
-        KeyCode::Left | KeyCode::Char('h') if app.server_settings_selected_idx == 2 => {
-            app.settings.parallel = app.settings.parallel.saturating_sub(1).max(1);
+        KeyCode::Left | KeyCode::Char('h') => {
+            match app.server_settings_selected_idx {
+                2 => app.settings.parallel = app.settings.parallel.saturating_sub(1).max(1),
+                3 => app.settings.threads = app.settings.threads.saturating_sub(1).max(1),
+                4 => app.settings.threads_batch = app.settings.threads_batch.saturating_sub(1).max(1),
+                _ => {}
+            }
             app.update_vram_estimate();
             sync_global_settings(app);
             app.set_redraw();
         }
-        KeyCode::Right | KeyCode::Char('l') if app.server_settings_selected_idx == 2 => {
-            app.settings.parallel = (app.settings.parallel + 1).min(10);
+        KeyCode::Right | KeyCode::Char('l') => {
+            match app.server_settings_selected_idx {
+                2 => app.settings.parallel = (app.settings.parallel + 1).min(10),
+                3 => app.settings.threads = (app.settings.threads + 1).min(app.max_threads),
+                4 => app.settings.threads_batch = (app.settings.threads_batch + 1).min(64),
+                _ => {}
+            }
             app.update_vram_estimate();
             sync_global_settings(app);
             app.set_redraw();
@@ -729,7 +752,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
 // Repetition: 18: Rep. Penalty, 19: Rep. Last N, 20: Presence, 21: Frequency
 // Total: 22 fields
 
-fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, max_threads: u32, max_context: u32) {
+fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _max_threads: u32, max_context: u32) {
     match idx {
         // Loading
         0 => {
@@ -741,29 +764,27 @@ fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, ma
                 settings.context_length = val;
             }
         }
-        1 => { if let Ok(v) = buf.parse::<u32>() { settings.threads = v.max(1).min(max_threads); } }
-        2 => { if let Ok(v) = buf.parse::<u32>() { settings.threads_batch = v.max(1); } }
         // GPU Offload
-        5 => { if let Ok(v) = buf.parse::<i32>() { settings.gpu_layers = v.clamp(0, 999); } }
+        3 => { if let Ok(v) = buf.parse::<i32>() { settings.gpu_layers = v.clamp(0, 999); } }
         // Evaluation
-        10 => { if let Ok(v) = buf.parse::<u32>() { settings.batch_size = v.max(1); } }
+        8 => { if let Ok(v) = buf.parse::<u32>() { settings.batch_size = v.max(1); } }
         // Sampling
-        12 => { if let Ok(v) = buf.parse::<i32>() { settings.seed = v.max(-1); } }
-        13 => { if let Ok(v) = buf.parse::<f32>() { settings.temperature = v.clamp(0.0, 2.0); } }
-        14 => { if let Ok(v) = buf.parse::<i32>() { settings.top_k = v.max(1); } }
-        15 => { if let Ok(v) = buf.parse::<f32>() { settings.top_p = v.clamp(0.0, 1.0); } }
-        16 => { if let Ok(v) = buf.parse::<f32>() { settings.min_p = v.clamp(0.0, 1.0); } }
-        17 => { if let Ok(v) = buf.parse::<u32>() { settings.max_tokens = v.max(16); } }
+        10 => { if let Ok(v) = buf.parse::<i32>() { settings.seed = v.max(-1); } }
+        11 => { if let Ok(v) = buf.parse::<f32>() { settings.temperature = v.clamp(0.0, 2.0); } }
+        12 => { if let Ok(v) = buf.parse::<i32>() { settings.top_k = v.max(1); } }
+        13 => { if let Ok(v) = buf.parse::<f32>() { settings.top_p = v.clamp(0.0, 1.0); } }
+        14 => { if let Ok(v) = buf.parse::<f32>() { settings.min_p = v.clamp(0.0, 1.0); } }
+        15 => { if let Ok(v) = buf.parse::<u32>() { settings.max_tokens = v.max(16); } }
         // Repetition
-        18 => { if let Ok(v) = buf.parse::<f32>() { settings.repeat_penalty = v.clamp(1.0, 2.0); } }
-        19 => { if let Ok(v) = buf.parse::<i32>() { settings.repeat_last_n = v; } }
-        20 => { if let Ok(v) = buf.parse::<f32>() { settings.presence_penalty = v.clamp(-2.0, 2.0); } }
-        21 => { if let Ok(v) = buf.parse::<f32>() { settings.frequency_penalty = v.clamp(-2.0, 2.0); } }
+        16 => { if let Ok(v) = buf.parse::<f32>() { settings.repeat_penalty = v.clamp(1.0, 2.0); } }
+        17 => { if let Ok(v) = buf.parse::<i32>() { settings.repeat_last_n = v; } }
+        18 => { if let Ok(v) = buf.parse::<f32>() { settings.presence_penalty = v.clamp(-2.0, 2.0); } }
+        19 => { if let Ok(v) = buf.parse::<f32>() { settings.frequency_penalty = v.clamp(-2.0, 2.0); } }
         _ => {}
     }
 }
 
-fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, max_threads: u32, max_context: u32) {
+fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_threads: u32, max_context: u32) {
     match idx {
         // Loading
         0 => {
@@ -773,29 +794,27 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, max_thre
             }
             settings.context_length = val;
         }
-        1 => settings.threads = (settings.threads as i32 + delta).clamp(1, max_threads as i32) as u32,
-        2 => settings.threads_batch = (settings.threads_batch as i32 + delta).max(1) as u32,
         // GPU Offload
-        5 => settings.gpu_layers = (settings.gpu_layers + delta).max(0),
-        6 => settings.flash_attn = !settings.flash_attn,
-        7 => settings.kv_cache_offload = !settings.kv_cache_offload,
-        8 => settings.cache_type_k = if delta > 0 { settings.cache_type_k.next() } else { settings.cache_type_k.prev() },
-        9 => settings.cache_type_v = if delta > 0 { settings.cache_type_v.next() } else { settings.cache_type_v.prev() },
+        3 => settings.gpu_layers = (settings.gpu_layers + delta).max(0),
+        4 => settings.flash_attn = !settings.flash_attn,
+        5 => settings.kv_cache_offload = !settings.kv_cache_offload,
+        6 => settings.cache_type_k = if delta > 0 { settings.cache_type_k.next() } else { settings.cache_type_k.prev() },
+        7 => settings.cache_type_v = if delta > 0 { settings.cache_type_v.next() } else { settings.cache_type_v.prev() },
         // Evaluation
-        10 => settings.batch_size = (settings.batch_size as i32 + delta * 64).max(1) as u32,
-        11 => settings.uniform_cache = !settings.uniform_cache,
+        8 => settings.batch_size = (settings.batch_size as i32 + delta * 64).max(1) as u32,
+        9 => settings.uniform_cache = !settings.uniform_cache,
         // Sampling
-        12 => settings.seed = (settings.seed + delta).max(-1),
-        13 => settings.temperature = ((settings.temperature * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 2.0),
-        14 => settings.top_k = (settings.top_k + delta).max(1),
-        15 => settings.top_p = ((settings.top_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0),
-        16 => settings.min_p = ((settings.min_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0),
-        17 => settings.max_tokens = (settings.max_tokens as i32 + delta * 16).max(16) as u32,
+        10 => settings.seed = (settings.seed + delta).max(-1),
+        11 => settings.temperature = ((settings.temperature * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 2.0),
+        12 => settings.top_k = (settings.top_k + delta).max(1),
+        13 => settings.top_p = ((settings.top_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0),
+        14 => settings.min_p = ((settings.min_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0),
+        15 => settings.max_tokens = (settings.max_tokens as i32 + delta * 16).max(16) as u32,
         // Repetition
-        18 => settings.repeat_penalty = ((settings.repeat_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(1.0, 2.0),
-        19 => settings.repeat_last_n += delta,
-        20 => settings.presence_penalty = ((settings.presence_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0),
-        21 => settings.frequency_penalty = ((settings.frequency_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0),
+        16 => settings.repeat_penalty = ((settings.repeat_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(1.0, 2.0),
+        17 => settings.repeat_last_n += delta,
+        18 => settings.presence_penalty = ((settings.presence_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0),
+        19 => settings.frequency_penalty = ((settings.frequency_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0),
         _ => {}
     }
 }
@@ -827,13 +846,13 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else {
-                let count = 22; // Total editable LLM settings
+                let count = 20; // Total editable LLM settings
                 app.settings_selected_idx = (app.settings_selected_idx + 1).min(count - 1);
                 app.set_redraw();
             }
         }
         // System Prompt: open presets panel on Enter
-        _ if idx == 3 => {
+        _ if idx == 1 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
@@ -843,7 +862,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         // Reasoning mode: cycle on Enter
-        _ if idx == 4 => {
+        _ if idx == 2 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
@@ -855,14 +874,14 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         // GPU Layers: interactive mode for typing layer count
-        _ if idx == 5 => {
+        _ if idx == 3 => {
             if app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer = app.settings.gpu_layers.to_string();
                 app.set_redraw();
             }
         }
         // Flash Attention: toggle on Enter
-        _ if idx == 6 => {
+        _ if idx == 4 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
@@ -873,7 +892,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         // KV Cache Offload: toggle on Enter
-        _ if idx == 7 => {
+        _ if idx == 5 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
@@ -884,7 +903,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         // Cache Type K: cycle on Enter
-        _ if idx == 8 => {
+        _ if idx == 6 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
@@ -895,7 +914,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         // Cache Type V: cycle on Enter
-        _ if idx == 9 => {
+        _ if idx == 7 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
@@ -906,7 +925,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         // Unified KV: toggle on Enter
-        _ if idx == 12 => {
+        _ if idx == 9 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
@@ -921,7 +940,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else {
-                app.settings_selected_idx = (app.settings_selected_idx + 10).min(20);
+                app.settings_selected_idx = (app.settings_selected_idx + 10).min(19);
                 app.set_redraw();
             }
         }
@@ -947,18 +966,12 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.pop();
             } else {
                 adjust_setting(&mut app.settings, idx, -1, app.max_threads, app.model_n_ctx_train);
-                if idx == 1 || idx == 2 {
-                    sync_global_settings(app);
-                }
                 app.update_vram_estimate();
             }
             app.set_redraw();
         }
         KeyCode::Right => {
             adjust_setting(&mut app.settings, idx, 1, app.max_threads, app.model_n_ctx_train);
-            if idx == 1 || idx == 2 {
-                sync_global_settings(app);
-            }
             app.update_vram_estimate();
             app.set_redraw();
         }
@@ -975,16 +988,13 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Enter => {
             if !app.settings_edit_buffer.is_empty() {
-                if idx == 5 {
+                if idx == 3 {
                     // GPU Layers: parse as layer count
                     if let Ok(v) = app.settings_edit_buffer.parse::<i32>() {
                         app.settings.gpu_layers = v.clamp(0, 999);
                     }
                 } else {
                     apply_numeric_setting(&mut app.settings, idx, &app.settings_edit_buffer, app.max_threads, app.model_n_ctx_train);
-                }
-                if idx == 1 || idx == 2 {
-                    sync_global_settings(app);
                 }
                 app.settings_edit_buffer.clear();
                 app.update_vram_estimate();

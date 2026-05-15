@@ -31,6 +31,10 @@ pub fn render_all(settings: &crate::models::ModelSettings, selected: usize, edit
         Span::styled("  (auto-download on load)", Style::default().fg(Color::DarkGray)),
     ]));
 
+    add_setting(&mut lines, &mut total_count, "Parallel", &settings.parallel.to_string(), selected, edit_buf, editing);
+    add_setting(&mut lines, &mut total_count, "Threads", &settings.threads.to_string(), selected, edit_buf, editing);
+    add_setting(&mut lines, &mut total_count, "Threads Batch", &settings.threads_batch.to_string(), selected, edit_buf, editing);
+
     (lines.clone(), total_count, lines.len())
 }
 
