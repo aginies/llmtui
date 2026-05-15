@@ -29,12 +29,12 @@ cmd_build() {
 }
 
 cmd_run() {
-    cmd_build "$@"
+    cmd_build
     cargo run -- tui "$@"
 }
 
 cmd_serve() {
-    cmd_build "$@"
+    cmd_build
     cargo run -- serve "$@"
 }
 
