@@ -702,18 +702,38 @@ impl Config {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogLevel {
+    Info,
+    Warning,
+    Error,
+}
+
+impl LogLevel {
+    pub fn label(&self) -> &'static str {
+        match self {
+            LogLevel::Info => "INFO",
+            LogLevel::Warning => "WARNING",
+            LogLevel::Error => "ERROR",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LogEntry {
-    pub formatted: String,
+    pub timestamp: String,
+    pub level: LogLevel,
+    pub message: String,
 }
 
 impl LogEntry {
-    pub fn new(message: impl Into<String>) -> Self {
-        let timestamp = Local::now();
+    pub fn new(message: impl Into<String>, level: LogLevel) -> Self {
+        let timestamp = Local::now().format("%H:%M:%S").to_string();
         let message = sanitize_log(&message.into());
-        let formatted = format!("[{}] {}", timestamp.format("%H:%M:%S"), message);
         Self {
-            formatted,
+            timestamp,
+            level,
+            message,
         }
     }
 }

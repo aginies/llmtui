@@ -48,15 +48,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                 Span::styled("Context: ", Style::default().fg(Color::Yellow)),
                 Span::styled(format!("{}/{}", app.metrics.ctx_used, app.metrics.ctx_max), Style::default().fg(Color::Cyan)),
                 Span::styled(" tokens ", Style::default().fg(Color::DarkGray)),
-                Span::styled("]  [ ", Style::default().fg(Color::White)),
-                Span::styled("VRAM: ", Style::default().fg(Color::Yellow)),
-                Span::styled(format_mem(app.metrics.gpu_mem_used), Style::default().fg(Color::Cyan)),
-                Span::styled(" / ", Style::default().fg(Color::White)),
-                Span::styled(format_mem(app.metrics.gpu_mem_total), Style::default().fg(Color::Cyan)),
                 Span::styled(" ]", Style::default().fg(Color::White)),
             ]));
 
-            // Metrics row 2: System
+            // Metrics row 2: System + VRAM
             lines.push(Line::from(vec![
                 Span::styled(" [ ", Style::default().fg(Color::White)),
                 Span::styled("CPU: ", Style::default().fg(Color::Yellow)),
@@ -64,6 +59,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                 Span::styled(" ]  [ ", Style::default().fg(Color::White)),
                 Span::styled("RAM: ", Style::default().fg(Color::Yellow)),
                 Span::styled(format_mem(app.metrics.ram_used), Style::default().fg(Color::Cyan)),
+                Span::styled(" ]  [ ", Style::default().fg(Color::White)),
+                Span::styled("VRAM: ", Style::default().fg(Color::Yellow)),
+                Span::styled(format_mem(app.metrics.gpu_mem_used), Style::default().fg(Color::Cyan)),
+                Span::styled(" / ", Style::default().fg(Color::White)),
+                Span::styled(format_mem(app.metrics.gpu_mem_total), Style::default().fg(Color::Cyan)),
                 Span::styled(" ]", Style::default().fg(Color::White)),
             ]));
         }

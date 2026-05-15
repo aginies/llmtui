@@ -155,7 +155,6 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
             parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
             parts.push(Span::raw(" profiles"));
         }
-        _ => {}
     }
 
     Line::from(parts)
@@ -190,7 +189,18 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let lines: Vec<Line> = app
         .log_entries
         .iter()
-        .map(|e| Line::from(vec![Span::styled(e.formatted.clone(), Style::default().fg(Color::White))]))
+        .map(|e| {
+            let level_color = match e.level {
+                crate::config::LogLevel::Info => Color::Cyan,
+                crate::config::LogLevel::Warning => Color::Yellow,
+                crate::config::LogLevel::Error => Color::Red,
+            };
+            Line::from(vec![
+                Span::styled(format!("[{}] ", e.timestamp), Style::default().fg(Color::DarkGray)),
+                Span::styled(format!("[{}] ", e.level.label()), Style::default().fg(level_color).add_modifier(Modifier::BOLD)),
+                Span::styled(&e.message, Style::default().fg(Color::White)),
+            ])
+        })
         .collect();
 
     // Height inside borders

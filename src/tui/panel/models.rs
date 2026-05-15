@@ -330,9 +330,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             f.render_widget(Paragraph::new(hint), file_chunks[1]);
             return;
         }
-        ModelsMode::Download { .. } => {
-            (Block::default().title(" Downloading... ").borders(Borders::ALL), vec![])
-        }
     };
 
     let mut list_state = ListState::default();

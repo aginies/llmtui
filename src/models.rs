@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 /// The state of a model in the manager.
 #[derive(Debug, Clone, PartialEq)]
-#[allow(dead_code)]
 pub enum ModelState {
     Available,
     Loading,
@@ -12,7 +11,6 @@ pub enum ModelState {
         port: u16,
         pid: u32,
     },
-    Unloading,
     Failed {
         error: String,
     },
@@ -460,34 +458,6 @@ impl std::fmt::Display for RopeScaling {
     }
 }
 
-/// Flash Attention mode.
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum FlashAttn {
-    #[serde(rename = "on")]
-    On,
-    #[serde(rename = "off")]
-    Off,
-    #[serde(rename = "auto")]
-    Auto,
-}
-
-impl Default for FlashAttn {
-    fn default() -> Self {
-        Self::Auto
-    }
-}
-
-impl std::fmt::Display for FlashAttn {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FlashAttn::On => write!(f, "on"),
-            FlashAttn::Off => write!(f, "off"),
-            FlashAttn::Auto => write!(f, "auto"),
-        }
-    }
-}
-
 /// Mirostat version.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Mirostat {
@@ -822,16 +792,12 @@ pub struct DiscoveredModel {
     pub path: PathBuf,
     pub name: String,
     pub file_size: u64,
-    #[allow(dead_code)]
-    pub model_dir: PathBuf, // base directory where models are stored
     pub display_name: String, // path relative to model_dir for display
 }
 
 /// Parsed GGUF metadata for a model, cached to avoid re-parsing the file.
 #[derive(Debug, Clone)]
 pub struct GgufMetadata {
-    #[allow(dead_code)]
-    pub path: String,
     pub layers: u32,
     pub hidden_size: u32,
     pub n_ctx_train: u32,
@@ -847,16 +813,8 @@ pub struct GgufMetadata {
     pub vocab_size: u32,
 }
 
-impl DiscoveredModel {
-    #[allow(dead_code)]
-    pub fn stem(&self) -> &str {
-        self.name.split('.').next().unwrap_or(&self.name)
-    }
-}
-
 /// Metrics reported by the llama.cpp server.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct ServerMetrics {
     pub loaded: bool,
     pub tps: f64,
@@ -866,7 +824,6 @@ pub struct ServerMetrics {
     pub ram_used: u64,
     pub ctx_used: u32,
     pub ctx_max: u32,
-    pub predicted_tokens: u32,
     /// Sum of gpu_mem_used across all loaded models (for Total VRAM display).
     pub total_vram_used: u64,
 }
@@ -882,114 +839,8 @@ impl Default for ServerMetrics {
             ram_used: 0,
             ctx_used: 0,
             ctx_max: 0,
-            predicted_tokens: 0,
             total_vram_used: 0,
         }
-    }
-}
-
-/// A chat message.
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub struct ChatMessage {
-    pub role: ChatRole,
-    pub content: String,
-}
-
-/// Timing metrics extracted from SSE events during streaming chat.
-#[derive(Debug, Clone, Default)]
-#[allow(dead_code)]
-pub struct ChatTimings {
-    pub predicted_per_second: f64,
-    pub prompt_tokens: u32,
-    pub predicted_tokens: u32,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub enum ChatRole {
-    User,
-    Assistant,
-    System,
-}
-
-impl std::fmt::Display for ChatRole {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ChatRole::User => write!(f, "You"),
-            ChatRole::Assistant => write!(f, "Assistant"),
-            ChatRole::System => write!(f, "System"),
-        }
-    }
-}
-
-impl ChatMessage {
-    #[allow(dead_code)]
-    pub fn to_api_message(&self) -> chat_message::ApiMessage {
-        chat_message::ApiMessage {
-            role: match &self.role {
-                ChatRole::User => "user".into(),
-                ChatRole::Assistant => "assistant".into(),
-                ChatRole::System => "system".into(),
-            },
-            content: self.content.clone(),
-        }
-    }
-}
-
-// Minimal types for the chat API
-#[allow(dead_code)]
-pub mod chat_message {
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct ApiMessage {
-        pub role: String,
-        pub content: String,
-    }
-
-    #[derive(Debug, Clone, Serialize)]
-    pub struct ChatRequest {
-        pub messages: Vec<ApiMessage>,
-        pub temperature: f32,
-        pub top_k: i32,
-        pub top_p: f32,
-        pub repeat_penalty: f32,
-        pub max_tokens: u32,
-        pub stream: bool,
-        pub seed: i32,
-    }
-
-    #[derive(Debug, Clone, Deserialize)]
-    pub struct ChatResponse {
-        pub choices: Vec<ChatChoice>,
-    }
-
-    #[derive(Debug, Clone, Deserialize)]
-    pub struct ChatChoice {
-        pub message: ChatChoiceMessage,
-    }
-
-    #[derive(Debug, Clone, Deserialize)]
-    pub struct ChatChoiceMessage {
-        pub content: String,
-    }
-
-    #[derive(Debug, Clone, Deserialize)]
-    pub struct ChatResponseChunk {
-        pub choices: Vec<ChatChoiceChunk>,
-    }
-
-    #[derive(Debug, Clone, Deserialize)]
-    #[allow(dead_code)]
-    pub struct ChatChoiceChunk {
-        pub delta: ChatChoiceDelta,
-    }
-
-    #[derive(Debug, Clone, Deserialize)]
-    #[allow(dead_code)]
-    pub struct ChatChoiceDelta {
-        pub content: Option<String>,
     }
 }
 

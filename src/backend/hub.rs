@@ -130,34 +130,6 @@ pub async fn search_models(query: &str, limit: u32) -> Result<Vec<crate::models:
     Ok(results)
 }
 
-/// Find the GGUF file for a model, returning (filename, direct_download_url).
-#[allow(dead_code)]
-pub async fn find_gguf_file(model_id: &str) -> Result<(String, String)> {
-    let url = format!("https://huggingface.co/api/models/{}/tree/main", model_id);
-    let resp = reqwest::get(&url).await?.error_for_status()?;
-    let files: Vec<serde_json::Value> = resp.json().await?;
-
-    for file in &files {
-        let path = file.get("path").and_then(|p| p.as_str()).unwrap_or("");
-        if path.ends_with(".gguf") {
-            // Use lfs.url for the direct download link (GGUF files are large files)
-            let lfs_url = file
-                .get("lfs")
-                .and_then(|l| l.get("url"))
-                .and_then(|u| u.as_str())
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| {
-                    format!(
-                        "https://huggingface.co/{model_id}/resolve/main/{path}"
-                    )
-                });
-            return Ok((path.to_string(), lfs_url));
-        }
-    }
-
-    anyhow::bail!("No .gguf file found in {}", model_id);
-}
-
 /// List all GGUF files for a model.
 pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)>> {
     let url = format!("https://huggingface.co/api/models/{}/tree/main", model_id);
@@ -189,55 +161,6 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
     }
 
     Ok(gguf_files)
-}
-
-/// Get detailed info for a model from HuggingFace.
-#[allow(dead_code)]
-pub async fn get_model_info(model_id: &str) -> Result<crate::models::SearchResult> {
-    let url = format!("https://huggingface.co/api/models/{}", model_id);
-    let resp = reqwest::get(&url).await?.error_for_status()?;
-    let m: serde_json::Value = resp.json().await?;
-
-    let tags: Vec<String> = m
-        .get("tags")
-        .and_then(|t| t.as_array())
-        .map(|t| {
-            t.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let downloads = m.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0);
-    let likes = m.get("likes").and_then(|v| v.as_u64()).unwrap_or(0);
-    let pipeline_tag = m.get("pipeline_tag").and_then(|v| v.as_str()).map(|s| s.to_string());
-    let size = m.get("size").and_then(|v| v.as_u64());
-
-    let parameters = m
-        .get("config")
-        .and_then(|c| c.get("n_params"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    let capabilities: Vec<String> = m
-        .get("config")
-        .and_then(|c| c.get("model_type"))
-        .and_then(|v| v.as_str())
-        .map(|s| vec![s.to_string()])
-        .unwrap_or_default();
-
-    Ok(crate::models::SearchResult {
-        model_id: model_id.to_string(),
-        model_name: model_id.to_string(),
-        tags,
-        downloads,
-        likes,
-        pipeline_tag,
-        size,
-        parameters,
-        capabilities,
-        readme: None,
-    })
 }
 
 /// Fetch the README for a model from HuggingFace.

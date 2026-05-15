@@ -135,7 +135,7 @@ async fn main() -> Result<()> {
             let url_clone = download_url.clone();
             let cancelled = Arc::new(AtomicBool::new(false));
             let cancelled_clone = cancelled.clone();
-            app.add_log(&format!("Downloading {}...", model_id));
+            app.add_log(&format!("Downloading {}...", model_id), crate::config::LogLevel::Info);
             // Create broadcast channel if not already created (shared by all downloads)
             if app.download_rx.is_none() {
                 let (tx, rx) = tokio::sync::broadcast::channel(10);
@@ -192,7 +192,7 @@ async fn main() -> Result<()> {
                     app.on_model_selection_change();
                 }
             }
-            app.add_log(&format!("Model deleted: {:?}", path.file_name().unwrap_or_default()));
+            app.add_log(&format!("Model deleted: {:?}", path.file_name().unwrap_or_default()), crate::config::LogLevel::Info);
             app.set_redraw();
         }
 
@@ -210,7 +210,7 @@ async fn main() -> Result<()> {
             if let Some(m) = &model_opt {
                 app.model_states.insert(m.display_name.clone(), crate::models::ModelState::Loading);
             }
-            app.add_log(&format!("Loading {}...", display_name));
+            app.add_log(&format!("Loading {}...", display_name), crate::config::LogLevel::Info);
             let handle = tokio::spawn(async move {
                 server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone).await
                     .map(|(handle, cmd)| (display_name, handle, cmd))
@@ -228,7 +228,7 @@ async fn main() -> Result<()> {
                             let port = server_handle.port;
                             let pid = server_handle.pid;
                             let host = server_handle.host.clone();
-                            app.add_log(&format!("Server started on port {port} (pid={pid})"));
+                            app.add_log(&format!("Server started on port {port} (pid={pid})"), crate::config::LogLevel::Info);
                             app.server_handle = Some(server_handle);
                             
                             app.loading_phases = vec![crate::tui::app::LoadingPhase::Complete];
@@ -241,7 +241,7 @@ async fn main() -> Result<()> {
                             let task_port = port;
                             let task_pid = pid;
                             let metrics_model_name = app.metrics_model_name.clone();
-                            app.add_log("Starting metrics polling...");
+                            app.add_log("Starting metrics polling...", crate::config::LogLevel::Info);
                             let _task_handle = tokio::spawn(async move {
                                 loop {
                                     // 1. Get system-wide / router-wide metrics (no model specified)
@@ -302,17 +302,17 @@ async fn main() -> Result<()> {
                         }
                         Ok(Err(e)) => {
                             app.loading_progress = 1.0;
-                            app.add_log(&format!("ERROR: Server failed: {}", e));
+                            app.add_log(&format!("ERROR: Server failed: {}", e), crate::config::LogLevel::Error);
                             // Drain any logs already in the channel
                             if let Some(mut rx) = app.server_log_rx.take() {
                                 while let Ok(line) = rx.try_recv() {
-                                    app.add_log(line);
+                                    app.add_log(line, crate::config::LogLevel::Info);
                                 }
                             }
                         }
                         Err(e) => {
                             app.loading_progress = 1.0;
-                            app.add_log(&format!("ERROR: Spawn task panicked: {}", e));
+                            app.add_log(&format!("ERROR: Spawn task panicked: {}", e), crate::config::LogLevel::Error);
                         }
                     }
                     app.set_redraw();
@@ -331,7 +331,7 @@ async fn main() -> Result<()> {
                     let model_path_clone = model_path.clone();
                     
                     app.pending_api_load = None; // Clear it now that we are acting on it
-                    app.add_log(&format!("Sending load request for {}...", model_name_clone));
+                    app.add_log(&format!("Sending load request for {}...", model_name_clone), crate::config::LogLevel::Info);
                     
                     // Update metrics model name immediately so polling includes it
                     {
@@ -371,7 +371,7 @@ async fn main() -> Result<()> {
                 let model_name_clone = model_name.clone();
                 let model_path_clone = model_path.clone();
                 
-                app.add_log(&format!("Sending unload request for {}...", model_name_clone));
+                app.add_log(&format!("Sending unload request for {}...", model_name_clone), crate::config::LogLevel::Info);
                 
                 // Clear metrics model name
                 {
@@ -392,7 +392,7 @@ async fn main() -> Result<()> {
                 // If no more models are loaded, kill the server
                 let loaded_count = app.model_states.values().filter(|s| matches!(s, crate::models::ModelState::Loaded { .. })).count();
                 if loaded_count == 0 {
-                    app.add_log("No models left, stopping router...");
+                    app.add_log("No models left, stopping router...", crate::config::LogLevel::Info);
                     if let Some(h) = app.server_handle.take() {
                         app.pending_kill = Some(h);
                     }
@@ -404,7 +404,7 @@ async fn main() -> Result<()> {
         if let Some(handle) = app.pending_kill.take() {
             match server::kill_server(handle).await {
                 Ok(()) => {
-                    app.add_log("Server stopped");
+                    app.add_log("Server stopped", crate::config::LogLevel::Info);
                     app.server_handle = None;
                     app.metrics_rx = None;
                     app.metrics = Default::default();
@@ -437,7 +437,7 @@ async fn main() -> Result<()> {
                     app.loading_progress = 0.0;
                  }
                 Err(e) => {
-                    app.add_log(&format!("Failed to stop server: {}", e));
+                    app.add_log(&format!("Failed to stop server: {}", e), crate::config::LogLevel::Error);
                 }
             }
             app.set_redraw();
@@ -471,11 +471,11 @@ async fn main() -> Result<()> {
             for state in &completed {
                 match &state.status {
                     crate::models::DownloadStatus::Complete => {
-                        app.add_log("Download complete!");
+                        app.add_log("Download complete!", crate::config::LogLevel::Info);
                         app.models = discover_models(&app.config.models_dir);
                     }
                     crate::models::DownloadStatus::Error(e) => {
-                        app.add_log(&format!("Download failed: {}", e));
+                        app.add_log(&format!("Download failed: {}", e), crate::config::LogLevel::Error);
                     }
                     _ => {}
                 }
@@ -538,7 +538,7 @@ async fn main() -> Result<()> {
         }
         if !server_logs.is_empty() {
             for line in server_logs {
-                app.add_log(line);
+                app.add_log(line, crate::config::LogLevel::Info);
             }
             app.set_redraw();
         }
@@ -754,7 +754,6 @@ fn walk_dir(dir: &std::path::Path, base: &std::path::Path, models: &mut Vec<Disc
                         path,
                         name,
                         file_size: size,
-                        model_dir: base.to_path_buf(),
                         display_name,
                     });
                 }

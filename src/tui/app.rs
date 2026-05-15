@@ -2,7 +2,6 @@ use crate::backend::server::ServerHandle;
 use crate::config::{Config, LogEntry, Profile};
 use crate::models::{
     DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
-    DownloadState,
 };
 use chrono::Local;
 use ratatui::widgets::TableState;
@@ -45,16 +44,9 @@ pub enum ModelsMode {
         model_id: String,
         files: Vec<(String, u64, String)>, // (filename, size, url)
         selected_idx: Option<usize>,
-        #[allow(dead_code)]
         previous_query: String,
-        #[allow(dead_code)]
         previous_results: Vec<SearchResult>,
         selected_result: Option<SearchResult>,
-    },
-    /// Download mode: downloading a model.
-    #[allow(dead_code)]
-    Download {
-        state: DownloadState,
     },
 }
 
@@ -103,8 +95,6 @@ pub struct App {
     pub readme_cache: Option<(String, Vec<ratatui::text::Line<'static>>)>,
     pub model_states: std::collections::HashMap<String, ModelState>,
     pub metrics: ServerMetrics,
-    #[allow(dead_code)]
-    pub model_metrics: std::collections::HashMap<String, ServerMetrics>,
     pub download_progress: Vec<crate::models::DownloadState>,
     pub download_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
     pub download_rx: Option<tokio::sync::broadcast::Receiver<crate::models::DownloadState>>,
@@ -142,8 +132,6 @@ pub struct App {
     pub downloading: bool,
     pub server_log_rx: Option<tokio::sync::mpsc::Receiver<String>>,
     pub metrics_rx: Option<tokio::sync::mpsc::Receiver<crate::models::ServerMetrics>>,
-    #[allow(dead_code)]
-    pub model_dir_watch: Option<std::path::PathBuf>,
     pub global_mode: GlobalMode,
     pub loading_phases: Vec<LoadingPhase>,
     pub loading_progress: f32,
@@ -166,7 +154,7 @@ pub struct App {
 impl App {
     pub fn new(config: Config) -> Self {
         let mut log = VecDeque::new();
-        log.push_back(LogEntry::new("Starting llm-manager..."));
+        log.push_back(LogEntry::new("Starting llm-manager...", crate::config::LogLevel::Info));
         let default_params = config.default.clone();
         let settings: ModelSettings = default_params.into();
         Self {
@@ -181,7 +169,6 @@ impl App {
             settings,
             model_states: Default::default(),
             metrics: Default::default(),
-            model_metrics: Default::default(),
             download_progress: Vec::new(),
             download_tx: None,
             download_rx: None,
@@ -218,7 +205,6 @@ impl App {
             downloading: false,
             server_log_rx: None,
             metrics_rx: None,
-            model_dir_watch: None,
             global_mode: GlobalMode::Normal,
             loading_phases: Vec::new(),
             loading_progress: 0.0,
@@ -252,9 +238,13 @@ impl App {
         base
     }
 
-    pub fn add_log(&mut self, message: impl Into<String>) {
+    pub fn add_log(&mut self, message: impl Into<String>, level: crate::config::LogLevel) {
         let msg = message.into();
-        tracing::info!("{}", msg);
+        match level {
+            crate::config::LogLevel::Info => tracing::info!("{}", msg),
+            crate::config::LogLevel::Warning => tracing::warn!("{}", msg),
+            crate::config::LogLevel::Error => tracing::error!("{}", msg),
+        }
 
         // Detect loading phases from llama-server log output
         let upper = msg.to_uppercase();
@@ -283,7 +273,7 @@ impl App {
         }
 
         // Detect successful model load (including router mode)
-        if upper.contains("LOADED SUCCESSFULLY") 
+        if upper.contains("LOADED SUCCESSFULLY")
             || upper.contains("LLAMA_NEW_CONTEXT_WITH_MODEL")
             || upper.contains("MAIN: MODEL LOADED")
             || upper.contains("UPDATE_SLOTS: ALL SLOTS ARE IDLE")
@@ -291,7 +281,7 @@ impl App {
             self.loading_phases.push(LoadingPhase::Complete);
             self.loading_progress = 1.0;
             self.last_error_message = None;
-            
+
             // Transition any Loading models to Loaded
             let mut to_update = Vec::new();
             if let Some(handle) = &self.server_handle {
@@ -310,10 +300,11 @@ impl App {
         }
 
         // Detect model load failure or crash
-        let is_crash = upper.contains("LLAMA-SERVER") && (upper.contains("EXITED") || upper.contains("TERMINATED"));
-        let is_error = is_crash 
-            || upper.contains("ERROR") 
-            || upper.contains("FAILED TO LOAD") 
+        let is_crash =
+            upper.contains("LLAMA-SERVER") && (upper.contains("EXITED") || upper.contains("TERMINATED"));
+        let is_error = is_crash
+            || upper.contains("ERROR")
+            || upper.contains("FAILED TO LOAD")
             || upper.contains("EXCEPTION")
             || upper.contains("VK::SYSTEMERROR")
             || upper.contains("OUTOFDEVICEMEMORY")
@@ -334,7 +325,7 @@ impl App {
                     self.pending_kill = Some(h);
                 }
             }
-            
+
             self.last_error_message = Some(error_msg);
             self.reset_loading_state();
         }
@@ -350,7 +341,7 @@ impl App {
         if self.log_entries.len() >= 500 {
             self.log_entries.pop_front();
         }
-        self.log_entries.push_back(LogEntry::new(msg));
+        self.log_entries.push_back(LogEntry::new(msg, level));
     }
 
     /// Mark the app as needing a redraw in the next main loop iteration.
@@ -587,7 +578,7 @@ impl App {
 
                 if layers == 0 && hidden == 0 {
                     let keys: Vec<String> = model_data.metadata().keys().take(10).cloned().collect();
-                    self.add_log(&format!("GGUF parse: found 0 layers/hidden. Arch: {}. Sample keys: {:?}", arch, keys));
+                    self.add_log(&format!("GGUF parse: found 0 layers/hidden. Arch: {}. Sample keys: {:?}", arch, keys), crate::config::LogLevel::Info);
                 }
                 if !model_data.get_version().is_empty() {
                     file_type = model_data.get_version();
@@ -616,7 +607,6 @@ impl App {
                 // Cache the parsed metadata
                 if layers > 0 || hidden > 0 {
                     self.gguf_metadata_cache.insert(key, crate::models::GgufMetadata {
-                        path: model.path.to_string_lossy().to_string(),
                         layers,
                         hidden_size: hidden,
                         n_ctx_train,
@@ -642,9 +632,9 @@ impl App {
         } else {
             // Log failure so user knows why metadata is missing
             if let Err(e) = gguf_rs::get_gguf_container(&path_str) {
-                self.add_log(&format!("Failed to parse GGUF {}: {}", model.path.display(), e));
+                self.add_log(&format!("Failed to parse GGUF {}: {}", model.path.display(), e), crate::config::LogLevel::Error);
             } else {
-                self.add_log(&format!("Failed to decode GGUF: {}", model.path.display()));
+                self.add_log(&format!("Failed to decode GGUF: {}", model.path.display()), crate::config::LogLevel::Error);
             }
         }
     }
@@ -689,7 +679,7 @@ impl App {
     pub fn apply_profile(&mut self, profile: &Profile) {
         self.settings = profile.apply(self.settings.clone());
         self.resolve_system_prompt();
-        self.add_log(&format!("Applied profile: {}", profile.name));
+        self.add_log(&format!("Applied profile: {}", profile.name), crate::config::LogLevel::Info);
         self.set_redraw();
     }
 
@@ -711,9 +701,9 @@ impl App {
         };
         self.config.profiles.push(profile);
         if let Err(e) = self.config.save() {
-            self.add_log(&format!("Failed to save profile: {}", e));
+            self.add_log(&format!("Failed to save profile: {}", e), crate::config::LogLevel::Error);
         } else {
-            self.add_log(&format!("Saved profile: {}", name));
+            self.add_log(&format!("Saved profile: {}", name), crate::config::LogLevel::Info);
         }
         self.set_redraw();
     }
@@ -725,14 +715,14 @@ impl App {
             let override_cfg = crate::config::ModelOverride::from_settings(&self.settings);
             self.config.model_overrides.insert(name.clone(), override_cfg);
             if let Err(e) = self.config.save() {
-                self.add_log(&format!("Failed to save settings for {}: {}", name, e));
+                self.add_log(&format!("Failed to save settings for {}: {}", name, e), crate::config::LogLevel::Error);
             } else {
-                self.add_log(&format!("Saved settings for {}", name));
+                self.add_log(&format!("Saved settings for {}", name), crate::config::LogLevel::Info);
                 // Update the cache so it reflects the newly saved settings
                 self.model_settings_cache = self.settings.clone();
             }
         } else {
-            self.add_log("No model selected to save settings for");
+            self.add_log("No model selected to save settings for", crate::config::LogLevel::Warning);
         }
         self.set_redraw();
     }
@@ -783,20 +773,20 @@ impl App {
         
         // Check if selection is valid
         if selected_idx >= all_profiles.len() {
-            self.add_log("Invalid profile selection");
+            self.add_log("Invalid profile selection", crate::config::LogLevel::Info);
             return false;
         }
         
         // Check if it's a built-in profile
         if selected_idx < builtin.len() {
-            self.add_log("Cannot delete built-in profiles");
+            self.add_log("Cannot delete built-in profiles", crate::config::LogLevel::Info);
             return false;
         }
         
         // Map from display index to actual config.profiles index
         let display_user_idx = selected_idx - builtin.len();
         if display_user_idx >= user_profiles_displayed.len() {
-            self.add_log("Invalid profile selection");
+            self.add_log("Invalid profile selection", crate::config::LogLevel::Info);
             return false;
         }
         
@@ -806,11 +796,11 @@ impl App {
         self.config.profiles.remove(*actual_idx);
         
         if let Err(e) = self.config.save() {
-            self.add_log(&format!("Failed to delete profile: {}", e));
+            self.add_log(&format!("Failed to delete profile: {}", e), crate::config::LogLevel::Error);
             return false;
         }
         
-        self.add_log(&format!("Deleted profile: {}", profile_name));
+        self.add_log(&format!("Deleted profile: {}", profile_name), crate::config::LogLevel::Info);
         true
     }
 }
