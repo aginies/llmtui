@@ -713,6 +713,56 @@ impl Config {
         }
     }
 
+    pub fn load_from(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
+        if path.exists() {
+            let content = std::fs::read_to_string(&path)?;
+            let mut config: Config = serde_yaml::from_str(&content)?;
+            // normalize models_dir
+            let path_str = config.models_dir.to_string_lossy();
+            if path_str.starts_with("~/") {
+                let home = dirs::home_dir().unwrap_or_default();
+                config.models_dir = home.join(&path_str[2..]);
+            } else if !config.models_dir.is_absolute() {
+                config.models_dir = dirs::home_dir()
+                    .unwrap_or_default()
+                    .join(&config.models_dir);
+            }
+            let builtin = builtin_profiles();
+            let mut builtin_names: std::collections::HashSet<&str> = builtin.iter().map(|p| p.name.as_str()).collect();
+            config.profiles.retain(|p| {
+                if builtin_names.contains(p.name.as_str()) {
+                    builtin_names.remove(p.name.as_str());
+                    true
+                } else {
+                    true
+                }
+            });
+            for p in builtin {
+                if config.profiles.iter().all(|u| u.name != p.name) {
+                    config.profiles.push(p);
+                }
+            }
+            let builtin_presets = builtin_system_prompt_presets();
+            let mut builtin_preset_names: std::collections::HashSet<&str> = builtin_presets.iter().map(|p| p.name.as_str()).collect();
+            config.system_prompt_presets.retain(|p| {
+                if builtin_preset_names.contains(p.name.as_str()) {
+                    builtin_preset_names.remove(p.name.as_str());
+                    true
+                } else {
+                    true
+                }
+            });
+            for p in builtin_presets {
+                if config.system_prompt_presets.iter().all(|u| u.name != p.name) {
+                    config.system_prompt_presets.push(p);
+                }
+            }
+            Ok(config)
+        } else {
+            Err(format!("Config file not found: {}", path.display()).into())
+        }
+    }
+
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let path = Self::config_path();
         if let Some(parent) = path.parent() {
