@@ -158,6 +158,9 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             max_tokens: dp.max_tokens,
             cache_type: dp.cache_type,
             backend: dp.backend,
+            llama_cpp_version_cpu: dp.llama_cpp_version_cpu,
+            llama_cpp_version_vulkan: dp.llama_cpp_version_vulkan,
+            llama_cpp_version_rocm: dp.llama_cpp_version_rocm,
         }
     }
 }
@@ -512,6 +515,8 @@ pub enum Backend {
     Cpu,
     #[serde(rename = "vulkan")]
     Vulkan,
+    #[serde(rename = "rocm")]
+    Rocrm,
 }
 
 impl Default for Backend {
@@ -525,6 +530,7 @@ impl std::fmt::Display for Backend {
         match self {
             Backend::Cpu => write!(f, "cpu"),
             Backend::Vulkan => write!(f, "vulkan"),
+            Backend::Rocrm => write!(f, "rocm"),
         }
     }
 }
@@ -734,6 +740,12 @@ pub struct ModelSettings {
     pub cache_type: CacheType,
     /// Backend (cpu/vulkan).
     pub backend: Backend,
+    /// llama.cpp release tag for CPU backend (e.g. "b1234" or None for latest).
+    pub llama_cpp_version_cpu: Option<String>,
+    /// llama.cpp release tag for Vulkan backend (e.g. "b1234" or None for latest).
+    pub llama_cpp_version_vulkan: Option<String>,
+    /// llama.cpp release tag for ROCm backend (e.g. "b1234" or None for latest).
+    pub llama_cpp_version_rocm: Option<String>,
 }
 
 impl Default for ModelSettings {
@@ -818,6 +830,9 @@ impl Default for ModelSettings {
             max_tokens: Some(2048),
             cache_type: CacheType::F16,
             backend: Backend::Vulkan,
+            llama_cpp_version_cpu: None,
+            llama_cpp_version_vulkan: None,
+            llama_cpp_version_rocm: None,
         }
     }
 }
@@ -889,6 +904,9 @@ impl ModelSettings {
         settings.max_tokens = config.default.max_tokens;
         settings.cache_type = config.default.cache_type.clone();
         settings.backend = config.default.backend.clone();
+        settings.llama_cpp_version_cpu = config.default.llama_cpp_version_cpu.clone();
+        settings.llama_cpp_version_vulkan = config.default.llama_cpp_version_vulkan.clone();
+        settings.llama_cpp_version_rocm = config.default.llama_cpp_version_rocm.clone();
         settings
     }
 }
@@ -934,6 +952,15 @@ pub struct ServerMetrics {
     pub ctx_max: u32,
     /// Sum of gpu_mem_used across all loaded models (for Total VRAM display).
     pub total_vram_used: u64,
+}
+
+/// A llama.cpp release from GitHub.
+#[derive(Debug, Clone)]
+pub struct LlamaCppRelease {
+    pub tag: String,
+    pub name: String,
+    pub is_prerelease: bool,
+    pub size: Option<u64>,
 }
 
 impl Default for ServerMetrics {

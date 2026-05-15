@@ -479,6 +479,101 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+// Version picker mode
+    if let ModelsMode::VersionPicker { releases, selected_idx, previous_mode } = &mut app.models_mode {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                if *selected_idx > 0 {
+                    *selected_idx -= 1;
+                }
+                app.set_redraw();
+                return;
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if *selected_idx < releases.len().saturating_sub(1) {
+                    *selected_idx += 1;
+                }
+                app.set_redraw();
+                return;
+            }
+            KeyCode::PageUp => {
+                *selected_idx = selected_idx.saturating_sub(10);
+                app.set_redraw();
+                return;
+            }
+            KeyCode::PageDown => {
+                *selected_idx = (*selected_idx + 10).min(releases.len().saturating_sub(1));
+                app.set_redraw();
+                return;
+            }
+            KeyCode::Char('r') => {
+                // Refresh releases
+                match hub::list_releases().await {
+                    Ok(r) => {
+                        *releases = r;
+                        app.set_redraw();
+                    }
+                    Err(e) => {
+                        app.add_log(&format!("Failed to refresh releases: {}", e), crate::config::LogLevel::Error);
+                    }
+                }
+                return;
+            }
+KeyCode::Char('c') => {
+                // Toggle cached versions display
+                app.version_picker_show_cached = !app.version_picker_show_cached;
+                app.set_redraw();
+                return;
+            }
+ KeyCode::Tab => {
+                // Switch backend (cycle through all three)
+                app.picker_backend = match app.picker_backend {
+                    crate::models::Backend::Cpu => crate::models::Backend::Vulkan,
+                    crate::models::Backend::Vulkan => crate::models::Backend::Rocrm,
+                    crate::models::Backend::Rocrm => crate::models::Backend::Cpu,
+                };
+                app.set_redraw();
+                return;
+            }
+ KeyCode::Enter => {
+                if *selected_idx < releases.len() {
+                    let selected = releases[*selected_idx].tag.clone();
+                    let prev_mode = (**previous_mode).clone();
+                    match app.picker_backend {
+                        crate::models::Backend::Cpu => {
+                            app.config.default.llama_cpp_version_cpu = Some(selected.clone());
+                            app.settings.llama_cpp_version_cpu = Some(selected.clone());
+                            app.model_settings_cache.llama_cpp_version_cpu = Some(selected.clone());
+                        }
+                        crate::models::Backend::Vulkan => {
+                            app.config.default.llama_cpp_version_vulkan = Some(selected.clone());
+                            app.settings.llama_cpp_version_vulkan = Some(selected.clone());
+                            app.model_settings_cache.llama_cpp_version_vulkan = Some(selected.clone());
+                        }
+                        crate::models::Backend::Rocrm => {
+                            app.config.default.llama_cpp_version_rocm = Some(selected.clone());
+                            app.settings.llama_cpp_version_rocm = Some(selected.clone());
+                            app.model_settings_cache.llama_cpp_version_rocm = Some(selected.clone());
+                        }
+                    }
+                    app.models_mode = prev_mode;
+                    app.active_panel = ActivePanel::LlmSettings;
+                    app.add_log(&format!("Selected llama.cpp version [{}]: {}", app.picker_backend, selected), crate::config::LogLevel::Info);
+                    app.set_redraw();
+                }
+                return;
+            }
+ KeyCode::Esc => {
+                let prev_mode = (**previous_mode).clone();
+                app.models_mode = prev_mode;
+                app.active_panel = ActivePanel::LlmSettings;
+                return;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     // Skip normal key handling when help is showing
     if app.global_mode == GlobalMode::Help {
         return;
@@ -520,7 +615,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    match app.active_panel {
+ match app.active_panel {
         ActivePanel::Models => handle_models_key(app, key).await,
         ActivePanel::Log => handle_log_key(app, key),
         ActivePanel::Downloads => handle_downloads_key(app, key),
@@ -529,6 +624,26 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         ActivePanel::Profiles => handle_profiles_key(app, key),
         ActivePanel::SystemPromptPresets => handle_system_prompt_presets_key(app, key),
         ActivePanel::SearchReadme => handle_readme_key(app, key),
+    }
+
+    // Handle pending version picker (async)
+    if app.pending_version_picker && app.active_panel == ActivePanel::LlmSettings {
+        app.pending_version_picker = false;
+        app.refresh_cached_versions();
+        let releases = match crate::backend::hub::list_releases().await {
+            Ok(r) => r,
+            Err(e) => {
+                app.add_log(&format!("Failed to fetch releases: {}", e), crate::config::LogLevel::Error);
+                Vec::new()
+            }
+        };
+        let previous_mode = std::mem::replace(&mut app.models_mode, ModelsMode::List);
+        app.models_mode = ModelsMode::VersionPicker {
+            releases,
+            selected_idx: 0,
+            previous_mode: Box::new(previous_mode),
+        };
+        app.active_panel = ActivePanel::Models;
     }
 }
 
@@ -811,7 +926,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     // Cycle backend
                     app.settings.backend = match app.settings.backend {
                         crate::models::Backend::Cpu => crate::models::Backend::Vulkan,
-                        crate::models::Backend::Vulkan => crate::models::Backend::Cpu,
+                        crate::models::Backend::Vulkan => crate::models::Backend::Rocrm,
+                        crate::models::Backend::Rocrm => crate::models::Backend::Cpu,
                     };
                     app.update_vram_estimate();
                 }
@@ -1173,13 +1289,20 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.push('.');
             }
         }
-        KeyCode::Enter => {
+    KeyCode::Enter => {
             if !app.settings_edit_buffer.is_empty() {
                 if idx == 3 {
                     // GPU Layers: parse as layer count
                     if let Ok(v) = app.settings_edit_buffer.parse::<i32>() {
                         app.settings.gpu_layers = v.clamp(0, 999);
                     }
+                } else if idx == 22 {
+                    // Version field: request version picker
+                    app.refresh_cached_versions();
+                    app.pending_version_picker = true;
+                    app.settings_edit_buffer.clear();
+                    app.set_redraw();
+                    return;
                 } else {
                     apply_numeric_setting(&mut app.settings, idx, &app.settings_edit_buffer, app.max_threads, app.model_n_ctx_train);
                 }

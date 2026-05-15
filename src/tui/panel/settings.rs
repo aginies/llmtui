@@ -5,7 +5,7 @@ use ratatui::{
 
 /// Render the LLM Settings panel (Loading + GPU + Evaluation + Sampling + Repetition).
 /// Returns (lines, total_count, settings_height, selected_line_idx).
-pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, _vram_mib: u64, total_layers: u32, _n_ctx_train: u32, _max_threads: u32) -> (Vec<Line<'static>>, usize, usize, usize) {
+pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, _vram_mib: u64, total_layers: u32, _n_ctx_train: u32, _max_threads: u32, on_version_change: Option<&dyn Fn(&crate::models::ModelSettings)>) -> (Vec<Line<'static>>, usize, usize, usize) {
     let mut lines = Vec::new();
     let mut total_count = 0;
     let mut selected_line_idx = 0;
@@ -26,7 +26,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         if total_count == selected {
             selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, &loading_names[i], &val, selected, edit_buf, editing);
+        add_setting(&mut lines, &mut total_count, settings, cached, &loading_names[i], &val, selected, edit_buf, editing, on_version_change);
     }
     // ── GPU Offload ──────────────────────────────────────────
     lines.push(Line::from(vec![
@@ -55,7 +55,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         if total_count == selected {
             selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, &gpu_names[i], &val, selected, edit_buf, editing);
+        add_setting(&mut lines, &mut total_count, settings, cached, &gpu_names[i], &val, selected, edit_buf, editing, on_version_change);
     }
 
     // ── Evaluation ───────────────────────────────────────────
@@ -74,7 +74,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         if total_count == selected {
             selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, &eval_names[i], &val, selected, edit_buf, editing);
+        add_setting(&mut lines, &mut total_count, settings, cached, &eval_names[i], &val, selected, edit_buf, editing, on_version_change);
     }
 
     // ── Sampling ─────────────────────────────────────────────
@@ -96,14 +96,34 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         if total_count == selected {
             selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, &sampling_names[i], &val, selected, edit_buf, editing);
+        add_setting(&mut lines, &mut total_count, settings, cached, &sampling_names[i], &val, selected, edit_buf, editing, on_version_change);
+    }
+
+    // ── Backend ──────────────────────────────────────────────
+    lines.push(Line::from(vec![
+        Span::styled("--- Backend ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+    ]));
+
+    let backend_names = vec!["LLama.cpp Version"];
+    let cpu_ver = settings.llama_cpp_version_cpu.as_deref().unwrap_or("latest");
+    let vulk_ver = settings.llama_cpp_version_vulkan.as_deref().unwrap_or("latest");
+    let rocm_ver = settings.llama_cpp_version_rocm.as_deref().unwrap_or("latest");
+    let backend_vals = vec![
+        format!("CPU {} | Vulkan {} | ROCm {}", cpu_ver, vulk_ver, rocm_ver),
+    ];
+
+    for (i, val) in backend_vals.into_iter().enumerate() {
+        if total_count == selected {
+            selected_line_idx = lines.len();
+        }
+        add_setting(&mut lines, &mut total_count, settings, cached, &backend_names[i], &val, selected, edit_buf, editing, on_version_change);
     }
 
     let height = lines.len();
     (lines, total_count, height, selected_line_idx)
 }
 
-pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, name: &str, val: &str, selected: usize, edit_buf: &str, editing: bool) {
+pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, name: &str, val: &str, selected: usize, edit_buf: &str, editing: bool, on_version_change: Option<&dyn Fn(&crate::models::ModelSettings)>) {
     let current_idx = *total_count;
     let marker = if current_idx == selected { "> " } else { "  " };
     let name_style = Style::default().fg(Color::Yellow);
@@ -140,6 +160,7 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
             (None, None) => false,
             _ => true,
         },
+        22 => settings.llama_cpp_version_cpu != cached.llama_cpp_version_cpu || settings.llama_cpp_version_vulkan != cached.llama_cpp_version_vulkan || settings.llama_cpp_version_rocm != cached.llama_cpp_version_rocm,
         _ => false,
     };
 
@@ -152,6 +173,14 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
     } else {
         (val.to_string(), Style::default().fg(Color::White))
     };
+
+    // If version field and we have a callback, apply it
+    if current_idx == 22 {
+        if let Some(callback) = on_version_change {
+            callback(settings);
+        }
+    }
+
     lines.push(Line::from(vec![
         Span::styled(marker, Style::default().fg(Color::Yellow)),
         Span::styled(format!("{name}: "), name_style),

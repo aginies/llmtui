@@ -131,6 +131,23 @@ fn format_speed(bytes_per_second: f64) -> String {
 }
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
+    // Version picker mode
+    if let ModelsMode::VersionPicker { releases, selected_idx, .. } = &app.models_mode {
+        render_version_picker(
+            f,
+            area,
+            releases,
+            *selected_idx,
+            &app.cached_cpu_versions,
+            &app.cached_vulkan_versions,
+            &app.cached_rocm_versions,
+            app.version_picker_show_cached,
+            app.picker_backend,
+            app.version_picker_scroll_offset,
+        );
+        return;
+    }
+
     let (block, items) = match &app.models_mode {
         ModelsMode::List => {
             let title = format!(" Models ({} models) ", app.models.len());
@@ -330,6 +347,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             f.render_widget(Paragraph::new(hint), file_chunks[1]);
             return;
         }
+        _ => (
+            Block::default().borders(Borders::ALL),
+            Vec::new(),
+        ),
     };
 
     let mut list_state = ListState::default();
@@ -340,4 +361,176 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
     let list = List::new(items).block(block);
     f.render_stateful_widget(list, area, &mut list_state);
+}
+
+pub fn render_version_picker(
+    f: &mut Frame,
+    area: Rect,
+    releases: &[crate::models::LlamaCppRelease],
+    selected_idx: usize,
+    cpu_versions: &[String],
+    vulkan_versions: &[String],
+    rocm_versions: &[String],
+    show_cached: bool,
+    picker_backend: crate::models::Backend,
+    scroll_offset: u16,
+) {
+    let current_version = if selected_idx < releases.len() {
+        Some(&releases[selected_idx])
+    } else {
+        None
+    };
+
+    let title = if let Some(v) = current_version {
+        format!(" llama.cpp Releases (v{}) ", v.tag)
+    } else {
+        " llama.cpp Releases ".to_string()
+    };
+
+    let _block = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Yellow));
+
+    let chunks = ratatui::layout::Layout::default()
+        .direction(ratatui::layout::Direction::Vertical)
+        .constraints([
+            ratatui::layout::Constraint::Fill(1),
+            ratatui::layout::Constraint::Length(1),
+        ])
+        .split(area);
+
+    // Backend toggle header
+    let cpu_label = if picker_backend == crate::models::Backend::Cpu {
+        format!("[CPU] {}", "CPU".to_string())
+    } else {
+        "CPU".to_string()
+    };
+    let vulkan_label = if picker_backend == crate::models::Backend::Vulkan {
+        format!("[Vulkan] {}", "Vulkan".to_string())
+    } else {
+        "Vulkan".to_string()
+    };
+    let rocm_label = if picker_backend == crate::models::Backend::Rocrm {
+        format!("[ROCm] {}", "ROCm".to_string())
+    } else {
+        "ROCm".to_string()
+    };
+    let backend_line = Line::from(vec![
+        Span::styled(cpu_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::raw(" | "),
+        Span::styled(vulkan_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::raw(" | "),
+        Span::styled(rocm_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+    ]);
+    f.render_widget(Paragraph::new(backend_line), chunks[0]);
+
+    // Build rows for releases
+    let mut rows: Vec<Row> = Vec::new();
+    for (i, r) in releases.iter().enumerate() {
+ let tag_style = if i == selected_idx {
+            Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else if r.is_prerelease {
+            Style::default().fg(Color::DarkGray)
+        } else {
+            Style::default().fg(Color::White)
+        };
+
+        let tag = &r.tag;
+        let marker = if i == selected_idx { ">" } else { " " };
+        let marker_style = if i == selected_idx {
+            Style::default().fg(Color::Black).bg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::Yellow)
+        };
+
+        let backend_label = match picker_backend {
+            crate::models::Backend::Cpu => "CPU".to_string(),
+            crate::models::Backend::Vulkan => "Vulkan".to_string(),
+            crate::models::Backend::Rocrm => "ROCm".to_string(),
+        };
+
+        let size_hint = r.size.map(|s| format_size(s)).unwrap_or_default();
+        let name = if r.name.len() > 40 {
+            format!("{}...", &r.name[..37])
+        } else {
+            r.name.clone()
+        };
+
+        let row = Row::new(vec![
+            Cell::from(Span::styled(marker, marker_style)),
+            Cell::from(Span::styled(tag, tag_style)),
+            Cell::from(Span::styled(backend_label, Style::default().fg(Color::Cyan))),
+            Cell::from(Span::styled(name, Style::default().fg(Color::White))),
+            Cell::from(Span::styled(size_hint, Style::default().fg(Color::DarkGray))),
+        ]);
+        rows.push(row);
+    }
+
+    // Cached versions section
+    if show_cached {
+        let cached_versions = match picker_backend {
+            crate::models::Backend::Cpu => cpu_versions,
+            crate::models::Backend::Vulkan => vulkan_versions,
+            crate::models::Backend::Rocrm => rocm_versions,
+        };
+        if !cached_versions.is_empty() {
+            rows.push(Row::new(vec![
+                Cell::from(""),
+                Cell::from(""),
+                Cell::from(""),
+                Cell::from(""),
+                Cell::from(""),
+            ]));
+            let cached_header = Row::new(vec![
+                Cell::from(""),
+                Cell::from(""),
+                Cell::from(Span::styled("--- Cached ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD))),
+                Cell::from(""),
+                Cell::from(""),
+            ]);
+            rows.push(cached_header);
+            for cv in cached_versions {
+                rows.push(Row::new(vec![
+                    Cell::from(" "),
+                    Cell::from(Span::styled(cv, Style::default().fg(Color::Green))),
+                    Cell::from(""),
+                    Cell::from(""),
+                    Cell::from(""),
+                ]));
+            }
+        }
+    }
+
+    // Create table
+    let widths = [
+        Constraint::Length(2),
+        Constraint::Length(10),
+        Constraint::Length(8),
+        Constraint::Fill(1),
+        Constraint::Length(12),
+    ];
+
+    let table = Table::new(rows, widths);
+    let mut table_state = TableState::default();
+    table_state.select(Some(selected_idx));
+
+  // Apply scroll offset
+    let table_area = chunks[0];
+    let _table_height = table_area.height as usize;
+    if scroll_offset > 0 {
+        let current = table_state.selected();
+        if let Some(s) = current {
+            table_state.select(Some(s.saturating_sub(scroll_offset as usize)));
+        }
+    }
+
+    f.render_stateful_widget(table, table_area, &mut table_state);
+
+    // Hint line
+    let hint = Line::from(Span::styled(
+        "TAB to switch backend | ENTER to select | UP | DOWN | R refresh | C cached | ESC to back",
+        Style::default().fg(Color::Cyan),
+    ));
+    f.render_widget(Paragraph::new(hint), chunks[1]);
 }

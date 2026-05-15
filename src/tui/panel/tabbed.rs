@@ -38,7 +38,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     // ── Server Settings box (always shown) ───────────────────
     render_server_settings(f, server_area, app);
 
-    // ── LLM Settings ─────────────────────────────────────────
+   // ── LLM Settings ─────────────────────────────────────────
     let (settings_lines, count, settings_height, selected_line_idx) = settings::render_all(
         &app.settings,
         &app.model_settings_cache,
@@ -49,6 +49,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         app.model_total_layers,
         app.model_n_ctx_train,
         app.max_threads,
+        None,
     );
     
     // Ensure selection stays in bounds
@@ -139,11 +140,11 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
 
     let mut lines = Vec::new();
     let mut count = 0;
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", &host_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false);
+   settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", &host_val, selected, "", false, None);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false, None);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false, None);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false, None);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false, None);
     lines.push(Line::from(vec![
         Span::styled(format!("  Current: {mode_val}"), Style::default().fg(Color::DarkGray)),
     ]));

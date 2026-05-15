@@ -2,6 +2,55 @@ use anyhow::Result;
 use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 
+/// List available llama.cpp releases from GitHub.
+pub async fn list_releases() -> Result<Vec<crate::models::LlamaCppRelease>> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .get("https://api.github.com/repos/ggml-org/llama.cpp/releases")
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await?
+        .error_for_status()?;
+    let releases: Vec<serde_json::Value> = resp.json().await?;
+
+    let mut result = Vec::new();
+    for r in releases {
+        let tag = r
+            .get("tag_name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        let name = r
+            .get("name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| tag.clone());
+        let is_prerelease = r
+            .get("prerelease")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let size = r.get("assets").and_then(|assets| {
+            assets.as_array().and_then(|arr| {
+                arr.iter()
+                    .find(|a| {
+                        a.get("name").and_then(|n| n.as_str())
+                            .map(|n| n.contains("ubuntu-x64.tar.gz") || n.contains("ubuntu-vulkan-x64.tar.gz") || n.contains("ubuntu-rocm"))
+                            .unwrap_or(false)
+                    })
+                    .and_then(|a| a.get("size"))
+                    .and_then(|s| s.as_u64())
+            })
+        });
+        result.push(crate::models::LlamaCppRelease {
+            tag,
+            name,
+            is_prerelease,
+            size,
+        });
+    }
+    Ok(result)
+}
+
 /// Search models on HuggingFace.
 pub async fn search_models(query: &str, limit: u32) -> Result<Vec<crate::models::SearchResult>> {
     let url = format!(
@@ -250,14 +299,47 @@ use std::os::unix::fs::PermissionsExt;
 
 /// Resolve the llama-server binary path for a given backend.
 /// Downloads the binary from GitHub releases if not already cached.
-pub async fn resolve_backend_binary(backend: crate::models::Backend) -> Result<std::path::PathBuf> {
-    let bin_dir = dirs::data_local_dir()
+pub async fn resolve_backend_binary(backend: crate::models::Backend, version: Option<&str>) -> Result<std::path::PathBuf> {
+    let bin_base = dirs::data_local_dir()
         .unwrap_or_default()
         .join("llm-manager")
         .join("bin");
 
-    let bin_name = format!("llama-server-{}", backend);
-    let bin_path = bin_dir.join(&bin_name);
+    let tag = match version {
+        Some(v) if !v.is_empty() => v.to_string(),
+        _ => {
+            // Fetch latest release tag (best-effort; falls back to hardcoded tag)
+            let client = reqwest::Client::new();
+            match client
+                .get("https://api.github.com/repos/ggml-org/llama.cpp/releases/latest")
+                .header("Accept", "application/vnd.github.v3+json")
+                .send()
+                .await
+            {
+                Ok(resp) => match resp.error_for_status() {
+                    Ok(resp) => match resp.json::<serde_json::Value>().await {
+                        Ok(json) => json
+                            .get("tag_name")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| "b9128".to_string()),
+                        Err(_) => "b9128".to_string(),
+                    },
+                    Err(_) => "b9128".to_string(),
+                },
+                Err(_) => "b9128".to_string(),
+            }
+        }
+    };
+
+    let bin_name = format!("llama-server-{}-{}", match backend {
+        crate::models::Backend::Cpu => "cpu",
+        crate::models::Backend::Vulkan => "vulkan",
+        crate::models::Backend::Rocrm => "rocm",
+    }, tag);
+    let bin_dir = bin_base.join(&bin_name);
+    let bin_path = bin_dir.join("llama-server");
+
     // Check if both the binary and at least one shared library exist
     let lib_sentinel = bin_dir.join("libllama.so");
 
@@ -268,32 +350,13 @@ pub async fn resolve_backend_binary(backend: crate::models::Backend) -> Result<s
     // Create bin directory
     std::fs::create_dir_all(&bin_dir)?;
 
-    // Fetch latest release tag (best-effort; falls back to hardcoded tag)
     let client = reqwest::Client::new();
-    let tag = match client
-        .get("https://api.github.com/repos/ggml-org/llama.cpp/releases/latest")
-        .header("Accept", "application/vnd.github.v3+json")
-        .send()
-        .await
-    {
-        Ok(resp) => match resp.error_for_status() {
-            Ok(resp) => match resp.json::<serde_json::Value>().await {
-                Ok(json) => json
-                    .get("tag_name")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| "b9128".to_string()),
-                Err(_) => "b9128".to_string(),
-            },
-            Err(_) => "b9128".to_string(),
-        },
-        Err(_) => "b9128".to_string(),
-    };
 
     // Construct asset name
     let asset_name = match backend {
         crate::models::Backend::Cpu => format!("llama-{tag}-bin-ubuntu-x64.tar.gz"),
         crate::models::Backend::Vulkan => format!("llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz"),
+        crate::models::Backend::Rocrm => format!("llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz"),
     };
 
     let download_url = format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{asset_name}");

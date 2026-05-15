@@ -177,6 +177,9 @@ pub struct ModelOverride {
     pub max_tokens: Option<u32>,
     pub cache_type: Option<CacheType>,
     pub reasoning_mode: Option<crate::models::ReasoningMode>,
+    pub llama_cpp_version_cpu: Option<String>,
+    pub llama_cpp_version_vulkan: Option<String>,
+    pub llama_cpp_version_rocm: Option<String>,
 }
 
 impl ModelOverride {
@@ -239,6 +242,9 @@ impl ModelOverride {
             max_tokens: s.max_tokens,
             cache_type: Some(s.cache_type.clone()),
             reasoning_mode: Some(s.reasoning_mode),
+            llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
+            llama_cpp_version_vulkan: s.llama_cpp_version_vulkan.clone(),
+            llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
         }
     }
 
@@ -303,6 +309,9 @@ impl ModelOverride {
         base.server_mode = self.server_mode.clone().unwrap_or(base.server_mode.clone());
         base.max_tokens = self.max_tokens;
         base.cache_type = self.cache_type.clone().unwrap_or(base.cache_type.clone());
+        if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
+        if let Some(v) = &self.llama_cpp_version_vulkan { base.llama_cpp_version_vulkan = Some(v.clone()); }
+        if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
     }
 }
 
@@ -520,6 +529,12 @@ pub struct DefaultParams {
     pub cache_type: CacheType,
     #[serde(default)]
     pub backend: Backend,
+    #[serde(default)]
+    pub llama_cpp_version_cpu: Option<String>,
+    #[serde(default)]
+    pub llama_cpp_version_vulkan: Option<String>,
+    #[serde(default)]
+    pub llama_cpp_version_rocm: Option<String>,
 }
 
 fn default_system_prompt_preset_name() -> String {
@@ -614,6 +629,9 @@ impl Default for DefaultParams {
             max_tokens: None,
             cache_type: CacheType::F16,
             backend: Backend::Vulkan,
+            llama_cpp_version_cpu: None,
+            llama_cpp_version_vulkan: None,
+            llama_cpp_version_rocm: None,
         }
     }
 }

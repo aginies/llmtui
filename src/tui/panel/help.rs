@@ -14,6 +14,7 @@ pub fn render(f: &mut Frame, area: Rect, _app: &App) {
         .constraints([
             Constraint::Length(2),
             Constraint::Length(16),
+            Constraint::Length(4),
             Constraint::Length(1),
         ])
         .split(area);
@@ -29,6 +30,21 @@ pub fn render(f: &mut Frame, area: Rect, _app: &App) {
     f.render_widget(title, chunks[0]);
 
     // Shortcuts list
+    let version_shortcuts = vec![
+        Line::from(vec![
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw("  from version picker → back to settings"),
+        ]),
+        Line::from(vec![
+            Span::styled("R", Style::default().fg(Color::Yellow)),
+            Span::raw("  refresh versions list"),
+        ]),
+        Line::from(vec![
+            Span::styled("C", Style::default().fg(Color::Yellow)),
+            Span::raw("  toggle cached versions display"),
+        ]),
+    ];
+
     let shortcuts = vec![
         Line::from(vec![
             Span::styled("T", Style::default().fg(Color::Yellow)),
@@ -144,9 +160,14 @@ pub fn render(f: &mut Frame, area: Rect, _app: &App) {
         ]),
     ];
 
-    let list = Paragraph::new(shortcuts)
+   let list = Paragraph::new(shortcuts)
         .block(Block::default().borders(Borders::ALL).title(" "));
     f.render_widget(list, chunks[1]);
+
+    // Version picker shortcuts
+    let version_list = Paragraph::new(version_shortcuts)
+        .block(Block::default().borders(Borders::ALL).title(" Version Picker "));
+    f.render_widget(version_list, chunks[2]);
 
     // Footer
     let footer = Paragraph::new("Press Ctrl+Shift+H or Esc to close")

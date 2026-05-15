@@ -49,6 +49,12 @@ pub enum ModelsMode {
         previous_results: Vec<SearchResult>,
         selected_result: Option<SearchResult>,
     },
+   /// Version picker mode: selecting llama.cpp release version.
+    VersionPicker {
+        releases: Vec<crate::models::LlamaCppRelease>,
+        selected_idx: usize,
+        previous_mode: Box<ModelsMode>,
+    },
 }
 
 /// Global mode that overlays all panels.
@@ -149,12 +155,19 @@ pub struct App {
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,
     pub needs_redraw: bool,
-    pub panel_help: bool,
+   pub panel_help: bool,
     pub panel_help_offset: u16,
     /// Last error message captured from the log (used for Failed state display).
     pub last_error_message: Option<String>,
     /// Cached file modification time for debouncing metadata parsing.
     last_metadata_parse: (std::path::PathBuf, std::time::SystemTime),
+    pub cached_cpu_versions: Vec<String>,
+    pub cached_vulkan_versions: Vec<String>,
+    pub cached_rocm_versions: Vec<String>,
+    pub picker_backend: crate::models::Backend,
+    pub version_picker_scroll_offset: u16,
+    pub version_picker_show_cached: bool,
+    pub pending_version_picker: bool,
 }
 
 impl App {
@@ -227,7 +240,14 @@ impl App {
             panel_help: false,
             panel_help_offset: 0,
             last_error_message: None,
-            last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
+last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
+            pending_version_picker: false,
+            cached_cpu_versions: Vec::new(),
+            cached_vulkan_versions: Vec::new(),
+            cached_rocm_versions: Vec::new(),
+            picker_backend: crate::models::Backend::Cpu,
+            version_picker_scroll_offset: 0,
+            version_picker_show_cached: false,
         }
     }
 
@@ -235,7 +255,7 @@ impl App {
         self.selected_model_idx.and_then(|i| self.models.get(i))
     }
 
-    pub fn selected_model_settings(&self) -> ModelSettings {
+   pub fn selected_model_settings(&self) -> ModelSettings {
         let mut base: ModelSettings = self.config.default.clone().into();
         // Check for per-model overrides
         if let Some(model) = self.selected_model() {
@@ -244,6 +264,44 @@ impl App {
             }
         }
         base
+    }
+
+  pub fn refresh_cached_versions(&mut self) {
+        let bin_dir = dirs::data_local_dir()
+            .unwrap_or_default()
+            .join("llm-manager")
+            .join("bin");
+        if let Ok(entries) = std::fs::read_dir(&bin_dir) {
+            let mut cpu_versions: Vec<String> = Vec::new();
+            let mut vulkan_versions: Vec<String> = Vec::new();
+            let mut rocm_versions: Vec<String> = Vec::new();
+            for entry in entries.flatten() {
+                if let Ok(meta) = entry.metadata() {
+                    if meta.is_dir() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        // Extract version from llama-server-{cpu|vulkan|rocm}-{version}
+                        if let Some(pos) = name.rfind('-') {
+                            let version = &name[pos + 1..];
+                            if !version.is_empty() {
+                                if name.starts_with("llama-server-cpu-") && !cpu_versions.contains(&version.to_string()) {
+                                    cpu_versions.push(version.to_string());
+                                } else if name.starts_with("llama-server-vulkan-") && !vulkan_versions.contains(&version.to_string()) {
+                                    vulkan_versions.push(version.to_string());
+                                } else if name.starts_with("llama-server-rocm-") && !rocm_versions.contains(&version.to_string()) {
+                                    rocm_versions.push(version.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            cpu_versions.sort();
+            vulkan_versions.sort();
+            rocm_versions.sort();
+            self.cached_cpu_versions = cpu_versions;
+            self.cached_vulkan_versions = vulkan_versions;
+            self.cached_rocm_versions = rocm_versions;
+        }
     }
 
     pub fn add_log(&mut self, message: impl Into<String>, level: crate::config::LogLevel) {
@@ -774,6 +832,9 @@ impl App {
             || s.mmap != c.mmap
             || s.numa != c.numa
             || s.expert_count != c.expert_count
+            || s.llama_cpp_version_cpu != c.llama_cpp_version_cpu
+            || s.llama_cpp_version_vulkan != c.llama_cpp_version_vulkan
+            || s.llama_cpp_version_rocm != c.llama_cpp_version_rocm
     }
 
     /// Delete a user profile by index in the merged display list.

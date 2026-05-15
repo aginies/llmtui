@@ -353,9 +353,20 @@ pub async fn spawn_server(
     let backend_name = match settings.backend {
         Backend::Cpu => "llama-server-cpu",
         Backend::Vulkan => "llama-server-vulkan",
+        Backend::Rocrm => "llama-server-rocm",
     };
-    log_tx.send(format!("Downloading {} binary...", backend_name)).await.ok();
-    let binary = match crate::backend::hub::resolve_backend_binary(settings.backend).await {
+    let version_display = match settings.backend {
+        Backend::Cpu => settings.llama_cpp_version_cpu.as_deref().unwrap_or("latest"),
+        Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref().unwrap_or("latest"),
+        Backend::Rocrm => settings.llama_cpp_version_rocm.as_deref().unwrap_or("latest"),
+    };
+    log_tx.send(format!("Downloading {} (v{}) binary...", backend_name, version_display)).await.ok();
+    let version_param = match settings.backend {
+        Backend::Cpu => settings.llama_cpp_version_cpu.as_deref(),
+        Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref(),
+        Backend::Rocrm => settings.llama_cpp_version_rocm.as_deref(),
+    };
+    let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param).await {
         Ok(path) => {
             if !path.exists() {
                 return Err(format!("llama-server binary not found at: {}", path.display()));
