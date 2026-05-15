@@ -741,6 +741,8 @@ impl App {
         };
 
         s.context_length != c.context_length
+            || s.threads != c.threads
+            || s.threads_batch != c.threads_batch
             || s.mlock != c.mlock
             || s.system_prompt_preset_name != c.system_prompt_preset_name
             || s.reasoning_mode != c.reasoning_mode
@@ -750,6 +752,7 @@ impl App {
             || s.cache_type_k != c.cache_type_k
             || s.cache_type_v != c.cache_type_v
             || s.batch_size != c.batch_size
+            || s.ubatch_size != c.ubatch_size
             || s.uniform_cache != c.uniform_cache
             || s.max_concurrent_predictions != c.max_concurrent_predictions
             || s.seed != c.seed
@@ -762,6 +765,9 @@ impl App {
             || s.repeat_last_n != c.repeat_last_n
             || f32_dirty(s.presence_penalty, c.presence_penalty)
             || f32_dirty(s.frequency_penalty, c.frequency_penalty)
+            || s.keep != c.keep
+            || s.mmap != c.mmap
+            || s.numa != c.numa
     }
 
     /// Delete a user profile by index in the merged display list.

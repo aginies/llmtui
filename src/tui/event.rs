@@ -730,7 +730,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.server_settings_selected_idx = (app.server_settings_selected_idx + 1).min(4);
+            app.server_settings_selected_idx = (app.server_settings_selected_idx + 1).min(3);
             app.set_redraw();
         }
         KeyCode::Enter => {
@@ -752,15 +752,10 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.update_vram_estimate();
                 }
                 2 => {
-                    // Cycle parallel (1-10)
-                    app.settings.parallel = (app.settings.parallel % 10) + 1;
-                    app.update_vram_estimate();
-                }
-                3 => {
                     // Cycle threads (1-max)
                     app.settings.threads = (app.settings.threads % app.max_threads) + 1;
                 }
-                4 => {
+                3 => {
                     // Cycle threads batch (1-32)
                     app.settings.threads_batch = (app.settings.threads_batch % 32) + 1;
                 }
@@ -771,9 +766,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.server_settings_selected_idx {
-                2 => app.settings.parallel = app.settings.parallel.saturating_sub(1).max(1),
-                3 => app.settings.threads = app.settings.threads.saturating_sub(1).max(1),
-                4 => app.settings.threads_batch = app.settings.threads_batch.saturating_sub(1).max(1),
+                2 => app.settings.threads = app.settings.threads.saturating_sub(1).max(1),
+                3 => app.settings.threads_batch = app.settings.threads_batch.saturating_sub(1).max(1),
                 _ => {}
             }
             app.update_vram_estimate();
@@ -782,9 +776,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Right | KeyCode::Char('l') => {
             match app.server_settings_selected_idx {
-                2 => app.settings.parallel = (app.settings.parallel + 1).min(10),
-                3 => app.settings.threads = (app.settings.threads + 1).min(app.max_threads),
-                4 => app.settings.threads_batch = (app.settings.threads_batch + 1).min(64),
+                2 => app.settings.threads = (app.settings.threads + 1).min(app.max_threads),
+                3 => app.settings.threads_batch = (app.settings.threads_batch + 1).min(64),
                 _ => {}
             }
             app.update_vram_estimate();
@@ -823,16 +816,23 @@ fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _m
         11 => { if let Ok(v) = buf.parse::<u32>() { settings.max_concurrent_predictions = v.clamp(1, 10); } }
         // Sampling
         12 => { if let Ok(v) = buf.parse::<i32>() { settings.seed = v; } }
-        13 => { if let Ok(v) = buf.parse::<f32>() { settings.temperature = v.clamp(0.0, 2.0); } }
-        14 => { if let Ok(v) = buf.parse::<i32>() { settings.top_k = v.max(1); } }
-        15 => { if let Ok(v) = buf.parse::<f32>() { settings.top_p = v.clamp(0.0, 1.0); } }
-        16 => { if let Ok(v) = buf.parse::<f32>() { settings.min_p = v.clamp(0.0, 1.0); } }
-        17 => { if let Ok(v) = buf.parse::<u32>() { settings.max_tokens = Some(v.max(16)); } }
-        // Repetition
-        18 => { if let Ok(v) = buf.parse::<f32>() { settings.repeat_penalty = v.clamp(1.0, 2.0); } }
-        19 => { if let Ok(v) = buf.parse::<i32>() { settings.repeat_last_n = v; } }
-        20 => { if let Ok(v) = buf.parse::<f32>() { settings.presence_penalty = Some(v.clamp(-2.0, 2.0)); } }
-        21 => { if let Ok(v) = buf.parse::<f32>() { settings.frequency_penalty = Some(v.clamp(-2.0, 2.0)); } }
+        14 => { if let Ok(v) = buf.parse::<i32>() { settings.temperature = (v as f32 / 100.0).clamp(0.0, 2.0); } }
+        15 => { if let Ok(v) = buf.parse::<i32>() { settings.top_k = v.max(0); } }
+        16 => { if let Ok(v) = buf.parse::<i32>() { settings.top_p = (v as f32 / 100.0).clamp(0.0, 1.0); } }
+        17 => { if let Ok(v) = buf.parse::<i32>() { settings.min_p = (v as f32 / 100.0).clamp(0.0, 1.0); } }
+        18 => { if let Ok(v) = buf.parse::<i32>() { settings.max_tokens = if v == 0 { None } else { Some(v as u32) }; } }
+        19 => { if let Ok(v) = buf.parse::<i32>() { settings.repeat_penalty = (v as f32 / 100.0).clamp(0.0, 2.0); } }
+        20 => { if let Ok(v) = buf.parse::<i32>() { settings.repeat_last_n = v.max(0); } }
+        21 => {
+            if let Ok(v) = buf.parse::<i32>() {
+                settings.presence_penalty = Some((v as f32 / 100.0).clamp(0.0, 1.0));
+            }
+        }
+        22 => {
+            if let Ok(v) = buf.parse::<i32>() {
+                settings.frequency_penalty = Some((v as f32 / 100.0).clamp(0.0, 1.0));
+            }
+        }
         _ => {}
     }
 }

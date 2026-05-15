@@ -240,61 +240,63 @@ impl ModelOverride {
 
     /// Merge override into a base ModelSettings (in-place).
     pub fn apply(&self, base: &mut crate::models::ModelSettings) {
-        if let Some(v) = self.context_length { base.context_length = v; }
-        if let Some(v) = self.batch_size { base.batch_size = v; }
-        if let Some(v) = self.ubatch_size { base.ubatch_size = v; }
-        if self.cache_type_k.is_some() { base.cache_type_k = self.cache_type_k; }
-        if self.cache_type_v.is_some() { base.cache_type_v = self.cache_type_v; }
-        if let Some(v) = self.keep { base.keep = v; }
-        if let Some(v) = self.swa_full { base.swa_full = v; }
-        if let Some(v) = self.mlock { base.mlock = v; }
-        if let Some(v) = self.mmap { base.mmap = v; }
-        if let Some(v) = self.numa { base.numa = v; }
-        if let Some(v) = self.uniform_cache { base.uniform_cache = v; }
-        if let Some(v) = self.kv_cache_offload { base.kv_cache_offload = v; }
+        // Override values always take precedence. For Option<T> fields,
+        // the override value (even None) is explicitly set by the user.
+        base.context_length = self.context_length.unwrap_or(base.context_length);
+        base.batch_size = self.batch_size.unwrap_or(base.batch_size);
+        base.ubatch_size = self.ubatch_size.unwrap_or(base.ubatch_size);
+        base.cache_type_k = self.cache_type_k.clone();
+        base.cache_type_v = self.cache_type_v.clone();
+        base.keep = self.keep.unwrap_or(base.keep);
+        base.swa_full = self.swa_full.unwrap_or(base.swa_full);
+        base.mlock = self.mlock.unwrap_or(base.mlock);
+        base.mmap = self.mmap.unwrap_or(base.mmap);
+        base.numa = self.numa.clone().unwrap_or(base.numa.clone());
+        base.uniform_cache = self.uniform_cache.unwrap_or(base.uniform_cache);
+        base.kv_cache_offload = self.kv_cache_offload.unwrap_or(base.kv_cache_offload);
         if let Some(v) = &self.system_prompt { base.system_prompt = v.clone(); }
         if let Some(v) = &self.system_prompt_preset_name { base.system_prompt_preset_name = v.clone(); }
-        if let Some(v) = self.max_concurrent_predictions { base.max_concurrent_predictions = v; }
-        if let Some(v) = self.gpu_layers { base.gpu_layers = v; }
-        if let Some(v) = &self.split_mode { base.split_mode = v.clone(); }
-        if let Some(v) = &self.tensor_split { base.tensor_split = v.clone(); }
-        if let Some(v) = self.main_gpu { base.main_gpu = v; }
-        if let Some(v) = self.fit { base.fit = v; }
-        if let Some(v) = &self.lora { base.lora = Some(v.clone()); }
-        if let Some(v) = &self.lora_scaled { base.lora_scaled = Some(v.clone()); }
-        if let Some(v) = &self.rpc { base.rpc = v.clone(); }
-        if let Some(v) = self.embedding { base.embedding = v; }
-        if let Some(v) = self.flash_attn { base.flash_attn = v; }
-        if let Some(v) = self.jinja { base.jinja = v; }
-        if let Some(v) = &self.chat_template { base.chat_template = Some(v.clone()); }
-        if let Some(v) = self.reasoning_mode { base.reasoning_mode = v; }
-        if let Some(v) = self.seed { base.seed = v; }
-        if let Some(v) = self.temperature { base.temperature = v; }
-        if let Some(v) = self.top_k { base.top_k = v; }
-        if let Some(v) = self.top_p { base.top_p = v; }
-        if let Some(v) = self.min_p { base.min_p = v; }
-        if let Some(v) = self.typical_p { base.typical_p = v; }
-        if let Some(v) = self.mirostat { base.mirostat = v; }
-        if let Some(v) = self.mirostat_lr { base.mirostat_lr = v; }
-        if let Some(v) = self.mirostat_ent { base.mirostat_ent = v; }
-        if let Some(v) = self.ignore_eos { base.ignore_eos = v; }
-        if let Some(v) = &self.samplers { base.samplers = v.clone(); }
-        if let Some(v) = self.repeat_penalty { base.repeat_penalty = v; }
-        if let Some(v) = self.repeat_last_n { base.repeat_last_n = v; }
-        if self.presence_penalty.is_some() { base.presence_penalty = self.presence_penalty; }
-        if self.frequency_penalty.is_some() { base.frequency_penalty = self.frequency_penalty; }
-        if let Some(v) = self.dry_multiplier { base.dry_multiplier = v; }
-        if let Some(v) = self.dry_base { base.dry_base = v; }
-        if let Some(v) = self.dry_allowed_length { base.dry_allowed_length = v; }
-        if let Some(v) = self.dry_penalty_last_n { base.dry_penalty_last_n = v; }
-        if let Some(v) = &self.rope_scaling { base.rope_scaling = v.clone(); }
-        if let Some(v) = self.rope_scale { base.rope_scale = v; }
-        if let Some(v) = self.rope_freq_base { base.rope_freq_base = v; }
-        if let Some(v) = self.rope_freq_scale { base.rope_freq_scale = v; }
-        if let Some(v) = self.cache_prompt { base.cache_prompt = v; }
-        if let Some(v) = self.cache_reuse { base.cache_reuse = v; }
-        if self.max_tokens.is_some() { base.max_tokens = self.max_tokens; }
-        if let Some(v) = &self.cache_type { base.cache_type = v.clone(); }
+        base.max_concurrent_predictions = self.max_concurrent_predictions.unwrap_or(base.max_concurrent_predictions);
+        base.gpu_layers = self.gpu_layers.unwrap_or(base.gpu_layers);
+        base.split_mode = self.split_mode.clone().unwrap_or(base.split_mode.clone());
+        base.tensor_split = self.tensor_split.clone().unwrap_or(base.tensor_split.clone());
+        base.main_gpu = self.main_gpu.unwrap_or(base.main_gpu);
+        base.fit = self.fit.unwrap_or(base.fit);
+        base.lora = self.lora.clone();
+        base.lora_scaled = self.lora_scaled.clone();
+        base.rpc = self.rpc.clone().unwrap_or(base.rpc.clone());
+        base.embedding = self.embedding.unwrap_or(base.embedding);
+        base.flash_attn = self.flash_attn.unwrap_or(base.flash_attn);
+        base.jinja = self.jinja.unwrap_or(base.jinja);
+        base.chat_template = self.chat_template.clone();
+        base.reasoning_mode = self.reasoning_mode.unwrap_or(base.reasoning_mode);
+        base.seed = self.seed.unwrap_or(base.seed);
+        base.temperature = self.temperature.unwrap_or(base.temperature);
+        base.top_k = self.top_k.unwrap_or(base.top_k);
+        base.top_p = self.top_p.unwrap_or(base.top_p);
+        base.min_p = self.min_p.unwrap_or(base.min_p);
+        base.typical_p = self.typical_p.unwrap_or(base.typical_p);
+        base.mirostat = self.mirostat.clone().unwrap_or(base.mirostat.clone());
+        base.mirostat_lr = self.mirostat_lr.unwrap_or(base.mirostat_lr);
+        base.mirostat_ent = self.mirostat_ent.unwrap_or(base.mirostat_ent);
+        base.ignore_eos = self.ignore_eos.unwrap_or(base.ignore_eos);
+        base.samplers = self.samplers.clone().unwrap_or(base.samplers.clone());
+        base.repeat_penalty = self.repeat_penalty.unwrap_or(base.repeat_penalty);
+        base.repeat_last_n = self.repeat_last_n.unwrap_or(base.repeat_last_n);
+        base.presence_penalty = self.presence_penalty;
+        base.frequency_penalty = self.frequency_penalty;
+        base.dry_multiplier = self.dry_multiplier.unwrap_or(base.dry_multiplier);
+        base.dry_base = self.dry_base.unwrap_or(base.dry_base);
+        base.dry_allowed_length = self.dry_allowed_length.unwrap_or(base.dry_allowed_length);
+        base.dry_penalty_last_n = self.dry_penalty_last_n.unwrap_or(base.dry_penalty_last_n);
+        base.rope_scaling = self.rope_scaling.clone().unwrap_or(base.rope_scaling.clone());
+        base.rope_scale = self.rope_scale.unwrap_or(base.rope_scale);
+        base.rope_freq_base = self.rope_freq_base.unwrap_or(base.rope_freq_base);
+        base.rope_freq_scale = self.rope_freq_scale.unwrap_or(base.rope_freq_scale);
+        base.cache_prompt = self.cache_prompt.unwrap_or(base.cache_prompt);
+        base.cache_reuse = self.cache_reuse.unwrap_or(base.cache_reuse);
+        base.max_tokens = self.max_tokens;
+        base.cache_type = self.cache_type.clone().unwrap_or(base.cache_type.clone());
     }
 }
 
