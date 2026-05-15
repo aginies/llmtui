@@ -48,6 +48,16 @@ pub struct Config {
     /// System prompt presets.
     #[serde(default)]
     pub system_prompt_presets: Vec<SystemPromptPreset>,
+
+    /// HTTP server bind address (e.g. "127.0.0.1:49222").
+    #[serde(default)]
+    pub server_bind: Option<String>,
+    /// HTTP server API key for authentication.
+    #[serde(default)]
+    pub server_api_key: Option<String>,
+    /// Whether TUI manages an HTTP server (not a local llama-server).
+    #[serde(default)]
+    pub server_mode: bool,
 }
 
 /// A named profile of settings.
@@ -645,6 +655,9 @@ impl Default for Config {
             model_overrides: Default::default(),
             profiles: builtin_profiles(),
             system_prompt_presets: builtin_system_prompt_presets(),
+            server_bind: Some("127.0.0.1:49222".to_string()),
+            server_api_key: None,
+            server_mode: false,
         }
     }
 }
@@ -779,6 +792,8 @@ pub enum LogLevel {
     Info,
     Warning,
     Error,
+    Debug,
+    Warn,
 }
 
 impl LogLevel {
@@ -787,6 +802,8 @@ impl LogLevel {
             LogLevel::Info => "INFO",
             LogLevel::Warning => "WARNING",
             LogLevel::Error => "ERROR",
+            LogLevel::Debug => "DEBUG",
+            LogLevel::Warn => "WARN",
         }
     }
 }

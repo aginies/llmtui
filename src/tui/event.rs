@@ -869,7 +869,12 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
 
                         app.last_error_message = None;
-                        app.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
+                        let path_str = if app.remote_enabled {
+                            None
+                        } else {
+                            Some(model.path.to_string_lossy().to_string())
+                        };
+                        app.pending_api_load = Some((model.display_name.clone(), path_str));
                         app.loading_phases = vec![LoadingPhase::LoadingModel];
                         app.loading_progress = 0.5;
                         app.add_log(&format!("Loading {} via API...", model.display_name), crate::config::LogLevel::Info);
@@ -1020,7 +1025,9 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
 // Evaluation: 9: Eval Batch, 10: Unified KV, 11: Max Concurrent Pred
 // Sampling: 12: Seed, 13: Temp, 14: Top-k, 15: Top-p, 16: Min P, 17: Max Tokens
 // Repetition: 18: Rep. Penalty, 19: Rep. Last N, 20: Presence, 21: Frequency
-// Total: 22 fields
+// Server: 23: API Key
+// Backend: 22: LLama.cpp Version
+// Total: 23 fields
 
 fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _max_threads: u32, max_context: u32) {
     match idx {
@@ -1179,11 +1186,23 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else {
-                let count = 22; // Total editable LLM settings
+                let count = 23; // Total editable LLM settings
                 app.settings_selected_idx = (app.settings_selected_idx + 1).min(count - 1);
                 app.set_redraw();
             }
         }
+        // API Key: text entry on Enter
+        _ if idx == 23 => {
+            if !app.settings_edit_buffer.is_empty() {
+                app.settings.server_api_key = Some(app.settings_edit_buffer.clone());
+                app.settings_edit_buffer.clear();
+                app.set_redraw();
+            } else {
+                app.settings_edit_buffer.clear();
+                app.set_redraw();
+            }
+        }
+
         // System Prompt: open presets panel on Enter
         _ if idx == 1 => {
             if !app.settings_edit_buffer.is_empty() {
@@ -1342,6 +1361,9 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.settings_edit_buffer.clear();
                     app.set_redraw();
                     return;
+                } else if idx == 23 {
+                    // API Key: save text
+                    app.settings.server_api_key = Some(app.settings_edit_buffer.clone());
                 } else {
                     apply_numeric_setting(&mut app.settings, idx, &app.settings_edit_buffer, app.max_threads, app.model_n_ctx_train);
                 }

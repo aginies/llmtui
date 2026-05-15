@@ -99,6 +99,26 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         add_setting(&mut lines, &mut total_count, settings, cached, &sampling_names[i], &val, selected, edit_buf, editing, on_version_change);
     }
 
+    // ── Server ───────────────────────────────────────────────
+    lines.push(Line::from(vec![
+        Span::styled("--- Server ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+    ]));
+
+    let server_names = vec!["API Key"];
+    let server_vals = vec![
+        match &settings.server_api_key {
+            Some(key) if !key.is_empty() => "********",
+            _ => "None",
+        },
+    ];
+
+    for (i, val) in server_vals.into_iter().enumerate() {
+        if total_count == selected {
+            selected_line_idx = lines.len();
+        }
+        add_setting(&mut lines, &mut total_count, settings, cached, &server_names[i], &val, selected, edit_buf, editing, on_version_change);
+    }
+
     // ── Backend ──────────────────────────────────────────────
     lines.push(Line::from(vec![
         Span::styled("--- Backend ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
@@ -161,6 +181,7 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
             _ => true,
         },
         22 => settings.llama_cpp_version_cpu != cached.llama_cpp_version_cpu || settings.llama_cpp_version_vulkan != cached.llama_cpp_version_vulkan || settings.llama_cpp_version_rocm != cached.llama_cpp_version_rocm,
+        23 => settings.server_api_key != cached.server_api_key,
         _ => false,
     };
 

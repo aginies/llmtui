@@ -1,5 +1,6 @@
 mod backend;
 mod config;
+mod http;
 mod models;
 mod serve;
 mod tui;
@@ -41,6 +42,14 @@ enum Cli {
         /// Path to config file
         #[arg(short, long)]
         config: Option<String>,
+
+        /// HTTP server URL to connect to (e.g., http://127.0.0.1:49222)
+        #[arg(long)]
+        server: Option<String>,
+
+        /// API key for the remote server (Bearer token)
+        #[arg(long)]
+        api_key: Option<String>,
     },
 
     /// Serve a model using llama-server with all config.yaml settings
@@ -53,6 +62,22 @@ enum Cli {
         /// Apply a settings profile (e.g. qwen, llama, mistral)
         #[arg(short, long)]
         profile: Option<String>,
+
+        /// Path to config file
+        #[arg(short, long)]
+        config: Option<String>,
+    },
+
+    /// Start the HTTP management server
+    #[command(name = "server", about = "Start the HTTP server")]
+    Server {
+        /// Bind address (default: 127.0.0.1:49222)
+        #[arg(short, long)]
+        bind: Option<String>,
+
+        /// API key for authentication (Bearer token)
+        #[arg(long)]
+        api_key: Option<String>,
 
         /// Path to config file
         #[arg(short, long)]
@@ -84,11 +109,24 @@ async fn main() -> Result<()> {
         Cli::Serve { model, profile, config } => {
             serve::serve_model(&model, profile.as_deref(), config.as_deref()).await
         }
+        Cli::Server { bind, api_key, config } => {
+            let config_path = config.map(PathBuf::from).unwrap_or(Config::config_path());
+            let config = if config_path.exists() {
+                Config::load().map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
+            } else {
+                Config::default()
+            };
+            http::start_server(config, bind, api_key).await.map(|_| {
+                loop { std::thread::park() }
+            })
+        }
         Cli::Tui {
             models_dir,
             llama_server,
             backend,
             config,
+            server: remote_server,
+            api_key: remote_api_key,
         } => {
             let config_path = config.map(PathBuf::from).unwrap_or(Config::config_path());
 
@@ -117,13 +155,27 @@ async fn main() -> Result<()> {
     // Discover models asynchronously
     let models_dir = config.models_dir.clone();
     let models = tokio::task::spawn_blocking(move || {
-        discover_models(&models_dir)
+        crate::models::discover_models(&models_dir)
     }).await.unwrap_or_default();
     
     info!("Discovered {} models", models.len());
 
     let mut app = App::new(config);
-    app.models = models;
+    if let Some(url) = &remote_server {
+        app.remote_server = Some(url.clone());
+        app.remote_api_key = remote_api_key.clone();
+        app.remote_enabled = true;
+        info!("Connecting to remote server: {}", url);
+        let key = app.remote_api_key.as_deref().unwrap_or("");
+        let remote_models = fetch_models_from_server(url, key).await;
+        match &remote_models {
+            Ok(models) => info!("Remote server returned {} models", models.len()),
+            Err(e) => info!("Failed to fetch remote models: {}", e),
+        }
+        app.models = remote_models.unwrap_or_default();
+    } else {
+        app.models = models;
+    }
     if !app.models.is_empty() {
         app.selected_model_idx = Some(0);
         app.on_model_selection_change();
@@ -369,7 +421,9 @@ async fn main() -> Result<()> {
 
         // Handle pending API load
         if let Some((model_name, model_path)) = app.pending_api_load.clone() {
-            if let Some(handle) = &app.server_handle {
+            if app.remote_enabled {
+                app.pending_api_load = None;
+            } else if let Some(handle) = &app.server_handle {
                 // Ensure server is listening (marked by Complete phase) before sending API load
                 if app.loading_phases.contains(&crate::tui::app::LoadingPhase::Complete) || app.loading_phases.contains(&crate::tui::app::LoadingPhase::ServerListening) {
                     let host = handle.host.clone();
@@ -412,7 +466,9 @@ async fn main() -> Result<()> {
 
         // Handle pending API unload
         if let Some((model_name, model_path)) = app.pending_api_unload.take() {
-            if let Some(handle) = &app.server_handle {
+            if app.remote_enabled {
+                // Unloading not yet supported in remote mode
+            } else if let Some(handle) = &app.server_handle {
                 let host = handle.host.clone();
                 let port = handle.port;
                 let model_name_clone = model_name.clone();
@@ -520,7 +576,7 @@ async fn main() -> Result<()> {
                 match &state.status {
                     crate::models::DownloadStatus::Complete => {
                         app.add_log("Download complete!", crate::config::LogLevel::Info);
-                        app.models = discover_models(&app.config.models_dir);
+                        app.models = crate::models::discover_models(&app.config.models_dir);
                     }
                     crate::models::DownloadStatus::Error(e) => {
                         app.add_log(&format!("Download failed: {}", e), crate::config::LogLevel::Error);
@@ -827,40 +883,24 @@ async fn main() -> Result<()> {
     }
 }
 
-/// Scan a directory (recursively) for .gguf model files.
-fn discover_models(dir: &std::path::Path) -> Vec<DiscoveredModel> {
-    let mut models = Vec::new();
-    walk_dir(dir, dir, &mut models);
-    models.sort_by(|a, b| a.name.cmp(&b.name));
-    models
-}
 
-fn walk_dir(dir: &std::path::Path, base: &std::path::Path, models: &mut Vec<DiscoveredModel>) {
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() && path.extension().map(|e| e == "gguf").unwrap_or(false) {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    let name = name.to_string();
-                    let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                    // Compute display name: relative path from base directory.
-                    let display_name = path
-                        .strip_prefix(base)
-                        .ok()
-                        .and_then(|p| p.to_str())
-                        .unwrap_or(&name)
-                        .to_string();
-                    models.push(DiscoveredModel {
-                        path,
-                        name,
-                        file_size: size,
-                        display_name,
-                    });
-                }
-            } else if path.is_dir() {
-                walk_dir(&path, base, models);
-            }
-        }
+async fn fetch_models_from_server(url: &str, api_key: &str) -> Result<Vec<DiscoveredModel>> {
+    let client = reqwest::Client::new();
+    let mut req = client.get(format!("{}/models", url));
+    if !api_key.is_empty() {
+        req = req.header("Authorization", format!("Bearer {}", api_key));
+    }
+    let resp = req.send().await?;
+    if resp.status().is_success() {
+        let models: Vec<String> = resp.json().await?;
+        Ok(models.into_iter().map(|name| DiscoveredModel {
+            path: PathBuf::from(&name),
+            name: name.clone(),
+            file_size: 0,
+            display_name: name,
+        }).collect())
+    } else {
+        Ok(Vec::new())
     }
 }
 

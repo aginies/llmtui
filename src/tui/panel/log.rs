@@ -33,6 +33,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let level_color = match e.level {
                 crate::config::LogLevel::Info => Color::Cyan,
                 crate::config::LogLevel::Warning => Color::Yellow,
+                crate::config::LogLevel::Warn => Color::Yellow,
+                crate::config::LogLevel::Debug => Color::DarkGray,
                 crate::config::LogLevel::Error => Color::Red,
             };
             Line::from(vec![

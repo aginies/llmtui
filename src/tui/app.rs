@@ -146,6 +146,9 @@ pub struct App {
     pub downloading: bool,
     pub server_log_rx: Option<tokio::sync::mpsc::Receiver<String>>,
     pub metrics_rx: Option<tokio::sync::mpsc::Receiver<crate::models::ServerMetrics>>,
+    pub remote_server: Option<String>,
+    pub remote_api_key: Option<String>,
+    pub remote_enabled: bool,
     pub global_mode: GlobalMode,
     pub loading_phases: Vec<LoadingPhase>,
     pub loading_progress: f32,
@@ -183,8 +186,7 @@ impl App {
     pub fn new(config: Config) -> Self {
         let mut log = VecDeque::new();
         log.push_back(LogEntry::new("Starting llm-manager...", crate::config::LogLevel::Info));
-        let default_params = config.default.clone();
-        let settings: ModelSettings = default_params.into();
+        let settings = ModelSettings::from_config(&config);
         Self {
             running: true,
             config,
@@ -260,6 +262,9 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             version_picker_show_cached: false,
             pending_search_load: None,
             search_loading: false,
+            remote_server: None,
+            remote_api_key: None,
+            remote_enabled: false,
         }
     }
 
@@ -321,6 +326,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         match level {
             crate::config::LogLevel::Info => tracing::info!("{}", msg),
             crate::config::LogLevel::Warning => tracing::warn!("{}", msg),
+            crate::config::LogLevel::Warn => tracing::warn!("{}", msg),
+            crate::config::LogLevel::Debug => tracing::debug!("{}", msg),
             crate::config::LogLevel::Error => tracing::error!("{}", msg),
         }
 
@@ -594,8 +601,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 self.load_progress = Default::default();
             }
         } else {
-            let default_params = self.config.default.clone();
-            self.model_settings_cache = default_params.into();
+            self.model_settings_cache = ModelSettings::from_config(&self.config);
             self.model_total_layers = 0;
             self.model_hidden_size = 0;
             self.model_n_ctx_train = 0;
@@ -930,6 +936,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
 
     /// Save current settings as an override for the selected model.
     pub fn save_model_settings(&mut self) {
+        self.config.server_api_key = self.settings.server_api_key.clone();
         if let Some(model) = self.selected_model() {
             let name = model.name.clone();
             let override_cfg = crate::config::ModelOverride::from_settings(&self.settings);
@@ -989,6 +996,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             || s.llama_cpp_version_cpu != c.llama_cpp_version_cpu
             || s.llama_cpp_version_vulkan != c.llama_cpp_version_vulkan
             || s.llama_cpp_version_rocm != c.llama_cpp_version_rocm
+            || s.server_api_key != c.server_api_key
     }
 
     /// Delete a user profile by index in the merged display list.

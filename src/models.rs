@@ -74,14 +74,14 @@ pub struct SearchResult {
 /// Download progress information.
 #[derive(Debug, Clone)]
 pub struct DownloadState {
+    pub cancel_token: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    pub start_time: std::time::Instant,
     pub model_id: String,
     pub filename: String,
     pub total_bytes: u64,
     pub downloaded_bytes: u64,
     pub status: DownloadStatus,
     pub cancelled: bool,
-    pub cancel_token: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
-    pub start_time: std::time::Instant,
     pub bytes_per_second: f64,
 }
 
@@ -99,6 +99,18 @@ impl DownloadState {
             bytes_per_second: 0.0,
         }
     }
+}
+
+/// Serializable download state for API responses.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadStateResponse {
+    pub model_id: String,
+    pub filename: String,
+    pub total_bytes: u64,
+    pub downloaded_bytes: u64,
+    pub status: DownloadStatus,
+    pub cancelled: bool,
+    pub bytes_per_second: f64,
 }
 
 impl ModelSettings {}
@@ -175,11 +187,12 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_cpu: dp.llama_cpp_version_cpu,
             llama_cpp_version_vulkan: dp.llama_cpp_version_vulkan,
             llama_cpp_version_rocm: dp.llama_cpp_version_rocm,
+       server_api_key: None,
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DownloadStatus {
     Downloading,
     Complete,
@@ -760,6 +773,11 @@ pub struct ModelSettings {
     pub llama_cpp_version_vulkan: Option<String>,
     /// llama.cpp release tag for ROCm backend (e.g. "b1234" or None for latest).
     pub llama_cpp_version_rocm: Option<String>,
+
+    // ── Server ───────────────────────────────────────────────
+
+    /// API key for the HTTP server (Bearer token).
+    pub server_api_key: Option<String>,
 }
 
 impl Default for ModelSettings {
@@ -847,80 +865,16 @@ impl Default for ModelSettings {
             llama_cpp_version_cpu: None,
             llama_cpp_version_vulkan: None,
             llama_cpp_version_rocm: None,
+            server_api_key: None,
         }
     }
 }
 
 impl ModelSettings {
-    /// Create ModelSettings from config defaults, applying model-specific overrides.
+    /// Create ModelSettings from config defaults and model-specific overrides.
     pub fn from_config(config: &crate::config::Config) -> Self {
-        let mut settings = Self::default();
-        settings.threads = config.default.threads;
-        settings.threads_batch = config.default.threads_batch;
-        settings.batch_size = config.default.batch_size;
-        settings.ubatch_size = config.default.ubatch_size;
-        settings.cache_type_k = config.default.cache_type_k.clone();
-        settings.cache_type_v = config.default.cache_type_v.clone();
-        settings.keep = config.default.keep;
-        settings.swa_full = config.default.swa_full;
-        settings.mlock = config.default.mlock;
-        settings.mmap = config.default.mmap;
-        settings.numa = config.default.numa.clone();
-        settings.uniform_cache = config.default.uniform_cache;
-        settings.kv_cache_offload = config.default.kv_cache_offload;
-        settings.system_prompt = config.default.system_prompt.clone();
-        settings.system_prompt_preset_name = config.default.system_prompt_preset_name.clone();
-        settings.reasoning_mode = config.default.reasoning_mode;
-        settings.gpu_layers = config.default.gpu_layers;
-        settings.split_mode = config.default.split_mode.clone();
-        settings.tensor_split = config.default.tensor_split.clone();
-        settings.main_gpu = config.default.main_gpu;
-        settings.fit = config.default.fit;
-        settings.lora = config.default.lora.clone();
-        settings.lora_scaled = config.default.lora_scaled.clone();
-        settings.rpc = config.default.rpc.clone();
-        settings.embedding = config.default.embedding;
-        settings.flash_attn = config.default.flash_attn;
-        settings.jinja = config.default.jinja;
-        settings.chat_template = config.default.chat_template.clone();
-        settings.expert_count = config.default.expert_count;
-        settings.seed = config.default.seed;
-        settings.temperature = config.default.temperature;
-        settings.top_k = config.default.top_k;
-        settings.top_p = config.default.top_p;
-        settings.min_p = config.default.min_p;
-        settings.typical_p = config.default.typical_p;
-        settings.mirostat = config.default.mirostat.clone();
-        settings.mirostat_lr = config.default.mirostat_lr;
-        settings.mirostat_ent = config.default.mirostat_ent;
-        settings.ignore_eos = config.default.ignore_eos;
-        settings.samplers = config.default.samplers.clone();
-        settings.repeat_penalty = config.default.repeat_penalty;
-        settings.repeat_last_n = config.default.repeat_last_n;
-        settings.presence_penalty = config.default.presence_penalty;
-        settings.frequency_penalty = config.default.frequency_penalty;
-        settings.dry_multiplier = config.default.dry_multiplier;
-        settings.dry_base = config.default.dry_base;
-        settings.dry_allowed_length = config.default.dry_allowed_length;
-        settings.dry_penalty_last_n = config.default.dry_penalty_last_n;
-        settings.rope_scaling = config.default.rope_scaling.clone();
-        settings.rope_scale = config.default.rope_scale;
-        settings.rope_freq_base = config.default.rope_freq_base;
-        settings.rope_freq_scale = config.default.rope_freq_scale;
-        settings.host = config.default.host.clone();
-        settings.port = config.default.port;
-        settings.timeout = config.default.timeout;
-        settings.cache_prompt = config.default.cache_prompt;
-        settings.cache_reuse = config.default.cache_reuse;
-        settings.webui = config.default.webui;
-        settings.router_max_models = config.default.router_max_models;
-        settings.server_mode = config.default.server_mode.clone();
-        settings.max_tokens = config.default.max_tokens;
-        settings.cache_type = config.default.cache_type.clone();
-        settings.backend = config.default.backend.clone();
-        settings.llama_cpp_version_cpu = config.default.llama_cpp_version_cpu.clone();
-        settings.llama_cpp_version_vulkan = config.default.llama_cpp_version_vulkan.clone();
-        settings.llama_cpp_version_rocm = config.default.llama_cpp_version_rocm.clone();
+        let mut settings: Self = config.default.clone().into();
+        settings.server_api_key = config.server_api_key.clone();
         settings
     }
 }
@@ -953,7 +907,7 @@ pub struct GgufMetadata {
 }
 
 /// Metrics reported by the llama.cpp server.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ServerMetrics {
     pub loaded: bool,
     pub tps: f64,
@@ -1169,5 +1123,41 @@ pub fn format_mib(mib: u64) -> String {
         format!("{:.1} GB", mib as f64 / 1024.0)
     } else {
         format!("{} MB", mib)
+    }
+}
+
+/// Scan a directory (recursively) for .gguf model files.
+pub fn discover_models(dir: &std::path::Path) -> Vec<DiscoveredModel> {
+    let mut models = Vec::new();
+    walk_dir(dir, dir, &mut models);
+    models.sort_by(|a, b| a.name.cmp(&b.name));
+    models
+}
+
+fn walk_dir(dir: &std::path::Path, base: &std::path::Path, models: &mut Vec<DiscoveredModel>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.extension().map(|e| e == "gguf").unwrap_or(false) {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    let name = name.to_string();
+                    let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                    let display_name = path
+                        .strip_prefix(base)
+                        .ok()
+                        .and_then(|p| p.to_str())
+                        .unwrap_or(&name)
+                        .to_string();
+                    models.push(DiscoveredModel {
+                        path,
+                        name,
+                        file_size: size,
+                        display_name,
+                    });
+                }
+            } else if path.is_dir() {
+                walk_dir(&path, base, models);
+            }
+        }
     }
 }
