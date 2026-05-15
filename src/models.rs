@@ -98,6 +98,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             batch_size: dp.batch_size,
             ubatch_size: dp.ubatch_size,
             parallel: dp.parallel,
+            max_concurrent_predictions: dp.max_concurrent_predictions,
             uniform_cache: dp.uniform_cache,
             kv_cache_offload: dp.kv_cache_offload,
             cache_type_k: dp.cache_type_k,
@@ -569,6 +570,8 @@ pub struct ModelSettings {
     pub ubatch_size: u32,
     /// Max concurrent predictions (sequences).
     pub parallel: u32,
+    /// Max concurrent predictions (requests in flight).
+    pub max_concurrent_predictions: u32,
     /// Use uniform (unified) KV cache across all sequences.
     pub uniform_cache: bool,
     /// Offload KV cache to system RAM.
@@ -713,6 +716,7 @@ impl Default for ModelSettings {
             batch_size: 512,
             ubatch_size: 512,
             parallel: 1,
+            max_concurrent_predictions: 1,
             uniform_cache: false,
             kv_cache_offload: true,
             cache_type_k: Some(CacheTypeK::F16),
@@ -922,13 +926,7 @@ pub fn estimate_vram_mib(
     let flash_attn_factor = if settings.flash_attn { 0.5 } else { 1.0 };
 
     // Unified KV cache shares a single KV buffer across all sequences.
-    // When enabled, the KV cache size is divided by the parallel count.
-    let parallel = if settings.parallel > 0 {
-        settings.parallel as f64
-    } else {
-        1.0
-    };
-    let uniform_cache_factor = if settings.uniform_cache { 1.0 / parallel } else { 1.0 };
+    let uniform_cache_factor = if settings.uniform_cache { 1.0 } else { 1.0 };
 
     // KV cache in MiB:
     // Formula: 2 * n_layer * n_ctx * n_embd_kv * sizeof(type)

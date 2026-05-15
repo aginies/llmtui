@@ -121,6 +121,7 @@ pub struct ModelOverride {
     pub uniform_cache: Option<bool>,
     pub system_prompt: Option<String>,
     pub system_prompt_preset_name: Option<String>,
+    pub max_concurrent_predictions: Option<u32>,
 
     // GPU
     pub gpu_layers: Option<i32>,
@@ -192,6 +193,7 @@ impl ModelOverride {
             uniform_cache: Some(s.uniform_cache),
             system_prompt: Some(s.system_prompt.clone()),
             system_prompt_preset_name: Some(s.system_prompt_preset_name.clone()),
+            max_concurrent_predictions: Some(s.max_concurrent_predictions),
             gpu_layers: Some(s.gpu_layers),
             split_mode: Some(s.split_mode.clone()),
             tensor_split: Some(s.tensor_split.clone()),
@@ -252,6 +254,7 @@ impl ModelOverride {
         if let Some(v) = self.kv_cache_offload { base.kv_cache_offload = v; }
         if let Some(v) = &self.system_prompt { base.system_prompt = v.clone(); }
         if let Some(v) = &self.system_prompt_preset_name { base.system_prompt_preset_name = v.clone(); }
+        if let Some(v) = self.max_concurrent_predictions { base.max_concurrent_predictions = v; }
         if let Some(v) = self.gpu_layers { base.gpu_layers = v; }
         if let Some(v) = &self.split_mode { base.split_mode = v.clone(); }
         if let Some(v) = &self.tensor_split { base.tensor_split = v.clone(); }
@@ -397,6 +400,8 @@ pub struct DefaultParams {
     #[serde(default)]
     pub parallel: u32,
     #[serde(default)]
+    pub max_concurrent_predictions: u32,
+    #[serde(default)]
     pub system_prompt: String,
     #[serde(default = "default_system_prompt_preset_name")]
     pub system_prompt_preset_name: String,
@@ -535,6 +540,7 @@ impl Default for DefaultParams {
             uniform_cache: true,
             kv_cache_offload: true,
             parallel: 1,
+            max_concurrent_predictions: 1,
             system_prompt: "You are a helpful assistant.".to_string(),
             system_prompt_preset_name: "General".to_string(),
             reasoning_mode: crate::models::ReasoningMode::Default,

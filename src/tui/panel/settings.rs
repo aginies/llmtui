@@ -63,7 +63,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
     let eval_vals = vec![
         format!("{}", settings.batch_size),
         format!("{}", settings.uniform_cache),
-        format!("{}", settings.parallel),
+        format!("{}", settings.max_concurrent_predictions),
     ];
 
     for (i, val) in eval_vals.into_iter().enumerate() {
@@ -137,7 +137,7 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
         8 => settings.cache_type_v != cached.cache_type_v,
         9 => settings.batch_size != cached.batch_size,
         10 => settings.uniform_cache != cached.uniform_cache,
-        11 => false, // Global Parallel
+        11 => settings.max_concurrent_predictions != cached.max_concurrent_predictions,
         12 => settings.seed != cached.seed,
         13 => (settings.temperature - cached.temperature).abs() > 0.001,
         14 => settings.top_k != cached.top_k,

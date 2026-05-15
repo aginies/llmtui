@@ -22,7 +22,6 @@ pub fn max_context_for_vram(
     gpu_layers: i32,
     flash_attn: bool,
     uniform_cache: bool,
-    parallel: u32,
     cache_type_k: &str,
     cache_type_v: &str,
 ) -> u32 {
@@ -64,8 +63,7 @@ pub fn max_context_for_vram(
 
     let flash_attn_factor = if flash_attn { 0.5 } else { 1.0 };
 
-    let parallel = if parallel > 0 { parallel as f64 } else { 1.0 };
-    let uniform_cache_factor = if uniform_cache { 1.0 / parallel } else { 1.0 };
+    let uniform_cache_factor = if uniform_cache { 1.0 } else { 1.0 };
 
     // KV quant factor (relative to f16 = 2 bytes)
     let kv_quant_factor = kv_quant_bytes(cache_type_k, cache_type_v) / 2.0;
@@ -241,7 +239,6 @@ pub fn render_model_lines(
                 settings.gpu_layers,
                 settings.flash_attn,
                 settings.uniform_cache,
-                settings.parallel,
                 &settings.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "F16".to_string()),
                 &settings.cache_type_v.map(|v| v.to_string()).unwrap_or_else(|| "F16".to_string()),
             );

@@ -640,13 +640,13 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     } else {
                         // Router already running, load via API
                         
-                        // Check if we reached the limit of models to load (based on Parallel setting)
+                        // Check if we reached the limit of models to load (based on Max Concurrent Predictions)
                         let active_count = app.model_states.values().filter(|s| 
                             matches!(s, crate::models::ModelState::Loaded { .. } | crate::models::ModelState::Loading)
                         ).count();
                         
-                        if active_count as u32 >= app.settings.parallel {
-                            app.add_log(format!("Limit reached: already {} model(s) loaded (Parallel limit: {})", active_count, app.settings.parallel), crate::config::LogLevel::Warning);
+                        if active_count as u32 >= app.settings.max_concurrent_predictions {
+                            app.add_log(format!("Limit reached: already {} model(s) loaded (Max Concurrent Predictions limit: {})", active_count, app.settings.max_concurrent_predictions), crate::config::LogLevel::Warning);
                             return;
                         }
 
@@ -717,6 +717,7 @@ fn sync_global_settings(app: &mut App) {
     app.config.default.port = app.settings.port;
     app.config.default.backend = app.settings.backend;
     app.config.default.parallel = app.settings.parallel;
+    app.config.default.max_concurrent_predictions = app.settings.max_concurrent_predictions;
     app.config.default.threads = app.settings.threads;
     app.config.default.threads_batch = app.settings.threads_batch;
     let _ = app.config.save();
@@ -795,9 +796,9 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
 }
 
 // Settings field indices for navigation and editing
-// Loading: 0: Context, 1: Threads, 2: Threads Batch, 3: Prompt (string), 4: Reasoning Mode
-// GPU: 5: GPU Layers, 6: Flash Attention, 7: KV Cache Offload, 8: Cache Type K, 9: Cache Type V
-// Evaluation: 10: Eval Batch, 11: Max Predictions (removed), 11: Unified KV
+// Loading: 0: Context, 1: Prompt, 2: Reasoning Mode, 3: Keep in memory (mlock)
+// GPU: 4: GPU Layers, 5: Flash Attention, 6: KV Cache Offload, 7: Cache Type K, 8: Cache Type V
+// Evaluation: 9: Eval Batch, 10: Unified KV, 11: Max Concurrent Pred
 // Sampling: 12: Seed, 13: Temp, 14: Top-k, 15: Top-p, 16: Min P, 17: Max Tokens
 // Repetition: 18: Rep. Penalty, 19: Rep. Last N, 20: Presence, 21: Frequency
 // Total: 22 fields
@@ -818,9 +819,10 @@ fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _m
         4 => { if let Ok(v) = buf.parse::<i32>() { settings.gpu_layers = v.clamp(0, 999); } }
         // Evaluation
         9 => { if let Ok(v) = buf.parse::<u32>() { settings.batch_size = v.max(1); } }
-        11 => { if let Ok(v) = buf.parse::<u32>() { settings.parallel = v.clamp(1, 10); } }
+        10 => { if let Ok(v) = buf.parse::<u32>() { settings.uniform_cache = v != 0; } }
+        11 => { if let Ok(v) = buf.parse::<u32>() { settings.max_concurrent_predictions = v.clamp(1, 10); } }
         // Sampling
-        12 => { if let Ok(v) = buf.parse::<i32>() { settings.seed = v.max(-1); } }
+        12 => { if let Ok(v) = buf.parse::<i32>() { settings.seed = v; } }
         13 => { if let Ok(v) = buf.parse::<f32>() { settings.temperature = v.clamp(0.0, 2.0); } }
         14 => { if let Ok(v) = buf.parse::<i32>() { settings.top_k = v.max(1); } }
         15 => { if let Ok(v) = buf.parse::<f32>() { settings.top_p = v.clamp(0.0, 1.0); } }
@@ -862,7 +864,7 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_thr
         // Evaluation
         9 => settings.batch_size = (settings.batch_size as i32 + delta * 64).max(1) as u32,
         10 => settings.uniform_cache = !settings.uniform_cache,
-        11 => settings.parallel = (settings.parallel as i32 + delta).clamp(1, 10) as u32,
+        11 => settings.max_concurrent_predictions = (settings.max_concurrent_predictions as i32 + delta).clamp(1, 10) as u32,
         // Sampling
         12 => settings.seed = (settings.seed + delta).max(-1),
         13 => settings.temperature = ((settings.temperature * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 2.0),
@@ -920,13 +922,13 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             8 => { // cache_type_v
                 app.settings.cache_type_v = if app.settings.cache_type_v.is_some() { None } else { Some(crate::models::CacheTypeV::F16) };
             }
-            17 => { // max_tokens
+            18 => { // max_tokens
                 app.settings.max_tokens = if app.settings.max_tokens.is_some() { None } else { Some(2048) };
             }
-            20 => { // presence_penalty
+            21 => { // presence_penalty
                 app.settings.presence_penalty = if app.settings.presence_penalty.is_some() { None } else { Some(0.0) };
             }
-            21 => { // frequency_penalty
+            22 => { // frequency_penalty
                 app.settings.frequency_penalty = if app.settings.frequency_penalty.is_some() { None } else { Some(0.0) };
             }
             _ => {}

@@ -751,6 +751,7 @@ impl App {
             || s.cache_type_v != c.cache_type_v
             || s.batch_size != c.batch_size
             || s.uniform_cache != c.uniform_cache
+            || s.max_concurrent_predictions != c.max_concurrent_predictions
             || s.seed != c.seed
             || (s.temperature - c.temperature).abs() > 0.001
             || s.top_k != c.top_k
