@@ -14,6 +14,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - **GGUF file browser** — list and select specific GGUF files for a model
 - **Log panel** — expand/collapse with Enter/Esc
 - **HuggingFace URL links** — navigate to model pages from Model Info
+- **Version picker** — select llama.cpp binary versions per backend (CPU, Vulkan, ROCm)
 
 ## Prerequisites
 
@@ -60,9 +61,39 @@ A convenience script is included for common operations:
 - `l` — Load / `u` — Unload
 - `Ctrl+H` — Help
 
+### Backend selection
+
+Three backends supported via the llama.cpp server:
+
+| Backend | Description |
+|---------|-------------|
+| CPU | CPU-only inference |
+| Vulkan | GPU via Vulkan (AMD/NVIDIA/Intel) |
+| ROCm | GPU via ROCm 7.2 (AMD) |
+
+### Version picker
+
+Select llama.cpp binary versions per backend (CPU, Vulkan, ROCm) from the "LLama.cpp Version" field in LLM Settings.
+
+- `TAB` — Switch backend
+- `Enter` — Select version for the active backend
+- `R` — Refresh releases from GitHub
+- `C` — Toggle cached versions display
+- `Esc` — Exit
+
+Binaries are stored in `~/.local/share/llm-manager/bin/llama-server-{backend}-{version}/`. Switching versions is instant — no re-download.
+
 ## Configuration
 
 Configuration is stored in the application's config directory (typically `~/.config/llm-manager/`).
+
+Per-backend version config:
+
+```yaml
+llama_cpp_version_cpu: null
+llama_cpp_version_vulkan: null
+llama_cpp_version_rocm: null
+```
 
 ## License
 

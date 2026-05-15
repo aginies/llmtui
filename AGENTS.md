@@ -14,7 +14,8 @@ src/
 ├── config.rs        # Config loading/saving, YAML-based
 ├── models.rs        # Domain types (SearchResult, DownloadState, ModelSettings, etc.)
 ├── backend/
-│   └── hub.rs       # HuggingFace API: search, list files, download
+│   ├── hub.rs       # HuggingFace API: search, list files, download
+│   └── server.rs    # llama.cpp server spawning (resolve_backend_binary, spawn_server)
 └── tui/
     ├── mod.rs       # Module declaration
     ├── app.rs       # App state (App struct, enums for modes/panels)
@@ -22,7 +23,7 @@ src/
     ├── render.rs    # Top-level render dispatcher
     ├── panel/
     │   ├── mod.rs
-    │   ├── models.rs  # Left panel: model list / search results / download
+    │   ├── models.rs  # Left panel: model list / search results / download / version picker
     │   ├── info.rs    # GGUF metadata rendering for local models
     │   ├── tabbed.rs  # Right panel: Model Info / Settings tabs
     │   ├── settings.rs
@@ -42,6 +43,7 @@ pub enum ModelsMode {
     Search { query, results },
     Files { model_id, files, selected_idx, previous_query, previous_results, selected_result },
     Download { state },
+    VersionPicker { releases, selected_idx, previous_mode },
 }
 ```
 
@@ -58,10 +60,11 @@ Enter in the log panel expands it; Esc collapses it. Mouse handling in `handle_m
 
 Key handling is hierarchical:
 1. Global shortcuts (Ctrl+C, Tab, Ctrl+H, etc.)
-2. Search mode (takes priority when `ModelsMode::Search`)
-3. Files mode
-4. Download mode
-5. Normal mode → dispatch to panel-specific handlers
+2. Version picker mode (takes priority when `ModelsMode::VersionPicker`)
+3. Search mode (takes priority when `ModelsMode::Search`)
+4. Files mode
+5. Download mode
+6. Normal mode → dispatch to panel-specific handlers
 
 **Important:** Each branch calls `return` to prevent fallthrough. Adding a new mode requires early returns.
 
@@ -73,6 +76,27 @@ Top-level layout: status bar → top panels → active model → log. The models
 
 Download runs in a spawned tokio task. Cancellation uses `Arc<AtomicBool>` shared between the task and the UI. Pressing `c` sets the flag; the download loop checks it each iteration.
 
+### Version picker (`src/tui/panel/models.rs`, `src/tui/event.rs`)
+
+The version picker allows selecting llama.cpp binary versions per-backend (CPU, Vulkan, ROCm). Triggered from the "LLama.cpp Version" field in LLM Settings.
+
+- `TAB` cycles backend (CPU → Vulkan → ROCm → CPU)
+- `Enter` selects version for the active backend
+- `R` refreshes releases from GitHub
+- `C` toggles cached versions display
+- `Esc` exits back to settings
+
+The picker shows a backend toggle header (`[CPU] | [Vulkan] | [ROCm]`) and a backend column in each row.
+
+**Dirty tracking** (`is_settings_dirty` in `app.rs`) compares each field index-by-index. When a field is dirty, its label is rendered in yellow.
+
+**Index consistency** — all indices must be identical across:
+- `settings.rs` dirty check match arms (line ~133)
+- `event.rs` `apply_numeric_setting` / `adjust_setting` match arms
+- `event.rs` `handle_settings_key` toggle shortcuts (`e` / `Ctrl+E`)
+- `event.rs` comment block (line ~836)
+- `app.rs` `is_settings_dirty` match arms
+
 ### LLM Settings panel (22 fields, `src/tui/panel/settings.rs`, `src/tui/event.rs`)
 
 The settings panel has 22 fields organized into 4 groups:
@@ -83,18 +107,61 @@ GPU (3-8):       GPU Layers, Flash Attention, KV Cache Offload, Cache Type K, Ca
 Evaluation (9-11): Eval Batch, Unified KV, Max Concurrent Predictions
 Sampling (12-17): Seed, Temperature, Top-k, Top-p, Min P, Max Tokens
 Repetition (18-21): Repetition Penalty, Rep. Last N, Presence Penalty, Frequency Penalty
+Backend (22):    LLama.cpp Version (shows CPU / Vulkan / ROCm versions)
 ```
 
 Each group is rendered with a header line. Arrow keys adjust values; `+`/`-` for coarse, `Left`/`Right` for fine. Toggle fields (Flash Attention, Unified KV, Keep in memory) respond to `e`/`Ctrl+E`.
 
-**Dirty tracking** (`is_settings_dirty` in `app.rs`) compares each field index-by-index. When a field is dirty, its label is rendered in yellow.
+## Llama.cpp binary management
 
-**Index consistency** — all indices must be identical across:
-- `settings.rs` dirty check match arms (line ~133)
-- `event.rs` `apply_numeric_setting` / `adjust_setting` match arms
-- `event.rs` `handle_settings_key` toggle shortcuts (`e` / `Ctrl+E`)
-- `event.rs` comment block (line ~836)
-- `app.rs` `is_settings_dirty` match arms
+### Backend selection (`src/models.rs`)
+
+Three backends are supported:
+
+```rust
+pub enum Backend {
+    Cpu,       // CPU-only inference
+    Vulkan,    // GPU via Vulkan (AMD/NVIDIA/Intel)
+    Rocrm,     // GPU via ROCm (AMD)
+}
+```
+
+### Binary storage
+
+Binaries are downloaded from `ggml-org/llama.cpp` GitHub releases and stored in versioned directories:
+
+```
+~/.local/share/llm-manager/bin/
+├── llama-server-cpu-{version}/llama-server
+├── llama-server-vulkan-{version}/llama-server
+└── llama-server-rocm-{version}/llama-server
+```
+
+Switching versions is instant — no re-download. The version is stored per-backend in config.
+
+### Per-backend version config
+
+`DefaultParams` and `ModelSettings` have separate version fields:
+
+```yaml
+llama_cpp_version_cpu: null      # null = latest
+llama_cpp_version_vulkan: null   # null = latest
+llama_cpp_version_rocm: null     # null = latest
+```
+
+### Asset names
+
+- **CPU:** `llama-{tag}-bin-ubuntu-x64.tar.gz`
+- **Vulkan:** `llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz`
+- **ROCm:** `llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz`
+
+### Binary resolution (`src/backend/hub.rs`)
+
+`resolve_backend_binary(backend, version)` checks if the binary + `libllama.so` exist. If not, it downloads and extracts the tar.gz archive, pulling out `llama-server` and `.so` files.
+
+### Server spawning (`src/backend/server.rs`)
+
+`spawn_server()` resolves the binary using the per-backend version from `settings`, then spawns the server process. Log message: `Downloading {backend} (v{version}) binary...`
 
 ## Coding rules
 
@@ -162,3 +229,13 @@ Each group is rendered with a header line. Arrow keys adjust values; `+`/`-` for
 1. Add the function in `src/backend/hub.rs`.
 2. Call from `event.rs` (usually in the search/files branch).
 3. Update `SearchResult` or other types in `models.rs` if needed.
+
+### Adding a new backend
+
+1. Add variant to `Backend` enum in `models.rs` with serde/Display impl.
+2. Add `llama_cpp_version_{backend}` field to `DefaultParams` and `ModelSettings` in `config.rs` and `models.rs`.
+3. Update `from_settings()` / `apply()` in `config.rs`.
+4. Update `resolve_backend_binary()` in `hub.rs` for asset name.
+5. Update `spawn_server()` in `server.rs` for version lookup.
+6. Update `refresh_cached_versions()` in `app.rs` for directory detection.
+7. Update version picker in `models.rs` and event handling in `event.rs`.
