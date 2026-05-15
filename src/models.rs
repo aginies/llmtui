@@ -818,6 +818,7 @@ pub struct GgufMetadata {
 pub struct ServerMetrics {
     pub loaded: bool,
     pub tps: f64,
+    pub prompt_tps: f64,
     pub cpu_usage: f64,
     pub gpu_mem_used: u64,
     pub gpu_mem_total: u64,
@@ -833,6 +834,7 @@ impl Default for ServerMetrics {
         Self {
             loaded: false,
             tps: 0.0,
+            prompt_tps: 0.0,
             cpu_usage: 0.0,
             gpu_mem_used: 0,
             gpu_mem_total: 0,

@@ -24,6 +24,74 @@ pub fn render(f: &mut Frame, app: &mut App) {
         return;
     }
 
+    if app.global_mode == GlobalMode::ExitConfirmation {
+        let area = f.area();
+        let popup_area = Rect {
+            x: area.width.saturating_sub(50) / 2,
+            y: area.height.saturating_sub(8) / 2,
+            width: 50,
+            height: 8,
+        };
+
+        // Exit confirmation
+        let block = ratatui::widgets::Block::default()
+            .title(" Exit Application? ")
+            .borders(ratatui::widgets::Borders::ALL)
+            .border_style(Style::default().fg(Color::Yellow));
+
+        let loaded_count = app.model_states.values().filter(|s| matches!(s, crate::models::ModelState::Loaded { .. })).count();
+        let text = vec![
+            Line::from(""),
+            Line::from(vec![
+                Span::raw("There are "),
+                Span::styled(format!("{}", loaded_count), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::raw(" model(s) loaded."),
+            ]),
+            Line::from("Are you sure you want to exit?"),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
+                Span::raw("    "),
+                Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
+            ]),
+        ];
+
+        f.render_widget(ratatui::widgets::Clear, popup_area);
+        f.render_widget(Paragraph::new(text).block(block).alignment(ratatui::layout::Alignment::Center), popup_area);
+        return;
+    }
+
+    if app.global_mode == GlobalMode::ResetConfirmation {
+        let area = f.area();
+        let popup_area = Rect {
+            x: area.width.saturating_sub(50) / 2,
+            y: area.height.saturating_sub(8) / 2,
+            width: 50,
+            height: 8,
+        };
+
+        // Settings reset confirmation
+        let block = ratatui::widgets::Block::default()
+            .title(" Reset Settings? ")
+            .borders(ratatui::widgets::Borders::ALL)
+            .border_style(Style::default().fg(Color::Yellow));
+
+        let text = vec![
+            Line::from(""),
+            Line::from("Reset all LLM settings to defaults?"),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
+                Span::raw("    "),
+                Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
+            ]),
+        ];
+
+        f.render_widget(ratatui::widgets::Clear, popup_area);
+        f.render_widget(Paragraph::new(text).block(block).alignment(ratatui::layout::Alignment::Center), popup_area);
+        return;
+    }
+
     if app.global_mode == GlobalMode::DeleteConfirmation {
         let area = f.area();
         let popup_area = Rect {
@@ -32,13 +100,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
             width: 50,
             height: 8,
         };
-        
+
         let model_name = app.selected_model().map(|m| m.name.as_str()).unwrap_or("Unknown");
         let block = ratatui::widgets::Block::default()
             .title(" Delete Model? ")
             .borders(ratatui::widgets::Borders::ALL)
             .border_style(Style::default().fg(Color::Red));
-        
+
         let text = vec![
             Line::from(""),
             Line::from(vec![
@@ -55,8 +123,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
             ]),
         ];
-        
-        f.render_widget(ratatui::widgets::Clear, popup_area); // Clear background
+
+        f.render_widget(ratatui::widgets::Clear, popup_area);
         f.render_widget(Paragraph::new(text).block(block).alignment(ratatui::layout::Alignment::Center), popup_area);
         return;
     }
@@ -439,8 +507,11 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 if app.active_panel == crate::tui::app::ActivePanel::LlmSettings {
                     parts.push(Span::styled("Ctrl+S", Style::default().fg(Color::Yellow)));
                     parts.push(Span::raw(" save  "));
+                    parts.push(Span::styled("Ctrl+R", Style::default().fg(Color::Yellow)));
+                    parts.push(Span::raw(" reset  "));
                     if app.is_settings_dirty() {
                         parts.push(Span::styled("*unsaved*", Style::default().fg(Color::Red)));
+                        parts.push(Span::raw("  "));
                     }
                 }
                 parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));

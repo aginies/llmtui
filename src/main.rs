@@ -265,11 +265,24 @@ async fn main() -> Result<()> {
                                     
                                     if let Some(name) = current_model {
                                         if let Ok(model_metrics) = server::get_metrics(&task_host, task_port, Some(&name), Some(task_pid)).await {
+                                            // Only use model-specific VRAM if it's meaningful (e.g., >25% of total).
+                                            // llama-server's kv_cache_usage is just the KV cache component and can be
+                                            // much smaller than actual GPU usage. When system tools like nvidia-smi
+                                            // are available, they give more accurate totals for single-model mode.
+                                            let stotal = m.gpu_mem_total;
+                                            let should_use_model_vram = if stotal > 0 {
+                                                model_metrics.gpu_mem_used >= stotal / 4
+                                            } else {
+                                                true
+                                            };
+
                                             // Override model-specific fields in the metrics struct
-                                            m.gpu_mem_used = model_metrics.gpu_mem_used;
                                             m.ctx_used = model_metrics.ctx_used;
                                             m.ctx_max = model_metrics.ctx_max;
                                             m.tps = model_metrics.tps;
+                                            if should_use_model_vram {
+                                                m.gpu_mem_used = model_metrics.gpu_mem_used;
+                                            }
                                         }
                                     }
 
@@ -501,12 +514,16 @@ async fn main() -> Result<()> {
         let mut server_logs = Vec::new();
         if let Some(rx) = &mut app.server_log_rx {
             while let Ok(line) = rx.try_recv() {
-                // Parse TPS from logs if present: "eval time = ... tokens per second)"
-                if line.contains("eval time =") && line.contains("tokens per second") {
+                // Parse TPS from logs if present
+                if line.contains("tokens per second") {
                     if let Some(tps_part) = line.split("tokens per second").next() {
                         if let Some(val_str) = tps_part.split_whitespace().last() {
                             if let Ok(tps) = val_str.parse::<f64>() {
-                                app.metrics.tps = tps;
+                                if line.contains("prompt eval time =") {
+                                    app.metrics.prompt_tps = tps;
+                                } else if line.contains("eval time =") {
+                                    app.metrics.tps = tps;
+                                }
                             }
                         }
                     }

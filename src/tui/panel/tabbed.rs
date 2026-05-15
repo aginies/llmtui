@@ -81,8 +81,12 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         .collect();
 
     let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
+    let vram_text = crate::models::format_mib(app.vram_estimate);
     let block = Block::default()
-        .title(" LLM Settings ")
+        .title(Line::from(vec![
+            Span::raw(" LLM Settings "),
+            Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
+        ]))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 

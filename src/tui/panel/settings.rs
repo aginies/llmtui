@@ -5,17 +5,10 @@ use ratatui::{
 
 /// Render the LLM Settings panel (Loading + GPU + Evaluation + Sampling + Repetition).
 /// Returns (lines, total_count, settings_height, selected_line_idx).
-pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, vram_mib: u64, total_layers: u32, _n_ctx_train: u32, _max_threads: u32) -> (Vec<Line<'static>>, usize, usize, usize) {
+pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, _vram_mib: u64, total_layers: u32, _n_ctx_train: u32, _max_threads: u32) -> (Vec<Line<'static>>, usize, usize, usize) {
     let mut lines = Vec::new();
     let mut total_count = 0;
     let mut selected_line_idx = 0;
-
-    // VRAM estimate header
-    lines.push(Line::from(vec![
-        Span::styled("VRAM estimate: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(crate::models::format_mib(vram_mib), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-    ]));
-    lines.push(Line::from(""));
 
     // ── Loading ──────────────────────────────────────────────
     lines.push(Line::from(vec![

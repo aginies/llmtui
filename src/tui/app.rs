@@ -56,6 +56,8 @@ pub enum GlobalMode {
     Normal,
     Help,
     DeleteConfirmation,
+    ResetConfirmation,
+    ExitConfirmation,
 }
 
 /// Phase of model loading.
@@ -800,5 +802,13 @@ impl App {
         
         self.add_log(&format!("Deleted profile: {}", profile_name), crate::config::LogLevel::Info);
         true
+    }
+
+    pub fn reset_to_defaults(&mut self) {
+        let defaults = crate::models::ModelSettings::default();
+        self.settings = defaults;
+        // Clear dirty flag by updating the cache snapshot to match new settings
+        self.model_settings_cache = self.settings.clone();
+        self.add_log("Reset LLM Settings to defaults", crate::config::LogLevel::Info);
     }
 }

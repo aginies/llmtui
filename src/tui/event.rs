@@ -11,6 +11,45 @@ use crate::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, LoadingPhase};
 pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     debug!("Key: {:?}", key);
 
+    // Skip all if in exit confirmation
+    if app.global_mode == GlobalMode::ExitConfirmation {
+        match key.code {
+            KeyCode::Char('y') | KeyCode::Enter => {
+                app.running = false;
+            }
+            KeyCode::Char('n') | KeyCode::Esc => {
+                app.global_mode = GlobalMode::Normal;
+            }
+            KeyCode::Char('h')
+                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                app.global_mode = GlobalMode::Normal;
+            }
+            _ => {}
+        }
+        return;
+    }
+
+    // Skip all if in reset confirmation
+    if app.global_mode == GlobalMode::ResetConfirmation {
+        match key.code {
+            KeyCode::Char('y') | KeyCode::Enter => {
+                app.reset_to_defaults();
+                app.global_mode = GlobalMode::Normal;
+            }
+            KeyCode::Char('n') | KeyCode::Esc => {
+                app.global_mode = GlobalMode::Normal;
+            }
+            KeyCode::Char('h')
+                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                app.global_mode = GlobalMode::Normal;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     // Skip all if in delete confirmation (top priority)
     if app.global_mode == GlobalMode::DeleteConfirmation {
         match key.code {
@@ -20,6 +59,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     let name = model.name.clone();
                     app.add_log(&format!("Queuing deletion of: {}", name), crate::config::LogLevel::Info);
                     app.pending_deletion = Some(path);
+                } else if app.is_settings_dirty() && app.active_panel == ActivePanel::LlmSettings {
+                    // Settings reset confirmation
+                    app.reset_to_defaults();
                 }
                 app.global_mode = GlobalMode::Normal;
             }
@@ -58,7 +100,15 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 }
             }
-            app.running = false;
+            
+            // Check if any models are loaded before exiting
+            let loaded_count = app.model_states.values().filter(|s| matches!(s, crate::models::ModelState::Loaded { .. })).count();
+            if loaded_count > 0 {
+                app.global_mode = GlobalMode::ExitConfirmation;
+                app.set_redraw();
+            } else {
+                app.running = false;
+            }
             return;
         }
         KeyCode::Esc if app.log_expanded => {
@@ -829,6 +879,17 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         app.save_model_settings();
         app.set_redraw();
         return;
+    }
+
+    // Reset settings to defaults via confirmation dialog (highest priority when dirty)
+    if key.code == KeyCode::Char('r') && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+        if app.is_settings_dirty() {
+            app.global_mode = GlobalMode::ResetConfirmation;
+            return;
+        } else {
+            app.reset_to_defaults();
+            return;
+        }
     }
 
     match key.code {

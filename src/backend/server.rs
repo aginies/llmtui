@@ -296,16 +296,15 @@ fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, s
     }
 
     // ── Server ───────────────────────────────────────────────
-    if settings.host != "127.0.0.1" {
-        add_arg(&mut cmd, "--host", &settings.host);
-        parts.push("--host".to_string());
-        parts.push(settings.host.clone());
-    }
-    if settings.port != 8080 {
-        add_arg(&mut cmd, "--port", settings.port);
-        parts.push("--port".to_string());
-        parts.push(settings.port.to_string());
-    }
+    let resolved_host = clean_host(&settings.host);
+    cmd.arg("--host").arg(&resolved_host);
+    parts.push("--host".to_string());
+    parts.push(resolved_host);
+
+    cmd.arg("--port").arg(settings.port.to_string());
+    parts.push("--port".to_string());
+    parts.push(settings.port.to_string());
+
     add_arg(&mut cmd, "--timeout", settings.timeout);
     parts.push("--timeout".to_string());
     parts.push(settings.timeout.to_string());
@@ -372,11 +371,8 @@ pub async fn spawn_server(
         }
     };
 
-    let resolved_host = clean_host(&settings.host);
     let (mut cmd, cmd_string) = build_server_cmd(&binary, model, settings, config);
-    cmd.arg("--host").arg(&resolved_host)
-       .arg("--port").arg(port.to_string())
-       .stdout(Stdio::piped())
+    cmd.stdout(Stdio::piped())
        .stderr(Stdio::piped());
 
     // Set LD_LIBRARY_PATH so the binary can find its shared libraries
@@ -387,7 +383,7 @@ pub async fn spawn_server(
         cmd.env("LD_LIBRARY_PATH", bin_dir);
     }
 
-    let full_cmd = format!("{} --host {} --port {}", cmd_string, resolved_host, port);
+    let full_cmd = cmd_string;
     info!("Command: {}", full_cmd);
 
     let (kill_tx, mut kill_rx) = mpsc::channel::<()>(1);
@@ -395,6 +391,7 @@ pub async fn spawn_server(
     let mut child = cmd.spawn().map_err(|e| format!("Failed to start llama-server: {}", e))?;
     let pid = child.id().unwrap_or(0);
 
+    let resolved_host = clean_host(&settings.host);
     info!("Started llama-server on {} port {} (pid={})", resolved_host, port, pid);
 
     let stdout = child.stdout.take().unwrap();
@@ -535,8 +532,11 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
                 metrics.cpu_usage = val;
             }
             // TPS / Throughput
-            "llamacpp:predicted_tokens_seconds" | "llamacpp:prompt_tokens_seconds" => {
+            "llamacpp:predicted_tokens_seconds" => {
                 metrics.tps = val;
+            }
+            "llamacpp:prompt_tokens_seconds" => {
+                metrics.prompt_tps = val;
             }
             // KV Cache Ratio Fallback
             "llamacpp:kv_cache_usage_ratio" => {
@@ -558,10 +558,31 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
         }
     }
 
-    // Fallback for VRAM using nvidia-smi or amdgpu_top if available
-    // ONLY do this if we are asking for general server metrics (model_name is None)
-    // to avoid summing system-wide totals multiple times in the caller.
-    if metrics.gpu_mem_used == 0 && model_name.is_none() {
+    // Prefer actual GPU memory usage from nvidia-smi or amdgpu_top.
+    // llama-server's kv_cache_usage_bytes only reports KV cache (typically 10%
+    // of total VRAM); model weights are loaded into GPU memory but not tracked
+    // by the server, so we use system-level tools to report what users see on GPUs.
+    if model_name.is_none() {
+        // Prefer system-level VRAM over llama-server's KV-only value.
+        // System tools report actual GPU memory including model weights,
+        // which is what users see on their GPUs and expect to read.
+        let set_if_better = |out: &mut ServerMetrics, used: u64, total: u64| {
+            if out.gpu_mem_used == 0 || used > out.gpu_mem_used {
+                out.gpu_mem_used = used;
+                out.gpu_mem_total = total;
+            }
+        };
+
+        let (nv_used, nv_total) = get_nvidia_vram_metrics().unwrap_or((0, 0));
+        set_if_better(&mut metrics, nv_used, nv_total);
+
+        if metrics.gpu_mem_total == 0 {
+            // AMD fallback when nvidia-smi is not available.
+            let (amd_used, amd_total) = get_amdgpu_vram_metrics().unwrap_or((0, 0));
+            set_if_better(&mut metrics, amd_used, amd_total);
+        }
+    } else if metrics.gpu_mem_used == 0 {
+        // KV-only queries: use system tools as a last resort.
         if let Ok((used, total)) = get_nvidia_vram_metrics() {
             metrics.gpu_mem_used = used;
             metrics.gpu_mem_total = total;
@@ -685,8 +706,6 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
 
     Err("Could not find VRAM info in amdgpu_top output".to_string())
 }
-
-
 
 /// Linux-specific: Get RAM (RSS) and CPU usage for a PID via /proc
 fn get_process_metrics(pid: u32) -> Result<(u64, f64), String> {
