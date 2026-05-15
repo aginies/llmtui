@@ -733,6 +733,13 @@ impl App {
     pub fn is_settings_dirty(&self) -> bool {
         let s = &self.settings;
         let c = &self.model_settings_cache;
+
+        let f32_dirty = |a: Option<f32>, b: Option<f32>| match (a, b) {
+            (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
+            (None, None) => false,
+            _ => true,
+        };
+
         s.context_length != c.context_length
             || s.mlock != c.mlock
             || s.system_prompt_preset_name != c.system_prompt_preset_name
@@ -752,8 +759,8 @@ impl App {
             || s.max_tokens != c.max_tokens
             || (s.repeat_penalty - c.repeat_penalty).abs() > 0.001
             || s.repeat_last_n != c.repeat_last_n
-            || (s.presence_penalty - c.presence_penalty).abs() > 0.001
-            || (s.frequency_penalty - c.frequency_penalty).abs() > 0.001
+            || f32_dirty(s.presence_penalty, c.presence_penalty)
+            || f32_dirty(s.frequency_penalty, c.frequency_penalty)
     }
 
     /// Delete a user profile by index in the merged display list.

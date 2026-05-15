@@ -242,8 +242,8 @@ pub fn render_model_lines(
                 settings.flash_attn,
                 settings.uniform_cache,
                 settings.parallel,
-                &settings.cache_type_k.to_string(),
-                &settings.cache_type_v.to_string(),
+                &settings.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "F16".to_string()),
+                &settings.cache_type_v.map(|v| v.to_string()).unwrap_or_else(|| "F16".to_string()),
             );
             if max_ctx > 0 {
                 pairs.push(ModelInfoPair {

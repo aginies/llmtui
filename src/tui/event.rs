@@ -825,12 +825,12 @@ fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _m
         14 => { if let Ok(v) = buf.parse::<i32>() { settings.top_k = v.max(1); } }
         15 => { if let Ok(v) = buf.parse::<f32>() { settings.top_p = v.clamp(0.0, 1.0); } }
         16 => { if let Ok(v) = buf.parse::<f32>() { settings.min_p = v.clamp(0.0, 1.0); } }
-        17 => { if let Ok(v) = buf.parse::<u32>() { settings.max_tokens = v.max(16); } }
+        17 => { if let Ok(v) = buf.parse::<u32>() { settings.max_tokens = Some(v.max(16)); } }
         // Repetition
         18 => { if let Ok(v) = buf.parse::<f32>() { settings.repeat_penalty = v.clamp(1.0, 2.0); } }
         19 => { if let Ok(v) = buf.parse::<i32>() { settings.repeat_last_n = v; } }
-        20 => { if let Ok(v) = buf.parse::<f32>() { settings.presence_penalty = v.clamp(-2.0, 2.0); } }
-        21 => { if let Ok(v) = buf.parse::<f32>() { settings.frequency_penalty = v.clamp(-2.0, 2.0); } }
+        20 => { if let Ok(v) = buf.parse::<f32>() { settings.presence_penalty = Some(v.clamp(-2.0, 2.0)); } }
+        21 => { if let Ok(v) = buf.parse::<f32>() { settings.frequency_penalty = Some(v.clamp(-2.0, 2.0)); } }
         _ => {}
     }
 }
@@ -849,8 +849,16 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_thr
         4 => settings.gpu_layers = (settings.gpu_layers + delta).max(0),
         5 => settings.flash_attn = !settings.flash_attn,
         6 => settings.kv_cache_offload = !settings.kv_cache_offload,
-        7 => settings.cache_type_k = if delta > 0 { settings.cache_type_k.next() } else { settings.cache_type_k.prev() },
-        8 => settings.cache_type_v = if delta > 0 { settings.cache_type_v.next() } else { settings.cache_type_v.prev() },
+        7 => {
+            let mut val = settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+            val = if delta > 0 { val.next() } else { val.prev() };
+            settings.cache_type_k = Some(val);
+        }
+        8 => {
+            let mut val = settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+            val = if delta > 0 { val.next() } else { val.prev() };
+            settings.cache_type_v = Some(val);
+        }
         // Evaluation
         9 => settings.batch_size = (settings.batch_size as i32 + delta * 64).max(1) as u32,
         10 => settings.uniform_cache = !settings.uniform_cache,
@@ -861,12 +869,21 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_thr
         14 => settings.top_k = (settings.top_k + delta).max(1),
         15 => settings.top_p = ((settings.top_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0),
         16 => settings.min_p = ((settings.min_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0),
-        17 => settings.max_tokens = (settings.max_tokens as i32 + delta * 16).max(16) as u32,
+        17 => {
+            let current = settings.max_tokens.unwrap_or(2048);
+            settings.max_tokens = Some((current as i32 + delta * 16).max(16) as u32);
+        }
         // Repetition
         18 => settings.repeat_penalty = ((settings.repeat_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(1.0, 2.0),
         19 => settings.repeat_last_n += delta,
-        20 => settings.presence_penalty = ((settings.presence_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0),
-        21 => settings.frequency_penalty = ((settings.frequency_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0),
+        20 => {
+            let current = settings.presence_penalty.unwrap_or(0.0);
+            settings.presence_penalty = Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
+        }
+        21 => {
+            let current = settings.frequency_penalty.unwrap_or(0.0);
+            settings.frequency_penalty = Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
+        }
         _ => {}
     }
 }
@@ -892,6 +909,31 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.reset_to_defaults();
             return;
         }
+    }
+
+    // Enable/Disable toggle
+    if key.code == KeyCode::Char('e') && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+        match idx {
+            7 => { // cache_type_k
+                app.settings.cache_type_k = if app.settings.cache_type_k.is_some() { None } else { Some(crate::models::CacheTypeK::F16) };
+            }
+            8 => { // cache_type_v
+                app.settings.cache_type_v = if app.settings.cache_type_v.is_some() { None } else { Some(crate::models::CacheTypeV::F16) };
+            }
+            17 => { // max_tokens
+                app.settings.max_tokens = if app.settings.max_tokens.is_some() { None } else { Some(2048) };
+            }
+            20 => { // presence_penalty
+                app.settings.presence_penalty = if app.settings.presence_penalty.is_some() { None } else { Some(0.0) };
+            }
+            21 => { // frequency_penalty
+                app.settings.frequency_penalty = if app.settings.frequency_penalty.is_some() { None } else { Some(0.0) };
+            }
+            _ => {}
+        }
+        app.update_vram_estimate();
+        app.set_redraw();
+        return;
     }
 
     match key.code {
@@ -982,7 +1024,9 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else if key.code == KeyCode::Enter {
-                app.settings.cache_type_k = app.settings.cache_type_k.next();
+                let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+                val = val.next();
+                app.settings.cache_type_k = Some(val);
                 app.update_vram_estimate();
                 app.set_redraw();
             }
@@ -993,7 +1037,9 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else if key.code == KeyCode::Enter {
-                app.settings.cache_type_v = app.settings.cache_type_v.next();
+                let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+                val = val.next();
+                app.settings.cache_type_v = Some(val);
                 app.update_vram_estimate();
                 app.set_redraw();
             }

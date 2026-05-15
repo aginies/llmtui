@@ -574,9 +574,9 @@ pub struct ModelSettings {
     /// Offload KV cache to system RAM.
     pub kv_cache_offload: bool,
     /// KV cache data type for K.
-    pub cache_type_k: CacheTypeK,
+    pub cache_type_k: Option<CacheTypeK>,
     /// KV cache data type for V.
-    pub cache_type_v: CacheTypeV,
+    pub cache_type_v: Option<CacheTypeV>,
     /// Keep N tokens from the initial prompt.
     pub keep: i32,
     /// Use full-size SWA cache.
@@ -653,9 +653,9 @@ pub struct ModelSettings {
     /// Last N tokens to consider for repeat penalty.
     pub repeat_last_n: i32,
     /// Repeat alpha presence penalty.
-    pub presence_penalty: f32,
+    pub presence_penalty: Option<f32>,
     /// Repeat alpha frequency penalty.
-    pub frequency_penalty: f32,
+    pub frequency_penalty: Option<f32>,
     /// DRY sampling multiplier.
     pub dry_multiplier: f32,
     /// DRY sampling base value.
@@ -696,7 +696,7 @@ pub struct ModelSettings {
     // ── Other ────────────────────────────────────────────────
 
     /// Max tokens to predict.
-    pub max_tokens: u32,
+    pub max_tokens: Option<u32>,
     /// Cache type (legacy, kept for compatibility).
     pub cache_type: CacheType,
     /// Backend (cpu/vulkan).
@@ -715,8 +715,8 @@ impl Default for ModelSettings {
             parallel: 1,
             uniform_cache: false,
             kv_cache_offload: true,
-            cache_type_k: CacheTypeK::F16,
-            cache_type_v: CacheTypeV::F16,
+            cache_type_k: Some(CacheTypeK::F16),
+            cache_type_v: Some(CacheTypeV::F16),
             keep: 0,
             swa_full: false,
             mlock: false,
@@ -756,8 +756,8 @@ impl Default for ModelSettings {
             // Repetition
             repeat_penalty: 1.1,
             repeat_last_n: 64,
-            presence_penalty: 0.0,
-            frequency_penalty: 0.0,
+            presence_penalty: Some(0.0),
+            frequency_penalty: Some(0.0),
             dry_multiplier: 0.0,
             dry_base: 1.75,
             dry_allowed_length: 2,
@@ -779,7 +779,7 @@ impl Default for ModelSettings {
             router_max_models: 4,
 
             // Other
-            max_tokens: 2048,
+            max_tokens: Some(2048),
             cache_type: CacheType::F16,
             backend: Backend::Vulkan,
         }
@@ -940,7 +940,10 @@ pub fn estimate_vram_mib(
         * gqa_ratio
         * flash_attn_factor
         * uniform_cache_factor
-        * kv_quant_bytes(settings.cache_type_k, settings.cache_type_v))
+        * kv_quant_bytes(
+            settings.cache_type_k.unwrap_or(CacheTypeK::F16),
+            settings.cache_type_v.unwrap_or(CacheTypeV::F16)
+        ))
         / (1024.0 * 1024.0);
 
     // Activation overhead during inference (proportional to batch * hidden).

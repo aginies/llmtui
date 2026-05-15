@@ -182,8 +182,8 @@ impl ModelOverride {
             context_length: Some(s.context_length),
             batch_size: Some(s.batch_size),
             ubatch_size: Some(s.ubatch_size),
-            cache_type_k: Some(s.cache_type_k.clone()),
-            cache_type_v: Some(s.cache_type_v.clone()),
+            cache_type_k: s.cache_type_k.clone(),
+            cache_type_v: s.cache_type_v.clone(),
             keep: Some(s.keep),
             swa_full: Some(s.swa_full),
             mlock: Some(s.mlock),
@@ -218,8 +218,8 @@ impl ModelOverride {
             samplers: Some(s.samplers.clone()),
             repeat_penalty: Some(s.repeat_penalty),
             repeat_last_n: Some(s.repeat_last_n),
-            presence_penalty: Some(s.presence_penalty),
-            frequency_penalty: Some(s.frequency_penalty),
+            presence_penalty: s.presence_penalty,
+            frequency_penalty: s.frequency_penalty,
             dry_multiplier: Some(s.dry_multiplier),
             dry_base: Some(s.dry_base),
             dry_allowed_length: Some(s.dry_allowed_length),
@@ -230,7 +230,7 @@ impl ModelOverride {
             rope_freq_scale: Some(s.rope_freq_scale),
             cache_prompt: Some(s.cache_prompt),
             cache_reuse: Some(s.cache_reuse),
-            max_tokens: Some(s.max_tokens),
+            max_tokens: s.max_tokens,
             cache_type: Some(s.cache_type.clone()),
             reasoning_mode: Some(s.reasoning_mode),
         }
@@ -241,8 +241,8 @@ impl ModelOverride {
         if let Some(v) = self.context_length { base.context_length = v; }
         if let Some(v) = self.batch_size { base.batch_size = v; }
         if let Some(v) = self.ubatch_size { base.ubatch_size = v; }
-        if let Some(v) = self.cache_type_k { base.cache_type_k = v; }
-        if let Some(v) = self.cache_type_v { base.cache_type_v = v; }
+        if self.cache_type_k.is_some() { base.cache_type_k = self.cache_type_k; }
+        if self.cache_type_v.is_some() { base.cache_type_v = self.cache_type_v; }
         if let Some(v) = self.keep { base.keep = v; }
         if let Some(v) = self.swa_full { base.swa_full = v; }
         if let Some(v) = self.mlock { base.mlock = v; }
@@ -278,8 +278,8 @@ impl ModelOverride {
         if let Some(v) = &self.samplers { base.samplers = v.clone(); }
         if let Some(v) = self.repeat_penalty { base.repeat_penalty = v; }
         if let Some(v) = self.repeat_last_n { base.repeat_last_n = v; }
-        if let Some(v) = self.presence_penalty { base.presence_penalty = v; }
-        if let Some(v) = self.frequency_penalty { base.frequency_penalty = v; }
+        if self.presence_penalty.is_some() { base.presence_penalty = self.presence_penalty; }
+        if self.frequency_penalty.is_some() { base.frequency_penalty = self.frequency_penalty; }
         if let Some(v) = self.dry_multiplier { base.dry_multiplier = v; }
         if let Some(v) = self.dry_base { base.dry_base = v; }
         if let Some(v) = self.dry_allowed_length { base.dry_allowed_length = v; }
@@ -290,7 +290,7 @@ impl ModelOverride {
         if let Some(v) = self.rope_freq_scale { base.rope_freq_scale = v; }
         if let Some(v) = self.cache_prompt { base.cache_prompt = v; }
         if let Some(v) = self.cache_reuse { base.cache_reuse = v; }
-        if let Some(v) = self.max_tokens { base.max_tokens = v; }
+        if self.max_tokens.is_some() { base.max_tokens = self.max_tokens; }
         if let Some(v) = &self.cache_type { base.cache_type = v.clone(); }
     }
 }
@@ -376,10 +376,10 @@ pub struct DefaultParams {
     pub batch_size: u32,
     #[serde(default)]
     pub ubatch_size: u32,
-    #[serde(default)]
-    pub cache_type_k: CacheTypeK,
-    #[serde(default)]
-    pub cache_type_v: CacheTypeV,
+    #[serde(default = "default_cache_type_k")]
+    pub cache_type_k: Option<CacheTypeK>,
+    #[serde(default = "default_cache_type_v")]
+    pub cache_type_v: Option<CacheTypeV>,
     #[serde(default)]
     pub keep: i32,
     #[serde(default)]
@@ -458,10 +458,10 @@ pub struct DefaultParams {
     pub repeat_penalty: f32,
     #[serde(default)]
     pub repeat_last_n: i32,
-    #[serde(default)]
-    pub presence_penalty: f32,
-    #[serde(default)]
-    pub frequency_penalty: f32,
+    #[serde(default = "default_presence_penalty")]
+    pub presence_penalty: Option<f32>,
+    #[serde(default = "default_frequency_penalty")]
+    pub frequency_penalty: Option<f32>,
     #[serde(default)]
     pub dry_multiplier: f32,
     #[serde(default)]
@@ -498,8 +498,8 @@ pub struct DefaultParams {
     pub router_max_models: u32,
 
     // Other
-    #[serde(default)]
-    pub max_tokens: u32,
+    #[serde(default = "default_max_tokens")]
+    pub max_tokens: Option<u32>,
     #[serde(default)]
     pub cache_type: CacheType,
     #[serde(default)]
@@ -510,6 +510,12 @@ fn default_system_prompt_preset_name() -> String {
     "General".to_string()
 }
 
+fn default_cache_type_k() -> Option<CacheTypeK> { None }
+fn default_cache_type_v() -> Option<CacheTypeV> { None }
+fn default_presence_penalty() -> Option<f32> { None }
+fn default_frequency_penalty() -> Option<f32> { None }
+fn default_max_tokens() -> Option<u32> { None }
+
 impl Default for DefaultParams {
     fn default() -> Self {
         Self {
@@ -519,8 +525,8 @@ impl Default for DefaultParams {
             threads_batch: 8,
             batch_size: 512,
             ubatch_size: 512,
-            cache_type_k: CacheTypeK::F16,
-            cache_type_v: CacheTypeV::F16,
+            cache_type_k: None,
+            cache_type_v: None,
             keep: 0,
             swa_full: false,
             mlock: false,
@@ -563,8 +569,8 @@ impl Default for DefaultParams {
             // Repetition
             repeat_penalty: 1.1,
             repeat_last_n: 64,
-            presence_penalty: 0.0,
-            frequency_penalty: 0.0,
+            presence_penalty: None,
+            frequency_penalty: None,
             dry_multiplier: 0.0,
             dry_base: 1.75,
             dry_allowed_length: 2,
@@ -586,7 +592,7 @@ impl Default for DefaultParams {
             router_max_models: 4,
 
             // Other
-            max_tokens: 2048,
+            max_tokens: None,
             cache_type: CacheType::F16,
             backend: Backend::Vulkan,
         }

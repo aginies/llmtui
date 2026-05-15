@@ -43,8 +43,8 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         },
         format!("{}", settings.flash_attn),
         format!("{}", settings.kv_cache_offload),
-        format!("{}", settings.cache_type_k),
-        format!("{}", settings.cache_type_v),
+        settings.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
+        settings.cache_type_v.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
     ];
 
     for (i, val) in gpu_vals.into_iter().enumerate() {
@@ -85,7 +85,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         format!("{}", settings.top_k),
         format!("{:.2}", settings.top_p),
         format!("{:.2}", settings.min_p),
-        format!("{}", settings.max_tokens),
+        settings.max_tokens.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
     ];
 
     for (i, val) in sampling_vals.into_iter().enumerate() {
@@ -104,8 +104,8 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
     let rep_vals = vec![
         format!("{:.2}", settings.repeat_penalty),
         format!("{}", settings.repeat_last_n),
-        format!("{:.2}", settings.presence_penalty),
-        format!("{:.2}", settings.frequency_penalty),
+        settings.presence_penalty.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "Disabled".to_string()),
+        settings.frequency_penalty.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "Disabled".to_string()),
     ];
 
     for (i, val) in rep_vals.into_iter().enumerate() {
@@ -146,8 +146,16 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
         17 => settings.max_tokens != cached.max_tokens,
         18 => (settings.repeat_penalty - cached.repeat_penalty).abs() > 0.001,
         19 => settings.repeat_last_n != cached.repeat_last_n,
-        20 => (settings.presence_penalty - cached.presence_penalty).abs() > 0.001,
-        21 => (settings.frequency_penalty - cached.frequency_penalty).abs() > 0.001,
+        20 => match (settings.presence_penalty, cached.presence_penalty) {
+            (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
+            (None, None) => false,
+            _ => true,
+        },
+        21 => match (settings.frequency_penalty, cached.frequency_penalty) {
+            (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
+            (None, None) => false,
+            _ => true,
+        },
         _ => false,
     };
 

@@ -91,12 +91,16 @@ fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, s
     cmd.arg("--no-warmup");
     parts.push("--no-warmup".to_string());
 
-    add_arg(&mut cmd, "--cache-type-k", settings.cache_type_k);
-    parts.push("--cache-type-k".to_string());
-    parts.push(settings.cache_type_k.to_string());
-    add_arg(&mut cmd, "--cache-type-v", settings.cache_type_v);
-    parts.push("--cache-type-v".to_string());
-    parts.push(settings.cache_type_v.to_string());
+    if let Some(cache_k) = settings.cache_type_k {
+        add_arg(&mut cmd, "--cache-type-k", cache_k);
+        parts.push("--cache-type-k".to_string());
+        parts.push(cache_k.to_string());
+    }
+    if let Some(cache_v) = settings.cache_type_v {
+        add_arg(&mut cmd, "--cache-type-v", cache_v);
+        parts.push("--cache-type-v".to_string());
+        parts.push(cache_v.to_string());
+    }
 
     if settings.keep != 0 {
         cmd.arg("--keep").arg(settings.keep.to_string());
@@ -247,13 +251,17 @@ fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, s
     parts.push("--repeat-last-n".to_string());
     parts.push(settings.repeat_last_n.to_string());
 
-    add_arg(&mut cmd, "--presence-penalty", format!("{:.2}", settings.presence_penalty));
-    parts.push("--presence-penalty".to_string());
-    parts.push(format!("{:.2}", settings.presence_penalty));
+    if let Some(presence) = settings.presence_penalty {
+        add_arg(&mut cmd, "--presence-penalty", format!("{:.2}", presence));
+        parts.push("--presence-penalty".to_string());
+        parts.push(format!("{:.2}", presence));
+    }
 
-    add_arg(&mut cmd, "--frequency-penalty", format!("{:.2}", settings.frequency_penalty));
-    parts.push("--frequency-penalty".to_string());
-    parts.push(format!("{:.2}", settings.frequency_penalty));
+    if let Some(frequency) = settings.frequency_penalty {
+        add_arg(&mut cmd, "--frequency-penalty", format!("{:.2}", frequency));
+        parts.push("--frequency-penalty".to_string());
+        parts.push(format!("{:.2}", frequency));
+    }
 
     if settings.dry_multiplier != 0.0 {
         add_arg(&mut cmd, "--dry-multiplier", format!("{:.2}", settings.dry_multiplier));

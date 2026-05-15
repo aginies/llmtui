@@ -482,13 +482,41 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 parts.push(Span::raw(" new  "));
                 parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
                 parts.push(Span::raw(" done"));
+            } else if app.active_panel == crate::tui::app::ActivePanel::ServerSettings {
+                parts.push(Span::styled("SERVER SETTINGS", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" nav  "));
+                parts.push(Span::styled("Enter", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" toggle  "));
+                parts.push(Span::styled("h/l", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" adjust  "));
+                parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" panels"));
+            } else if app.active_panel == crate::tui::app::ActivePanel::LlmSettings {
+                parts.push(Span::styled("LLM SETTINGS", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" nav  "));
+                parts.push(Span::styled("h/l", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" adjust  "));
+                parts.push(Span::styled("Ctrl+S", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" save  "));
+                parts.push(Span::styled("Ctrl+R", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" reset  "));
+                parts.push(Span::styled("Ctrl+E", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" toggle  "));
+                if app.is_settings_dirty() {
+                    parts.push(Span::styled("*unsaved*", Style::default().fg(Color::Red)));
+                    parts.push(Span::raw("  "));
+                }
+                parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" panels"));
             } else {
                 let panel_label = match app.active_panel {
                     crate::tui::app::ActivePanel::Models => "MODELS",
                     crate::tui::app::ActivePanel::Log => "LOG",
                     crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
-                    crate::tui::app::ActivePanel::ServerSettings => "SERVER SETTINGS",
-                    crate::tui::app::ActivePanel::LlmSettings => "LLM SETTINGS",
                     crate::tui::app::ActivePanel::SearchReadme => "README",
                     _ => "APP",
                 };
@@ -500,55 +528,42 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                     parts.push(Span::styled("c", Style::default().fg(Color::Cyan)));
                     parts.push(Span::raw(" cancel  "));
                 }
-                if app.active_panel == crate::tui::app::ActivePanel::ServerSettings {
-                    parts.push(Span::styled("Enter", Style::default().fg(Color::Yellow)));
-                    parts.push(Span::raw(" toggle  "));
-                }
-                if app.active_panel == crate::tui::app::ActivePanel::LlmSettings {
-                    parts.push(Span::styled("Ctrl+S", Style::default().fg(Color::Yellow)));
-                    parts.push(Span::raw(" save  "));
-                    parts.push(Span::styled("Ctrl+R", Style::default().fg(Color::Yellow)));
-                    parts.push(Span::raw(" reset  "));
-                    if app.is_settings_dirty() {
-                        parts.push(Span::styled("*unsaved*", Style::default().fg(Color::Red)));
-                        parts.push(Span::raw("  "));
-                    }
-                }
                 parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
                 parts.push(Span::raw(" panels  "));
-            }
-            if app.active_panel == crate::tui::app::ActivePanel::Log {
-                if app.log_expanded {
-                    parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
-                    parts.push(Span::raw(" collapse  "));
-                } else {
-                    parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
-                    parts.push(Span::raw(" expand  "));
+
+                if app.active_panel == crate::tui::app::ActivePanel::Log {
+                    if app.log_expanded {
+                        parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" collapse  "));
+                    } else {
+                        parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" expand  "));
+                    }
                 }
-            }
-            if app.active_panel == crate::tui::app::ActivePanel::SearchReadme {
-                if app.readme_expanded {
-                    parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
-                    parts.push(Span::raw(" collapse  "));
-                } else {
-                    parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
-                    parts.push(Span::raw(" expand  "));
+                if app.active_panel == crate::tui::app::ActivePanel::SearchReadme {
+                    if app.readme_expanded {
+                        parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" collapse  "));
+                    } else {
+                        parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" expand  "));
+                    }
                 }
+                parts.push(Span::styled("/", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" search  "));
+                parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" nav  "));
+                parts.push(Span::styled("l", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" load  "));
+                parts.push(Span::styled("u", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" unload  "));
+                parts.push(Span::styled("g/G", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" log  "));
+                parts.push(Span::styled("Ctrl+H", Style::default().fg(Color::Cyan)));
+                parts.push(Span::raw(" help  "));
+                parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" profiles"));
             }
-            parts.push(Span::styled("/", Style::default().fg(Color::Yellow)));
-            parts.push(Span::raw(" search  "));
-            parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
-            parts.push(Span::raw(" nav  "));
-            parts.push(Span::styled("l", Style::default().fg(Color::Yellow)));
-            parts.push(Span::raw(" load  "));
-            parts.push(Span::styled("u", Style::default().fg(Color::Yellow)));
-            parts.push(Span::raw(" unload  "));
-            parts.push(Span::styled("g/G", Style::default().fg(Color::Cyan)));
-            parts.push(Span::raw(" log  "));
-            parts.push(Span::styled("Ctrl+H", Style::default().fg(Color::Cyan)));
-            parts.push(Span::raw(" help  "));
-            parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
-            parts.push(Span::raw(" profiles"));
         }
     }
 
