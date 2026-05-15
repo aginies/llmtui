@@ -109,8 +109,6 @@ impl DefaultParams {}
 pub struct ModelOverride {
     // Loading
     pub context_length: Option<u32>,
-    pub threads: Option<u32>,
-    pub threads_batch: Option<u32>,
     pub batch_size: Option<u32>,
     pub ubatch_size: Option<u32>,
     pub cache_type_k: Option<CacheTypeK>,
@@ -121,7 +119,6 @@ pub struct ModelOverride {
     pub mmap: Option<bool>,
     pub numa: Option<NumMode>,
     pub uniform_cache: Option<bool>,
-    pub parallel: Option<u32>,
     pub system_prompt: Option<String>,
     pub system_prompt_preset_name: Option<String>,
 
@@ -135,6 +132,7 @@ pub struct ModelOverride {
     pub lora_scaled: Option<(PathBuf, f32)>,
     pub rpc: Option<String>,
     pub embedding: Option<bool>,
+    pub kv_cache_offload: Option<bool>,
     pub flash_attn: Option<bool>,
     pub jinja: Option<bool>,
     pub chat_template: Option<String>,
@@ -169,17 +167,12 @@ pub struct ModelOverride {
     pub rope_freq_scale: Option<f32>,
 
     // Server
-    pub host: Option<String>,
-    pub port: Option<u16>,
-    pub timeout: Option<u32>,
     pub cache_prompt: Option<bool>,
     pub cache_reuse: Option<u32>,
-    pub webui: Option<bool>,
 
     // Other
     pub max_tokens: Option<u32>,
     pub cache_type: Option<CacheType>,
-    pub backend: Option<Backend>,
     pub reasoning_mode: Option<crate::models::ReasoningMode>,
 }
 
@@ -187,8 +180,6 @@ impl ModelOverride {
     pub fn from_settings(s: &crate::models::ModelSettings) -> Self {
         Self {
             context_length: Some(s.context_length),
-            threads: Some(s.threads),
-            threads_batch: Some(s.threads_batch),
             batch_size: Some(s.batch_size),
             ubatch_size: Some(s.ubatch_size),
             cache_type_k: Some(s.cache_type_k.clone()),
@@ -199,7 +190,6 @@ impl ModelOverride {
             mmap: Some(s.mmap),
             numa: Some(s.numa.clone()),
             uniform_cache: Some(s.uniform_cache),
-            parallel: Some(s.parallel),
             system_prompt: Some(s.system_prompt.clone()),
             system_prompt_preset_name: Some(s.system_prompt_preset_name.clone()),
             gpu_layers: Some(s.gpu_layers),
@@ -211,6 +201,7 @@ impl ModelOverride {
             lora_scaled: s.lora_scaled.clone(),
             rpc: Some(s.rpc.clone()),
             embedding: Some(s.embedding),
+            kv_cache_offload: Some(s.kv_cache_offload),
             flash_attn: Some(s.flash_attn),
             jinja: Some(s.jinja),
             chat_template: s.chat_template.clone(),
@@ -237,15 +228,10 @@ impl ModelOverride {
             rope_scale: Some(s.rope_scale),
             rope_freq_base: Some(s.rope_freq_base),
             rope_freq_scale: Some(s.rope_freq_scale),
-            host: Some(s.host.clone()),
-            port: Some(s.port),
-            timeout: Some(s.timeout),
             cache_prompt: Some(s.cache_prompt),
             cache_reuse: Some(s.cache_reuse),
-            webui: Some(s.webui),
             max_tokens: Some(s.max_tokens),
             cache_type: Some(s.cache_type.clone()),
-            backend: Some(s.backend.clone()),
             reasoning_mode: Some(s.reasoning_mode),
         }
     }
@@ -253,8 +239,6 @@ impl ModelOverride {
     /// Merge override into a base ModelSettings (in-place).
     pub fn apply(&self, base: &mut crate::models::ModelSettings) {
         if let Some(v) = self.context_length { base.context_length = v; }
-        if let Some(v) = self.threads { base.threads = v; }
-        if let Some(v) = self.threads_batch { base.threads_batch = v; }
         if let Some(v) = self.batch_size { base.batch_size = v; }
         if let Some(v) = self.ubatch_size { base.ubatch_size = v; }
         if let Some(v) = self.cache_type_k { base.cache_type_k = v; }
@@ -265,7 +249,7 @@ impl ModelOverride {
         if let Some(v) = self.mmap { base.mmap = v; }
         if let Some(v) = self.numa { base.numa = v; }
         if let Some(v) = self.uniform_cache { base.uniform_cache = v; }
-        if let Some(v) = self.parallel { base.parallel = v; }
+        if let Some(v) = self.kv_cache_offload { base.kv_cache_offload = v; }
         if let Some(v) = &self.system_prompt { base.system_prompt = v.clone(); }
         if let Some(v) = &self.system_prompt_preset_name { base.system_prompt_preset_name = v.clone(); }
         if let Some(v) = self.gpu_layers { base.gpu_layers = v; }
@@ -304,15 +288,10 @@ impl ModelOverride {
         if let Some(v) = self.rope_scale { base.rope_scale = v; }
         if let Some(v) = self.rope_freq_base { base.rope_freq_base = v; }
         if let Some(v) = self.rope_freq_scale { base.rope_freq_scale = v; }
-        if let Some(v) = &self.host { base.host = v.clone(); }
-        if let Some(v) = self.port { base.port = v; }
-        if let Some(v) = self.timeout { base.timeout = v; }
         if let Some(v) = self.cache_prompt { base.cache_prompt = v; }
         if let Some(v) = self.cache_reuse { base.cache_reuse = v; }
-        if let Some(v) = self.webui { base.webui = v; }
         if let Some(v) = self.max_tokens { base.max_tokens = v; }
         if let Some(v) = &self.cache_type { base.cache_type = v.clone(); }
-        if let Some(v) = &self.backend { base.backend = v.clone(); }
     }
 }
 

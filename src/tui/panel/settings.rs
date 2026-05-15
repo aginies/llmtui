@@ -22,7 +22,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         Span::styled("--- Loading ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let loading_names = vec!["Context", "Threads", "Threads Batch", "Prompt", "Reasoning Mode"];
+    let loading_names = vec!["Context", "Threads (Global)", "Threads Batch (Global)", "Prompt", "Reasoning Mode"];
     let loading_vals = vec![
         format!("{}", settings.context_length),
         format!("{}", settings.threads),
@@ -145,8 +145,8 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
     // Compute dirty flag from current_idx into the dirty array
     let dirty = match current_idx {
         0 => settings.context_length != cached.context_length,
-        1 => settings.threads != cached.threads,
-        2 => settings.threads_batch != cached.threads_batch,
+        1 => false, // Global
+        2 => false, // Global
         3 => settings.system_prompt_preset_name != cached.system_prompt_preset_name,
         4 => settings.reasoning_mode != cached.reasoning_mode,
         5 => settings.gpu_layers != cached.gpu_layers,

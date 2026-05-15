@@ -11,7 +11,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, selected: usize, edit
 
     // ── Connectivity ──────────────────────────────────────────
     lines.push(Line::from(vec![
-        Span::styled("--- Connectivity ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+        Span::styled("--- Connectivity (Global) ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
     let host_val = if settings.host == "127.0.0.1" { "localhost (127.0.0.1)" } else { &settings.host };
@@ -22,7 +22,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, selected: usize, edit
 
     // ── Backend ───────────────────────────────────────────────
     lines.push(Line::from(vec![
-        Span::styled("--- Backend ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+        Span::styled("--- Backend (Global) ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
     let backend_name = format!("{}", settings.backend);

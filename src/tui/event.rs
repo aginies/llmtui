@@ -662,6 +662,16 @@ fn handle_log_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 }
 
+fn sync_global_settings(app: &mut App) {
+    app.config.default.host = app.settings.host.clone();
+    app.config.default.port = app.settings.port;
+    app.config.default.backend = app.settings.backend;
+    app.config.default.parallel = app.settings.parallel;
+    app.config.default.threads = app.settings.threads;
+    app.config.default.threads_batch = app.settings.threads_batch;
+    let _ = app.config.save();
+}
+
 fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
@@ -692,16 +702,19 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings.parallel = (app.settings.parallel % 10) + 1;
                 app.update_vram_estimate();
             }
+            sync_global_settings(app);
             app.set_redraw();
         }
         KeyCode::Left | KeyCode::Char('h') if app.server_settings_selected_idx == 2 => {
             app.settings.parallel = app.settings.parallel.saturating_sub(1).max(1);
             app.update_vram_estimate();
+            sync_global_settings(app);
             app.set_redraw();
         }
         KeyCode::Right | KeyCode::Char('l') if app.server_settings_selected_idx == 2 => {
             app.settings.parallel = (app.settings.parallel + 1).min(10);
             app.update_vram_estimate();
+            sync_global_settings(app);
             app.set_redraw();
         }
         _ => {}
@@ -934,12 +947,18 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.pop();
             } else {
                 adjust_setting(&mut app.settings, idx, -1, app.max_threads, app.model_n_ctx_train);
+                if idx == 1 || idx == 2 {
+                    sync_global_settings(app);
+                }
                 app.update_vram_estimate();
             }
             app.set_redraw();
         }
         KeyCode::Right => {
             adjust_setting(&mut app.settings, idx, 1, app.max_threads, app.model_n_ctx_train);
+            if idx == 1 || idx == 2 {
+                sync_global_settings(app);
+            }
             app.update_vram_estimate();
             app.set_redraw();
         }
@@ -963,6 +982,9 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 } else {
                     apply_numeric_setting(&mut app.settings, idx, &app.settings_edit_buffer, app.max_threads, app.model_n_ctx_train);
+                }
+                if idx == 1 || idx == 2 {
+                    sync_global_settings(app);
                 }
                 app.settings_edit_buffer.clear();
                 app.update_vram_estimate();
