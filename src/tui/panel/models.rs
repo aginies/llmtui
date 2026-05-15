@@ -199,10 +199,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
             (block, list_items)
         }
-        ModelsMode::Search { query, results, sort_by, filter, loading, has_more, .. } => {
+        ModelsMode::Search { query, results, sort_by, loading, has_more, .. } => {
             let sort_label = sort_by.label();
-            let filter_str = filter.label();
-            let title = format!(" Search: {} [{}] [{}]", query, sort_label, filter_str);
+            let title = format!(" Search: {} [{}]", query, sort_label);
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)

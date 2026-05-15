@@ -55,26 +55,13 @@ pub async fn list_releases() -> Result<Vec<crate::models::LlamaCppRelease>> {
 ///
 /// `limit` is the number of results per page (default 50, max 200).
 /// `offset` is the number of results to skip (for pagination).
-/// `filter` is an optional search filter.
-pub async fn search_models(query: &str, limit: u32, offset: u32, filter: Option<crate::models::SearchFilter>) -> Result<(Vec<crate::models::SearchResult>, usize)> {
-    let mut url = format!(
+pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<crate::models::SearchResult>, usize)> {
+    let url = format!(
         "https://huggingface.co/api/models?search={}&limit={}&offset={}",
         urlencoding::encode(query),
         limit,
         offset
     );
-
-    if let Some(f) = filter {
-        match f {
-            crate::models::SearchFilter::Downloads(min) => {
-                url.push_str(&format!("&minDownloads={}", min));
-            }
-            crate::models::SearchFilter::Likes(min) => {
-                url.push_str(&format!("&minLikes={}", min));
-            }
-            _ => {}
-        }
-    }
 
     let resp = reqwest::get(&url).await?.error_for_status()?;
     let models: Vec<serde_json::Value> = resp.json().await?;

@@ -1,7 +1,7 @@
 use crate::backend::server::ServerHandle;
 use crate::config::{Config, LogEntry, Profile};
 use crate::models::{
-    DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, SearchFilter, ServerMetrics,
+    DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
 };
 use chrono::Local;
 use ratatui::style::{Color, Modifier, Style};
@@ -39,7 +39,6 @@ pub enum ModelsMode {
         results: Vec<SearchResult>,
         sort_by: SearchSort,
         show_readme: bool,
-          filter: SearchFilter,
         page: usize,
         /// Whether results are currently being loaded.
         loading: bool,
@@ -176,8 +175,7 @@ pub struct App {
     pub pending_version_picker: bool,
     /// Pending search load (page) — set when user presses B or Down at bottom.
     pub pending_search_load: Option<(String, u32)>, // (query, offset)
-    pub pending_search_filter: Option<SearchFilter>,
-    /// Whether search results are currently being loaded.
+     /// Whether search results are currently being loaded.
     pub search_loading: bool,
 }
 
@@ -260,7 +258,6 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             version_picker_scroll_offset: 0,
             version_picker_show_cached: false,
             pending_search_load: None,
-            pending_search_filter: None,
             search_loading: false,
         }
     }
@@ -936,7 +933,6 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Exit search")]),
                 Line::from(vec![Span::styled("l", y.clone()), Span::raw("  View available GGUF files")]),
                 Line::from(vec![Span::styled("S", y.clone()), Span::raw("  Cycle sort order (Relevance/Downloads/Likes/Trending/Created)")]),
-                Line::from(vec![Span::styled("F", y.clone()), Span::raw("  Cycle filter (None/Downloads>Likes>Size)")]),
                 Line::from(vec![Span::styled("B", y.clone()), Span::raw("  Go back one page")]),
                 Line::from(vec![Span::styled("Down at bottom", y.clone()), Span::raw("  Load more results (infinite scroll)")]),
                 Line::from(vec![Span::styled("R", y.clone()), Span::raw("  Fetch and view README")]),

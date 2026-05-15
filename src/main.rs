@@ -716,10 +716,8 @@ async fn main() -> Result<()> {
                 let is_append = offset > 0;
                 let query_clone = if is_append { Some(query.clone()) } else { None };
                 let offset_clone = offset;
-                let filter = app.pending_search_filter.take();
-
                 let search_handle = tokio::spawn(async move {
-                    hub::search_models(&query_clone.unwrap_or_default(), 50, offset_clone, filter).await
+                    hub::search_models(&query_clone.unwrap_or_default(), 50, offset_clone).await
                 });
 
                 match search_handle.await {

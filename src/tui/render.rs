@@ -430,7 +430,7 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
     let mut parts = Vec::new();
 
     match &app.models_mode {
-        crate::tui::app::ModelsMode::Search { query: _, sort_by, show_readme, filter, loading, .. } => {
+        crate::tui::app::ModelsMode::Search { query: _, sort_by, show_readme, loading, .. } => {
             parts.push(Span::styled("SEARCH", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
             parts.push(Span::raw(" "));
             parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
@@ -441,8 +441,6 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
             parts.push(Span::raw(" files  "));
             parts.push(Span::styled("S", Style::default().fg(Color::Yellow)));
             parts.push(Span::raw(" sort  "));
-            parts.push(Span::styled("F", Style::default().fg(Color::Yellow)));
-            parts.push(Span::raw(" filter  "));
             parts.push(Span::styled("B", Style::default().fg(Color::Yellow)));
             parts.push(Span::raw(" back  "));
             if *show_readme {
@@ -462,9 +460,6 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
             parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
             parts.push(Span::raw(" navigate  "));
             parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("Filter:", Style::default().fg(Color::Cyan)));
-            parts.push(Span::styled(filter.label(), Style::default().fg(Color::Green)));
             if *loading {
                 parts.push(Span::raw(" "));
                 parts.push(Span::styled("[loading...]", Style::default().fg(Color::Yellow)));

@@ -5,7 +5,7 @@ use tracing::debug;
 use crate::backend::hub;
 use crate::config::builtin_profiles;
 
-use crate::models::{ModelSettings, SearchSort, SearchFilter};
+use crate::models::{ModelSettings, SearchSort};
 use crate::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, LoadingPhase};
 
 pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
@@ -193,7 +193,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 results: Vec::new(),
                 sort_by: SearchSort::Relevance,
                 show_readme: true,
-                 filter: SearchFilter::None,
                 page: 0,
                 loading: false,
                 has_more: true,
@@ -242,13 +241,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
 
                 app.add_log(&format!("Searching for '{}'...", query), crate::config::LogLevel::Info);
-                let filter = if let ModelsMode::Search { filter, .. } = &app.models_mode {
-                    filter.clone()
-                } else {
-                    SearchFilter::None
-                };
                 app.pending_search_load = Some((query, 0));
-                app.pending_search_filter = Some(filter);
                 app.search_loading = true;
                 app.set_redraw();
                 return;
@@ -311,14 +304,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
                 return;
             }
-            KeyCode::Char('F') => {
-                // Cycle filter
-                if let ModelsMode::Search { filter, .. } = &mut app.models_mode {
-                    *filter = filter.next();
-                }
-                app.set_redraw();
-                return;
-            }
          KeyCode::Char('B') => {
                 // Go back one page
                 if let ModelsMode::Search { page, .. } = &app.models_mode {
@@ -329,18 +314,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             String::new()
                         };
                         let offset = (*page as u32 - 1) * 50;
-                        let filter = if let ModelsMode::Search { filter, .. } = &app.models_mode {
-                            filter.clone()
-                        } else {
-                            SearchFilter::None
-                        };
                         app.add_log(&format!("Loading page {}...", *page - 1), crate::config::LogLevel::Info);
                         // Mutate via mutable borrow
                         if let ModelsMode::Search { page, .. } = &mut app.models_mode {
                             *page -= 1;
                         }
                         app.pending_search_load = Some((query, offset));
-                        app.pending_search_filter = Some(filter);
                         app.search_loading = true;
                         // Keep the current results while loading
                         app.set_redraw();
@@ -364,14 +343,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                                         String::new()
                                     };
                                     let offset = (*page as u32 + 1) * 50;
-                                    let filter = if let ModelsMode::Search { filter, .. } = &app.models_mode {
-                                        filter.clone()
-                                    } else {
-                                        SearchFilter::None
-                                    };
                                     app.add_log("Loading more results...", crate::config::LogLevel::Info);
                                     app.pending_search_load = Some((query, offset));
-                                    app.pending_search_filter = Some(filter);
                                     app.search_loading = true;
                                     app.set_redraw();
                                     return;
@@ -482,7 +455,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         results: previous_results,
                         sort_by: SearchSort::Relevance,
                         show_readme: true,
-                        filter: SearchFilter::None,
                         page: 0,
                         loading: false,
                         has_more: true,
