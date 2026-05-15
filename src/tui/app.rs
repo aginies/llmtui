@@ -469,14 +469,21 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 to_revert.push(name.clone());
             }
         }
-        // Remove from loaded list if they were previously loaded
-        for name in to_revert {
-            self.loaded_model_names.lock().unwrap().retain(|n| n != &name);
+        // Downgrade any Loaded models to Failed
+        let mut to_fail = Vec::new();
+        for (name, state) in &self.model_states {
+            if matches!(state, ModelState::Loaded { .. }) {
+                to_fail.push(name.clone());
+            }
+        }
+        // Remove from loaded list
+        for name in to_revert.iter().chain(to_fail.iter()) {
+            self.loaded_model_names.lock().unwrap().retain(|n| n != name);
             let error = self.last_error_message.clone().unwrap_or_else(|| {
                 let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
                 format!("Last Failed to load a model ({})", timestamp)
             });
-            self.model_states.insert(name, ModelState::Failed { error });
+            self.model_states.insert(name.clone(), ModelState::Failed { error });
         }
         self.set_redraw();
     }

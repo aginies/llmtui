@@ -22,7 +22,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Skip all if in exit confirmation
+    //   Skip all if in exit confirmation
     if app.global_mode == GlobalMode::ExitConfirmation {
         match key.code {
             KeyCode::Char('y') | KeyCode::Enter => {

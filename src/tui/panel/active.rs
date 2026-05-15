@@ -8,6 +8,10 @@ use ratatui::{
 
 use crate::tui::app::App;
 
+fn strip_gguf(name: &str) -> &str {
+    name.strip_suffix(".gguf").unwrap_or(name)
+}
+
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let mut title_spans = vec![Span::raw(" Active Model(s) ")];
     if app.metrics.total_vram_used > 0 {
@@ -34,12 +38,26 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             let m = model.unwrap();
             lines.push(Line::from(vec![
                 Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
-                Span::styled(&m.name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                         Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
                 Span::raw("  "),
                 Span::styled("✓", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
             ]));
 
             // Metrics row 1: Performance and Context
+            let pct = if app.metrics.ctx_max > 0 {
+                (app.metrics.ctx_used as f64 / app.metrics.ctx_max as f64 * 100.0).ceil() as usize
+            } else {
+                0
+            };
+            let bar_width = 20usize;
+            let filled = (pct as f64 / 100.0 * bar_width as f64) as usize;
+            let bar_only = format!(
+                "{}{}{}",
+                "█".repeat(filled.saturating_sub(1)),
+                "█",
+                "░".repeat(bar_width.saturating_sub(filled)),
+            );
+            let token_str = format!("{}/{} ({:.0}%)", app.metrics.ctx_used, app.metrics.ctx_max, pct as f64 / 100.0 * 100.0);
             lines.push(Line::from(vec![
                 Span::styled(" [ ", Style::default().fg(Color::White)),
                 Span::styled("TPS: ", Style::default().fg(Color::Yellow)),
@@ -48,9 +66,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                 Span::styled(format!("{:.1}", app.metrics.prompt_tps), Style::default().fg(Color::Green)),
                 Span::styled(")", Style::default().fg(Color::DarkGray)),
                 Span::styled(" ]  [ ", Style::default().fg(Color::White)),
-                Span::styled("Context: ", Style::default().fg(Color::Yellow)),
-                Span::styled(format!("{}/{}", app.metrics.ctx_used, app.metrics.ctx_max), Style::default().fg(Color::Cyan)),
-                Span::styled(" tokens ", Style::default().fg(Color::DarkGray)),
+                Span::styled(bar_only, Style::default().fg(Color::Cyan)),
+                Span::styled(" ", Style::default().fg(Color::Cyan)),
+                Span::styled("tokens", Style::default().fg(Color::Cyan)),
+                Span::styled(" ", Style::default().fg(Color::Cyan)),
+                Span::styled(token_str, Style::default().fg(Color::Cyan)),
                 Span::styled(" ]", Style::default().fg(Color::White)),
             ]));
 
@@ -74,7 +94,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             let m = model.unwrap();
             lines.push(Line::from(vec![
                 Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
-                Span::styled(&m.name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
             ]));
             lines.push(Line::from(vec![
                 Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
@@ -104,12 +124,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         Some(crate::models::ModelState::Failed { error }) => {
             let m = model.unwrap();
             lines.push(Line::from(vec![
-                Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
-                Span::styled(&m.name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-            ]));
-            lines.push(Line::from(vec![
-                Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
-                Span::styled(&*error, Style::default().fg(Color::Red)),
+               Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
+                        Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                    ]));
+                    lines.push(Line::from(vec![
+                        Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(&*error, Style::default().fg(Color::Red)),
             ]));
         }
         _ => {

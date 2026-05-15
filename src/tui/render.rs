@@ -2,7 +2,7 @@ use ratatui::{
     Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 
@@ -40,9 +40,10 @@ pub fn render(f: &mut Frame, app: &mut App) {
     // CmdLine full-screen overlay
     if let GlobalMode::CmdLine { cmd_line } = &app.global_mode {
         let area = f.area();
-        // Use a simple string — Paragraph will render it as-is without per-char styling.
-        // This makes the text selectable in terminals that support it (kitty, foot, alacritty, etc.).
-        let paragraph = Paragraph::new(cmd_line.as_str());
+        let max_width = (area.width - 2).max(10) as usize;
+        let wrapped = wrap_text(cmd_line, max_width);
+        let text = Text::from(wrapped);
+        let paragraph = Paragraph::new(text);
         f.render_widget(paragraph, area);
         return;
     }
@@ -72,10 +73,10 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ]),
             Line::from("Are you sure you want to exit?"),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
+          Line::from(vec![
+                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
                 Span::raw("    "),
-                Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
+                Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::Yellow)),
             ]),
         ];
 
@@ -103,7 +104,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             Line::from(""),
             Line::from("Reset all LLM settings to defaults?"),
             Line::from(""),
-            Line::from(vec![
+  Line::from(vec![
                 Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
                 Span::raw("    "),
                 Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
@@ -140,8 +141,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
             Line::from(""),
             Line::from("This action cannot be undone."),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::Red)),
+Line::from(vec![
+                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
                 Span::raw("    "),
                 Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
             ]),
@@ -628,4 +629,32 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
     }
 
     Line::from(parts)
+}
+
+fn wrap_text(text: &str, max_width: usize) -> String {
+    use unicode_width::UnicodeWidthStr;
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+
+    for word in text.split_whitespace() {
+        let word_width = word.width();
+        let current_width = current.width();
+
+        if current.is_empty() {
+            current.push_str(word);
+        } else if current_width + 1 + word_width > max_width {
+            lines.push(std::mem::take(&mut current));
+            current = word.to_string();
+        } else {
+            current.push(' ');
+            current.push_str(word);
+        }
+    }
+
+    if !current.is_empty() {
+        lines.push(current);
+    }
+
+    lines.join("\n")
 }
