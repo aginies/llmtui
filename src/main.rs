@@ -434,6 +434,7 @@ async fn main() -> Result<()> {
                     }
                 });
                 
+                app.loaded_model_names.lock().unwrap().retain(|n| n != &model_name);
                 app.model_states.insert(model_name, crate::models::ModelState::Available);
                 
                 // If no more models are loaded, kill the server
@@ -608,7 +609,6 @@ async fn main() -> Result<()> {
                         // Robust matching: check path, display_name, or filename
                         let status_lower = status.to_lowercase();
                         let is_active = status_lower == "loaded" || status_lower == "loading" || status_lower == "ready";
-                        let is_unloaded = status_lower == "unloaded";
                         
                         let mut matched = false;
                         for model in &app.models {
@@ -625,25 +625,23 @@ async fn main() -> Result<()> {
                                 .map(|f| f == model.name || f == model.display_name)
                                 .unwrap_or(false);
                             
-                            if path_match || id_match || filename_match || id_filename_match {
-                                let current_state = app.model_states.get(&model.display_name);
-                                 let new_state = if is_active {
-                                     if status_lower == "loading" {
-                                         crate::models::ModelState::Loading
-                                     } else {
-                                         crate::models::ModelState::Loaded { port, pid }
-                                     }
-                                 } else if is_unloaded && !matches!(current_state, Some(crate::models::ModelState::Loaded { .. })) {
-                                     // Remove from loaded list before setting to Available
-                                     app.loaded_model_names.lock().unwrap().retain(|n| n != &model.display_name);
-                                     crate::models::ModelState::Available
-                                 } else {
-                                     // Preserve existing state (e.g., keep Loaded if server reports unloaded)
-                                     continue;
-                                 };
-                                 app.model_states.insert(model.display_name.clone(), new_state);
-                                matched = true;
-                            }
+                               if path_match || id_match || filename_match || id_filename_match {
+                                    if is_active {
+                                         if status_lower == "loading" {
+                                             app.model_states.insert(model.display_name.clone(), crate::models::ModelState::Loading);
+                                         } else {
+                                             // Ensure it's in the loaded list
+                                             let mut loaded_names = app.loaded_model_names.lock().unwrap();
+                                             if !loaded_names.contains(&model.display_name) {
+                                                 loaded_names.push(model.display_name.clone());
+                                             }
+                                             app.model_states.insert(model.display_name.clone(), crate::models::ModelState::Loaded { port, pid });
+                                         }
+                                    }
+                                    // NEVER mark as Available here. 
+                                    // Unloading is handled explicitly in the pending_api_unload block.
+                                    matched = true;
+                                }
                         }
                         
                         // If no direct match found, try fuzzy filename matching as last resort
@@ -652,17 +650,15 @@ async fn main() -> Result<()> {
                             for name in possible_names {
                                 for model in &app.models {
                                     if model.display_name == name || model.name == name {
-                                        let current_state = app.model_states.get(&model.display_name);
-                                        let new_state = if is_active {
-                                             crate::models::ModelState::Loaded { port, pid }
-                                         } else if is_unloaded && !matches!(current_state, Some(crate::models::ModelState::Loaded { .. })) {
-                                             // Remove from loaded list before setting to Available
-                                             app.loaded_model_names.lock().unwrap().retain(|n| n != &model.display_name);
-                                             crate::models::ModelState::Available
-                                         } else {
-                                             continue;
-                                         };
-                                         app.model_states.insert(model.display_name.clone(), new_state);
+                                         if is_active {
+                                              // Ensure it's in the loaded list
+                                              let mut loaded_names = app.loaded_model_names.lock().unwrap();
+                                              if !loaded_names.contains(&model.display_name) {
+                                                  loaded_names.push(model.display_name.clone());
+                                              }
+                                              app.model_states.insert(model.display_name.clone(), crate::models::ModelState::Loaded { port, pid });
+                                          }
+                                          // NEVER mark as Available here.
                                         matched = true;
                                         break;
                                     }

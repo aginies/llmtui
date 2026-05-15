@@ -469,23 +469,29 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             || upper.contains("OUT OF MEMORY");
 
         if is_error {
-            let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-            let mut error_msg = if upper.contains("OUTOFDEVICEMEMORY") || upper.contains("OUT OF MEMORY") {
-                format!("Last Failed to load a model (OOM - {})", timestamp)
-            } else {
-                format!("Last Failed to load a model ({})", timestamp)
-            };
+            // Only trigger a full reset if something is actually LOADING or the server crashed.
+            // Harmful log lines containing "ERROR" shouldn't kill a successfully LOADED model.
+            let is_loading = self.model_states.values().any(|s| matches!(s, ModelState::Loading));
+            
+            if is_crash || is_loading {
+                let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
+                let mut error_msg = if upper.contains("OUTOFDEVICEMEMORY") || upper.contains("OUT OF MEMORY") {
+                    format!("Last Failed to load a model (OOM - {})", timestamp)
+                } else {
+                    format!("Last Failed to load a model ({})", timestamp)
+                };
 
-            // If the server itself exited, make the message more specific
-            if is_crash {
-                error_msg = format!("Last Failed to load a model (Router Crash - {})", timestamp);
-                if let Some(h) = self.server_handle.take() {
-                    self.pending_kill = Some(h);
+                // If the server itself exited, make the message more specific
+                if is_crash {
+                    error_msg = format!("Last Failed to load a model (Router Crash - {})", timestamp);
+                    if let Some(h) = self.server_handle.take() {
+                        self.pending_kill = Some(h);
+                    }
                 }
-            }
 
-            self.last_error_message = Some(error_msg);
-            self.reset_loading_state();
+                self.last_error_message = Some(error_msg);
+                self.reset_loading_state();
+            }
         }
 
         // Update progress based on observed phases and tensor loading details
