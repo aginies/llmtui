@@ -564,10 +564,8 @@ async fn main() -> Result<()> {
                     }
                 }
                 // Parse Context Usage from logs: "n_tokens = 12667"
-                // Don't use .max() — after compaction the token count drops, and we
-                // want the display to reflect the current state. The metrics_rx channel
-                // provides fresh values from the server's /metrics endpoint which is
-                // the authoritative source anyway.
+                // Don't use max() — after compaction the token count drops, and we
+                // want the display to reflect the current state.
                 if line.contains("n_tokens =") {
                     if let Some(tokens_part) = line.split("n_tokens =").last() {
                         let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
@@ -687,8 +685,9 @@ async fn main() -> Result<()> {
                 if m.tps == 0.0 && app.metrics.tps > 0.0 {
                     m.tps = app.metrics.tps;
                 }
-                // Preserve log-parsed context usage if endpoint returns 0
-                if m.ctx_used == 0 && app.metrics.ctx_used > 0 {
+                // Prefer log-parsed context usage over endpoint when both are available,
+                // so the display reflects actual inference state (including compaction drops).
+                if app.metrics.ctx_used > 0 {
                     m.ctx_used = app.metrics.ctx_used;
                 }
                 // Preserve log-parsed VRAM if endpoint returns 0
@@ -713,7 +712,7 @@ async fn main() -> Result<()> {
                 let query_clone = if is_append { Some(query.clone()) } else { None };
                 let offset_clone = offset;
                 let search_handle = tokio::spawn(async move {
-                    hub::search_models(&query_clone.unwrap_or_default(), 50, offset_clone).await
+                    hub::search_models(&query_clone.unwrap_or_default(), 100, offset_clone).await
                 });
 
                 match search_handle.await {

@@ -66,7 +66,6 @@ pub enum ModelsMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GlobalMode {
     Normal,
-    Help,
     DeleteConfirmation,
     ResetConfirmation,
     ExitConfirmation,
@@ -1094,7 +1093,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("h / l / Left / Right", y.clone()), Span::raw("  Adjust value")]),
                 Line::from(""),
                 Line::from(vec![Span::styled("Host", y.clone()), Span::raw("  Bind address (127.0.0.1 or 0.0.0.0)")]),
-                Line::from(vec![Span::styled("Backend", y.clone()), Span::raw("  Acceleration backend (cpu / vulkan)")]),
+                Line::from(vec![Span::styled("Backend", y.clone()), Span::raw("  Acceleration backend (cpu / vulkan / rocm)")]),
                 Line::from(vec![Span::styled("Threads", y.clone()), Span::raw("  CPU threads for generation (1 to max)")]),
                 Line::from(vec![Span::styled("Threads Batch", y.clone()), Span::raw("  CPU threads for batch processing (1 to 32)")]),
             ],

@@ -11,27 +11,16 @@ use crate::tui::app::{App, ActivePanel, GlobalMode, ModelsMode};
 use crate::tui::panel;
 
 pub fn render(f: &mut Frame, app: &mut App) {
-    // If help is showing, overlay it on top of everything
-    if app.global_mode == GlobalMode::Help {
-        let area = f.area();
-        let help_area = Rect {
-            x: area.width.saturating_sub(44) / 2,
-            y: area.height.saturating_sub(20) / 2,
-            width: 44,
-            height: 20,
-        };
-        panel::help::render(f, help_area, app);
-        return;
-    }
-
     // Panel-specific help overlay
     if app.panel_help {
         let area = f.area();
+        let w = (area.width as f64 * 0.7).max(60.0).min(80.0) as u16;
+        let h = (area.height as f64 * 0.7).max(20.0).min(35.0) as u16;
         let help_area = Rect {
-            x: area.width.saturating_sub(50) / 2,
-            y: area.height.saturating_sub(25) / 2,
-            width: 50,
-            height: 25,
+            x: (area.width - w) / 2,
+            y: (area.height - h) / 2,
+            width: w,
+            height: h,
         };
         panel::help::render_panel(f, help_area, app);
         return;
@@ -642,8 +631,6 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                             parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
                             parts.push(Span::raw(" help  "));
                         }
-                        parts.push(Span::styled("Ctrl+Shift+H", Style::default().fg(Color::Cyan)));
-                        parts.push(Span::raw(" global help  "));
                         parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
                         parts.push(Span::raw(" profiles"));
                     }

@@ -53,11 +53,11 @@ pub async fn list_releases() -> Result<Vec<crate::models::LlamaCppRelease>> {
 
 /// Search models on HuggingFace.
 ///
-/// `limit` is the number of results per page (default 50, max 200).
+/// `limit` is the number of results per page (default 100, max 200).
 /// `offset` is the number of results to skip (for pagination).
 pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<crate::models::SearchResult>, usize)> {
     let url = format!(
-        "https://huggingface.co/api/models?search={}&limit={}&offset={}",
+        "https://huggingface.co/api/models?search={}&limit={}&offset={}&filter=gguf",
         urlencoding::encode(query),
         limit,
         offset
@@ -81,10 +81,6 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
                         .collect()
                 })
                 .unwrap_or_default();
-
-            if !tags.contains(&"gguf".to_string()) {
-                return None;
-            }
 
             let downloads = m.get("downloads")?.as_u64().unwrap_or(0);
             let likes = m.get("likes")?.as_u64().unwrap_or(0);

@@ -150,18 +150,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
             return;
         }
-        KeyCode::Char('h')
-            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) && key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) =>
-        {
-            // Toggle global help
-            if app.global_mode == GlobalMode::Help {
-                app.global_mode = GlobalMode::Normal;
-            } else {
-                app.global_mode = GlobalMode::Help;
-            }
-            app.set_redraw();
-            return;
-        }
         KeyCode::Char('l')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
@@ -617,11 +605,6 @@ KeyCode::Char('c') => {
             }
             _ => {}
         }
-        return;
-    }
-
-    // Skip normal key handling when help is showing
-    if app.global_mode == GlobalMode::Help {
         return;
     }
 
