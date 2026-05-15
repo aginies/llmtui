@@ -5,7 +5,7 @@ use tracing::debug;
 use crate::backend::hub;
 use crate::config::builtin_profiles;
 
-use crate::models::{ModelSettings, SearchSort};
+use crate::models::{ModelSettings, SearchSort, SearchFilter};
 use crate::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, LoadingPhase};
 
 pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
@@ -193,6 +193,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 results: Vec::new(),
                 sort_by: SearchSort::Relevance,
                 show_readme: true,
+                 filter: SearchFilter::None,
+                page: 0,
+                loading: false,
+                has_more: true,
             };
             app.search_results_idx = Some(0);
             return;
@@ -238,19 +242,15 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
 
                 app.add_log(&format!("Searching for '{}'...", query), crate::config::LogLevel::Info);
-                match hub::search_models(&query, 50).await {
-                    Ok(res) => {
-                        if let ModelsMode::Search { results, .. } = &mut app.models_mode {
-                            *results = res.clone();
-                        }
-                        app.search_results_idx = Some(0);
-                        app.selected_model_idx = None;
-                        app.add_log(&format!("Found {} models", res.len()), crate::config::LogLevel::Info);
-                    }
-                    Err(e) => {
-                        app.add_log(&format!("Search failed: {}", e), crate::config::LogLevel::Error);
-                    }
-                }
+                let filter = if let ModelsMode::Search { filter, .. } = &app.models_mode {
+                    filter.clone()
+                } else {
+                    SearchFilter::None
+                };
+                app.pending_search_load = Some((query, 0));
+                app.pending_search_filter = Some(filter);
+                app.search_loading = true;
+                app.set_redraw();
                 return;
             }
             KeyCode::Backspace => {
@@ -299,10 +299,90 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     results.sort_by(|a, b| match sort_by {
                         SearchSort::Downloads => b.downloads.cmp(&a.downloads),
                         SearchSort::Likes => b.likes.cmp(&a.likes),
+                        SearchSort::Trending => b.trending_score.cmp(&a.trending_score),
+                        SearchSort::CreatedAt => {
+                            let a_date = a.created_at.as_deref().unwrap_or("");
+                            let b_date = b.created_at.as_deref().unwrap_or("");
+                            b_date.cmp(a_date)
+                        }
                         SearchSort::Relevance => a.downloads.cmp(&b.downloads),
                     });
                 }
                 app.set_redraw();
+                return;
+            }
+            KeyCode::Char('F') => {
+                // Cycle filter
+                if let ModelsMode::Search { filter, .. } = &mut app.models_mode {
+                    *filter = filter.next();
+                }
+                app.set_redraw();
+                return;
+            }
+         KeyCode::Char('B') => {
+                // Go back one page
+                if let ModelsMode::Search { page, .. } = &app.models_mode {
+                    if *page > 0 {
+                        let query = if let ModelsMode::Search { query, .. } = &app.models_mode {
+                            query.clone()
+                        } else {
+                            String::new()
+                        };
+                        let offset = (*page as u32 - 1) * 50;
+                        let filter = if let ModelsMode::Search { filter, .. } = &app.models_mode {
+                            filter.clone()
+                        } else {
+                            SearchFilter::None
+                        };
+                        app.add_log(&format!("Loading page {}...", *page - 1), crate::config::LogLevel::Info);
+                        // Mutate via mutable borrow
+                        if let ModelsMode::Search { page, .. } = &mut app.models_mode {
+                            *page -= 1;
+                        }
+                        app.pending_search_load = Some((query, offset));
+                        app.pending_search_filter = Some(filter);
+                        app.search_loading = true;
+                        // Keep the current results while loading
+                        app.set_redraw();
+                        return;
+                    }
+                }
+                return;
+            }
+            KeyCode::Down => {
+                let len = app.search_results_len();
+                match app.search_results_idx {
+                    Some(idx) if idx + 1 < len => app.search_results_idx = Some(idx + 1),
+                    // At last item, load more
+                    Some(idx) => {
+                        if idx + 1 >= len {
+                            if let ModelsMode::Search { has_more, loading, page, .. } = &app.models_mode {
+                                if !*loading && *has_more {
+                                    let query = if let ModelsMode::Search { query, .. } = &app.models_mode {
+                                        query.clone()
+                                    } else {
+                                        String::new()
+                                    };
+                                    let offset = (*page as u32 + 1) * 50;
+                                    let filter = if let ModelsMode::Search { filter, .. } = &app.models_mode {
+                                        filter.clone()
+                                    } else {
+                                        SearchFilter::None
+                                    };
+                                    app.add_log("Loading more results...", crate::config::LogLevel::Info);
+                                    app.pending_search_load = Some((query, offset));
+                                    app.pending_search_filter = Some(filter);
+                                    app.search_loading = true;
+                                    app.set_redraw();
+                                    return;
+                                }
+                            }
+                        }
+                        app.search_results_idx = Some(len.saturating_sub(1));
+                    }
+                    None if len > 0 => app.search_results_idx = Some(0),
+                    _ => {}
+                }
                 return;
             }
             KeyCode::Char('R') => {
@@ -369,16 +449,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
                 return;
             }
-            KeyCode::Down => {
-                let len = if let ModelsMode::Search { results, .. } = &app.models_mode { results.len() } else { 0 };
-                match app.search_results_idx {
-                    Some(idx) if idx + 1 < len => app.search_results_idx = Some(idx + 1),
-                    None if len > 0 => app.search_results_idx = Some(0),
-                    _ => {}
-                }
-                app.set_redraw();
-                return;
-            }
             _ => {}
         }
 
@@ -407,11 +477,15 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     let current_idx = app.search_results_idx;
                     let should_reset = current_idx.is_some() && current_idx.unwrap() >= previous_results.len();
 
-                    app.models_mode = ModelsMode::Search {
+                     app.models_mode = ModelsMode::Search {
                         query: previous_query,
                         results: previous_results,
                         sort_by: SearchSort::Relevance,
                         show_readme: true,
+                        filter: SearchFilter::None,
+                        page: 0,
+                        loading: false,
+                        has_more: true,
                     };
 
                     app.search_results_idx = current_idx;

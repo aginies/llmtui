@@ -199,9 +199,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
             (block, list_items)
         }
-        ModelsMode::Search { query, results, sort_by, .. } => {
+        ModelsMode::Search { query, results, sort_by, filter, loading, has_more, .. } => {
             let sort_label = sort_by.label();
-            let title = format!(" Search: {} [{}]", query, sort_label);
+            let filter_str = filter.label();
+            let title = format!(" Search: {} [{}] [{}]", query, sort_label, filter_str);
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)
@@ -209,11 +210,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
             let headers = vec![
                 Cell::from("Model").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                Cell::from(if *sort_by == SearchSort::Downloads { "⬇ Downloads" } else { "Downloads" }).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                Cell::from(if *sort_by == SearchSort::Likes { "♥ Likes" } else { "Likes" }).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Cell::from(if *sort_by == SearchSort::Downloads { "⬇" } else { "Dl" }).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Cell::from(if *sort_by == SearchSort::Likes { "♥" } else { "Lk" }).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Cell::from("License").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
             ];
 
-            let rows: Vec<Row> = results
+            let mut rows: Vec<Row> = results
                 .iter()
                 .enumerate()
                 .map(|(i, result)| {
@@ -225,18 +227,39 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                         Style::default()
                     };
 
+                    let license = result.license.as_deref().unwrap_or("—");
+
                     Row::new(vec![
                         Cell::from(result.model_id.as_str()),
                         Cell::from(format_number(result.downloads)),
                         Cell::from(format_number(result.likes)),
+                        Cell::from(license),
                     ]).style(row_style)
                 })
                 .collect();
 
+            // Add loading indicator row
+            if *loading {
+                rows.push(Row::new(vec![
+                    Cell::from(""),
+                    Cell::from(""),
+                    Cell::from(""),
+                    Cell::from("  Loading more results...").style(Style::default().fg(Color::Yellow)),
+                ]));
+            } else if !has_more && !results.is_empty() {
+                rows.push(Row::new(vec![
+                    Cell::from(""),
+                    Cell::from(""),
+                    Cell::from(""),
+                    Cell::from("  No more results").style(Style::default().fg(Color::DarkGray)),
+                ]));
+            }
+
             let widths = [
-                Constraint::Fill(1),
-                Constraint::Length(10),
-                Constraint::Length(10),
+                Constraint::Fill(2),
+                Constraint::Length(12),
+                Constraint::Length(8),
+                Constraint::Length(20),
             ];
 
             let table = Table::new(rows, widths).header(Row::new(headers)).block(block);

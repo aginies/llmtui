@@ -13,6 +13,7 @@ use tracing::info;
 use crate::backend::hub;
 use crate::backend::server;
 use crate::config::Config;
+use crate::tui::app::ModelsMode;
 use crate::models::Backend;
 use crate::models::{DiscoveredModel, DownloadState};
 use crate::tui::app::App;
@@ -352,6 +353,9 @@ async fn main() -> Result<()> {
                                     app.add_log(line, crate::config::LogLevel::Info);
                                 }
                             }
+                            // Mark the failed model so it's visible in the UI
+                            app.last_error_message = Some(e);
+                            app.reset_loading_state();
                         }
                         Err(e) => {
                             app.loading_progress = 1.0;
@@ -559,12 +563,15 @@ async fn main() -> Result<()> {
                     }
                 }
                 // Parse Context Usage from logs: "n_tokens = 12667"
+                // Don't use .max() — after compaction the token count drops, and we
+                // want the display to reflect the current state. The metrics_rx channel
+                // provides fresh values from the server's /metrics endpoint which is
+                // the authoritative source anyway.
                 if line.contains("n_tokens =") {
                     if let Some(tokens_part) = line.split("n_tokens =").last() {
                         let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
                         if let Ok(tokens) = val_str.parse::<u32>() {
-                            // Only take the max to prevent a smaller slot from overwriting a larger context
-                            app.metrics.ctx_used = app.metrics.ctx_used.max(tokens);
+                            app.metrics.ctx_used = tokens;
                         }
                     }
                 }
@@ -701,6 +708,57 @@ async fn main() -> Result<()> {
             if received_metrics {
                 app.set_redraw();
             }
+        }
+
+        // Handle pending search loading (pagination)
+        if app.search_loading {
+            if let Some((query, offset)) = app.pending_search_load.take() {
+                let is_append = offset > 0;
+                let query_clone = if is_append { Some(query.clone()) } else { None };
+                let offset_clone = offset;
+                let filter = app.pending_search_filter.take();
+
+                let search_handle = tokio::spawn(async move {
+                    hub::search_models(&query_clone.unwrap_or_default(), 50, offset_clone, filter).await
+                });
+
+                match search_handle.await {
+                    Ok(Ok((res, _))) => {
+                        if is_append {
+                            let res_len = res.len();
+                            if let ModelsMode::Search { results, has_more, loading, .. } = &mut app.models_mode {
+                                results.extend(res);
+                                app.search_results_idx = Some(results.len().saturating_sub(1));
+                                if res_len < 50 {
+                                    *has_more = false;
+                                }
+                                *loading = false;
+                            }
+                        } else {
+                            if let ModelsMode::Search { results, loading, .. } = &mut app.models_mode {
+                                *results = res;
+                                app.search_results_idx = Some(0);
+                                *loading = false;
+                            }
+                        }
+                        app.add_log("Search complete", crate::config::LogLevel::Info);
+                    }
+                    Ok(Err(e)) => {
+                        app.add_log(&format!("Search failed: {}", e), crate::config::LogLevel::Error);
+                        if let ModelsMode::Search { loading, .. } = &mut app.models_mode {
+                            *loading = false;
+                        }
+                    }
+                    Err(e) => {
+                        app.add_log(&format!("Search task error: {}", e), crate::config::LogLevel::Error);
+                        if let ModelsMode::Search { loading, .. } = &mut app.models_mode {
+                            *loading = false;
+                        }
+                    }
+                }
+            }
+            app.search_loading = false;
+            app.set_redraw();
         }
 
         if app.needs_redraw {

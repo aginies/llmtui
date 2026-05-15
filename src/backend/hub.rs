@@ -52,12 +52,29 @@ pub async fn list_releases() -> Result<Vec<crate::models::LlamaCppRelease>> {
 }
 
 /// Search models on HuggingFace.
-pub async fn search_models(query: &str, limit: u32) -> Result<Vec<crate::models::SearchResult>> {
-    let url = format!(
-        "https://huggingface.co/api/models?search={}&limit={}",
+///
+/// `limit` is the number of results per page (default 50, max 200).
+/// `offset` is the number of results to skip (for pagination).
+/// `filter` is an optional search filter.
+pub async fn search_models(query: &str, limit: u32, offset: u32, filter: Option<crate::models::SearchFilter>) -> Result<(Vec<crate::models::SearchResult>, usize)> {
+    let mut url = format!(
+        "https://huggingface.co/api/models?search={}&limit={}&offset={}",
         urlencoding::encode(query),
-        limit
+        limit,
+        offset
     );
+
+    if let Some(f) = filter {
+        match f {
+            crate::models::SearchFilter::Downloads(min) => {
+                url.push_str(&format!("&minDownloads={}", min));
+            }
+            crate::models::SearchFilter::Likes(min) => {
+                url.push_str(&format!("&minLikes={}", min));
+            }
+            _ => {}
+        }
+    }
 
     let resp = reqwest::get(&url).await?.error_for_status()?;
     let models: Vec<serde_json::Value> = resp.json().await?;
@@ -85,6 +102,20 @@ pub async fn search_models(query: &str, limit: u32) -> Result<Vec<crate::models:
             let downloads = m.get("downloads")?.as_u64().unwrap_or(0);
             let likes = m.get("likes")?.as_u64().unwrap_or(0);
             let pipeline_tag = m.get("pipeline_tag").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let trending_score = m.get("trendingScore").and_then(|v| v.as_i64()).unwrap_or(0);
+            let created_at = m.get("createdAt").and_then(|v| v.as_str()).map(|s| s.to_string());
+
+            // Extract quantization from tags (e.g. "gguf:Q4_K_M", "gguf:Q8_0")
+            let quantization = tags.iter()
+                .find(|t| t.starts_with("gguf:"))
+                .and_then(|t| t.strip_prefix("gguf:"))
+                .map(|s| s.to_string());
+
+            // Extract license from tags (e.g. "license:apache-2.0")
+            let license = tags.iter()
+                .find(|t| t.starts_with("license:"))
+                .and_then(|t| t.strip_prefix("license:"))
+                .map(|s| s.to_string());
 
             Some(crate::models::SearchResult {
                 model_id: model_id.clone(),
@@ -97,6 +128,10 @@ pub async fn search_models(query: &str, limit: u32) -> Result<Vec<crate::models:
                 parameters: None,
                 capabilities: vec![],
                 readme: None,
+                quantization,
+                license,
+                trending_score,
+                created_at,
             })
         })
         .collect();
@@ -107,12 +142,12 @@ pub async fn search_models(query: &str, limit: u32) -> Result<Vec<crate::models:
     let client = reqwest::Client::new();
     let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(8));
     let mut handles = Vec::new();
-    
+
     for model_id in &model_ids {
         let client = client.clone();
         let model_id = model_id.clone();
         let permit = semaphore.clone();
-        
+
         handles.push(tokio::spawn(async move {
             let _permit = permit.acquire().await.ok()?;
             let url = format!("https://huggingface.co/api/models/{}", model_id);
@@ -176,7 +211,7 @@ pub async fn search_models(query: &str, limit: u32) -> Result<Vec<crate::models:
         }
     }
 
-    Ok(results)
+    Ok((results, 1))
 }
 
 /// List all GGUF files for a model.
@@ -441,7 +476,7 @@ fn walk_dir_impl(dir: &std::path::Path, entries: &mut Vec<std::fs::DirEntry>, de
     if depth >= max_depth {
         return;
     }
-    
+
     if let Ok(read) = std::fs::read_dir(dir) {
         for entry in read.flatten() {
             let path = entry.path();

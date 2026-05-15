@@ -430,7 +430,7 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
     let mut parts = Vec::new();
 
     match &app.models_mode {
-        crate::tui::app::ModelsMode::Search { query: _, sort_by, show_readme, .. } => {
+        crate::tui::app::ModelsMode::Search { query: _, sort_by, show_readme, filter, loading, .. } => {
             parts.push(Span::styled("SEARCH", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
             parts.push(Span::raw(" "));
             parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
@@ -441,6 +441,10 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
             parts.push(Span::raw(" files  "));
             parts.push(Span::styled("S", Style::default().fg(Color::Yellow)));
             parts.push(Span::raw(" sort  "));
+            parts.push(Span::styled("F", Style::default().fg(Color::Yellow)));
+            parts.push(Span::raw(" filter  "));
+            parts.push(Span::styled("B", Style::default().fg(Color::Yellow)));
+            parts.push(Span::raw(" back  "));
             if *show_readme {
                 if app.readme_expanded {
                     parts.push(Span::styled("R", Style::default().fg(Color::Yellow)));
@@ -458,6 +462,13 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
             parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
             parts.push(Span::raw(" navigate  "));
             parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("Filter:", Style::default().fg(Color::Cyan)));
+            parts.push(Span::styled(filter.label(), Style::default().fg(Color::Green)));
+            if *loading {
+                parts.push(Span::raw(" "));
+                parts.push(Span::styled("[loading...]", Style::default().fg(Color::Yellow)));
+            }
         }
         crate::tui::app::ModelsMode::Files { model_id, .. } => {
             parts.push(Span::styled("FILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
@@ -564,62 +575,84 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
                 parts.push(Span::raw(" panels"));
             } else {
-                let panel_label = match app.active_panel {
-                    crate::tui::app::ActivePanel::Models => "MODELS",
-                    crate::tui::app::ActivePanel::Log => "LOG",
-                    crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
-                    crate::tui::app::ActivePanel::SearchReadme => "README",
-                    _ => "APP",
-                };
-                parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
-                parts.push(Span::raw("  "));
-                if app.active_panel == crate::tui::app::ActivePanel::Downloads {
-                    parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
-                    parts.push(Span::raw(" nav  "));
-                    parts.push(Span::styled("c", Style::default().fg(Color::Cyan)));
-                    parts.push(Span::raw(" cancel  "));
-                }
-                parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
-                parts.push(Span::raw(" panels  "));
-
-                if app.active_panel == crate::tui::app::ActivePanel::Log {
-                    if app.log_expanded {
-                        parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
-                        parts.push(Span::raw(" collapse  "));
-                    } else {
-                        parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
-                        parts.push(Span::raw(" expand  "));
+                match app.active_panel {
+                    crate::tui::app::ActivePanel::Log => {
+                        let panel_label = "LOG";
+                        parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+                        parts.push(Span::raw("  "));
+                        parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" scroll  "));
+                        if app.log_expanded {
+                            parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                            parts.push(Span::raw(" collapse  "));
+                        } else {
+                            parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+                            parts.push(Span::raw(" expand  "));
+                        }
+                        parts.push(Span::raw("  "));
+                        parts.push(Span::styled("g/G", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" top/bottom  "));
+                        if app.log_expanded {
+                            parts.push(Span::raw("  "));
+                            parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
+                            parts.push(Span::raw(" panels"));
+                        }
+                    }
+                    crate::tui::app::ActivePanel::SearchReadme => {
+                        let panel_label = "README";
+                        parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+                        parts.push(Span::raw("  "));
+                        parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" nav  "));
+                        if app.readme_expanded {
+                            parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                            parts.push(Span::raw(" collapse  "));
+                        } else {
+                            parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+                            parts.push(Span::raw(" expand  "));
+                        }
+                        parts.push(Span::raw("  "));
+                        parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" panels"));
+                    }
+                    _ => {
+                        let panel_label = match app.active_panel {
+                            crate::tui::app::ActivePanel::Models => "MODELS",
+                            crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
+                            _ => "APP",
+                        };
+                        parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+                        parts.push(Span::raw("  "));
+                        if app.active_panel == crate::tui::app::ActivePanel::Downloads {
+                            parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                            parts.push(Span::raw(" nav  "));
+                            parts.push(Span::styled("c", Style::default().fg(Color::Cyan)));
+                            parts.push(Span::raw(" cancel  "));
+                        }
+                        parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" panels  "));
+                        parts.push(Span::styled("/", Style::default().fg(Color::Yellow)));
+                        parts.push(Span::raw(" search  "));
+                        parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" nav  "));
+                        parts.push(Span::styled("l", Style::default().fg(Color::Yellow)));
+                        parts.push(Span::raw(" load  "));
+                        parts.push(Span::styled("u", Style::default().fg(Color::Yellow)));
+                        parts.push(Span::raw(" unload  "));
+                        parts.push(Span::styled("g/G", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" log  "));
+                        parts.push(Span::styled("Ctrl+H", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" help  "));
+                        if app.panel_help {
+                            parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+                            parts.push(Span::raw(" help  "));
+                        }
+                        parts.push(Span::styled("Ctrl+Shift+H", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" global help  "));
+                        parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
+                        parts.push(Span::raw(" profiles"));
                     }
                 }
-                if app.active_panel == crate::tui::app::ActivePanel::SearchReadme {
-                    if app.readme_expanded {
-                        parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
-                        parts.push(Span::raw(" collapse  "));
-                    } else {
-                        parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
-                        parts.push(Span::raw(" expand  "));
-                    }
-                }
-                parts.push(Span::styled("/", Style::default().fg(Color::Yellow)));
-                parts.push(Span::raw(" search  "));
-                parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
-                parts.push(Span::raw(" nav  "));
-                parts.push(Span::styled("l", Style::default().fg(Color::Yellow)));
-                parts.push(Span::raw(" load  "));
-                parts.push(Span::styled("u", Style::default().fg(Color::Yellow)));
-                parts.push(Span::raw(" unload  "));
-                parts.push(Span::styled("g/G", Style::default().fg(Color::Cyan)));
-                parts.push(Span::raw(" log  "));
-                parts.push(Span::styled("Ctrl+H", Style::default().fg(Color::Cyan)));
-                parts.push(Span::raw(" help  "));
-                if app.panel_help {
-                    parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
-                    parts.push(Span::raw(" help  "));
-                }
-                parts.push(Span::styled("Ctrl+Shift+H", Style::default().fg(Color::Cyan)));
-                parts.push(Span::raw(" global help  "));
-                parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
-                parts.push(Span::raw(" profiles"));
             }
         }
     }

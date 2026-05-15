@@ -1,7 +1,7 @@
 use crate::backend::server::ServerHandle;
 use crate::config::{Config, LogEntry, Profile};
 use crate::models::{
-    DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
+    DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, SearchFilter, ServerMetrics,
 };
 use chrono::Local;
 use ratatui::style::{Color, Modifier, Style};
@@ -39,6 +39,12 @@ pub enum ModelsMode {
         results: Vec<SearchResult>,
         sort_by: SearchSort,
         show_readme: bool,
+          filter: SearchFilter,
+        page: usize,
+        /// Whether results are currently being loaded.
+        loading: bool,
+        /// Whether more results are available.
+        has_more: bool,
     },
     /// Files mode: listing available GGUF files for a model.
     Files {
@@ -168,6 +174,11 @@ pub struct App {
     pub version_picker_scroll_offset: u16,
     pub version_picker_show_cached: bool,
     pub pending_version_picker: bool,
+    /// Pending search load (page) — set when user presses B or Down at bottom.
+    pub pending_search_load: Option<(String, u32)>, // (query, offset)
+    pub pending_search_filter: Option<SearchFilter>,
+    /// Whether search results are currently being loaded.
+    pub search_loading: bool,
 }
 
 impl App {
@@ -248,6 +259,9 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             picker_backend: crate::models::Backend::Cpu,
             version_picker_scroll_offset: 0,
             version_picker_show_cached: false,
+            pending_search_load: None,
+            pending_search_filter: None,
+            search_loading: false,
         }
     }
 
@@ -420,6 +434,15 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             self.model_states.get(display_name),
             Some(ModelState::Loaded { .. })
         )
+    }
+
+    /// Return the current number of search results.
+    pub fn search_results_len(&self) -> usize {
+        if let ModelsMode::Search { results, .. } = &self.models_mode {
+            results.len()
+        } else {
+            0
+        }
     }
 
     pub fn on_model_selection_change(&mut self) {
@@ -912,7 +935,10 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Execute search")]),
                 Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Exit search")]),
                 Line::from(vec![Span::styled("l", y.clone()), Span::raw("  View available GGUF files")]),
-                Line::from(vec![Span::styled("S", y.clone()), Span::raw("  Cycle sort order")]),
+                Line::from(vec![Span::styled("S", y.clone()), Span::raw("  Cycle sort order (Relevance/Downloads/Likes/Trending/Created)")]),
+                Line::from(vec![Span::styled("F", y.clone()), Span::raw("  Cycle filter (None/Downloads>Likes>Size)")]),
+                Line::from(vec![Span::styled("B", y.clone()), Span::raw("  Go back one page")]),
+                Line::from(vec![Span::styled("Down at bottom", y.clone()), Span::raw("  Load more results (infinite scroll)")]),
                 Line::from(vec![Span::styled("R", y.clone()), Span::raw("  Fetch and view README")]),
             ],
             ActivePanel::Log => vec![

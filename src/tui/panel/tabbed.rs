@@ -389,8 +389,8 @@ fn render_search_result_info(r: &crate::models::SearchResult, file_info: Option<
     } else {
         r.capabilities.iter().take(5).map(|c| c.as_str()).collect::<Vec<_>>().join(", ")
     };
-    let pipeline_str = r.pipeline_tag.as_deref().unwrap_or("N/A");
-    let tag_str = r.tags.iter().take(3).map(|t| t.as_str()).collect::<Vec<_>>().join(", ");
+    let pipeline_str: String = r.pipeline_tag.as_deref().unwrap_or("N/A").to_string();
+    let tag_str: String = r.tags.iter().take(3).cloned().collect::<Vec<_>>().join(", ");
 
     let mut lines = vec![
         Line::from(vec![
@@ -422,6 +422,21 @@ fn render_search_result_info(r: &crate::models::SearchResult, file_info: Option<
         Span::styled("Likes: ", Style::default().fg(Color::Yellow)),
         Span::styled(format!("{}", r.likes), Style::default().fg(Color::White)),
         Span::raw(" | "),
+        Span::styled("Trending: ", Style::default().fg(Color::Yellow)),
+        Span::styled(format!("{}", r.trending_score), Style::default().fg(Color::White)),
+    ]));
+    let license: String = r.license.as_deref().unwrap_or("—").to_string();
+    lines.push(Line::from(vec![
+        Span::styled("License: ", Style::default().fg(Color::Yellow)),
+        Span::styled(license, Style::default().fg(Color::White)),
+    ]));
+    if let Some(created) = &r.created_at {
+        lines.push(Line::from(vec![
+            Span::styled("Created: ", Style::default().fg(Color::Yellow)),
+            Span::styled(created.clone(), Style::default().fg(Color::White)),
+        ]));
+    }
+    lines.push(Line::from(vec![
         Span::styled("Tags: ", Style::default().fg(Color::Yellow)),
         Span::styled(tag_str, Style::default().fg(Color::White)),
     ]));

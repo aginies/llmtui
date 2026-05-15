@@ -22,6 +22,8 @@ pub enum SearchSort {
     Relevance,
     Downloads,
     Likes,
+    Trending,
+    CreatedAt,
 }
 
 impl SearchSort {
@@ -29,7 +31,9 @@ impl SearchSort {
         match self {
             SearchSort::Relevance => SearchSort::Downloads,
             SearchSort::Downloads => SearchSort::Likes,
-            SearchSort::Likes => SearchSort::Relevance,
+            SearchSort::Likes => SearchSort::Trending,
+            SearchSort::Trending => SearchSort::CreatedAt,
+            SearchSort::CreatedAt => SearchSort::Relevance,
         }
     }
 
@@ -38,7 +42,99 @@ impl SearchSort {
             SearchSort::Relevance => "Relevance",
             SearchSort::Downloads => "Downloads",
             SearchSort::Likes => "Likes",
+            SearchSort::Trending => "Trending",
+            SearchSort::CreatedAt => "Created",
         }
+    }
+}
+
+/// Size category for filtering search results.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SizeCategory {
+    Small,    // < 5GB
+    Medium,   // 5GB - 20GB
+    Large,    // 20GB - 40GB
+    XLarge,   // > 40GB
+}
+
+impl SizeCategory {
+    pub fn next(self) -> Self {
+        match self {
+            SizeCategory::Small => SizeCategory::Medium,
+            SizeCategory::Medium => SizeCategory::Large,
+            SizeCategory::Large => SizeCategory::XLarge,
+            SizeCategory::XLarge => SizeCategory::Small,
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            SizeCategory::Small => "<5GB",
+            SizeCategory::Medium => "5-20GB",
+            SizeCategory::Large => "20-40GB",
+            SizeCategory::XLarge => ">40GB",
+        }
+    }
+
+    pub fn label(self) -> String {
+        format!("Size:{}", self.description())
+    }
+}
+
+/// Filter applied to search results.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchFilter {
+    /// No filter active.
+    None,
+    /// Filter by download count.
+    Downloads(u64),
+    /// Filter by like count.
+    Likes(u64),
+    /// Filter by model size category.
+    Size(SizeCategory),
+}
+
+impl SearchFilter {
+    pub fn next(self) -> Self {
+        match self {
+            SearchFilter::None => SearchFilter::Downloads(1000),
+            SearchFilter::Downloads(v) => {
+                if v < 100_000 {
+                    SearchFilter::Downloads(v * 10)
+                } else {
+                    SearchFilter::Likes(10)
+                }
+            }
+            SearchFilter::Likes(v) => {
+                if v < 1000 {
+                    SearchFilter::Likes(v * 10)
+                } else {
+                    SearchFilter::Size(SizeCategory::Small)
+                }
+            }
+            SearchFilter::Size(s) => SearchFilter::Size(s.next()),
+        }
+    }
+
+    pub fn label(self) -> String {
+        match self {
+            SearchFilter::None => "No Filter".into(),
+            SearchFilter::Downloads(v) => format!("Downloads>{}", format_number(v)),
+            SearchFilter::Likes(v) => format!("Likes>{}", format_number(v)),
+            SearchFilter::Size(s) => s.label(),
+        }
+    }
+}
+
+fn format_number(n: u64) -> String {
+    if n >= 1_000_000_000 {
+        format!("{:.1}B", n as f64 / 1_000_000_000.0)
+    } else if n >= 1_000_000 {
+        format!("{:.1}M", n as f64 / 1_000_000.0)
+    } else if n >= 1_000 {
+        format!("{:.1}K", n as f64 / 1_000.0)
+    } else {
+        format!("{}", n)
     }
 }
 
@@ -55,6 +151,14 @@ pub struct SearchResult {
     pub parameters: Option<String>,
     pub capabilities: Vec<String>,
     pub readme: Option<String>,
+    /// Quantization type extracted from GGUF metadata (e.g. "Q4_K_M", "Q8_0").
+    pub quantization: Option<String>,
+    /// License extracted from tags (e.g. "apache-2.0", "llama3.1").
+    pub license: Option<String>,
+    /// HuggingFace trending score.
+    pub trending_score: i64,
+    /// Creation timestamp string.
+    pub created_at: Option<String>,
 }
 
 /// Download progress information.

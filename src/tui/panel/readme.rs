@@ -419,7 +419,10 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         .title(" README ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Yellow));
-    let paragraph = Paragraph::new(truncated_lines).block(block);
+    let wrap = ratatui::widgets::Wrap {
+        trim: true,
+    };
+    let paragraph = Paragraph::new(truncated_lines).block(block).wrap(wrap);
     f.render_widget(paragraph, area);
 
     // Vertical scrollbar
