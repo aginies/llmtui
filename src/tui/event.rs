@@ -17,6 +17,16 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Esc => {
                 app.global_mode = GlobalMode::Normal;
             }
+            KeyCode::Char('e') => {
+                if let GlobalMode::CmdLine { cmd_line } = &app.global_mode {
+                    let script = format!("#!/bin/bash\n# Exported from llm-manager\n\n{}\n", cmd_line);
+                    if let Err(e) = std::fs::write("/tmp/test_llamaserver.sh", &script) {
+                        app.add_log(&format!("Failed to write script: {}", e), crate::config::LogLevel::Error);
+                    } else {
+                        app.add_log("Wrote server command to /tmp/test_llamaserver.sh", crate::config::LogLevel::Info);
+                    }
+                }
+            }
             _ => {}
         }
         return;

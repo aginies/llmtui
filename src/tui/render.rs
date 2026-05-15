@@ -32,7 +32,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
         let max_width = (area.width - 2).max(10) as usize;
         let wrapped = wrap_text(cmd_line, max_width);
         let text = Text::from(wrapped);
-        let paragraph = Paragraph::new(text);
+        let block = ratatui::widgets::Block::default()
+            .title(" CmdLine — Esc to close  e to export ")
+            .borders(ratatui::widgets::Borders::ALL)
+            .border_style(Style::default().fg(Color::Yellow));
+        let paragraph = Paragraph::new(text).block(block);
         f.render_widget(paragraph, area);
         return;
     }
