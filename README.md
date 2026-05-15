@@ -67,17 +67,34 @@ Run a model directly with llama-server and expose an OpenAI-compatible API:
 ./build.sh serve --model model.gguf --api-port 49222 --api-key secret
 ```
 
-The API proxy forwards requests to the running llama-server instance and exposes these endpoints:
+The API proxy forwards requests to the running llama-server instance. Explicitly handled endpoints:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/v1/chat/completions` | POST | Chat completions |
-| `/v1/completions` | POST | Completions |
+| `/v1/chat/completions` | POST | Chat completions (OpenAI) |
+| `/v1/completions` | POST | Completions (OpenAI) |
+| `/v1/responses` | POST | Responses (Anthropic) |
+| `/v1/messages` | POST | Messages (Anthropic) |
+| `/v1/messages/count_tokens` | POST | Count tokens (Anthropic) |
 | `/v1/embeddings` | POST | Embeddings |
 | `/v1/models` | GET | List models |
+| `/completion` | POST | Legacy completion |
+| `/infill` | POST | Code completion (FIM) |
+| `/reranking` | POST | Re-ranking |
+| `/tokenize` | POST | Tokenize text |
+| `/detokenize` | POST | Detokenize tokens |
+| `/apply-template` | POST | Apply chat template |
 | `/health` | GET | Health check |
+| `/v1/health` | GET | Health check (alias) |
 | `/metrics` | GET | Prometheus metrics |
+| `/props` | GET/POST | Get/set server properties |
+| `/slots` | GET | Slot monitoring |
+| `/lora-adapters` | GET/POST | List/load LoRA adapters |
+| `/models/load` | POST | Load a model (router mode) |
+| `/models/unload` | POST | Unload a model (router mode) |
 | `/api/status` | GET | Server status (pid, uptime, loaded models) |
+
+> **Note:** All paths not listed above are automatically proxied to the llama-server instance. New endpoints added to llama.cpp work without any code changes.
 
 ### Keyboard shortcuts
 

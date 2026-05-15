@@ -117,6 +117,20 @@ async fn proxy_get(
     proxy_request(State(state), axum::http::Method::GET, path, None).await
 }
 
+/// Catch-all fallback: proxy any unmatched path to the llama-server backend.
+async fn proxy_fallback(
+    State(state): State<ApiState>,
+    req: axum::extract::Request,
+) -> impl IntoResponse {
+    let path = req.uri().path().to_string();
+    let method = req.method().clone();
+    let body_bytes = axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
+        .await
+        .unwrap_or_default();
+    let body_str = String::from_utf8_lossy(&body_bytes).to_string();
+    proxy_request(State(state), method, path, Some(body_str)).await
+}
+
 /// Custom status endpoint.
 async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     let client = Client::new();
@@ -186,6 +200,7 @@ pub async fn start_api_server(
         .route("/v1/embeddings", post(proxy_post))
         .route("/v1/models", get(proxy_get))
         .route("/api/status", get(status))
+        .fallback(proxy_fallback)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
