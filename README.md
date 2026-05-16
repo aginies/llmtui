@@ -14,7 +14,6 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - **GGUF file browser** — list and select specific GGUF files for a model
 - **Log panel** — expand/collapse with Enter/Esc
 - **HuggingFace URL links** — navigate to model pages from Model Info
-- **Version picker** — select llama.cpp binary versions per backend (CPU, Vulkan, ROCm)
 - **CmdLine overlay** — full-screen view of the computed llama-server command line (`Ctrl+K`)
 - **Export to script** — write the llama-server command to `/tmp/test_llamaserver.sh` from the CmdLine overlay (`e`)
 
@@ -108,6 +107,7 @@ The Server Settings panel (top-right) shows server configuration:
 | Threads Batch | CPU threads for batch processing |
 | Mode | Server mode (Normal / Router) |
 | API Endpoint | Enable API proxy (True / False) |
+| API Port | Port for the API proxy server (default: 49222) |
 
 When API Endpoint is enabled, a proxy server starts on port `49222` that forwards requests to the running llama-server instance, exposing the full llama.cpp API (see Serve mode above).
 
@@ -132,18 +132,6 @@ Three backends supported via the llama.cpp server:
 | CPU | CPU-only inference |
 | Vulkan | GPU via Vulkan (AMD/NVIDIA/Intel) |
 | ROCm | GPU via ROCm 7.2 (AMD) |
-
-### Version picker
-
-Select llama.cpp binary versions per backend (CPU, Vulkan, ROCm) from the "LLama.cpp Version" field in LLM Settings.
-
-- `TAB` — Switch backend
-- `Enter` — Select version for the active backend
-- `R` — Refresh releases from GitHub
-- `C` — Toggle cached versions display
-- `Esc` — Exit
-
-Binaries are stored in `~/.local/share/llm-manager/bin/llama-server-{backend}-{version}/`. Switching versions is instant — no re-download.
 
 ### CmdLine overlay
 

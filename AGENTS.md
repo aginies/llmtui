@@ -203,6 +203,19 @@ llama_cpp_version_rocm: null     # null = latest
 
 ## Coding rules
 
+### Planning
+
+**Always plan before making changes.** For any non-trivial task:
+
+1. Identify the root cause of the issue, not just the symptoms.
+2. List affected files and functions.
+3. Use a `todowrite` tool to track the work as a numbered TODO list.
+4. Mark each item as `in_progress` before starting, `completed` when done.
+5. Keep the TODO list visible so progress is clear.
+
+For bug fixes: explain the bug, the root cause, and the fix before implementing.
+For feature additions: describe the approach, then implement.
+
 ### Dependencies
 
 - No new dependencies without asking. The project avoids external crates.
