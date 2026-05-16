@@ -220,6 +220,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 model.as_ref(),
                 &app.settings,
                 &app.config,
+                app.server_mode.clone(),
+                app.router_max_models,
             );
             app.global_mode = GlobalMode::CmdLine { cmd_line };
             app.set_redraw();
@@ -766,15 +768,26 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
 
                     if app.server_handle.is_none() {
-                        // Start server WITH the specific model directly
+                        // Start server (with model in CLI for normal mode, without model for router mode)
                         app.last_error_message = None;
-                        app.pending_spawn = Some((Some(model.clone()), settings));
-                        // No pending_api_load here because it's already in the CLI command
-                        app.loading_phases = vec![LoadingPhase::ServerStarting];
-                        app.loading_progress = 0.25;
-                        app.add_log(format!("Starting server with {}...", model.display_name), crate::config::LogLevel::Info);
+                        
+                        if app.server_mode == crate::models::ServerMode::Router {
+                            // Router mode: start server without a model, then load via /load API
+                            app.pending_spawn = Some((None, settings.clone()));
+                            // Queue the load so it triggers once server is ready
+                            app.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
+                            app.loading_phases = vec![LoadingPhase::ServerStarting];
+                            app.loading_progress = 0.25;
+                            app.add_log(format!("Starting router server..."), crate::config::LogLevel::Info);
+                        } else {
+                            // Normal mode: start server WITH the specific model directly
+                            app.pending_spawn = Some((Some(model.clone()), settings));
+                            app.loading_phases = vec![LoadingPhase::ServerStarting];
+                            app.loading_progress = 0.25;
+                            app.add_log(format!("Starting server with {}...", model.display_name), crate::config::LogLevel::Info);
+                        }
                     } else {
-                        // Router already running, load via API
+                        // Server already running, load via API
                         
                         // Check if we reached the limit of models to load (based on Max Concurrent Predictions)
                         let active_count = app.model_states.values().filter(|s| 
@@ -806,6 +819,8 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
             } else if app.server_handle.is_some() {
                 app.add_log("Select a loaded model to unload", crate::config::LogLevel::Warning);
+            } else if app.server_mode == crate::models::ServerMode::Router {
+                // Router mode: no server running, no model loaded — fine
             } else {
                 app.add_log("No model is currently loaded", crate::config::LogLevel::Warning);
             }
@@ -858,6 +873,8 @@ fn sync_global_settings(app: &mut App) {
     app.config.default.threads_batch = app.settings.threads_batch;
     app.config.default.api_endpoint_enabled = app.settings.api_endpoint_enabled;
     app.config.default.api_endpoint_port = app.settings.api_endpoint_port;
+    app.config.default.server_mode = app.server_mode.clone();
+    app.config.default.router_max_models = app.router_max_models;
     let _ = app.config.save();
 }
 
@@ -900,7 +917,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 4 => {
                     // Toggle server mode
-                    app.settings.server_mode = match app.settings.server_mode {
+                    app.server_mode = match app.server_mode {
                         crate::models::ServerMode::Normal => crate::models::ServerMode::Router,
                         crate::models::ServerMode::Router => crate::models::ServerMode::Normal,
                     };

@@ -156,12 +156,16 @@ pub struct App {
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,
     pub api_proxy_handle: Option<tokio::task::JoinHandle<()>>,
-    pub needs_redraw: bool,
-   pub panel_help: bool,
+   pub needs_redraw: bool,
+    pub panel_help: bool,
     pub panel_visibility: u8,
     pub panel_help_offset: u16,
     /// Last error message captured from the log (used for Failed state display).
     pub last_error_message: Option<String>,
+    /// Global server mode (Normal or Router) — persists across model switches.
+    pub server_mode: crate::models::ServerMode,
+    /// Global router max models setting.
+    pub router_max_models: u32,
     /// Cached file modification time for debouncing metadata parsing.
     last_metadata_parse: (std::path::PathBuf, std::time::SystemTime),
     /// Pending search load (page) — set when user presses B or Down at bottom.
@@ -176,6 +180,8 @@ impl App {
         log.push_back(LogEntry::new("Starting llm-manager...", crate::config::LogLevel::Info));
         let default_params = config.default.clone();
         let settings: ModelSettings = default_params.into();
+        let server_mode = config.default.server_mode.clone();
+        let router_max_models = config.default.router_max_models;
         Self {
             running: true,
             config,
@@ -246,6 +252,8 @@ impl App {
 last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             pending_search_load: None,
             search_loading: false,
+            server_mode,
+            router_max_models,
         }
     }
 

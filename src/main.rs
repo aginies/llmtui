@@ -245,6 +245,8 @@ async fn main() -> Result<()> {
             let model_clone = model_opt.clone();
             let settings_clone = settings.clone();
             let tx_clone = tx.clone();
+            let server_mode_clone = app.server_mode.clone();
+            let router_max_models_clone = app.router_max_models;
 
             let display_name = model_opt.as_ref().map(|m| m.display_name.clone()).unwrap_or_else(|| "Router".to_string());
             if let Some(m) = &model_opt {
@@ -252,7 +254,7 @@ async fn main() -> Result<()> {
             }
             app.add_log(format!("Loading {}...", display_name), crate::config::LogLevel::Info);
             let handle = tokio::spawn(async move {
-                server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone).await
+                server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone, server_mode_clone, router_max_models_clone).await
                     .map(|(handle, cmd)| (display_name, handle, cmd))
             });
             app.spawn_task_handle = Some(handle);
@@ -264,18 +266,18 @@ async fn main() -> Result<()> {
             && handle.is_finished()
                 && let Some(handle) = app.spawn_task_handle.take() {
                     match handle.await {
-Ok(Ok((_model_name, server_handle, _cmd))) => {
+Ok(Ok((server_display_name, server_handle, _cmd))) => {
                             let port = server_handle.port;
                             let pid = server_handle.pid;
                             let host = server_handle.host.clone();
                             app.add_log(format!("Server started on port {port} (pid={pid})"), crate::config::LogLevel::Info);
                             app.server_handle = Some(server_handle);
                             
-// Start API proxy if enabled
+                            // Start API proxy if enabled
                             if app.settings.api_endpoint_enabled {
                                 let port = app.settings.api_endpoint_port;
                                 let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap_or_else(|_| "127.0.0.1:49222".parse().unwrap());
-                                let model_name = _model_name.clone();
+                                let model_name = server_display_name.clone();
                                 let server_port = app.server_handle.as_ref().map(|h| h.port).unwrap_or(8080);
                                 let pid = app.server_handle.as_ref().map(|h| h.pid).unwrap_or(0);
                                 let handle = tokio::spawn(async move {
@@ -590,7 +592,7 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                 if line.contains("n_tokens =")
                     && let Some(tokens_part) = line.split("n_tokens =").last() {
                         let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
-                        if let Ok(tokens) = val_str.parse::<u32>() {
+                        if let Ok(tokens) = val_str.parse::<u32>() && tokens > 2048 {
                             app.metrics.ctx_used = tokens;
                         }
                     }
@@ -708,11 +710,7 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                 if app.metrics.ctx_used > 0 {
                     m.ctx_used = app.metrics.ctx_used;
                 }
-                // Fallback: if ctx_used is 0 (idle model) but ctx_max is set,
-                // use ctx_max so the display shows the full context window size.
-                if m.ctx_used == 0 && m.ctx_max > 0 {
-                    m.ctx_used = m.ctx_max;
-                }
+                // ctx_used stays 0 when the model is idle, so the display shows 0/{ctx_max}.
                 // Preserve log-parsed VRAM if endpoint returns 0
                 if m.gpu_mem_used == 0 && app.metrics.gpu_mem_used > 0 {
                     m.gpu_mem_used = app.metrics.gpu_mem_used;

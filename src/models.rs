@@ -167,8 +167,6 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             cache_prompt: dp.cache_prompt,
             cache_reuse: dp.cache_reuse,
             webui: dp.webui,
-            router_max_models: dp.router_max_models,
-            server_mode: dp.server_mode,
             max_tokens: dp.max_tokens,
             cache_type: dp.cache_type,
             backend: dp.backend,
@@ -727,10 +725,6 @@ pub struct ModelSettings {
     pub cache_reuse: u32,
     /// Whether to enable WebUI.
     pub webui: bool,
-    /// Maximum number of models to load in router mode.
-    pub router_max_models: u32,
-    /// Server mode: normal (single model) or router (multiple models).
-    pub server_mode: ServerMode,
 
     // ── Other ────────────────────────────────────────────────
 
@@ -827,8 +821,6 @@ impl Default for ModelSettings {
             cache_prompt: true,
             cache_reuse: 0,
             webui: false,
-            router_max_models: 4,
-            server_mode: ServerMode::Normal,
 
             // Other
             max_tokens: Some(2048),
@@ -910,8 +902,6 @@ impl ModelSettings {
         settings.cache_prompt = config.default.cache_prompt;
         settings.cache_reuse = config.default.cache_reuse;
         settings.webui = config.default.webui;
-        settings.router_max_models = config.default.router_max_models;
-        settings.server_mode = config.default.server_mode;
         settings.max_tokens = config.default.max_tokens;
         settings.cache_type = config.default.cache_type;
         settings.backend = config.default.backend;

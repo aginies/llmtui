@@ -132,7 +132,7 @@ pub async fn serve_model(
     info!("Using llama-server: {} (backend: {})", binary.display(), settings.backend);
 
     // Build the server command
-    let (mut cmd, cmd_display) = server::build_server_cmd(&binary, Some(&model), &settings, &config);
+    let (mut cmd, cmd_display) = server::build_server_cmd(&binary, Some(&model), &settings, &config, config.default.server_mode.clone(), config.default.router_max_models);
 
     // Set LD_LIBRARY_PATH so the binary can find its shared libraries
     let bin_dir = binary.parent().unwrap();

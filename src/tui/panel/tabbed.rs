@@ -133,7 +133,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
     let backend_name = format!("{}", app.settings.backend);
     let threads_val = format!("{}", app.settings.threads);
     let threads_batch_val = format!("{}", app.settings.threads_batch);
-    let mode_val = format!("{}", app.settings.server_mode);
+    let mode_val = format!("{}", app.server_mode);
     let api_enabled = if app.settings.api_endpoint_enabled { "True" } else { "False" };
 
     let mut lines = Vec::new();
@@ -163,7 +163,7 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
     let backend_name = app.settings.backend.to_string();
     let threads_val = app.settings.threads.to_string();
     let threads_batch_val = app.settings.threads_batch.to_string();
-    let mode_val = app.settings.server_mode.to_string();
+    let mode_val = app.server_mode.to_string();
     let api_enabled = if app.settings.api_endpoint_enabled { "True" } else { "False" };
     let server_running = app.server_handle.is_some();
 

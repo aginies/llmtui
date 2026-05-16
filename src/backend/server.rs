@@ -41,35 +41,35 @@ fn clean_host(host: &str) -> String {
 
 /// Build the full llama-server command line from settings.
 /// Returns (Command, display_string) where the string is suitable for logging.
-pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, settings: &ModelSettings, _config: &Config) -> (Command, String) {
+pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, settings: &ModelSettings, config: &Config, server_mode: crate::models::ServerMode, router_max_models: u32) -> (Command, String) {
     let mut cmd = Command::new(binary);
     let mut parts: Vec<String> = vec![binary.display().to_string()];
 
     // ── Model ───────────────────────────────────────────────
-    if let Some(model) = model {
-        if settings.server_mode == crate::models::ServerMode::Normal {
-            cmd.arg("-m").arg(&model.path);
-            parts.push("-m".to_string());
-            parts.push(model.path.display().to_string());
+    match server_mode {
+        crate::models::ServerMode::Normal => {
+            if let Some(model) = model {
+                cmd.arg("-m").arg(&model.path);
+                parts.push("-m".to_string());
+                parts.push(model.path.display().to_string());
 
-            // Add alias for router mode identification (uses the unique relative path)
-            cmd.arg("--alias").arg(&model.display_name);
-            parts.push("--alias".to_string());
-            parts.push(model.display_name.clone());
-        } else {
-            // Router mode: use --models-max instead of loading a specific model
-            if settings.router_max_models > 0 {
-                add_arg(&mut cmd, "--models-max", settings.router_max_models);
-                parts.push("--models-max".to_string());
-                parts.push(settings.router_max_models.to_string());
+                // Add alias for router mode identification (uses the unique relative path)
+                cmd.arg("--alias").arg(&model.display_name);
+                parts.push("--alias".to_string());
+                parts.push(model.display_name.clone());
             }
         }
-    } else {
-        // Pure router mode
-        if settings.router_max_models > 0 {
-            add_arg(&mut cmd, "--models-max", settings.router_max_models);
-            parts.push("--models-max".to_string());
-            parts.push(settings.router_max_models.to_string());
+        crate::models::ServerMode::Router => {
+            // Router mode: no model in CLI, use /load API to load models
+            if router_max_models > 0 {
+                add_arg(&mut cmd, "--models-max", router_max_models);
+                parts.push("--models-max".to_string());
+                parts.push(router_max_models.to_string());
+            }
+            // Always pass --models-dir in router mode (global config setting)
+            add_arg(&mut cmd, "--models-dir", config.models_dir.to_string_lossy());
+            parts.push("--models-dir".to_string());
+            parts.push(config.models_dir.display().to_string());
         }
     }
 
@@ -347,6 +347,8 @@ pub async fn spawn_server(
     model: Option<&DiscoveredModel>,
     settings: &ModelSettings,
     log_tx: mpsc::Sender<String>,
+    server_mode: crate::models::ServerMode,
+    router_max_models: u32,
 ) -> Result<(ServerHandle, String), String> {
     let port = settings.port;
 
@@ -395,7 +397,7 @@ pub async fn spawn_server(
         }
     };
 
-    let (mut cmd, cmd_string) = build_server_cmd(&binary, model, settings, config);
+    let (mut cmd, cmd_string) = build_server_cmd(&binary, model, settings, config, server_mode, router_max_models);
     cmd.stdout(Stdio::piped())
        .stderr(Stdio::piped());
 

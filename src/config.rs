@@ -175,8 +175,6 @@ pub struct ModelOverride {
     // Server
     pub cache_prompt: Option<bool>,
     pub cache_reuse: Option<u32>,
-    pub server_mode: Option<crate::models::ServerMode>,
-    pub router_max_models: Option<u32>,
     pub webui: Option<bool>,
 
     // Other
@@ -252,8 +250,6 @@ impl ModelOverride {
             rope_freq_scale: Some(s.rope_freq_scale),
             cache_prompt: Some(s.cache_prompt),
             cache_reuse: Some(s.cache_reuse),
-            server_mode: Some(s.server_mode),
-            router_max_models: Some(s.router_max_models),
             webui: Some(s.webui),
             max_tokens: s.max_tokens,
             cache_type: Some(s.cache_type),
@@ -328,8 +324,6 @@ impl ModelOverride {
         base.rope_freq_scale = self.rope_freq_scale.unwrap_or(base.rope_freq_scale);
         base.cache_prompt = self.cache_prompt.unwrap_or(base.cache_prompt);
         base.cache_reuse = self.cache_reuse.unwrap_or(base.cache_reuse);
-        base.server_mode = self.server_mode.unwrap_or(base.server_mode);
-        base.router_max_models = self.router_max_models.unwrap_or(base.router_max_models);
         base.webui = self.webui.unwrap_or(base.webui);
         base.max_tokens = self.max_tokens;
         base.cache_type = self.cache_type.unwrap_or(base.cache_type);
