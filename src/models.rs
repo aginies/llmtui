@@ -175,6 +175,8 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_cpu: dp.llama_cpp_version_cpu,
             llama_cpp_version_vulkan: dp.llama_cpp_version_vulkan,
             llama_cpp_version_rocm: dp.llama_cpp_version_rocm,
+            api_endpoint_enabled: dp.api_endpoint_enabled,
+            api_endpoint_port: dp.api_endpoint_port,
         }
     }
 }
@@ -760,6 +762,10 @@ pub struct ModelSettings {
     pub llama_cpp_version_vulkan: Option<String>,
     /// llama.cpp release tag for ROCm backend (e.g. "b1234" or None for latest).
     pub llama_cpp_version_rocm: Option<String>,
+    /// Whether to enable the API proxy server.
+    pub api_endpoint_enabled: bool,
+    /// Port for the API proxy server.
+    pub api_endpoint_port: u16,
 }
 
 impl Default for ModelSettings {
@@ -847,6 +853,8 @@ impl Default for ModelSettings {
             llama_cpp_version_cpu: None,
             llama_cpp_version_vulkan: None,
             llama_cpp_version_rocm: None,
+            api_endpoint_enabled: false,
+            api_endpoint_port: 49222,
         }
     }
 }
@@ -921,6 +929,8 @@ impl ModelSettings {
         settings.llama_cpp_version_cpu = config.default.llama_cpp_version_cpu.clone();
         settings.llama_cpp_version_vulkan = config.default.llama_cpp_version_vulkan.clone();
         settings.llama_cpp_version_rocm = config.default.llama_cpp_version_rocm.clone();
+        settings.api_endpoint_enabled = config.default.api_endpoint_enabled;
+        settings.api_endpoint_port = config.default.api_endpoint_port;
         settings
     }
 }

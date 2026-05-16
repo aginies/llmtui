@@ -264,12 +264,28 @@ async fn main() -> Result<()> {
             if handle.is_finished() {
                 if let Some(handle) = app.spawn_task_handle.take() {
                     match handle.await {
-                        Ok(Ok((_model_name, server_handle, _cmd))) => {
+Ok(Ok((_model_name, server_handle, _cmd))) => {
                             let port = server_handle.port;
                             let pid = server_handle.pid;
                             let host = server_handle.host.clone();
                             app.add_log(&format!("Server started on port {port} (pid={pid})"), crate::config::LogLevel::Info);
                             app.server_handle = Some(server_handle);
+                            
+// Start API proxy if enabled
+                            if app.settings.api_endpoint_enabled {
+                                let port = app.settings.api_endpoint_port;
+                                let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap_or_else(|_| "127.0.0.1:49222".parse().unwrap());
+                                let model_name = _model_name.clone();
+                                let server_port = app.server_handle.as_ref().map(|h| h.port).unwrap_or(8080);
+                                let pid = app.server_handle.as_ref().map(|h| h.pid).unwrap_or(0);
+                                let handle = tokio::spawn(async move {
+                                    let _ = crate::serve_api::start_api_server(
+                                        addr, None, server_port, model_name, pid
+                                    ).await;
+                                });
+                                app.api_proxy_handle = Some(handle);
+                                app.add_log(&format!("API proxy started on port {}", port), crate::config::LogLevel::Info);
+                            }
                             
                             app.loading_phases = vec![crate::tui::app::LoadingPhase::Complete];
                             app.loading_progress = 1.0;
@@ -471,11 +487,16 @@ async fn main() -> Result<()> {
                         task.abort();
                     }
 
-                    // Abort the sync task if it exists
+              // Abort the sync task if it exists
                     if let Some(task) = app.sync_task_handle.take() {
                         task.abort();
                     }
                     app.sync_rx = None;
+                    
+                    // Abort the API proxy if it exists
+                    if let Some(proxy) = app.api_proxy_handle.take() {
+                        proxy.abort();
+                    }
                     
                     // Reset all model states to Available since the server is gone
                     // (But keep Failed states so the user sees the error message)
@@ -811,7 +832,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Cleanup before exit: kill running server and background tasks
+ // Cleanup before exit: kill running server and background tasks
     println!("Shutting down all processes...");
     if let Some(handle) = app.server_handle.take() {
         let _ = server::kill_server(handle).await;
@@ -819,7 +840,10 @@ async fn main() -> Result<()> {
     if let Some(task) = app.metrics_task_handle.take() {
         task.abort();
     }
-    if let Some(task) = app.spawn_task_handle.take() {
+   if let Some(task) = app.spawn_task_handle.take() {
+        task.abort();
+    }
+   if let Some(task) = app.api_proxy_handle.take() {
         task.abort();
     }
 
