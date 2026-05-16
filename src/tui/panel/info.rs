@@ -67,13 +67,11 @@ pub fn max_context_for_vram(
 
     let flash_attn_factor = if flash_attn { 0.5 } else { 1.0 };
 
-    let uniform_cache_factor = 1.0;
-
     // KV quant factor (relative to f16 = 2 bytes)
     let kv_quant_factor = kv_quant_bytes(cache_type_k, cache_type_v) / 2.0;
 
-    // KV cache per token per layer: 2 * hidden * 2 * gqa_ratio * flash * uniform * quant
-    let kv_per_token = 2.0 * hidden_size as f64 * 2.0 * gqa_ratio * flash_attn_factor * uniform_cache_factor * kv_quant_factor;
+    // KV cache per token per layer: 2 * hidden * 2 * gqa_ratio * flash * quant
+    let kv_per_token = 2.0 * hidden_size as f64 * 2.0 * gqa_ratio * flash_attn_factor * kv_quant_factor;
 
     // Total KV budget = kv_per_token * ctx * gpu_layers
     // ctx = kv_budget / (kv_per_token * gpu_layers)

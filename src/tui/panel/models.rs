@@ -37,7 +37,7 @@ pub fn render_download_panel(
     let total_speed_str = format_speed(total_speed);
     let count = downloads.len();
     let title = if count == 1 {
-        format!(" Downloading ({}) ", total_speed_str)
+        format!("Downloading ({}) ", total_speed_str)
     } else {
         format!(" {} Downloads ({}) ", count, total_speed_str)
     };
@@ -122,7 +122,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
-                Color::Rgb(255, 165, 0)
+                Color::Yellow
             };
             let block = Block::default()
                 .title(title)
@@ -234,9 +234,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             ];
 
             let table = Table::new(rows, widths).header(Row::new(headers)).block(block);
-            let mut table_state = TableState::default();
-            table_state.select(app.search_results_idx);
-            return f.render_stateful_widget(table, area, &mut table_state);
+            app.search_table_state.select(app.search_results_idx);
+            return f.render_stateful_widget(table, area, &mut app.search_table_state);
         }
         ModelsMode::Files { model_id, files, selected_idx, selected_result: _, .. } => {
             let title = format!(" {} - GGUF files ", model_id);
@@ -280,10 +279,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             ];
 
             let table = Table::new(rows, widths).header(Row::new(headers));
-            let mut table_state = TableState::default();
-            table_state.select(*selected_idx);
+            app.files_table_state.select(*selected_idx);
 
-            f.render_stateful_widget(table, inner_area, &mut table_state);
+            f.render_stateful_widget(table, inner_area, &mut app.files_table_state);
             return;
         }
     };

@@ -75,7 +75,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
     let eval_vals = vec![
         format!("{}", settings.batch_size),
         format!("{}", settings.uniform_cache),
-        format!("{}", settings.max_concurrent_predictions),
+        settings.max_concurrent_predictions.map(|v| v.to_string()).unwrap_or_else(|| "Off".to_string()),
     ];
 
     for (i, val) in eval_vals.into_iter().enumerate() {

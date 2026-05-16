@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use tokio::select;
 use tracing::info;
+use tokio::signal;
 
 use crate::backend::server;
 use crate::config::Config;
@@ -174,7 +175,7 @@ pub async fn serve_model(
         None
     };
 
-    // Wait for either llama-server or API server to exit
+    // Wait for either llama-server, API server, or Ctrl+C
     let status = select! {
         status = child.wait() => {
             status.context("Failed to wait for llama-server")?
@@ -185,6 +186,11 @@ pub async fn serve_model(
             }
         } => {
             child.wait().await.context("Failed to wait for llama-server")?
+        }
+        _ = signal::ctrl_c() => {
+            info!("Received SIGINT, shutting down llama-server...");
+            let _ = child.kill().await;
+            std::process::exit(0);
         }
     };
 

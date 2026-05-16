@@ -20,6 +20,7 @@ pub struct ApiState {
     pub pid: u32,
     pub start_time: Instant,
     pub port: u16,
+    pub client: reqwest::Client,
 }
 
 fn extract_api_key(headers: &axum::http::HeaderMap) -> Option<String> {
@@ -55,15 +56,14 @@ async fn proxy_request(
     path: String,
     body: Option<String>,
 ) -> impl IntoResponse {
-    let client = Client::new();
     let url = format!("{}{}", state.server_url, path);
 
     let mut request_builder = match method {
-        axum::http::Method::GET => client.get(&url),
-        axum::http::Method::POST => client.post(&url),
-        axum::http::Method::PUT => client.put(&url),
-        axum::http::Method::DELETE => client.delete(&url),
-        _ => client.get(&url),
+        axum::http::Method::GET => state.client.get(&url),
+        axum::http::Method::POST => state.client.post(&url),
+        axum::http::Method::PUT => state.client.put(&url),
+        axum::http::Method::DELETE => state.client.delete(&url),
+        _ => state.client.get(&url),
     };
 
     let response = match body {
@@ -124,21 +124,25 @@ async fn proxy_fallback(
 ) -> impl IntoResponse {
     let path = req.uri().path().to_string();
     let method = req.method().clone();
-    let body_bytes = axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
-        .await
-        .unwrap_or_default();
-    let body_str = String::from_utf8_lossy(&body_bytes).to_string();
-    proxy_request(State(state), method, path, Some(body_str)).await
+    let body = match method {
+        axum::http::Method::POST | axum::http::Method::PUT => {
+            let body_bytes = axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
+                .await
+                .unwrap_or_default();
+            Some(String::from_utf8_lossy(&body_bytes).to_string())
+        }
+        _ => None,
+    };
+    proxy_request(State(state), method, path, body).await
 }
 
 /// Custom status endpoint.
 async fn status(State(state): State<ApiState>) -> impl IntoResponse {
-    let client = Client::new();
     let uptime = state.start_time.elapsed();
     let uptime_secs = uptime.as_secs();
 
     // Try to get loaded models from llama-server
-    let loaded_models = match client
+    let loaded_models = match state.client
         .get(format!("{}/models", state.server_url))
         .send()
         .await
@@ -174,6 +178,7 @@ pub async fn start_api_server(
     pid: u32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let start_time = Instant::now();
+    let client = Client::new();
     let state = ApiState {
         server_url: format!("http://127.0.0.1:{}", server_port),
         api_key,
@@ -181,6 +186,7 @@ pub async fn start_api_server(
         pid,
         start_time,
         port: bind.port(),
+        client,
     };
 
     let api_key_clone = state.api_key.clone();

@@ -202,7 +202,7 @@ impl ModelOverride {
             uniform_cache: Some(s.uniform_cache),
         system_prompt: Some(s.system_prompt.clone()),
             system_prompt_preset_name: Some(s.system_prompt_preset_name.clone()),
-            max_concurrent_predictions: Some(s.max_concurrent_predictions),
+            max_concurrent_predictions: s.max_concurrent_predictions,
             threads: Some(s.threads),
             threads_batch: Some(s.threads_batch),
             parallel: Some(s.parallel),
@@ -278,7 +278,7 @@ impl ModelOverride {
         base.kv_cache_offload = self.kv_cache_offload.unwrap_or(base.kv_cache_offload);
         if let Some(v) = &self.system_prompt { base.system_prompt = v.clone(); }
         if let Some(v) = &self.system_prompt_preset_name { base.system_prompt_preset_name = v.clone(); }
-        base.max_concurrent_predictions = self.max_concurrent_predictions.unwrap_or(base.max_concurrent_predictions);
+        base.max_concurrent_predictions = self.max_concurrent_predictions.or(base.max_concurrent_predictions);
         base.threads = self.threads.unwrap_or(base.threads);
         base.threads_batch = self.threads_batch.unwrap_or(base.threads_batch);
         base.parallel = self.parallel.unwrap_or(base.parallel);
@@ -434,7 +434,7 @@ pub struct DefaultParams {
     #[serde(default)]
     pub parallel: u32,
     #[serde(default)]
-    pub max_concurrent_predictions: u32,
+    pub max_concurrent_predictions: Option<u32>,
     #[serde(default)]
     pub system_prompt: String,
     #[serde(default = "default_system_prompt_preset_name")]
@@ -598,7 +598,7 @@ impl Default for DefaultParams {
             uniform_cache: true,
             kv_cache_offload: true,
             parallel: 1,
-            max_concurrent_predictions: 1,
+            max_concurrent_predictions: None,
             system_prompt: "You are a helpful assistant.".to_string(),
             system_prompt_preset_name: "General".to_string(),
             reasoning_mode: crate::models::ReasoningMode::Default,

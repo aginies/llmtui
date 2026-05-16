@@ -403,7 +403,9 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
                     }
                     if span_end > scroll_x {
                         let skip = scroll_x - span_start;
-                        span.content = span.content[skip..].to_string().into();
+                        // Use char_indices to find the correct byte offset for character skip
+                        let byte_offset = span.content.char_indices().nth(skip).map_or(span.content.len(), |(i, _)| i);
+                        span.content = span.content[byte_offset..].to_string().into();
                         if span.content.is_empty() {
                             return false;
                         }

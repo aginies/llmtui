@@ -86,10 +86,10 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     add_arg(&mut cmd, "--ubatch-size", settings.ubatch_size);
     parts.push("--ubatch-size".to_string());
     parts.push(settings.ubatch_size.to_string());
-    if settings.max_concurrent_predictions > 1 {
-        add_arg(&mut cmd, "--parallel", settings.max_concurrent_predictions);
+    if let Some(n) = settings.max_concurrent_predictions {
+        add_arg(&mut cmd, "--parallel", n);
         parts.push("--parallel".to_string());
-        parts.push(settings.max_concurrent_predictions.to_string());
+        parts.push(n.to_string());
     }
     
     cmd.arg("--no-warmup");

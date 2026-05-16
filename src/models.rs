@@ -600,8 +600,8 @@ pub struct ModelSettings {
     pub ubatch_size: u32,
     /// Max concurrent predictions (sequences).
     pub parallel: u32,
-    /// Max concurrent predictions (requests in flight).
-    pub max_concurrent_predictions: u32,
+    /// Max concurrent predictions (requests in flight). None means no --parallel argument.
+    pub max_concurrent_predictions: Option<u32>,
     /// Use uniform (unified) KV cache across all sequences.
     pub uniform_cache: bool,
     /// Offload KV cache to system RAM.
@@ -756,7 +756,7 @@ impl Default for ModelSettings {
             batch_size: 512,
             ubatch_size: 512,
             parallel: 1,
-            max_concurrent_predictions: 1,
+            max_concurrent_predictions: None,
             uniform_cache: false,
             kv_cache_offload: true,
             cache_type_k: Some(CacheTypeK::F16),

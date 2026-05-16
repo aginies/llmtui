@@ -841,8 +841,9 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             matches!(s, crate::models::ModelState::Loaded { .. } | crate::models::ModelState::Loading)
                         ).count();
                         
-                        if active_count as u32 >= app.settings.max_concurrent_predictions {
-                            app.add_log(format!("Limit reached: already {} model(s) loaded (Max Concurrent Predictions limit: {})", active_count, app.settings.max_concurrent_predictions), crate::config::LogLevel::Warning);
+                        if let Some(max) = app.settings.max_concurrent_predictions
+                            && active_count as u32 >= max {
+                                app.add_log(format!("Limit reached: already {} model(s) loaded (Max Concurrent Predictions limit: {})", active_count, max), crate::config::LogLevel::Warning);
                             return;
                         }
 
@@ -1053,7 +1054,7 @@ fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _m
         // Evaluation
         9 => { if let Ok(v) = buf.parse::<u32>() { settings.batch_size = v.max(1); } }
         10 => { if let Ok(v) = buf.parse::<u32>() { settings.uniform_cache = v != 0; } }
-        11 => { if let Ok(v) = buf.parse::<u32>() { settings.max_concurrent_predictions = v.clamp(1, 10); } }
+        11 => { if let Ok(v) = buf.parse::<u32>() { settings.max_concurrent_predictions = Some(v.clamp(1, 10)); } }
         // Sampling
         12 => { if let Ok(v) = buf.parse::<i32>() { settings.seed = v; } }
         13 => { if let Ok(v) = buf.parse::<i32>() { settings.temperature = (v as f32 / 100.0).clamp(0.0, 2.0); } }
@@ -1116,7 +1117,12 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_thr
         // Evaluation
         9 => settings.batch_size = (settings.batch_size as i32 + delta * 64).max(1) as u32,
         10 => settings.uniform_cache = !settings.uniform_cache,
-        11 => settings.max_concurrent_predictions = (settings.max_concurrent_predictions as i32 + delta).clamp(1, 10) as u32,
+        11 => {
+            match settings.max_concurrent_predictions {
+                Some(n) => settings.max_concurrent_predictions = Some(((n as i32) + delta).clamp(1, 10) as u32),
+                None => settings.max_concurrent_predictions = Some(1),
+            }
+        }
         // Sampling
         12 => settings.seed = (settings.seed + delta).max(-1),
         13 => settings.temperature = ((settings.temperature * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 2.0),
@@ -1180,6 +1186,9 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             21 => { // frequency_penalty
                 app.settings.frequency_penalty = if app.settings.frequency_penalty.is_some() { None } else { Some(0.0) };
+            }
+            11 => { // max_concurrent_predictions
+                app.settings.max_concurrent_predictions = if app.settings.max_concurrent_predictions.is_some() { None } else { Some(1) };
             }
             _ => {}
         }
