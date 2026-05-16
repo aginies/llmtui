@@ -620,8 +620,6 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 parts.push(Span::raw(" nav  "));
                 parts.push(Span::styled("Enter", Style::default().fg(Color::Yellow)));
                 parts.push(Span::raw(" toggle  "));
-                parts.push(Span::styled("h/l", Style::default().fg(Color::Cyan)));
-                parts.push(Span::raw(" adjust  "));
                 parts.push(Span::styled("Tab", Style::default().fg(Color::Cyan)));
                 parts.push(Span::raw(" panels"));
             } else if app.active_panel == crate::tui::app::ActivePanel::LlmSettings {
@@ -629,8 +627,6 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
                 parts.push(Span::raw(" nav  "));
-                parts.push(Span::styled("h/l", Style::default().fg(Color::Cyan)));
-                parts.push(Span::raw(" adjust  "));
                 parts.push(Span::styled("Ctrl+S", Style::default().fg(Color::Yellow)));
                 parts.push(Span::raw(" save  "));
                 parts.push(Span::styled("Ctrl+R", Style::default().fg(Color::Yellow)));
@@ -706,12 +702,8 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                         parts.push(Span::raw(" search  "));
                         parts.push(Span::styled("j/k", Style::default().fg(Color::Cyan)));
                         parts.push(Span::raw(" nav  "));
-                        parts.push(Span::styled("l", Style::default().fg(Color::Yellow)));
-                        parts.push(Span::raw(" load  "));
-                        parts.push(Span::styled("u", Style::default().fg(Color::Yellow)));
-                        parts.push(Span::raw(" unload  "));
-                        parts.push(Span::styled("g/G", Style::default().fg(Color::Cyan)));
-                        parts.push(Span::raw(" log  "));
+                        parts.push(Span::styled("l/u", Style::default().fg(Color::Yellow)));
+                        parts.push(Span::raw(" un/load  "));
                         parts.push(Span::styled("Ctrl+H", Style::default().fg(Color::Cyan)));
                         parts.push(Span::raw(" help  "));
                         parts.push(Span::styled("Ctrl+Alt+K", Style::default().fg(Color::Cyan)));
