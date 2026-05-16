@@ -96,6 +96,21 @@ The API proxy forwards requests to the running llama-server instance. Explicitly
 
 > **Note:** All paths not listed above are automatically proxied to the llama-server instance. New endpoints added to llama.cpp work without any code changes.
 
+### Server Settings
+
+The Server Settings panel (top-right) shows server configuration:
+
+| Setting | Description |
+|---------|-------------|
+| Host | Bind address (127.0.0.1 or 0.0.0.0) |
+| Backend | Acceleration backend (cpu / vulkan / rocm) |
+| Threads | CPU threads for generation |
+| Threads Batch | CPU threads for batch processing |
+| Mode | Server mode (Normal / Router) |
+| API Endpoint | Enable API proxy (True / False) |
+
+When API Endpoint is enabled, a proxy server starts on port `49222` that forwards requests to the running llama-server instance, exposing the full llama.cpp API (see Serve mode above).
+
 ### Keyboard shortcuts
 
 - `j` / `k` — Navigate up/down
