@@ -134,10 +134,10 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     }
 
     // ── GPU ──────────────────────────────────────────────────
-    let gpu_layers = if settings.gpu_layers < 0 { 999 } else { settings.gpu_layers };
-    cmd.arg("-ngl").arg(gpu_layers.to_string());
-    parts.push("-ngl".to_string());
-    parts.push(gpu_layers.to_string());
+    // let gpu_layers = if settings.gpu_layers < 0 { 999 } else { settings.gpu_layers };
+    // cmd.arg("-ngl").arg(gpu_layers.to_string());
+    // parts.push("-ngl".to_string());
+    // parts.push(gpu_layers.to_string());
     
     if settings.split_mode != Default::default() {
         cmd.arg("--split-mode").arg(settings.split_mode.to_string());
