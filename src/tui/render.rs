@@ -469,6 +469,9 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
     if let Some(handle) = &app.server_handle {
         parts.push(Span::styled(format!("● {} {}", handle.port, app.server_mode), Style::default().fg(Color::Green)));
         parts.push(Span::raw("  "));
+    } else {
+        parts.push(Span::styled("○ Server", Style::default().fg(Color::DarkGray)));
+        parts.push(Span::raw("  "));
     }
 
     match &app.models_mode {
