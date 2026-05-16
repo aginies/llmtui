@@ -111,10 +111,14 @@ fn format_speed(bytes_per_second: f64) -> String {
     }
 }
 
-pub fn render(f: &mut Frame, area: Rect, app: &App) {
+pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let (block, items) = match &app.models_mode {
         ModelsMode::List => {
-            let title = format!(" Models ({} models) ", app.models.len());
+            let title = if app.is_panel_visible(0) {
+                format!(" Models (1) ({} models) ", app.models.len())
+            } else {
+                format!(" Models ({} models) ", app.models.len())
+            };
             let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
@@ -165,7 +169,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         }
         ModelsMode::Search { query, results, sort_by, loading, has_more, .. } => {
             let sort_label = sort_by.label();
-            let title = format!(" Search: {} [{}]", query, sort_label);
+            let title = if app.is_panel_visible(0) {
+                format!(" Search (1): {} [{}]", query, sort_label)
+            } else {
+                format!(" Search: {} [{}]", query, sort_label)
+            };
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)

@@ -9,7 +9,7 @@ use ratatui::{
 use super::info;
 use super::info::ModelInfoPair;
 use super::settings;
-use crate::tui::app::App;
+use crate::tui::app::{ActivePanel, App};
 
 const SERVER_SETTINGS_HEIGHT: u16 = 8;
 
@@ -84,7 +84,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let vram_text = crate::models::format_mib(app.vram_estimate);
     let block = Block::default()
         .title(Line::from(vec![
-            Span::raw(" LLM Settings "),
+            Span::raw(" LLM Settings (4) "),
             Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
         ]))
         .borders(Borders::ALL)
@@ -146,11 +146,79 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
   settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", api_enabled, selected, "", server_running);
 
     let block = Block::default()
-        .title(" Server Settings ")
+        .title(" Server Settings (2) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
     let paragraph = Paragraph::new(lines).block(block);
+    f.render_widget(paragraph, area);
+}
+
+pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
+    let is_focused = app.active_panel == ActivePanel::ServerSettings;
+    let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
+
+    let selected = app.server_settings_selected_idx;
+    let host_val = &app.settings.host;
+    let backend_name = app.settings.backend.to_string();
+    let threads_val = app.settings.threads.to_string();
+    let threads_batch_val = app.settings.threads_batch.to_string();
+    let mode_val = app.settings.server_mode.to_string();
+    let api_enabled = if app.settings.api_endpoint_enabled { "True" } else { "False" };
+    let server_running = app.server_handle.is_some();
+
+    let mut lines = Vec::new();
+    let mut count = 0;
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", host_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", api_enabled, selected, "", server_running);
+
+    let block = Block::default()
+        .title(" Server Settings (2) ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(border_color));
+
+    let paragraph = Paragraph::new(lines).block(block);
+    f.render_widget(paragraph, area);
+}
+
+pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
+    let is_focused = app.active_panel == ActivePanel::LlmSettings;
+    let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
+    let vram_text = crate::models::format_mib(app.vram_estimate);
+    let block = Block::default()
+        .title(Line::from(vec![
+            Span::raw(" LLM Settings (4) "),
+            Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
+        ]))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(border_color));
+
+    let (all_lines, _count, _height, _selected) = settings::render_all(
+        &app.settings,
+        &app.model_settings_cache,
+        app.settings_selected_idx,
+        &app.settings_edit_buffer,
+        !app.settings_edit_buffer.is_empty(),
+        app.vram_estimate,
+        app.model_total_layers,
+        app.model_n_ctx_train,
+        app.max_threads,
+    );
+
+    let available_height = area.height.saturating_sub(2);
+    let start_idx = app.settings_scroll_offset as usize;
+    let visible_lines: Vec<Line> = all_lines
+        .iter()
+        .skip(start_idx)
+        .take(available_height as usize)
+        .cloned()
+        .collect();
+
+    let paragraph = Paragraph::new(visible_lines).block(block);
     f.render_widget(paragraph, area);
 }
 
@@ -252,7 +320,7 @@ pub fn render_info_only(f: &mut Frame, area: Rect, app: &mut App) {
 /// Render the info paragraph with a block and borders.
 fn render_info_paragraph(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
-        .title(" Model Info ")
+        .title(" Model Info (3) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Blue));
 

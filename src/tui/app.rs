@@ -21,12 +21,14 @@ pub enum ActivePanel {
     Models,
     Log,
     Downloads,
-    ServerSettings,
+  ServerSettings,
     LlmSettings,
     Profiles,
     SystemPromptPresets,
     SearchReadme,
-}
+    ActiveModel,
+    ModelInfo,
+    }
 
 /// Mode for the models panel.
 #[derive(Debug, Clone)]
@@ -156,6 +158,7 @@ pub struct App {
     pub api_proxy_handle: Option<tokio::task::JoinHandle<()>>,
     pub needs_redraw: bool,
    pub panel_help: bool,
+    pub panel_visibility: u8,
     pub panel_help_offset: u16,
     /// Last error message captured from the log (used for Failed state display).
     pub last_error_message: Option<String>,
@@ -236,6 +239,7 @@ impl App {
             loaded_model_names: Arc::new(std::sync::Mutex::new(Vec::new())),
             api_proxy_handle: None,
             needs_redraw: true,
+            panel_visibility: 0b111111,
             panel_help: false,
             panel_help_offset: 0,
             last_error_message: None,
@@ -485,6 +489,20 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             results.len()
         } else {
             0
+        }
+    }
+
+    /// Check if a panel is visible.
+    pub fn is_panel_visible(&self, index: u8) -> bool {
+        self.panel_visibility & (1 << index) != 0
+    }
+
+    /// Toggle visibility of a panel.
+    pub fn toggle_panel_visibility(&mut self, index: u8) {
+        self.panel_visibility ^= 1 << index;
+        // If hiding the log while expanded, collapse it.
+        if index == 5 && !self.is_panel_visible(5) {
+            self.log_expanded = false;
         }
     }
 
@@ -784,7 +802,9 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             }
             ActivePanel::Downloads => ActivePanel::ServerSettings,
             ActivePanel::ServerSettings => ActivePanel::LlmSettings,
-            ActivePanel::LlmSettings => ActivePanel::Models,
+            ActivePanel::LlmSettings => ActivePanel::ModelInfo,
+            ActivePanel::ModelInfo => ActivePanel::ActiveModel,
+            ActivePanel::ActiveModel => ActivePanel::Models,
             _ => ActivePanel::Models,
         };
         self.set_redraw();
@@ -793,7 +813,9 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     pub fn focus_prev(&mut self) {
         self.active_panel = match self.active_panel {
             ActivePanel::Models => ActivePanel::LlmSettings,
-            ActivePanel::LlmSettings => ActivePanel::ServerSettings,
+            ActivePanel::LlmSettings => ActivePanel::ModelInfo,
+            ActivePanel::ModelInfo => ActivePanel::ActiveModel,
+            ActivePanel::ActiveModel => ActivePanel::ServerSettings,
             ActivePanel::ServerSettings => {
                 if !self.download_progress.is_empty() {
                     ActivePanel::Downloads
@@ -1056,6 +1078,20 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("Top-p", y), Span::raw("  Nucleus sampling: only consider tokens whose cumulative probability reaches p. Smaller top-p (e.g., 0.9) is more conservative, larger (e.g., 0.95-0.99) allows more variety. Often preferred over top-k. Typical: 0.9-0.95.")]),
                 Line::from(vec![Span::styled("Min P", y), Span::raw("  Minimum probability threshold relative to the most likely token. Tokens below min_p * max_prob are excluded. A filter that's more principled than top-k/top-p for controlling diversity. Typical: 0.01-0.1.")]),
                          Line::from(vec![Span::styled("Max Tokens", y), Span::raw("  Maximum number of tokens to generate in the response. Prevents runaway responses. Set to 0 or Disabled for no limit. Typical: 4096-8192 for chat, higher for code generation.")]),
+            ],
+            ActivePanel::ActiveModel => vec![
+                Line::from(Span::styled("ACTIVE MODEL PANEL", y.add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Displays metrics for the currently loaded model."),
+                Line::from(""),
+                Line::from("Shows TPS, context usage (progress bar), CPU, RAM, and VRAM."),
+            ],
+            ActivePanel::ModelInfo => vec![
+                Line::from(Span::styled("MODEL INFO PANEL", y.add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("GGUF metadata for the selected model."),
+                Line::from(""),
+                Line::from("Displays file name, size, architecture, layers, and training context."),
             ],
             ActivePanel::Profiles => vec![
                 Line::from(Span::styled("PROFILES PANEL", y.add_modifier(Modifier::BOLD))),

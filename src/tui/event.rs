@@ -145,7 +145,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
         }
-        KeyCode::Char('h')
+          KeyCode::Char('h')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) && !key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) =>
         {
             // Toggle panel help
@@ -156,6 +156,49 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.panel_help_offset = 0;
             }
             app.set_redraw();
+            return;
+        }
+        KeyCode::F(1) => {
+            app.active_panel = ActivePanel::Models;
+            return;
+        }
+        KeyCode::F(2) => {
+            app.toggle_panel_visibility(1);
+            if app.is_panel_visible(1) {
+                app.active_panel = ActivePanel::ServerSettings;
+            }
+            return;
+        }
+        KeyCode::F(3) => {
+            app.toggle_panel_visibility(2);
+            if app.is_panel_visible(2) {
+                app.active_panel = ActivePanel::ModelInfo;
+            }
+            return;
+        }
+        KeyCode::F(4) => {
+            app.toggle_panel_visibility(3);
+            if app.is_panel_visible(3) {
+                app.active_panel = ActivePanel::LlmSettings;
+            }
+            return;
+        }
+        KeyCode::F(5) => {
+            app.toggle_panel_visibility(4);
+            if app.is_panel_visible(4) {
+                app.active_panel = ActivePanel::ActiveModel;
+            }
+            return;
+        }
+        KeyCode::F(6) => {
+            app.toggle_panel_visibility(5);
+            if app.is_panel_visible(5) {
+                app.active_panel = ActivePanel::Log;
+            }
+            return;
+        }
+        KeyCode::F(9) => {
+            app.panel_visibility = 0b111111;
             return;
         }
         KeyCode::Char('l')
@@ -563,6 +606,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         ActivePanel::Profiles => handle_profiles_key(app, key),
         ActivePanel::SystemPromptPresets => handle_system_prompt_presets_key(app, key),
        ActivePanel::SearchReadme => handle_readme_key(app, key),
+        ActivePanel::ActiveModel => {}
+        ActivePanel::ModelInfo => {}
     }
 }
 

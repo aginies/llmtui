@@ -169,23 +169,31 @@ Line::from(vec![
             ])
             .split(f.area())
     } else {
+    let active_model_hidden = !app.is_panel_visible(4);
+    let log_hidden = !app.is_panel_visible(5);
+    let active_model_constraint = if active_model_hidden {
+        ratatui::layout::Constraint::Length(0)
+    } else {
+        ratatui::layout::Constraint::Length(6)
+    };
+    let log_constraint = if log_hidden {
+        ratatui::layout::Constraint::Length(0)
+    } else if active_model_hidden {
+        ratatui::layout::Constraint::Fill(1)
+    } else if matches!(app.models_mode, ModelsMode::Search { .. }) {
+        ratatui::layout::Constraint::Length(5)
+    } else {
+        ratatui::layout::Constraint::Min(5)
+    };
     ratatui::layout::Layout::default()
         .direction(ratatui::layout::Direction::Vertical)
         .margin(0)
-        .constraints(match app.models_mode {
-            ModelsMode::Search { .. } => [
-                ratatui::layout::Constraint::Length(1),   // status bar
-                ratatui::layout::Constraint::Fill(1),     // top panels
-                ratatui::layout::Constraint::Length(0),   // active model (hidden)
-                ratatui::layout::Constraint::Length(5),   // log (reduced in search mode)
-            ],
-            _ => [
-                ratatui::layout::Constraint::Length(1),   // status bar
-                ratatui::layout::Constraint::Fill(1),     // top panels
-                ratatui::layout::Constraint::Length(6),   // active model
-                ratatui::layout::Constraint::Min(5),      // log
-            ],
-        })
+        .constraints([
+            ratatui::layout::Constraint::Length(1),   // status bar
+            ratatui::layout::Constraint::Fill(1),     // top panels
+            active_model_constraint,
+            log_constraint,
+        ])
         .split(f.area())
     };
 
@@ -239,21 +247,32 @@ Line::from(vec![
         ])
         .split(chunks[1]);
 
-    // Split left side vertically into Models list and Info
-    let info_height = (panel::tabbed::get_info_lines(app, top_chunks[0].width).len() as u16 + 2).max(3);
-    let left_chunks = ratatui::layout::Layout::default()
-        .direction(ratatui::layout::Direction::Vertical)
-        .constraints([
-            ratatui::layout::Constraint::Min(5),            // Models list (at least 3 models + borders)
-            ratatui::layout::Constraint::Length(info_height), // Model Info (dynamic)
-        ])
-        .split(top_chunks[0]);
+    let info_visible = app.is_panel_visible(2);
+    let left_chunks = if info_visible {
+        let info_height = (panel::tabbed::get_info_lines(app, top_chunks[0].width).len() as u16 + 2).max(3);
+        ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                ratatui::layout::Constraint::Min(5),
+                ratatui::layout::Constraint::Length(info_height),
+            ])
+            .split(top_chunks[0])
+    } else {
+        ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                ratatui::layout::Constraint::Fill(1),
+            ])
+            .split(top_chunks[0])
+    };
 
     // Top-Left: models
     panel::models::render(f, left_chunks[0], app);
 
-    // Bottom-Left: model info
-    panel::tabbed::render_info_only(f, left_chunks[1], app);
+    // Bottom-Left: model info (only if visible)
+    if info_visible {
+        panel::tabbed::render_info_only(f, left_chunks[1], app);
+    }
 
     // Right: Settings or Profiles
     match app.active_panel {
@@ -390,10 +409,21 @@ Line::from(vec![
                 }
                                _ => false,
             };
-            if show_readme {
+           if show_readme {
                 panel::readme::render(f, top_chunks[1], app);
             } else {
-                panel::tabbed::render_settings_only(f, top_chunks[1], app);
+                let server_visible = app.is_panel_visible(1);
+                let llm_visible = app.is_panel_visible(3);
+                if server_visible && llm_visible {
+                    panel::tabbed::render_settings_only(f, top_chunks[1], app);
+                } else if server_visible {
+                    panel::tabbed::render_server_only(f, top_chunks[1], app);
+                } else if llm_visible {
+                    panel::tabbed::render_llm_only(f, top_chunks[1], app);
+                } else {
+                    // Both hidden — show settings in full width
+                    panel::tabbed::render_settings_only(f, top_chunks[1], app);
+                }
             }
         }
     }
@@ -404,9 +434,10 @@ Line::from(vec![
     }
 
     // Log & Download (download panel below log, full width)
-    let log_chunk = match app.models_mode {
-        ModelsMode::Search { .. } => chunks[2],
-        _ => chunks[3],
+    let log_chunk = if app.is_panel_visible(5) {
+        chunks[3]
+    } else {
+        chunks[2]
     };
     if app.downloading {
         let bottom_chunks = ratatui::layout::Layout::default()
@@ -633,6 +664,20 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
     if parts.is_empty() {
         return Line::from("");
     }
+
+    // Panel visibility indicator
+    parts.push(Span::styled("F1-F6:panels", Style::default().fg(Color::DarkGray)));
+    parts.push(Span::raw(" "));
+    parts.push(Span::styled("F9:reset", Style::default().fg(Color::DarkGray)));
+    let mut vis = String::new();
+    for i in 0..6 {
+        if app.is_panel_visible(i) {
+            vis.push((b'1' + i as u8) as char);
+        } else {
+            vis.push('_');
+        }
+    }
+    parts.push(Span::styled(format!(" V:{}", vis), Style::default().fg(Color::DarkGray)));
 
     Line::from(parts)
 }
