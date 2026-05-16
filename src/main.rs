@@ -451,23 +451,45 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                     }
                 }
 
+                let kill_tx = app.spawn_log_tx.clone();
+                let kill_tx2 = kill_tx.clone();
+                let server_clone = app.server_handle.clone();
+                let host_clone = host.clone();
+                let port_clone = port;
+                
                 tokio::spawn(async move {
                     if let Err(e) = server::unload_model(&host, port, &model_name_clone, model_path_clone.as_deref()).await {
-                        eprintln!("Failed to unload model via API: {}", e);
+                        if let Some(tx) = kill_tx {
+                            let _ = tx.send(format!("Failed to unload model via API: {}", e)).await;
+                        }
+                        return;
+                    }
+                    
+                    // Wait for the server to finish unloading
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    
+                    // Check what's actually loaded on the server
+                    if let Ok(loaded) = crate::backend::server::list_models(&host_clone, port_clone).await {
+                        if loaded.is_empty() {
+                            if let Some(tx) = kill_tx {
+                                let _ = tx.send("No models left, stopping router...".to_string()).await;
+                            }
+                            if let Some(server) = server_clone {
+                                let _ = crate::backend::server::kill_server(server).await;
+                           if let Some(tx) = kill_tx2 {
+                                let _ = tx.send("Server stopped".to_string()).await;
+                            }
+                            }
+                        } else {
+                            if let Some(tx) = kill_tx {
+                                let _ = tx.send(format!("{} models still loaded on server", loaded.len())).await;
+                            }
+                        }
                     }
                 });
                 
                 app.loaded_model_names.lock().unwrap().retain(|n| n != &model_name);
                 app.model_states.insert(model_name, crate::models::ModelState::Available);
-                
-                // If no more models are loaded, kill the server
-                let loaded_count = app.model_states.values().filter(|s| matches!(s, crate::models::ModelState::Loaded { .. })).count();
-                if loaded_count == 0 {
-                    app.add_log("No models left, stopping router...", crate::config::LogLevel::Info);
-                    if let Some(h) = app.server_handle.take() {
-                        app.pending_kill = Some(h);
-                    }
-                }
             }
 
         // Start pending server kill
