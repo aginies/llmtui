@@ -1193,6 +1193,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             _ => {}
         }
         app.update_vram_estimate();
+        sync_global_settings(app);
         app.set_redraw();
         return;
     }
