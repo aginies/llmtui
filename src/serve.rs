@@ -1,56 +1,13 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use tokio::select;
 use tracing::info;
 
 use crate::backend::server;
 use crate::config::Config;
-use crate::models::{DiscoveredModel, ModelSettings};
-
-/// Resolve llama-server binary path:
-/// 1. If absolute path in config, use it directly
-/// 2. If in PATH, use which
-/// 3. Check common locations
-fn resolve_llama_server(llama_server_path: &PathBuf) -> Result<PathBuf> {
-    let mut found_paths = Vec::new();
-
-    // 1. Absolute path
-    if llama_server_path.is_absolute() && llama_server_path.exists() {
-        return Ok(llama_server_path.clone());
-    }
-
-    // 2. Search PATH
-    if let Ok(output) = std::process::Command::new("which")
-        .arg(llama_server_path)
-        .output()
-        && output.status.success() {
-            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !path.is_empty() {
-                return Ok(PathBuf::from(path));
-            }
-        }
-
-    // 3. Common locations
-    for candidate in &[
-        "/usr/bin/llama-server",
-        "/usr/local/bin/llama-server",
-        "/opt/homebrew/bin/llama-server",
-        "/snap/bin/llama-server",
-    ] {
-        found_paths.push(candidate);
-        if PathBuf::from(candidate).exists() {
-            return Ok(PathBuf::from(candidate));
-        }
-    }
-
-    Err(anyhow!(
-        "llama-server not found.\n\n  Config has: '{}'\n  This binary does not exist on your system.\n\n  Options:\n  1. Set the full path in config.yaml (e.g. /usr/bin/llama-server)\n  2. Ensure llama-server is in your PATH\n  3. Check that llama.cpp is installed and compiled\n\n  Searched locations: {}",
-        llama_server_path.display(),
-        found_paths.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", ")
-    ))
-}
+use crate::models::{Backend, DiscoveredModel, ModelSettings};
 
 /// Serve a model using the llama-server binary, applying all settings from config.yaml.
 ///
@@ -157,12 +114,33 @@ pub async fn serve_model(
     };
     info!("Settings: {} threads, {} layers, {} context", settings.threads, layers_str, settings.context_length);
 
-    // Resolve llama-server binary path
-    let binary = resolve_llama_server(&config.llama_server)?;
-    info!("Using llama-server: {}", binary.display());
+    // Resolve the backend binary (downloads if needed)
+    let version_param = match settings.backend {
+        Backend::Cpu => settings.llama_cpp_version_cpu.as_deref(),
+        Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref(),
+        Backend::Rocrm => settings.llama_cpp_version_rocm.as_deref(),
+    };
+    let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param).await {
+        Ok(path) => {
+            if !path.exists() {
+                anyhow::bail!("llama-server binary not found at: {}", path.display());
+            }
+            path
+        }
+        Err(e) => anyhow::bail!("Failed to resolve backend binary: {}", e),
+    };
+    info!("Using llama-server: {} (backend: {})", binary.display(), settings.backend);
 
     // Build the server command
     let (mut cmd, cmd_display) = server::build_server_cmd(&binary, Some(&model), &settings, &config);
+
+    // Set LD_LIBRARY_PATH so the binary can find its shared libraries
+    let bin_dir = binary.parent().unwrap();
+    if let Ok(current) = std::env::var("LD_LIBRARY_PATH") {
+        cmd.env("LD_LIBRARY_PATH", format!("{}:{}", bin_dir.display(), current));
+    } else {
+        cmd.env("LD_LIBRARY_PATH", bin_dir);
+    }
 
     // Spawn the process
     info!("Command: {}", cmd_display);

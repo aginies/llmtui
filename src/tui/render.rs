@@ -172,12 +172,20 @@ Line::from(vec![
     ratatui::layout::Layout::default()
         .direction(ratatui::layout::Direction::Vertical)
         .margin(0)
-        .constraints([
-            ratatui::layout::Constraint::Length(1),   // status bar
-            ratatui::layout::Constraint::Fill(1),     // top panels
-            ratatui::layout::Constraint::Length(6),   // active model
-            ratatui::layout::Constraint::Min(5),      // log (reduced height)
-        ])
+        .constraints(match app.models_mode {
+            ModelsMode::Search { .. } => [
+                ratatui::layout::Constraint::Length(1),   // status bar
+                ratatui::layout::Constraint::Fill(1),     // top panels
+                ratatui::layout::Constraint::Length(0),   // active model (hidden)
+                ratatui::layout::Constraint::Length(5),   // log (reduced in search mode)
+            ],
+            _ => [
+                ratatui::layout::Constraint::Length(1),   // status bar
+                ratatui::layout::Constraint::Fill(1),     // top panels
+                ratatui::layout::Constraint::Length(6),   // active model
+                ratatui::layout::Constraint::Min(5),      // log
+            ],
+        })
         .split(f.area())
     };
 
@@ -226,8 +234,8 @@ Line::from(vec![
     let top_chunks = ratatui::layout::Layout::default()
         .direction(ratatui::layout::Direction::Horizontal)
         .constraints([
-            ratatui::layout::Constraint::Percentage(66), // Left side (Models + Info)
-            ratatui::layout::Constraint::Fill(1),        // Right side (Settings)
+            ratatui::layout::Constraint::Percentage(55), // Left side (Models + Info)
+            ratatui::layout::Constraint::Percentage(45), // Right side (Settings / README)
         ])
         .split(chunks[1]);
 
@@ -391,9 +399,15 @@ Line::from(vec![
     }
 
     // Active model (full width)
-    panel::active::render(f, chunks[2], app);
+    if !matches!(app.models_mode, ModelsMode::Search { .. }) {
+        panel::active::render(f, chunks[2], app);
+    }
 
     // Log & Download (download panel below log, full width)
+    let log_chunk = match app.models_mode {
+        ModelsMode::Search { .. } => chunks[2],
+        _ => chunks[3],
+    };
     if app.downloading {
         let bottom_chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
@@ -401,7 +415,7 @@ Line::from(vec![
                 ratatui::layout::Constraint::Fill(1),    // log
                 ratatui::layout::Constraint::Length(7),  // downloads
             ])
-            .split(chunks[3]);
+            .split(log_chunk);
         
         panel::log::render(f, bottom_chunks[0], app);
         
@@ -414,7 +428,7 @@ Line::from(vec![
             app.active_panel == ActivePanel::Downloads,
         );
     } else {
-        panel::log::render(f, chunks[3], app);
+        panel::log::render(f, log_chunk, app);
     }
 }
 
@@ -529,6 +543,8 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 parts.push(Span::raw(" reset  "));
                 parts.push(Span::styled("Ctrl+E", Style::default().fg(Color::Yellow)));
                 parts.push(Span::raw(" toggle  "));
+                parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
+                parts.push(Span::raw(" profiles  "));
                 if app.is_settings_dirty() {
                     parts.push(Span::styled("*unsaved*", Style::default().fg(Color::Red)));
                     parts.push(Span::raw("  "));
@@ -608,8 +624,6 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                             parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
                             parts.push(Span::raw(" help  "));
                         }
-                        parts.push(Span::styled("p", Style::default().fg(Color::Yellow)));
-                        parts.push(Span::raw(" profiles"));
                     }
                 }
             }

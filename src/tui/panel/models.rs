@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Row, Table, TableState, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, Cell, Row, Table, TableState, List, ListItem, ListState},
 };
 
 use crate::tui::app::{App, ModelsMode};
@@ -219,10 +219,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             }
 
             let widths = [
-                Constraint::Fill(2),
-                Constraint::Length(12),
+                Constraint::Fill(1),
                 Constraint::Length(8),
-                Constraint::Length(20),
+                Constraint::Length(5),
+                Constraint::Length(11),
             ];
 
             let table = Table::new(rows, widths).header(Row::new(headers)).block(block);
@@ -230,7 +230,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             table_state.select(app.search_results_idx);
             return f.render_stateful_widget(table, area, &mut table_state);
         }
-        ModelsMode::Files { model_id, files, selected_idx, selected_result, .. } => {
+        ModelsMode::Files { model_id, files, selected_idx, selected_result: _, .. } => {
             let title = format!(" {} - GGUF files ", model_id);
             let block = Block::default()
                 .title(title)
@@ -239,47 +239,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
             let inner_area = block.inner(area);
             f.render_widget(block, area);
-
-            // Split inner area into metadata (top) and files (bottom)
-            let chunks = ratatui::layout::Layout::default()
-                .direction(ratatui::layout::Direction::Vertical)
-                .constraints([
-                    Constraint::Length(4), // Metadata
-                    Constraint::Min(0),    // Files
-                ])
-                .split(inner_area);
-
-            // Render Metadata
-            if let Some(result) = selected_result {
-                let params_str = result.parameters.as_deref().unwrap_or("N/A");
-                let cap_str = if result.capabilities.is_empty() {
-                    "N/A".to_string()
-                } else {
-                    result.capabilities.join(", ")
-                };
-
-                let meta_items = vec![
-                    Line::from(vec![
-                        Span::styled("Model: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(model_id, Style::default().fg(Color::White)),
-                    ]),
-                    Line::from(vec![
-                        Span::styled("Params: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(params_str, Style::default().fg(Color::White)),
-                        Span::raw(" | "),
-                        Span::styled("Capabilities: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(cap_str, Style::default().fg(Color::White)),
-                    ]),
-                    Line::from(vec![
-                        Span::styled("Downloads: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(format_number(result.downloads), Style::default().fg(Color::White)),
-                        Span::raw(" | "),
-                        Span::styled("Likes: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(format_number(result.likes), Style::default().fg(Color::White)),
-                    ]),
-                ];
-                f.render_widget(Paragraph::new(meta_items), chunks[0]);
-            }
 
             // Render Files Table
             let rows: Vec<Row> = files
@@ -316,21 +275,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             let mut table_state = TableState::default();
             table_state.select(*selected_idx);
 
-            let file_chunks = ratatui::layout::Layout::default()
-                .direction(ratatui::layout::Direction::Vertical)
-                .constraints([
-                    ratatui::layout::Constraint::Fill(1),
-                    ratatui::layout::Constraint::Length(1),
-                ])
-                .split(chunks[1]);
-
-            f.render_stateful_widget(table, file_chunks[0], &mut table_state);
-
-            let hint = Line::from(Span::styled(
-                "ENTER to download | UP | DOWN | ESC to back",
-                Style::default().fg(Color::Cyan),
-            ));
-            f.render_widget(Paragraph::new(hint), file_chunks[1]);
+            f.render_stateful_widget(table, inner_area, &mut table_state);
             return;
         }
     };

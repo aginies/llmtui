@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 # Build script for llm-manager
 # Usage: ./build.sh [command]
-# Commands: build, run, clean, format, check, release
+# Commands: build, run, clean, format, check, release, doc, servedoc
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
+
+# Add cargo bin to PATH if available
+if [[ -d "$HOME/.cargo/bin" ]]; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
 
 usage() {
     echo "Usage: $0 [command]"
@@ -14,12 +19,15 @@ usage() {
     echo "  build     - Build the project (debug)"
     echo "  run       - Build and run (TUI mode)"
     echo "  serve     - Build and serve a model (llama-server)"
+    echo "  servedoc  - Serve documentation with watch mode"
     echo "  release   - Build with release profile"
     echo "  clean     - Remove build artifacts"
     echo "  format    - Format code with rustfmt"
     echo "  check     - Check code (cargo check)"
     echo "  test      - Run tests"
     echo "  clippy    - Run clippy lints"
+    echo "  doc       - Build documentation"
+    echo "  servedoc  - Serve documentation with watch mode"
     echo "  help      - Show this help"
 }
 
@@ -38,6 +46,8 @@ examples() {
     echo "  $0 clippy             # Run clippy lints"
     echo "  $0 check              # Quick compilation check"
     echo "  $0 clean              # Remove target/"
+    echo "  $0 doc                # Build documentation"
+    echo "  $0 servedoc           # Serve docs with watch mode"
     echo "  $0 release --features vulkan  # Release with Vulkan feature"
 }
 
@@ -86,16 +96,29 @@ cmd_clippy() {
     cargo clippy "$@"
 }
 
+cmd_doc() {
+    echo "Building documentation..."
+    mdbook build docs
+    echo "Docs built in docs/book/"
+}
+
+cmd_servedoc() {
+    echo "Serving documentation..."
+    mdbook serve docs --port "${1:-3000}"
+}
+
 case "${1:-help}" in
-    build)   shift; cmd_build "$@" ;;
-    run)     shift; cmd_run "$@" ;;
-    serve)   shift; cmd_serve "$@" ;;
-    release) shift; cmd_release "$@" ;;
-    clean)   shift; cmd_clean "$@" ;;
-    format)  shift; cmd_format "$@" ;;
-    check)   shift; cmd_check "$@" ;;
-    test)    shift; cmd_test "$@" ;;
-    clippy)  shift; cmd_clippy "$@" ;;
+    build)     shift; cmd_build "$@" ;;
+    run)       shift; cmd_run "$@" ;;
+    serve)     shift; cmd_serve "$@" ;;
+    release)   shift; cmd_release "$@" ;;
+    clean)     shift; cmd_clean "$@" ;;
+    format)    shift; cmd_format "$@" ;;
+    check)     shift; cmd_check "$@" ;;
+    test)      shift; cmd_test "$@" ;;
+    clippy)    shift; cmd_clippy "$@" ;;
+    doc)       shift; cmd_doc "$@" ;;
+    servedoc)  shift; cmd_servedoc "$@" ;;
     help|--help|-h) usage; examples ;;
     *)
         echo "Unknown command: $1"

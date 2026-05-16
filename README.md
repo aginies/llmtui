@@ -66,6 +66,8 @@ Run a model directly with llama-server and expose an OpenAI-compatible API:
 ./build.sh serve --model model.gguf --api-port 49222 --api-key secret
 ```
 
+The serve command automatically resolves the llama-server binary from the backend-specific directory (`~/.local/share/llm-manager/bin/llama-server-{cpu,vulkan,rocm}-{version}/`) and sets `LD_LIBRARY_PATH` for shared libraries. If the binary is not found, it downloads it from the llama.cpp GitHub releases.
+
 The API proxy forwards requests to the running llama-server instance. Explicitly handled endpoints:
 
 | Endpoint | Method | Description |
@@ -154,6 +156,19 @@ From the CmdLine overlay, press `e` to export the command to `/tmp/test_llamaser
 ## Configuration
 
 Configuration is stored in the application's config directory (typically `~/.config/llm-manager/`).
+
+### Backend binary resolution
+
+llama-server binaries are stored in `~/.local/share/llm-manager/bin/` with versioned directories:
+
+```
+~/.local/share/llm-manager/bin/
+├── llama-server-cpu-{version}/llama-server
+├── llama-server-vulkan-{version}/llama-server
+└── llama-server-rocm-{version}/llama-server
+```
+
+Switching versions is instant — no re-download. The binary is downloaded from `ggml-org/llama.cpp` GitHub releases on first use.
 
 Per-backend version config:
 
