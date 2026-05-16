@@ -99,6 +99,39 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Skip all if in host picker
+    if let GlobalMode::HostPicker { entries, selected } = &mut app.global_mode {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                *selected = selected.saturating_sub(1);
+                app.set_redraw();
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
+                app.set_redraw();
+            }
+            KeyCode::Enter => {
+                let (ip, _) = entries[*selected].clone();
+                app.settings.host = ip;
+                app.global_mode = GlobalMode::Normal;
+                sync_global_settings(app);
+                app.set_redraw();
+            }
+            KeyCode::Char('d') => {
+                *entries = App::fetch_host_picker_entries();
+                *selected = 0;
+                app.set_redraw();
+            }
+            KeyCode::Esc | KeyCode::Char('h')
+                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                app.global_mode = GlobalMode::Normal;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     // Handle normal mode
     match key.code {
         KeyCode::Char('c')
@@ -919,11 +952,13 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Enter => {
             match app.server_settings_selected_idx {
                 0 => {
-                    // Toggle host
-                    app.settings.host = if app.settings.host == "127.0.0.1" {
-                        "0.0.0.0".to_string()
-                    } else {
-                        "127.0.0.1".to_string()
+                    // Open host picker
+                    let entries = App::fetch_host_picker_entries();
+                    app.host_picker_entries = entries;
+                    app.host_picker_selected = 0;
+                    app.global_mode = crate::tui::app::GlobalMode::HostPicker {
+                        entries: app.host_picker_entries.clone(),
+                        selected: 0,
                     };
                 }
                 1 => {
@@ -1317,10 +1352,12 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::PageDown => {
             app.settings_scroll_offset = app.settings_scroll_offset.saturating_add(5);
+            app.settings_selected_idx = app.settings_selected_idx.saturating_add(5);
             app.set_redraw();
         }
         KeyCode::PageUp => {
             app.settings_scroll_offset = app.settings_scroll_offset.saturating_sub(5);
+            app.settings_selected_idx = app.settings_selected_idx.saturating_sub(5);
             app.set_redraw();
         }
         KeyCode::Left | KeyCode::Backspace => {

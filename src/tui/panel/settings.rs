@@ -11,7 +11,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
     if let Some(c) = cache
         && c.hash == hash
         && c.selected == selected {
-            return (c.lines.clone(), c.lines.len(), c.lines.len(), 0);
+            return (c.lines.clone(), c.lines.len(), c.lines.len(), c.selected_line_idx);
         }
 
     let mut lines = Vec::new();

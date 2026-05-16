@@ -57,6 +57,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
         hash: app.settings_fingerprint(),
         selected: app.settings_selected_idx,
+        selected_line_idx,
         lines: settings_lines.clone(),
     });
     
@@ -206,7 +207,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    let (all_lines, _count, _height, _selected) = settings::render_all(
+    let (all_lines, _count, _height, selected_line_idx) = settings::render_all(
         &app.settings,
         &app.model_settings_cache,
         app.settings_selected_idx,
@@ -224,6 +225,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
         hash: app.settings_fingerprint(),
         selected: app.settings_selected_idx,
+        selected_line_idx,
         lines: all_lines.clone(),
     });
 

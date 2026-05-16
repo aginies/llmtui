@@ -21,6 +21,7 @@ use ratatui::text::Line;
 pub struct SettingsRenderCache {
     pub hash: u64,
     pub selected: usize,
+    pub selected_line_idx: usize,
     pub lines: Vec<Line<'static>>,
 }
 
@@ -78,6 +79,10 @@ pub enum GlobalMode {
     ResetConfirmation,
     ExitConfirmation,
     CmdLine { cmd_line: String },
+    HostPicker {
+        entries: Vec<(String, String)>, // (ip, interface_name)
+        selected: usize,
+    },
 }
 
 /// Phase of model loading.
@@ -129,6 +134,8 @@ pub struct App {
     pub server_settings_selected_idx: usize, // 0=Host, 1=Backend
     pub settings_edit_buffer: String,
     pub settings_scroll_offset: u16,
+    pub host_picker_entries: Vec<(String, String)>,
+    pub host_picker_selected: usize,
 
     pub profiles_scroll_offset: u16,
     pub system_prompt_presets_scroll_offset: u16,
@@ -220,6 +227,8 @@ impl App {
             server_settings_selected_idx: 0,
             settings_edit_buffer: String::new(),
             settings_scroll_offset: 0,
+            host_picker_entries: Vec::new(),
+            host_picker_selected: 0,
             profiles_scroll_offset: 0,
             system_prompt_presets_scroll_offset: 0,
             readme_scroll_offset: 0,
@@ -1239,6 +1248,26 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse / Exit")]),
             ],
         }
+    }
+
+    pub fn fetch_host_picker_entries() -> Vec<(String, String)> {
+        let mut entries = Vec::new();
+        
+        // Always include these two at the top
+        entries.push(("127.0.0.1".to_string(), "localhost".to_string()));
+        entries.push(("0.0.0.0".to_string(), "All interfaces".to_string()));
+        
+        // Add real network interfaces
+        if let Ok(ifaces) = local_ip_address::list_afinet_netifas() {
+            for (name, ip) in ifaces {
+                let ip_str = ip.to_string();
+                if ip_str != "127.0.0.1" && ip_str != "0.0.0.0" {
+                    entries.push((ip_str, name));
+                }
+            }
+        }
+        
+        entries
     }
 
     pub fn reset_to_defaults(&mut self) {

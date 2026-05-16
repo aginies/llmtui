@@ -86,10 +86,10 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     add_arg(&mut cmd, "--ubatch-size", settings.ubatch_size);
     parts.push("--ubatch-size".to_string());
     parts.push(settings.ubatch_size.to_string());
-    if settings.parallel > 1 {
-        add_arg(&mut cmd, "--parallel", settings.parallel);
+    if settings.max_concurrent_predictions > 1 {
+        add_arg(&mut cmd, "--parallel", settings.max_concurrent_predictions);
         parts.push("--parallel".to_string());
-        parts.push(settings.parallel.to_string());
+        parts.push(settings.max_concurrent_predictions.to_string());
     }
     
     cmd.arg("--no-warmup");
@@ -212,6 +212,11 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         add_arg(&mut cmd, "--seed", settings.seed);
         parts.push("--seed".to_string());
         parts.push(settings.seed.to_string());
+    }
+    if let Some(max_tokens) = settings.max_tokens {
+        add_arg(&mut cmd, "--n-predict", max_tokens);
+        parts.push("--n-predict".to_string());
+        parts.push(max_tokens.to_string());
     }
     add_arg(&mut cmd, "--temp", format!("{:.2}", settings.temperature));
     parts.push("--temp".to_string());

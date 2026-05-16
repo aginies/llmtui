@@ -146,6 +146,50 @@ Line::from(vec![
         return;
     }
 
+    // Host picker overlay
+    if let GlobalMode::HostPicker { entries, selected } = &app.global_mode {
+        let area = f.area();
+        let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
+        let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
+        let picker_area = Rect {
+            x: (area.width - w) / 2,
+            y: (area.height - h) / 2,
+            width: w,
+            height: h,
+        };
+
+        let mut picker_lines: Vec<Line> = Vec::new();
+        picker_lines.push(Line::from(Span::styled(
+            " [↑] Select Host Address  [d] Refresh  [j/k] nav  [Esc] cancel ",
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        )));
+        picker_lines.push(Line::from(""));
+
+        for (i, (ip, iface)) in entries.iter().enumerate() {
+            let marker = if i == *selected { "> " } else { "  " };
+            let style = if i == *selected {
+                Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            picker_lines.push(Line::from(vec![
+                Span::styled(marker, Style::default().fg(Color::Yellow)),
+                Span::styled(format!("{ip}"), style),
+                Span::raw("  "),
+                Span::styled(format!("({iface})"), Style::default().fg(Color::DarkGray)),
+            ]));
+        }
+
+        f.render_widget(ratatui::widgets::Clear, picker_area);
+        f.render_widget(Paragraph::new(picker_lines).block(
+            Block::default()
+                .title(" Host Picker ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        ), picker_area);
+        return;
+    }
+
     // Main layout: status bar + top panels + active model + log
 
     let chunks = if app.log_expanded {
@@ -472,6 +516,17 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
     } else {
         parts.push(Span::styled("○ Server", Style::default().fg(Color::DarkGray)));
         parts.push(Span::raw("  "));
+    }
+
+    if matches!(app.global_mode, GlobalMode::HostPicker { .. }) {
+        parts.push(Span::styled("[HOST PICKER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+        parts.push(Span::raw("  "));
+        parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
+        parts.push(Span::raw(" select  "));
+        parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
+        parts.push(Span::raw(" cancel  "));
+        parts.push(Span::styled("d", Style::default().fg(Color::Yellow)));
+        parts.push(Span::raw(" refresh  "));
     }
 
     match &app.models_mode {
