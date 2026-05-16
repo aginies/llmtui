@@ -816,11 +816,14 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     }
 
     pub fn focus_next(&mut self) {
+        let server_running = self.server_handle.is_some();
         self.active_panel = match self.active_panel {
             ActivePanel::Models => ActivePanel::Log,
             ActivePanel::Log => {
                 if !self.download_progress.is_empty() {
                     ActivePanel::Downloads
+                } else if server_running {
+                    ActivePanel::LlmSettings
                 } else {
                     ActivePanel::ServerSettings
                 }
@@ -836,11 +839,18 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     }
 
     pub fn focus_prev(&mut self) {
+        let server_running = self.server_handle.is_some();
         self.active_panel = match self.active_panel {
             ActivePanel::Models => ActivePanel::LlmSettings,
             ActivePanel::LlmSettings => ActivePanel::ModelInfo,
             ActivePanel::ModelInfo => ActivePanel::ActiveModel,
-            ActivePanel::ActiveModel => ActivePanel::ServerSettings,
+            ActivePanel::ActiveModel => {
+                if server_running {
+                    ActivePanel::LlmSettings
+                } else {
+                    ActivePanel::ServerSettings
+                }
+            }
             ActivePanel::ServerSettings => {
                 if !self.download_progress.is_empty() {
                     ActivePanel::Downloads

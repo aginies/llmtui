@@ -164,7 +164,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::F(2) => {
             app.toggle_panel_visibility(1);
-            if app.is_panel_visible(1) {
+            if app.is_panel_visible(1) && app.server_handle.is_none() {
                 app.active_panel = ActivePanel::ServerSettings;
             }
             return;
@@ -1660,13 +1660,17 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         if top_chunks[1].contains(pos) {
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
+                    let server_running = app.server_handle.is_some();
                     app.active_panel = match app.active_panel {
-                        ActivePanel::LlmSettings => ActivePanel::ServerSettings,
+                        ActivePanel::LlmSettings if !server_running => ActivePanel::ServerSettings,
+                        ActivePanel::ServerSettings if !server_running => ActivePanel::LlmSettings,
+                        ActivePanel::LlmSettings => ActivePanel::LlmSettings,
                         ActivePanel::ServerSettings => ActivePanel::LlmSettings,
                         ActivePanel::Profiles => ActivePanel::Profiles,
                         ActivePanel::SystemPromptPresets => ActivePanel::SystemPromptPresets,
                         ActivePanel::SearchReadme => ActivePanel::SearchReadme,
-                        _ => ActivePanel::ServerSettings,
+                        _ if !server_running => ActivePanel::ServerSettings,
+                        _ => ActivePanel::LlmSettings,
                     };
                     app.set_redraw();
                 }
