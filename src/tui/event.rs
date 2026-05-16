@@ -197,6 +197,20 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
+        KeyCode::Char('k')
+            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
+                && key.modifiers.contains(crossterm::event::KeyModifiers::ALT) =>
+        {
+            if let Some(handle) = app.server_handle.take() {
+                let port = handle.port;
+                app.pending_kill = Some(handle);
+                app.add_log(format!("Killing llama-server on port {}", port), crate::config::LogLevel::Info);
+                app.set_redraw();
+            } else {
+                app.add_log("No server is running", crate::config::LogLevel::Warning);
+            }
+            return;
+        }
         KeyCode::F(9) => {
             app.panel_visibility = 0b111111;
             return;

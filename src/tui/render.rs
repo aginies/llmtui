@@ -466,6 +466,11 @@ Line::from(vec![
 fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
     let mut parts = Vec::new();
 
+    if let Some(handle) = &app.server_handle {
+        parts.push(Span::styled(format!("● {} {}", handle.port, app.server_mode), Style::default().fg(Color::Green)));
+        parts.push(Span::raw("  "));
+    }
+
     match &app.models_mode {
         crate::tui::app::ModelsMode::Search { query: _, sort_by, show_readme, loading, .. } => {
             parts.push(Span::styled("SEARCH", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
@@ -651,6 +656,8 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                         parts.push(Span::raw(" log  "));
                         parts.push(Span::styled("Ctrl+H", Style::default().fg(Color::Cyan)));
                         parts.push(Span::raw(" help  "));
+                        parts.push(Span::styled("Ctrl+Alt+K", Style::default().fg(Color::Cyan)));
+                        parts.push(Span::raw(" kill  "));
                         if app.panel_help {
                             parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
                             parts.push(Span::raw(" help  "));
