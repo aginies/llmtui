@@ -15,6 +15,15 @@ static API_PORT_CACHE: Mutex<Option<&'static str>> = Mutex::new(None);
 
 use gguf_rs;
 
+use ratatui::text::Line;
+
+/// Cache for the settings panel render output.
+pub struct SettingsRenderCache {
+    pub hash: u64,
+    pub selected: usize,
+    pub lines: Vec<Line<'static>>,
+}
+
 // Maximum cache size for GGUF metadata to prevent unbounded memory growth
 
 
@@ -171,6 +180,8 @@ pub struct App {
     pub router_max_models: u32,
     /// Cached file modification time for debouncing metadata parsing.
     last_metadata_parse: (std::path::PathBuf, std::time::SystemTime),
+    /// Cached settings panel render output.
+    pub settings_render_cache: Option<SettingsRenderCache>,
     /// Pending search load (page) — set when user presses B or Down at bottom.
     pub pending_search_load: Option<(String, u32)>, // (query, offset)
      /// Whether search results are currently being loaded.
@@ -253,10 +264,11 @@ impl App {
             panel_help_offset: 0,
             last_error_message: None,
 last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
-          pending_search_load: None,
+           pending_search_load: None,
             search_loading: false,
             server_mode,
             router_max_models,
+            settings_render_cache: None,
         }
     }
 
@@ -869,6 +881,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     pub fn apply_profile(&mut self, profile: &Profile) {
         self.settings = profile.apply(self.settings.clone());
         self.resolve_system_prompt();
+        self.settings_render_cache = None;
         self.add_log(format!("Applied profile: {}", profile.name), crate::config::LogLevel::Info);
         self.set_redraw();
     }
@@ -899,7 +912,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     }
 
     /// Save current settings as an override for the selected model.
-    pub fn save_model_settings(&mut self) {
+   pub fn save_model_settings(&mut self) {
         if let Some(model) = self.selected_model() {
             let name = model.name.clone();
             let override_cfg = crate::config::ModelOverride::from_settings(&self.settings);
@@ -914,6 +927,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         } else {
             self.add_log("No model selected to save settings for", crate::config::LogLevel::Warning);
         }
+        self.settings_render_cache = None;
         self.set_redraw();
     }
 
@@ -959,6 +973,72 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             || s.llama_cpp_version_cpu != c.llama_cpp_version_cpu
             || s.llama_cpp_version_vulkan != c.llama_cpp_version_vulkan
             || s.llama_cpp_version_rocm != c.llama_cpp_version_rocm
+    }
+
+    /// Compute a fingerprint of the current settings for cache invalidation.
+    pub fn settings_fingerprint(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut h = DefaultHasher::new();
+        self.settings.context_length.hash(&mut h);
+        self.settings.system_prompt_preset_name.hash(&mut h);
+        self.settings.mlock.hash(&mut h);
+        match self.settings.gpu_layers_mode {
+            crate::models::GpuLayersMode::Auto => 0u32,
+            crate::models::GpuLayersMode::Specific(n) => n,
+            crate::models::GpuLayersMode::All => u32::MAX,
+        }.hash(&mut h);
+        self.settings.flash_attn.hash(&mut h);
+        self.settings.kv_cache_offload.hash(&mut h);
+        match self.settings.cache_type_k {
+            Some(crate::models::CacheTypeK::F32) => 0u32,
+            Some(crate::models::CacheTypeK::F16) => 1,
+            Some(crate::models::CacheTypeK::BF16) => 2,
+            Some(crate::models::CacheTypeK::Q8_0) => 3,
+            Some(crate::models::CacheTypeK::Q5_0) => 4,
+            Some(crate::models::CacheTypeK::Q5_1) => 5,
+            Some(crate::models::CacheTypeK::Q4_0) => 6,
+            Some(crate::models::CacheTypeK::Q4_1) => 7,
+            Some(crate::models::CacheTypeK::Iq4Nl) => 8,
+            None => u32::MAX,
+        }.hash(&mut h);
+        match self.settings.cache_type_v {
+            Some(crate::models::CacheTypeV::F32) => 0u32,
+            Some(crate::models::CacheTypeV::F16) => 1,
+            Some(crate::models::CacheTypeV::BF16) => 2,
+            Some(crate::models::CacheTypeV::Q8_0) => 3,
+            Some(crate::models::CacheTypeV::Q5_0) => 4,
+            Some(crate::models::CacheTypeV::Q5_1) => 5,
+            Some(crate::models::CacheTypeV::Q4_0) => 6,
+            Some(crate::models::CacheTypeV::Q4_1) => 7,
+            Some(crate::models::CacheTypeV::Iq4Nl) => 8,
+            None => u32::MAX,
+        }.hash(&mut h);
+        self.settings.expert_count.hash(&mut h);
+        self.settings.batch_size.hash(&mut h);
+        self.settings.uniform_cache.hash(&mut h);
+        self.settings.max_concurrent_predictions.hash(&mut h);
+        self.settings.seed.hash(&mut h);
+        self.settings.temperature.to_bits().hash(&mut h);
+        self.settings.top_k.hash(&mut h);
+        self.settings.top_p.to_bits().hash(&mut h);
+        self.settings.min_p.to_bits().hash(&mut h);
+        self.settings.max_tokens.hash(&mut h);
+        self.settings.repeat_penalty.to_bits().hash(&mut h);
+        self.settings.repeat_last_n.hash(&mut h);
+        self.settings.presence_penalty.map(|v| v.to_bits()).hash(&mut h);
+        self.settings.frequency_penalty.map(|v| v.to_bits()).hash(&mut h);
+        self.settings.keep.hash(&mut h);
+        self.settings.mmap.hash(&mut h);
+        match self.settings.numa {
+            crate::models::NumMode::None => 0u32,
+            crate::models::NumMode::Distribute => 1,
+            crate::models::NumMode::Isolate => 2,
+            crate::models::NumMode::Numactl => 3,
+        }.hash(&mut h);
+        self.settings.threads.hash(&mut h);
+        self.settings.threads_batch.hash(&mut h);
+        h.finish()
     }
 
     /// Delete a user profile by index in the merged display list.
@@ -1173,6 +1253,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.model_n_head = 0;
         self.model_n_kv_head = 0;
         self.vram_estimate = 0;
+        self.settings_render_cache = None;
         self.add_log("Reset LLM Settings to defaults", crate::config::LogLevel::Info);
     }
 }

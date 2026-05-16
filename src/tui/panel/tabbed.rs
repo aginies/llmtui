@@ -38,18 +38,27 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     // ── Server Settings box (always shown) ───────────────────
     render_server_settings(f, server_area, app);
 
-   // ── LLM Settings ─────────────────────────────────────────
-  let (settings_lines, count, settings_height, selected_line_idx) = settings::render_all(
+  // ── LLM Settings ─────────────────────────────────────────
+   let (settings_lines, count, settings_height, selected_line_idx) = settings::render_all(
         &app.settings,
         &app.model_settings_cache,
         app.settings_selected_idx,
         &app.settings_edit_buffer,
         !app.settings_edit_buffer.is_empty(),
+        app.settings_render_cache.as_ref(),
+        app.settings_fingerprint(),
         app.vram_estimate,
         app.model_total_layers,
         app.model_n_ctx_train,
         app.max_threads,
     );
+    
+    // Update cache
+    app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
+        hash: app.settings_fingerprint(),
+        selected: app.settings_selected_idx,
+        lines: settings_lines.clone(),
+    });
     
     // Ensure selection stays in bounds
     if app.settings_selected_idx >= count {
@@ -203,11 +212,20 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         app.settings_selected_idx,
         &app.settings_edit_buffer,
         !app.settings_edit_buffer.is_empty(),
+        app.settings_render_cache.as_ref(),
+        app.settings_fingerprint(),
         app.vram_estimate,
         app.model_total_layers,
         app.model_n_ctx_train,
         app.max_threads,
     );
+    
+    // Update cache
+    app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
+        hash: app.settings_fingerprint(),
+        selected: app.settings_selected_idx,
+        lines: all_lines.clone(),
+    });
 
     let available_height = area.height.saturating_sub(2);
     let start_idx = app.settings_scroll_offset as usize;

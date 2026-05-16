@@ -6,7 +6,14 @@ use ratatui::{
 /// Render the LLM Settings panel (Loading + GPU + Evaluation + Sampling + Repetition).
 /// Returns (lines, total_count, settings_height, selected_line_idx).
 #[allow(clippy::too_many_arguments)]
-pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, _vram_mib: u64, _total_layers: u32, _n_ctx_train: u32, _max_threads: u32) -> (Vec<Line<'static>>, usize, usize, usize) {
+pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, cache: Option<&crate::tui::app::SettingsRenderCache>, hash: u64, _vram_mib: u64, _total_layers: u32, _n_ctx_train: u32, _max_threads: u32) -> (Vec<Line<'static>>, usize, usize, usize) {
+    // Cache hit: return a clone of the cached lines.
+    if let Some(c) = cache
+        && c.hash == hash
+        && c.selected == selected {
+            return (c.lines.clone(), c.lines.len(), c.lines.len(), 0);
+        }
+
     let mut lines = Vec::new();
     let mut total_count = 0;
     let mut selected_line_idx = 0;
