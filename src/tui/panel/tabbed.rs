@@ -11,7 +11,7 @@ use super::info::ModelInfoPair;
 use super::settings;
 use crate::tui::app::App;
 
-const SERVER_SETTINGS_HEIGHT: u16 = 7;
+const SERVER_SETTINGS_HEIGHT: u16 = 8;
 
 pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     if area.height < 2 || area.width < 10 {
@@ -39,7 +39,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     render_server_settings(f, server_area, app);
 
    // ── LLM Settings ─────────────────────────────────────────
-    let (settings_lines, count, settings_height, selected_line_idx) = settings::render_all(
+  let (settings_lines, count, settings_height, selected_line_idx) = settings::render_all(
         &app.settings,
         &app.model_settings_cache,
         app.settings_selected_idx,
@@ -49,7 +49,6 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         app.model_total_layers,
         app.model_n_ctx_train,
         app.max_threads,
-        None,
     );
     
     // Ensure selection stays in bounds
@@ -124,6 +123,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
     let is_focused = app.active_panel == crate::tui::app::ActivePanel::ServerSettings;
     let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
     let selected = app.server_settings_selected_idx;
+    let server_running = app.server_handle.is_some();
 
     let host_val = if app.settings.host.is_empty() {
         "localhost (127.0.0.1)"
@@ -137,20 +137,16 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
     let threads_val = format!("{}", app.settings.threads);
     let threads_batch_val = format!("{}", app.settings.threads_batch);
     let mode_val = format!("{}", app.settings.server_mode);
+    let api_enabled = if app.settings.api_endpoint_enabled { "True" } else { "False" };
 
     let mut lines = Vec::new();
     let mut count = 0;
-   settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", &host_val, selected, "", false, None);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false, None);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false, None);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false, None);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false, None);
-    lines.push(Line::from(vec![
-        Span::styled(format!("  Current: {mode_val}"), Style::default().fg(Color::DarkGray)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("  (Enter/Arrows to change)", Style::default().fg(Color::DarkGray)),
-    ]));
+  settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", &host_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false);
+  settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", &api_enabled, selected, "", server_running);
 
     let block = Block::default()
         .title(" Server Settings ")

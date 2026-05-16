@@ -161,9 +161,6 @@ pub struct App {
     pub last_error_message: Option<String>,
     /// Cached file modification time for debouncing metadata parsing.
     last_metadata_parse: (std::path::PathBuf, std::time::SystemTime),
-    pub cached_cpu_versions: Vec<String>,
-    pub cached_vulkan_versions: Vec<String>,
-    pub cached_rocm_versions: Vec<String>,
     /// Pending search load (page) — set when user presses B or Down at bottom.
     pub pending_search_load: Option<(String, u32)>, // (query, offset)
      /// Whether search results are currently being loaded.
@@ -243,9 +240,6 @@ impl App {
             panel_help_offset: 0,
             last_error_message: None,
 last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
-           cached_cpu_versions: Vec::new(),
-            cached_vulkan_versions: Vec::new(),
-            cached_rocm_versions: Vec::new(),
             pending_search_load: None,
             search_loading: false,
         }
@@ -264,44 +258,6 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             }
         }
         base
-    }
-
-  pub fn refresh_cached_versions(&mut self) {
-        let bin_dir = dirs::data_local_dir()
-            .unwrap_or_default()
-            .join("llm-manager")
-            .join("bin");
-        if let Ok(entries) = std::fs::read_dir(&bin_dir) {
-            let mut cpu_versions: Vec<String> = Vec::new();
-            let mut vulkan_versions: Vec<String> = Vec::new();
-            let mut rocm_versions: Vec<String> = Vec::new();
-            for entry in entries.flatten() {
-                if let Ok(meta) = entry.metadata() {
-                    if meta.is_dir() {
-                        let name = entry.file_name().to_string_lossy().to_string();
-                        // Extract version from llama-server-{cpu|vulkan|rocm}-{version}
-                        if let Some(pos) = name.rfind('-') {
-                            let version = &name[pos + 1..];
-                            if !version.is_empty() {
-                                if name.starts_with("llama-server-cpu-") && !cpu_versions.contains(&version.to_string()) {
-                                    cpu_versions.push(version.to_string());
-                                } else if name.starts_with("llama-server-vulkan-") && !vulkan_versions.contains(&version.to_string()) {
-                                    vulkan_versions.push(version.to_string());
-                                } else if name.starts_with("llama-server-rocm-") && !rocm_versions.contains(&version.to_string()) {
-                                    rocm_versions.push(version.to_string());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            cpu_versions.sort();
-            vulkan_versions.sort();
-            rocm_versions.sort();
-            self.cached_cpu_versions = cpu_versions;
-            self.cached_vulkan_versions = vulkan_versions;
-            self.cached_rocm_versions = rocm_versions;
-        }
     }
 
     pub fn add_log(&mut self, message: impl Into<String>, level: crate::config::LogLevel) {

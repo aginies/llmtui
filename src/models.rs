@@ -1012,15 +1012,6 @@ impl Default for LoadProgress {
     }
 }
 
-/// A llama.cpp release from GitHub.
-#[derive(Debug, Clone)]
-pub struct LlamaCppRelease {
-    pub tag: String,
-    pub name: String,
-    pub is_prerelease: bool,
-    pub size: Option<u64>,
-}
-
 impl Default for ServerMetrics {
     fn default() -> Self {
         Self {

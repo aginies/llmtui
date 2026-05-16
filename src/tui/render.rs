@@ -380,8 +380,7 @@ Line::from(vec![
                     // We track this via the fact that README is shown when we entered Files mode
                     true
                 }
-                ModelsMode::VersionPicker { .. } => false,
-                _ => false,
+                               _ => false,
             };
             if show_readme {
                 panel::readme::render(f, top_chunks[1], app);
@@ -481,33 +480,7 @@ fn render_status_bar<'a>(app: &'a App) -> Line<'a> {
                 parts.push(Span::raw(" fullscreen"));
             }
         }
-  crate::tui::app::ModelsMode::VersionPicker { releases, selected_idx, .. } => {
-            parts.push(Span::styled("VERSIONS", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
-            parts.push(Span::raw("  "));
-            let cpu_ver = app.settings.llama_cpp_version_cpu.as_deref().unwrap_or("latest");
-            let vulk_ver = app.settings.llama_cpp_version_vulkan.as_deref().unwrap_or("latest");
-            let rocm_ver = app.settings.llama_cpp_version_rocm.as_deref().unwrap_or("latest");
-            let version_display = format!("CPU {} | Vulkan {} | ROCm {}", cpu_ver, vulk_ver, rocm_ver);
-            parts.push(Span::styled(version_display, Style::default().fg(Color::Cyan)));
-            parts.push(Span::raw("  "));
-            if *selected_idx < releases.len() {
-                parts.push(Span::styled(&releases[*selected_idx].tag, Style::default().fg(Color::Cyan)));
-            } else {
-                parts.push(Span::styled("loading...", Style::default().fg(Color::DarkGray)));
-            }
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("TAB", Style::default().fg(Color::Cyan)));
-            parts.push(Span::raw(" backend  "));
-            parts.push(Span::styled("Enter", Style::default().fg(Color::Cyan)));
-            parts.push(Span::raw(" select  "));
-            parts.push(Span::styled("Esc", Style::default().fg(Color::Cyan)));
-            parts.push(Span::raw(" back  "));
-            parts.push(Span::styled("R", Style::default().fg(Color::Yellow)));
-            parts.push(Span::raw(" refresh  "));
-            parts.push(Span::styled("C", Style::default().fg(Color::Yellow)));
-            parts.push(Span::raw(" cached"));
-        }
-        crate::tui::app::ModelsMode::List => {
+       crate::tui::app::ModelsMode::List => {
             if app.active_panel == crate::tui::app::ActivePanel::Profiles {
                 parts.push(Span::styled("PROFILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
                 parts.push(Span::raw("  "));

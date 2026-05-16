@@ -2,55 +2,6 @@ use anyhow::Result;
 use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 
-/// List available llama.cpp releases from GitHub.
-pub async fn list_releases() -> Result<Vec<crate::models::LlamaCppRelease>> {
-    let client = reqwest::Client::new();
-    let resp = client
-        .get("https://api.github.com/repos/ggml-org/llama.cpp/releases")
-        .header("Accept", "application/vnd.github.v3+json")
-        .send()
-        .await?
-        .error_for_status()?;
-    let releases: Vec<serde_json::Value> = resp.json().await?;
-
-    let mut result = Vec::new();
-    for r in releases {
-        let tag = r
-            .get("tag_name")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_default();
-        let name = r
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| tag.clone());
-        let is_prerelease = r
-            .get("prerelease")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        let size = r.get("assets").and_then(|assets| {
-            assets.as_array().and_then(|arr| {
-                arr.iter()
-                    .find(|a| {
-                        a.get("name").and_then(|n| n.as_str())
-                            .map(|n| n.contains("ubuntu-x64.tar.gz") || n.contains("ubuntu-vulkan-x64.tar.gz") || n.contains("ubuntu-rocm"))
-                            .unwrap_or(false)
-                    })
-                    .and_then(|a| a.get("size"))
-                    .and_then(|s| s.as_u64())
-            })
-        });
-        result.push(crate::models::LlamaCppRelease {
-            tag,
-            name,
-            is_prerelease,
-            size,
-        });
-    }
-    Ok(result)
-}
-
 /// Search models on HuggingFace.
 ///
 /// `limit` is the number of results per page (default 70, max 200).
