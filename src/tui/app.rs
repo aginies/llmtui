@@ -8,7 +8,10 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::TableState;
 
 use std::collections::VecDeque;
-use std::sync::{Arc, atomic::AtomicBool};
+use std::sync::{Arc, atomic::AtomicBool, Mutex};
+
+/// Static cell for caching the API port string in help text (avoids Box::leak).
+static API_PORT_CACHE: Mutex<Option<&'static str>> = Mutex::new(None);
 
 use gguf_rs;
 
@@ -250,7 +253,7 @@ impl App {
             panel_help_offset: 0,
             last_error_message: None,
 last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
-            pending_search_load: None,
+          pending_search_load: None,
             search_loading: false,
             server_mode,
             router_max_models,
@@ -577,6 +580,20 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             self.model_states.insert(name.clone(), ModelState::Failed { error });
         }
         self.set_redraw();
+    }
+
+    /// Get the API port string, caching it to avoid leaking memory on each call.
+    pub fn get_api_port_str(&self) -> &'static str {
+        let port = self.settings.api_endpoint_port;
+        let mut cache = API_PORT_CACHE.lock().unwrap();
+        if let Some(s) = cache.as_ref() {
+            if *s == format!("{}", port) {
+                return *s;
+            }
+        }
+        let s = Box::leak(format!("{}", port).into_boxed_str());
+        *cache = Some(s);
+        s
     }
 
     /// Compute VRAM estimate from model file size and current settings.
@@ -986,7 +1003,6 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     pub fn panel_help_lines(&self) -> Vec<ratatui::text::Line<'static>> {
         use ratatui::text::{Line, Span};
         let y = Style::default().fg(Color::Yellow);
-        let api_port_val = self.settings.api_endpoint_port.to_string();
 
         match self.active_panel {
             ActivePanel::Models => vec![
@@ -1028,7 +1044,6 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("c", y), Span::raw("  Cancel selected download")]),
             ],
   ActivePanel::ServerSettings => {
-                let port_str: &'static str = Box::leak(format!("  Port for API proxy: {api_port_val}").into_boxed_str());
                 vec![
                     Line::from(Span::styled("SERVER SETTINGS", y.add_modifier(Modifier::BOLD))),
                     Line::from(""),
@@ -1044,7 +1059,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                     Line::from(vec![Span::styled("Threads Batch", y), Span::raw("  CPU threads for batch processing (1 to 32)")]),
                     Line::from(vec![Span::styled("Mode", y), Span::raw("  Server mode (Normal / Router)")]),
                     Line::from(vec![Span::styled("API Endpoint", y), Span::raw("  Enable API proxy (True/False)")]),
-                    Line::from(vec![Span::styled("API Port", y), Span::raw(port_str)]),
+                    Line::from(vec![Span::styled("API Port", y), Span::raw(self.get_api_port_str())]),
                 ]
             }
             ActivePanel::LlmSettings => vec![
@@ -1141,6 +1156,13 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.settings = defaults;
         // Clear dirty flag by updating the cache snapshot to match new settings
         self.model_settings_cache = self.settings.clone();
+        // Reset model metadata to avoid stale values
+        self.model_total_layers = 0;
+        self.model_hidden_size = 0;
+        self.model_n_ctx_train = 0;
+        self.model_n_head = 0;
+        self.model_n_kv_head = 0;
+        self.vram_estimate = 0;
         self.add_log("Reset LLM Settings to defaults", crate::config::LogLevel::Info);
     }
 }

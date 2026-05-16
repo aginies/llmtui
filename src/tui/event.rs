@@ -864,6 +864,20 @@ fn handle_log_key(app: &mut App, key: crossterm::event::KeyEvent) {
 }
 
 fn sync_global_settings(app: &mut App) {
+    let changed = app.config.default.host != app.settings.host
+        || app.config.default.port != app.settings.port
+        || app.config.default.backend != app.settings.backend
+        || app.config.default.parallel != app.settings.parallel
+        || app.config.default.max_concurrent_predictions != app.settings.max_concurrent_predictions
+        || app.config.default.threads != app.settings.threads
+        || app.config.default.threads_batch != app.settings.threads_batch
+        || app.config.default.api_endpoint_enabled != app.settings.api_endpoint_enabled
+        || app.config.default.api_endpoint_port != app.settings.api_endpoint_port
+        || app.config.default.server_mode != app.server_mode
+        || app.config.default.router_max_models != app.router_max_models;
+    if !changed {
+        return;
+    }
     app.config.default.host = app.settings.host.clone();
     app.config.default.port = app.settings.port;
     app.config.default.backend = app.settings.backend;
