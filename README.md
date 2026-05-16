@@ -123,6 +123,18 @@ When API Endpoint is enabled, a proxy server starts on port `49222` that forward
 - `Ctrl+H` — Help
 - `Ctrl+K` — CmdLine overlay
 
+### GPU Layers cycling
+
+In the LLM Settings panel, the GPU Layers field cycles through three modes with arrow keys:
+
+| Mode | Behavior |
+|------|----------|
+| Auto | Lets llama.cpp auto-detect based on available VRAM (default) |
+| Specific number | Offloads exactly that many layers to GPU |
+| All | Offloads all layers (equivalent to `-ngl 999`) |
+
+Arrow keys cycle: `Auto` → `1` → `2` → ... → `N` → `All` → `Auto`. Pressing `Enter` from a specific number opens an edit buffer for direct input.
+
 ### Backend selection
 
 Three backends supported via the llama.cpp server:
@@ -135,7 +147,7 @@ Three backends supported via the llama.cpp server:
 
 ### CmdLine overlay
 
-Press `Ctrl+K` to view the full command line that would be executed to start the llama.cpp server. The overlay shows the binary path, model path, and all parameters (threads, context size, GPU layers, temperatures, samplers, etc.) so you can copy or inspect the exact invocation.
+Press `Ctrl+K` to view the full command line that would be executed to start the llama.cpp server. The overlay shows the binary path, model path, and all parameters (threads, context size, GPU layers, temperatures, samplers, etc.) so you can copy or inspect the exact invocation. Note that `-ngl` is only included when GPU Layers is set to a specific number or "All"; in "Auto" mode the flag is omitted so llama.cpp can decide dynamically.
 
 From the CmdLine overlay, press `e` to export the command to `/tmp/test_llamaserver.sh` as a bash script (overwrites if it exists).
 

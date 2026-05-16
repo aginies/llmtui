@@ -103,7 +103,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
 
             // Show loading progress with details
             if app.loading_progress > 0.0 && app.loading_progress < 1.0 {
-                let bar_width = area.width.saturating_sub(2) as usize;
+                let bar_width = area.width.saturating_sub(10) as usize;
                 let filled = (app.loading_progress * bar_width as f32) as usize;
                 let bar = format!(
                     "[{}{}] {:.0}%",

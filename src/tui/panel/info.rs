@@ -238,7 +238,11 @@ pub fn render_model_lines(
                 meta.hidden_size,
                 meta.n_head,
                 meta.n_kv_head,
-                settings.gpu_layers,
+                match settings.gpu_layers_mode {
+                    crate::models::GpuLayersMode::Auto => -1,
+                    crate::models::GpuLayersMode::Specific(n) => n as i32,
+                    crate::models::GpuLayersMode::All => -1,
+                },
                 settings.flash_attn,
                 settings.uniform_cache,
                 &settings.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "F16".to_string()),

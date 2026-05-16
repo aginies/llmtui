@@ -901,7 +901,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
 // Evaluation: 9: Eval Batch, 10: Unified KV, 11: Max Concurrent Pred
 // Sampling: 12: Seed, 13: Temp, 14: Top-k, 15: Top-p, 16: Min P, 17: Max Tokens
 // Repetition: 18: Rep. Penalty, 19: Rep. Last N, 20: Presence, 21: Frequency
-// Total: 21 fields
+// Total: 21 fields (20 editable)
 
 fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _max_threads: u32, max_context: u32) {
     match idx {
@@ -915,8 +915,15 @@ fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _m
                 settings.context_length = val;
             }
         }
-        // GPU Offload
-        3 => { if let Ok(v) = buf.parse::<i32>() { settings.gpu_layers = v.clamp(0, 999); } }
+    3 => {
+            if let Ok(v) = buf.parse::<i32>() {
+                settings.gpu_layers_mode = if v < 0 {
+                    crate::models::GpuLayersMode::All
+                } else {
+                    crate::models::GpuLayersMode::Specific(v as u32)
+                };
+            }
+        }
         8 => { if let Ok(v) = buf.parse::<i32>() { settings.expert_count = v.clamp(-1, 99); } }
         // Evaluation
         9 => { if let Ok(v) = buf.parse::<u32>() { settings.batch_size = v.max(1); } }
@@ -955,8 +962,19 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_thr
             }
             settings.context_length = val;
         }
-        // GPU Offload
-        3 => settings.gpu_layers = (settings.gpu_layers + delta).max(0),
+   3 => {
+            settings.gpu_layers_mode = match (delta, &settings.gpu_layers_mode) {
+                (1, crate::models::GpuLayersMode::Auto) => crate::models::GpuLayersMode::Specific(1),
+                (1, crate::models::GpuLayersMode::Specific(n)) => crate::models::GpuLayersMode::Specific(n + 1),
+                (1, crate::models::GpuLayersMode::All) => crate::models::GpuLayersMode::Auto,
+                (-1, crate::models::GpuLayersMode::Auto) => crate::models::GpuLayersMode::All,
+                (-1, crate::models::GpuLayersMode::Specific(n)) if *n == 0 => crate::models::GpuLayersMode::Auto,
+                (-1, crate::models::GpuLayersMode::Specific(n)) if *n == 1 => crate::models::GpuLayersMode::Specific(0),
+                (-1, crate::models::GpuLayersMode::Specific(n)) => crate::models::GpuLayersMode::Specific(n - 1),
+                (-1, crate::models::GpuLayersMode::All) => crate::models::GpuLayersMode::Specific(999),
+                _ => settings.gpu_layers_mode,
+            };
+        }
         4 => settings.flash_attn = !settings.flash_attn,
         5 => settings.kv_cache_offload = !settings.kv_cache_offload,
         6 => {
@@ -1060,7 +1078,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else {
- let count = 21; // Total editable LLM settings
+ let count = 22; // Total LLM settings
                 app.settings_selected_idx = (app.settings_selected_idx + 1).min(count - 1);
                 app.set_redraw();
             }
@@ -1086,10 +1104,47 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
             }
         }
-        // GPU Layers: interactive mode for typing layer count
+   // GPU Layers: arrow keys cycle Auto → 1 → 2 → ... → N → All → Auto
         _ if idx == 3 => {
-            if app.settings_edit_buffer.is_empty() {
-                app.settings_edit_buffer = app.settings.gpu_layers.to_string();
+            if !app.settings_edit_buffer.is_empty() {
+                app.settings_edit_buffer.clear();
+                app.set_redraw();
+            } else if key.code == KeyCode::Enter {
+                // Enter from specific number: open picker; from Auto/All: cycle to max
+                match &app.settings.gpu_layers_mode {
+                    crate::models::GpuLayersMode::Specific(n) => {
+                        app.settings_edit_buffer = n.to_string();
+                    }
+                    _ => {
+                        let total = app.model_total_layers;
+                        app.settings.gpu_layers_mode = crate::models::GpuLayersMode::Specific(total.max(1).min(256));
+                        app.update_vram_estimate();
+                    }
+                }
+                app.set_redraw();
+            } else if key.code == KeyCode::Left {
+                let total = app.model_total_layers;
+                app.settings.gpu_layers_mode = match &app.settings.gpu_layers_mode {
+                    crate::models::GpuLayersMode::Auto => crate::models::GpuLayersMode::Specific(total.max(1).min(256)),
+                    crate::models::GpuLayersMode::Specific(0) => crate::models::GpuLayersMode::Auto,
+                    crate::models::GpuLayersMode::Specific(n) if *n == 1 => crate::models::GpuLayersMode::Specific(0),
+                    crate::models::GpuLayersMode::Specific(n) => crate::models::GpuLayersMode::Specific(n - 1),
+                    crate::models::GpuLayersMode::All => {
+                        let max = total.max(1).min(256);
+                        crate::models::GpuLayersMode::Specific(max)
+                    }
+                };
+                app.update_vram_estimate();
+                app.set_redraw();
+            } else if key.code == KeyCode::Right {
+                let total = app.model_total_layers;
+                app.settings.gpu_layers_mode = match &app.settings.gpu_layers_mode {
+                    crate::models::GpuLayersMode::Auto => crate::models::GpuLayersMode::Specific(1),
+                    crate::models::GpuLayersMode::Specific(n) if *n == total => crate::models::GpuLayersMode::All,
+                    crate::models::GpuLayersMode::Specific(n) => crate::models::GpuLayersMode::Specific(n + 1),
+                    crate::models::GpuLayersMode::All => crate::models::GpuLayersMode::Auto,
+                };
+                app.update_vram_estimate();
                 app.set_redraw();
             }
         }

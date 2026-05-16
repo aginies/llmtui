@@ -6,7 +6,7 @@ use ratatui::{
 /// Render the LLM Settings panel (Loading + GPU + Evaluation + Sampling + Repetition).
 /// Returns (lines, total_count, settings_height, selected_line_idx).
 #[allow(clippy::too_many_arguments)]
-pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, _vram_mib: u64, total_layers: u32, _n_ctx_train: u32, _max_threads: u32) -> (Vec<Line<'static>>, usize, usize, usize) {
+pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, _vram_mib: u64, _total_layers: u32, _n_ctx_train: u32, _max_threads: u32) -> (Vec<Line<'static>>, usize, usize, usize) {
     let mut lines = Vec::new();
     let mut total_count = 0;
     let mut selected_line_idx = 0;
@@ -36,11 +36,11 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
 
     let gpu_names = ["GPU Layers", "Flash Attention", "KV Cache Offload", "Cache Type K", "Cache Type V", "Active Experts"];
     let gpu_vals = vec![
-        if settings.gpu_layers < 0 {
-            format!("all ({total_layers} layers)",)
-        } else {
-            format!("{} / {total_layers} layers", settings.gpu_layers)
-        },
+        format!("{}", match settings.gpu_layers_mode {
+            crate::models::GpuLayersMode::Auto => "Auto".to_string(),
+            crate::models::GpuLayersMode::Specific(n) => n.to_string(),
+            crate::models::GpuLayersMode::All => "All".to_string(),
+        }),
         format!("{}", settings.flash_attn),
         format!("{}", settings.kv_cache_offload),
         settings.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
@@ -115,7 +115,7 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
         0 => settings.context_length != cached.context_length,
         1 => settings.system_prompt_preset_name != cached.system_prompt_preset_name,
         2 => settings.mlock != cached.mlock,
-        3 => settings.gpu_layers != cached.gpu_layers,
+        3 => settings.gpu_layers_mode != cached.gpu_layers_mode,
         4 => settings.flash_attn != cached.flash_attn,
         5 => settings.kv_cache_offload != cached.kv_cache_offload,
         6 => settings.cache_type_k != cached.cache_type_k,

@@ -150,7 +150,12 @@ pub async fn serve_model(
     }
 
     info!("Serving model: {}", model.display_name);
-    info!("Settings: {} threads, {} layers, {} context", settings.threads, settings.gpu_layers, settings.context_length);
+    let layers_str = match settings.gpu_layers_mode {
+        crate::models::GpuLayersMode::Auto => "auto".to_string(),
+        crate::models::GpuLayersMode::Specific(n) => n.to_string(),
+        crate::models::GpuLayersMode::All => "all".to_string(),
+    };
+    info!("Settings: {} threads, {} layers, {} context", settings.threads, layers_str, settings.context_length);
 
     // Resolve llama-server binary path
     let binary = resolve_llama_server(&config.llama_server)?;

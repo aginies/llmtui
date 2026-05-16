@@ -150,6 +150,29 @@ Each group is rendered with a header line. Arrow keys adjust values; `+`/`-` for
 - `event.rs` comment block (line ~836)
 - `app.rs` `is_settings_dirty` match arms
 
+### GPU Layers cycling (`src/models.rs::GpuLayersMode`, `src/tui/event.rs`)
+
+GPU Layers uses a `GpuLayersMode` enum with three variants:
+
+```rust
+pub enum GpuLayersMode {
+    Auto,       // llama.cpp auto-detects based on VRAM (default)
+    Specific(u32), // exact number of layers
+    All,        // -ngl 999 (all layers)
+}
+```
+
+Arrow keys cycle through modes: `Auto` → `1` → `2` → ... → `N` (total layers) → `All` → `Auto`.
+- `Enter` from a specific number opens an edit buffer for direct input.
+- `Enter` from `Auto` or `All` sets the max available layers.
+
+The `-ngl` parameter is only added to the llama-server command for `Specific` and `All` modes; `Auto` omits it entirely.
+
+**VRAM estimation** (`src/models.rs::estimate_vram_mib`):
+- `Auto` uses a heuristic (~60% of total layers)
+- `Specific(n)` uses exactly `n` layers
+- `All` uses all layers
+
 ## Llama.cpp binary management
 
 ### Backend selection (`src/models.rs`)

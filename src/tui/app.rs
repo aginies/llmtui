@@ -359,14 +359,6 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 }
             }
 
-            // Count dots from the progress line (each dot = 1% of tensor loading)
-            // Lines like "......................................................"
-            if msg.trim().chars().all(|c| c == '.' || c == ' ') && !msg.trim().is_empty() {
-                let dot_count = msg.trim().chars().filter(|&c| c == '.').count() as u32;
-                if dot_count > self.load_progress.tensors_loaded {
-                    self.load_progress.tensors_loaded = dot_count;
-                }
-            }
         }
 
         // Detect successful model load (including router mode)
@@ -450,31 +442,17 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             }
         }
 
-        // During tensor loading, refine progress using dot count (each dot = 1%)
+       // During tensor loading, refine progress using layer count
         if self.loading_phases.contains(&LoadingPhase::LoadingTensors)
             && !self.loading_phases.contains(&LoadingPhase::Complete)
         {
-            // Estimate total tensors from model architecture if not already set
-            if self.load_progress.tensors_total == 0 {
-                let total_layers = self.load_progress.layers_total.unwrap_or(self.model_total_layers);
-                let n_head = self.model_n_head;
-                let layers = total_layers;
-                let kv_ratio = if n_head > 0 && self.model_n_kv_head > 0 {
-                    self.model_n_kv_head as f64 / n_head as f64
-                } else {
-                    1.0
-                };
-                let estimated = 2.0 * layers as f64 + layers as f64 * (1.0 + 2.0 * kv_ratio) + layers as f64 * 3.0;
-                self.load_progress.tensors_total = estimated.round() as u32;
-            }
-
-            if self.load_progress.tensors_total > 0 {
-                let tensor_fraction = self.load_progress.tensors_loaded as f32 / self.load_progress.tensors_total as f32;
+            if let (Some(loaded), Some(total)) = (self.load_progress.layers_loaded, self.load_progress.layers_total) {
+                let layer_fraction = loaded as f32 / total as f32;
                 // Clamp to [0, 1]
-                let tensor_fraction = tensor_fraction.min(1.0);
-                // Map tensor progress over the 70% weight
+                let layer_fraction = layer_fraction.min(1.0);
+                // Map layer progress over the 70% weight
                 phase_progress = (PHASE_WEIGHTS[0].1 + PHASE_WEIGHTS[1].1 + PHASE_WEIGHTS[2].1)
-                    + tensor_fraction * PHASE_WEIGHTS[3].1;
+                    + layer_fraction * PHASE_WEIGHTS[3].1;
             }
         }
 
@@ -898,7 +876,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             || s.threads_batch != c.threads_batch
             || s.mlock != c.mlock
             || s.system_prompt_preset_name != c.system_prompt_preset_name
-            || s.gpu_layers != c.gpu_layers
+          || s.gpu_layers_mode != c.gpu_layers_mode
             || s.flash_attn != c.flash_attn
             || s.kv_cache_offload != c.kv_cache_offload
             || s.cache_type_k != c.cache_type_k
@@ -1060,7 +1038,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("Keep in memory", y), Span::raw("  Lock model weights in RAM (mlock). Prevents the OS from swapping model weights to disk. Slows model load time but ensures faster inference once loaded. Useful for repeated use.")]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- GPU Offload ---", y)]),
-                Line::from(vec![Span::styled("GPU Layers", y), Span::raw("  Number of model layers to run on GPU. Higher = faster inference, more VRAM usage. Set to -1 to offload all layers. Typical: fill VRAM but leave room for KV cache. Use 'all' to auto-detect.")]),
+                Line::from(vec![Span::styled("GPU Layers", y), Span::raw("  How many model layers to offload to GPU. Arrow keys cycle: Auto → 1 → 2 → ... → N → All → Auto. Auto lets llama.cpp decide based on VRAM. All loads every layer (999). Specific number sets exact offload count.")]),
                 Line::from(vec![Span::styled("Flash Attention", y), Span::raw("  Enable Flash Attention (flash-attn) for faster inference. Requires compatible GPU (Ampere+ / Ada). Significantly speeds up long-context inference. Only works with certain GGUF formats.")]),
                 Line::from(vec![Span::styled("KV Cache Offload", y), Span::raw("  Offload KV cache to RAM when GPU memory is full. Allows larger batch sizes and contexts at the cost of some speed. Useful when VRAM is limited but you still want longer conversations.")]),
                 Line::from(vec![Span::styled("Cache Type K / V", y), Span::raw("  Quantization precision for KV cache (K = keys, V = values). Lower precision (e.g., Q4, Q8) saves VRAM but may slightly reduce quality. Default is usually FP16. Use lower values if running out of VRAM.")]),

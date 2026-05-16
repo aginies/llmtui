@@ -708,6 +708,11 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                 if app.metrics.ctx_used > 0 {
                     m.ctx_used = app.metrics.ctx_used;
                 }
+                // Fallback: if ctx_used is 0 (idle model) but ctx_max is set,
+                // use ctx_max so the display shows the full context window size.
+                if m.ctx_used == 0 && m.ctx_max > 0 {
+                    m.ctx_used = m.ctx_max;
+                }
                 // Preserve log-parsed VRAM if endpoint returns 0
                 if m.gpu_mem_used == 0 && app.metrics.gpu_mem_used > 0 {
                     m.gpu_mem_used = app.metrics.gpu_mem_used;

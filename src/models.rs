@@ -125,7 +125,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             system_prompt: dp.system_prompt,
             system_prompt_preset_name: dp.system_prompt_preset_name,
             reasoning_mode: dp.reasoning_mode,
-            gpu_layers: dp.gpu_layers,
+            gpu_layers_mode: dp.gpu_layers_mode,
             split_mode: dp.split_mode,
             tensor_split: dp.tensor_split,
             main_gpu: dp.main_gpu,
@@ -178,6 +178,20 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
         }
+    }
+}
+
+/// How to handle GPU layer offloading.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum GpuLayersMode {
+    Auto,
+    Specific(u32),
+    All,
+}
+
+impl Default for GpuLayersMode {
+    fn default() -> Self {
+        GpuLayersMode::Auto
     }
 }
 
@@ -617,8 +631,8 @@ pub struct ModelSettings {
 
     // ── GPU ──────────────────────────────────────────────────
 
-    /// Max number of layers to store in VRAM.
-    pub gpu_layers: i32,
+    /// GPU layer offloading mode.
+    pub gpu_layers_mode: GpuLayersMode,
     /// Split mode across multiple GPUs.
     pub split_mode: SplitMode,
     /// Fraction of model offloaded to each GPU (comma-separated).
@@ -763,7 +777,7 @@ impl Default for ModelSettings {
             reasoning_mode: ReasoningMode::Default,
 
             // GPU
-            gpu_layers: -1,
+            gpu_layers_mode: GpuLayersMode::Auto,
             split_mode: SplitMode::Layer,
             tensor_split: String::new(),
             main_gpu: 0,
@@ -851,7 +865,10 @@ impl ModelSettings {
         settings.system_prompt = config.default.system_prompt.clone();
         settings.system_prompt_preset_name = config.default.system_prompt_preset_name.clone();
         settings.reasoning_mode = config.default.reasoning_mode;
-        settings.gpu_layers = config.default.gpu_layers;
+        settings.gpu_layers_mode = match config.default.gpu_layers {
+            n if n < 0 => GpuLayersMode::All,
+            _ => GpuLayersMode::Auto,
+        };
         settings.split_mode = config.default.split_mode;
         settings.tensor_split = config.default.tensor_split.clone();
         settings.main_gpu = config.default.main_gpu;
@@ -941,6 +958,10 @@ pub struct ServerMetrics {
     pub tps: f64,
     pub prompt_tps: f64,
     pub cpu_usage: f64,
+    /// Previous CPU ticks (utime + stime) for delta-based CPU calculation.
+    pub cpu_ticks_prev: u64,
+    /// System uptime in seconds at last poll, used for wall-time delta in CPU calculation.
+    pub system_uptime_prev: f64,
     pub gpu_mem_used: u64,
     pub gpu_mem_total: u64,
     pub ram_used: u64,
@@ -965,10 +986,8 @@ pub struct LoadProgress {
     pub layers_total: Option<u32>,
     /// Number of layers already offloaded to GPU.
     pub layers_loaded: Option<u32>,
-    /// Number of tensors loaded (counted from dot-lines in log).
+   /// Number of tensors loaded (counted from dot-lines in log).
     pub tensors_loaded: u32,
-    /// Estimated total tensor count based on model architecture.
-    pub tensors_total: u32,
     /// GPU device buffers with their sizes.
     pub buffers: Vec<GPUBuffer>,
 }
@@ -981,6 +1000,8 @@ impl Default for ServerMetrics {
             tps: 0.0,
             prompt_tps: 0.0,
             cpu_usage: 0.0,
+            cpu_ticks_prev: 0,
+            system_uptime_prev: 0.0,
             gpu_mem_used: 0,
             gpu_mem_total: 0,
             ram_used: 0,
@@ -1014,16 +1035,24 @@ pub fn estimate_vram_mib(
     let model_mib_f = model_mib as f64;
 
     // Compute how much of the model is loaded into VRAM based on GPU layers.
-    // gpu_layers < 0 means "all layers".
-    // gpu_layers == 0 means "no layers on GPU" (CPU only).
-    let gpu_layers = if settings.gpu_layers < 0 {
-        if total_layers > 0 { total_layers } else { 32 } // fallback if total_layers unknown
-    } else {
-        let requested = settings.gpu_layers.unsigned_abs();
-        if total_layers > 0 {
-            requested.min(total_layers)
-        } else {
-            requested
+    let gpu_layers = match settings.gpu_layers_mode {
+        GpuLayersMode::Auto => {
+            // Heuristic: ~60% of layers when Auto (llama.cpp will decide at runtime)
+            if total_layers > 0 {
+                (total_layers as f64 * 0.6) as u32
+            } else {
+                20
+            }
+        }
+        GpuLayersMode::Specific(n) => {
+            if total_layers > 0 {
+                n.min(total_layers)
+            } else {
+                n
+            }
+        }
+        GpuLayersMode::All => {
+            if total_layers > 0 { total_layers } else { 32 }
         }
     };
 
@@ -1036,7 +1065,7 @@ pub fn estimate_vram_mib(
         0.0
     };
 
-    if gpu_layers == 0 {
+    if matches!(settings.gpu_layers_mode, GpuLayersMode::Specific(0)) {
         return 0; // CPU only
     }
 

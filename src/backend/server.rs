@@ -133,11 +133,17 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         parts.push("--kv-offload".to_string());
     }
 
-    // ── GPU ──────────────────────────────────────────────────
-    // let gpu_layers = if settings.gpu_layers < 0 { 999 } else { settings.gpu_layers };
-    // cmd.arg("-ngl").arg(gpu_layers.to_string());
-    // parts.push("-ngl".to_string());
-    // parts.push(gpu_layers.to_string());
+   // ── GPU ──────────────────────────────────────────────────
+    if let crate::models::GpuLayersMode::Specific(n) = settings.gpu_layers_mode {
+        cmd.arg("-ngl").arg(n.to_string());
+        parts.push("-ngl".to_string());
+        parts.push(n.to_string());
+    }
+    if matches!(settings.gpu_layers_mode, crate::models::GpuLayersMode::All) {
+        cmd.arg("-ngl").arg("999");
+        parts.push("-ngl".to_string());
+        parts.push("999".to_string());
+    }
     
     if settings.split_mode != Default::default() {
         cmd.arg("--split-mode").arg(settings.split_mode.to_string());
@@ -610,15 +616,20 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
     }
 
     // Fallback for RAM and CPU using /proc if available (Linux)
-    if let Some(p) = pid
-        && let Ok((ram, cpu)) = get_process_metrics(p) {
+    if let Some(p) = pid {
+        let cpu_ticks_prev = metrics.cpu_ticks_prev;
+        let system_uptime_prev = metrics.system_uptime_prev;
+        if let Ok((ram, cpu)) = get_process_metrics(p, cpu_ticks_prev, system_uptime_prev) {
             if metrics.ram_used == 0 {
                 metrics.ram_used = ram;
             }
             if metrics.cpu_usage == 0.0 {
                 metrics.cpu_usage = cpu;
             }
+            metrics.cpu_ticks_prev = cpu_ticks_prev;
+            metrics.system_uptime_prev = system_uptime_prev;
         }
+    }
 
     Ok(metrics)
 }
@@ -722,7 +733,7 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
 }
 
 /// Linux-specific: Get RAM (RSS) and CPU usage for a PID via /proc
-fn get_process_metrics(pid: u32) -> Result<(u64, f64), String> {
+fn get_process_metrics(pid: u32, cpu_ticks_prev: u64, system_uptime_prev: f64) -> Result<(u64, f64), String> {
     #[cfg(target_os = "linux")]
     {
         use std::fs;
@@ -732,9 +743,7 @@ fn get_process_metrics(pid: u32) -> Result<(u64, f64), String> {
         let pages: u64 = statm.split_whitespace().nth(1).and_then(|s| s.parse().ok()).unwrap_or(0);
         let ram = pages * 4096; // assumes 4KB page size, typical for Linux
 
-        // CPU from /proc/[pid]/stat (approximate, since we don't track deltas here yet)
-        // For now, we'll just return RAM if CPU delta tracking is too complex for a single call.
-        // We can get a rough "average since start" CPU usage.
+        // CPU from /proc/[pid]/stat - compute delta-based CPU usage
         let stat = fs::read_to_string(format!("/proc/{}/stat", pid)).map_err(|e| e.to_string())?;
         let parts: Vec<&str> = stat.split_whitespace().collect();
         if parts.len() > 14 {
@@ -749,7 +758,20 @@ fn get_process_metrics(pid: u32) -> Result<(u64, f64), String> {
             let total_time = (utime + stime) as f64 / clk_tck;
             let seconds = system_uptime - (start_time as f64 / clk_tck);
             
-            let cpu = if seconds > 0.0 { (total_time / seconds) * 100.0 } else { 0.0 };
+            let cpu = if cpu_ticks_prev > 0 && system_uptime_prev > 0.0 {
+                let ticks_delta = (utime + stime) as f64 - cpu_ticks_prev as f64;
+                let wall_delta = system_uptime - system_uptime_prev;
+                if wall_delta > 0.0 {
+                    (ticks_delta / clk_tck / wall_delta) * 100.0
+                } else {
+                    0.0
+                }
+            } else if seconds > 0.0 {
+                // First call: fall back to average since start
+                (total_time / seconds) * 100.0
+            } else {
+                0.0
+            };
             return Ok((ram, cpu));
         }
 

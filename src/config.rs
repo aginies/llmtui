@@ -141,6 +141,7 @@ pub struct ModelOverride {
     pub jinja: Option<bool>,
     pub chat_template: Option<String>,
     pub expert_count: Option<i32>,
+    pub gpu_layers_mode: Option<crate::models::GpuLayersMode>,
 
     // Sampling
     pub seed: Option<i32>,
@@ -207,7 +208,12 @@ impl ModelOverride {
             threads: Some(s.threads),
             threads_batch: Some(s.threads_batch),
             parallel: Some(s.parallel),
-            gpu_layers: Some(s.gpu_layers),
+             gpu_layers: Some(match s.gpu_layers_mode {
+                crate::models::GpuLayersMode::Auto => 0,
+                crate::models::GpuLayersMode::Specific(n) => n as i32,
+                crate::models::GpuLayersMode::All => -1,
+            }),
+            gpu_layers_mode: Some(s.gpu_layers_mode),
             split_mode: Some(s.split_mode),
             tensor_split: Some(s.tensor_split.clone()),
             main_gpu: Some(s.main_gpu),
@@ -280,7 +286,10 @@ impl ModelOverride {
         base.threads = self.threads.unwrap_or(base.threads);
         base.threads_batch = self.threads_batch.unwrap_or(base.threads_batch);
         base.parallel = self.parallel.unwrap_or(base.parallel);
-        base.gpu_layers = self.gpu_layers.unwrap_or(base.gpu_layers);
+        base.gpu_layers_mode = match self.gpu_layers.unwrap_or(-1) {
+            n if n < 0 => crate::models::GpuLayersMode::All,
+            _ => crate::models::GpuLayersMode::Auto,
+        };
         base.split_mode = self.split_mode.unwrap_or(base.split_mode);
         base.tensor_split = self.tensor_split.clone().unwrap_or(base.tensor_split.clone());
         base.main_gpu = self.main_gpu.unwrap_or(base.main_gpu);
@@ -442,6 +451,8 @@ pub struct DefaultParams {
     // GPU
     #[serde(default)]
     pub gpu_layers: i32,
+    #[serde(default = "default_gpu_layers_mode")]
+    pub gpu_layers_mode: crate::models::GpuLayersMode,
     #[serde(default)]
     pub split_mode: SplitMode,
     #[serde(default)]
@@ -526,7 +537,7 @@ pub struct DefaultParams {
     pub port: u16,
     #[serde(default)]
     pub timeout: u32,
-    #[serde(default)]
+    #[serde(default = "default_cache_prompt")]
     pub cache_prompt: bool,
     #[serde(default)]
     pub cache_reuse: u32,
@@ -571,6 +582,8 @@ fn default_cache_type_v() -> Option<CacheTypeV> { None }
 fn default_presence_penalty() -> Option<f32> { None }
 fn default_frequency_penalty() -> Option<f32> { None }
 fn default_max_tokens() -> Option<u32> { None }
+fn default_cache_prompt() -> bool { true }
+fn default_gpu_layers_mode() -> crate::models::GpuLayersMode { crate::models::GpuLayersMode::Auto }
 
 impl Default for DefaultParams {
     fn default() -> Self {
@@ -598,6 +611,7 @@ impl Default for DefaultParams {
 
             // GPU
             gpu_layers: -1,
+            gpu_layers_mode: crate::models::GpuLayersMode::Auto,
             split_mode: SplitMode::Layer,
             tensor_split: String::new(),
             main_gpu: 0,
