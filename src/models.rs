@@ -1107,7 +1107,7 @@ pub fn estimate_vram_mib(
     let flash_attn_factor = if settings.flash_attn { 0.5 } else { 1.0 };
 
     // Unified KV cache shares a single KV buffer across all sequences.
-    let uniform_cache_factor = if settings.uniform_cache { 1.0 } else { 1.0 };
+    let uniform_cache_factor = if settings.uniform_cache { 1.0 / settings.parallel as f64 } else { 1.0 };
 
     // KV cache in MiB:
     // Formula: 2 * n_layer * n_ctx * n_embd_kv * sizeof(type)

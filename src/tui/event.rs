@@ -1225,14 +1225,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
     KeyCode::Enter => {
             if !app.settings_edit_buffer.is_empty() {
-                if idx == 3 {
-                    // GPU Layers: parse as layer count
-                    if let Ok(v) = app.settings_edit_buffer.parse::<i32>() {
-                        app.settings.gpu_layers = v.clamp(0, 999);
-                    }
-               } else {
-                    apply_numeric_setting(&mut app.settings, idx, &app.settings_edit_buffer, app.max_threads, app.model_n_ctx_train);
-                }
+                apply_numeric_setting(&mut app.settings, idx, &app.settings_edit_buffer, app.max_threads, app.model_n_ctx_train);
                 if idx == 11 {
                     sync_global_settings(app);
                 }
