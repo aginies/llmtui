@@ -863,6 +863,7 @@ impl ModelSettings {
     /// Create ModelSettings from config defaults, applying model-specific overrides.
     pub fn from_config(config: &crate::config::Config) -> Self {
         let mut settings = Self::default();
+        settings.context_length = config.default.context_length;
         settings.threads = config.default.threads;
         settings.threads_batch = config.default.threads_batch;
         settings.batch_size = config.default.batch_size;
@@ -876,6 +877,7 @@ impl ModelSettings {
         settings.numa = config.default.numa.clone();
         settings.uniform_cache = config.default.uniform_cache;
         settings.kv_cache_offload = config.default.kv_cache_offload;
+        settings.parallel = config.default.parallel;
         settings.system_prompt = config.default.system_prompt.clone();
         settings.system_prompt_preset_name = config.default.system_prompt_preset_name.clone();
         settings.reasoning_mode = config.default.reasoning_mode;

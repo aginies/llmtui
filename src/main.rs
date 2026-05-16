@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
 
             // Load or create config
             let config = if config_path.exists() {
-                Config::load().map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
+                Config::load_from(config_path).map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
             } else {
                 let mut c = Config::default();
                 c.models_dir = resolve_models_dir(&models_dir);

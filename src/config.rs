@@ -122,6 +122,9 @@ pub struct ModelOverride {
     pub system_prompt: Option<String>,
     pub system_prompt_preset_name: Option<String>,
     pub max_concurrent_predictions: Option<u32>,
+    pub threads: Option<u32>,
+    pub threads_batch: Option<u32>,
+    pub parallel: Option<u32>,
 
     // GPU
     pub gpu_layers: Option<i32>,
@@ -172,6 +175,8 @@ pub struct ModelOverride {
     pub cache_prompt: Option<bool>,
     pub cache_reuse: Option<u32>,
     pub server_mode: Option<crate::models::ServerMode>,
+    pub router_max_models: Option<u32>,
+    pub webui: Option<bool>,
 
     // Other
     pub max_tokens: Option<u32>,
@@ -199,6 +204,9 @@ impl ModelOverride {
         system_prompt: Some(s.system_prompt.clone()),
             system_prompt_preset_name: Some(s.system_prompt_preset_name.clone()),
             max_concurrent_predictions: Some(s.max_concurrent_predictions),
+            threads: Some(s.threads),
+            threads_batch: Some(s.threads_batch),
+            parallel: Some(s.parallel),
             gpu_layers: Some(s.gpu_layers),
             split_mode: Some(s.split_mode.clone()),
             tensor_split: Some(s.tensor_split.clone()),
@@ -239,6 +247,8 @@ impl ModelOverride {
             cache_prompt: Some(s.cache_prompt),
             cache_reuse: Some(s.cache_reuse),
             server_mode: Some(s.server_mode),
+            router_max_models: Some(s.router_max_models),
+            webui: Some(s.webui),
             max_tokens: s.max_tokens,
             cache_type: Some(s.cache_type.clone()),
             reasoning_mode: Some(s.reasoning_mode),
@@ -267,6 +277,9 @@ impl ModelOverride {
         if let Some(v) = &self.system_prompt { base.system_prompt = v.clone(); }
         if let Some(v) = &self.system_prompt_preset_name { base.system_prompt_preset_name = v.clone(); }
         base.max_concurrent_predictions = self.max_concurrent_predictions.unwrap_or(base.max_concurrent_predictions);
+        base.threads = self.threads.unwrap_or(base.threads);
+        base.threads_batch = self.threads_batch.unwrap_or(base.threads_batch);
+        base.parallel = self.parallel.unwrap_or(base.parallel);
         base.gpu_layers = self.gpu_layers.unwrap_or(base.gpu_layers);
         base.split_mode = self.split_mode.clone().unwrap_or(base.split_mode.clone());
         base.tensor_split = self.tensor_split.clone().unwrap_or(base.tensor_split.clone());
@@ -307,6 +320,8 @@ impl ModelOverride {
         base.cache_prompt = self.cache_prompt.unwrap_or(base.cache_prompt);
         base.cache_reuse = self.cache_reuse.unwrap_or(base.cache_reuse);
         base.server_mode = self.server_mode.clone().unwrap_or(base.server_mode.clone());
+        base.router_max_models = self.router_max_models.unwrap_or(base.router_max_models);
+        base.webui = self.webui.unwrap_or(base.webui);
         base.max_tokens = self.max_tokens;
         base.cache_type = self.cache_type.clone().unwrap_or(base.cache_type.clone());
 if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
@@ -541,7 +556,6 @@ pub struct DefaultParams {
     pub api_endpoint_enabled: bool,
     #[serde(default = "default_api_endpoint_port")]
     pub api_endpoint_port: u16,
-    pub api_port: u16,
 }
 
 fn default_api_endpoint_port() -> u16 {
@@ -643,9 +657,8 @@ impl Default for DefaultParams {
             llama_cpp_version_cpu: None,
             llama_cpp_version_vulkan: None,
             llama_cpp_version_rocm: None,
- api_endpoint_enabled: false,
+           api_endpoint_enabled: false,
             api_endpoint_port: 49222,
-            api_port: 49222,
         }
     }
 }
