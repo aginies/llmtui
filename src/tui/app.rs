@@ -54,12 +54,6 @@ pub enum ModelsMode {
         previous_results: Vec<SearchResult>,
         selected_result: Option<SearchResult>,
     },
-   /// Version picker mode: selecting llama.cpp release version.
-    VersionPicker {
-        releases: Vec<crate::models::LlamaCppRelease>,
-        selected_idx: usize,
-        previous_mode: Box<ModelsMode>,
-    },
 }
 
 /// Global mode that overlays all panels.
@@ -159,6 +153,7 @@ pub struct App {
     pub spawn_log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,
+    pub api_proxy_handle: Option<tokio::task::JoinHandle<()>>,
     pub needs_redraw: bool,
    pub panel_help: bool,
     pub panel_help_offset: u16,
@@ -169,10 +164,6 @@ pub struct App {
     pub cached_cpu_versions: Vec<String>,
     pub cached_vulkan_versions: Vec<String>,
     pub cached_rocm_versions: Vec<String>,
-    pub picker_backend: crate::models::Backend,
-    pub version_picker_scroll_offset: u16,
-    pub version_picker_show_cached: bool,
-    pub pending_version_picker: bool,
     /// Pending search load (page) — set when user presses B or Down at bottom.
     pub pending_search_load: Option<(String, u32)>, // (query, offset)
      /// Whether search results are currently being loaded.
@@ -244,20 +235,17 @@ impl App {
             sync_rx: None,
             spawn_task_handle: None,
             spawn_log_tx: None,
-            metrics_model_name: Arc::new(std::sync::Mutex::new(None)),
+           metrics_model_name: Arc::new(std::sync::Mutex::new(None)),
             loaded_model_names: Arc::new(std::sync::Mutex::new(Vec::new())),
+            api_proxy_handle: None,
             needs_redraw: true,
             panel_help: false,
             panel_help_offset: 0,
             last_error_message: None,
 last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
-            pending_version_picker: false,
-            cached_cpu_versions: Vec::new(),
+           cached_cpu_versions: Vec::new(),
             cached_vulkan_versions: Vec::new(),
             cached_rocm_versions: Vec::new(),
-            picker_backend: crate::models::Backend::Cpu,
-            version_picker_scroll_offset: 0,
-            version_picker_show_cached: false,
             pending_search_load: None,
             search_loading: false,
         }
@@ -1043,6 +1031,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     pub fn panel_help_lines(&self) -> Vec<ratatui::text::Line<'static>> {
         use ratatui::text::{Line, Span};
         let y = Style::default().fg(Color::Yellow);
+        let api_port_val = self.settings.api_endpoint_port.to_string();
 
         match self.active_panel {
             ActivePanel::Models => vec![
@@ -1083,20 +1072,26 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("j / k / Arrow keys", y.clone()), Span::raw("  Select download")]),
                 Line::from(vec![Span::styled("c", y.clone()), Span::raw("  Cancel selected download")]),
             ],
-            ActivePanel::ServerSettings => vec![
-                Line::from(Span::styled("SERVER SETTINGS", y.clone().add_modifier(Modifier::BOLD))),
-                Line::from(""),
-                Line::from("Configuration for the llama.cpp server."),
-                Line::from(""),
-                Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Select setting")]),
-                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Toggle value")]),
-                Line::from(vec![Span::styled("h / l / Left / Right", y.clone()), Span::raw("  Adjust value")]),
-                Line::from(""),
-                Line::from(vec![Span::styled("Host", y.clone()), Span::raw("  Bind address (127.0.0.1 or 0.0.0.0)")]),
-                Line::from(vec![Span::styled("Backend", y.clone()), Span::raw("  Acceleration backend (cpu / vulkan / rocm)")]),
-                Line::from(vec![Span::styled("Threads", y.clone()), Span::raw("  CPU threads for generation (1 to max)")]),
-                Line::from(vec![Span::styled("Threads Batch", y.clone()), Span::raw("  CPU threads for batch processing (1 to 32)")]),
-            ],
+  ActivePanel::ServerSettings => {
+                let port_str: &'static str = Box::leak(format!("  Port for API proxy: {api_port_val}").into_boxed_str());
+                vec![
+                    Line::from(Span::styled("SERVER SETTINGS", y.clone().add_modifier(Modifier::BOLD))),
+                    Line::from(""),
+                    Line::from("Configuration for the llama.cpp server."),
+                    Line::from(""),
+                    Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Select setting")]),
+                    Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Toggle value")]),
+                    Line::from(vec![Span::styled("h / l / Left / Right", y.clone()), Span::raw("  Adjust value")]),
+                    Line::from(""),
+                    Line::from(vec![Span::styled("Host", y.clone()), Span::raw("  Bind address (127.0.0.1 or 0.0.0.0)")]),
+                    Line::from(vec![Span::styled("Backend", y.clone()), Span::raw("  Acceleration backend (cpu / vulkan / rocm)")]),
+                    Line::from(vec![Span::styled("Threads", y.clone()), Span::raw("  CPU threads for generation (1 to max)")]),
+                    Line::from(vec![Span::styled("Threads Batch", y.clone()), Span::raw("  CPU threads for batch processing (1 to 32)")]),
+                    Line::from(vec![Span::styled("Mode", y.clone()), Span::raw("  Server mode (Normal / Router)")]),
+                    Line::from(vec![Span::styled("API Endpoint", y.clone()), Span::raw("  Enable API proxy (True/False)")]),
+                    Line::from(vec![Span::styled("API Port", y.clone()), Span::raw(port_str)]),
+                ]
+            }
             ActivePanel::LlmSettings => vec![
                 Line::from(Span::styled("LLM SETTINGS", y.clone().add_modifier(Modifier::BOLD))),
                 Line::from(""),
@@ -1135,7 +1130,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("Top-k", y.clone()), Span::raw("  Only consider the top k most likely tokens at each step. Smaller top-k (e.g., 10-40) makes output more deterministic. Larger values allow more variety. Typical: 40-50. Set to 0 to disable.")]),
                 Line::from(vec![Span::styled("Top-p", y.clone()), Span::raw("  Nucleus sampling: only consider tokens whose cumulative probability reaches p. Smaller top-p (e.g., 0.9) is more conservative, larger (e.g., 0.95-0.99) allows more variety. Often preferred over top-k. Typical: 0.9-0.95.")]),
                 Line::from(vec![Span::styled("Min P", y.clone()), Span::raw("  Minimum probability threshold relative to the most likely token. Tokens below min_p * max_prob are excluded. A filter that's more principled than top-k/top-p for controlling diversity. Typical: 0.01-0.1.")]),
-                Line::from(vec![Span::styled("Max Tokens", y.clone()), Span::raw("  Maximum number of tokens to generate in the response. Prevents runaway responses. Set to 0 or Disabled for no limit. Typical: 4096-8192 for chat, higher for code generation.")]),
+                         Line::from(vec![Span::styled("Max Tokens", y.clone()), Span::raw("  Maximum number of tokens to generate in the response. Prevents runaway responses. Set to 0 or Disabled for no limit. Typical: 4096-8192 for chat, higher for code generation.")]),
             ],
             ActivePanel::Profiles => vec![
                 Line::from(Span::styled("PROFILES PANEL", y.clone().add_modifier(Modifier::BOLD))),
