@@ -183,7 +183,7 @@ pub struct ModelOverride {
 }
 
 impl ModelOverride {
-    pub fn from_settings(s: &crate::models::ModelSettings) -> Self {
+   pub fn from_settings(s: &crate::models::ModelSettings) -> Self {
         Self {
             context_length: Some(s.context_length),
             batch_size: Some(s.batch_size),
@@ -196,7 +196,7 @@ impl ModelOverride {
             mmap: Some(s.mmap),
             numa: Some(s.numa.clone()),
             uniform_cache: Some(s.uniform_cache),
-            system_prompt: Some(s.system_prompt.clone()),
+        system_prompt: Some(s.system_prompt.clone()),
             system_prompt_preset_name: Some(s.system_prompt_preset_name.clone()),
             max_concurrent_predictions: Some(s.max_concurrent_predictions),
             gpu_layers: Some(s.gpu_layers),
@@ -242,7 +242,7 @@ impl ModelOverride {
             max_tokens: s.max_tokens,
             cache_type: Some(s.cache_type.clone()),
             reasoning_mode: Some(s.reasoning_mode),
-            llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
+   llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
             llama_cpp_version_vulkan: s.llama_cpp_version_vulkan.clone(),
             llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
         }
@@ -309,7 +309,7 @@ impl ModelOverride {
         base.server_mode = self.server_mode.clone().unwrap_or(base.server_mode.clone());
         base.max_tokens = self.max_tokens;
         base.cache_type = self.cache_type.clone().unwrap_or(base.cache_type.clone());
-        if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
+if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_vulkan { base.llama_cpp_version_vulkan = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
     }
@@ -535,6 +535,17 @@ pub struct DefaultParams {
     pub llama_cpp_version_vulkan: Option<String>,
     #[serde(default)]
     pub llama_cpp_version_rocm: Option<String>,
+
+ // API
+    #[serde(default)]
+    pub api_endpoint_enabled: bool,
+    #[serde(default = "default_api_endpoint_port")]
+    pub api_endpoint_port: u16,
+    pub api_port: u16,
+}
+
+fn default_api_endpoint_port() -> u16 {
+    49222
 }
 
 fn default_system_prompt_preset_name() -> String {
@@ -632,6 +643,9 @@ impl Default for DefaultParams {
             llama_cpp_version_cpu: None,
             llama_cpp_version_vulkan: None,
             llama_cpp_version_rocm: None,
+ api_endpoint_enabled: false,
+            api_endpoint_port: 49222,
+            api_port: 49222,
         }
     }
 }
