@@ -7,27 +7,8 @@ use ratatui::{
 };
 
 use crate::tui::app::{App, ModelsMode};
+use crate::tui::format_size;
 use crate::models::SearchSort;
-
-fn format_size(size: u64) -> String {
-    let kb = 1024.0;
-    let mb = kb * 1024.0;
-    let gb = mb * 1024.0;
-    let tb = gb * 1024.0;
-
-    let s = size as f64;
-    if s < kb {
-        format!("{} B", size)
-    } else if s < mb {
-        format!("{:.1} KB", s / kb)
-    } else if s < gb {
-        format!("{:.1} MB", s / mb)
-    } else if s < tb {
-        format!("{:.1} GB", s / gb)
-    } else {
-        format!("{:.1} TB", s / tb)
-    }
-}
 
 fn format_number(n: u64) -> String {
     if n >= 1_000_000_000 {
