@@ -298,7 +298,7 @@ impl MdRenderer {
     fn flush_code_block(&mut self) {
         self.flush_line();
         let last = self.lines.last();
-        if last.map_or(false, |l| !l.spans.is_empty()) {
+        if last.is_some_and(|l| !l.spans.is_empty()) {
             let line = Line::from(vec![Span::raw("─".repeat(80))]);
             self.lines.push(line);
         }

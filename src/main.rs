@@ -175,7 +175,7 @@ async fn main() -> Result<()> {
             let url_clone = download_url.clone();
             let cancelled = Arc::new(AtomicBool::new(false));
             let cancelled_clone = cancelled.clone();
-            app.add_log(&format!("Downloading {}...", model_id), crate::config::LogLevel::Info);
+            app.add_log(format!("Downloading {}...", model_id), crate::config::LogLevel::Info);
             // Create broadcast channel if not already created (shared by all downloads)
             if app.download_rx.is_none() {
                 let (tx, rx) = tokio::sync::broadcast::channel(10);
@@ -232,7 +232,7 @@ async fn main() -> Result<()> {
                     app.on_model_selection_change();
                 }
             }
-            app.add_log(&format!("Model deleted: {:?}", path.file_name().unwrap_or_default()), crate::config::LogLevel::Info);
+            app.add_log(format!("Model deleted: {:?}", path.file_name().unwrap_or_default()), crate::config::LogLevel::Info);
             app.set_redraw();
         }
 
@@ -250,7 +250,7 @@ async fn main() -> Result<()> {
             if let Some(m) = &model_opt {
                 app.model_states.insert(m.display_name.clone(), crate::models::ModelState::Loading);
             }
-            app.add_log(&format!("Loading {}...", display_name), crate::config::LogLevel::Info);
+            app.add_log(format!("Loading {}...", display_name), crate::config::LogLevel::Info);
             let handle = tokio::spawn(async move {
                 server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone).await
                     .map(|(handle, cmd)| (display_name, handle, cmd))
@@ -260,15 +260,15 @@ async fn main() -> Result<()> {
             app.set_redraw();
         }
         // Check if server spawn task is done
-        if let Some(handle) = &app.spawn_task_handle {
-            if handle.is_finished() {
-                if let Some(handle) = app.spawn_task_handle.take() {
+        if let Some(handle) = &app.spawn_task_handle
+            && handle.is_finished()
+                && let Some(handle) = app.spawn_task_handle.take() {
                     match handle.await {
 Ok(Ok((_model_name, server_handle, _cmd))) => {
                             let port = server_handle.port;
                             let pid = server_handle.pid;
                             let host = server_handle.host.clone();
-                            app.add_log(&format!("Server started on port {port} (pid={pid})"), crate::config::LogLevel::Info);
+                            app.add_log(format!("Server started on port {port} (pid={pid})"), crate::config::LogLevel::Info);
                             app.server_handle = Some(server_handle);
                             
 // Start API proxy if enabled
@@ -284,7 +284,7 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                                     ).await;
                                 });
                                 app.api_proxy_handle = Some(handle);
-                                app.add_log(&format!("API proxy started on port {}", port), crate::config::LogLevel::Info);
+                                app.add_log(format!("API proxy started on port {}", port), crate::config::LogLevel::Info);
                             }
                             
                             app.loading_phases = vec![crate::tui::app::LoadingPhase::Complete];
@@ -319,8 +319,8 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                                         lock.clone()
                                     };
                                     
-                                    if let Some(name) = current_model {
-                                        if let Ok(model_metrics) = server::get_metrics(&task_host, task_port, Some(&name), Some(task_pid)).await {
+                                    if let Some(name) = current_model
+                                        && let Ok(model_metrics) = server::get_metrics(&task_host, task_port, Some(&name), Some(task_pid)).await {
                                             // Only use model-specific VRAM if it's meaningful (e.g., >25% of total).
                                             // llama-server's kv_cache_usage is just the KV cache component and can be
                                             // much smaller than actual GPU usage. When system tools like nvidia-smi
@@ -340,7 +340,6 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                                                 m.gpu_mem_used = model_metrics.gpu_mem_used;
                                             }
                                         }
-                                    }
 
                                     if metrics_tx.send(m).await.is_err() {
                                         break;
@@ -357,11 +356,10 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                             let (sync_tx, sync_rx) = tokio::sync::mpsc::channel(1);
                             let _sync_task_handle = tokio::spawn(async move {
                                 loop {
-                                    if let Ok(models) = server::list_models(&sync_host, sync_port).await {
-                                        if sync_tx.send(models).await.is_err() {
+                                    if let Ok(models) = server::list_models(&sync_host, sync_port).await
+                                        && sync_tx.send(models).await.is_err() {
                                             break;
                                         }
-                                    }
                                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                                 }
                             });
@@ -371,7 +369,7 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                         }
                         Ok(Err(e)) => {
                             app.loading_progress = 1.0;
-                            app.add_log(&format!("ERROR: Server failed: {}", e), crate::config::LogLevel::Error);
+                            app.add_log(format!("ERROR: Server failed: {}", e), crate::config::LogLevel::Error);
                             // Drain any logs already in the channel
                             if let Some(mut rx) = app.server_log_rx.take() {
                                 while let Ok(line) = rx.try_recv() {
@@ -384,13 +382,11 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                         }
                         Err(e) => {
                             app.loading_progress = 1.0;
-                            app.add_log(&format!("ERROR: Spawn task panicked: {}", e), crate::config::LogLevel::Error);
+                            app.add_log(format!("ERROR: Spawn task panicked: {}", e), crate::config::LogLevel::Error);
                         }
                     }
                     app.set_redraw();
                 }
-            }
-        }
 
         // Handle pending API load
         if let Some((model_name, model_path)) = app.pending_api_load.clone() {
@@ -403,7 +399,7 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                     let model_path_clone = model_path.clone();
                     
                     app.pending_api_load = None; // Clear it now that we are acting on it
-                    app.add_log(&format!("Sending load request for {}...", model_name_clone), crate::config::LogLevel::Info);
+                    app.add_log(format!("Sending load request for {}...", model_name_clone), crate::config::LogLevel::Info);
                     
                     // Update metrics model name immediately so polling includes it
                     {
@@ -436,14 +432,14 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
         }
 
         // Handle pending API unload
-        if let Some((model_name, model_path)) = app.pending_api_unload.take() {
-            if let Some(handle) = &app.server_handle {
+        if let Some((model_name, model_path)) = app.pending_api_unload.take()
+            && let Some(handle) = &app.server_handle {
                 let host = handle.host.clone();
                 let port = handle.port;
                 let model_name_clone = model_name.clone();
                 let model_path_clone = model_path.clone();
                 
-                app.add_log(&format!("Sending unload request for {}...", model_name_clone), crate::config::LogLevel::Info);
+                app.add_log(format!("Sending unload request for {}...", model_name_clone), crate::config::LogLevel::Info);
                 
                 // Clear metrics model name
                 {
@@ -471,7 +467,6 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                     }
                 }
             }
-        }
 
         // Start pending server kill
         if let Some(handle) = app.pending_kill.take() {
@@ -515,7 +510,7 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                     app.loading_progress = 0.0;
                  }
                 Err(e) => {
-                    app.add_log(&format!("Failed to stop server: {}", e), crate::config::LogLevel::Error);
+                    app.add_log(format!("Failed to stop server: {}", e), crate::config::LogLevel::Error);
                 }
             }
             app.set_redraw();
@@ -553,7 +548,7 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                         app.models = discover_models(&app.config.models_dir);
                     }
                     crate::models::DownloadStatus::Error(e) => {
-                        app.add_log(&format!("Download failed: {}", e), crate::config::LogLevel::Error);
+                        app.add_log(format!("Download failed: {}", e), crate::config::LogLevel::Error);
                     }
                     _ => {}
                 }
@@ -567,11 +562,10 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                 if app.active_panel == crate::tui::app::ActivePanel::Downloads {
                     app.active_panel = crate::tui::app::ActivePanel::Log;
                 }
-            } else if let Some(idx) = app.download_scroll_state.selected() {
-                if idx >= app.download_progress.len() {
+            } else if let Some(idx) = app.download_scroll_state.selected()
+                && idx >= app.download_progress.len() {
                     app.download_scroll_state.select(Some(app.download_progress.len() - 1));
                 }
-            }
             app.set_redraw();
         }
 
@@ -580,41 +574,35 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
         if let Some(rx) = &mut app.server_log_rx {
             while let Ok(line) = rx.try_recv() {
                 // Parse TPS from logs if present
-                if line.contains("tokens per second") {
-                    if let Some(tps_part) = line.split("tokens per second").next() {
-                        if let Some(val_str) = tps_part.split_whitespace().last() {
-                            if let Ok(tps) = val_str.parse::<f64>() {
+                if line.contains("tokens per second")
+                    && let Some(tps_part) = line.split("tokens per second").next()
+                        && let Some(val_str) = tps_part.split_whitespace().last()
+                            && let Ok(tps) = val_str.parse::<f64>() {
                                 if line.contains("prompt eval time =") {
                                     app.metrics.prompt_tps = tps;
                                 } else if line.contains("eval time =") {
                                     app.metrics.tps = tps;
                                 }
                             }
-                        }
-                    }
-                }
                 // Parse Context Usage from logs: "n_tokens = 12667"
                 // Don't use max() — after compaction the token count drops, and we
                 // want the display to reflect the current state.
-                if line.contains("n_tokens =") {
-                    if let Some(tokens_part) = line.split("n_tokens =").last() {
+                if line.contains("n_tokens =")
+                    && let Some(tokens_part) = line.split("n_tokens =").last() {
                         let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
                         if let Ok(tokens) = val_str.parse::<u32>() {
                             app.metrics.ctx_used = tokens;
                         }
                     }
-                }
                 // Parse VRAM (KV Cache) from logs: "Vulkan0 KV buffer size =  1008.00 MiB"
-                if line.contains("KV buffer size =") {
-                    if let Some(size_part) = line.split('=').last() {
+                if line.contains("KV buffer size =")
+                    && let Some(size_part) = line.split('=').next_back() {
                         let parts: Vec<&str> = size_part.split_whitespace().collect();
-                        if !parts.is_empty() {
-                            if let Ok(mib) = parts[0].parse::<f64>() {
+                        if !parts.is_empty()
+                            && let Ok(mib) = parts[0].parse::<f64>() {
                                 app.metrics.gpu_mem_used = (mib * 1024.0 * 1024.0) as u64;
                             }
-                        }
                     }
-                }
                 server_logs.push(line);
                 if server_logs.len() > 100 { break; } // limit batch size
             }
@@ -767,13 +755,13 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                         app.add_log("Search complete", crate::config::LogLevel::Info);
                     }
                     Ok(Err(e)) => {
-                        app.add_log(&format!("Search failed: {}", e), crate::config::LogLevel::Error);
+                        app.add_log(format!("Search failed: {}", e), crate::config::LogLevel::Error);
                         if let ModelsMode::Search { loading, .. } = &mut app.models_mode {
                             *loading = false;
                         }
                     }
                     Err(e) => {
-                        app.add_log(&format!("Search task error: {}", e), crate::config::LogLevel::Error);
+                        app.add_log(format!("Search task error: {}", e), crate::config::LogLevel::Error);
                         if let ModelsMode::Search { loading, .. } = &mut app.models_mode {
                             *loading = false;
                         }
@@ -797,8 +785,8 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
             std::time::Duration::from_millis(200)
         };
         
-        if crossterm::event::poll(poll_timeout)? {
-            if let Ok(event) = crossterm::event::read() {
+        if crossterm::event::poll(poll_timeout)?
+            && let Ok(event) = crossterm::event::read() {
                 match event {
                     crossterm::event::Event::Key(key) => {
                         if key.kind != crossterm::event::KeyEventKind::Release {
@@ -825,7 +813,6 @@ Ok(Ok((_model_name, server_handle, _cmd))) => {
                     _ => {}
                 }
             }
-        }
 
         if !app.running {
             break;

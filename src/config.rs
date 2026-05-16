@@ -193,13 +193,13 @@ impl ModelOverride {
             context_length: Some(s.context_length),
             batch_size: Some(s.batch_size),
             ubatch_size: Some(s.ubatch_size),
-            cache_type_k: s.cache_type_k.clone(),
-            cache_type_v: s.cache_type_v.clone(),
+            cache_type_k: s.cache_type_k,
+            cache_type_v: s.cache_type_v,
             keep: Some(s.keep),
             swa_full: Some(s.swa_full),
             mlock: Some(s.mlock),
             mmap: Some(s.mmap),
-            numa: Some(s.numa.clone()),
+            numa: Some(s.numa),
             uniform_cache: Some(s.uniform_cache),
         system_prompt: Some(s.system_prompt.clone()),
             system_prompt_preset_name: Some(s.system_prompt_preset_name.clone()),
@@ -208,7 +208,7 @@ impl ModelOverride {
             threads_batch: Some(s.threads_batch),
             parallel: Some(s.parallel),
             gpu_layers: Some(s.gpu_layers),
-            split_mode: Some(s.split_mode.clone()),
+            split_mode: Some(s.split_mode),
             tensor_split: Some(s.tensor_split.clone()),
             main_gpu: Some(s.main_gpu),
             fit: Some(s.fit),
@@ -227,7 +227,7 @@ impl ModelOverride {
             top_p: Some(s.top_p),
             min_p: Some(s.min_p),
             typical_p: Some(s.typical_p),
-            mirostat: Some(s.mirostat.clone()),
+            mirostat: Some(s.mirostat),
             mirostat_lr: Some(s.mirostat_lr),
             mirostat_ent: Some(s.mirostat_ent),
             ignore_eos: Some(s.ignore_eos),
@@ -240,7 +240,7 @@ impl ModelOverride {
             dry_base: Some(s.dry_base),
             dry_allowed_length: Some(s.dry_allowed_length),
             dry_penalty_last_n: Some(s.dry_penalty_last_n),
-            rope_scaling: Some(s.rope_scaling.clone()),
+            rope_scaling: Some(s.rope_scaling),
             rope_scale: Some(s.rope_scale),
             rope_freq_base: Some(s.rope_freq_base),
             rope_freq_scale: Some(s.rope_freq_scale),
@@ -250,7 +250,7 @@ impl ModelOverride {
             router_max_models: Some(s.router_max_models),
             webui: Some(s.webui),
             max_tokens: s.max_tokens,
-            cache_type: Some(s.cache_type.clone()),
+            cache_type: Some(s.cache_type),
             reasoning_mode: Some(s.reasoning_mode),
    llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
             llama_cpp_version_vulkan: s.llama_cpp_version_vulkan.clone(),
@@ -265,13 +265,13 @@ impl ModelOverride {
         base.context_length = self.context_length.unwrap_or(base.context_length);
         base.batch_size = self.batch_size.unwrap_or(base.batch_size);
         base.ubatch_size = self.ubatch_size.unwrap_or(base.ubatch_size);
-        base.cache_type_k = self.cache_type_k.clone();
-        base.cache_type_v = self.cache_type_v.clone();
+        base.cache_type_k = self.cache_type_k;
+        base.cache_type_v = self.cache_type_v;
         base.keep = self.keep.unwrap_or(base.keep);
         base.swa_full = self.swa_full.unwrap_or(base.swa_full);
         base.mlock = self.mlock.unwrap_or(base.mlock);
         base.mmap = self.mmap.unwrap_or(base.mmap);
-        base.numa = self.numa.clone().unwrap_or(base.numa.clone());
+        base.numa = self.numa.unwrap_or(base.numa);
         base.uniform_cache = self.uniform_cache.unwrap_or(base.uniform_cache);
         base.kv_cache_offload = self.kv_cache_offload.unwrap_or(base.kv_cache_offload);
         if let Some(v) = &self.system_prompt { base.system_prompt = v.clone(); }
@@ -281,7 +281,7 @@ impl ModelOverride {
         base.threads_batch = self.threads_batch.unwrap_or(base.threads_batch);
         base.parallel = self.parallel.unwrap_or(base.parallel);
         base.gpu_layers = self.gpu_layers.unwrap_or(base.gpu_layers);
-        base.split_mode = self.split_mode.clone().unwrap_or(base.split_mode.clone());
+        base.split_mode = self.split_mode.unwrap_or(base.split_mode);
         base.tensor_split = self.tensor_split.clone().unwrap_or(base.tensor_split.clone());
         base.main_gpu = self.main_gpu.unwrap_or(base.main_gpu);
         base.fit = self.fit.unwrap_or(base.fit);
@@ -300,7 +300,7 @@ impl ModelOverride {
         base.top_p = self.top_p.unwrap_or(base.top_p);
         base.min_p = self.min_p.unwrap_or(base.min_p);
         base.typical_p = self.typical_p.unwrap_or(base.typical_p);
-        base.mirostat = self.mirostat.clone().unwrap_or(base.mirostat.clone());
+        base.mirostat = self.mirostat.unwrap_or(base.mirostat);
         base.mirostat_lr = self.mirostat_lr.unwrap_or(base.mirostat_lr);
         base.mirostat_ent = self.mirostat_ent.unwrap_or(base.mirostat_ent);
         base.ignore_eos = self.ignore_eos.unwrap_or(base.ignore_eos);
@@ -313,17 +313,17 @@ impl ModelOverride {
         base.dry_base = self.dry_base.unwrap_or(base.dry_base);
         base.dry_allowed_length = self.dry_allowed_length.unwrap_or(base.dry_allowed_length);
         base.dry_penalty_last_n = self.dry_penalty_last_n.unwrap_or(base.dry_penalty_last_n);
-        base.rope_scaling = self.rope_scaling.clone().unwrap_or(base.rope_scaling.clone());
+        base.rope_scaling = self.rope_scaling.unwrap_or(base.rope_scaling);
         base.rope_scale = self.rope_scale.unwrap_or(base.rope_scale);
         base.rope_freq_base = self.rope_freq_base.unwrap_or(base.rope_freq_base);
         base.rope_freq_scale = self.rope_freq_scale.unwrap_or(base.rope_freq_scale);
         base.cache_prompt = self.cache_prompt.unwrap_or(base.cache_prompt);
         base.cache_reuse = self.cache_reuse.unwrap_or(base.cache_reuse);
-        base.server_mode = self.server_mode.clone().unwrap_or(base.server_mode.clone());
+        base.server_mode = self.server_mode.unwrap_or(base.server_mode);
         base.router_max_models = self.router_max_models.unwrap_or(base.router_max_models);
         base.webui = self.webui.unwrap_or(base.webui);
         base.max_tokens = self.max_tokens;
-        base.cache_type = self.cache_type.clone().unwrap_or(base.cache_type.clone());
+        base.cache_type = self.cache_type.unwrap_or(base.cache_type);
 if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_vulkan { base.llama_cpp_version_vulkan = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }

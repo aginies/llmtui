@@ -5,6 +5,7 @@ use ratatui::{
 
 /// Render the LLM Settings panel (Loading + GPU + Evaluation + Sampling + Repetition).
 /// Returns (lines, total_count, settings_height, selected_line_idx).
+#[allow(clippy::too_many_arguments)]
 pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, _vram_mib: u64, total_layers: u32, _n_ctx_train: u32, _max_threads: u32) -> (Vec<Line<'static>>, usize, usize, usize) {
     let mut lines = Vec::new();
     let mut total_count = 0;
@@ -15,7 +16,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         Span::styled("--- Loading ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let loading_names = vec!["Context", "Prompt", "Keep in memory (mlock)"];
+    let loading_names = ["Context", "Prompt", "Keep in memory (mlock)"];
     let loading_vals = vec![
         format!("{}", settings.context_length),
         format!("{}", settings.system_prompt_preset_name),
@@ -26,14 +27,14 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         if total_count == selected {
             selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, &loading_names[i], &val, selected, edit_buf, editing);
+        add_setting(&mut lines, &mut total_count, settings, cached, loading_names[i], &val, selected, edit_buf, editing);
     }
     // ── GPU Offload ──────────────────────────────────────────
     lines.push(Line::from(vec![
         Span::styled("--- GPU Offload ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let gpu_names = vec!["GPU Layers", "Flash Attention", "KV Cache Offload", "Cache Type K", "Cache Type V", "Active Experts"];
+    let gpu_names = ["GPU Layers", "Flash Attention", "KV Cache Offload", "Cache Type K", "Cache Type V", "Active Experts"];
     let gpu_vals = vec![
         if settings.gpu_layers < 0 {
             format!("all ({total_layers} layers)",)
@@ -55,7 +56,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         if total_count == selected {
             selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, &gpu_names[i], &val, selected, edit_buf, editing);
+        add_setting(&mut lines, &mut total_count, settings, cached, gpu_names[i], &val, selected, edit_buf, editing);
     }
 
     // ── Evaluation ───────────────────────────────────────────
@@ -63,7 +64,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         Span::styled("--- Evaluation ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let eval_names = vec!["Eval Batch", "Unified KV", "Max Concurrent Pred"];
+    let eval_names = ["Eval Batch", "Unified KV", "Max Concurrent Pred"];
     let eval_vals = vec![
         format!("{}", settings.batch_size),
         format!("{}", settings.uniform_cache),
@@ -74,7 +75,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         if total_count == selected {
             selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, &eval_names[i], &val, selected, edit_buf, editing);
+        add_setting(&mut lines, &mut total_count, settings, cached, eval_names[i], &val, selected, edit_buf, editing);
     }
 
     // ── Sampling ─────────────────────────────────────────────
@@ -82,7 +83,7 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         Span::styled("--- Sampling ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let sampling_names = vec!["Seed", "Temp", "Top-k", "Top-p", "Min P", "Max Tokens"];
+    let sampling_names = ["Seed", "Temp", "Top-k", "Top-p", "Min P", "Max Tokens"];
     let sampling_vals = vec![
         format!("{}", settings.seed),
         format!("{:.2}", settings.temperature),
@@ -96,13 +97,14 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         if total_count == selected {
             selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, &sampling_names[i], &val, selected, edit_buf, editing);
+        add_setting(&mut lines, &mut total_count, settings, cached, sampling_names[i], &val, selected, edit_buf, editing);
     }
 
     let height = lines.len();
     (lines, total_count, height, selected_line_idx)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, name: &str, val: &str, selected: usize, edit_buf: &str, editing: bool, ) {
     let current_idx = *total_count;
     let marker = if current_idx == selected { "> " } else { "  " };

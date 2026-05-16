@@ -247,7 +247,7 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     }
 
     if !settings.samplers.0.is_empty() {
-        cmd.arg("--samplers").arg(&settings.samplers.to_string());
+        cmd.arg("--samplers").arg(settings.samplers.to_string());
         parts.push("--samplers".to_string());
         parts.push(settings.samplers.to_string());
     }
@@ -374,11 +374,10 @@ pub async fn spawn_server(
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                if let Ok(metadata) = path.metadata() {
-                    if metadata.permissions().mode() & 0o111 == 0 {
+                if let Ok(metadata) = path.metadata()
+                    && metadata.permissions().mode() & 0o111 == 0 {
                         return Err(format!("llama-server binary is not executable: {}", path.display()));
                     }
-                }
             }
             if settings.backend != Backend::Cpu {
                 info!("Using backend: {} ({} bytes)", settings.backend, path.metadata().map(|m| m.len()).unwrap_or(0));
@@ -570,12 +569,11 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
     }
 
     // Try /health as last resort for context usage
-    if metrics.ctx_used == 0 {
-        if let Ok(health) = get_metrics_health(&host, port).await {
+    if metrics.ctx_used == 0
+        && let Ok(health) = get_metrics_health(&host, port).await {
             metrics.ctx_used = health.ctx_used;
             metrics.ctx_max = health.ctx_max;
         }
-    }
 
     // Prefer actual GPU memory usage from nvidia-smi or amdgpu_top.
     // llama-server's kv_cache_usage_bytes only reports KV cache (typically 10%
@@ -612,8 +610,8 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
     }
 
     // Fallback for RAM and CPU using /proc if available (Linux)
-    if let Some(p) = pid {
-        if let Ok((ram, cpu)) = get_process_metrics(p) {
+    if let Some(p) = pid
+        && let Ok((ram, cpu)) = get_process_metrics(p) {
             if metrics.ram_used == 0 {
                 metrics.ram_used = ram;
             }
@@ -621,7 +619,6 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
                 metrics.cpu_usage = cpu;
             }
         }
-    }
 
     Ok(metrics)
 }
@@ -669,18 +666,17 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
         json.get("devices").and_then(|d| d.as_array())
     };
 
-    if let Some(devices) = devices {
-        if let Some(device) = devices.first() {
+    if let Some(devices) = devices
+        && let Some(device) = devices.first() {
             // Priority 1: Check root keys (newer amdgpu_top format as provided by user)
             // "VRAM Usage Size": 3070128128, "VRAM Size": 8589934592
             let root_used = device.get("VRAM Usage Size").and_then(|v| v.as_u64());
             let root_total = device.get("VRAM Size").and_then(|v| v.as_u64());
             
-            if let (Some(used), Some(total)) = (root_used, root_total) {
-                if total > 0 {
+            if let (Some(used), Some(total)) = (root_used, root_total)
+                && total > 0 {
                     return Ok((used, total));
                 }
-            }
 
             // Priority 2: Check nested VRAM object (alternative format)
             let vram_obj = device.get("VRAM");
@@ -721,7 +717,6 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
                 }
             }
         }
-    }
 
     Err("Could not find VRAM info in amdgpu_top output".to_string())
 }
@@ -758,7 +753,7 @@ fn get_process_metrics(pid: u32) -> Result<(u64, f64), String> {
             return Ok((ram, cpu));
         }
 
-        return Ok((ram, 0.0));
+        Ok((ram, 0.0))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -910,11 +905,10 @@ pub async fn unload_model(host: &str, port: u16, model_id: &str, model_path: Opt
                 "model": variant
             });
 
-            if let Ok(res) = client.post(&url).json(&body).send().await {
-                if res.status().is_success() {
+            if let Ok(res) = client.post(&url).json(&body).send().await
+                && res.status().is_success() {
                     return Ok(());
                 }
-            }
         }
     }
 

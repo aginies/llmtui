@@ -125,12 +125,9 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
     let selected = app.server_settings_selected_idx;
     let server_running = app.server_handle.is_some();
 
-    let host_val = if app.settings.host.is_empty() {
-        "localhost (127.0.0.1)"
-    } else if app.settings.host == "127.0.0.1" {
-        "localhost (127.0.0.1)"
-    } else {
-        &app.settings.host
+    let host_val = match app.settings.host.as_str() {
+        "" | "127.0.0.1" => "localhost (127.0.0.1)",
+        _ => &app.settings.host,
     };
 
     let backend_name = format!("{}", app.settings.backend);
@@ -141,12 +138,12 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
 
     let mut lines = Vec::new();
     let mut count = 0;
-  settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", &host_val, selected, "", false);
+  settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", host_val, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false);
-  settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", &api_enabled, selected, "", server_running);
+  settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", api_enabled, selected, "", server_running);
 
     let block = Block::default()
         .title(" Server Settings ")
@@ -187,14 +184,13 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
                 Vec::new()
             };
             // Add GGUF file name for the selected file
-            if let Some(idx) = selected_idx {
-                if let Some((filename, _, _url)) = files.get(*idx) {
+            if let Some(idx) = selected_idx
+                && let Some((filename, _, _url)) = files.get(*idx) {
                     lines.push(Line::from(vec![
                         Span::styled("File: ", Style::default().fg(Color::Yellow)),
                         Span::styled(filename.clone(), Style::default().fg(Color::White)),
                     ]));
                 }
-            }
             lines
         }
         _ => {
@@ -223,8 +219,8 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
 
     // Add HuggingFace link for search results
     if let crate::tui::app::ModelsMode::Search { results, .. } = &app.models_mode {
-        if let Some(idx) = app.search_results_idx {
-            if idx < results.len() {
+        if let Some(idx) = app.search_results_idx
+            && idx < results.len() {
                 let r = &results[idx];
                 let link_line = Line::from(vec![
                     Span::styled("  https://huggingface.co/", Style::default().fg(Color::DarkGray)),
@@ -232,16 +228,14 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
                 ]);
                 info_lines.push(link_line);
             }
-        }
-    } else if let crate::tui::app::ModelsMode::Files { selected_result, .. } = &app.models_mode {
-        if let Some(r) = selected_result {
+    } else if let crate::tui::app::ModelsMode::Files { selected_result, .. } = &app.models_mode
+        && let Some(r) = selected_result {
             let link_line = Line::from(vec![
                 Span::styled("  https://huggingface.co/", Style::default().fg(Color::DarkGray)),
                 Span::styled(r.model_id.clone(), Style::default().fg(Color::DarkGray)),
             ]);
             info_lines.push(link_line);
         }
-    }
 
     info_lines
 }

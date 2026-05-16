@@ -134,15 +134,14 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
         }));
     }
     for handle in handles {
-        if let Ok(Some((model_id, parameters, capabilities, size))) = handle.await {
-            if let Some(result) = results.iter_mut().find(|r| r.model_id == model_id) {
+        if let Ok(Some((model_id, parameters, capabilities, size))) = handle.await
+            && let Some(result) = results.iter_mut().find(|r| r.model_id == model_id) {
                 result.parameters = parameters;
                 result.capabilities = capabilities;
                 if let Some(s) = size {
                     result.size = Some(s);
                 }
             }
-        }
     }
 
     Ok((results, 1))
@@ -249,13 +248,12 @@ pub async fn download_file(
         }
 
         // Send progress update at most every 100ms and only if bytes changed
-        if last_update.elapsed() >= std::time::Duration::from_millis(100) {
-            if progress.downloaded_bytes != last_bytes {
+        if last_update.elapsed() >= std::time::Duration::from_millis(100)
+            && progress.downloaded_bytes != last_bytes {
                 let _ = tx.send(progress.clone());
                 last_update = std::time::Instant::now();
                 last_bytes = progress.downloaded_bytes;
             }
-        }
     }
 
     progress.status = crate::models::DownloadStatus::Complete;

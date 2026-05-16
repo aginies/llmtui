@@ -252,11 +252,10 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
    pub fn selected_model_settings(&self) -> ModelSettings {
         let mut base: ModelSettings = self.config.default.clone().into();
         // Check for per-model overrides
-        if let Some(model) = self.selected_model() {
-            if let Some(override_cfg) = self.config.model_overrides.get(&model.name) {
+        if let Some(model) = self.selected_model()
+            && let Some(override_cfg) = self.config.model_overrides.get(&model.name) {
                 override_cfg.apply(&mut base);
             }
-        }
         base
     }
 
@@ -288,17 +287,16 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 self.loading_phases.push(LoadingPhase::LoadingTensors);
             }
         }
-        if upper.contains("SERVER LISTENING") || upper.contains("HTTP SERVER LISTENING") {
-            if !self.loading_phases.contains(&LoadingPhase::ServerListening) {
+        if (upper.contains("SERVER LISTENING") || upper.contains("HTTP SERVER LISTENING"))
+            && !self.loading_phases.contains(&LoadingPhase::ServerListening) {
                 self.loading_phases.push(LoadingPhase::ServerListening);
             }
-        }
 
         // Parse tensor loading progress from llama-server log output
         if self.loading_phases.contains(&LoadingPhase::LoadingTensors) {
             // offloading N repeating layers to GPU
-            if upper.contains("OFFLOADING") && upper.contains("REPEATING LAYERS") {
-                if let Some(pos) = msg.find("offloading") {
+            if upper.contains("OFFLOADING") && upper.contains("REPEATING LAYERS")
+                && let Some(pos) = msg.find("offloading") {
                     let rest = &msg[pos + "offloading".len()..];
                     if let Some(colon_pos) = rest.find(':') {
                         let rest = rest[colon_pos + 1..].trim_start();
@@ -308,11 +306,10 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                         }
                     }
                 }
-            }
 
             // offloaded X/Y layers to GPU
-            if upper.contains("OFFLOADED") && upper.contains("LAYERS") {
-                if let Some(pos) = msg.find("offloaded") {
+            if upper.contains("OFFLOADED") && upper.contains("LAYERS")
+                && let Some(pos) = msg.find("offloaded") {
                     let rest = &msg[pos + "offloaded".len()..];
                     if let Some(slash) = rest.find('/') {
                         let before = rest[..slash].trim();
@@ -333,7 +330,6 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                         }
                     }
                 }
-            }
 
             // CPU_Mapped model buffer size = X MiB
             // Vulkan0 model buffer size = X MiB
@@ -345,7 +341,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                         let rest = &msg[pos + keyword.len()..];
                         if let Some(eq_pos) = rest.find('=') {
                             let after = rest[eq_pos + 1..].trim();
-                            let end = after.find(|c: char| !c.is_digit(10) && c != '.').unwrap_or(after.len());
+                            let end = after.find(|c: char| !c.is_ascii_digit() && c != '.').unwrap_or(after.len());
                             if let Ok(mib) = after[..end].parse::<f64>() {
                                 // Update existing buffer or add new one
                                 let exists = self.load_progress.buffers.iter_mut().find(|b| b.device == device);
@@ -462,7 +458,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             if self.load_progress.tensors_total == 0 {
                 let total_layers = self.load_progress.layers_total.unwrap_or(self.model_total_layers);
                 let n_head = self.model_n_head;
-                let layers = total_layers as u32;
+                let layers = total_layers;
                 let kv_ratio = if n_head > 0 && self.model_n_kv_head > 0 {
                     self.model_n_kv_head as f64 / n_head as f64
                 } else {
@@ -654,23 +650,21 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 let mut tokenizer = String::new();
                 let mut vocab_size = 0u32;
 
-                if let Some(value) = model_data.metadata().get("general.architecture") {
-                    if let Some(v) = value.as_str() { arch = v.to_string(); }
-                }
+                if let Some(value) = model_data.metadata().get("general.architecture")
+                    && let Some(v) = value.as_str() { arch = v.to_string(); }
 
                 // Capabilities
                 if model_data.metadata().contains_key("tokenizer.chat_template") {
                     capabilities.push("chat".to_string());
                 }
-                if let Some(value) = model_data.metadata().get("general.capabilities") {
-                    if let Some(arr) = value.as_array() {
+                if let Some(value) = model_data.metadata().get("general.capabilities")
+                    && let Some(arr) = value.as_array() {
                         for v in arr {
                             if let Some(s) = v.as_str() {
                                 capabilities.push(s.to_string());
                             }
                         }
                     }
-                }
 
                 let extract_num = |key: &str| -> Option<u64> {
                     model_data.metadata().get(key).and_then(|v| {
@@ -742,7 +736,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
 
                 if layers == 0 && hidden == 0 {
                     let keys: Vec<String> = model_data.metadata().keys().take(10).cloned().collect();
-                    self.add_log(&format!("GGUF parse: found 0 layers/hidden. Arch: {}. Sample keys: {:?}", arch, keys), crate::config::LogLevel::Info);
+                    self.add_log(format!("GGUF parse: found 0 layers/hidden. Arch: {}. Sample keys: {:?}", arch, keys), crate::config::LogLevel::Info);
                 }
                 if !model_data.get_version().is_empty() {
                     file_type = model_data.get_version();
@@ -750,17 +744,14 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 if !model_data.model_parameters().is_empty() {
                     model_parameters = model_data.model_parameters();
                 }
-                if let Some(value) = model_data.metadata().get("general.domain") {
-                    if let Some(v) = value.as_str() { domain = v.to_string(); }
-                }
-                if let Some(value) = model_data.metadata().get("tokenizer.ggml.model") {
-                    if let Some(v) = value.as_str() { tokenizer = v.to_string(); }
-                }
-                if let Some(value) = model_data.metadata().get("tokenizer.ggml.tokens") {
-                    if let Some(arr) = value.as_array() {
+                if let Some(value) = model_data.metadata().get("general.domain")
+                    && let Some(v) = value.as_str() { domain = v.to_string(); }
+                if let Some(value) = model_data.metadata().get("tokenizer.ggml.model")
+                    && let Some(v) = value.as_str() { tokenizer = v.to_string(); }
+                if let Some(value) = model_data.metadata().get("tokenizer.ggml.tokens")
+                    && let Some(arr) = value.as_array() {
                         vocab_size = arr.len() as u32;
                     }
-                }
 
                 self.model_total_layers = layers;
                 self.model_hidden_size = hidden;
@@ -796,9 +787,9 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         } else {
             // Log failure so user knows why metadata is missing
             if let Err(e) = gguf_rs::get_gguf_container(&path_str) {
-                self.add_log(&format!("Failed to parse GGUF {}: {}", model.path.display(), e), crate::config::LogLevel::Error);
+                self.add_log(format!("Failed to parse GGUF {}: {}", model.path.display(), e), crate::config::LogLevel::Error);
             } else {
-                self.add_log(&format!("Failed to decode GGUF: {}", model.path.display()), crate::config::LogLevel::Error);
+                self.add_log(format!("Failed to decode GGUF: {}", model.path.display()), crate::config::LogLevel::Error);
             }
         }
     }
@@ -843,7 +834,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     pub fn apply_profile(&mut self, profile: &Profile) {
         self.settings = profile.apply(self.settings.clone());
         self.resolve_system_prompt();
-        self.add_log(&format!("Applied profile: {}", profile.name), crate::config::LogLevel::Info);
+        self.add_log(format!("Applied profile: {}", profile.name), crate::config::LogLevel::Info);
         self.set_redraw();
     }
 
@@ -865,9 +856,9 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         };
         self.config.profiles.push(profile);
         if let Err(e) = self.config.save() {
-            self.add_log(&format!("Failed to save profile: {}", e), crate::config::LogLevel::Error);
+            self.add_log(format!("Failed to save profile: {}", e), crate::config::LogLevel::Error);
         } else {
-            self.add_log(&format!("Saved profile: {}", name), crate::config::LogLevel::Info);
+            self.add_log(format!("Saved profile: {}", name), crate::config::LogLevel::Info);
         }
         self.set_redraw();
     }
@@ -879,9 +870,9 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             let override_cfg = crate::config::ModelOverride::from_settings(&self.settings);
             self.config.model_overrides.insert(name.clone(), override_cfg);
             if let Err(e) = self.config.save() {
-                self.add_log(&format!("Failed to save settings for {}: {}", name, e), crate::config::LogLevel::Error);
+                self.add_log(format!("Failed to save settings for {}: {}", name, e), crate::config::LogLevel::Error);
             } else {
-                self.add_log(&format!("Saved settings for {}", name), crate::config::LogLevel::Info);
+                self.add_log(format!("Saved settings for {}", name), crate::config::LogLevel::Info);
                 // Update the cache so it reflects the newly saved settings
                 self.model_settings_cache = self.settings.clone();
             }
@@ -941,7 +932,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         let builtin = crate::config::builtin_profiles();
         
         // Build the merged profile list (same as render logic)
-        let mut all_profiles: Vec<crate::config::Profile> = builtin.iter().cloned().collect();
+        let mut all_profiles: Vec<crate::config::Profile> = builtin.to_vec();
         let mut user_profiles_displayed: Vec<(usize, crate::config::Profile)> = Vec::new();
         
         for (idx, p) in self.config.profiles.iter().enumerate() {
@@ -976,11 +967,11 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.config.profiles.remove(*actual_idx);
         
         if let Err(e) = self.config.save() {
-            self.add_log(&format!("Failed to delete profile: {}", e), crate::config::LogLevel::Error);
+            self.add_log(format!("Failed to delete profile: {}", e), crate::config::LogLevel::Error);
             return false;
         }
         
-        self.add_log(&format!("Deleted profile: {}", profile_name), crate::config::LogLevel::Info);
+        self.add_log(format!("Deleted profile: {}", profile_name), crate::config::LogLevel::Info);
         true
     }
 
@@ -991,134 +982,134 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
 
         match self.active_panel {
             ActivePanel::Models => vec![
-                Line::from(Span::styled("MODELS PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(Span::styled("MODELS PANEL", y.add_modifier(Modifier::BOLD))),
                 Line::from(""),
                 Line::from("Displays your local GGUF models and their status."),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k / Arrow keys", y.clone()), Span::raw("  Navigate model list")]),
-                Line::from(vec![Span::styled("Enter / l", y.clone()), Span::raw("  Load selected model into server")]),
-                Line::from(vec![Span::styled("u", y.clone()), Span::raw("  Unload model from server")]),
-                Line::from(vec![Span::styled("Ctrl+D", y.clone()), Span::raw("  Delete model (with confirmation)")]),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Navigate model list")]),
+                Line::from(vec![Span::styled("Enter / l", y), Span::raw("  Load selected model into server")]),
+                Line::from(vec![Span::styled("u", y), Span::raw("  Unload model from server")]),
+                Line::from(vec![Span::styled("Ctrl+D", y), Span::raw("  Delete model (with confirmation)")]),
                 Line::from(""),
                 Line::from("In search mode (/):"),
-                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Execute search")]),
-                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Exit search")]),
-                Line::from(vec![Span::styled("l", y.clone()), Span::raw("  View available GGUF files")]),
-                Line::from(vec![Span::styled("S", y.clone()), Span::raw("  Cycle sort order (Relevance/Downloads/Likes/Trending/Created)")]),
-                Line::from(vec![Span::styled("B", y.clone()), Span::raw("  Go back one page")]),
-                Line::from(vec![Span::styled("Down at bottom", y.clone()), Span::raw("  Load more results (infinite scroll)")]),
-                Line::from(vec![Span::styled("R", y.clone()), Span::raw("  Fetch and view README")]),
+                Line::from(vec![Span::styled("Enter", y), Span::raw("  Execute search")]),
+                Line::from(vec![Span::styled("Esc", y), Span::raw("  Exit search")]),
+                Line::from(vec![Span::styled("l", y), Span::raw("  View available GGUF files")]),
+                Line::from(vec![Span::styled("S", y), Span::raw("  Cycle sort order (Relevance/Downloads/Likes/Trending/Created)")]),
+                Line::from(vec![Span::styled("B", y), Span::raw("  Go back one page")]),
+                Line::from(vec![Span::styled("Down at bottom", y), Span::raw("  Load more results (infinite scroll)")]),
+                Line::from(vec![Span::styled("R", y), Span::raw("  Fetch and view README")]),
             ],
             ActivePanel::Log => vec![
-                Line::from(Span::styled("LOG PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(Span::styled("LOG PANEL", y.add_modifier(Modifier::BOLD))),
                 Line::from(""),
                 Line::from("Live output from the llama.cpp server."),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k / Arrow keys", y.clone()), Span::raw("  Scroll log")]),
-                Line::from(vec![Span::styled("g", y.clone()), Span::raw("  Jump to bottom")]),
-                Line::from(vec![Span::styled("G", y.clone()), Span::raw("  Jump to top")]),
-                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Expand log (fills screen)")]),
-                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Collapse log")]),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Scroll log")]),
+                Line::from(vec![Span::styled("g", y), Span::raw("  Jump to bottom")]),
+                Line::from(vec![Span::styled("G", y), Span::raw("  Jump to top")]),
+                Line::from(vec![Span::styled("Enter", y), Span::raw("  Expand log (fills screen)")]),
+                Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse log")]),
             ],
             ActivePanel::Downloads => vec![
-                Line::from(Span::styled("DOWNLOADS PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(Span::styled("DOWNLOADS PANEL", y.add_modifier(Modifier::BOLD))),
                 Line::from(""),
                 Line::from("Shows active downloads from HuggingFace."),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k / Arrow keys", y.clone()), Span::raw("  Select download")]),
-                Line::from(vec![Span::styled("c", y.clone()), Span::raw("  Cancel selected download")]),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Select download")]),
+                Line::from(vec![Span::styled("c", y), Span::raw("  Cancel selected download")]),
             ],
   ActivePanel::ServerSettings => {
                 let port_str: &'static str = Box::leak(format!("  Port for API proxy: {api_port_val}").into_boxed_str());
                 vec![
-                    Line::from(Span::styled("SERVER SETTINGS", y.clone().add_modifier(Modifier::BOLD))),
+                    Line::from(Span::styled("SERVER SETTINGS", y.add_modifier(Modifier::BOLD))),
                     Line::from(""),
                     Line::from("Configuration for the llama.cpp server."),
                     Line::from(""),
-                    Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Select setting")]),
-                    Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Toggle value")]),
-                    Line::from(vec![Span::styled("h / l / Left / Right", y.clone()), Span::raw("  Adjust value")]),
+                    Line::from(vec![Span::styled("j / k", y), Span::raw("  Select setting")]),
+                    Line::from(vec![Span::styled("Enter", y), Span::raw("  Toggle value")]),
+                    Line::from(vec![Span::styled("h / l / Left / Right", y), Span::raw("  Adjust value")]),
                     Line::from(""),
-                    Line::from(vec![Span::styled("Host", y.clone()), Span::raw("  Bind address (127.0.0.1 or 0.0.0.0)")]),
-                    Line::from(vec![Span::styled("Backend", y.clone()), Span::raw("  Acceleration backend (cpu / vulkan / rocm)")]),
-                    Line::from(vec![Span::styled("Threads", y.clone()), Span::raw("  CPU threads for generation (1 to max)")]),
-                    Line::from(vec![Span::styled("Threads Batch", y.clone()), Span::raw("  CPU threads for batch processing (1 to 32)")]),
-                    Line::from(vec![Span::styled("Mode", y.clone()), Span::raw("  Server mode (Normal / Router)")]),
-                    Line::from(vec![Span::styled("API Endpoint", y.clone()), Span::raw("  Enable API proxy (True/False)")]),
-                    Line::from(vec![Span::styled("API Port", y.clone()), Span::raw(port_str)]),
+                    Line::from(vec![Span::styled("Host", y), Span::raw("  Bind address (127.0.0.1 or 0.0.0.0)")]),
+                    Line::from(vec![Span::styled("Backend", y), Span::raw("  Acceleration backend (cpu / vulkan / rocm)")]),
+                    Line::from(vec![Span::styled("Threads", y), Span::raw("  CPU threads for generation (1 to max)")]),
+                    Line::from(vec![Span::styled("Threads Batch", y), Span::raw("  CPU threads for batch processing (1 to 32)")]),
+                    Line::from(vec![Span::styled("Mode", y), Span::raw("  Server mode (Normal / Router)")]),
+                    Line::from(vec![Span::styled("API Endpoint", y), Span::raw("  Enable API proxy (True/False)")]),
+                    Line::from(vec![Span::styled("API Port", y), Span::raw(port_str)]),
                 ]
             }
             ActivePanel::LlmSettings => vec![
-                Line::from(Span::styled("LLM SETTINGS", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(Span::styled("LLM SETTINGS", y.add_modifier(Modifier::BOLD))),
                 Line::from(""),
                 Line::from("Fine-tuned settings for loading and running a model."),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Navigate settings")]),
-                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Apply value")]),
-                Line::from(vec![Span::styled("h / l / Left / Right", y.clone()), Span::raw("  Adjust value")]),
-                Line::from(vec![Span::styled("0-9, -, .", y.clone()), Span::raw("  Type numeric value")]),
-                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Cancel edit")]),
+                Line::from(vec![Span::styled("j / k", y), Span::raw("  Navigate settings")]),
+                Line::from(vec![Span::styled("Enter", y), Span::raw("  Apply value")]),
+                Line::from(vec![Span::styled("h / l / Left / Right", y), Span::raw("  Adjust value")]),
+                Line::from(vec![Span::styled("0-9, -, .", y), Span::raw("  Type numeric value")]),
+                Line::from(vec![Span::styled("Esc", y), Span::raw("  Cancel edit")]),
                 Line::from(""),
-                Line::from(vec![Span::styled("Ctrl+S", y.clone()), Span::raw("  Save settings for selected model")]),
-                Line::from(vec![Span::styled("Ctrl+R", y.clone()), Span::raw("  Reset to defaults")]),
-                Line::from(vec![Span::styled("Ctrl+E", y.clone()), Span::raw("  Toggle enabled/disabled")]),
+                Line::from(vec![Span::styled("Ctrl+S", y), Span::raw("  Save settings for selected model")]),
+                Line::from(vec![Span::styled("Ctrl+R", y), Span::raw("  Reset to defaults")]),
+                Line::from(vec![Span::styled("Ctrl+E", y), Span::raw("  Toggle enabled/disabled")]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Loading ---", y.clone())]),
-                Line::from(vec![Span::styled("Context", y.clone()), Span::raw("  Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more RAM. Typical: 8192-65536 depending on model and RAM.")]),
-                Line::from(vec![Span::styled("Prompt", y.clone()), Span::raw("  System prompt preset. Pre-configured prompts that shape how the model behaves (e.g., 'coder', 'assistant', 'creative'). Affects the model's personality and output style.")]),
-                Line::from(vec![Span::styled("Keep in memory", y.clone()), Span::raw("  Lock model weights in RAM (mlock). Prevents the OS from swapping model weights to disk. Slows model load time but ensures faster inference once loaded. Useful for repeated use.")]),
+                Line::from(vec![Span::styled("--- Loading ---", y)]),
+                Line::from(vec![Span::styled("Context", y), Span::raw("  Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more RAM. Typical: 8192-65536 depending on model and RAM.")]),
+                Line::from(vec![Span::styled("Prompt", y), Span::raw("  System prompt preset. Pre-configured prompts that shape how the model behaves (e.g., 'coder', 'assistant', 'creative'). Affects the model's personality and output style.")]),
+                Line::from(vec![Span::styled("Keep in memory", y), Span::raw("  Lock model weights in RAM (mlock). Prevents the OS from swapping model weights to disk. Slows model load time but ensures faster inference once loaded. Useful for repeated use.")]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- GPU Offload ---", y.clone())]),
-                Line::from(vec![Span::styled("GPU Layers", y.clone()), Span::raw("  Number of model layers to run on GPU. Higher = faster inference, more VRAM usage. Set to -1 to offload all layers. Typical: fill VRAM but leave room for KV cache. Use 'all' to auto-detect.")]),
-                Line::from(vec![Span::styled("Flash Attention", y.clone()), Span::raw("  Enable Flash Attention (flash-attn) for faster inference. Requires compatible GPU (Ampere+ / Ada). Significantly speeds up long-context inference. Only works with certain GGUF formats.")]),
-                Line::from(vec![Span::styled("KV Cache Offload", y.clone()), Span::raw("  Offload KV cache to RAM when GPU memory is full. Allows larger batch sizes and contexts at the cost of some speed. Useful when VRAM is limited but you still want longer conversations.")]),
-                Line::from(vec![Span::styled("Cache Type K / V", y.clone()), Span::raw("  Quantization precision for KV cache (K = keys, V = values). Lower precision (e.g., Q4, Q8) saves VRAM but may slightly reduce quality. Default is usually FP16. Use lower values if running out of VRAM.")]),
-                Line::from(vec![Span::styled("Active Experts", y.clone()), Span::raw("  Number of MoE (Mixture of Experts) experts to activate per token. -1 = auto (all active). Reducing this speeds up inference for MoE models like Mixtral but may reduce quality. Typical: 2-8 for Mixtral.")]),
+                Line::from(vec![Span::styled("--- GPU Offload ---", y)]),
+                Line::from(vec![Span::styled("GPU Layers", y), Span::raw("  Number of model layers to run on GPU. Higher = faster inference, more VRAM usage. Set to -1 to offload all layers. Typical: fill VRAM but leave room for KV cache. Use 'all' to auto-detect.")]),
+                Line::from(vec![Span::styled("Flash Attention", y), Span::raw("  Enable Flash Attention (flash-attn) for faster inference. Requires compatible GPU (Ampere+ / Ada). Significantly speeds up long-context inference. Only works with certain GGUF formats.")]),
+                Line::from(vec![Span::styled("KV Cache Offload", y), Span::raw("  Offload KV cache to RAM when GPU memory is full. Allows larger batch sizes and contexts at the cost of some speed. Useful when VRAM is limited but you still want longer conversations.")]),
+                Line::from(vec![Span::styled("Cache Type K / V", y), Span::raw("  Quantization precision for KV cache (K = keys, V = values). Lower precision (e.g., Q4, Q8) saves VRAM but may slightly reduce quality. Default is usually FP16. Use lower values if running out of VRAM.")]),
+                Line::from(vec![Span::styled("Active Experts", y), Span::raw("  Number of MoE (Mixture of Experts) experts to activate per token. -1 = auto (all active). Reducing this speeds up inference for MoE models like Mixtral but may reduce quality. Typical: 2-8 for Mixtral.")]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Evaluation ---", y.clone())]),
-                Line::from(vec![Span::styled("Eval Batch", y.clone()), Span::raw("  Batch size for evaluation (inference). Larger batches use more VRAM but can improve throughput via parallelism. Small values (1-8) for low VRAM, larger (16-128) for high VRAM setups.")]),
-                Line::from(vec![Span::styled("Unified KV", y.clone()), Span::raw("  Share KV cache across sequences. Reduces VRAM usage when running multiple requests by reusing allocated cache. May slightly reduce performance but enables more concurrent users.")]),
-                Line::from(vec![Span::styled("Max Concurrent Pred", y.clone()), Span::raw("  Maximum number of models that can run simultaneously. Useful when managing multiple models. Each model needs its own VRAM/CPU resources. Set based on available hardware.")]),
+                Line::from(vec![Span::styled("--- Evaluation ---", y)]),
+                Line::from(vec![Span::styled("Eval Batch", y), Span::raw("  Batch size for evaluation (inference). Larger batches use more VRAM but can improve throughput via parallelism. Small values (1-8) for low VRAM, larger (16-128) for high VRAM setups.")]),
+                Line::from(vec![Span::styled("Unified KV", y), Span::raw("  Share KV cache across sequences. Reduces VRAM usage when running multiple requests by reusing allocated cache. May slightly reduce performance but enables more concurrent users.")]),
+                Line::from(vec![Span::styled("Max Concurrent Pred", y), Span::raw("  Maximum number of models that can run simultaneously. Useful when managing multiple models. Each model needs its own VRAM/CPU resources. Set based on available hardware.")]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Sampling ---", y.clone())]),
-                Line::from(vec![Span::styled("Seed", y.clone()), Span::raw("  Random seed for reproducible outputs. -1 = random (default). Set to a fixed value for deterministic, repeatable responses — useful for debugging or testing prompts.")]),
-                Line::from(vec![Span::styled("Temp", y.clone()), Span::raw("  Sampling temperature. Controls creativity: 0 = deterministic (most predictable), 0.7 = balanced, 1.0+ = creative. Lower values produce more focused, factual outputs. Typical: 0.7-0.9 for general use.")]),
-                Line::from(vec![Span::styled("Top-k", y.clone()), Span::raw("  Only consider the top k most likely tokens at each step. Smaller top-k (e.g., 10-40) makes output more deterministic. Larger values allow more variety. Typical: 40-50. Set to 0 to disable.")]),
-                Line::from(vec![Span::styled("Top-p", y.clone()), Span::raw("  Nucleus sampling: only consider tokens whose cumulative probability reaches p. Smaller top-p (e.g., 0.9) is more conservative, larger (e.g., 0.95-0.99) allows more variety. Often preferred over top-k. Typical: 0.9-0.95.")]),
-                Line::from(vec![Span::styled("Min P", y.clone()), Span::raw("  Minimum probability threshold relative to the most likely token. Tokens below min_p * max_prob are excluded. A filter that's more principled than top-k/top-p for controlling diversity. Typical: 0.01-0.1.")]),
-                         Line::from(vec![Span::styled("Max Tokens", y.clone()), Span::raw("  Maximum number of tokens to generate in the response. Prevents runaway responses. Set to 0 or Disabled for no limit. Typical: 4096-8192 for chat, higher for code generation.")]),
+                Line::from(vec![Span::styled("--- Sampling ---", y)]),
+                Line::from(vec![Span::styled("Seed", y), Span::raw("  Random seed for reproducible outputs. -1 = random (default). Set to a fixed value for deterministic, repeatable responses — useful for debugging or testing prompts.")]),
+                Line::from(vec![Span::styled("Temp", y), Span::raw("  Sampling temperature. Controls creativity: 0 = deterministic (most predictable), 0.7 = balanced, 1.0+ = creative. Lower values produce more focused, factual outputs. Typical: 0.7-0.9 for general use.")]),
+                Line::from(vec![Span::styled("Top-k", y), Span::raw("  Only consider the top k most likely tokens at each step. Smaller top-k (e.g., 10-40) makes output more deterministic. Larger values allow more variety. Typical: 40-50. Set to 0 to disable.")]),
+                Line::from(vec![Span::styled("Top-p", y), Span::raw("  Nucleus sampling: only consider tokens whose cumulative probability reaches p. Smaller top-p (e.g., 0.9) is more conservative, larger (e.g., 0.95-0.99) allows more variety. Often preferred over top-k. Typical: 0.9-0.95.")]),
+                Line::from(vec![Span::styled("Min P", y), Span::raw("  Minimum probability threshold relative to the most likely token. Tokens below min_p * max_prob are excluded. A filter that's more principled than top-k/top-p for controlling diversity. Typical: 0.01-0.1.")]),
+                         Line::from(vec![Span::styled("Max Tokens", y), Span::raw("  Maximum number of tokens to generate in the response. Prevents runaway responses. Set to 0 or Disabled for no limit. Typical: 4096-8192 for chat, higher for code generation.")]),
             ],
             ActivePanel::Profiles => vec![
-                Line::from(Span::styled("PROFILES PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(Span::styled("PROFILES PANEL", y.add_modifier(Modifier::BOLD))),
                 Line::from(""),
                 Line::from("Saved presets of settings for quick switching."),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Select profile")]),
-                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Apply profile settings")]),
-                Line::from(vec![Span::styled("s", y.clone()), Span::raw("  Save current settings as new profile")]),
-                Line::from(vec![Span::styled("d", y.clone()), Span::raw("  Delete user profile")]),
-                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Back to settings")]),
+                Line::from(vec![Span::styled("j / k", y), Span::raw("  Select profile")]),
+                Line::from(vec![Span::styled("Enter", y), Span::raw("  Apply profile settings")]),
+                Line::from(vec![Span::styled("s", y), Span::raw("  Save current settings as new profile")]),
+                Line::from(vec![Span::styled("d", y), Span::raw("  Delete user profile")]),
+                Line::from(vec![Span::styled("Esc", y), Span::raw("  Back to settings")]),
             ],
             ActivePanel::SystemPromptPresets => vec![
-                Line::from(Span::styled("SYSTEM PROMPT PRESETS", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(Span::styled("SYSTEM PROMPT PRESETS", y.add_modifier(Modifier::BOLD))),
                 Line::from(""),
                 Line::from("Named system prompts for different use cases."),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k", y.clone()), Span::raw("  Select preset")]),
-                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Apply preset")]),
-                Line::from(vec![Span::styled("e", y.clone()), Span::raw("  Edit selected preset")]),
-                Line::from(vec![Span::styled("n", y.clone()), Span::raw("  Create new preset")]),
-                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Back to settings")]),
+                Line::from(vec![Span::styled("j / k", y), Span::raw("  Select preset")]),
+                Line::from(vec![Span::styled("Enter", y), Span::raw("  Apply preset")]),
+                Line::from(vec![Span::styled("e", y), Span::raw("  Edit selected preset")]),
+                Line::from(vec![Span::styled("n", y), Span::raw("  Create new preset")]),
+                Line::from(vec![Span::styled("Esc", y), Span::raw("  Back to settings")]),
             ],
             ActivePanel::SearchReadme => vec![
-                Line::from(Span::styled("README PANEL", y.clone().add_modifier(Modifier::BOLD))),
+                Line::from(Span::styled("README PANEL", y.add_modifier(Modifier::BOLD))),
                 Line::from(""),
                 Line::from("README documentation for the selected model."),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k / Arrow keys", y.clone()), Span::raw("  Scroll")]),
-                Line::from(vec![Span::styled("h / l", y.clone()), Span::raw("  Scroll horizontally")]),
-                Line::from(vec![Span::styled("Enter", y.clone()), Span::raw("  Expand to fullscreen")]),
-                Line::from(vec![Span::styled("Esc", y.clone()), Span::raw("  Collapse / Exit")]),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Scroll")]),
+                Line::from(vec![Span::styled("h / l", y), Span::raw("  Scroll horizontally")]),
+                Line::from(vec![Span::styled("Enter", y), Span::raw("  Expand to fullscreen")]),
+                Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse / Exit")]),
             ],
         }
     }

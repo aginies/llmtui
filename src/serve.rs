@@ -25,14 +25,12 @@ fn resolve_llama_server(llama_server_path: &PathBuf) -> Result<PathBuf> {
     if let Ok(output) = std::process::Command::new("which")
         .arg(llama_server_path)
         .output()
-    {
-        if output.status.success() {
+        && output.status.success() {
             let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !path.is_empty() {
                 return Ok(PathBuf::from(path));
             }
         }
-    }
 
     // 3. Common locations
     for candidate in &[
@@ -87,9 +85,9 @@ pub async fn serve_model(
     let model_path = PathBuf::from(model_path);
 
     // Check for broken symlinks first
-    if let Ok(metadata) = model_path.symlink_metadata() {
-        if metadata.file_type().is_symlink() {
-            if !model_path.exists() {
+    if let Ok(metadata) = model_path.symlink_metadata()
+        && metadata.file_type().is_symlink()
+            && !model_path.exists() {
                 let target = std::fs::read_link(&model_path).unwrap_or_default();
                 let msg = format!(
                     "Model file is a broken symlink: {}\n  Symlink points to: {}\n  The target does not exist. Fix the symlink or use the actual file.",
@@ -98,13 +96,11 @@ pub async fn serve_model(
                 );
                 return Err(anyhow::Error::msg(msg));
             }
-        }
-    }
 
     if !model_path.exists() {
         // Check if parent directory exists
-        if let Some(parent) = model_path.parent() {
-            if !parent.exists() {
+        if let Some(parent) = model_path.parent()
+            && !parent.exists() {
                 let msg = format!(
                     "Model file not found: {}\n  Parent directory does not exist: {}",
                     model_path.display(),
@@ -112,7 +108,6 @@ pub async fn serve_model(
                 );
                 return Err(anyhow::Error::msg(msg));
             }
-        }
         let msg = format!("Model file not found: {}", model_path.display());
         return Err(anyhow::Error::msg(msg));
     }

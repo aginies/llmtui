@@ -156,7 +156,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                     ]));
                     lines.push(Line::from(vec![
                         Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(&*error, Style::default().fg(Color::Red)),
+                        Span::styled(error, Style::default().fg(Color::Red)),
             ]));
         }
         _ => {

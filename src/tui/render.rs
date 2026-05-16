@@ -14,8 +14,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
     // Panel-specific help overlay
     if app.panel_help {
         let area = f.area();
-        let w = (area.width as f64 * 0.7).max(60.0).min(80.0) as u16;
-        let h = (area.height as f64 * 0.7).max(20.0).min(35.0) as u16;
+        let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
+        let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
         let help_area = Rect {
             x: (area.width - w) / 2,
             y: (area.height - h) / 2,
@@ -251,7 +251,7 @@ Line::from(vec![
     match app.active_panel {
         ActivePanel::Profiles => {
             let builtin = crate::config::builtin_profiles();
-            let mut all_profiles: Vec<Profile> = builtin.iter().cloned().collect();
+            let mut all_profiles: Vec<Profile> = builtin.to_vec();
             for p in &app.config.profiles {
                 if !builtin.iter().any(|b| b.name == p.name) {
                     all_profiles.push(p.clone());

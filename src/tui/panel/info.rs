@@ -12,6 +12,7 @@ pub struct ModelInfoPair {
 ///
 /// This mirrors the KV cache formula from `estimate_vram_mib` but solves
 /// backwards for context length given a fixed VRAM budget.
+#[allow(clippy::too_many_arguments)]
 pub fn max_context_for_vram(
     model_mib: u64,
     vram_mib: u64,
@@ -21,6 +22,7 @@ pub fn max_context_for_vram(
     n_kv_head: u32,
     gpu_layers: i32,
     flash_attn: bool,
+    #[allow(unused_variables)]
     uniform_cache: bool,
     cache_type_k: &str,
     cache_type_v: &str,
@@ -63,7 +65,7 @@ pub fn max_context_for_vram(
 
     let flash_attn_factor = if flash_attn { 0.5 } else { 1.0 };
 
-    let uniform_cache_factor = if uniform_cache { 1.0 } else { 1.0 };
+    let uniform_cache_factor = 1.0;
 
     // KV quant factor (relative to f16 = 2 bytes)
     let kv_quant_factor = kv_quant_bytes(cache_type_k, cache_type_v) / 2.0;

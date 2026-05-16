@@ -217,8 +217,10 @@ impl DownloadState {
 
 /// Main KV cache data type.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum CacheType {
     #[serde(rename = "f16")]
+    #[default]
     F16,
     #[serde(rename = "bf16")]
     BF16,
@@ -228,11 +230,6 @@ pub enum CacheType {
     Fq4_1,
 }
 
-impl Default for CacheType {
-    fn default() -> Self {
-        Self::F16
-    }
-}
 
 impl std::fmt::Display for CacheType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -247,10 +244,12 @@ impl std::fmt::Display for CacheType {
 
 /// KV cache data type for K.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum CacheTypeK {
     #[serde(rename = "f32")]
     F32,
     #[serde(rename = "f16")]
+    #[default]
     F16,
     #[serde(rename = "bf16")]
     BF16,
@@ -297,11 +296,6 @@ impl CacheTypeK {
     }
 }
 
-impl Default for CacheTypeK {
-    fn default() -> Self {
-        Self::F16
-    }
-}
 
 impl std::fmt::Display for CacheTypeK {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -321,10 +315,12 @@ impl std::fmt::Display for CacheTypeK {
 
 /// KV cache data type for V.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum CacheTypeV {
     #[serde(rename = "f32")]
     F32,
     #[serde(rename = "f16")]
+    #[default]
     F16,
     #[serde(rename = "bf16")]
     BF16,
@@ -371,11 +367,6 @@ impl CacheTypeV {
     }
 }
 
-impl Default for CacheTypeV {
-    fn default() -> Self {
-        Self::F16
-    }
-}
 
 impl std::fmt::Display for CacheTypeV {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -395,10 +386,12 @@ impl std::fmt::Display for CacheTypeV {
 
 /// Split mode for multi-GPU.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum SplitMode {
     #[serde(rename = "none")]
     None,
     #[serde(rename = "layer")]
+    #[default]
     Layer,
     #[serde(rename = "row")]
     Row,
@@ -406,11 +399,6 @@ pub enum SplitMode {
     Tensor,
 }
 
-impl Default for SplitMode {
-    fn default() -> Self {
-        Self::Layer
-    }
-}
 
 impl std::fmt::Display for SplitMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -425,8 +413,10 @@ impl std::fmt::Display for SplitMode {
 
 /// NUMA optimization mode.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum NumMode {
     #[serde(rename = "none")]
+    #[default]
     None,
     #[serde(rename = "distribute")]
     Distribute,
@@ -436,11 +426,6 @@ pub enum NumMode {
     Numactl,
 }
 
-impl Default for NumMode {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
 impl std::fmt::Display for NumMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -455,8 +440,10 @@ impl std::fmt::Display for NumMode {
 
 /// RoPE frequency scaling method.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum RopeScaling {
     #[serde(rename = "none")]
+    #[default]
     None,
     #[serde(rename = "linear")]
     Linear,
@@ -464,11 +451,6 @@ pub enum RopeScaling {
     Yarn,
 }
 
-impl Default for RopeScaling {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
 impl std::fmt::Display for RopeScaling {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -482,8 +464,10 @@ impl std::fmt::Display for RopeScaling {
 
 /// Mirostat version.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum Mirostat {
     #[serde(rename = "0")]
+    #[default]
     Off,
     #[serde(rename = "1")]
     Mirostat,
@@ -491,11 +475,6 @@ pub enum Mirostat {
     Mirostat2,
 }
 
-impl Default for Mirostat {
-    fn default() -> Self {
-        Self::Off
-    }
-}
 
 impl std::fmt::Display for Mirostat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -526,8 +505,10 @@ impl std::fmt::Display for Samplers {
 
 /// Backend used to run the llama.cpp server.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum Backend {
     #[serde(rename = "cpu")]
+    #[default]
     Cpu,
     #[serde(rename = "vulkan")]
     Vulkan,
@@ -535,11 +516,6 @@ pub enum Backend {
     Rocrm,
 }
 
-impl Default for Backend {
-    fn default() -> Self {
-        Self::Cpu
-    }
-}
 
 impl std::fmt::Display for Backend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -553,18 +529,15 @@ impl std::fmt::Display for Backend {
 
 /// Server mode: normal (single model) or router (multiple models).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum ServerMode {
     #[serde(rename = "normal")]
+    #[default]
     Normal,
     #[serde(rename = "router")]
     Router,
 }
 
-impl Default for ServerMode {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
 impl std::fmt::Display for ServerMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -577,18 +550,15 @@ impl std::fmt::Display for ServerMode {
 
 /// Mode for parsing reasoning tags from model responses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum ReasoningMode {
     #[serde(rename = "default")]
+    #[default]
     Default, // DeepSeek/OpenAI style: <think> ... </think>
     #[serde(rename = "gemma")]
     Gemma,   // Gemma style: <|channel>thought <channel|>
 }
 
-impl Default for ReasoningMode {
-    fn default() -> Self {
-        Self::Default
-    }
-}
 
 impl std::fmt::Display for ReasoningMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -868,13 +838,13 @@ impl ModelSettings {
         settings.threads_batch = config.default.threads_batch;
         settings.batch_size = config.default.batch_size;
         settings.ubatch_size = config.default.ubatch_size;
-        settings.cache_type_k = config.default.cache_type_k.clone();
-        settings.cache_type_v = config.default.cache_type_v.clone();
+        settings.cache_type_k = config.default.cache_type_k;
+        settings.cache_type_v = config.default.cache_type_v;
         settings.keep = config.default.keep;
         settings.swa_full = config.default.swa_full;
         settings.mlock = config.default.mlock;
         settings.mmap = config.default.mmap;
-        settings.numa = config.default.numa.clone();
+        settings.numa = config.default.numa;
         settings.uniform_cache = config.default.uniform_cache;
         settings.kv_cache_offload = config.default.kv_cache_offload;
         settings.parallel = config.default.parallel;
@@ -882,7 +852,7 @@ impl ModelSettings {
         settings.system_prompt_preset_name = config.default.system_prompt_preset_name.clone();
         settings.reasoning_mode = config.default.reasoning_mode;
         settings.gpu_layers = config.default.gpu_layers;
-        settings.split_mode = config.default.split_mode.clone();
+        settings.split_mode = config.default.split_mode;
         settings.tensor_split = config.default.tensor_split.clone();
         settings.main_gpu = config.default.main_gpu;
         settings.fit = config.default.fit;
@@ -900,7 +870,7 @@ impl ModelSettings {
         settings.top_p = config.default.top_p;
         settings.min_p = config.default.min_p;
         settings.typical_p = config.default.typical_p;
-        settings.mirostat = config.default.mirostat.clone();
+        settings.mirostat = config.default.mirostat;
         settings.mirostat_lr = config.default.mirostat_lr;
         settings.mirostat_ent = config.default.mirostat_ent;
         settings.ignore_eos = config.default.ignore_eos;
@@ -913,7 +883,7 @@ impl ModelSettings {
         settings.dry_base = config.default.dry_base;
         settings.dry_allowed_length = config.default.dry_allowed_length;
         settings.dry_penalty_last_n = config.default.dry_penalty_last_n;
-        settings.rope_scaling = config.default.rope_scaling.clone();
+        settings.rope_scaling = config.default.rope_scaling;
         settings.rope_scale = config.default.rope_scale;
         settings.rope_freq_base = config.default.rope_freq_base;
         settings.rope_freq_scale = config.default.rope_freq_scale;
@@ -924,10 +894,10 @@ impl ModelSettings {
         settings.cache_reuse = config.default.cache_reuse;
         settings.webui = config.default.webui;
         settings.router_max_models = config.default.router_max_models;
-        settings.server_mode = config.default.server_mode.clone();
+        settings.server_mode = config.default.server_mode;
         settings.max_tokens = config.default.max_tokens;
-        settings.cache_type = config.default.cache_type.clone();
-        settings.backend = config.default.backend.clone();
+        settings.cache_type = config.default.cache_type;
+        settings.backend = config.default.backend;
         settings.llama_cpp_version_cpu = config.default.llama_cpp_version_cpu.clone();
         settings.llama_cpp_version_vulkan = config.default.llama_cpp_version_vulkan.clone();
         settings.llama_cpp_version_rocm = config.default.llama_cpp_version_rocm.clone();
@@ -989,6 +959,7 @@ pub struct GPUBuffer {
 
 /// Progress information during model loading, parsed from llama-server log output.
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct LoadProgress {
     /// Total number of layers in the model.
     pub layers_total: Option<u32>,
@@ -1002,17 +973,6 @@ pub struct LoadProgress {
     pub buffers: Vec<GPUBuffer>,
 }
 
-impl Default for LoadProgress {
-    fn default() -> Self {
-        Self {
-            layers_total: None,
-            layers_loaded: None,
-            tensors_loaded: 0,
-            tensors_total: 0,
-            buffers: Vec::new(),
-        }
-    }
-}
 
 impl Default for ServerMetrics {
     fn default() -> Self {
@@ -1059,7 +1019,7 @@ pub fn estimate_vram_mib(
     let gpu_layers = if settings.gpu_layers < 0 {
         if total_layers > 0 { total_layers } else { 32 } // fallback if total_layers unknown
     } else {
-        let requested = settings.gpu_layers.unsigned_abs() as u32;
+        let requested = settings.gpu_layers.unsigned_abs();
         if total_layers > 0 {
             requested.min(total_layers)
         } else {

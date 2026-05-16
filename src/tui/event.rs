@@ -21,7 +21,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if let GlobalMode::CmdLine { cmd_line } = &app.global_mode {
                     let script = format!("#!/bin/bash\n# Exported from llm-manager\n\n{}\n", cmd_line);
                     if let Err(e) = std::fs::write("/tmp/test_llamaserver.sh", &script) {
-                        app.add_log(&format!("Failed to write script: {}", e), crate::config::LogLevel::Error);
+                        app.add_log(format!("Failed to write script: {}", e), crate::config::LogLevel::Error);
                     } else {
                         app.add_log("Wrote server command to /tmp/test_llamaserver.sh", crate::config::LogLevel::Info);
                     }
@@ -78,7 +78,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if let Some(model) = app.selected_model() {
                     let path = model.path.clone();
                     let name = model.name.clone();
-                    app.add_log(&format!("Queuing deletion of: {}", name), crate::config::LogLevel::Info);
+                    app.add_log(format!("Queuing deletion of: {}", name), crate::config::LogLevel::Info);
                     app.pending_deletion = Some(path);
                 } else if app.is_settings_dirty() && app.active_panel == ActivePanel::LlmSettings {
                     // Settings reset confirmation
@@ -104,23 +104,21 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('c')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
-            if !app.download_progress.is_empty() {
-                if let Some(idx) = app.download_scroll_state.selected() {
+            if !app.download_progress.is_empty()
+                && let Some(idx) = app.download_scroll_state.selected() {
                     let mut cancelled_name = None;
-                    if let Some(state) = app.download_progress.get_mut(idx) {
-                        if let Some(token) = &state.cancel_token {
+                    if let Some(state) = app.download_progress.get_mut(idx)
+                        && let Some(token) = &state.cancel_token {
                             token.store(true, std::sync::atomic::Ordering::Relaxed);
                             state.cancelled = true;
                             cancelled_name = Some(state.filename.clone());
                         }
-                    }
                     if let Some(name) = cancelled_name {
                         app.add_log(format!("Cancelling download of {}...", name), crate::config::LogLevel::Info);
                         app.set_redraw();
                         return;
                     }
                 }
-            }
             
             // Check if any models are loaded before exiting
             let loaded_count = app.model_states.values().filter(|s| matches!(s, crate::models::ModelState::Loaded { .. })).count();
@@ -238,7 +236,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     return;
                 }
 
-                app.add_log(&format!("Searching for '{}'...", query), crate::config::LogLevel::Info);
+                app.add_log(format!("Searching for '{}'...", query), crate::config::LogLevel::Info);
                 app.pending_search_load = Some((query, 0));
                 app.search_loading = true;
                 app.set_redraw();
@@ -259,10 +257,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 };
 
                 if let Some(model_id) = model_id {
-                    app.add_log(&format!("Loading files for {}...", model_id), crate::config::LogLevel::Info);
+                    app.add_log(format!("Loading files for {}...", model_id), crate::config::LogLevel::Info);
                     match hub::list_gguf_files(&model_id).await {
                         Ok(files) => {
-                            app.add_log(&format!("Found {} GGUF files", files.len()), crate::config::LogLevel::Info);
+                            app.add_log(format!("Found {} GGUF files", files.len()), crate::config::LogLevel::Info);
                             // Now clone only when we know the operation succeeded
                             if let ModelsMode::Search { query, results, .. } = &app.models_mode {
                                 let selected_result = app.search_results_idx.and_then(|idx| results.get(idx).cloned());
@@ -277,7 +275,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             }
                         }
                         Err(e) => {
-                            app.add_log(&format!("No GGUF files: {}", e), crate::config::LogLevel::Info);
+                            app.add_log(format!("No GGUF files: {}", e), crate::config::LogLevel::Info);
                         }
                     }
                 }
@@ -304,15 +302,15 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
          KeyCode::Char('B') => {
                 // Go back one page
-                if let ModelsMode::Search { page, .. } = &app.models_mode {
-                    if *page > 0 {
+                if let ModelsMode::Search { page, .. } = &app.models_mode
+                    && *page > 0 {
                         let query = if let ModelsMode::Search { query, .. } = &app.models_mode {
                             query.clone()
                         } else {
                             String::new()
                         };
                         let offset = (*page as u32 - 1) * 50;
-                        app.add_log(&format!("Loading page {}...", *page - 1), crate::config::LogLevel::Info);
+                        app.add_log(format!("Loading page {}...", *page - 1), crate::config::LogLevel::Info);
                         // Mutate via mutable borrow
                         if let ModelsMode::Search { page, .. } = &mut app.models_mode {
                             *page -= 1;
@@ -323,7 +321,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.set_redraw();
                         return;
                     }
-                }
                 return;
             }
             KeyCode::Down => {
@@ -332,9 +329,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     Some(idx) if idx + 1 < len => app.search_results_idx = Some(idx + 1),
                     // At last item, load more
                     Some(idx) => {
-                        if idx + 1 >= len {
-                            if let ModelsMode::Search { has_more, loading, page, .. } = &app.models_mode {
-                                if !*loading && *has_more {
+                        if idx + 1 >= len
+                            && let ModelsMode::Search { has_more, loading, page, .. } = &app.models_mode
+                                && !*loading && *has_more {
                                     let query = if let ModelsMode::Search { query, .. } = &app.models_mode {
                                         query.clone()
                                     } else {
@@ -347,8 +344,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                                     app.set_redraw();
                                     return;
                                 }
-                            }
-                        }
                         app.search_results_idx = Some(len.saturating_sub(1));
                     }
                     None if len > 0 => app.search_results_idx = Some(0),
@@ -371,7 +366,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     None
                 };
                 if let Some(model_id) = model_id {
-                    app.add_log(&format!("Fetching README for {}...", model_id), crate::config::LogLevel::Info);
+                    app.add_log(format!("Fetching README for {}...", model_id), crate::config::LogLevel::Info);
                     app.add_log("This may take a moment...", crate::config::LogLevel::Info);
                     // Spawn a task to fetch the README without blocking the UI
                     let handle = tokio::spawn(async move {
@@ -379,20 +374,18 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     });
                     match handle.await {
                         Ok(Ok(readme)) => {
-                            if let ModelsMode::Search { results, .. } = &mut app.models_mode {
-                                if let Some(idx) = app.search_results_idx {
-                                    if let Some(r) = results.get_mut(idx) {
+                            if let ModelsMode::Search { results, .. } = &mut app.models_mode
+                                && let Some(idx) = app.search_results_idx
+                                    && let Some(r) = results.get_mut(idx) {
                                         r.readme = Some(readme);
                                     }
-                                }
-                            }
                             app.add_log("README loaded.", crate::config::LogLevel::Info);
                         }
                         Ok(Err(e)) => {
-                            app.add_log(&format!("Failed to fetch README: {}", e), crate::config::LogLevel::Error);
+                            app.add_log(format!("Failed to fetch README: {}", e), crate::config::LogLevel::Error);
                         }
                         Err(e) => {
-                            app.add_log(&format!("Task failed: {}", e), crate::config::LogLevel::Error);
+                            app.add_log(format!("Task failed: {}", e), crate::config::LogLevel::Error);
                         }
                     }
                     if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
@@ -508,7 +501,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.add_log("File already downloaded", crate::config::LogLevel::Warning);
                         return;
                     }
-                    app.add_log(&format!("Downloading {}...", filename), crate::config::LogLevel::Info);
+                    app.add_log(format!("Downloading {}...", filename), crate::config::LogLevel::Info);
                     app.pending_download = Some((model_id, filename, url));
                 }
                 return;
@@ -604,13 +597,12 @@ fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('c') => {
             if let Some(idx) = app.download_scroll_state.selected() {
                 let mut cancelled_name = None;
-                if let Some(state) = app.download_progress.get_mut(idx) {
-                    if let Some(token) = &state.cancel_token {
+                if let Some(state) = app.download_progress.get_mut(idx)
+                    && let Some(token) = &state.cancel_token {
                         token.store(true, std::sync::atomic::Ordering::Relaxed);
                         state.cancelled = true;
                         cancelled_name = Some(state.filename.clone());
                     }
-                }
                 if let Some(name) = cancelled_name {
                     app.add_log(format!("Cancelling download of {}...", name), crate::config::LogLevel::Info);
                 }
@@ -622,36 +614,31 @@ fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
 }
 
 async fn fetch_readme_for_selected(app: &mut App, model_id: String) {
-    if let ModelsMode::Search { results, show_readme, .. } = &app.models_mode {
-        if *show_readme {
-            if let Some(idx) = app.search_results_idx {
-                if let Some(r) = results.get(idx) {
-                    if r.readme.is_none() {
-                        app.add_log(&format!("Fetching README for {}...", model_id), crate::config::LogLevel::Info);
+    if let ModelsMode::Search { results, show_readme, .. } = &app.models_mode
+        && *show_readme
+            && let Some(idx) = app.search_results_idx
+                && let Some(r) = results.get(idx)
+                    && r.readme.is_none() {
+                        app.add_log(format!("Fetching README for {}...", model_id), crate::config::LogLevel::Info);
                         let handle = tokio::spawn(async move {
                             hub::fetch_readme(&model_id).await
                         });
                         match handle.await {
                             Ok(Ok(readme)) => {
-                                if let ModelsMode::Search { results, .. } = &mut app.models_mode {
-                                    if let Some(r) = results.get_mut(idx) {
+                                if let ModelsMode::Search { results, .. } = &mut app.models_mode
+                                    && let Some(r) = results.get_mut(idx) {
                                         r.readme = Some(readme);
                                     }
-                                }
                                 app.add_log("README loaded.", crate::config::LogLevel::Info);
                             }
                             Ok(Err(e)) => {
-                                app.add_log(&format!("Failed to fetch README: {}", e), crate::config::LogLevel::Error);
+                                app.add_log(format!("Failed to fetch README: {}", e), crate::config::LogLevel::Error);
                             }
                             Err(e) => {
-                                app.add_log(&format!("Task failed: {}", e), crate::config::LogLevel::Error);
+                                app.add_log(format!("Task failed: {}", e), crate::config::LogLevel::Error);
                             }
                         }
                     }
-                }
-            }
-        }
-    }
 }
 
 fn handle_readme_key(app: &mut App, key: crossterm::event::KeyEvent) {
@@ -720,19 +707,18 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     Some(crate::models::ModelState::Loaded { .. })
                 );
                 if already_loaded {
-                    app.add_log(&format!("{} is already loaded", model.display_name), crate::config::LogLevel::Info);
+                    app.add_log(format!("{} is already loaded", model.display_name), crate::config::LogLevel::Info);
                 } else {
                     app.update_model_metadata();
                     let settings = app.selected_model_settings();
                     
-                    if let Some(handle) = &app.server_handle {
-                        if !crate::backend::server::check_health(&handle.host, handle.port).await {
+                    if let Some(handle) = &app.server_handle
+                        && !crate::backend::server::check_health(&handle.host, handle.port).await {
                             app.add_log("Router unresponsive, restarting...", crate::config::LogLevel::Info);
                             if let Some(h) = app.server_handle.take() {
                                 app.pending_kill = Some(h);
                             }
                         }
-                    }
 
                     if app.server_handle.is_none() {
                         // Start server WITH the specific model directly
@@ -741,7 +727,7 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         // No pending_api_load here because it's already in the CLI command
                         app.loading_phases = vec![LoadingPhase::ServerStarting];
                         app.loading_progress = 0.25;
-                        app.add_log(&format!("Starting server with {}...", model.display_name), crate::config::LogLevel::Info);
+                        app.add_log(format!("Starting server with {}...", model.display_name), crate::config::LogLevel::Info);
                     } else {
                         // Router already running, load via API
                         
@@ -759,7 +745,7 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
                         app.loading_phases = vec![LoadingPhase::LoadingModel];
                         app.loading_progress = 0.5;
-                        app.add_log(&format!("Loading {} via API...", model.display_name), crate::config::LogLevel::Info);
+                        app.add_log(format!("Loading {} via API...", model.display_name), crate::config::LogLevel::Info);
                     }
                 }
             }
@@ -768,10 +754,10 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if let Some(idx) = app.selected_model_idx {
                 let model = app.models[idx].clone();
                 if let Some(crate::models::ModelState::Loaded { .. }) = app.model_states.get(&model.display_name) {
-                    app.add_log(&format!("Unloading {} via API...", model.display_name), crate::config::LogLevel::Info);
+                    app.add_log(format!("Unloading {} via API...", model.display_name), crate::config::LogLevel::Info);
                     app.pending_api_unload = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
                 } else {
-                    app.add_log(&format!("{} is not loaded", model.display_name), crate::config::LogLevel::Warning);
+                    app.add_log(format!("{} is not loaded", model.display_name), crate::config::LogLevel::Warning);
                 }
             } else if app.server_handle.is_some() {
                 app.add_log("Select a loaded model to unload", crate::config::LogLevel::Warning);
@@ -1249,7 +1235,7 @@ fn handle_profiles_key(app: &mut App, key: crossterm::event::KeyEvent) {
     let builtin = builtin_profiles();
     
     // Build merged profile list (same as render logic)
-    let mut all_profiles: Vec<crate::config::Profile> = builtin.iter().cloned().collect();
+    let mut all_profiles: Vec<crate::config::Profile> = builtin.to_vec();
     for p in &app.config.profiles {
         if !builtin.iter().any(|b| b.name == p.name) {
             all_profiles.push(p.clone());
@@ -1289,7 +1275,7 @@ fn handle_profiles_key(app: &mut App, key: crossterm::event::KeyEvent) {
             // Delete the selected user profile (not built-in)
             if app.delete_profile(app.settings_selected_idx) {
                 // Recalculate total after deletion
-                let mut new_all: Vec<crate::config::Profile> = builtin.iter().cloned().collect();
+                let mut new_all: Vec<crate::config::Profile> = builtin.to_vec();
                 for p in &app.config.profiles {
                     if !builtin.iter().any(|b| b.name == p.name) {
                         new_all.push(p.clone());
@@ -1321,15 +1307,14 @@ fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::KeyEve
             }
             KeyCode::Char('s') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
                 // Save
-                if let Some(preset_idx) = app.editing_preset {
-                    if let Some(preset) = app.config.system_prompt_presets.get_mut(preset_idx) {
+                if let Some(preset_idx) = app.editing_preset
+                    && let Some(preset) = app.config.system_prompt_presets.get_mut(preset_idx) {
                         preset.content = app.settings_edit_buffer.clone();
                     }
-                }
                 app.editing_preset = None;
                 app.add_log("Saved preset", crate::config::LogLevel::Info);
                 if let Err(e) = app.config.save() {
-                    app.add_log(&format!("Failed to save: {}", e), crate::config::LogLevel::Error);
+                    app.add_log(format!("Failed to save: {}", e), crate::config::LogLevel::Error);
                 }
             }
             KeyCode::Char(c) => {
@@ -1375,7 +1360,7 @@ fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::KeyEve
                 app.settings.system_prompt_preset_name = name.clone();
                 app.resolve_system_prompt();
                 app.active_panel = ActivePanel::LlmSettings;
-                app.add_log(&format!("Applied preset: {}", name), crate::config::LogLevel::Info);
+                app.add_log(format!("Applied preset: {}", name), crate::config::LogLevel::Info);
             }
         }
         KeyCode::Char('e') => {
@@ -1407,9 +1392,9 @@ fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::KeyEve
                 };
                 app.config.system_prompt_presets.remove(app.settings_selected_idx);
                 app.settings_selected_idx = app.settings_selected_idx.min(app.config.system_prompt_presets.len().saturating_sub(1));
-                app.add_log(&format!("Deleted preset: {}", name), crate::config::LogLevel::Info);
+                app.add_log(format!("Deleted preset: {}", name), crate::config::LogLevel::Info);
                 if let Err(e) = app.config.save() {
-                    app.add_log(&format!("Failed to save: {}", e), crate::config::LogLevel::Error);
+                    app.add_log(format!("Failed to save: {}", e), crate::config::LogLevel::Error);
                 }
             }
         }
@@ -1590,12 +1575,11 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                 ])
                 .split(top_chunks[0]);
 
-            if left_chunks[0].contains(pos) {
-                if let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
+            if left_chunks[0].contains(pos)
+                && let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
                     app.active_panel = ActivePanel::Models;
                     app.set_redraw();
                 }
-            }
         }
     }
 }
