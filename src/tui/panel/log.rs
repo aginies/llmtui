@@ -3,7 +3,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
 };
 
 use crate::tui::app::App;
@@ -54,7 +54,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     let paragraph = Paragraph::new(lines)
         .block(block)
-        .scroll((app.log_scroll_offset, 0));
+        .scroll((app.log_scroll_offset, 0))
+        .wrap(Wrap { trim: false });
 
 
     f.render_widget(paragraph, log_area);
