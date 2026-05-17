@@ -14,7 +14,7 @@ fn strip_gguf(name: &str) -> &str {
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let mut title_spans = if app.is_panel_visible(4) {
-        vec![Span::raw(" Active Model(s) (5) ")]
+        vec![Span::raw(" Active Model (F5) ")]
     } else {
         vec![Span::raw(" Active Model(s) ")]
     };

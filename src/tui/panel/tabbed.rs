@@ -94,7 +94,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let vram_text = crate::models::format_mib(app.vram_estimate);
     let block = Block::default()
         .title(Line::from(vec![
-            Span::raw(" LLM Settings (4) "),
+            Span::raw(" LLM Settings (F4) "),
             Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
         ]))
         .borders(Borders::ALL)
@@ -156,7 +156,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
   settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", api_enabled, selected, "", server_running);
 
     let block = Block::default()
-        .title(" Server Settings (2) ")
+        .title(" Server Settings (F2) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
@@ -187,7 +187,7 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", api_enabled, selected, "", server_running);
 
     let block = Block::default()
-        .title(" Server Settings (2) ")
+        .title(" Server Settings (F2) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
@@ -201,7 +201,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let vram_text = crate::models::format_mib(app.vram_estimate);
     let block = Block::default()
         .title(Line::from(vec![
-            Span::raw(" LLM Settings (4) "),
+            Span::raw(" LLM Settings (F4) "),
             Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
         ]))
         .borders(Borders::ALL)
@@ -340,7 +340,7 @@ pub fn render_info_only(f: &mut Frame, area: Rect, app: &mut App) {
 /// Render the info paragraph with a block and borders.
 fn render_info_paragraph(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
-        .title(" Model Info (3) ")
+        .title(" Model Info (F3) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Blue));
 

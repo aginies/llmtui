@@ -15,7 +15,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     let log_area = area;
 
-    let title = if app.is_panel_visible(5) { " Log (6) " } else { " Log " };
+    let title = if app.is_panel_visible(5) { " Log (F6) " } else { " Log " };
     let border_color = if app.active_panel == crate::tui::app::ActivePanel::Log {
         Color::Green
     } else {
