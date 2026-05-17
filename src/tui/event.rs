@@ -6,7 +6,7 @@ use crate::backend::hub;
 use crate::config::builtin_profiles;
 
 use crate::models::{ModelSettings, SearchSort};
-use crate::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, LoadingPhase};
+use crate::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, LoadingPhase, ConfirmationKind};
 
 pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     debug!("Key: {:?}", key);
@@ -32,80 +32,78 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    //   Skip all if in exit confirmation
-    if app.global_mode == GlobalMode::ExitConfirmation {
+
+
+    // Skip all if in confirmation dialog
+    if let GlobalMode::Confirmation { selected, kind } = &app.global_mode {
         match key.code {
             KeyCode::Char('y') => {
-                app.running = false;
-            }
-            KeyCode::Char('n') | KeyCode::Esc => {
-                app.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Char('h')
-                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
-            {
-                app.global_mode = GlobalMode::Normal;
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // Skip all if in reset confirmation
-    if app.global_mode == GlobalMode::ResetConfirmation {
-        match key.code {
-            KeyCode::Char('y') | KeyCode::Enter => {
-                app.reset_to_defaults();
-                app.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Char('n') | KeyCode::Esc => {
-                app.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Char('h')
-                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
-            {
-                app.global_mode = GlobalMode::Normal;
-            }
-            _ => {}
-        }
-        return;
-    }
-
-   // Skip all if in delete confirmation (top priority)
-    if app.global_mode == GlobalMode::DeleteConfirmation {
-        match key.code {
-            KeyCode::Char('y') | KeyCode::Enter => {
-                if let Some(model) = app.selected_model() {
-                    let path = model.path.clone();
-                    let name = model.name.clone();
-                    app.pending_deletion = Some(path);
-                    app.add_log(format!("Deleting model {}...", name), crate::config::LogLevel::Info);
+                match kind {
+                    ConfirmationKind::Exit => {
+                        app.running = false;
+                    }
+                    ConfirmationKind::Reset => {
+                        app.reset_to_defaults();
+                    }
+                    ConfirmationKind::Delete => {
+                        if let Some(model) = app.selected_model() {
+                            let display_name = model.display_name.clone();
+                            app.add_log(format!("Deleting model {}...", display_name), crate::config::LogLevel::Info);
+                        }
+                    }
+                    ConfirmationKind::Unload => {
+                        if let Some((name, _)) = &app.pending_api_unload {
+                            app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
+                        }
+                    }
                 }
                 app.global_mode = GlobalMode::Normal;
             }
             KeyCode::Char('n') | KeyCode::Esc => {
+                app.pending_deletion = None;
+                app.pending_api_unload = None;
                 app.global_mode = GlobalMode::Normal;
+            }
+            KeyCode::Enter => {
+                if *selected {
+                    // Confirmed (Yes)
+                    match kind {
+                        ConfirmationKind::Exit => {
+                            app.running = false;
+                        }
+                        ConfirmationKind::Reset => {
+                            app.reset_to_defaults();
+                        }
+                        ConfirmationKind::Delete => {
+                            if let Some(model) = app.selected_model() {
+                                let display_name = model.display_name.clone();
+                                app.add_log(format!("Deleting model {}...", display_name), crate::config::LogLevel::Info);
+                            }
+                        }
+                        ConfirmationKind::Unload => {
+                            if let Some((name, _)) = &app.pending_api_unload {
+                                app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
+                            }
+                        }
+                    }
+                } else {
+                    // Cancelled (No)
+                    app.pending_deletion = None;
+                    app.pending_api_unload = None;
+                }
+                app.global_mode = GlobalMode::Normal;
+            }
+            KeyCode::Tab | KeyCode::Left | KeyCode::Right => {
+                app.global_mode = GlobalMode::Confirmation {
+                    selected: !*selected,
+                    kind: *kind,
+                };
             }
             KeyCode::Char('h')
                 if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                app.global_mode = GlobalMode::Normal;
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // Skip all if in unload confirmation
-    if let GlobalMode::UnloadConfirmation { model_name } = &app.global_mode {
-        match key.code {
-            KeyCode::Char('y') | KeyCode::Enter => {
-                let name = model_name.clone();
-                app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
-                app.pending_api_unload = Some((name.clone(), None));
-                app.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Char('n') | KeyCode::Esc => {
+                app.pending_deletion = None;
+                app.pending_api_unload = None;
                 app.global_mode = GlobalMode::Normal;
             }
             _ => {}
@@ -170,7 +168,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             // Check if any models are loaded before exiting
             let loaded_count = app.model_states.values().filter(|s| matches!(s, crate::models::ModelState::Loaded { .. })).count();
             if loaded_count > 0 {
-                app.global_mode = GlobalMode::ExitConfirmation;
+                app.global_mode = GlobalMode::Confirmation {
+                    selected: false,
+                    kind: ConfirmationKind::Exit,
+                };
                 app.set_redraw();
             } else {
                 app.running = false;
@@ -876,9 +877,11 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if let Some(idx) = app.selected_model_idx {
                 let model = app.models[idx].clone();
                 if let Some(crate::models::ModelState::Loaded { .. }) = app.model_states.get(&model.display_name) {
-                    app.global_mode = GlobalMode::UnloadConfirmation {
-                        model_name: model.display_name.clone(),
+                    app.global_mode = GlobalMode::Confirmation {
+                        selected: false,
+                        kind: ConfirmationKind::Unload,
                     };
+                    app.pending_api_unload = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
                 } else {
                     app.add_log(format!("{} is not loaded", model.display_name), crate::config::LogLevel::Warning);
                 }
@@ -890,8 +893,17 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.add_log("No model is currently loaded", crate::config::LogLevel::Warning);
             }
         }        KeyCode::Char('d') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
-            if app.selected_model().is_some() {
-                app.global_mode = GlobalMode::DeleteConfirmation;
+            if app.active_panel != ActivePanel::Models {
+                app.add_log("Press Tab to switch to Models panel, then Ctrl+D to delete", crate::config::LogLevel::Warning);
+                return;
+            }
+            if let Some(model) = app.selected_model() {
+                let display_name = model.display_name.clone();
+                app.pending_deletion = Some(model.path.clone());
+                app.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Delete };
+                app.add_log(format!("Delete confirmation for {} shown", display_name), crate::config::LogLevel::Info);
+            } else {
+                app.add_log("No model selected to delete", crate::config::LogLevel::Warning);
             }
         }
         _ => {}
@@ -1181,7 +1193,10 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Reset settings to defaults via confirmation dialog (highest priority when dirty)
     if key.code == KeyCode::Char('r') && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
         if app.is_settings_dirty() {
-            app.global_mode = GlobalMode::ResetConfirmation;
+            app.global_mode = GlobalMode::Confirmation {
+                selected: false,
+                kind: ConfirmationKind::Reset,
+            };
             return;
         } else {
             app.reset_to_defaults();

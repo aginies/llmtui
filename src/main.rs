@@ -203,37 +203,39 @@ async fn main() -> Result<()> {
         }
 
         // Start pending deletion
-        if let Some(path) = app.pending_deletion.take() {
-            let path_clone = path.clone();
-            tokio::spawn(async move {
-                if let Err(e) = tokio::fs::remove_file(&path_clone).await {
-                    eprintln!("Failed to delete file: {}", e);
+        if !matches!(app.global_mode, crate::tui::app::GlobalMode::Confirmation { .. }) {
+            if let Some(path) = app.pending_deletion.take() {
+                let path_clone = path.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = tokio::fs::remove_file(&path_clone).await {
+                        eprintln!("Failed to delete file: {}", e);
+                    }
+                });
+                // Remove this model's settings override from config
+                let model_key = path.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                app.config.model_overrides.remove(&model_key);
+                if let Err(e) = app.config.save() {
+                    eprintln!("Failed to save config after deletion: {}", e);
                 }
-            });
-            // Remove this model's settings override from config
-            let model_key = path.file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            app.config.model_overrides.remove(&model_key);
-            if let Err(e) = app.config.save() {
-                eprintln!("Failed to save config after deletion: {}", e);
-            }
 
-            // Update UI list immediately
-            app.models.retain(|m| m.path != path);
-            if let Some(idx) = app.selected_model_idx {
-                if idx >= app.models.len() && !app.models.is_empty() {
-                    app.selected_model_idx = Some(app.models.len() - 1);
-                    app.on_model_selection_change();
-                } else if app.models.is_empty() {
-                    app.selected_model_idx = None;
-                    app.on_model_selection_change();
-                } else {
-                    app.on_model_selection_change();
+                // Update UI list immediately
+                app.models.retain(|m| m.path != path);
+                if let Some(idx) = app.selected_model_idx {
+                    if idx >= app.models.len() && !app.models.is_empty() {
+                        app.selected_model_idx = Some(app.models.len() - 1);
+                        app.on_model_selection_change();
+                    } else if app.models.is_empty() {
+                        app.selected_model_idx = None;
+                        app.on_model_selection_change();
+                    } else {
+                        app.on_model_selection_change();
+                    }
                 }
+                app.add_log(format!("Model deleted: {:?}", path.file_name().unwrap_or_default()), crate::config::LogLevel::Info);
+                app.set_redraw();
             }
-            app.add_log(format!("Model deleted: {:?}", path.file_name().unwrap_or_default()), crate::config::LogLevel::Info);
-            app.set_redraw();
         }
 
         // Start pending server spawn
@@ -434,8 +436,9 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
         }
 
         // Handle pending API unload
-        if let Some((model_name, model_path)) = app.pending_api_unload.take()
-            && let Some(handle) = &app.server_handle {
+        if !matches!(app.global_mode, crate::tui::app::GlobalMode::Confirmation { .. }) {
+            if let Some((model_name, model_path)) = app.pending_api_unload.take()
+                && let Some(handle) = &app.server_handle {
                 let host = handle.host.clone();
                 let port = handle.port;
                 let model_name_clone = model_name.clone();
@@ -500,6 +503,7 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                 app.loaded_model_names.lock().unwrap().retain(|n| n != &model_name);
                 app.model_states.insert(model_name, crate::models::ModelState::Available);
             }
+        }
 
         // Start pending server kill
         if let Some(handle) = app.pending_kill.take() {

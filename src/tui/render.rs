@@ -8,7 +8,7 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::config::Profile;
-use crate::tui::app::{App, ActivePanel, GlobalMode, ModelsMode};
+use crate::tui::app::{App, ActivePanel, ConfirmationKind, GlobalMode, ModelsMode};
 use crate::tui::panel;
 
 pub fn render(f: &mut Frame, app: &mut App) {
@@ -42,7 +42,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         return;
     }
 
-    if app.global_mode == GlobalMode::ExitConfirmation {
+    if let GlobalMode::Confirmation { selected, kind } = &app.global_mode {
         let area = f.area();
         let popup_area = Rect {
             x: area.width.saturating_sub(50) / 2,
@@ -51,133 +51,69 @@ pub fn render(f: &mut Frame, app: &mut App) {
             height: 8,
         };
 
-        // Exit confirmation
-        let block = ratatui::widgets::Block::default()
-            .title(" Exit Application? ")
-            .borders(ratatui::widgets::Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow));
-
-        let loaded_count = app.model_states.values().filter(|s| matches!(s, crate::models::ModelState::Loaded { .. })).count();
-        let text = vec![
-            Line::from(""),
-            Line::from(vec![
-                Span::raw("There are "),
-                Span::styled(format!("{}", loaded_count), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                Span::raw(" model(s) loaded."),
-            ]),
-            Line::from("Are you sure you want to exit?"),
-            Line::from(""),
-          Line::from(vec![
-                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
-                Span::raw("    "),
-                Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::Yellow)),
-            ]),
-        ];
-
-        f.render_widget(ratatui::widgets::Clear, popup_area);
-        f.render_widget(Paragraph::new(text).block(block).alignment(ratatui::layout::Alignment::Center), popup_area);
-        return;
-    }
-
-    if app.global_mode == GlobalMode::ResetConfirmation {
-        let area = f.area();
-        let popup_area = Rect {
-            x: area.width.saturating_sub(50) / 2,
-            y: area.height.saturating_sub(8) / 2,
-            width: 50,
-            height: 8,
+        let (title, text_lines) = match kind {
+            ConfirmationKind::Exit => {
+                let loaded_count = app.model_states.values().filter(|s| matches!(s, crate::models::ModelState::Loaded { .. })).count();
+                (" Exit Application? ", vec![
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::raw("There are "),
+                        Span::styled(format!("{}", loaded_count), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                        Span::raw(" model(s) loaded."),
+                    ]),
+                    Line::from("Are you sure you want to exit?"),
+                ])
+            }
+            ConfirmationKind::Reset => {
+                (" Reset Settings? ", vec![
+                    Line::from(""),
+                    Line::from("Reset all LLM settings to defaults?"),
+                ])
+            }
+            ConfirmationKind::Delete => {
+                let model_name = app.selected_model().map(|m| m.name.as_str()).unwrap_or("Unknown");
+                (" Delete Model? ", vec![
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::raw("Are you sure you want to delete "),
+                        Span::styled(model_name, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                        Span::raw("?"),
+                    ]),
+                    Line::from(""),
+                    Line::from("This action cannot be undone."),
+                ])
+            }
+            ConfirmationKind::Unload => {
+                let model_name = match &app.pending_api_unload {
+                    Some((name, _)) => name.as_str(),
+                    None => "Unknown",
+                };
+                (" Unload Model? ", vec![
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::raw("Unload "),
+                        Span::styled(model_name, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                        Span::raw("?"),
+                    ]),
+                ])
+            }
         };
 
-        // Settings reset confirmation
-        let block = ratatui::widgets::Block::default()
-            .title(" Reset Settings? ")
-            .borders(ratatui::widgets::Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow));
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(if *kind == ConfirmationKind::Delete { Color::Red } else { Color::Yellow }));
 
-        let text = vec![
-            Line::from(""),
-            Line::from("Reset all LLM settings to defaults?"),
-            Line::from(""),
-  Line::from(vec![
-                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
-                Span::raw("    "),
-                Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
-            ]),
-        ];
+        let mut lines = text_lines;
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![
+            Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(if *selected { Color::Yellow } else { Color::DarkGray })),
+            Span::raw("    "),
+            Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(if *selected { Color::DarkGray } else { Color::Yellow })),
+        ]));
 
         f.render_widget(ratatui::widgets::Clear, popup_area);
-        f.render_widget(Paragraph::new(text).block(block).alignment(ratatui::layout::Alignment::Center), popup_area);
-        return;
-    }
-
-    if app.global_mode == GlobalMode::DeleteConfirmation {
-        let area = f.area();
-        let popup_area = Rect {
-            x: area.width.saturating_sub(50) / 2,
-            y: area.height.saturating_sub(8) / 2,
-            width: 50,
-            height: 8,
-        };
-
-        let model_name = app.selected_model().map(|m| m.name.as_str()).unwrap_or("Unknown");
-        let block = ratatui::widgets::Block::default()
-            .title(" Delete Model? ")
-            .borders(ratatui::widgets::Borders::ALL)
-            .border_style(Style::default().fg(Color::Red));
-
-        let text = vec![
-            Line::from(""),
-            Line::from(vec![
-                Span::raw("Are you sure you want to delete "),
-                Span::styled(model_name, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                Span::raw("?"),
-            ]),
-            Line::from(""),
-            Line::from("This action cannot be undone."),
-            Line::from(""),
- Line::from(vec![
-                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
-                Span::raw("    "),
-                Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
-            ]),
-        ];
-
-        f.render_widget(ratatui::widgets::Clear, popup_area);
-        f.render_widget(Paragraph::new(text).block(block).alignment(ratatui::layout::Alignment::Center), popup_area);
-        return;
-    }
-
-    if let GlobalMode::UnloadConfirmation { model_name } = &app.global_mode {
-        let area = f.area();
-        let popup_area = Rect {
-            x: area.width.saturating_sub(50) / 2,
-            y: area.height.saturating_sub(8) / 2,
-            width: 50,
-            height: 8,
-        };
-
-        let block = ratatui::widgets::Block::default()
-            .title(" Unload Model? ")
-            .borders(ratatui::widgets::Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow));
-
-        let text = vec![
-            Line::from(""),
-            Line::from(vec![
-                Span::raw("Unload "),
-                Span::styled(model_name, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                Span::raw("?"),
-            ]),
-            Line::from(""),
- Line::from(vec![
-                Span::styled("  [y] Yes  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
-                Span::raw("    "),
-                Span::styled("  [n] No   ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
-            ]),
-        ];
-
-        f.render_widget(ratatui::widgets::Clear, popup_area);
-        f.render_widget(Paragraph::new(text).block(block).alignment(ratatui::layout::Alignment::Center), popup_area);
+        f.render_widget(Paragraph::new(lines).block(block).alignment(ratatui::layout::Alignment::Center), popup_area);
         return;
     }
 
@@ -552,94 +488,203 @@ pub fn render(f: &mut Frame, app: &mut App) {
     }
 }
 
-fn render_hints(app: &App) -> Line<'static> {
+fn render_hints(app: &App) -> Vec<Span<'static>> {
+    let y = Style::default().fg(Color::Yellow);
+    let c = Style::default().fg(Color::Cyan);
+    let r = Style::default().fg(Color::Red);
+
     match &app.models_mode {
         crate::tui::app::ModelsMode::Search { sort_by, show_readme, loading, .. } => {
-            let mut s = String::new();
-            s.push_str("⎋ exit  l files  S sort  B back");
+            let mut parts = Vec::new();
+            parts.push(Span::styled("⎋ exit", c));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("l files", y));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("S sort", y));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("B back", y));
             if *show_readme {
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("R README", y));
                 if app.readme_expanded {
-                    s.push_str("  ⎋ collapse");
-                } else {
-                    s.push_str("  R README");
+                    parts.push(Span::raw("  "));
+                    parts.push(Span::styled("⎋ collapse", c));
                 }
-            } else {
-                s.push_str("  R README");
             }
-            s.push_str(&format!("  sort:{}", sort_by.label()));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("sort:", c));
+            parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
             if *loading {
-                s.push_str("  [loading]");
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("[loading]", Style::default().fg(Color::Yellow)));
             }
-            Line::from(s)
+            parts
         }
         crate::tui::app::ModelsMode::Files { .. } => {
-            let s = if app.readme_expanded {
-                "↵ download  ⎋ back  ⎋ collapse"
+            let mut parts = Vec::new();
+            parts.push(Span::styled("↵ download", y));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("⎋ back", c));
+            if app.readme_expanded {
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("⎋ collapse", c));
             } else {
-                "↵ download  ⎋ back  R fullscreen"
-            };
-            Line::from(s)
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("R fullscreen", y));
+            }
+            parts
         }
-       crate::tui::app::ModelsMode::List => {
+        crate::tui::app::ModelsMode::List => {
             if app.active_panel == crate::tui::app::ActivePanel::LlmSettings {
-                let mut s = "j/k nav  ⌃S save  ⌃R reset  ⌃E toggle".to_string();
+                let mut parts = Vec::new();
+                parts.push(Span::styled("j/k nav", c));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("⌃S save", y));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("⌃R reset", y));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("⌃E toggle", y));
                 if app.is_settings_dirty() {
-                    s.push_str("  *unsaved*");
+                    parts.push(Span::raw("  "));
+                    parts.push(Span::styled("*unsaved*", r));
                 }
-                s.push_str("  p profiles  ⇥ panels");
-                Line::from(s)
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("p profiles", y));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("⇥ panels", c));
+                parts
             } else {
-                let s = match app.active_panel {
-                    crate::tui::app::ActivePanel::Models => "⇥ panels  / search  l/u un/load  ⌃H help",
+                let parts = match app.active_panel {
+                    crate::tui::app::ActivePanel::Models => {
+                        vec![
+                            Span::styled("⇥ panels", c),
+                            Span::raw("  "),
+                            Span::styled("/ search", y),
+                            Span::raw("  "),
+                            Span::styled("l/u un/load", y),
+                            Span::raw("  "),
+                            Span::styled("⌃H help", c),
+                        ]
+                    }
                     crate::tui::app::ActivePanel::Log => {
                         if app.log_expanded {
-                            "j/k scroll  ⎋ collapse  g/G top/bottom"
+                            vec![
+                                Span::styled("j/k scroll", c),
+                                Span::raw("  "),
+                                Span::styled("⎋ collapse", c),
+                                Span::raw("  "),
+                                Span::styled("g/G top/bottom", c),
+                            ]
                         } else {
-                            "⎋ collapse  g/G top/bottom  ⇥ panels"
+                            vec![
+                                Span::styled("⎋ collapse", c),
+                                Span::raw("  "),
+                                Span::styled("g/G top/bottom", c),
+                                Span::raw("  "),
+                                Span::styled("⇥ panels", c),
+                            ]
                         }
                     }
-                    crate::tui::app::ActivePanel::Downloads => "j/k nav  c cancel  ⇥ panels",
-                    crate::tui::app::ActivePanel::ServerSettings => "j/k nav  ↵ toggle  ⇥ panels",
-                    crate::tui::app::ActivePanel::Profiles => "j/k nav  ↵ apply  s save  ⎋ done  ⇥ panels",
-                    crate::tui::app::ActivePanel::SystemPromptPresets => "j/k nav  ↵ apply  e edit  n new  ⎋ done  ⇥ panels",
-                    crate::tui::app::ActivePanel::SearchReadme => "j/k nav  ⎋ collapse  ⇥ panels",
-                    _ => "⇥ panels  / search  ⌃H help",
+                    crate::tui::app::ActivePanel::Downloads => {
+                        vec![
+                            Span::styled("j/k nav", c),
+                            Span::raw("  "),
+                            Span::styled("c cancel", c),
+                            Span::raw("  "),
+                            Span::styled("⇥ panels", c),
+                        ]
+                    }
+                    crate::tui::app::ActivePanel::ServerSettings => {
+                        vec![
+                            Span::styled("j/k nav", c),
+                            Span::raw("  "),
+                            Span::styled("↵ toggle", y),
+                            Span::raw("  "),
+                            Span::styled("⇥ panels", c),
+                        ]
+                    }
+                    crate::tui::app::ActivePanel::Profiles => {
+                        vec![
+                            Span::styled("j/k nav", c),
+                            Span::raw("  "),
+                            Span::styled("↵ apply", y),
+                            Span::raw("  "),
+                            Span::styled("s save", c),
+                            Span::raw("  "),
+                            Span::styled("⎋ done", c),
+                            Span::raw("  "),
+                            Span::styled("⇥ panels", c),
+                        ]
+                    }
+                    crate::tui::app::ActivePanel::SystemPromptPresets => {
+                        vec![
+                            Span::styled("j/k nav", c),
+                            Span::raw("  "),
+                            Span::styled("↵ apply", y),
+                            Span::raw("  "),
+                            Span::styled("e edit", c),
+                            Span::raw("  "),
+                            Span::styled("n new", c),
+                            Span::raw("  "),
+                            Span::styled("⎋ done", c),
+                            Span::raw("  "),
+                            Span::styled("⇥ panels", c),
+                        ]
+                    }
+                    crate::tui::app::ActivePanel::SearchReadme => {
+                        vec![
+                            Span::styled("j/k nav", c),
+                            Span::raw("  "),
+                            Span::styled("⎋ collapse", c),
+                            Span::raw("  "),
+                            Span::styled("⇥ panels", c),
+                        ]
+                    }
+                    _ => {
+                        vec![
+                            Span::styled("⇥ panels", c),
+                            Span::raw("  "),
+                            Span::styled("/ search", y),
+                            Span::raw("  "),
+                            Span::styled("⌃H help", c),
+                        ]
+                    }
                 };
-                Line::from(s.to_string())
+                parts
             }
         }
     }
 }
 
 fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
-    let mut left_parts = Vec::new();
+    let mut parts = Vec::new();
 
     if let Some(handle) = &app.server_handle {
-        left_parts.push(Span::styled(format!("● {} {}", handle.port, app.server_mode), Style::default().fg(Color::Green)));
+        parts.push(Span::styled(format!("● {} {}", handle.port, app.server_mode), Style::default().fg(Color::Green)));
     } else {
-        left_parts.push(Span::styled("○ Server", Style::default().fg(Color::DarkGray)));
+        parts.push(Span::styled("○ Server", Style::default().fg(Color::DarkGray)));
     }
 
     if matches!(app.global_mode, GlobalMode::HostPicker { .. }) {
-        left_parts.push(Span::raw("  "));
-        left_parts.push(Span::styled("[HOST PICKER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+        parts.push(Span::raw("  "));
+        parts.push(Span::styled("[HOST PICKER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
     }
 
     match &app.models_mode {
         crate::tui::app::ModelsMode::Search { query: _, sort_by, .. } => {
-            left_parts.push(Span::raw("  "));
-            left_parts.push(Span::styled("SEARCH", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
-            left_parts.push(Span::raw(" "));
-            left_parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("SEARCH", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            parts.push(Span::raw(" "));
+            parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
         }
         crate::tui::app::ModelsMode::Files { model_id, .. } => {
-            left_parts.push(Span::raw("  "));
-            left_parts.push(Span::styled("FILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
-            left_parts.push(Span::raw(" "));
-            left_parts.push(Span::styled(model_id, Style::default().fg(Color::Cyan)));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("FILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            parts.push(Span::raw(" "));
+            parts.push(Span::styled(model_id, Style::default().fg(Color::Cyan)));
         }
         crate::tui::app::ModelsMode::List => {
-            left_parts.push(Span::raw("  "));
+            parts.push(Span::raw("  "));
             let panel_label = match app.active_panel {
                 crate::tui::app::ActivePanel::Models => "MODELS",
                 crate::tui::app::ActivePanel::Log => "LOG",
@@ -651,26 +696,25 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                 crate::tui::app::ActivePanel::SearchReadme => "README",
                 _ => "APP",
             };
-            left_parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
         }
     }
 
-    if left_parts.is_empty() {
+    if parts.is_empty() {
         return Line::from("");
     }
 
-    let left_width: usize = left_parts.iter().map(|s| s.width()).sum();
+    let left_width: usize = parts.iter().map(|s| s.width()).sum();
     let remaining = panel_area.width.saturating_sub(left_width as u16) as usize;
 
     let hints = render_hints(app);
-    let hints_width = hints.width();
+    let hints_width: usize = hints.iter().map(|s| s.width()).sum();
     let padding = remaining.saturating_sub(hints_width).max(0);
 
-    let mut parts = left_parts;
     if padding > 0 {
         parts.push(Span::raw(" ".repeat(padding)));
     }
-    parts.extend(hints.spans);
+    parts.extend(hints);
 
     Line::from(parts)
 }

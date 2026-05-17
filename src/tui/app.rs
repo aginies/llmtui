@@ -75,16 +75,20 @@ pub enum ModelsMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GlobalMode {
     Normal,
-    DeleteConfirmation,
-    ResetConfirmation,
-    ExitConfirmation,
-    UnloadConfirmation { model_name: String },
     CmdLine { cmd_line: String },
     HostPicker {
         entries: Vec<(String, String)>, // (ip, interface_name)
         selected: usize,
     },
-    Confirmation { selected: bool }, // true = Yes selected
+    Confirmation { selected: bool, kind: ConfirmationKind },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfirmationKind {
+    Exit,
+    Reset,
+    Delete,
+    Unload,
 }
 
 /// Phase of model loading.
