@@ -170,14 +170,19 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         ModelsMode::Search { query, results, sort_by, loading, has_more, .. } => {
             let sort_label = sort_by.label();
             let title = if app.is_panel_visible(0) {
-                format!(" Search (F1): {} [{}]", query, sort_label)
+                format!(" Search (F1): {} [{}] ({} results)", query, sort_label, results.len())
             } else {
-                format!(" Search: {} [{}]", query, sort_label)
+                format!(" Search: {} [{}] ({} results)", query, sort_label, results.len())
+            };
+            let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
+                Color::Green
+            } else {
+                Color::Magenta
             };
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Magenta));
+                .border_style(Style::default().fg(border_color));
 
             let headers = vec![
                 Cell::from("Model").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
@@ -188,61 +193,69 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             let mut rows: Vec<Row> = results
                 .iter()
-                .enumerate()
-                .map(|(i, result)| {
-                    let is_selected = Some(i) == app.search_results_idx;
-
-                    let row_style = if is_selected {
-                        Style::default().bg(Color::Green).add_modifier(Modifier::REVERSED)
-                    } else {
-                        Style::default()
-                    };
-
+                .map(|result| {
                     let license = result.license.as_deref().unwrap_or("—");
 
                     Row::new(vec![
-                        Cell::from(result.model_id.as_str()),
+                        Cell::from(result.model_id.clone()),
                         Cell::from(format_number(result.downloads)),
                         Cell::from(format_number(result.likes)),
-                        Cell::from(license),
-                    ]).style(row_style)
+                        Cell::from(license.to_string()),
+                    ])
                 })
                 .collect();
 
-            // Add loading indicator row
+            // Add informational rows
             if *loading {
                 rows.push(Row::new(vec![
+                    Cell::from("Loading more results...").style(Style::default().fg(Color::Yellow)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
-                    Cell::from("  Loading more results...").style(Style::default().fg(Color::Yellow)),
                 ]));
-            } else if !has_more && !results.is_empty() {
+            } else if results.is_empty() {
                 rows.push(Row::new(vec![
+                    Cell::from("No results found for this query.").style(Style::default().fg(Color::Red)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
-                    Cell::from("  No more results").style(Style::default().fg(Color::DarkGray)),
+                ]));
+            } else if !has_more {
+                rows.push(Row::new(vec![
+                    Cell::from("No more results").style(Style::default().fg(Color::DarkGray)),
+                    Cell::from(""),
+                    Cell::from(""),
+                    Cell::from(""),
                 ]));
             }
 
             let widths = [
-                Constraint::Fill(1),
-                Constraint::Length(8),
-                Constraint::Length(5),
-                Constraint::Length(11),
+                Constraint::Percentage(60),
+                Constraint::Percentage(15),
+                Constraint::Percentage(10),
+                Constraint::Percentage(15),
             ];
 
-            let table = Table::new(rows, widths).header(Row::new(headers)).block(block);
+            let table = Table::new(rows, widths)
+                .header(Row::new(headers))
+                .block(block)
+                .row_highlight_style(Style::default().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD))
+                .highlight_symbol("> ");
+
             app.search_table_state.select(app.search_results_idx);
             return f.render_stateful_widget(table, area, &mut app.search_table_state);
         }
         ModelsMode::Files { model_id, files, selected_idx, selected_result: _, .. } => {
             let title = format!(" {} - GGUF files ", model_id);
+            let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
+                Color::Green
+            } else {
+                Color::Magenta
+            };
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Magenta));
+                .border_style(Style::default().fg(border_color));
 
             let inner_area = block.inner(area);
             f.render_widget(block, area);
@@ -250,21 +263,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             // Render Files Table
             let rows: Vec<Row> = files
                 .iter()
-                .enumerate()
-                .map(|(i, (filename, size, _url))| {
-                    let is_selected = Some(i) == *selected_idx;
+                .map(|(filename, size, _url)| {
                     let name = filename.rsplit('/').next().unwrap_or(filename);
-
-                    let row_style = if is_selected {
-                        Style::default().bg(Color::Green).add_modifier(Modifier::REVERSED)
-                    } else {
-                        Style::default()
-                    };
-
                     Row::new(vec![
-                        Cell::from(name),
+                        Cell::from(name.to_string()),
                         Cell::from(format_size(*size)),
-                    ]).style(row_style)
+                    ])
                 })
                 .collect();
 
@@ -274,11 +278,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             ];
 
             let widths = [
-                Constraint::Fill(1),
-                Constraint::Length(12),
+                Constraint::Percentage(80),
+                Constraint::Percentage(20),
             ];
 
-            let table = Table::new(rows, widths).header(Row::new(headers));
+            let table = Table::new(rows, widths)
+                .header(Row::new(headers))
+                .row_highlight_style(Style::default().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD))
+                .highlight_symbol("> ");
+
             app.files_table_state.select(*selected_idx);
 
             f.render_stateful_widget(table, inner_area, &mut app.files_table_state);

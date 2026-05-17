@@ -176,16 +176,6 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 ratatui::layout::Constraint::Fill(1),    // log (full remaining)
             ])
             .split(f.area())
-    } else if app.readme_expanded {
-        // Expanded: just status bar and README panel
-        ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .margin(0)
-            .constraints([
-                ratatui::layout::Constraint::Length(1),  // status bar
-                ratatui::layout::Constraint::Fill(1),    // README (full remaining)
-            ])
-            .split(f.area())
     } else {
         let active_model_constraint = if active_model_visible {
             ratatui::layout::Constraint::Length(6)
@@ -193,13 +183,20 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ratatui::layout::Constraint::Length(0)
         };
 
-        let log_constraint = if !log_visible {
-            ratatui::layout::Constraint::Length(0)
-        } else if !active_model_visible {
-            // Active model is hidden, so Log can expand to Fill(1) to share space with top panels
+        let bottom_constraint = if log_visible && !active_model_visible {
+            // Log is visible and active model is hidden - let it expand
             ratatui::layout::Constraint::Fill(1)
         } else {
-            ratatui::layout::Constraint::Min(5)
+            // Calculate base height for bottom area
+            let mut h = 0;
+            if log_visible { h += 5; }
+            if app.downloading { h += 7; }
+            
+            if h > 0 {
+                ratatui::layout::Constraint::Min(h)
+            } else {
+                ratatui::layout::Constraint::Length(0)
+            }
         };
 
         ratatui::layout::Layout::default()
@@ -209,7 +206,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 ratatui::layout::Constraint::Length(1),   // status bar
                 ratatui::layout::Constraint::Fill(1),     // top panels
                 active_model_constraint,
-                log_constraint,
+                bottom_constraint,
             ])
             .split(f.area())
     };
@@ -221,40 +218,23 @@ pub fn render(f: &mut Frame, app: &mut App) {
     if app.log_expanded {
         let log_area = chunks[1];
         if !app.download_progress.is_empty() {
-            let chunks = ratatui::layout::Layout::default()
+            let log_chunks = ratatui::layout::Layout::default()
                 .direction(ratatui::layout::Direction::Vertical)
                 .constraints([
                     ratatui::layout::Constraint::Fill(1),    // log
                     ratatui::layout::Constraint::Length(7),  // downloads
                 ])
                 .split(log_area);
-            panel::log::render(f, chunks[0], app);
+            panel::log::render(f, log_chunks[0], app);
             let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
-            panel::models::render_download_panel(f, chunks[1], &app.download_progress, total_speed, &mut app.download_scroll_state, app.active_panel == ActivePanel::Downloads);
+            panel::models::render_download_panel(f, log_chunks[1], &app.download_progress, total_speed, &mut app.download_scroll_state, app.active_panel == ActivePanel::Downloads);
         } else {
             panel::log::render(f, log_area, app);
         }
         return;
     }
 
-    if app.readme_expanded {
-        let readme_area = chunks[1];
-        if !app.download_progress.is_empty() {
-            let chunks = ratatui::layout::Layout::default()
-                .direction(ratatui::layout::Direction::Vertical)
-                .constraints([
-                    ratatui::layout::Constraint::Fill(1),    // readme
-                    ratatui::layout::Constraint::Length(7),  // downloads
-                ])
-                .split(readme_area);
-            panel::readme::render(f, chunks[0], app);
-            let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
-            panel::models::render_download_panel(f, chunks[1], &app.download_progress, total_speed, &mut app.download_scroll_state, app.active_panel == ActivePanel::Downloads);
-        } else {
-            panel::readme::render(f, readme_area, app);
-        }
-        return;
-    }
+
 
     let top_chunks = if !app.is_panel_visible(1) && !app.is_panel_visible(3) && !matches!(app.active_panel, ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme) {
         // Both settings panels hidden — expand left side to full width
@@ -460,31 +440,38 @@ pub fn render(f: &mut Frame, app: &mut App) {
         panel::active::render(f, chunks[2], app);
     }
 
-    // Log & Download (download panel below log, full width)
-    if app.is_panel_visible(5) {
-        let log_chunk = chunks[3];
-        if app.downloading {
-            let bottom_chunks = ratatui::layout::Layout::default()
-                .direction(ratatui::layout::Direction::Vertical)
-                .constraints([
-                    ratatui::layout::Constraint::Fill(1),    // log
-                    ratatui::layout::Constraint::Length(7),  // downloads
-                ])
-                .split(log_chunk);
-            
-            panel::log::render(f, bottom_chunks[0], app);
-            
-            let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
-            panel::models::render_download_panel(
-                f, bottom_chunks[1],
-                &app.download_progress,
-                total_speed,
-                &mut app.download_scroll_state,
-                app.active_panel == ActivePanel::Downloads,
-            );
-        } else {
-            panel::log::render(f, log_chunk, app);
-        }
+    // Bottom area: Log and/or Download
+    let bottom_area = chunks[3];
+    if log_visible && app.downloading {
+        let bottom_chunks = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                ratatui::layout::Constraint::Fill(1),    // log
+                ratatui::layout::Constraint::Length(7),  // downloads
+            ])
+            .split(bottom_area);
+        
+        panel::log::render(f, bottom_chunks[0], app);
+        
+        let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
+        panel::models::render_download_panel(
+            f, bottom_chunks[1],
+            &app.download_progress,
+            total_speed,
+            &mut app.download_scroll_state,
+            app.active_panel == ActivePanel::Downloads,
+        );
+    } else if log_visible {
+        panel::log::render(f, bottom_area, app);
+    } else if app.downloading {
+        let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
+        panel::models::render_download_panel(
+            f, bottom_area,
+            &app.download_progress,
+            total_speed,
+            &mut app.download_scroll_state,
+            app.active_panel == ActivePanel::Downloads,
+        );
     }
 }
 
@@ -498,7 +485,9 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
             let mut parts = Vec::new();
             parts.push(Span::styled("⎋ exit", c));
             parts.push(Span::raw("  "));
-            parts.push(Span::styled("l files", y));
+            parts.push(Span::styled("↵ search", y));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("L files", y));
             parts.push(Span::raw("  "));
             parts.push(Span::styled("S sort", y));
             parts.push(Span::raw("  "));
@@ -506,10 +495,6 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
             if *show_readme {
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled("R README", y));
-                if app.readme_expanded {
-                    parts.push(Span::raw("  "));
-                    parts.push(Span::styled("⎋ collapse", c));
-                }
             }
             parts.push(Span::raw("  "));
             parts.push(Span::styled("sort:", c));
@@ -525,13 +510,6 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
             parts.push(Span::styled("↵ download", y));
             parts.push(Span::raw("  "));
             parts.push(Span::styled("⎋ back", c));
-            if app.readme_expanded {
-                parts.push(Span::raw("  "));
-                parts.push(Span::styled("⎋ collapse", c));
-            } else {
-                parts.push(Span::raw("  "));
-                parts.push(Span::styled("R fullscreen", y));
-            }
             parts
         }
         crate::tui::app::ModelsMode::List => {
@@ -658,6 +636,13 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
 
 fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     let mut parts = Vec::new();
+
+    let mode_name = match &app.models_mode {
+        ModelsMode::List => "List".to_string(),
+        ModelsMode::Search { results, .. } => format!("Search({} results)", results.len()),
+        ModelsMode::Files { files, .. } => format!("Files({} files)", files.len()),
+    };
+    parts.push(Span::styled(format!("[Mode: {}] ", mode_name), Style::default().fg(Color::DarkGray)));
 
     if let Some(handle) = &app.server_handle {
         parts.push(Span::styled(format!("● {} {}", handle.port, app.server_mode), Style::default().fg(Color::Green)));

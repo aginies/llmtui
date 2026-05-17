@@ -48,6 +48,13 @@ pub struct Config {
     /// System prompt presets.
     #[serde(default)]
     pub system_prompt_presets: Vec<SystemPromptPreset>,
+    /// Number of results per HuggingFace search query.
+    #[serde(default = "default_search_limit")]
+    pub search_limit: u32,
+}
+
+fn default_search_limit() -> u32 {
+    50
 }
 
 /// A named profile of settings.
@@ -680,6 +687,7 @@ impl Default for Config {
             model_overrides: Default::default(),
             profiles: builtin_profiles(),
             system_prompt_presets: builtin_system_prompt_presets(),
+            search_limit: 5,
         }
     }
 }

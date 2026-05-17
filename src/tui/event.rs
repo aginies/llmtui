@@ -1,5 +1,6 @@
 use crossterm::event::{KeyCode, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::{Position, Rect};
+use ratatui::widgets::TableState;
 use tracing::debug;
 
 use crate::backend::hub;
@@ -301,6 +302,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 has_more: true,
             };
             app.search_results_idx = Some(0);
+            app.log_expanded = false;
+            // Hide Active Model (4) and Log (5) panels by default in search mode
+            app.panel_visibility &= !(1 << 4);
+            app.panel_visibility &= !(1 << 5);
             return;
         }
         KeyCode::Char('p') => {
@@ -329,10 +334,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
             KeyCode::Enter => {
-                // If README is expanded, let it handle Enter
-                if app.readme_expanded {
-                    return;
-                }
                 let query = if let ModelsMode::Search { query, page, has_more, .. } = &mut app.models_mode {
                     *page = 0;
                     *has_more = true;
@@ -348,6 +349,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.add_log(format!("Searching for '{}'...", query), crate::config::LogLevel::Info);
                 app.pending_search_load = Some((query, 0));
                 app.search_loading = true;
+                app.search_table_state = TableState::default();
                 app.set_redraw();
                 return;
             }
@@ -358,7 +360,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
                 return;
             }
-            KeyCode::Char('l') => {
+            KeyCode::Char('L') => {
                 let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
                     app.search_results_idx.and_then(|idx| results.get(idx).map(|r| r.model_id.clone()))
                 } else {
@@ -373,6 +375,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             // Now clone only when we know the operation succeeded
                             if let ModelsMode::Search { query, results, .. } = &app.models_mode {
                                 let selected_result = app.search_results_idx.and_then(|idx| results.get(idx).cloned());
+                                app.files_table_state = TableState::default();
                                 app.models_mode = crate::tui::app::ModelsMode::Files {
                                     model_id,
                                     files,
@@ -405,6 +408,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
                         SearchSort::Relevance => a.downloads.cmp(&b.downloads),
                     });
+                    if !results.is_empty() {
+                        app.search_results_idx = Some(0);
+                    } else {
+                        app.search_results_idx = None;
+                    }
                 }
                 app.set_redraw();
                 return;
@@ -461,15 +469,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
             KeyCode::Char('R') => {
-                // When README is shown, expand to fullscreen.
                 // When not shown, fetch and display it.
-                let model_id = if let ModelsMode::Search { results, show_readme, .. } = &app.models_mode {
-                    if *show_readme {
-                        // README is shown — expand to fullscreen
-                        app.readme_expanded = true;
-                        app.set_redraw();
-                        return;
-                    }
+                let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
                     app.search_results_idx.and_then(|idx| results.get(idx).map(|r| r.model_id.clone()))
                 } else {
                     None
@@ -492,6 +493,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
                         Ok(Err(e)) => {
                             app.add_log(format!("Failed to fetch README: {}", e), crate::config::LogLevel::Error);
+                            if let ModelsMode::Search { results, .. } = &mut app.models_mode
+                                && let Some(idx) = app.search_results_idx
+                                    && let Some(r) = results.get_mut(idx) {
+                                        r.readme = Some(String::new());
+                                    }
                         }
                         Err(e) => {
                             app.add_log(format!("Task failed: {}", e), crate::config::LogLevel::Error);
@@ -499,6 +505,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                     if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
                         *show_readme = true;
+                        app.active_panel = ActivePanel::SearchReadme;
                     }
                 }
                 return;
@@ -754,12 +761,14 @@ async fn fetch_readme_for_selected(app: &mut App, model_id: String) {
 
 fn handle_readme_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
-        KeyCode::Enter if !app.readme_expanded => {
-            app.readme_expanded = true;
-            app.set_redraw();
-        }
-        KeyCode::Esc if app.readme_expanded => {
-            app.readme_expanded = false;
+        KeyCode::Esc => {
+            if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
+                *show_readme = false;
+                app.active_panel = ActivePanel::Models;
+            }
+            if let ModelsMode::Files { .. } = &app.models_mode {
+                app.active_panel = ActivePanel::Models;
+            }
             app.set_redraw();
         }
         KeyCode::Up | KeyCode::Char('k') => {
@@ -768,14 +777,6 @@ fn handle_readme_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.readme_scroll_offset = app.readme_scroll_offset.saturating_add(1);
-            app.set_redraw();
-        }
-        KeyCode::Char('h') => {
-            app.readme_scroll_offset_x = app.readme_scroll_offset_x.saturating_sub(1);
-            app.set_redraw();
-        }
-        KeyCode::Char('l') => {
-            app.readme_scroll_offset_x = app.readme_scroll_offset_x.saturating_add(1);
             app.set_redraw();
         }
         _ => {}
@@ -1698,34 +1699,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         return;
     }
 
-    if app.readme_expanded {
-        let chunks = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([
-                ratatui::layout::Constraint::Length(1), // status bar
-                ratatui::layout::Constraint::Fill(1),   // README
-            ])
-            .split(area);
 
-        if chunks[1].contains(pos) {
-            match mouse.kind {
-                MouseEventKind::Down(MouseButton::Left) => {
-                    app.active_panel = ActivePanel::SearchReadme;
-                    app.set_redraw();
-                }
-                MouseEventKind::ScrollUp => {
-                    app.readme_scroll_offset = app.readme_scroll_offset.saturating_sub(1);
-                    app.set_redraw();
-                }
-                MouseEventKind::ScrollDown => {
-                    app.readme_scroll_offset = app.readme_scroll_offset.saturating_add(1);
-                    app.set_redraw();
-                }
-                _ => {}
-            }
-        }
-        return;
-    }
 
     // Default layout
     let chunks = ratatui::layout::Layout::default()

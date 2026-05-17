@@ -8,26 +8,26 @@ use tokio::io::AsyncWriteExt;
 /// `offset` is the number of results to skip (for pagination).
 pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<crate::models::SearchResult>, usize, Vec<String>)> {
     let url = format!(
-        "https://huggingface.co/api/models?search={}&limit={}&offset={}&filter=gguf",
+        "https://huggingface.co/api/models?search={}&limit={}&offset={}&filter=gguf&expand=config&expand=gguf&expand=downloads&expand=likes&expand=tags&expand=pipeline_tag&expand=trendingScore&expand=createdAt",
         urlencoding::encode(query),
         limit,
         offset
     );
+    // println!("Search URL: {}", url);
 
     let resp = reqwest::get(&url).await?.error_for_status()?;
     let models: Vec<serde_json::Value> = resp.json().await?;
 
-    let query_lower = query.to_lowercase();
-    let raw_ids: Vec<String> = models.iter().filter_map(|m| m.get("modelId").and_then(|v| v.as_str())).map(|s| s.to_string()).collect();
-    let mut results: Vec<crate::models::SearchResult> = models
+    let query_trimmed = query.trim().to_lowercase();
+    let raw_ids: Vec<String> = models.iter().filter_map(|m| m.get("id").and_then(|v| v.as_str())).map(|s| s.to_string()).collect();
+    let results: Vec<crate::models::SearchResult> = models
         .into_iter()
         .filter_map(|m| {
-            let model_id = m.get("modelId")?.as_str()?.to_string();
+            let model_id = m.get("id")?.as_str()?.to_string();
             // Post-filter: only keep results where the model_id contains the search query.
             // The HF API does full-text search across descriptions/tags, so unrelated
-            // models can appear (e.g. "qwen2.5" returning a gemma model that mentions
-            // qwen2.5 in its description).
-            if !model_id.to_lowercase().contains(&query_lower) {
+            // models can appear. We trim and check case-insensitive.
+            if !query_trimmed.is_empty() && !model_id.to_lowercase().contains(&query_trimmed) {
                 return None;
             }
             let model_name = model_id.clone();
@@ -42,8 +42,8 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
                 })
                 .unwrap_or_default();
 
-            let downloads = m.get("downloads")?.as_u64().unwrap_or(0);
-            let likes = m.get("likes")?.as_u64().unwrap_or(0);
+            let downloads = m.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0);
+            let likes = m.get("likes").and_then(|v| v.as_u64()).unwrap_or(0);
             let pipeline_tag = m.get("pipeline_tag").and_then(|v| v.as_str()).map(|s| s.to_string());
             let trending_score = m.get("trendingScore").and_then(|v| v.as_i64()).unwrap_or(0);
             let created_at = m.get("createdAt").and_then(|v| v.as_str()).map(|s| s.to_string());
@@ -60,6 +60,28 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
                 .and_then(|t| t.strip_prefix("license:"))
                 .map(|s| s.to_string());
 
+            let gguf = m.get("gguf");
+            let parameters = gguf
+                .and_then(|g| g.get("architecture"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let capabilities: Vec<String> = gguf
+                .and_then(|g| g.get("architecture"))
+                .and_then(|v| v.as_str())
+                .map(|s| vec![s.to_string()])
+                .unwrap_or_default();
+            let size = gguf
+                .and_then(|g| g.get("total"))
+                .and_then(|v| v.as_u64())
+                .or_else(|| {
+                    gguf.and_then(|g| g.get("totalFileSize"))
+                        .and_then(|v| v.as_u64())
+                });
+            let context_length = gguf
+                .and_then(|g| g.get("context_length"))
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32);
+
             Some(crate::models::SearchResult {
                 model_id: model_id.clone(),
                 model_name,
@@ -67,9 +89,10 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
                 downloads,
                 likes,
                 pipeline_tag,
-                size: None, // filled in below
-                parameters: None,
-                capabilities: vec![],
+                size,
+                parameters,
+                capabilities,
+                context_length,
                 readme: None,
                 quantization,
                 license,
@@ -78,80 +101,6 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
             })
         })
         .collect();
-
-    // Enrich with parameters, capabilities, and GGUF size from model detail API
-    // Use semaphore to limit concurrent requests to 8 at a time
-    let model_ids: Vec<String> = results.iter().map(|r| r.model_id.clone()).collect();
-    let client = reqwest::Client::new();
-    let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(8));
-    let mut handles = Vec::new();
-
-    for model_id in &model_ids {
-        let client = client.clone();
-        let model_id = model_id.clone();
-        let permit = semaphore.clone();
-
-        handles.push(tokio::spawn(async move {
-            let _permit = permit.acquire().await.ok()?;
-            let url = format!("https://huggingface.co/api/models/{}", model_id);
-            match client.get(&url).send().await {
-                Ok(resp) => {
-                    if let Ok(m) = resp.json::<serde_json::Value>().await {
-                        let config = m.get("config");
-
-                        // Parameters from config.n_params
-                        let parameters = config
-                            .and_then(|c| c.get("n_params"))
-                            .and_then(|v| {
-                                if v.is_number() {
-                                    Some(v.to_string())
-                                } else {
-                                    v.as_str().map(|s| s.to_string())
-                                }
-                            });
-
-                        // Capabilities: prefer config.model_type, fall back to gguf.architecture
-                        let capabilities: Vec<String> = config
-                            .and_then(|c| c.get("model_type"))
-                            .and_then(|v| v.as_str())
-                            .map(|s| vec![s.to_string()])
-                            .or_else(|| {
-                                m.get("gguf")
-                                    .and_then(|g| g.get("architecture"))
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| vec![s.to_string()])
-                            })
-                            .unwrap_or_default();
-
-                        // Size from gguf.total or gguf.totalFileSize
-                        let size = m.get("gguf")
-                            .and_then(|g| g.get("total"))
-                            .and_then(|v| v.as_u64())
-                            .or_else(|| {
-                                m.get("gguf")
-                                    .and_then(|g| g.get("totalFileSize"))
-                                    .and_then(|v| v.as_u64())
-                            });
-
-                        Some((model_id, parameters, capabilities, size))
-                    } else {
-                        None
-                    }
-                }
-                Err(_) => None,
-            }
-        }));
-    }
-    for handle in handles {
-        if let Ok(Some((model_id, parameters, capabilities, size))) = handle.await
-            && let Some(result) = results.iter_mut().find(|r| r.model_id == model_id) {
-                result.parameters = parameters;
-                result.capabilities = capabilities;
-                if let Some(s) = size {
-                    result.size = Some(s);
-                }
-            }
-    }
 
     Ok((results, 1, raw_ids))
 }

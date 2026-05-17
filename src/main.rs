@@ -767,8 +767,9 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                 let is_append = offset > 0;
                 let query_clone = query.clone();
                 let offset_clone = offset;
+                app.add_log(format!("Searching with limit={} offset={}...", app.config.search_limit, offset_clone), crate::config::LogLevel::Info);
                 let search_handle = tokio::spawn(async move {
-                    hub::search_models(&query_clone, 50, offset_clone).await
+                    hub::search_models(&query_clone, app.config.search_limit, offset_clone).await
                 });
 
                 match search_handle.await {
@@ -778,14 +779,13 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                         buf.push_str(&format!("\n  RAW API returned: {}", raw_ids.join(", ")));
                         for r in &res {
                             let gguf_tags: Vec<String> = r.tags.iter().filter(|t| t.starts_with("gguf:")).cloned().collect();
-                            buf.push_str(&format!("\n  {} quant={} tags={} params={} cap={}", r.model_id, r.quantization.as_deref().unwrap_or("-"), gguf_tags.join(","), r.parameters.as_deref().unwrap_or("none"), r.capabilities.join(",")));
+                            buf.push_str(&format!("\n  {} quant={} tags={} params={} cap={} ctx={}", r.model_id, r.quantization.as_deref().unwrap_or("-"), gguf_tags.join(","), r.parameters.as_deref().unwrap_or("none"), r.capabilities.join(","), r.context_length.unwrap_or(0)));
                         }
                         let raw_len = raw_ids.len();
                         if is_append {
                             if let ModelsMode::Search { results, has_more, loading, .. } = &mut app.models_mode {
                                 results.extend(res);
-                                app.search_results_idx = Some(results.len().saturating_sub(1));
-                                if raw_len < 50 {
+                                if raw_len < app.config.search_limit as usize {
                                     *has_more = false;
                                 }
                                 *loading = false;
@@ -793,8 +793,12 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                         } else {
                             if let ModelsMode::Search { results, loading, has_more, .. } = &mut app.models_mode {
                                 *results = res;
-                                app.search_results_idx = Some(0);
-                                *has_more = raw_len >= 50;
+                                if !results.is_empty() {
+                                    app.search_results_idx = Some(0);
+                                } else {
+                                    app.search_results_idx = None;
+                                }
+                                *has_more = raw_len >= app.config.search_limit as usize;
                                 *loading = false;
                             }
                         }

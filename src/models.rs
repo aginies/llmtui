@@ -60,6 +60,7 @@ pub struct SearchResult {
     pub size: Option<u64>,
     pub parameters: Option<String>,
     pub capabilities: Vec<String>,
+    pub context_length: Option<u32>,
     pub readme: Option<String>,
     /// Quantization type extracted from GGUF metadata (e.g. "Q4_K_M", "Q8_0").
     pub quantization: Option<String>,

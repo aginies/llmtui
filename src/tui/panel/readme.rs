@@ -332,34 +332,45 @@ impl MdRenderer {
 }
 
 pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
-    let readme_id_and_text = match &app.models_mode {
+    let readme_state = match &app.models_mode {
         crate::tui::app::ModelsMode::Search { results, .. } => {
             app.search_results_idx
-                .and_then(|idx| results.get(idx).and_then(|r| r.readme.as_ref().map(|text| (r.model_id.clone(), text))))
+                .and_then(|idx| results.get(idx).map(|r| (r.model_id.clone(), r.readme.as_ref())))
         }
         crate::tui::app::ModelsMode::Files { selected_result, model_id, .. } => {
-            selected_result.as_ref().and_then(|r| r.readme.as_ref().map(|text| (model_id.clone(), text)))
+            selected_result.as_ref().map(|r| (model_id.clone(), r.readme.as_ref()))
         }
         _ => None,
     };
 
-    let lines = if let Some((id, text)) = readme_id_and_text {
-        // Check cache
-        if let Some((cached_id, cached_lines)) = &app.readme_cache {
-            if cached_id == &id {
-                cached_lines.clone()
+    let lines = match readme_state {
+        Some((id, Some(text))) if !text.is_empty() => {
+            // Content exists - use cache or render
+            if let Some((cached_id, cached_lines)) = &app.readme_cache {
+                if cached_id == &id {
+                    cached_lines.clone()
+                } else {
+                    let new_lines = MdRenderer::render_markdown(text);
+                    app.readme_cache = Some((id, new_lines.clone()));
+                    new_lines
+                }
             } else {
                 let new_lines = MdRenderer::render_markdown(text);
                 app.readme_cache = Some((id, new_lines.clone()));
                 new_lines
             }
-        } else {
-            let new_lines = MdRenderer::render_markdown(text);
-            app.readme_cache = Some((id, new_lines.clone()));
-            new_lines
         }
-    } else {
-        vec![Line::raw("No README available.")]
+        Some((_, Some(_))) => {
+            // Text is Some but empty
+            vec![Line::from(Span::styled("no README available", Style::default().fg(Color::Red)))]
+        }
+        Some((_, None)) => {
+            // Not yet fetched
+            vec![Line::from(Span::styled("Press R to Fetch the README.md", Style::default().fg(Color::Green)))]
+        }
+        None => {
+            vec![Line::raw("Select a model to view README.")]
+        }
     };
 
     let available_height = area.height.saturating_sub(2);
@@ -377,46 +388,6 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         .cloned()
         .collect();
 
-    // Calculate max horizontal offset and truncate lines
-    let max_line_width = visible_lines.iter().map(|line| line.width()).max().unwrap_or(0) as u16;
-    let max_offset_x = max_line_width.saturating_sub(area.width);
-
-    if app.readme_scroll_offset_x > max_offset_x {
-        app.readme_scroll_offset_x = max_offset_x;
-    }
-
-    let scroll_x = app.readme_scroll_offset_x as usize;
-    let truncated_lines: Vec<Line> = if scroll_x == 0 {
-        visible_lines
-    } else {
-        visible_lines
-            .into_iter()
-            .map(|mut line| {
-                let mut chars_seen = 0;
-                line.spans.retain_mut(|span| {
-                    let span_chars = span.content.chars().count();
-                    let span_start = chars_seen;
-                    let span_end = chars_seen + span_chars;
-                    chars_seen = span_end;
-                    if span_start >= scroll_x {
-                        return false;
-                    }
-                    if span_end > scroll_x {
-                        let skip = scroll_x - span_start;
-                        // Use char_indices to find the correct byte offset for character skip
-                        let byte_offset = span.content.char_indices().nth(skip).map_or(span.content.len(), |(i, _)| i);
-                        span.content = span.content[byte_offset..].to_string().into();
-                        if span.content.is_empty() {
-                            return false;
-                        }
-                    }
-                    true
-                });
-                line
-            })
-            .collect()
-    };
-
     let block = Block::default()
         .title(" README ")
         .borders(Borders::ALL)
@@ -424,7 +395,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     let wrap = ratatui::widgets::Wrap {
         trim: true,
     };
-    let paragraph = Paragraph::new(truncated_lines).block(block).wrap(wrap);
+    let paragraph = Paragraph::new(visible_lines).block(block).wrap(wrap);
     f.render_widget(paragraph, area);
 
     // Vertical scrollbar
@@ -446,20 +417,5 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
             scrollbar_area,
             &mut scrollbar_state,
         );
-    }
-
-    // Horizontal scrollbar
-    if max_offset_x > 0 {
-        let scrollbar_area = Rect {
-            x: area.left(),
-            y: area.bottom().saturating_sub(1),
-            width: area.width,
-            height: 1,
-        };
-        let bar = Line::from(Span::styled(
-            "█".repeat(area.width as usize),
-            Style::default().bg(Color::DarkGray),
-        ));
-        f.render_widget(bar, scrollbar_area);
     }
 }

@@ -148,8 +148,6 @@ pub struct App {
     pub profiles_scroll_offset: u16,
     pub system_prompt_presets_scroll_offset: u16,
     pub readme_scroll_offset: u16,
-    pub readme_scroll_offset_x: u16,
-    pub readme_expanded: bool,
     pub editing_preset: Option<usize>,
     pub edit_cursor_pos: usize,
     pub gguf_metadata_cache: std::collections::HashMap<String, crate::models::GgufMetadata>,
@@ -242,8 +240,6 @@ impl App {
             profiles_scroll_offset: 0,
             system_prompt_presets_scroll_offset: 0,
             readme_scroll_offset: 0,
-            readme_scroll_offset_x: 0,
-            readme_expanded: false,
             editing_preset: None,
             edit_cursor_pos: 0,
             gguf_metadata_cache: Default::default(),
@@ -846,53 +842,81 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         }
     }
 
-    pub fn focus_next(&mut self) {
-        let server_running = self.server_handle.is_some();
-        self.active_panel = match self.active_panel {
-            ActivePanel::Models => ActivePanel::Log,
-            ActivePanel::Log => {
-                if !self.download_progress.is_empty() {
-                    ActivePanel::Downloads
-                } else if server_running {
-                    ActivePanel::LlmSettings
-                } else {
-                    ActivePanel::ServerSettings
-                }
-            }
-            ActivePanel::Downloads => ActivePanel::ServerSettings,
-            ActivePanel::ServerSettings => ActivePanel::LlmSettings,
-            ActivePanel::LlmSettings => ActivePanel::ModelInfo,
-            ActivePanel::ModelInfo => ActivePanel::ActiveModel,
-            ActivePanel::ActiveModel => ActivePanel::Models,
-            _ => ActivePanel::Models,
+    /// Return a list of all currently visible and focusable panels in logical order.
+    pub fn get_visible_panels(&self) -> Vec<ActivePanel> {
+        let mut visible = Vec::new();
+
+        // 1. Models (Left Top)
+        if self.is_panel_visible(0) {
+            visible.push(ActivePanel::Models);
+        }
+
+        // 2. Model Info (Left Bottom)
+        if self.is_panel_visible(2) {
+            visible.push(ActivePanel::ModelInfo);
+        }
+
+        // 3. Right Panel (README / Settings / Profiles / Presets)
+        let is_search = matches!(self.models_mode, ModelsMode::Search { .. });
+        let is_files = matches!(self.models_mode, ModelsMode::Files { .. });
+        let show_readme = match &self.models_mode {
+            ModelsMode::Search { show_readme, .. } => *show_readme,
+            ModelsMode::Files { .. } => true,
+            _ => false,
         };
+
+        if self.active_panel == ActivePanel::Profiles {
+            visible.push(ActivePanel::Profiles);
+        } else if self.active_panel == ActivePanel::SystemPromptPresets {
+            visible.push(ActivePanel::SystemPromptPresets);
+        } else if show_readme && (is_search || is_files) {
+            visible.push(ActivePanel::SearchReadme);
+        } else {
+            if self.is_panel_visible(1) {
+                visible.push(ActivePanel::ServerSettings);
+            }
+            if self.is_panel_visible(3) {
+                visible.push(ActivePanel::LlmSettings);
+            }
+        }
+
+        // 4. Active Model (Bottom Middle)
+        if self.is_panel_visible(4) && !is_search {
+            visible.push(ActivePanel::ActiveModel);
+        }
+
+        // 5. Log & Downloads (Bottom)
+        if self.is_panel_visible(5) {
+            visible.push(ActivePanel::Log);
+        }
+        if !self.download_progress.is_empty() {
+            visible.push(ActivePanel::Downloads);
+        }
+
+        visible
+    }
+
+    pub fn focus_next(&mut self) {
+        let visible = self.get_visible_panels();
+        if visible.is_empty() {
+            return;
+        }
+
+        let current_idx = visible.iter().position(|&p| p == self.active_panel).unwrap_or(0);
+        let next_idx = (current_idx + 1) % visible.len();
+        self.active_panel = visible[next_idx];
         self.set_redraw();
     }
 
     pub fn focus_prev(&mut self) {
-        let server_running = self.server_handle.is_some();
-        self.active_panel = match self.active_panel {
-            ActivePanel::Models => ActivePanel::LlmSettings,
-            ActivePanel::LlmSettings => ActivePanel::ModelInfo,
-            ActivePanel::ModelInfo => ActivePanel::ActiveModel,
-            ActivePanel::ActiveModel => {
-                if server_running {
-                    ActivePanel::LlmSettings
-                } else {
-                    ActivePanel::ServerSettings
-                }
-            }
-            ActivePanel::ServerSettings => {
-                if !self.download_progress.is_empty() {
-                    ActivePanel::Downloads
-                } else {
-                    ActivePanel::Log
-                }
-            }
-            ActivePanel::Downloads => ActivePanel::Log,
-            ActivePanel::Log => ActivePanel::Models,
-            _ => ActivePanel::Models,
-        };
+        let visible = self.get_visible_panels();
+        if visible.is_empty() {
+            return;
+        }
+
+        let current_idx = visible.iter().position(|&p| p == self.active_panel).unwrap_or(0);
+        let prev_idx = (current_idx + visible.len() - 1) % visible.len();
+        self.active_panel = visible[prev_idx];
         self.set_redraw();
     }
 
