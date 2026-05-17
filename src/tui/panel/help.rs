@@ -37,7 +37,7 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(paragraph, chunks[1]);
 
     // Footer
-    let footer = Paragraph::new("j/k scroll · Esc close")
+    let footer = Paragraph::new("j/k scroll · ⎋ close")
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(footer, chunks[2]);
 }

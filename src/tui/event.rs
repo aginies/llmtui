@@ -71,18 +71,15 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Skip all if in delete confirmation (top priority)
+   // Skip all if in delete confirmation (top priority)
     if app.global_mode == GlobalMode::DeleteConfirmation {
         match key.code {
             KeyCode::Char('y') | KeyCode::Enter => {
                 if let Some(model) = app.selected_model() {
                     let path = model.path.clone();
                     let name = model.name.clone();
-                    app.add_log(format!("Queuing deletion of: {}", name), crate::config::LogLevel::Info);
                     app.pending_deletion = Some(path);
-                } else if app.is_settings_dirty() && app.active_panel == ActivePanel::LlmSettings {
-                    // Settings reset confirmation
-                    app.reset_to_defaults();
+                    app.add_log(format!("Deleting model {}...", name), crate::config::LogLevel::Info);
                 }
                 app.global_mode = GlobalMode::Normal;
             }
@@ -92,6 +89,23 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Char('h')
                 if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
+                app.global_mode = GlobalMode::Normal;
+            }
+            _ => {}
+        }
+        return;
+    }
+
+    // Skip all if in unload confirmation
+    if let GlobalMode::UnloadConfirmation { model_name } = &app.global_mode {
+        match key.code {
+            KeyCode::Char('y') | KeyCode::Enter => {
+                let name = model_name.clone();
+                app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
+                app.pending_api_unload = Some((name.clone(), None));
+                app.global_mode = GlobalMode::Normal;
+            }
+            KeyCode::Char('n') | KeyCode::Esc => {
                 app.global_mode = GlobalMode::Normal;
             }
             _ => {}
@@ -862,8 +876,9 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if let Some(idx) = app.selected_model_idx {
                 let model = app.models[idx].clone();
                 if let Some(crate::models::ModelState::Loaded { .. }) = app.model_states.get(&model.display_name) {
-                    app.add_log(format!("Unloading {} via API...", model.display_name), crate::config::LogLevel::Info);
-                    app.pending_api_unload = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
+                    app.global_mode = GlobalMode::UnloadConfirmation {
+                        model_name: model.display_name.clone(),
+                    };
                 } else {
                     app.add_log(format!("{} is not loaded", model.display_name), crate::config::LogLevel::Warning);
                 }

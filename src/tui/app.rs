@@ -78,11 +78,13 @@ pub enum GlobalMode {
     DeleteConfirmation,
     ResetConfirmation,
     ExitConfirmation,
+    UnloadConfirmation { model_name: String },
     CmdLine { cmd_line: String },
     HostPicker {
         entries: Vec<(String, String)>, // (ip, interface_name)
         selected: usize,
     },
+    Confirmation { selected: bool }, // true = Yes selected
 }
 
 /// Phase of model loading.
