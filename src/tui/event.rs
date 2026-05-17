@@ -318,7 +318,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if app.readme_expanded {
                     return;
                 }
-                let query = if let ModelsMode::Search { query, .. } = &app.models_mode {
+                let query = if let ModelsMode::Search { query, page, has_more, .. } = &mut app.models_mode {
+                    *page = 0;
+                    *has_more = true;
                     query.clone()
                 } else {
                     return;

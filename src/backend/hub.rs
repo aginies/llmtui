@@ -4,9 +4,9 @@ use tokio::io::AsyncWriteExt;
 
 /// Search models on HuggingFace.
 ///
-/// `limit` is the number of results per page (default 70, max 200).
+/// `limit` is the number of results per page (default 10, max 200).
 /// `offset` is the number of results to skip (for pagination).
-pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<crate::models::SearchResult>, usize)> {
+pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<crate::models::SearchResult>, usize, Vec<String>)> {
     let url = format!(
         "https://huggingface.co/api/models?search={}&limit={}&offset={}&filter=gguf",
         urlencoding::encode(query),
@@ -17,10 +17,19 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
     let resp = reqwest::get(&url).await?.error_for_status()?;
     let models: Vec<serde_json::Value> = resp.json().await?;
 
+    let query_lower = query.to_lowercase();
+    let raw_ids: Vec<String> = models.iter().filter_map(|m| m.get("modelId").and_then(|v| v.as_str())).map(|s| s.to_string()).collect();
     let mut results: Vec<crate::models::SearchResult> = models
         .into_iter()
         .filter_map(|m| {
             let model_id = m.get("modelId")?.as_str()?.to_string();
+            // Post-filter: only keep results where the model_id contains the search query.
+            // The HF API does full-text search across descriptions/tags, so unrelated
+            // models can appear (e.g. "qwen2.5" returning a gemma model that mentions
+            // qwen2.5 in its description).
+            if !model_id.to_lowercase().contains(&query_lower) {
+                return None;
+            }
             let model_name = model_id.clone();
 
             let tags: Vec<String> = m
@@ -144,7 +153,7 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
             }
     }
 
-    Ok((results, 1))
+    Ok((results, 1, raw_ids))
 }
 
 /// List all GGUF files for a model.

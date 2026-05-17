@@ -761,32 +761,40 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
         if app.search_loading {
             if let Some((query, offset)) = app.pending_search_load.take() {
                 let is_append = offset > 0;
-                let query_clone = if is_append { Some(query.clone()) } else { None };
+                let query_clone = query.clone();
                 let offset_clone = offset;
                 let search_handle = tokio::spawn(async move {
-                    hub::search_models(&query_clone.unwrap_or_default(), 70, offset_clone).await
+                    hub::search_models(&query_clone, 50, offset_clone).await
                 });
 
                 match search_handle.await {
-                    Ok(Ok((res, _))) => {
+                    Ok(Ok((res, _, raw_ids))) => {
+                        let query_str = &query;
+                        let mut buf = format!("Search complete: {} results for '{}'", res.len(), query_str);
+                        buf.push_str(&format!("\n  RAW API returned: {}", raw_ids.join(", ")));
+                        for r in &res {
+                            let gguf_tags: Vec<String> = r.tags.iter().filter(|t| t.starts_with("gguf:")).cloned().collect();
+                            buf.push_str(&format!("\n  {} quant={} tags={} params={} cap={}", r.model_id, r.quantization.as_deref().unwrap_or("-"), gguf_tags.join(","), r.parameters.as_deref().unwrap_or("none"), r.capabilities.join(",")));
+                        }
+                        let raw_len = raw_ids.len();
                         if is_append {
-                            let res_len = res.len();
                             if let ModelsMode::Search { results, has_more, loading, .. } = &mut app.models_mode {
                                 results.extend(res);
                                 app.search_results_idx = Some(results.len().saturating_sub(1));
-                                if res_len < 50 {
+                                if raw_len < 50 {
                                     *has_more = false;
                                 }
                                 *loading = false;
                             }
                         } else {
-                            if let ModelsMode::Search { results, loading, .. } = &mut app.models_mode {
+                            if let ModelsMode::Search { results, loading, has_more, .. } = &mut app.models_mode {
                                 *results = res;
                                 app.search_results_idx = Some(0);
+                                *has_more = raw_len >= 50;
                                 *loading = false;
                             }
                         }
-                        app.add_log("Search complete", crate::config::LogLevel::Info);
+                        app.add_log(buf, crate::config::LogLevel::Info);
                     }
                     Ok(Err(e)) => {
                         app.add_log(format!("Search failed: {}", e), crate::config::LogLevel::Error);

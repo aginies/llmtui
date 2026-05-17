@@ -80,7 +80,7 @@ Token count (`ctx_used`) is driven by log-parsed `n_tokens` from llama.cpp stder
 
 ### Search filtering (`src/backend/hub.rs`)
 
-Search uses `&filter=gguf` on the HuggingFace API URL so the API itself only returns GGUF models. No post-filtering needed. Default 70 results per page, max 200.
+Search uses `&filter=gguf` on the HuggingFace API URL so the API itself only returns GGUF models. A post-filter then checks that the model_id contains the search query (case-insensitive), since the HF API does full-text search across descriptions/tags and can return unrelated models. Default 70 results per page, max 200.
 
 ### Panel help (`src/tui/panel/help.rs`)
 
