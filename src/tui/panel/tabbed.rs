@@ -39,92 +39,53 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     render_server_settings(f, server_area, app);
 
   // ── LLM Settings ─────────────────────────────────────────
-   let (settings_lines, count, settings_height, selected_line_idx) = settings::render_all(
-        &app.settings,
-        &app.model_settings_cache,
-        app.settings_selected_idx,
-        &app.settings_edit_buffer,
-        !app.settings_edit_buffer.is_empty(),
-        app.settings_render_cache.as_ref(),
-        app.settings_fingerprint(),
-        app.vram_estimate,
-        app.model_total_layers,
-        app.model_n_ctx_train,
-        app.max_threads,
-    );
-    
-    // Update cache
-    app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
-        hash: app.settings_fingerprint(),
-        selected: app.settings_selected_idx,
-        selected_line_idx,
-        lines: settings_lines.clone(),
-    });
-    
-    // Ensure selection stays in bounds
-    if app.settings_selected_idx >= count {
-        app.settings_selected_idx = count.saturating_sub(1);
-    }
-    
-    let available_height = llm_area.height.saturating_sub(2);
-    
-    // Clamp scroll so selected item is within the visible window.
-    if selected_line_idx < (app.settings_scroll_offset as usize) {
-        app.settings_scroll_offset = selected_line_idx as u16;
-    } else if available_height > 0 && (selected_line_idx - app.settings_scroll_offset as usize) >= (available_height as usize) {
-        app.settings_scroll_offset = (selected_line_idx as u16).saturating_sub(available_height).saturating_add(1);
-    }
+  let (settings_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, llm_area);
 
-    // Clamp scroll offset to max
-    let max_offset = settings_height.saturating_sub(available_height as usize) as u16;
-    if app.settings_scroll_offset > max_offset {
-        app.settings_scroll_offset = max_offset;
-    }
-    
-    // Build visible settings lines with scroll offset applied
-    let start_idx = app.settings_scroll_offset as usize;
-    let visible_lines: Vec<Line<'static>> = settings_lines
-        .iter()
-        .skip(start_idx)
-        .take(available_height as usize)
-        .cloned()
-        .collect();
+  let available_height = llm_area.height.saturating_sub(2);
 
-    let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
-    let vram_text = crate::models::format_mib(app.vram_estimate);
-    let block = Block::default()
-        .title(Line::from(vec![
-            Span::raw(" LLM Settings (F4) "),
-            Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
-        ]))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
+  // Build visible settings lines with scroll offset applied
+  let start_idx = app.settings_scroll_offset as usize;
+  let visible_lines: Vec<Line<'static>> = settings_lines
+      .iter()
+      .skip(start_idx)
+      .take(available_height as usize)
+      .cloned()
+      .collect();
 
-    let paragraph = Paragraph::new(visible_lines).block(block);
-    f.render_widget(paragraph, llm_area);
-    
-    // Render scrollbar if settings overflow
-    if settings_height > available_height as usize {
-        let scrollbar_area = Rect {
-            x: llm_area.right().saturating_sub(1),
-            y: llm_area.top(),
-            width: 1,
-            height: llm_area.height,
-        };
-        
-        let mut scrollbar_state = ScrollbarState::new(settings_height)
-            .position(app.settings_scroll_offset as usize);
-        
-        f.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("↑"))
-                .end_symbol(Some("↓")),
-            scrollbar_area,
-            &mut scrollbar_state,
-        );
-    }
-}
+  let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
+  let vram_text = crate::models::format_mib(app.vram_estimate);
+  let block = Block::default()
+      .title(Line::from(vec![
+          Span::raw(" LLM Settings (F4) "),
+          Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
+      ]))
+      .borders(Borders::ALL)
+      .border_style(Style::default().fg(border_color));
 
+  let paragraph = Paragraph::new(visible_lines).block(block);
+  f.render_widget(paragraph, llm_area);
+
+  // Render scrollbar if settings overflow
+  if settings_height > available_height as usize {
+      let scrollbar_area = Rect {
+          x: llm_area.right().saturating_sub(1),
+          y: llm_area.top(),
+          width: 1,
+          height: llm_area.height,
+      };
+
+      let mut scrollbar_state = ScrollbarState::new(settings_height)
+          .position(app.settings_scroll_offset as usize);
+
+      f.render_stateful_widget(
+          Scrollbar::new(ScrollbarOrientation::VerticalRight)
+              .begin_symbol(Some("↑"))
+              .end_symbol(Some("↓")),
+          scrollbar_area,
+          &mut scrollbar_state,
+      );
+  }
+  }
 fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
     if area.height < 2 || area.width < 10 {
         return;
@@ -207,28 +168,8 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    let (all_lines, _count, _height, selected_line_idx) = settings::render_all(
-        &app.settings,
-        &app.model_settings_cache,
-        app.settings_selected_idx,
-        &app.settings_edit_buffer,
-        !app.settings_edit_buffer.is_empty(),
-        app.settings_render_cache.as_ref(),
-        app.settings_fingerprint(),
-        app.vram_estimate,
-        app.model_total_layers,
-        app.model_n_ctx_train,
-        app.max_threads,
-    );
+    let (all_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, area);
     
-    // Update cache
-    app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
-        hash: app.settings_fingerprint(),
-        selected: app.settings_selected_idx,
-        selected_line_idx,
-        lines: all_lines.clone(),
-    });
-
     let available_height = area.height.saturating_sub(2);
     let start_idx = app.settings_scroll_offset as usize;
     let visible_lines: Vec<Line> = all_lines
@@ -240,6 +181,27 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     let paragraph = Paragraph::new(visible_lines).block(block);
     f.render_widget(paragraph, area);
+
+    // Render scrollbar if settings overflow
+    if settings_height > available_height as usize {
+        let scrollbar_area = Rect {
+            x: area.right().saturating_sub(1),
+            y: area.top(),
+            width: 1,
+            height: area.height,
+        };
+        
+        let mut scrollbar_state = ScrollbarState::new(settings_height)
+            .position(app.settings_scroll_offset as usize);
+        
+        f.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓")),
+            scrollbar_area,
+            &mut scrollbar_state,
+        );
+    }
 }
 
 fn empty_info() -> Vec<Line<'static>> {

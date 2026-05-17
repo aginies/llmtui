@@ -285,13 +285,24 @@ Line::from(vec![
         return;
     }
 
-    let top_chunks = ratatui::layout::Layout::default()
-        .direction(ratatui::layout::Direction::Horizontal)
-        .constraints([
-            ratatui::layout::Constraint::Percentage(55), // Left side (Models + Info)
-            ratatui::layout::Constraint::Percentage(45), // Right side (Settings / README)
-        ])
-        .split(chunks[1]);
+    let top_chunks = if !app.is_panel_visible(1) && !app.is_panel_visible(3) && !matches!(app.active_panel, ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme) {
+        // Both settings panels hidden — expand left side to full width
+        ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Horizontal)
+            .constraints([
+                ratatui::layout::Constraint::Percentage(100),
+                ratatui::layout::Constraint::Length(0),
+            ])
+            .split(chunks[1])
+    } else {
+        ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Horizontal)
+            .constraints([
+                ratatui::layout::Constraint::Percentage(55), // Left side (Models + Info)
+                ratatui::layout::Constraint::Percentage(45), // Right side (Settings / README)
+            ])
+            .split(chunks[1])
+    };
 
     let info_visible = app.is_panel_visible(2);
     let left_chunks = if info_visible {
@@ -467,8 +478,7 @@ Line::from(vec![
                 } else if llm_visible {
                     panel::tabbed::render_llm_only(f, top_chunks[1], app);
                 } else {
-                    // Both hidden — show settings in full width
-                    panel::tabbed::render_settings_only(f, top_chunks[1], app);
+                    // Both hidden — nothing to render on the right
                 }
             }
         }

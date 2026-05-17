@@ -1,4 +1,5 @@
 use ratatui::{
+    layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
 };
@@ -6,12 +7,37 @@ use ratatui::{
 /// Render the LLM Settings panel (Loading + GPU + Evaluation + Sampling + Repetition).
 /// Returns (lines, total_count, settings_height, selected_line_idx).
 #[allow(clippy::too_many_arguments)]
-pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, selected: usize, edit_buf: &str, editing: bool, cache: Option<&crate::tui::app::SettingsRenderCache>, hash: u64, _vram_mib: u64, _total_layers: u32, _n_ctx_train: u32, _max_threads: u32) -> (Vec<Line<'static>>, usize, usize, usize) {
+pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'static>>, usize, usize, usize) {
+    let settings = &app.settings;
+    let cached = &app.model_settings_cache;
+    let selected = app.settings_selected_idx;
+    let edit_buf = &app.settings_edit_buffer;
+    let editing = !edit_buf.is_empty();
+    let hash = app.settings_fingerprint();
+
     // Cache hit: return a clone of the cached lines.
-    if let Some(c) = cache
+    if let Some(c) = &app.settings_render_cache
         && c.hash == hash
         && c.selected == selected {
-            return (c.lines.clone(), c.lines.len(), c.lines.len(), c.selected_line_idx);
+            // Even on cache hit, we need to update scrolling if area changed
+            let available_height = area.height.saturating_sub(2);
+            let selected_line_idx = c.selected_line_idx;
+            let settings_height = c.lines.len();
+
+            // Clamp scroll so selected item is within the visible window.
+            if selected_line_idx < (app.settings_scroll_offset as usize) {
+                app.settings_scroll_offset = selected_line_idx as u16;
+            } else if available_height > 0 && (selected_line_idx - app.settings_scroll_offset as usize) >= (available_height as usize) {
+                app.settings_scroll_offset = (selected_line_idx as u16).saturating_sub(available_height).saturating_add(1);
+            }
+
+            // Clamp scroll offset to max
+            let max_offset = settings_height.saturating_sub(available_height as usize) as u16;
+            if app.settings_scroll_offset > max_offset {
+                app.settings_scroll_offset = max_offset;
+            }
+
+            return (c.lines.clone(), 22, settings_height, selected_line_idx);
         }
 
     let mut lines = Vec::new();
@@ -107,8 +133,50 @@ pub fn render_all(settings: &crate::models::ModelSettings, cached: &crate::model
         add_setting(&mut lines, &mut total_count, settings, cached, sampling_names[i], &val, selected, edit_buf, editing);
     }
 
-    let height = lines.len();
-    (lines, total_count, height, selected_line_idx)
+    // ── Repetition ───────────────────────────────────────────
+    lines.push(Line::from(vec![
+        Span::styled("--- Repetition ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+    ]));
+
+    let rep_names = ["Repeat Penalty", "Repeat Last N", "Presence Penalty", "Freq Penalty"];
+    let rep_vals = vec![
+        format!("{:.2}", settings.repeat_penalty),
+        format!("{}", settings.repeat_last_n),
+        settings.presence_penalty.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "Off".to_string()),
+        settings.frequency_penalty.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "Off".to_string()),
+    ];
+
+    for (i, val) in rep_vals.into_iter().enumerate() {
+        if total_count == selected {
+            selected_line_idx = lines.len();
+        }
+        add_setting(&mut lines, &mut total_count, settings, cached, rep_names[i], &val, selected, edit_buf, editing);
+    }
+
+    let settings_height = lines.len();
+    
+    // Update cache
+    app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
+        hash,
+        selected,
+        selected_line_idx,
+        lines: lines.clone(),
+    });
+
+    // Handle scrolling
+    let available_height = area.height.saturating_sub(2);
+    if selected_line_idx < (app.settings_scroll_offset as usize) {
+        app.settings_scroll_offset = selected_line_idx as u16;
+    } else if available_height > 0 && (selected_line_idx - app.settings_scroll_offset as usize) >= (available_height as usize) {
+        app.settings_scroll_offset = (selected_line_idx as u16).saturating_sub(available_height).saturating_add(1);
+    }
+
+    let max_offset = settings_height.saturating_sub(available_height as usize) as u16;
+    if app.settings_scroll_offset > max_offset {
+        app.settings_scroll_offset = max_offset;
+    }
+
+    (lines, total_count, settings_height, selected_line_idx)
 }
 
 #[allow(clippy::too_many_arguments)]
