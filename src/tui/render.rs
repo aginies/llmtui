@@ -191,6 +191,9 @@ Line::from(vec![
     }
 
     // Main layout: status bar + top panels + active model + log
+    let is_search = matches!(app.models_mode, ModelsMode::Search { .. });
+    let active_model_visible = app.is_panel_visible(4) && !is_search;
+    let log_visible = app.is_panel_visible(5);
 
     let chunks = if app.log_expanded {
         // Expanded: just status bar and log panel
@@ -213,32 +216,31 @@ Line::from(vec![
             ])
             .split(f.area())
     } else {
-    let active_model_hidden = !app.is_panel_visible(4);
-    let log_hidden = !app.is_panel_visible(5);
-    let active_model_constraint = if active_model_hidden {
-        ratatui::layout::Constraint::Length(0)
-    } else {
-        ratatui::layout::Constraint::Length(6)
-    };
-    let log_constraint = if log_hidden {
-        ratatui::layout::Constraint::Length(0)
-    } else if active_model_hidden {
-        ratatui::layout::Constraint::Fill(1)
-    } else if matches!(app.models_mode, ModelsMode::Search { .. }) {
-        ratatui::layout::Constraint::Length(5)
-    } else {
-        ratatui::layout::Constraint::Min(5)
-    };
-    ratatui::layout::Layout::default()
-        .direction(ratatui::layout::Direction::Vertical)
-        .margin(0)
-        .constraints([
-            ratatui::layout::Constraint::Length(1),   // status bar
-            ratatui::layout::Constraint::Fill(1),     // top panels
-            active_model_constraint,
-            log_constraint,
-        ])
-        .split(f.area())
+        let active_model_constraint = if active_model_visible {
+            ratatui::layout::Constraint::Length(6)
+        } else {
+            ratatui::layout::Constraint::Length(0)
+        };
+
+        let log_constraint = if !log_visible {
+            ratatui::layout::Constraint::Length(0)
+        } else if !active_model_visible {
+            // Active model is hidden, so Log can expand to Fill(1) to share space with top panels
+            ratatui::layout::Constraint::Fill(1)
+        } else {
+            ratatui::layout::Constraint::Min(5)
+        };
+
+        ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .margin(0)
+            .constraints([
+                ratatui::layout::Constraint::Length(1),   // status bar
+                ratatui::layout::Constraint::Fill(1),     // top panels
+                active_model_constraint,
+                log_constraint,
+            ])
+            .split(f.area())
     };
 
     // Status bar (model name and profile info)
@@ -473,37 +475,35 @@ Line::from(vec![
     }
 
     // Active model (full width)
-    if !matches!(app.models_mode, ModelsMode::Search { .. }) {
+    if active_model_visible {
         panel::active::render(f, chunks[2], app);
     }
 
     // Log & Download (download panel below log, full width)
-    let log_chunk = if app.is_panel_visible(5) {
-        chunks[3]
-    } else {
-        chunks[2]
-    };
-    if app.downloading {
-        let bottom_chunks = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([
-                ratatui::layout::Constraint::Fill(1),    // log
-                ratatui::layout::Constraint::Length(7),  // downloads
-            ])
-            .split(log_chunk);
-        
-        panel::log::render(f, bottom_chunks[0], app);
-        
-        let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
-        panel::models::render_download_panel(
-            f, bottom_chunks[1],
-            &app.download_progress,
-            total_speed,
-            &mut app.download_scroll_state,
-            app.active_panel == ActivePanel::Downloads,
-        );
-    } else {
-        panel::log::render(f, log_chunk, app);
+    if app.is_panel_visible(5) {
+        let log_chunk = chunks[3];
+        if app.downloading {
+            let bottom_chunks = ratatui::layout::Layout::default()
+                .direction(ratatui::layout::Direction::Vertical)
+                .constraints([
+                    ratatui::layout::Constraint::Fill(1),    // log
+                    ratatui::layout::Constraint::Length(7),  // downloads
+                ])
+                .split(log_chunk);
+            
+            panel::log::render(f, bottom_chunks[0], app);
+            
+            let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
+            panel::models::render_download_panel(
+                f, bottom_chunks[1],
+                &app.download_progress,
+                total_speed,
+                &mut app.download_scroll_state,
+                app.active_panel == ActivePanel::Downloads,
+            );
+        } else {
+            panel::log::render(f, log_chunk, app);
+        }
     }
 }
 
