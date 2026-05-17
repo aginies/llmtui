@@ -317,7 +317,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // Handle search mode first (it takes priority)
     let is_search = matches!(app.models_mode, ModelsMode::Search { .. });
-    if is_search {
+    if is_search && app.active_panel == ActivePanel::Models {
         // Extract model_id before the match so we can call async fn after
         let model_id = app.search_results_idx.and_then(|idx| {
             if let ModelsMode::Search { results, .. } = &app.models_mode {
@@ -541,7 +541,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // Handle files mode
     let is_files = matches!(app.models_mode, ModelsMode::Files { .. });
-    if is_files {
+    if is_files && app.active_panel == ActivePanel::Models {
         // Extract model_id before the match so we can call async fn after
         let model_id = if let ModelsMode::Files { model_id, .. } = &app.models_mode {
             Some(model_id.clone())
