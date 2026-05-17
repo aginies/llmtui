@@ -280,6 +280,20 @@ pub enum CacheTypeK {
 }
 
 impl CacheTypeK {
+    pub fn from_u8(n: u8) -> Self {
+        match n {
+            0 => Self::F32,
+            1 => Self::F16,
+            2 => Self::BF16,
+            3 => Self::Q8_0,
+            4 => Self::Q5_1,
+            5 => Self::Q5_0,
+            6 => Self::Q4_1,
+            7 => Self::Q4_0,
+            8 => Self::Iq4Nl,
+            _ => Self::F16,
+        }
+    }
     pub fn next(&self) -> Self {
         match self {
             Self::F32 => Self::F16,
@@ -351,6 +365,20 @@ pub enum CacheTypeV {
 }
 
 impl CacheTypeV {
+    pub fn from_u8(n: u8) -> Self {
+        match n {
+            0 => Self::F32,
+            1 => Self::F16,
+            2 => Self::BF16,
+            3 => Self::Q8_0,
+            4 => Self::Q5_1,
+            5 => Self::Q5_0,
+            6 => Self::Q4_1,
+            7 => Self::Q4_0,
+            8 => Self::Iq4Nl,
+            _ => Self::F16,
+        }
+    }
     pub fn next(&self) -> Self {
         match self {
             Self::F32 => Self::F16,

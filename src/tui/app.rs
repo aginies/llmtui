@@ -1051,6 +1051,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         }.hash(&mut h);
         self.settings.threads.hash(&mut h);
         self.settings.threads_batch.hash(&mut h);
+        self.settings_edit_buffer.hash(&mut h);
         h.finish()
     }
 

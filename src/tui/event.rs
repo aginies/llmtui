@@ -970,6 +970,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         crate::models::Backend::Rocrm => crate::models::Backend::Cpu,
                     };
                     app.update_vram_estimate();
+                    app.settings_render_cache = None;
                 }
                 2 => {
                     // Cycle threads (1-max)
@@ -1005,6 +1006,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             app.update_vram_estimate();
             sync_global_settings(app);
+            app.settings_render_cache = None;
             app.set_redraw();
         }
         KeyCode::Right | KeyCode::Char('l') => {
@@ -1015,6 +1017,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             app.update_vram_estimate();
             sync_global_settings(app);
+            app.settings_render_cache = None;
             app.set_redraw();
         }
         _ => {}
@@ -1194,6 +1197,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         app.update_vram_estimate();
         sync_global_settings(app);
+        app.settings_render_cache = None;
         app.set_redraw();
         return;
     }
@@ -1236,6 +1240,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             } else if key.code == KeyCode::Enter {
                 app.settings.mlock = !app.settings.mlock;
                 app.update_vram_estimate();
+                app.settings_render_cache = None;
                 app.set_redraw();
             }
         }
@@ -1254,6 +1259,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         let total = app.model_total_layers;
                         app.settings.gpu_layers_mode = crate::models::GpuLayersMode::Specific(total.max(1).min(256));
                         app.update_vram_estimate();
+                        app.settings_render_cache = None;
                     }
                 }
                 app.set_redraw();
@@ -1270,6 +1276,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 };
                 app.update_vram_estimate();
+                app.settings_render_cache = None;
                 app.set_redraw();
             } else if key.code == KeyCode::Right {
                 let total = app.model_total_layers;
@@ -1280,6 +1287,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     crate::models::GpuLayersMode::All => crate::models::GpuLayersMode::Auto,
                 };
                 app.update_vram_estimate();
+                app.settings_render_cache = None;
                 app.set_redraw();
             }
         }
@@ -1291,6 +1299,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             } else if key.code == KeyCode::Enter {
                 app.settings.flash_attn = !app.settings.flash_attn;
                 app.update_vram_estimate();
+                app.settings_render_cache = None;
                 app.set_redraw();
             }
         }
@@ -1302,32 +1311,55 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             } else if key.code == KeyCode::Enter {
                 app.settings.kv_cache_offload = !app.settings.kv_cache_offload;
                 app.update_vram_estimate();
+                app.settings_render_cache = None;
                 app.set_redraw();
             }
         }
-        // Cache Type K: cycle on Enter
+        // Cache Type K: cycle on Enter, or apply typed number
         _ if idx == 6 => {
             if !app.settings_edit_buffer.is_empty() {
-                app.settings_edit_buffer.clear();
-                app.set_redraw();
+                if key.code == KeyCode::Enter {
+                    if let Ok(n) = app.settings_edit_buffer.parse::<u8>() {
+                        app.settings.cache_type_k = Some(crate::models::CacheTypeK::from_u8(n));
+                        app.update_vram_estimate();
+                    }
+                    app.settings_edit_buffer.clear();
+                    app.settings_render_cache = None;
+                    app.set_redraw();
+                } else {
+                    app.settings_edit_buffer.clear();
+                    app.set_redraw();
+                }
             } else if key.code == KeyCode::Enter {
                 let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
                 val = val.next();
                 app.settings.cache_type_k = Some(val);
                 app.update_vram_estimate();
+                app.settings_render_cache = None;
                 app.set_redraw();
             }
         }
-        // Cache Type V: cycle on Enter
+        // Cache Type V: cycle on Enter, or apply typed number
         _ if idx == 7 => {
             if !app.settings_edit_buffer.is_empty() {
-                app.settings_edit_buffer.clear();
-                app.set_redraw();
+                if key.code == KeyCode::Enter {
+                    if let Ok(n) = app.settings_edit_buffer.parse::<u8>() {
+                        app.settings.cache_type_v = Some(crate::models::CacheTypeV::from_u8(n));
+                        app.update_vram_estimate();
+                    }
+                    app.settings_edit_buffer.clear();
+                    app.settings_render_cache = None;
+                    app.set_redraw();
+                } else {
+                    app.settings_edit_buffer.clear();
+                    app.set_redraw();
+                }
             } else if key.code == KeyCode::Enter {
                 let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
                 val = val.next();
                 app.settings.cache_type_v = Some(val);
                 app.update_vram_estimate();
+                app.settings_render_cache = None;
                 app.set_redraw();
             }
         }
@@ -1339,6 +1371,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             } else if key.code == KeyCode::Enter {
                 app.settings.uniform_cache = !app.settings.uniform_cache;
                 app.update_vram_estimate();
+                app.settings_render_cache = None;
                 app.set_redraw();
             }
         }
@@ -1380,6 +1413,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 app.update_vram_estimate();
             }
+            app.settings_render_cache = None;
             app.set_redraw();
         }
         KeyCode::Right => {
@@ -1388,6 +1422,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 sync_global_settings(app);
             }
             app.update_vram_estimate();
+            app.settings_render_cache = None;
             app.set_redraw();
         }
         KeyCode::Char(c @ '0'..='9') => {
@@ -1410,6 +1445,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.update_vram_estimate();
             }
+            app.settings_render_cache = None;
             app.set_redraw();
         }
         KeyCode::Esc => {
