@@ -352,6 +352,7 @@ pub async fn spawn_server(
     model: Option<&DiscoveredModel>,
     settings: &ModelSettings,
     log_tx: mpsc::Sender<String>,
+    progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
     server_mode: crate::models::ServerMode,
     router_max_models: u32,
 ) -> Result<(ServerHandle, String), String> {
@@ -366,20 +367,27 @@ pub async fn spawn_server(
     let backend_name = match settings.backend {
         Backend::Cpu => "llama-server-cpu",
         Backend::Vulkan => "llama-server-vulkan",
-        Backend::Rocrm => "llama-server-rocm",
+        Backend::Rocm => "llama-server-rocm",
+        Backend::RocmLemonade => "llama-server-rocm-lemonade",
+        Backend::Cuda => "llama-server-cuda",
     };
     let version_display = match settings.backend {
         Backend::Cpu => settings.llama_cpp_version_cpu.as_deref().unwrap_or("latest"),
         Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref().unwrap_or("latest"),
-        Backend::Rocrm => settings.llama_cpp_version_rocm.as_deref().unwrap_or("latest"),
+        Backend::Rocm => settings.llama_cpp_version_rocm.as_deref().unwrap_or("latest"),
+        Backend::RocmLemonade => settings.llama_cpp_version_rocm_lemonade.as_deref().unwrap_or("latest"),
+        Backend::Cuda => settings.llama_cpp_version_cuda.as_deref().unwrap_or("latest"),
     };
-    log_tx.send(format!("Downloading {} (v{}) binary...", backend_name, version_display)).await.ok();
+    log_tx.send(format!("Resolving {} (v{}) binary...", backend_name, version_display)).await.ok();
     let version_param = match settings.backend {
         Backend::Cpu => settings.llama_cpp_version_cpu.as_deref(),
         Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref(),
-        Backend::Rocrm => settings.llama_cpp_version_rocm.as_deref(),
+        Backend::Rocm => settings.llama_cpp_version_rocm.as_deref(),
+        Backend::RocmLemonade => settings.llama_cpp_version_rocm_lemonade.as_deref(),
+        Backend::Cuda => settings.llama_cpp_version_cuda.as_deref(),
     };
-    let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param).await {
+    
+    let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, Some(log_tx.clone()), progress_tx).await {
         Ok(path) => {
             if !path.exists() {
                 return Err(format!("llama-server binary not found at: {}", path.display()));

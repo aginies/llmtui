@@ -562,6 +562,10 @@ pub struct DefaultParams {
     pub llama_cpp_version_vulkan: Option<String>,
     #[serde(default)]
     pub llama_cpp_version_rocm: Option<String>,
+    #[serde(default)]
+    pub llama_cpp_version_rocm_lemonade: Option<String>,
+    #[serde(default)]
+    pub llama_cpp_version_cuda: Option<String>,
 
  // API
     #[serde(default)]
@@ -668,10 +672,20 @@ impl Default for DefaultParams {
             // Other
             max_tokens: None,
             cache_type: CacheType::F16,
-            backend: Backend::Vulkan,
+            backend: {
+                use crate::backend::hardware::{detect_gpu_vendor, GpuVendor};
+                match detect_gpu_vendor() {
+                    GpuVendor::Amd => Backend::Rocm,
+                    GpuVendor::Nvidia => Backend::Cuda,
+                    GpuVendor::Intel => Backend::Vulkan,
+                    GpuVendor::Unknown => Backend::Cpu,
+                }
+            },
             llama_cpp_version_cpu: None,
             llama_cpp_version_vulkan: None,
             llama_cpp_version_rocm: None,
+            llama_cpp_version_rocm_lemonade: None,
+            llama_cpp_version_cuda: None,
            api_endpoint_enabled: false,
             api_endpoint_port: 49222,
         }

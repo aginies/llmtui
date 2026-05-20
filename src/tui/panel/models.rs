@@ -37,7 +37,7 @@ pub fn render_download_panel(
     let total_speed_str = format_speed(total_speed);
     let count = downloads.len();
     let title = if count == 1 {
-        format!("Downloading ({}) ", total_speed_str)
+        format!(" Downloading ({}) ", total_speed_str)
     } else {
         format!(" {} Downloads ({}) ", count, total_speed_str)
     };
@@ -52,8 +52,11 @@ pub fn render_download_panel(
     let rows: Vec<Row> = downloads
         .iter()
         .map(|d| {
-            let progress = d.formatted_progress();
-            let speed = d.formatted_speed();
+            // Re-implement basic progress formatting locally since I removed them from models.rs
+            let progress_pct = if d.total_bytes == 0 { 0.0 } else { d.downloaded_bytes as f64 / d.total_bytes as f64 * 100.0 };
+            let progress_str = format!("{:.1}%", progress_pct);
+            let speed_str = format_speed(d.bytes_per_second);
+            
             let status = match &d.status {
                 crate::models::DownloadStatus::Downloading => "Downloading...",
                 crate::models::DownloadStatus::Complete => "Complete",
@@ -69,8 +72,8 @@ pub fn render_download_panel(
             Row::new(vec![
                 Cell::from(d.model_id.as_str()),
                 Cell::from(d.filename.as_str()),
-                Cell::from(progress),
-                Cell::from(speed),
+                Cell::from(progress_str),
+                Cell::from(speed_str),
                 Cell::from(status).style(Style::default().fg(status_color)),
             ])
         })

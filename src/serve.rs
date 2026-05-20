@@ -119,9 +119,11 @@ pub async fn serve_model(
     let version_param = match settings.backend {
         Backend::Cpu => settings.llama_cpp_version_cpu.as_deref(),
         Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref(),
-        Backend::Rocrm => settings.llama_cpp_version_rocm.as_deref(),
+        Backend::Rocm => settings.llama_cpp_version_rocm.as_deref(),
+        Backend::RocmLemonade => settings.llama_cpp_version_rocm_lemonade.as_deref(),
+        Backend::Cuda => settings.llama_cpp_version_cuda.as_deref(),
     };
-    let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param).await {
+    let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, None, None).await {
         Ok(path) => {
             if !path.exists() {
                 anyhow::bail!("llama-server binary not found at: {}", path.display());

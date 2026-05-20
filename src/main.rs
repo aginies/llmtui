@@ -35,7 +35,7 @@ enum Cli {
         #[arg(short, long, default_value = "llama-server")]
         llama_server: String,
 
-        /// Backend to use (cpu, vulkan)
+        /// Backend to use (cpu, vulkan, rocm, rocm-lemonade, cuda)
         #[arg(short, long, default_value = "vulkan")]
         backend: String,
 
@@ -185,6 +185,7 @@ async fn main() -> Result<()> {
             let tx = app.download_tx.as_ref().unwrap().clone();
             let tx_clone = tx.clone();
             let cancelled_for_state = cancelled_clone.clone();
+
             tokio::spawn(async move {
                 let mut state = DownloadState::new(model_id_clone.clone(), filename_clone.clone(), 0);
                 state.cancel_token = Some(cancelled_for_state);
@@ -193,8 +194,7 @@ async fn main() -> Result<()> {
                     state.status = crate::models::DownloadStatus::Error(e.to_string());
                     let _ = tx.send(state);
                 }
-            });
-            app.downloading = true;
+            });            app.downloading = true;
             app.cancelled = Some(cancelled);
             app.download_scroll_state.select(Some(0));
             app.set_redraw();
@@ -236,6 +236,59 @@ async fn main() -> Result<()> {
                 app.add_log(format!("Model deleted: {:?}", path.file_name().unwrap_or_default()), crate::config::LogLevel::Info);
                 app.set_redraw();
             }
+
+            if let Some((backend, tag)) = app.pending_backend_deletion.take() {
+                let bin_base = crate::backend::hub::get_bin_base();
+                let bin_name = format!("llama-server-{}-{}", match backend {
+                    crate::models::Backend::Cpu => "cpu",
+                    crate::models::Backend::Vulkan => "vulkan",
+                    crate::models::Backend::Rocm => "rocm",
+                    crate::models::Backend::RocmLemonade => "rocm-lemonade",
+                    crate::models::Backend::Cuda => "cuda",
+                }, tag);
+                let bin_dir = bin_base.join(bin_name);
+                
+                if bin_dir.exists() {
+                    if let Err(e) = std::fs::remove_dir_all(&bin_dir) {
+                        app.add_log(format!("Failed to delete backend: {}", e), crate::config::LogLevel::Error);
+                    } else {
+                        app.add_log(format!("Deleted backend {} ({})", backend, tag), crate::config::LogLevel::Info);
+                        
+                        // Fetch new entries before borrowing global_mode as mutable
+                        let new_entries = app.fetch_backend_picker_entries();
+                        
+                        // If we are currently in BackendPicker mode, we need to refresh the entries
+                        if let crate::tui::app::GlobalMode::BackendPicker { entries, selected } = &mut app.global_mode {
+                            *entries = new_entries;
+                            if *selected >= entries.len() {
+                                *selected = entries.len().saturating_sub(1);
+                            }
+                        }
+                    }
+                }
+                app.set_redraw();
+            }
+        }
+
+        // Poll backend resolution task
+        if let Some(handle) = &app.backend_resolve_handle {
+            if handle.is_finished() {
+                if let Some(handle) = app.backend_resolve_handle.take() {
+                    match handle.await {
+                        Ok(Ok(path)) => {
+                            app.add_log(format!("Backend ready: {}", path.display()), crate::config::LogLevel::Info);
+                        }
+                        Ok(Err(e)) => {
+                            app.add_log(format!("Backend installation failed: {}", e), crate::config::LogLevel::Error);
+                        }
+                        Err(e) => {
+                            app.add_log(format!("Backend task panicked: {}", e), crate::config::LogLevel::Error);
+                        }
+                    }
+                    app.backend_resolving = false;
+                    app.set_redraw();
+                }
+            }
         }
 
         // Start pending server spawn
@@ -249,6 +302,14 @@ async fn main() -> Result<()> {
             let tx_clone = tx.clone();
             let server_mode_clone = app.server_mode.clone();
             let router_max_models_clone = app.router_max_models;
+            
+            // Ensure download channel exists so progress reporting works for backend binaries
+            if app.download_rx.is_none() {
+                let (tx, rx) = tokio::sync::broadcast::channel(10);
+                app.download_tx = Some(tx);
+                app.download_rx = Some(rx);
+            }
+            let download_tx_clone = app.download_tx.clone();
 
             let display_name = model_opt.as_ref().map(|m| m.display_name.clone()).unwrap_or_else(|| "Router".to_string());
             if let Some(m) = &model_opt {
@@ -256,7 +317,7 @@ async fn main() -> Result<()> {
             }
             app.add_log(format!("Loading {}...", display_name), crate::config::LogLevel::Info);
             let handle = tokio::spawn(async move {
-                server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone, server_mode_clone, router_max_models_clone).await
+                server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone, download_tx_clone, server_mode_clone, router_max_models_clone).await
                     .map(|(handle, cmd)| (display_name, handle, cmd))
             });
             app.spawn_task_handle = Some(handle);
@@ -555,18 +616,38 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
 
         // Poll download channel for progress
         let mut redraw = false;
+        let mut download_logs = Vec::new();
         if let Some(rx) = &mut app.download_rx {
             while let Ok(state) = rx.try_recv() {
-                // Find matching download and update in-place, or append new
                 if let Some(idx) = app.download_progress.iter().position(|d| {
                     d.model_id == state.model_id && d.filename == state.filename
                 }) {
+                    // Log download progress if total_bytes is known
+                    if state.total_bytes > 0 {
+                        let old_pct = (app.download_progress[idx].downloaded_bytes as f32 / app.download_progress[idx].total_bytes as f32 * 100.0) as u32;
+                        let new_pct = (state.downloaded_bytes as f32 / state.total_bytes as f32 * 100.0) as u32;
+                        if new_pct / 5 > old_pct / 5 && new_pct < 100 {
+                            let speed_mib = state.bytes_per_second / (1024.0 * 1024.0);
+                            let total_mib = state.total_bytes as f64 / (1024.0 * 1024.0);
+                            let name = if state.model_id == "llama-server" { "backend" } else { &state.filename };
+                            download_logs.push(format!("Downloading {}: {}% of {:.1} MiB ({:.2} MiB/s)...", name, new_pct, total_mib, speed_mib));
+                        }
+                    }
+
                     app.download_progress[idx] = state;
                 } else {
+                    if state.model_id == "llama-server" {
+                        download_logs.push("Starting backend download...".to_string());
+                    } else {
+                        download_logs.push(format!("Starting download: {}...", state.filename));
+                    }
                     app.download_progress.push(state);
                 }
                 redraw = true;
             }
+        }
+        for log in download_logs {
+            app.add_log(log, crate::config::LogLevel::Info);
         }
         if redraw {
             app.set_redraw();
@@ -581,11 +662,16 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
             for state in &completed {
                 match &state.status {
                     crate::models::DownloadStatus::Complete => {
-                        app.add_log("Download complete!", crate::config::LogLevel::Info);
-                        app.models = discover_models(&app.config.models_dir);
+                        if state.model_id == "llama-server" {
+                            app.add_log("Backend download complete", crate::config::LogLevel::Info);
+                        } else {
+                            app.add_log(format!("Download complete: {}", state.filename), crate::config::LogLevel::Info);
+                            app.models = discover_models(&app.config.models_dir);
+                        }
                     }
                     crate::models::DownloadStatus::Error(e) => {
-                        app.add_log(format!("Download failed: {}", e), crate::config::LogLevel::Error);
+                        let name = if state.model_id == "llama-server" { "Backend" } else { &state.filename };
+                        app.add_log(format!("Download failed ({}): {}", name, e), crate::config::LogLevel::Error);
                     }
                     _ => {}
                 }
@@ -596,9 +682,6 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
             app.downloading = !app.download_progress.is_empty();
             if !app.downloading {
                 app.download_scroll_state.select(None);
-                if app.active_panel == crate::tui::app::ActivePanel::Downloads {
-                    app.active_panel = crate::tui::app::ActivePanel::Log;
-                }
             } else if let Some(idx) = app.download_scroll_state.selected()
                 && idx >= app.download_progress.len() {
                     app.download_scroll_state.select(Some(app.download_progress.len() - 1));

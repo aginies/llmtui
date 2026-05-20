@@ -33,16 +33,14 @@ pub struct SettingsRenderCache {
 pub enum ActivePanel {
     Models,
     Log,
-    Downloads,
-  ServerSettings,
+    ServerSettings,
     LlmSettings,
     Profiles,
     SystemPromptPresets,
     SearchReadme,
     ActiveModel,
     ModelInfo,
-    }
-
+}
 /// Mode for the models panel.
 #[derive(Debug, Clone)]
 pub enum ModelsMode {
@@ -80,6 +78,10 @@ pub enum GlobalMode {
         entries: Vec<(String, String)>, // (ip, interface_name)
         selected: usize,
     },
+    BackendPicker {
+        entries: Vec<(crate::models::Backend, Option<String>)>,
+        selected: usize,
+    },
     Confirmation { selected: bool, kind: ConfirmationKind },
 }
 
@@ -89,6 +91,7 @@ pub enum ConfirmationKind {
     Reset,
     Delete,
     Unload,
+    DeleteBackend,
 }
 
 /// Phase of model loading.
@@ -144,6 +147,8 @@ pub struct App {
     pub settings_scroll_offset: u16,
     pub host_picker_entries: Vec<(String, String)>,
     pub host_picker_selected: usize,
+    pub backend_picker_entries: Vec<(crate::models::Backend, Option<String>)>,
+    pub backend_picker_selected: usize,
 
     pub profiles_scroll_offset: u16,
     pub system_prompt_presets_scroll_offset: u16,
@@ -152,6 +157,9 @@ pub struct App {
     pub edit_cursor_pos: usize,
     pub gguf_metadata_cache: std::collections::HashMap<String, crate::models::GgufMetadata>,
     pub vram_estimate: u64, // estimated VRAM in MiB
+    pub backend_resolving: bool,
+    pub backend_resolve_handle: Option<tokio::task::JoinHandle<Result<std::path::PathBuf, String>>>,
+
     pub model_total_layers: u32, // total number of layers in the model
     pub model_hidden_size: u32, // hidden dimension size
     pub model_n_ctx_train: u32, // n_ctx_train from GGUF metadata
@@ -160,6 +168,7 @@ pub struct App {
     pub max_threads: u32, // max threads = physical CPU cores
     pub pending_download: Option<(String, String, String)>, // (model_id, filename, download_url)
     pub pending_deletion: Option<std::path::PathBuf>,
+    pub pending_backend_deletion: Option<(crate::models::Backend, String)>,
     pub pending_spawn: Option<(Option<DiscoveredModel>, ModelSettings)>,
     pub pending_api_load: Option<(String, Option<String>)>, // (id, absolute_path)
     pub pending_api_unload: Option<(String, Option<String>)>, // (id, absolute_path)
@@ -237,6 +246,8 @@ impl App {
             settings_scroll_offset: 0,
             host_picker_entries: Vec::new(),
             host_picker_selected: 0,
+            backend_picker_entries: Vec::new(),
+            backend_picker_selected: 0,
             profiles_scroll_offset: 0,
             system_prompt_presets_scroll_offset: 0,
             readme_scroll_offset: 0,
@@ -244,6 +255,8 @@ impl App {
             edit_cursor_pos: 0,
             gguf_metadata_cache: Default::default(),
             vram_estimate: 0,
+            backend_resolving: false,
+            backend_resolve_handle: None,
             model_total_layers: 0,
             model_hidden_size: 0,
             model_n_ctx_train: 0,
@@ -252,6 +265,7 @@ impl App {
             max_threads: crate::config::physical_cores(),
             pending_download: None,
             pending_deletion: None,
+            pending_backend_deletion: None,
             pending_spawn: None,
             pending_api_load: None,
             pending_api_unload: None,
@@ -885,12 +899,9 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             visible.push(ActivePanel::ActiveModel);
         }
 
-        // 5. Log & Downloads (Bottom)
+        // 5. Log (Bottom)
         if self.is_panel_visible(5) {
             visible.push(ActivePanel::Log);
-        }
-        if !self.download_progress.is_empty() {
-            visible.push(ActivePanel::Downloads);
         }
 
         visible
@@ -1016,6 +1027,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             || s.llama_cpp_version_cpu != c.llama_cpp_version_cpu
             || s.llama_cpp_version_vulkan != c.llama_cpp_version_vulkan
             || s.llama_cpp_version_rocm != c.llama_cpp_version_rocm
+            || s.llama_cpp_version_rocm_lemonade != c.llama_cpp_version_rocm_lemonade
+            || s.llama_cpp_version_cuda != c.llama_cpp_version_cuda
     }
 
     /// Compute a fingerprint of the current settings for cache invalidation.
@@ -1169,14 +1182,6 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("Enter", y), Span::raw("  Expand log (fills screen)")]),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse log")]),
             ],
-            ActivePanel::Downloads => vec![
-                Line::from(Span::styled("DOWNLOADS PANEL", y.add_modifier(Modifier::BOLD))),
-                Line::from(""),
-                Line::from("Shows active downloads from HuggingFace."),
-                Line::from(""),
-                Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Select download")]),
-                Line::from(vec![Span::styled("c", y), Span::raw("  Cancel selected download")]),
-            ],
   ActivePanel::ServerSettings => {
                 vec![
                     Line::from(Span::styled("SERVER SETTINGS", y.add_modifier(Modifier::BOLD))),
@@ -1300,6 +1305,34 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                     entries.push((ip_str, name));
                 }
             }
+        }
+        
+        entries
+    }
+
+    pub fn fetch_backend_picker_entries(&self) -> Vec<(crate::models::Backend, Option<String>)> {
+        use crate::backend::hardware::{detect_gpu_vendor, GpuVendor};
+        let mut entries = Vec::new();
+
+        // 1. Add "latest" entries for standard backends
+        entries.push((crate::models::Backend::Cpu, None));
+        entries.push((crate::models::Backend::Vulkan, None));
+        
+        match detect_gpu_vendor() {
+            GpuVendor::Amd => {
+                entries.push((crate::models::Backend::Rocm, None));
+                entries.push((crate::models::Backend::RocmLemonade, None));
+            }
+            GpuVendor::Nvidia => {
+                entries.push((crate::models::Backend::Cuda, None));
+            }
+            _ => {}
+        }
+
+        // 2. Add all installed versions
+        let installed = crate::backend::hub::list_installed_backends();
+        for (b, tag) in installed {
+            entries.push((b, Some(tag)));
         }
         
         entries

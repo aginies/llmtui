@@ -57,12 +57,18 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
                         }
                     }
+                    ConfirmationKind::DeleteBackend => {
+                        if let Some((backend, tag)) = &app.pending_backend_deletion {
+                            app.add_log(format!("Deleting backend {} ({})", backend, tag), crate::config::LogLevel::Info);
+                        }
+                    }
                 }
                 app.global_mode = GlobalMode::Normal;
             }
             KeyCode::Char('n') | KeyCode::Esc => {
                 app.pending_deletion = None;
                 app.pending_api_unload = None;
+                app.pending_backend_deletion = None;
                 app.global_mode = GlobalMode::Normal;
             }
             KeyCode::Enter => {
@@ -81,6 +87,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                                 app.add_log(format!("Deleting model {}...", display_name), crate::config::LogLevel::Info);
                             }
                         }
+                        ConfirmationKind::DeleteBackend => {
+                            // Handled in main.rs loop by looking at pending_backend_deletion
+                            // and confirming global_mode transitioned back to Normal
+                        }
                         ConfirmationKind::Unload => {
                             if let Some((name, _)) = &app.pending_api_unload {
                                 app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
@@ -91,6 +101,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     // Cancelled (No)
                     app.pending_deletion = None;
                     app.pending_api_unload = None;
+                    app.pending_backend_deletion = None;
                 }
                 app.global_mode = GlobalMode::Normal;
             }
@@ -105,6 +116,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             {
                 app.pending_deletion = None;
                 app.pending_api_unload = None;
+                app.pending_backend_deletion = None;
                 app.global_mode = GlobalMode::Normal;
             }
             _ => {}
@@ -136,6 +148,85 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
             }
             KeyCode::Esc | KeyCode::Char('h')
+                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                app.global_mode = GlobalMode::Normal;
+            }
+            _ => {}
+        }
+        return;
+    }
+
+    // Skip all if in backend picker
+    if let GlobalMode::BackendPicker { entries, selected } = &mut app.global_mode {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                *selected = selected.saturating_sub(1);
+                app.set_redraw();
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
+                app.set_redraw();
+            }
+            KeyCode::Enter => {
+                let (backend, tag) = entries[*selected].clone();
+                app.settings.backend = backend;
+                
+                // Set the version field for this backend
+                match backend {
+                    crate::models::Backend::Cpu => app.settings.llama_cpp_version_cpu = tag.clone(),
+                    crate::models::Backend::Vulkan => app.settings.llama_cpp_version_vulkan = tag.clone(),
+                    crate::models::Backend::Rocm => app.settings.llama_cpp_version_rocm = tag.clone(),
+                    crate::models::Backend::RocmLemonade => app.settings.llama_cpp_version_rocm_lemonade = tag.clone(),
+                    crate::models::Backend::Cuda => app.settings.llama_cpp_version_cuda = tag.clone(),
+                }
+
+                // If not installed, trigger immediate resolution in background
+                if !crate::backend::hub::is_backend_version_installed(backend, tag.as_deref()) {
+                    app.backend_resolving = true;
+                    let tag_param = tag.clone();
+                    
+                    // Ensure download channel exists so progress reporting works
+                    if app.download_rx.is_none() {
+                        let (tx, rx) = tokio::sync::broadcast::channel(10);
+                        app.download_tx = Some(tx);
+                        app.download_rx = Some(rx);
+                    }
+                    
+                    // Create a log channel for backend resolution
+                    let (log_tx, log_rx) = tokio::sync::mpsc::channel(100);
+                    app.server_log_rx = Some(log_rx);
+
+                    let tx = app.download_tx.clone();
+                    let handle = tokio::spawn(async move {
+                        crate::backend::hub::resolve_backend_binary(backend, tag_param.as_deref(), Some(log_tx), tx).await
+                            .map_err(|e| e.to_string())
+                    });
+                    app.backend_resolve_handle = Some(handle);
+                } else {
+                    // Selected backend is already installed, unblock loading
+                    app.backend_resolving = false;
+                }
+
+                app.global_mode = GlobalMode::Normal;
+                sync_global_settings(app);
+                app.set_redraw();
+            }
+            KeyCode::Char('d') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                if let Some((backend, Some(tag))) = entries.get(*selected) {
+                    app.pending_backend_deletion = Some((*backend, tag.clone()));
+                    app.global_mode = GlobalMode::Confirmation {
+                        selected: false,
+                        kind: ConfirmationKind::DeleteBackend,
+                    };
+                    app.set_redraw();
+                }
+            }
+            KeyCode::Esc => {
+                app.global_mode = GlobalMode::Normal;
+                app.set_redraw();
+            }
+            KeyCode::Char('h')
                 if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
                 app.global_mode = GlobalMode::Normal;
@@ -330,6 +421,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         match key.code {
             KeyCode::Esc => {
                 app.models_mode = ModelsMode::List;
+                // Restore Active Model (4) and Log (5) panels when exiting search mode
+                app.panel_visibility |= (1 << 4) | (1 << 5);
                 app.set_redraw();
                 return;
             }
@@ -672,7 +765,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
  match app.active_panel {
         ActivePanel::Models => handle_models_key(app, key).await,
         ActivePanel::Log => handle_log_key(app, key),
-        ActivePanel::Downloads => handle_downloads_key(app, key),
         ActivePanel::ServerSettings => { /* handled above */ }
         ActivePanel::LlmSettings => handle_settings_key(app, key),
         ActivePanel::Profiles => handle_profiles_key(app, key),
@@ -681,53 +773,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         ActivePanel::ActiveModel => {}
         ActivePanel::ModelInfo => {}
     }
-}
-
-fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
-    match key.code {
-        KeyCode::Up | KeyCode::Char('k') => {
-            let i = match app.download_scroll_state.selected() {
-                Some(i) => {
-                    if i == 0 {
-                        app.download_progress.len() - 1
-                    } else {
-                        i - 1
-                    }
-                }
-                None => 0,
-            };
-            app.download_scroll_state.select(Some(i));
-        }
-        KeyCode::Down | KeyCode::Char('j') => {
-            let i = match app.download_scroll_state.selected() {
-                Some(i) => {
-                    if i >= app.download_progress.len() - 1 {
-                        0
-                    } else {
-                        i + 1
-                    }
-                }
-                None => 0,
-            };
-            app.download_scroll_state.select(Some(i));
-        }
-        KeyCode::Char('c') => {
-            if let Some(idx) = app.download_scroll_state.selected() {
-                let mut cancelled_name = None;
-                if let Some(state) = app.download_progress.get_mut(idx)
-                    && let Some(token) = &state.cancel_token {
-                        token.store(true, std::sync::atomic::Ordering::Relaxed);
-                        state.cancelled = true;
-                        cancelled_name = Some(state.filename.clone());
-                    }
-                if let Some(name) = cancelled_name {
-                    app.add_log(format!("Cancelling download of {}...", name), crate::config::LogLevel::Info);
-                }
-            }
-        }
-        _ => {}
-    }
-    app.set_redraw();
 }
 
 async fn fetch_readme_for_selected(app: &mut App, model_id: String) {
@@ -811,6 +856,10 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         KeyCode::Enter | KeyCode::Char('l') => {
+            if app.backend_resolving {
+                app.add_log("Wait for backend installation to finish...", crate::config::LogLevel::Info);
+                return;
+            }
             if let Some(idx) = app.selected_model_idx {
                 let model = app.models[idx].clone();
                 let already_loaded = matches!(
@@ -992,14 +1041,27 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     };
                 }
                 1 => {
-                    // Cycle backend
-                    app.settings.backend = match app.settings.backend {
-                        crate::models::Backend::Cpu => crate::models::Backend::Vulkan,
-                        crate::models::Backend::Vulkan => crate::models::Backend::Rocrm,
-                        crate::models::Backend::Rocrm => crate::models::Backend::Cpu,
+                    // Open backend picker
+                    let entries = app.fetch_backend_picker_entries();
+                    app.backend_picker_entries = entries.clone();
+                    
+                    // Find current selection index
+                    let current_tag = match app.settings.backend {
+                        crate::models::Backend::Cpu => &app.settings.llama_cpp_version_cpu,
+                        crate::models::Backend::Vulkan => &app.settings.llama_cpp_version_vulkan,
+                        crate::models::Backend::Rocm => &app.settings.llama_cpp_version_rocm,
+                        crate::models::Backend::RocmLemonade => &app.settings.llama_cpp_version_rocm_lemonade,
+                        crate::models::Backend::Cuda => &app.settings.llama_cpp_version_cuda,
                     };
-                    app.update_vram_estimate();
-                    app.settings_render_cache = None;
+                    
+                    app.backend_picker_selected = entries.iter()
+                        .position(|(b, t)| *b == app.settings.backend && t == current_tag)
+                        .unwrap_or(0);
+
+                    app.global_mode = crate::tui::app::GlobalMode::BackendPicker {
+                        entries,
+                        selected: app.backend_picker_selected,
+                    };
                 }
                 2 => {
                     // Cycle threads (1-max)
@@ -1407,12 +1469,21 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
             }
         }
+        // LLama.cpp Version: cycle on Enter, or open picker
+        _ if idx == 22 => {
+            if !app.settings_edit_buffer.is_empty() {
+                app.settings_edit_buffer.clear();
+                app.set_redraw();
+            } else if key.code == KeyCode::Enter {
+                // Open version picker for the current backend (not implemented)
+            }
+        }
         KeyCode::PageDown | KeyCode::Char('d') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else {
-                app.settings_selected_idx = (app.settings_selected_idx + 10).min(21);
+                app.settings_selected_idx = (app.settings_selected_idx + 10).min(22);
                 app.set_redraw();
             }
         }

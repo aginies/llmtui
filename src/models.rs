@@ -174,6 +174,8 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_cpu: dp.llama_cpp_version_cpu,
             llama_cpp_version_vulkan: dp.llama_cpp_version_vulkan,
             llama_cpp_version_rocm: dp.llama_cpp_version_rocm,
+            llama_cpp_version_rocm_lemonade: dp.llama_cpp_version_rocm_lemonade,
+            llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
             api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
         }
@@ -199,31 +201,6 @@ pub enum DownloadStatus {
     Downloading,
     Complete,
     Error(String),
-}
-
-impl DownloadState {
-    pub fn progress(&self) -> f64 {
-        if self.total_bytes == 0 {
-            0.0
-        } else {
-            self.downloaded_bytes as f64 / self.total_bytes as f64
-        }
-    }
-
-    pub fn formatted_progress(&self) -> String {
-        let pct = self.progress() * 100.0;
-        format!("{pct:.1}%")
-    }
-
-    pub fn formatted_speed(&self) -> String {
-        if self.bytes_per_second < 1024.0 {
-            format!("{:.1} B/s", self.bytes_per_second)
-        } else if self.bytes_per_second < 1024.0 * 1024.0 {
-            format!("{:.1} KB/s", self.bytes_per_second / 1024.0)
-        } else {
-            format!("{:.1} MB/s", self.bytes_per_second / (1024.0 * 1024.0))
-        }
-    }
 }
 
 // ── Cache type enums ──────────────────────────────────────────
@@ -554,7 +531,11 @@ pub enum Backend {
     #[serde(rename = "vulkan")]
     Vulkan,
     #[serde(rename = "rocm")]
-    Rocrm,
+    Rocm,
+    #[serde(rename = "rocm_lemonade")]
+    RocmLemonade,
+    #[serde(rename = "cuda")]
+    Cuda,
 }
 
 
@@ -563,7 +544,9 @@ impl std::fmt::Display for Backend {
         match self {
             Backend::Cpu => write!(f, "cpu"),
             Backend::Vulkan => write!(f, "vulkan"),
-            Backend::Rocrm => write!(f, "rocm"),
+            Backend::Rocm => write!(f, "rocm"),
+            Backend::RocmLemonade => write!(f, "rocm-lemonade"),
+            Backend::Cuda => write!(f, "cuda"),
         }
     }
 }
@@ -769,6 +752,10 @@ pub struct ModelSettings {
     pub llama_cpp_version_vulkan: Option<String>,
     /// llama.cpp release tag for ROCm backend (e.g. "b1234" or None for latest).
     pub llama_cpp_version_rocm: Option<String>,
+    /// Lemonade llama.cpp release tag for ROCm backend.
+    pub llama_cpp_version_rocm_lemonade: Option<String>,
+    /// llama.cpp release tag for CUDA backend.
+    pub llama_cpp_version_cuda: Option<String>,
     /// Whether to enable the API proxy server.
     pub api_endpoint_enabled: bool,
     /// Port for the API proxy server.
@@ -858,6 +845,8 @@ impl Default for ModelSettings {
             llama_cpp_version_cpu: None,
             llama_cpp_version_vulkan: None,
             llama_cpp_version_rocm: None,
+            llama_cpp_version_rocm_lemonade: None,
+            llama_cpp_version_cuda: None,
             api_endpoint_enabled: false,
             api_endpoint_port: 49222,
         }
@@ -937,6 +926,7 @@ impl ModelSettings {
         settings.llama_cpp_version_cpu = config.default.llama_cpp_version_cpu.clone();
         settings.llama_cpp_version_vulkan = config.default.llama_cpp_version_vulkan.clone();
         settings.llama_cpp_version_rocm = config.default.llama_cpp_version_rocm.clone();
+        settings.llama_cpp_version_rocm_lemonade = config.default.llama_cpp_version_rocm_lemonade.clone();
         settings.api_endpoint_enabled = config.default.api_endpoint_enabled;
         settings.api_endpoint_port = config.default.api_endpoint_port;
         settings

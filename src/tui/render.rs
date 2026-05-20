@@ -97,12 +97,28 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     ]),
                 ])
             }
+            ConfirmationKind::DeleteBackend => {
+                let (backend, tag) = match &app.pending_backend_deletion {
+                    Some((b, t)) => (b.to_string(), t.as_str()),
+                    None => ("Unknown".to_string(), "latest"),
+                };
+                (" Delete Backend? ", vec![
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::raw("Delete backend "),
+                        Span::styled(format!("{} ({})", backend, tag), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                        Span::raw("?"),
+                    ]),
+                    Line::from(""),
+                    Line::from("This will remove the binary and shared libraries."),
+                ])
+            }
         };
 
         let block = Block::default()
             .title(title)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(if *kind == ConfirmationKind::Delete { Color::Red } else { Color::Yellow }));
+            .border_style(Style::default().fg(if *kind == ConfirmationKind::Delete || *kind == ConfirmationKind::DeleteBackend { Color::Red } else { Color::Yellow }));
 
         let mut lines = text_lines;
         lines.push(Line::from(""));
@@ -159,9 +175,108 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .border_style(Style::default().fg(Color::Yellow)),
         ), picker_area);
         return;
-    }
+        }
 
-    // Main layout: status bar + top panels + active model + log
+        // Backend picker overlay
+        if let GlobalMode::BackendPicker { entries, selected } = &app.global_mode {
+            let area = f.area();
+            let w = (area.width as f64 * 0.5).clamp(50.0, 70.0) as u16;
+            let gpu_info_lines = if crate::backend::hardware::detect_gpu_model().is_some() { 1 } else { 0 };
+            // Increase max height for version list
+            let h = (entries.len() + 4 + gpu_info_lines).min(area.height as usize - 4) as u16;
+            let picker_area = Rect {
+                x: (area.width - w) / 2,
+                y: (area.height - h) / 2,
+                width: w,
+                height: h,
+            };
+
+            use crate::backend::hardware::{detect_gpu_vendor, detect_gpu_model, GpuVendor};
+            let vendor = detect_gpu_vendor();
+            let gpu_model = detect_gpu_model();
+
+            let mut picker_lines: Vec<Line> = Vec::new();
+            picker_lines.push(Line::from(Span::styled(
+                " Select Backend Acceleration ",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )));
+
+            if let Some(model) = gpu_model {
+                picker_lines.push(Line::from(vec![
+                    Span::raw("Detected Hardware: "),
+                    Span::styled(model, Style::default().fg(Color::Cyan)),
+                ]));
+            }
+            picker_lines.push(Line::from(""));
+
+            for (i, (backend, tag)) in entries.iter().enumerate() {
+                let marker = if i == *selected { "> " } else { "  " };
+
+                // For versioned entries, check if that specific version is installed
+                // Actually they come from list_installed_backends so they ARE installed.
+                // "None" tag means "latest" which might not be installed.
+                let is_installed = if tag.is_some() {
+                    true 
+                } else {
+                    crate::backend::hub::is_backend_any_version_installed(*backend)
+                };
+
+                let is_recommended = match (vendor, backend, tag) {
+                    (GpuVendor::Amd, crate::models::Backend::Rocm, None) => true,
+                    (GpuVendor::Amd, crate::models::Backend::RocmLemonade, None) => true,
+                    (GpuVendor::Nvidia, crate::models::Backend::Cuda, None) => true,
+                    (GpuVendor::Nvidia, crate::models::Backend::Vulkan, None) => true,
+                    (GpuVendor::Intel, crate::models::Backend::Vulkan, None) => true,
+                    (GpuVendor::Unknown, crate::models::Backend::Cpu, None) => true,
+                    _ => false,
+                };
+
+                let style = if i == *selected {
+                    Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+
+                let label = match backend {
+                    crate::models::Backend::Cpu => "CPU-only",
+                    crate::models::Backend::Vulkan => "Vulkan (GPU Universal)",
+                    crate::models::Backend::Rocm => "ROCm (AMD Native)",
+                    crate::models::Backend::RocmLemonade => "ROCm Lemonade (AMD Optimized)",
+                    crate::models::Backend::Cuda => "CUDA (NVIDIA Native)",
+                };
+                let display_label = if let Some(t) = tag {
+                    format!("{} ({})", label, t)
+                } else {
+                    format!("{} (latest/auto)", label)
+                };
+
+                let mut line_spans = vec![
+                    Span::styled(marker, Style::default().fg(Color::Yellow)),
+                    Span::styled(display_label, style),
+                ];
+
+                if tag.is_none() && is_installed {
+                    line_spans.push(Span::raw("  "));
+                    line_spans.push(Span::styled("(Cached)", Style::default().fg(Color::Blue)));
+                }
+
+                if is_recommended {
+                    line_spans.push(Span::raw("  "));
+                    line_spans.push(Span::styled("(Recommended)", Style::default().fg(Color::Green)));
+                }
+
+                picker_lines.push(Line::from(line_spans));
+            }
+
+            f.render_widget(ratatui::widgets::Clear, picker_area);
+            f.render_widget(Paragraph::new(picker_lines).block(
+                Block::default()
+                    .title(" Backend Picker ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow)),
+            ), picker_area);
+            return;
+        }    // Main layout: status bar + top panels + active model + log
     let is_search = matches!(app.models_mode, ModelsMode::Search { .. });
     let active_model_visible = app.is_panel_visible(4) && !is_search;
     let log_visible = app.is_panel_visible(5);
@@ -217,20 +332,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
     if app.log_expanded {
         let log_area = chunks[1];
-        if !app.download_progress.is_empty() {
-            let log_chunks = ratatui::layout::Layout::default()
-                .direction(ratatui::layout::Direction::Vertical)
-                .constraints([
-                    ratatui::layout::Constraint::Fill(1),    // log
-                    ratatui::layout::Constraint::Length(7),  // downloads
-                ])
-                .split(log_area);
-            panel::log::render(f, log_chunks[0], app);
-            let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
-            panel::models::render_download_panel(f, log_chunks[1], &app.download_progress, total_speed, &mut app.download_scroll_state, app.active_panel == ActivePanel::Downloads);
-        } else {
-            panel::log::render(f, log_area, app);
-        }
+        panel::log::render(f, log_area, app);
         return;
     }
 
@@ -459,7 +561,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             &app.download_progress,
             total_speed,
             &mut app.download_scroll_state,
-            app.active_panel == ActivePanel::Downloads,
+            false, // Never focused now since F3 panel is gone
         );
     } else if log_visible {
         panel::log::render(f, bottom_area, app);
@@ -470,7 +572,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             &app.download_progress,
             total_speed,
             &mut app.download_scroll_state,
-            app.active_panel == ActivePanel::Downloads,
+            false,
         );
     }
 }
@@ -563,15 +665,6 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             ]
                         }
                     }
-                    crate::tui::app::ActivePanel::Downloads => {
-                        vec![
-                            Span::styled("j/k nav", c),
-                            Span::raw("  "),
-                            Span::styled("c cancel", c),
-                            Span::raw("  "),
-                            Span::styled("⇥ panels", c),
-                        ]
-                    }
                     crate::tui::app::ActivePanel::ServerSettings => {
                         vec![
                             Span::styled("j/k nav", c),
@@ -655,6 +748,11 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         parts.push(Span::styled("[HOST PICKER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
     }
 
+    if matches!(app.global_mode, GlobalMode::BackendPicker { .. }) {
+        parts.push(Span::raw("  "));
+        parts.push(Span::styled("[BACKEND PICKER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+    }
+
     match &app.models_mode {
         crate::tui::app::ModelsMode::Search { query: _, sort_by, .. } => {
             parts.push(Span::raw("  "));
@@ -663,7 +761,6 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             } else {
                 let panel_label = match app.active_panel {
                     crate::tui::app::ActivePanel::Log => "LOG",
-                    crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
                     crate::tui::app::ActivePanel::ServerSettings => "SERVER",
                     crate::tui::app::ActivePanel::LlmSettings => "LLM",
                     crate::tui::app::ActivePanel::Profiles => "PROFILES",
@@ -683,7 +780,6 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             } else {
                 let panel_label = match app.active_panel {
                     crate::tui::app::ActivePanel::Log => "LOG",
-                    crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
                     crate::tui::app::ActivePanel::ServerSettings => "SERVER",
                     crate::tui::app::ActivePanel::LlmSettings => "LLM",
                     crate::tui::app::ActivePanel::Profiles => "PROFILES",
@@ -701,7 +797,6 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             let panel_label = match app.active_panel {
                 crate::tui::app::ActivePanel::Models => "MODELS",
                 crate::tui::app::ActivePanel::Log => "LOG",
-                crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
                 crate::tui::app::ActivePanel::ServerSettings => "SERVER",
                 crate::tui::app::ActivePanel::LlmSettings => "LLM",
                 crate::tui::app::ActivePanel::Profiles => "PROFILES",

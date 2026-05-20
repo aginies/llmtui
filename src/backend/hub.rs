@@ -222,22 +222,164 @@ pub async fn download_file(
 
 use std::os::unix::fs::PermissionsExt;
 
-/// Resolve the llama-server binary path for a given backend.
-/// Downloads the binary from GitHub releases if not already cached.
-pub async fn resolve_backend_binary(backend: crate::models::Backend, version: Option<&str>) -> Result<std::path::PathBuf> {
-    let bin_base = dirs::data_local_dir()
+pub fn get_bin_base() -> std::path::PathBuf {
+    dirs::data_local_dir()
         .unwrap_or_default()
         .join("llm-manager")
-        .join("bin");
+        .join("bin")
+}
+
+/// Check if any version of the specified backend is already installed.
+pub fn is_backend_any_version_installed(backend: crate::models::Backend) -> bool {
+    let bin_base = get_bin_base();
+    if !bin_base.exists() {
+        return false;
+    }
+
+    let prefix = format!("llama-server-{}-", match backend {
+        crate::models::Backend::Cpu => "cpu",
+        crate::models::Backend::Vulkan => "vulkan",
+        crate::models::Backend::Rocm => "rocm",
+        crate::models::Backend::RocmLemonade => "rocm-lemonade",
+        crate::models::Backend::Cuda => "cuda",
+    });
+
+    if let Ok(entries) = std::fs::read_dir(bin_base) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.starts_with(&prefix) {
+                let bin_path = entry.path().join("llama-server");
+                let lib_sentinel = entry.path().join("libllama.so");
+                if bin_path.exists() && lib_sentinel.exists() {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
+/// Check if a specific version of the specified backend is already installed.
+pub fn is_backend_version_installed(backend: crate::models::Backend, tag: Option<&str>) -> bool {
+    let bin_base = get_bin_base();
+    if !bin_base.exists() {
+        return false;
+    }
+
+    // If tag is None, we don't know the exact version yet (latest), so we can't be sure it's installed
+    // unless we check for ANY version, but here we want to know if the target is ready.
+    // For "latest", we should probably always "resolve" it to check for updates.
+    let tag = match tag {
+        Some(t) => t,
+        None => return false,
+    };
+
+    let bin_name = format!("llama-server-{}-{}", match backend {
+        crate::models::Backend::Cpu => "cpu",
+        crate::models::Backend::Vulkan => "vulkan",
+        crate::models::Backend::Rocm => "rocm",
+        crate::models::Backend::RocmLemonade => "rocm-lemonade",
+        crate::models::Backend::Cuda => "cuda",
+    }, tag);
+
+    let bin_dir = bin_base.join(bin_name);
+    let bin_path = bin_dir.join("llama-server");
+    let lib_sentinel = bin_dir.join("libllama.so");
+
+    bin_path.exists() && lib_sentinel.exists()
+}
+
+/// List all installed backends and their versions.
+/// Returns a list of (Backend, VersionTag) pairs.
+pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
+    let bin_base = get_bin_base();
+    let mut installed = Vec::new();
+    if !bin_base.exists() {
+        return installed;
+    }
+
+    if let Ok(entries) = std::fs::read_dir(bin_base) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            
+            // Expected format: llama-server-{backend}-{tag}
+            if !name_str.starts_with("llama-server-") {
+                continue;
+            }
+
+            let parts: Vec<&str> = name_str.split('-').collect();
+            // parts: ["llama", "server", backend, tag]
+            // For rocm-lemonade it might be: ["llama", "server", "rocm", "lemonade", tag]
+            
+            if parts.len() < 4 {
+                continue;
+            }
+
+            let (backend, tag) = if parts[2] == "rocm" && parts.get(3) == Some(&"lemonade") {
+                if parts.len() < 5 { continue; }
+                (crate::models::Backend::RocmLemonade, parts[4].to_string())
+            } else {
+                let b = match parts[2] {
+                    "cpu" => crate::models::Backend::Cpu,
+                    "vulkan" => crate::models::Backend::Vulkan,
+                    "rocm" => crate::models::Backend::Rocm,
+                    "cuda" => crate::models::Backend::Cuda,
+                    _ => continue,
+                };
+                (b, parts[3].to_string())
+            };
+
+            // Verify it actually contains the binary
+            if entry.path().join("llama-server").exists() {
+                installed.push((backend, tag));
+            }
+        }
+    }
+    
+    // Sort by backend then tag descending (usually tag contains version number)
+    installed.sort_by(|a, b| {
+        let b_cmp = format!("{:?}", a.0).cmp(&format!("{:?}", b.0));
+        if b_cmp == std::cmp::Ordering::Equal {
+            b.1.cmp(&a.1) // descending tags
+        } else {
+            b_cmp
+        }
+    });
+
+    installed
+}
+
+/// Resolve the llama-server binary path for a given backend.
+/// Downloads the binary from GitHub releases if not already cached.
+pub async fn resolve_backend_binary(
+    backend: crate::models::Backend,
+    version: Option<&str>,
+    log_tx: Option<tokio::sync::mpsc::Sender<String>>,
+    progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
+) -> Result<std::path::PathBuf> {
+    let bin_base = get_bin_base();
 
     let tag = match version {
         Some(v) if !v.is_empty() => v.to_string(),
         _ => {
             // Fetch latest release tag (best-effort; falls back to hardcoded tag)
             let client = reqwest::Client::new();
+            let repo = match backend {
+                crate::models::Backend::RocmLemonade => "lemonade-sdk/llamacpp-rocm",
+                crate::models::Backend::Cuda => "ai-dock/llama.cpp-cuda",
+                _ => "ggml-org/llama.cpp",
+            };
+            let url = format!("https://api.github.com/repos/{}/releases/latest", repo);
             match client
-                .get("https://api.github.com/repos/ggml-org/llama.cpp/releases/latest")
+                .get(&url)
                 .header("Accept", "application/vnd.github.v3+json")
+                .header("User-Agent", "llm-manager/0.1.0")
                 .send()
                 .await
             {
@@ -247,12 +389,28 @@ pub async fn resolve_backend_binary(backend: crate::models::Backend, version: Op
                             .get("tag_name")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string())
-                            .unwrap_or_else(|| "b9128".to_string()),
-                        Err(_) => "b9128".to_string(),
+                            .unwrap_or_else(|| {
+                                if repo.contains("lemonade") { "b1273".to_string() }
+                                else if repo.contains("cuda") { "b9244".to_string() }
+                                else { "b4100".to_string() }
+                            }),
+                        Err(_) => {
+                             if repo.contains("lemonade") { "b1273".to_string() }
+                             else if repo.contains("cuda") { "b9244".to_string() }
+                             else { "b4100".to_string() }
+                        }
                     },
-                    Err(_) => "b9128".to_string(),
+                    Err(_) => {
+                         if repo.contains("lemonade") { "b1273".to_string() }
+                         else if repo.contains("cuda") { "b9244".to_string() }
+                         else { "b4100".to_string() }
+                    }
                 },
-                Err(_) => "b9128".to_string(),
+                Err(_) => {
+                     if repo.contains("lemonade") { "b1273".to_string() }
+                     else if repo.contains("cuda") { "b9244".to_string() }
+                     else { "b4100".to_string() }
+                }
             }
         }
     };
@@ -260,7 +418,9 @@ pub async fn resolve_backend_binary(backend: crate::models::Backend, version: Op
     let bin_name = format!("llama-server-{}-{}", match backend {
         crate::models::Backend::Cpu => "cpu",
         crate::models::Backend::Vulkan => "vulkan",
-        crate::models::Backend::Rocrm => "rocm",
+        crate::models::Backend::Rocm => "rocm",
+        crate::models::Backend::RocmLemonade => "rocm-lemonade",
+        crate::models::Backend::Cuda => "cuda",
     }, tag);
     let bin_dir = bin_base.join(&bin_name);
     let bin_path = bin_dir.join("llama-server");
@@ -277,29 +437,76 @@ pub async fn resolve_backend_binary(backend: crate::models::Backend, version: Op
 
     let client = reqwest::Client::new();
 
-    // Construct asset name
-    let asset_name = match backend {
-        crate::models::Backend::Cpu => format!("llama-{tag}-bin-ubuntu-x64.tar.gz"),
-        crate::models::Backend::Vulkan => format!("llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz"),
-        crate::models::Backend::Rocrm => format!("llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz"),
+    // Construct asset name and URL
+    let (download_url, is_zip) = match backend {
+        crate::models::Backend::Cpu => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-x64.tar.gz"),
+            false
+        ),
+        crate::models::Backend::Vulkan => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz"),
+            false
+        ),
+        crate::models::Backend::Rocm => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz"),
+            false
+        ),
+        crate::models::Backend::RocmLemonade => {
+            use crate::backend::hardware::{detect_amd_gfx_target, get_lemonade_gfx_suffix};
+            let gfx = detect_amd_gfx_target().unwrap_or_else(|| "gfx1100".to_string());
+            let suffix = get_lemonade_gfx_suffix(&gfx);
+            (
+                format!("https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/{tag}/llama-{tag}-ubuntu-rocm-{suffix}-x64.zip"),
+                true
+            )
+        }
+        crate::models::Backend::Cuda => (
+            format!("https://github.com/ai-dock/llama.cpp-cuda/releases/download/{tag}/llama.cpp-{tag}-cuda-12.8.tar.gz"),
+            false
+        )
     };
 
-    let download_url = format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{asset_name}");
+    if let Some(tx) = &log_tx {
+        let _ = tx.send(format!("Download URL: {}", download_url)).await;
+        let _ = tx.send(format!("Install path: {}", bin_dir.display())).await;
+    }
 
     // Download to temp file (GitHub requires User-Agent for releases)
-    let tmp_path = bin_dir.join(format!("{bin_name}.tmp"));
-    let resp = client
-        .get(&download_url)
-        .header("User-Agent", "llm-manager/0.1.0")
-        .send()
-        .await?
-        .error_for_status()?;
-    let bytes = resp.bytes().await?;
-    tokio::fs::write(&tmp_path, &bytes).await?;
+    let tmp_ext = if is_zip { "zip" } else { "tar.gz" };
+    let tmp_filename = format!("{bin_name}.tmp.{tmp_ext}");
+    let tmp_path = bin_dir.join(&tmp_filename);
+    
+    if let Some(ref tx) = progress_tx {
+        let mut progress = crate::models::DownloadState::new("llama-server".to_string(), tmp_filename.clone(), 0);
+        let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        download_file("llama-server", &tmp_filename, &download_url, &tmp_path, &mut progress, cancelled, tx.clone()).await?;
+    } else {
+        let resp = client
+            .get(&download_url)
+            .header("User-Agent", "llm-manager/0.1.0")
+            .send()
+            .await?
+            .error_for_status()?;
+        let bytes = resp.bytes().await?;
+        tokio::fs::write(&tmp_path, &bytes).await?;
+    }
 
     // Extract the archive to a temp directory, then pull out the binary and shared libs
     let extract_dir = bin_dir.join(format!("{bin_name}.extract"));
-    extract_tar_gz_to(&tmp_path, &extract_dir)?;
+    
+    if let Some(tx) = &log_tx {
+        let _ = tx.send("Extracting backend...".to_string()).await;
+    }
+
+    if is_zip {
+        extract_zip_to(&tmp_path, &extract_dir)?;
+    } else {
+        extract_tar_gz_to(&tmp_path, &extract_dir)?;
+    }
+
+    if let Some(tx) = &log_tx {
+        let _ = tx.send("Finalizing installation...".to_string()).await;
+    }
 
     // The archive contains llama-xxx/bin/llama-server; find it and move into bin_dir
     let extracted_bin = extract_dir.join("llama-server");
@@ -351,6 +558,34 @@ fn extract_tar_gz_to(archive_path: &std::path::Path, dest_dir: &std::path::Path)
     let decoder = GzDecoder::new(file);
     let mut archive = Archive::new(decoder);
     archive.unpack(dest_dir)?;
+    Ok(())
+}
+
+/// Extract the entire .zip archive into a directory.
+fn extract_zip_to(archive_path: &std::path::Path, dest_dir: &std::path::Path) -> Result<()> {
+    let file = std::fs::File::open(archive_path)?;
+    let mut archive = zip::ZipArchive::new(file)?;
+    
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let outpath = match file.enclosed_name() {
+            Some(path) => dest_dir.join(path),
+            None => continue,
+        };
+
+        if file.name().ends_with('/') {
+            std::fs::create_dir_all(&outpath)?;
+        } else {
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    std::fs::create_dir_all(p)?;
+                }
+            }
+            let mut outfile = std::fs::File::create(&outpath)?;
+            std::io::copy(&mut file, &mut outfile)?;
+        }
+    }
+    
     Ok(())
 }
 

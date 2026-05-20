@@ -196,13 +196,15 @@ Panels can be individually toggled on/off via `F1`–`F6`. Press `F9` to show al
 
 ### Backend selection
 
-Three backends supported via the llama.cpp server:
+Multiple backends are supported via the llama.cpp server:
 
-| Backend | Description |
-|---------|-------------|
-| CPU | CPU-only inference |
-| Vulkan | GPU via Vulkan (AMD/NVIDIA/Intel) |
-| ROCm | GPU via ROCm 7.2 (AMD) |
+| Backend | Source | Description |
+|---------|--------|-------------|
+| **CPU** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | CPU-only inference (standard) |
+| **Vulkan** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | GPU via Vulkan (Universal: AMD/NVIDIA/Intel) |
+| **ROCm** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | GPU via ROCm (AMD Native) |
+| **ROCm Lemonade** | [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) | GPU via ROCm (AMD Optimized) |
+| **CUDA** | [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) | GPU via CUDA (NVIDIA Native) |
 
 ### CmdLine overlay
 
@@ -278,10 +280,16 @@ llama-server binaries are stored in `~/.local/share/llm-manager/bin/` with versi
 ~/.local/share/llm-manager/bin/
 ├── llama-server-cpu-{version}/llama-server
 ├── llama-server-vulkan-{version}/llama-server
-└── llama-server-rocm-{version}/llama-server
+├── llama-server-rocm-{version}/llama-server
+├── llama-server-rocm-lemonade-{version}/llama-server
+└── llama-server-cuda-{version}/llama-server
 ```
 
-Switching versions is instant — no re-download. The binary is downloaded from `ggml-org/llama.cpp` GitHub releases on first use.
+Switching versions is instant — no re-download. The binary is automatically downloaded from specialized repositories on first use:
+
+- **CPU, Vulkan, ROCm (Native):** Fetched from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp)
+- **ROCm (Lemonade):** Fetched from [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) (auto-detects GFX architecture like `gfx1100`)
+- **CUDA (NVIDIA):** Fetched from [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) (includes CUDA 12.8 builds)
 
 Per-backend version config:
 
@@ -289,6 +297,8 @@ Per-backend version config:
 llama_cpp_version_cpu: null
 llama_cpp_version_vulkan: null
 llama_cpp_version_rocm: null
+llama_cpp_version_rocm_lemonade: null
+llama_cpp_version_cuda: null
 ```
 
 ## License

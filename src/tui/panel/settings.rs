@@ -153,6 +153,29 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
         add_setting(&mut lines, &mut total_count, settings, cached, rep_names[i], &val, selected, edit_buf, editing);
     }
 
+    // ── Backend ──────────────────────────────────────────────
+    lines.push(Line::from(vec![
+        Span::styled("--- Backend ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+    ]));
+
+    let backend_names = ["LLama.cpp Version"];
+    let backend_vals = vec![
+        match settings.backend {
+            crate::models::Backend::Cpu => settings.llama_cpp_version_cpu.as_deref().unwrap_or("latest"),
+            crate::models::Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref().unwrap_or("latest"),
+            crate::models::Backend::Rocm => settings.llama_cpp_version_rocm.as_deref().unwrap_or("latest"),
+            crate::models::Backend::RocmLemonade => settings.llama_cpp_version_rocm_lemonade.as_deref().unwrap_or("latest"),
+            crate::models::Backend::Cuda => settings.llama_cpp_version_cuda.as_deref().unwrap_or("latest"),
+        }.to_string(),
+    ];
+
+    for (i, val) in backend_vals.into_iter().enumerate() {
+        if total_count == selected {
+            selected_line_idx = lines.len();
+        }
+        add_setting(&mut lines, &mut total_count, settings, cached, backend_names[i], &val, selected, edit_buf, editing);
+    }
+
     let settings_height = lines.len();
     
     // Update cache
@@ -216,6 +239,13 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
             (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
             (None, None) => false,
             _ => true,
+        },
+        22 => match settings.backend {
+            crate::models::Backend::Cpu => settings.llama_cpp_version_cpu != cached.llama_cpp_version_cpu,
+            crate::models::Backend::Vulkan => settings.llama_cpp_version_vulkan != cached.llama_cpp_version_vulkan,
+            crate::models::Backend::Rocm => settings.llama_cpp_version_rocm != cached.llama_cpp_version_rocm,
+            crate::models::Backend::RocmLemonade => settings.llama_cpp_version_rocm_lemonade != cached.llama_cpp_version_rocm_lemonade,
+            crate::models::Backend::Cuda => settings.llama_cpp_version_cuda != cached.llama_cpp_version_cuda,
         },
         _ => false,
     };

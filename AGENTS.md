@@ -182,9 +182,10 @@ Three backends are supported:
 ```rust
 pub enum Backend {
     Cpu,       // CPU-only inference
-    Vulkan,    // GPU via Vulkan (AMD/NVIDIA/Intel)
-    Rocrm,     // GPU via ROCm (AMD)
-}
+    Vulkan,     // GPU via Vulkan (AMD/NVIDIA/Intel)
+    Rocm,       // GPU via ROCm (AMD)
+    RocmLemonade, // Optimized ROCm via Lemonade
+    }
 ```
 
 ### Binary storage

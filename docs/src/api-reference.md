@@ -27,7 +27,7 @@ cargo doc --open
 
 | Type | Module | Description |
 |------|--------|-------------|
-| `Backend` | `models` | Acceleration backend: `Cpu`, `Vulkan`, or `Rocrm` |
+| `Backend` | `models` | Acceleration backend: `Cpu`, `Vulkan`, `Rocm`, or `RocmLemonade` |
 | `ServerMode` | `models` | Server operating mode: `Normal` (single model) or `Router` (multiple) |
 | `GpuLayersMode` | `models` | GPU offloading: `Auto`, `Specific(n)`, or `All` |
 | `SearchSort` | `models` | Search result sort order: `Relevance`, `Downloads`, `Likes`, `Trending`, `Created` |
