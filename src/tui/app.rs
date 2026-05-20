@@ -10,8 +10,8 @@ use ratatui::widgets::TableState;
 use std::collections::VecDeque;
 use std::sync::{Arc, atomic::AtomicBool, Mutex};
 
-/// Static cell for caching the API port string in help text (avoids Box::leak).
-static API_PORT_CACHE: Mutex<Option<&'static str>> = Mutex::new(None);
+/// Static cell for caching the API port string in help text.
+static API_PORT_CACHE: Mutex<(u16, String)> = Mutex::new((0, String::new()));
 
 use gguf_rs;
 
@@ -620,18 +620,16 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.set_redraw();
     }
 
-    /// Get the API port string, caching it to avoid leaking memory on each call.
-    pub fn get_api_port_str(&self) -> &'static str {
+    /// Get the API port string, caching it to avoid re-allocating on every call.
+    pub fn get_api_port_str(&self) -> String {
         let port = self.settings.api_endpoint_port;
-        let mut cache = API_PORT_CACHE.lock().unwrap();
-        if let Some(s) = cache.as_ref() {
-            if *s == format!("{}", port) {
-                return *s;
-            }
+        let mut cache = API_PORT_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if cache.0 == port && !cache.1.is_empty() {
+            return cache.1.clone();
         }
-        let s = Box::leak(format!("{}", port).into_boxed_str());
-        *cache = Some(s);
-        s
+        cache.0 = port;
+        cache.1 = port.to_string();
+        cache.1.clone()
     }
 
     /// Compute VRAM estimate from model file size and current settings.

@@ -1656,7 +1656,7 @@ fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::KeyEve
                 app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
             }
             KeyCode::Right => {
-                app.edit_cursor_pos = app.edit_cursor_pos.min(app.settings_edit_buffer.len());
+                app.edit_cursor_pos = (app.edit_cursor_pos + 1).min(app.settings_edit_buffer.len());
             }
             _ => {}
         }
@@ -1670,7 +1670,9 @@ fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::KeyEve
             app.settings_selected_idx = app.settings_selected_idx.saturating_sub(1);
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.settings_selected_idx = (app.settings_selected_idx + 1).min(total - 1);
+            if total > 0 {
+                app.settings_selected_idx = (app.settings_selected_idx + 1).min(total - 1);
+            }
         }
         KeyCode::PageUp => {
             app.system_prompt_presets_scroll_offset = app.system_prompt_presets_scroll_offset.saturating_sub(5);

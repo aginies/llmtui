@@ -239,7 +239,10 @@ pub fn render_model_lines(
                 meta.n_head,
                 meta.n_kv_head,
                 match settings.gpu_layers_mode {
-                    crate::models::GpuLayersMode::Auto => -1,
+                    crate::models::GpuLayersMode::Auto => {
+                        // ~60% heuristic, same as estimate_vram_mib
+                        if meta.layers > 0 { (meta.layers as f64 * 0.6) as i32 } else { 20 }
+                    }
                     crate::models::GpuLayersMode::Specific(n) => n as i32,
                     crate::models::GpuLayersMode::All => -1,
                 },
