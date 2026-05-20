@@ -22,3 +22,17 @@ pub fn format_size(bytes: u64) -> String {
         format!("{:.1} TB", s / tb)
     }
 }
+
+/// Format a number into an abbreviated human-readable string (e.g., 1.5K, 2.3M, 1.2B).
+pub fn format_number(n: u64) -> String {
+    if n >= 1_000_000_000 {
+        format!("{:.1}B", n as f64 / 1_000_000_000.0)
+    } else if n >= 1_000_000 {
+        format!("{:.1}M", n as f64 / 1_000_000.0)
+    } else if n >= 1_000 {
+        format!("{:.1}K", n as f64 / 1_000.0)
+    } else {
+        format!("{}", n)
+    }
+}
+

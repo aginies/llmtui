@@ -7,10 +7,8 @@ use ratatui::{
 };
 
 use crate::tui::app::App;
-
-fn strip_gguf(name: &str) -> &str {
-    name.strip_suffix(".gguf").unwrap_or(name)
-}
+use crate::tui::format_size;
+use crate::models::strip_gguf;
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let mut title_spans = if app.is_panel_visible(4) {
@@ -21,9 +19,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     if app.metrics.total_vram_used > 0 {
         title_spans.push(Span::styled("[ ", Style::default().fg(Color::White)));
         title_spans.push(Span::styled("Total VRAM: ", Style::default().fg(Color::Yellow)));
-        title_spans.push(Span::styled(format_mem(app.metrics.total_vram_used), Style::default().fg(Color::Cyan)));
+        title_spans.push(Span::styled(format_size(app.metrics.total_vram_used), Style::default().fg(Color::Cyan)));
         title_spans.push(Span::styled(" / ", Style::default().fg(Color::White)));
-        title_spans.push(Span::styled(format_mem(app.metrics.gpu_mem_total), Style::default().fg(Color::Cyan)));
+        title_spans.push(Span::styled(format_size(app.metrics.gpu_mem_total), Style::default().fg(Color::Cyan)));
         title_spans.push(Span::styled(" ]", Style::default().fg(Color::White)));
     }
 
@@ -85,12 +83,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                 Span::styled(format!("{:.1}%", app.metrics.cpu_usage), Style::default().fg(Color::Cyan)),
                 Span::styled(" ]  [ ", Style::default().fg(Color::White)),
                 Span::styled("RAM: ", Style::default().fg(Color::Yellow)),
-                Span::styled(format_mem(app.metrics.ram_used), Style::default().fg(Color::Cyan)),
+                Span::styled(format_size(app.metrics.ram_used), Style::default().fg(Color::Cyan)),
                 Span::styled(" ]  [ ", Style::default().fg(Color::White)),
                 Span::styled("VRAM: ", Style::default().fg(Color::Yellow)),
-                Span::styled(format_mem(app.metrics.gpu_mem_used), Style::default().fg(Color::Cyan)),
+                Span::styled(format_size(app.metrics.gpu_mem_used), Style::default().fg(Color::Cyan)),
                 Span::styled(" / ", Style::default().fg(Color::White)),
-                Span::styled(format_mem(app.metrics.gpu_mem_total), Style::default().fg(Color::Cyan)),
+                Span::styled(format_size(app.metrics.gpu_mem_total), Style::default().fg(Color::Cyan)),
                 Span::styled(" ]", Style::default().fg(Color::White)),
             ]));
         }
@@ -132,7 +130,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                     .map(|b| b.buffer_size_mib)
                     .sum();
                 if total_gpu > 0.0 {
-                    detail_parts.push(format!("{} VRAM", format_mem((total_gpu * 1024.0 * 1024.0) as u64)));
+                    detail_parts.push(format!("{} VRAM", format_size((total_gpu * 1024.0 * 1024.0) as u64)));
                 }
 
                 let phase = app.loading_phases.last().map(|p| p.label()).unwrap_or("Loading...");
@@ -189,14 +187,3 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(paragraph, area);
 }
 
-fn format_mem(bytes: u64) -> String {
-    if bytes == 0 {
-        "0 B".to_string()
-    } else if bytes < 1024 * 1024 {
-        format!("{:.1} KB", bytes as f64 / 1024.0)
-    } else if bytes < 1024 * 1024 * 1024 {
-        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
-    } else {
-        format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
-    }
-}

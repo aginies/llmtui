@@ -147,7 +147,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 *selected = 0;
                 app.set_redraw();
             }
-            KeyCode::Esc | KeyCode::Char('h')
+            KeyCode::Esc => {
+                app.global_mode = GlobalMode::Normal;
+                app.set_redraw();
+            }
+            KeyCode::Char('h')
                 if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
                 app.global_mode = GlobalMode::Normal;
@@ -173,13 +177,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings.backend = backend;
                 
                 // Set the version field for this backend
-                match backend {
-                    crate::models::Backend::Cpu => app.settings.llama_cpp_version_cpu = tag.clone(),
-                    crate::models::Backend::Vulkan => app.settings.llama_cpp_version_vulkan = tag.clone(),
-                    crate::models::Backend::Rocm => app.settings.llama_cpp_version_rocm = tag.clone(),
-                    crate::models::Backend::RocmLemonade => app.settings.llama_cpp_version_rocm_lemonade = tag.clone(),
-                    crate::models::Backend::Cuda => app.settings.llama_cpp_version_cuda = tag.clone(),
-                }
+                app.settings.set_active_backend_version(tag.clone());
 
                 // If not installed, trigger immediate resolution in background
                 if !crate::backend::hub::is_backend_version_installed(backend, tag.as_deref()) {
@@ -212,7 +210,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 sync_global_settings(app);
                 app.set_redraw();
             }
-            KeyCode::Char('d') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Char('d') => {
                 if let Some((backend, Some(tag))) = entries.get(*selected) {
                     app.pending_backend_deletion = Some((*backend, tag.clone()));
                     app.global_mode = GlobalMode::Confirmation {
@@ -353,6 +351,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::F(9) => {
             app.panel_visibility = 0b111111;
+            app.log_expanded = false;
+            app.set_redraw();
             return;
         }
         KeyCode::Char('l')
@@ -1046,16 +1046,10 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.backend_picker_entries = entries.clone();
                     
                     // Find current selection index
-                    let current_tag = match app.settings.backend {
-                        crate::models::Backend::Cpu => &app.settings.llama_cpp_version_cpu,
-                        crate::models::Backend::Vulkan => &app.settings.llama_cpp_version_vulkan,
-                        crate::models::Backend::Rocm => &app.settings.llama_cpp_version_rocm,
-                        crate::models::Backend::RocmLemonade => &app.settings.llama_cpp_version_rocm_lemonade,
-                        crate::models::Backend::Cuda => &app.settings.llama_cpp_version_cuda,
-                    };
+                    let current_tag = app.settings.get_active_backend_version();
                     
                     app.backend_picker_selected = entries.iter()
-                        .position(|(b, t)| *b == app.settings.backend && t == current_tag)
+                        .position(|(b, t)| *b == app.settings.backend && t.as_ref() == current_tag)
                         .unwrap_or(0);
 
                     app.global_mode = crate::tui::app::GlobalMode::BackendPicker {

@@ -102,7 +102,68 @@ impl DownloadState {
     }
 }
 
-impl ModelSettings {}
+impl ModelSettings {
+    /// Get the version string for the currently active backend.
+    pub fn get_active_backend_version(&self) -> Option<&String> {
+        match self.backend {
+            Backend::Cpu => self.llama_cpp_version_cpu.as_ref(),
+            Backend::Vulkan => self.llama_cpp_version_vulkan.as_ref(),
+            Backend::Rocm => self.llama_cpp_version_rocm.as_ref(),
+            Backend::RocmLemonade => self.llama_cpp_version_rocm_lemonade.as_ref(),
+            Backend::Cuda => self.llama_cpp_version_cuda.as_ref(),
+        }
+    }
+
+    /// Get the display version string for the currently active backend (defaults to "latest").
+    pub fn get_active_backend_version_display(&self) -> &str {
+        self.get_active_backend_version()
+            .map(|s| s.as_str())
+            .unwrap_or("latest")
+    }
+
+    /// Set the version string for the currently active backend.
+    pub fn set_active_backend_version(&mut self, tag: Option<String>) {
+        match self.backend {
+            Backend::Cpu => self.llama_cpp_version_cpu = tag,
+            Backend::Vulkan => self.llama_cpp_version_vulkan = tag,
+            Backend::Rocm => self.llama_cpp_version_rocm = tag,
+            Backend::RocmLemonade => self.llama_cpp_version_rocm_lemonade = tag,
+            Backend::Cuda => self.llama_cpp_version_cuda = tag,
+        }
+    }
+}
+
+/// Strip the .gguf extension from a model name.
+pub fn strip_gguf(name: &str) -> &str {
+    name.strip_suffix(".gguf")
+        .or_else(|| name.strip_suffix(".GGUF"))
+        .unwrap_or(name)
+}
+
+/// Ensure host string is valid for URL construction and CLI arguments.
+/// Handles empty strings (defaults to 127.0.0.1), strips display suffixes,
+/// and wraps IPv6 addresses in brackets.
+pub fn clean_host(host: &str) -> String {
+    let host = host.trim();
+    if host.is_empty() {
+        return "127.0.0.1".to_string();
+    }
+    // Remove (xxx) suffixes often used in display, e.g. "localhost (127.0.0.1)"
+    let host = host.split_whitespace().next().unwrap_or(host);
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{}]", host)
+    } else {
+        host.to_string()
+    }
+}
+
+/// Format a host string for display (e.g. "" or "127.0.0.1" -> "localhost (127.0.0.1)").
+pub fn format_host(host: &str) -> &str {
+    match host {
+        "" | "127.0.0.1" => "localhost (127.0.0.1)",
+        _ => host,
+    }
+}
 
 impl From<crate::config::DefaultParams> for ModelSettings {
     fn from(dp: crate::config::DefaultParams) -> Self {
@@ -539,17 +600,25 @@ pub enum Backend {
 }
 
 
-impl std::fmt::Display for Backend {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Backend {
+    /// Get the identifier used for directory names and asset prefixes.
+    pub fn slug(&self) -> &'static str {
         match self {
-            Backend::Cpu => write!(f, "cpu"),
-            Backend::Vulkan => write!(f, "vulkan"),
-            Backend::Rocm => write!(f, "rocm"),
-            Backend::RocmLemonade => write!(f, "rocm-lemonade"),
-            Backend::Cuda => write!(f, "cuda"),
+            Backend::Cpu => "cpu",
+            Backend::Vulkan => "vulkan",
+            Backend::Rocm => "rocm",
+            Backend::RocmLemonade => "rocm-lemonade",
+            Backend::Cuda => "cuda",
         }
     }
 }
+
+impl std::fmt::Display for Backend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.slug())
+    }
+}
+
 
 /// Server mode: normal (single model) or router (multiple models).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1166,9 +1235,5 @@ fn kv_quant_bytes(k_type: CacheTypeK, v_type: CacheTypeV) -> f64 {
 }
 
 pub fn format_mib(mib: u64) -> String {
-    if mib >= 1024 {
-        format!("{:.1} GB", mib as f64 / 1024.0)
-    } else {
-        format!("{} MB", mib)
-    }
+    crate::tui::format_size(mib * 1024 * 1024)
 }

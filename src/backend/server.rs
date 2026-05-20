@@ -5,7 +5,7 @@ use tokio::process::Command;
 use tokio::sync::mpsc;
 use tracing::info;
 
-use crate::models::{Backend, DiscoveredModel, ModelSettings, ServerMetrics};
+use crate::models::{Backend, DiscoveredModel, ModelSettings, ServerMetrics, strip_gguf, clean_host};
 use crate::config::Config;
 
 /// Manages a single llama.cpp server process.
@@ -20,23 +20,6 @@ pub struct ServerHandle {
 /// Helper: add an argument if the value differs from default.
 fn add_arg(cmd: &mut Command, name: &str, value: impl Display) {
     cmd.arg(name).arg(value.to_string());
-}
-
-/// Helper: ensure host string is valid for URL construction.
-/// Handles empty strings (defaults to 127.0.0.1), strips display suffixes,
-/// and wraps IPv6 addresses in brackets.
-fn clean_host(host: &str) -> String {
-    let host = host.trim();
-    if host.is_empty() {
-        return "127.0.0.1".to_string();
-    }
-    // Remove (xxx) suffixes often used in display, e.g. "localhost (127.0.0.1)"
-    let host = host.split_whitespace().next().unwrap_or(host);
-    if host.contains(':') && !host.starts_with('[') {
-        format!("[{}]", host)
-    } else {
-        host.to_string()
-    }
 }
 
 /// Build the full llama-server command line from settings.
@@ -364,28 +347,10 @@ pub async fn spawn_server(
     }
 
     // Resolve the backend binary (downloads if needed)
-    let backend_name = match settings.backend {
-        Backend::Cpu => "llama-server-cpu",
-        Backend::Vulkan => "llama-server-vulkan",
-        Backend::Rocm => "llama-server-rocm",
-        Backend::RocmLemonade => "llama-server-rocm-lemonade",
-        Backend::Cuda => "llama-server-cuda",
-    };
-    let version_display = match settings.backend {
-        Backend::Cpu => settings.llama_cpp_version_cpu.as_deref().unwrap_or("latest"),
-        Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref().unwrap_or("latest"),
-        Backend::Rocm => settings.llama_cpp_version_rocm.as_deref().unwrap_or("latest"),
-        Backend::RocmLemonade => settings.llama_cpp_version_rocm_lemonade.as_deref().unwrap_or("latest"),
-        Backend::Cuda => settings.llama_cpp_version_cuda.as_deref().unwrap_or("latest"),
-    };
+    let backend_name = format!("llama-server-{}", settings.backend);
+    let version_display = settings.get_active_backend_version_display();
     log_tx.send(format!("Resolving {} (v{}) binary...", backend_name, version_display)).await.ok();
-    let version_param = match settings.backend {
-        Backend::Cpu => settings.llama_cpp_version_cpu.as_deref(),
-        Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref(),
-        Backend::Rocm => settings.llama_cpp_version_rocm.as_deref(),
-        Backend::RocmLemonade => settings.llama_cpp_version_rocm_lemonade.as_deref(),
-        Backend::Cuda => settings.llama_cpp_version_cuda.as_deref(),
-    };
+    let version_param = settings.get_active_backend_version().map(|s| s.as_str());
     
     let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, Some(log_tx.clone()), progress_tx).await {
         Ok(path) => {
@@ -500,7 +465,7 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
     // We prefer the /metrics endpoint as it's more stable for system info.
     // In router mode, we can specify the model via query parameter.
     let mut url = if let Some(model) = model_name {
-        let name = model.strip_suffix(".gguf").unwrap_or(model);
+        let name = strip_gguf(model);
         format!("http://{}:{}/metrics?model={}", host, port, name)
     } else {
         format!("http://{}:{}/metrics", host, port)
@@ -840,12 +805,12 @@ pub async fn load_model(host: &str, port: u16, model_id: &str, model_path: Optio
     
     // 1. Original ID (display_name / relative path)
     variants.push(model_id.to_string());
-    variants.push(model_id.strip_suffix(".gguf").unwrap_or(model_id).to_string());
+    variants.push(strip_gguf(model_id).to_string());
     
     // 2. Just the filename
     if let Some(filename) = std::path::Path::new(model_id).file_name().and_then(|f| f.to_str()) {
         variants.push(filename.to_string());
-        variants.push(filename.strip_suffix(".gguf").unwrap_or(filename).to_string());
+        variants.push(strip_gguf(filename).to_string());
     }
 
     // 3. Absolute path
@@ -929,7 +894,7 @@ pub async fn unload_model(host: &str, port: u16, model_id: &str, model_path: Opt
     let host = clean_host(host);
 
     let endpoints = ["/models/unload", "/v1/models/unload"];
-    let stripped = model_id.strip_suffix(".gguf").unwrap_or(model_id);
+    let stripped = strip_gguf(model_id);
     let mut variants = vec![model_id.to_string(), stripped.to_string()];
     if let Some(path) = model_path {
         variants.push(path.to_string());

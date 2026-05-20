@@ -714,6 +714,25 @@ impl Config {
             .join("config.yaml")
     }
 
+    /// Resolve settings for a specific model and profile.
+    pub fn resolve_settings(&self, model_name: Option<&str>, profile_name: Option<&str>) -> crate::models::ModelSettings {
+        let mut settings = crate::models::ModelSettings::from_config(self);
+
+        // Apply model-specific override
+        if let Some(name) = model_name
+            && let Some(override_settings) = self.model_overrides.get(name) {
+                override_settings.apply(&mut settings);
+            }
+
+        // Apply profile override if specified
+        if let Some(p_name) = profile_name
+            && let Some(profile) = self.profiles.iter().find(|p| p.name == p_name) {
+                profile.settings.apply(&mut settings);
+            }
+
+        settings
+    }
+
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
         let path = Self::config_path();
         if path.exists() {

@@ -238,15 +238,7 @@ async fn main() -> Result<()> {
             }
 
             if let Some((backend, tag)) = app.pending_backend_deletion.take() {
-                let bin_base = crate::backend::hub::get_bin_base();
-                let bin_name = format!("llama-server-{}-{}", match backend {
-                    crate::models::Backend::Cpu => "cpu",
-                    crate::models::Backend::Vulkan => "vulkan",
-                    crate::models::Backend::Rocm => "rocm",
-                    crate::models::Backend::RocmLemonade => "rocm-lemonade",
-                    crate::models::Backend::Cuda => "cuda",
-                }, tag);
-                let bin_dir = bin_base.join(bin_name);
+                let bin_dir = crate::backend::hub::get_backend_dir(backend, &tag);
                 
                 if bin_dir.exists() {
                     if let Err(e) = std::fs::remove_dir_all(&bin_dir) {
@@ -983,38 +975,30 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
 /// Scan a directory (recursively) for .gguf model files.
 fn discover_models(dir: &std::path::Path) -> Vec<DiscoveredModel> {
     let mut models = Vec::new();
-    walk_dir(dir, dir, &mut models);
-    models.sort_by(|a, b| a.name.cmp(&b.name));
-    models
-}
-
-fn walk_dir(dir: &std::path::Path, base: &std::path::Path, models: &mut Vec<DiscoveredModel>) {
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() && path.extension().map(|e| e == "gguf").unwrap_or(false) {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    let name = name.to_string();
-                    let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                    // Compute display name: relative path from base directory.
-                    let display_name = path
-                        .strip_prefix(base)
-                        .ok()
-                        .and_then(|p| p.to_str())
-                        .unwrap_or(&name)
-                        .to_string();
-                    models.push(DiscoveredModel {
-                        path,
-                        name,
-                        file_size: size,
-                        display_name,
-                    });
-                }
-            } else if path.is_dir() {
-                walk_dir(&path, base, models);
+    crate::backend::hub::walk_dir_recursive(dir, 0, 10, &mut |entry| {
+        let path = entry.path();
+        if path.is_file() && path.extension().map(|e| e == "gguf").unwrap_or(false) {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                let name = name.to_string();
+                let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                // Compute display name: relative path from base directory.
+                let display_name = path
+                    .strip_prefix(dir)
+                    .ok()
+                    .and_then(|p| p.to_str())
+                    .unwrap_or(&name)
+                    .to_string();
+                models.push(DiscoveredModel {
+                    path,
+                    name,
+                    file_size: size,
+                    display_name,
+                });
             }
         }
-    }
+    });
+    models.sort_by(|a, b| a.name.cmp(&b.name));
+    models
 }
 
 fn resolve_models_dir(cli_value: &Option<String>) -> PathBuf {

@@ -229,6 +229,11 @@ pub fn get_bin_base() -> std::path::PathBuf {
         .join("bin")
 }
 
+/// Get the directory path for a specific backend version.
+pub fn get_backend_dir(backend: crate::models::Backend, tag: &str) -> std::path::PathBuf {
+    get_bin_base().join(format!("llama-server-{}-{}", backend.slug(), tag))
+}
+
 /// Check if any version of the specified backend is already installed.
 pub fn is_backend_any_version_installed(backend: crate::models::Backend) -> bool {
     let bin_base = get_bin_base();
@@ -236,13 +241,8 @@ pub fn is_backend_any_version_installed(backend: crate::models::Backend) -> bool
         return false;
     }
 
-    let prefix = format!("llama-server-{}-", match backend {
-        crate::models::Backend::Cpu => "cpu",
-        crate::models::Backend::Vulkan => "vulkan",
-        crate::models::Backend::Rocm => "rocm",
-        crate::models::Backend::RocmLemonade => "rocm-lemonade",
-        crate::models::Backend::Cuda => "cuda",
-    });
+    let prefix = format!("llama-server-{}-", backend.slug());
+
 
     if let Ok(entries) = std::fs::read_dir(bin_base) {
         for entry in entries.flatten() {
@@ -263,11 +263,6 @@ pub fn is_backend_any_version_installed(backend: crate::models::Backend) -> bool
 
 /// Check if a specific version of the specified backend is already installed.
 pub fn is_backend_version_installed(backend: crate::models::Backend, tag: Option<&str>) -> bool {
-    let bin_base = get_bin_base();
-    if !bin_base.exists() {
-        return false;
-    }
-
     // If tag is None, we don't know the exact version yet (latest), so we can't be sure it's installed
     // unless we check for ANY version, but here we want to know if the target is ready.
     // For "latest", we should probably always "resolve" it to check for updates.
@@ -276,15 +271,7 @@ pub fn is_backend_version_installed(backend: crate::models::Backend, tag: Option
         None => return false,
     };
 
-    let bin_name = format!("llama-server-{}-{}", match backend {
-        crate::models::Backend::Cpu => "cpu",
-        crate::models::Backend::Vulkan => "vulkan",
-        crate::models::Backend::Rocm => "rocm",
-        crate::models::Backend::RocmLemonade => "rocm-lemonade",
-        crate::models::Backend::Cuda => "cuda",
-    }, tag);
-
-    let bin_dir = bin_base.join(bin_name);
+    let bin_dir = get_backend_dir(backend, tag);
     let bin_path = bin_dir.join("llama-server");
     let lib_sentinel = bin_dir.join("libllama.so");
 
@@ -363,8 +350,6 @@ pub async fn resolve_backend_binary(
     log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
 ) -> Result<std::path::PathBuf> {
-    let bin_base = get_bin_base();
-
     let tag = match version {
         Some(v) if !v.is_empty() => v.to_string(),
         _ => {
@@ -415,14 +400,7 @@ pub async fn resolve_backend_binary(
         }
     };
 
-    let bin_name = format!("llama-server-{}-{}", match backend {
-        crate::models::Backend::Cpu => "cpu",
-        crate::models::Backend::Vulkan => "vulkan",
-        crate::models::Backend::Rocm => "rocm",
-        crate::models::Backend::RocmLemonade => "rocm-lemonade",
-        crate::models::Backend::Cuda => "cuda",
-    }, tag);
-    let bin_dir = bin_base.join(&bin_name);
+    let bin_dir = get_backend_dir(backend, &tag);
     let bin_path = bin_dir.join("llama-server");
 
     // Check if both the binary and at least one shared library exist
@@ -473,7 +451,7 @@ pub async fn resolve_backend_binary(
 
     // Download to temp file (GitHub requires User-Agent for releases)
     let tmp_ext = if is_zip { "zip" } else { "tar.gz" };
-    let tmp_filename = format!("{bin_name}.tmp.{tmp_ext}");
+    let tmp_filename = format!("llama-server-{}-{}.tmp.{}", backend.slug(), tag, tmp_ext);
     let tmp_path = bin_dir.join(&tmp_filename);
     
     if let Some(ref tx) = progress_tx {
@@ -492,17 +470,13 @@ pub async fn resolve_backend_binary(
     }
 
     // Extract the archive to a temp directory, then pull out the binary and shared libs
-    let extract_dir = bin_dir.join(format!("{bin_name}.extract"));
+    let extract_dir = bin_dir.join(format!("llama-server-{}-{}.extract", backend.slug(), tag));
     
     if let Some(tx) = &log_tx {
         let _ = tx.send("Extracting backend...".to_string()).await;
     }
 
-    if is_zip {
-        extract_zip_to(&tmp_path, &extract_dir)?;
-    } else {
-        extract_tar_gz_to(&tmp_path, &extract_dir)?;
-    }
+    extract_archive(&tmp_path, &extract_dir)?;
 
     if let Some(tx) = &log_tx {
         let _ = tx.send("Finalizing installation...".to_string()).await;
@@ -515,12 +489,11 @@ pub async fn resolve_backend_binary(
     } else {
         // Try searching recursively
         let mut found = None;
-        for entry in &walk_dir(&extract_dir) {
+        walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
             if entry.file_name().to_str().map(|n| n == "llama-server").unwrap_or(false) {
                 found = Some(entry.path().to_path_buf());
-                break;
             }
-        }
+        });
         if let Some(path) = found {
             std::fs::rename(path, &bin_path)?;
         } else {
@@ -529,7 +502,7 @@ pub async fn resolve_backend_binary(
     }
 
     // Also extract shared libraries (*.so*) from the archive into bin_dir
-    for entry in &walk_dir(&extract_dir) {
+    walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
         if name_str.ends_with(".so") || name_str.contains(".so.") {
@@ -537,7 +510,7 @@ pub async fn resolve_backend_binary(
             // Use std::fs::copy which follows symlinks and creates a regular file at dest
             let _ = std::fs::copy(entry.path(), dest);
         }
-    }
+    });
 
     // Make executable
     std::fs::set_permissions(&bin_path, std::fs::Permissions::from_mode(0o755))?;
@@ -549,55 +522,36 @@ pub async fn resolve_backend_binary(
     Ok(bin_path)
 }
 
-/// Extract the entire tar.gz archive into a directory.
-fn extract_tar_gz_to(archive_path: &std::path::Path, dest_dir: &std::path::Path) -> Result<()> {
-    use flate2::read::GzDecoder;
-    use tar::Archive;
+/// Extract a .tar.gz or .zip archive into a directory.
+pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Path) -> Result<()> {
+    let filename = archive_path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
 
-    let file = std::fs::File::open(archive_path)?;
-    let decoder = GzDecoder::new(file);
-    let mut archive = Archive::new(decoder);
-    archive.unpack(dest_dir)?;
-    Ok(())
-}
+    if filename.ends_with(".zip") {
+        let file = std::fs::File::open(archive_path)?;
+        let mut archive = zip::ZipArchive::new(file)?;
+        archive.extract(dest_dir)?;
+    } else if filename.ends_with(".tar.gz") || filename.contains(".tar.gz") {
+        use flate2::read::GzDecoder;
+        use tar::Archive;
 
-/// Extract the entire .zip archive into a directory.
-fn extract_zip_to(archive_path: &std::path::Path, dest_dir: &std::path::Path) -> Result<()> {
-    let file = std::fs::File::open(archive_path)?;
-    let mut archive = zip::ZipArchive::new(file)?;
-    
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i)?;
-        let outpath = match file.enclosed_name() {
-            Some(path) => dest_dir.join(path),
-            None => continue,
-        };
-
-        if file.name().ends_with('/') {
-            std::fs::create_dir_all(&outpath)?;
-        } else {
-            if let Some(p) = outpath.parent() {
-                if !p.exists() {
-                    std::fs::create_dir_all(p)?;
-                }
-            }
-            let mut outfile = std::fs::File::create(&outpath)?;
-            std::io::copy(&mut file, &mut outfile)?;
-        }
+        let file = std::fs::File::open(archive_path)?;
+        let decoder = GzDecoder::new(file);
+        let mut archive = Archive::new(decoder);
+        archive.unpack(dest_dir)?;
+    } else {
+        anyhow::bail!("Unsupported archive format: {}", filename);
     }
     
     Ok(())
 }
 
-/// Recursively walk a directory.
-/// Returns entries directly without collecting entire tree into memory.
-fn walk_dir(dir: &std::path::Path) -> Vec<std::fs::DirEntry> {
-    let mut entries = Vec::new();
-    walk_dir_impl(dir, &mut entries, 0, 10); // Max depth of 10 to prevent stack overflow
-    entries
-}
-
-fn walk_dir_impl(dir: &std::path::Path, entries: &mut Vec<std::fs::DirEntry>, depth: usize, max_depth: usize) {
+/// Recursively walk a directory and call a closure for each entry.
+pub fn walk_dir_recursive<F>(dir: &std::path::Path, depth: usize, max_depth: usize, f: &mut F)
+where
+    F: FnMut(&std::fs::DirEntry),
+{
     if depth >= max_depth {
         return;
     }
@@ -605,9 +559,9 @@ fn walk_dir_impl(dir: &std::path::Path, entries: &mut Vec<std::fs::DirEntry>, de
     if let Ok(read) = std::fs::read_dir(dir) {
         for entry in read.flatten() {
             let path = entry.path();
-            entries.push(entry);
+            f(&entry);
             if path.is_dir() {
-                walk_dir_impl(&path, entries, depth + 1, max_depth);
+                walk_dir_recursive(&path, depth + 1, max_depth, f);
             }
         }
     }

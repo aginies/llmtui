@@ -7,20 +7,8 @@ use ratatui::{
 };
 
 use crate::tui::app::{App, ModelsMode};
-use crate::tui::format_size;
+use crate::tui::{format_size, format_number};
 use crate::models::SearchSort;
-
-fn format_number(n: u64) -> String {
-    if n >= 1_000_000_000 {
-        format!("{:.1}B", n as f64 / 1_000_000_000.0)
-    } else if n >= 1_000_000 {
-        format!("{:.1}M", n as f64 / 1_000_000.0)
-    } else if n >= 1_000 {
-        format!("{:.1}K", n as f64 / 1_000.0)
-    } else {
-        format!("{}", n)
-    }
-}
 
 pub fn render_download_panel(
     f: &mut Frame,
@@ -105,13 +93,7 @@ pub fn render_download_panel(
 }
 
 fn format_speed(bytes_per_second: f64) -> String {
-    if bytes_per_second < 1024.0 {
-        format!("{:.0} B/s", bytes_per_second)
-    } else if bytes_per_second < 1024.0 * 1024.0 {
-        format!("{:.1} KB/s", bytes_per_second / 1024.0)
-    } else {
-        format!("{:.1} MB/s", bytes_per_second / (1024.0 * 1024.0))
-    }
+    format!("{}/s", crate::tui::format_size(bytes_per_second as u64))
 }
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {

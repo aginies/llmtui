@@ -306,13 +306,10 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     }
 
    pub fn selected_model_settings(&self) -> ModelSettings {
-        let mut base: ModelSettings = self.config.default.clone().into();
-        // Check for per-model overrides
-        if let Some(model) = self.selected_model()
-            && let Some(override_cfg) = self.config.model_overrides.get(&model.name) {
-                override_cfg.apply(&mut base);
-            }
-        base
+        let model_name = self.selected_model().map(|m| m.name.as_str());
+        // For the TUI, we don't currently support a separate profile_name 
+        // in this method since it's already accounted for in overrides or the default settings.
+        self.config.resolve_settings(model_name, None)
     }
 
     pub fn add_log(&mut self, message: impl Into<String>, level: crate::config::LogLevel) {
@@ -1024,11 +1021,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             || s.mmap != c.mmap
             || s.numa != c.numa
             || s.expert_count != c.expert_count
-            || s.llama_cpp_version_cpu != c.llama_cpp_version_cpu
-            || s.llama_cpp_version_vulkan != c.llama_cpp_version_vulkan
-            || s.llama_cpp_version_rocm != c.llama_cpp_version_rocm
-            || s.llama_cpp_version_rocm_lemonade != c.llama_cpp_version_rocm_lemonade
-            || s.llama_cpp_version_cuda != c.llama_cpp_version_cuda
+            || s.get_active_backend_version() != c.get_active_backend_version()
     }
 
     /// Compute a fingerprint of the current settings for cache invalidation.
@@ -1094,6 +1087,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         }.hash(&mut h);
         self.settings.threads.hash(&mut h);
         self.settings.threads_batch.hash(&mut h);
+        self.settings.get_active_backend_version().hash(&mut h);
         self.settings_edit_buffer.hash(&mut h);
         h.finish()
     }

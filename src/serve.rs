@@ -8,7 +8,7 @@ use tokio::signal;
 
 use crate::backend::server;
 use crate::config::Config;
-use crate::models::{Backend, DiscoveredModel, ModelSettings};
+use crate::models::DiscoveredModel;
 
 /// Serve a model using the llama-server binary, applying all settings from config.yaml.
 ///
@@ -94,18 +94,7 @@ pub async fn serve_model(
     };
 
     // Build settings: start with defaults, apply model override, then profile override
-    let mut settings = ModelSettings::from_config(&config);
-
-    // Apply model-specific override
-    if let Some(override_settings) = config.model_overrides.get(&name) {
-        override_settings.apply(&mut settings);
-    }
-
-    // Apply profile override if specified
-    if let Some(profile) = config.profiles.iter().find(|p| profile_name.map(|n| p.name == n).unwrap_or(false)) {
-        settings = profile.apply(settings);
-        info!("Applied profile: {}", profile.name);
-    }
+    let settings = config.resolve_settings(Some(&name), profile_name);
 
     info!("Serving model: {}", model.display_name);
     let layers_str = match settings.gpu_layers_mode {
@@ -116,13 +105,7 @@ pub async fn serve_model(
     info!("Settings: {} threads, {} layers, {} context", settings.threads, layers_str, settings.context_length);
 
     // Resolve the backend binary (downloads if needed)
-    let version_param = match settings.backend {
-        Backend::Cpu => settings.llama_cpp_version_cpu.as_deref(),
-        Backend::Vulkan => settings.llama_cpp_version_vulkan.as_deref(),
-        Backend::Rocm => settings.llama_cpp_version_rocm.as_deref(),
-        Backend::RocmLemonade => settings.llama_cpp_version_rocm_lemonade.as_deref(),
-        Backend::Cuda => settings.llama_cpp_version_cuda.as_deref(),
-    };
+    let version_param = settings.get_active_backend_version().map(|s| s.as_str());
     let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, None, None).await {
         Ok(path) => {
             if !path.exists() {

@@ -1,6 +1,6 @@
 use ratatui::style::Color;
 
-use crate::tui::format_size;
+use crate::tui::{format_size, format_number};
 
 /// A single key-value pair for model info, rendered in two columns.
 #[derive(Clone, Debug)]
@@ -251,7 +251,7 @@ pub fn render_model_lines(
             if max_ctx > 0 {
                 pairs.push(ModelInfoPair {
                     label: "Max Context".to_string(),
-                    value: format_ctx(max_ctx),
+                    value: format_number(max_ctx as u64),
                     value_style: Color::Yellow,
                 });
             }
@@ -261,14 +261,5 @@ pub fn render_model_lines(
     pairs
 }
 
-fn format_ctx(ctx: u32) -> String {
-    if ctx >= 1_000_000 {
-        format!("{:.1}M", ctx as f64 / 1_000_000.0)
-    } else if ctx >= 1_000 {
-        format!("{:.1}K", ctx as f64 / 1_000.0)
-    } else {
-        ctx.to_string()
-    }
-}
 
 

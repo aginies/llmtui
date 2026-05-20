@@ -96,10 +96,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
     let selected = app.server_settings_selected_idx;
     let server_running = app.server_handle.is_some();
 
-    let host_val = match app.settings.host.as_str() {
-        "" | "127.0.0.1" => "localhost (127.0.0.1)",
-        _ => &app.settings.host,
-    };
+    let host_val = crate::models::format_host(&app.settings.host);
 
     let backend_name = format!("{}", app.settings.backend);
     let threads_val = format!("{}", app.settings.threads);
@@ -126,34 +123,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
 }
 
 pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
-    let is_focused = app.active_panel == ActivePanel::ServerSettings;
-    let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
-
-    let selected = app.server_settings_selected_idx;
-    let host_val = &app.settings.host;
-    let backend_name = app.settings.backend.to_string();
-    let threads_val = app.settings.threads.to_string();
-    let threads_batch_val = app.settings.threads_batch.to_string();
-    let mode_val = app.server_mode.to_string();
-    let api_enabled = if app.settings.api_endpoint_enabled { "True" } else { "False" };
-    let server_running = app.server_handle.is_some();
-
-    let mut lines = Vec::new();
-    let mut count = 0;
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", host_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", api_enabled, selected, "", server_running);
-
-    let block = Block::default()
-        .title(" Server Settings (F2) ")
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
-
-    let paragraph = Paragraph::new(lines).block(block);
-    f.render_widget(paragraph, area);
+    render_server_settings(f, area, app);
 }
 
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
@@ -360,12 +330,7 @@ fn render_model_info_lines(pairs: &[ModelInfoPair], _width: u16) -> Vec<Line<'st
 }
 
 fn extract_params_from_filename(filename: &str) -> String {
-    let stem = filename
-        .rsplit('/')
-        .next()
-        .unwrap_or(filename)
-        .trim_end_matches(".gguf")
-        .trim_end_matches(".GGUF");
+    let stem = crate::models::strip_gguf(filename.rsplit('/').next().unwrap_or(filename));
     
     // Look for patterns like "30B", "8B", "4B", "14B", "70B", "405B", "30B-A3B"
     // Search from end to find the size token
@@ -402,21 +367,8 @@ fn extract_params_from_filename(filename: &str) -> String {
 }
 
 fn render_search_result_info(r: &crate::models::SearchResult, file_info: Option<(String, u64)>) -> Vec<Line<'static>> {
-    let size_str = file_info.as_ref().map(|(_, size)| {
-        let gb = *size as f64 / (1024.0 * 1024.0 * 1024.0);
-        if *size < 1024 * 1024 {
-            format!("{:.1} MB", *size as f64 / 1_000_000.0)
-        } else {
-            format!("{:.1} GB", gb)
-        }
-    }).or_else(|| r.size.map(|s| {
-        let gb = s as f64 / (1024.0 * 1024.0 * 1024.0);
-        if s < 1024 * 1024 {
-            format!("{:.1} MB", s as f64 / 1_000_000.0)
-        } else {
-            format!("{:.1} GB", gb)
-        }
-    }));
+    let size_str = file_info.as_ref().map(|(_, size)| crate::tui::format_size(*size))
+        .or_else(|| r.size.map(crate::tui::format_size));
     
     // Extract params from filename if available, otherwise use repo-level params
     let params_str = if let Some((filename, _)) = &file_info {
