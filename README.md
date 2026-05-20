@@ -293,4 +293,4 @@ llama_cpp_version_rocm: null
 
 ## License
 
-MIT
+GPLv3

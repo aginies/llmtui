@@ -388,10 +388,12 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         .cloned()
         .collect();
 
+    let is_focused = app.active_panel == crate::tui::app::ActivePanel::SearchReadme;
+    let border_color = if is_focused { Color::Green } else { Color::Yellow };
     let block = Block::default()
         .title(" README ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow));
+        .border_style(Style::default().fg(border_color));
     let wrap = ratatui::widgets::Wrap {
         trim: true,
     };

@@ -505,7 +505,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                     if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
                         *show_readme = true;
-                        app.active_panel = ActivePanel::SearchReadme;
                     }
                 }
                 return;

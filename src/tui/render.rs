@@ -658,13 +658,41 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     match &app.models_mode {
         crate::tui::app::ModelsMode::Search { query: _, sort_by, .. } => {
             parts.push(Span::raw("  "));
-            parts.push(Span::styled("SEARCH", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            if app.active_panel == crate::tui::app::ActivePanel::Models {
+                parts.push(Span::styled("SEARCH", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            } else {
+                let panel_label = match app.active_panel {
+                    crate::tui::app::ActivePanel::Log => "LOG",
+                    crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
+                    crate::tui::app::ActivePanel::ServerSettings => "SERVER",
+                    crate::tui::app::ActivePanel::LlmSettings => "LLM",
+                    crate::tui::app::ActivePanel::Profiles => "PROFILES",
+                    crate::tui::app::ActivePanel::SystemPromptPresets => "PROMPTS",
+                    crate::tui::app::ActivePanel::SearchReadme => "README",
+                    _ => "SEARCH",
+                };
+                parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            }
             parts.push(Span::raw(" "));
             parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
         }
         crate::tui::app::ModelsMode::Files { model_id, .. } => {
             parts.push(Span::raw("  "));
-            parts.push(Span::styled("FILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            if app.active_panel == crate::tui::app::ActivePanel::Models {
+                parts.push(Span::styled("FILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            } else {
+                let panel_label = match app.active_panel {
+                    crate::tui::app::ActivePanel::Log => "LOG",
+                    crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
+                    crate::tui::app::ActivePanel::ServerSettings => "SERVER",
+                    crate::tui::app::ActivePanel::LlmSettings => "LLM",
+                    crate::tui::app::ActivePanel::Profiles => "PROFILES",
+                    crate::tui::app::ActivePanel::SystemPromptPresets => "PROMPTS",
+                    crate::tui::app::ActivePanel::SearchReadme => "README",
+                    _ => "FILES",
+                };
+                parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            }
             parts.push(Span::raw(" "));
             parts.push(Span::styled(model_id, Style::default().fg(Color::Cyan)));
         }
