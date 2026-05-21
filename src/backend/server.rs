@@ -5,7 +5,7 @@ use tokio::process::Command;
 use tokio::sync::mpsc;
 use tracing::info;
 
-use crate::models::{Backend, DiscoveredModel, ModelSettings, ServerMetrics, strip_gguf, clean_host};
+use crate::models::{DiscoveredModel, ModelSettings, ServerMetrics, strip_gguf, clean_host};
 use crate::config::Config;
 
 /// Manages a single llama.cpp server process.
@@ -53,6 +53,9 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
             }
             // Always pass --models-dir in router mode (global config setting)
             push_arg(&mut cmd, &mut parts, "--models-dir", config.models_dir.display());
+        }
+        crate::models::ServerMode::Bench => {
+            // Should not be reached as Bench uses build_bench_cmd
         }
     }
 
@@ -232,6 +235,31 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     (cmd, display)
 }
 
+/// Build the full llama-bench command line.
+pub fn build_bench_cmd(binary: &std::path::Path, model: &DiscoveredModel, settings: &ModelSettings) -> (Command, String) {
+    let mut cmd = Command::new(binary);
+    let mut parts: Vec<String> = vec![binary.display().to_string()];
+
+    push_arg(&mut cmd, &mut parts, "-m", model.path.display());
+    push_arg(&mut cmd, &mut parts, "-t", settings.threads);
+    push_arg(&mut cmd, &mut parts, "-b", settings.batch_size);
+
+    if let crate::models::GpuLayersMode::Specific(n) = settings.gpu_layers_mode {
+        push_arg(&mut cmd, &mut parts, "-ngl", n);
+    } else if matches!(settings.gpu_layers_mode, crate::models::GpuLayersMode::All) {
+        push_arg(&mut cmd, &mut parts, "-ngl", "999");
+    }
+
+    if settings.flash_attn {
+        push_flag(&mut cmd, &mut parts, "-fa");
+    }
+
+    push_flag(&mut cmd, &mut parts, "--progress");
+
+    let display = parts.join(" ");
+    (cmd, display)
+}
+
 /// Spawn a llama.cpp server process (single model or router).
 /// Returns (ServerHandle, command_string) where command_string is the full CLI.
 pub async fn spawn_server(
@@ -243,43 +271,59 @@ pub async fn spawn_server(
     server_mode: crate::models::ServerMode,
     router_max_models: u32,
 ) -> Result<(ServerHandle, String), String> {
-    let port = settings.port;
-
-    // Check if port is already in use
-    if std::net::TcpListener::bind(("127.0.0.1", port)).is_err() {
-        return Err(format!("Port {} is already in use", port));
+    if server_mode != crate::models::ServerMode::Bench {
+        let port = settings.port;
+        // Check if port is already in use
+        if std::net::TcpListener::bind(("127.0.0.1", port)).is_err() {
+            return Err(format!("Port {} is already in use", port));
+        }
     }
 
     // Resolve the backend binary (downloads if needed)
-    let backend_name = format!("llama-server-{}", settings.backend);
+    let backend_name = if server_mode == crate::models::ServerMode::Bench {
+        "llama-bench"
+    } else {
+        "llama-server"
+    };
     let version_display = settings.get_active_backend_version_display();
     log_tx.send(format!("Resolving {} (v{}) binary...", backend_name, version_display)).await.ok();
     let version_param = settings.get_active_backend_version().map(|s| s.as_str());
-    
-    let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, Some(log_tx.clone()), progress_tx).await {
-        Ok(path) => {
-            if !path.exists() {
-                return Err(format!("llama-server binary not found at: {}", path.display()));
-            }
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                if let Ok(metadata) = path.metadata()
-                    && metadata.permissions().mode() & 0o111 == 0 {
-                        return Err(format!("llama-server binary is not executable: {}", path.display()));
-                    }
-            }
-            if settings.backend != Backend::Cpu {
-                info!("Using backend: {} ({} bytes)", settings.backend, path.metadata().map(|m| m.len()).unwrap_or(0));
-            }
-            path
-        }
+
+    let server_binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, Some(log_tx.clone()), progress_tx).await {
+        Ok(path) => path,
         Err(e) => {
             return Err(format!("Failed to resolve backend binary: {}", e));
         }
     };
 
-    let (mut cmd, cmd_string) = build_server_cmd(&binary, model, settings, config, server_mode, router_max_models);
+    let binary = if server_mode == crate::models::ServerMode::Bench {
+        server_binary.parent().unwrap().join("llama-bench")
+    } else {
+        server_binary
+    };
+
+    if !binary.exists() {
+        return Err(format!("Binary not found at: {}", binary.display()));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(metadata) = binary.metadata()
+            && metadata.permissions().mode() & 0o111 == 0 {
+                return Err(format!("Binary is not executable: {}", binary.display()));
+            }
+    }
+
+    let (mut cmd, cmd_string) = if server_mode == crate::models::ServerMode::Bench {
+        if let Some(m) = model {
+            build_bench_cmd(&binary, m, settings)
+        } else {
+            return Err("Model required for benchmark".to_string());
+        }
+    } else {
+        build_server_cmd(&binary, model, settings, config, server_mode, router_max_models)
+    };
+
     cmd.stdout(Stdio::piped())
        .stderr(Stdio::piped());
 
@@ -291,56 +335,52 @@ pub async fn spawn_server(
         cmd.env("LD_LIBRARY_PATH", bin_dir);
     }
 
-    let full_cmd = cmd_string;
-    info!("Command: {}", full_cmd);
-
-    let (kill_tx, mut kill_rx) = mpsc::channel::<()>(1);
-
-    let mut child = cmd.spawn().map_err(|e| format!("Failed to start llama-server: {}", e))?;
+    info!("Spawning: {}", cmd_string);
+    let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn process: {}", e))?;
     let pid = child.id().unwrap_or(0);
 
-    let resolved_host = clean_host(&settings.host);
-    info!("Started llama-server on {} port {} (pid={})", resolved_host, port, pid);
+    let (kill_tx, mut kill_rx) = mpsc::channel(1);
 
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
-
-    let log_tx_stdout = log_tx.clone();
+    // Background task to manage the process
+    let log_tx_inner = log_tx.clone();
+    let backend_name_upper = backend_name.to_uppercase();
     tokio::spawn(async move {
-        let mut reader = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = reader.next_line().await {
-            let _ = log_tx_stdout.send(line).await;
-        }
-    });
+        let stdout = child.stdout.take().unwrap();
+        let stderr = child.stderr.take().unwrap();
 
-    let log_tx_stderr = log_tx.clone();
-    tokio::spawn(async move {
-        let mut reader = BufReader::new(stderr).lines();
-        while let Ok(Some(line)) = reader.next_line().await {
-            let _ = log_tx_stderr.send(line).await;
-        }
-    });
+        let mut stdout_reader = BufReader::new(stdout).lines();
+        let mut stderr_reader = BufReader::new(stderr).lines();
 
-    let log_tx_exit = log_tx.clone();
-    tokio::spawn(async move {
-        tokio::select! {
-            _ = kill_rx.recv() => {
-                let _ = child.kill().await;
-            }
-            status = child.wait() => {
-                let msg = format!("ERROR: llama-server (pid={}) exited with status {:?}", pid, status);
-                info!("{}", msg);
-                let _ = log_tx_exit.send(msg).await;
+        loop {
+            tokio::select! {
+                _ = kill_rx.recv() => {
+                    let _ = child.kill().await;
+                    break;
+                }
+                res = stdout_reader.next_line() => {
+                    if let Ok(Some(line)) = res {
+                        let _ = log_tx_inner.send(line).await;
+                    } else {
+                        break;
+                    }
+                }
+                res = stderr_reader.next_line() => {
+                    if let Ok(Some(line)) = res {
+                        let _ = log_tx_inner.send(line).await;
+                    }
+                }
             }
         }
+        let _ = child.wait().await;
+        let _ = log_tx_inner.send(format!("{} EXITED", backend_name_upper)).await;
     });
 
     Ok((ServerHandle {
-        port,
-        host: resolved_host,
+        port: if server_mode == crate::models::ServerMode::Bench { 0 } else { settings.port },
+        host: settings.host.clone(),
         pid,
         kill_tx,
-    }, full_cmd))
+    }, cmd_string))
 }
 
 /// Check if the server is healthy and responsive.

@@ -32,7 +32,8 @@ cargo doc --open
 | `GpuLayersMode` | `models` | GPU offloading: `Auto`, `Specific(n)`, or `All` |
 | `SearchSort` | `models` | Search result sort order: `Relevance`, `Downloads`, `Likes`, `Trending`, `Created` |
 | `CacheType` | `models` | Main KV cache data type: `F16`, `BF16`, `Fq8_0`, `Fq4_1` |
-| `CacheTypeK` / `CacheTypeV` | `models` | KV cache data types for keys and values (F32, F16, BF16, Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl) |
+| `CacheQuantType` | `models` | KV cache data type for quantization (F32, F16, BF16, Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl) |
+| `CacheTypeK` / `CacheTypeV` | `models` | Type aliases for `CacheQuantType` (used for keys and values) |
 | `SplitMode` | `models` | Multi-GPU split mode: `None`, `Layer`, `Row`, `Tensor` |
 | `NumMode` | `models` | NUMA optimization: `None`, `Distribute`, `Isolate`, `Numactl` |
 | `RopeScaling` | `models` | RoPE frequency scaling: `None`, `Linear`, `Yarn` |
@@ -68,7 +69,12 @@ pub async fn download_file(
 
 /// Resolve the llama-server binary path for a given backend.
 /// Downloads the binary from GitHub releases if not already cached.
-pub async fn resolve_backend_binary(backend: Backend, version: Option<&str>) -> Result<PathBuf>
+pub async fn resolve_backend_binary(
+    backend: Backend,
+    tag: Option<&str>,
+    log_tx: Option<mpsc::Sender<String>>,
+    download_tx: Option<broadcast::Sender<DownloadProgressUpdate>>,
+) -> Result<PathBuf>
 ```
 
 ### `backend::server`
@@ -90,6 +96,8 @@ pub fn build_server_cmd(
     model: Option<&DiscoveredModel>,
     settings: &ModelSettings,
     config: &Config,
+    server_mode: ServerMode,
+    router_max_models: u32,
 ) -> (Command, String)
 
 /// Spawn a llama.cpp server process.
@@ -137,6 +145,15 @@ pub struct Config {
     pub model_overrides: HashMap<String, ModelOverride>,
     pub profiles: Vec<Profile>,
     pub system_prompt_presets: Vec<SystemPromptPreset>,
+    pub rpc_workers: Vec<RpcWorker>,
+}
+
+/// A remote RPC worker for distributed inference.
+pub struct RpcWorker {
+    pub selected: bool,
+    pub name: String,
+    pub ip: String,
+    pub port: u16,
 }
 
 /// A named profile of settings.
@@ -209,6 +226,11 @@ profiles:
     settings:
       temperature: 0.6
       top_k: 20
+rpc_workers:
+  - name: Remote-GPU-1
+    ip: 192.168.1.50
+    port: 50052
+    selected: true
 system_prompt_presets:
   - name: General
     description: General-purpose assistant

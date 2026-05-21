@@ -8,44 +8,23 @@ use ratatui::{
 
 use crate::tui::app::App;
 use crate::tui::format_size;
-use crate::models::strip_gguf;
+use crate::models::{strip_gguf, ModelState};
 
-pub fn render(f: &mut Frame, area: Rect, app: &App) {
-    let mut title_spans = if app.is_panel_visible(4) {
-        vec![Span::raw(" Active Model (F5) ")]
-    } else {
-        vec![Span::raw(" Active Model(s) ")]
-    };
-    if app.metrics.total_vram_used > 0 {
-        title_spans.push(Span::styled("[ ", Style::default().fg(Color::White)));
-        title_spans.push(Span::styled("Total VRAM: ", Style::default().fg(Color::Yellow)));
-        title_spans.push(Span::styled(format_size(app.metrics.total_vram_used), Style::default().fg(Color::Cyan)));
-        title_spans.push(Span::styled(" / ", Style::default().fg(Color::White)));
-        title_spans.push(Span::styled(format_size(app.metrics.gpu_mem_total), Style::default().fg(Color::Cyan)));
-        title_spans.push(Span::styled(" ]", Style::default().fg(Color::White)));
-    }
-
+pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let block = Block::default()
-        .title(Line::from(title_spans))
+        .title(" Active Model(s) (F5) ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Magenta));
+        .border_style(Style::default().fg(if app.active_panel == crate::tui::app::ActivePanel::ActiveModel { Color::Green } else { Color::DarkGray }));
 
-    let model = app.selected_model();
-    let status = model.and_then(|m| app.model_states.get(&m.display_name));
-    
     let mut lines = Vec::new();
 
-    match status {
-        Some(crate::models::ModelState::Loaded { .. }) => {
-            let m = model.unwrap();
-            lines.push(Line::from(vec![
-                Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
-                         Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::raw("  "),
-                Span::styled("✓", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-            ]));
+    // Get currently loaded model or the one being loaded
+    let model = app.selected_model();
+    let state = model.and_then(|m| app.model_states.get(&m.display_name));
 
-            // Metrics row 1: Performance and Context
+    match state {
+        Some(ModelState::Loaded { .. }) => {
+            let m = model.unwrap();
             let pct = if app.metrics.ctx_max > 0 {
                 (app.metrics.ctx_used as f64 / app.metrics.ctx_max as f64 * 100.0).ceil() as usize
             } else {
@@ -59,25 +38,25 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                 "░".repeat(bar_width.saturating_sub(filled)),
             );
             let token_str = format!("{}/{} ({:.0}%)", app.metrics.ctx_used, app.metrics.ctx_max, pct as f64 / 100.0 * 100.0);
+            
             lines.push(Line::from(vec![
-                Span::styled(" [ ", Style::default().fg(Color::White)),
+                Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
+                Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                Span::styled("  [ ", Style::default().fg(Color::White)),
                 Span::styled("TPS: ", Style::default().fg(Color::Yellow)),
                 Span::styled(format!("{:.1}", app.metrics.tps), Style::default().fg(Color::Green)),
                 Span::styled(" (in: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(format!("{:.1}", app.metrics.prompt_tps), Style::default().fg(Color::Green)),
                 Span::styled(")", Style::default().fg(Color::DarkGray)),
-                Span::styled(" ]  [ ", Style::default().fg(Color::White)),
-                Span::styled(bar_only, Style::default().fg(Color::Cyan)),
-                Span::styled(" ", Style::default().fg(Color::Cyan)),
-                Span::styled("tokens", Style::default().fg(Color::Cyan)),
-                Span::styled(" ", Style::default().fg(Color::Cyan)),
-                Span::styled(token_str, Style::default().fg(Color::Cyan)),
                 Span::styled(" ]", Style::default().fg(Color::White)),
             ]));
 
-            // Metrics row 2: System + VRAM
             lines.push(Line::from(vec![
-                Span::styled(" [ ", Style::default().fg(Color::White)),
+                Span::styled(" Context: ", Style::default().fg(Color::Yellow)),
+                Span::styled(bar_only, Style::default().fg(Color::Cyan)),
+                Span::styled(" ", Style::default().fg(Color::Cyan)),
+                Span::styled(token_str, Style::default().fg(Color::Cyan)),
+                Span::styled("  [ ", Style::default().fg(Color::White)),
                 Span::styled("CPU: ", Style::default().fg(Color::Yellow)),
                 Span::styled(format!("{:.1}%", app.metrics.cpu_usage), Style::default().fg(Color::Cyan)),
                 Span::styled(" ]  [ ", Style::default().fg(Color::White)),
@@ -91,7 +70,19 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                 Span::styled(" ]", Style::default().fg(Color::White)),
             ]));
         }
-        Some(crate::models::ModelState::Loading) => {
+        Some(ModelState::Benchmarking) => {
+            let m = model.unwrap();
+            lines.push(Line::from(vec![
+                Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
+                Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
+                Span::styled("BENCHMARKING", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(" (see log for output)", Style::default().fg(Color::DarkGray)),
+            ]));
+        }
+        Some(ModelState::Loading) => {
             let m = model.unwrap();
             lines.push(Line::from(vec![
                 Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
@@ -149,34 +140,19 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
                 }
             }
         }
-        Some(crate::models::ModelState::Failed { error }) => {
-            let m = model.unwrap();
-            lines.push(Line::from(vec![
-               Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
-                        Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                    ]));
-                    lines.push(Line::from(vec![
-                        Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(error, Style::default().fg(Color::Red)),
-            ]));
-        }
         _ => {
-            // Only show the global last_error_message if it's a Router/Server crash 
-            // and no model is selected or the selected model isn't loaded.
-            if let Some(error) = &app.last_error_message {
-                if error.contains("Router Crash") {
-                    lines.push(Line::from(vec![
-                        Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(error, Style::default().fg(Color::Red)),
-                    ]));
-                } else {
-                    lines.push(Line::from(vec![
-                        Span::styled(" (no active metrics for selected model)", Style::default().fg(Color::DarkGray)),
-                    ]));
-                }
+            if app.server_handle.is_some() {
+                 lines.push(Line::from(vec![
+                    Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
+                    Span::styled("llama-server", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                    Span::styled(" (no active model selected)", Style::default().fg(Color::DarkGray)),
+                ]));
             } else {
                 lines.push(Line::from(vec![
-                    Span::styled(" (no active metrics for selected model)", Style::default().fg(Color::DarkGray)),
+                    Span::styled(" No active model ", Style::default().fg(Color::DarkGray)),
+                ]));
+                lines.push(Line::from(vec![
+                    Span::styled(" (select a model and press Enter to load)", Style::default().fg(Color::DarkGray)),
                 ]));
             }
         }
@@ -185,4 +161,3 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let paragraph = Paragraph::new(lines).block(block);
     f.render_widget(paragraph, area);
 }
-

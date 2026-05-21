@@ -306,7 +306,12 @@ async fn main() -> Result<()> {
 
             let display_name = model_opt.as_ref().map(|m| m.display_name.clone()).unwrap_or_else(|| "Router".to_string());
             if let Some(m) = &model_opt {
-                app.model_states.insert(m.display_name.clone(), crate::models::ModelState::Loading);
+                let state = if server_mode_clone == crate::models::ServerMode::Bench {
+                    crate::models::ModelState::Benchmarking
+                } else {
+                    crate::models::ModelState::Loading
+                };
+                app.model_states.insert(m.display_name.clone(), state);
             }
             app.add_log(format!("Loading {}...", display_name), crate::config::LogLevel::Info);
             let handle = tokio::spawn(async move {

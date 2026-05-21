@@ -837,7 +837,12 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     parts.push(Span::styled(format!("[Mode: {}] ", mode_name), Style::default().fg(Color::DarkGray)));
 
     if let Some(handle) = &app.server_handle {
-        parts.push(Span::styled(format!("● {} {}", handle.port, app.server_mode), Style::default().fg(Color::Green)));
+        let label = if app.server_mode == crate::models::ServerMode::Bench {
+            "BENCHMARKING".to_string()
+        } else {
+            format!("{} {}", handle.port, app.server_mode)
+        };
+        parts.push(Span::styled(format!("● {}", label), Style::default().fg(Color::Green)));
     } else {
         parts.push(Span::styled("○ Server", Style::default().fg(Color::DarkGray)));
     }

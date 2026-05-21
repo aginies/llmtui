@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum ModelState {
     Available,
     Loading,
+    Benchmarking,
     Loaded {
         port: u16,
         pid: u32,
@@ -566,6 +567,8 @@ pub enum ServerMode {
     Normal,
     #[serde(rename = "router")]
     Router,
+    #[serde(rename = "bench")]
+    Bench,
 }
 
 
@@ -574,6 +577,7 @@ impl std::fmt::Display for ServerMode {
         match self {
             ServerMode::Normal => write!(f, "Normal"),
             ServerMode::Router => write!(f, "Router (XP!)"),
+            ServerMode::Bench => write!(f, "Bench"),
         }
     }
 }

@@ -90,7 +90,7 @@ llama_cpp_version_vulkan: null
 llama_cpp_version_rocm: null
 ```
 
-Setting to `null` uses the latest release. Specific versions can be set via the version picker in LLM Settings.
+Setting to `null` uses the latest release. Specific versions can be set via the version picker in LLM Settings. These selections are automatically persisted to your configuration and remembered across restarts.
 
 ### Asset Names
 
@@ -157,3 +157,17 @@ Any endpoint not listed above is automatically proxied to the llama-server insta
 ## Model Overrides
 
 Settings can be saved per-model. These overrides are stored in the `model_overrides` map in the config file, keyed by model file name. When a model is loaded, its override settings are merged into the defaults.
+
+## RPC Workers
+
+You can manage a list of remote `llama-rpc-server` nodes for distributed inference. These are stored in the `rpc_workers` list in the config:
+
+```yaml
+rpc_workers:
+  - selected: true
+    name: "Worker 1"
+    ip: "192.168.1.10"
+    port: 50052
+```
+
+Workers can be managed via the **RPC Workers** window in the **Server Settings** panel. Selected workers are combined into the `--rpc` flag when starting the server.

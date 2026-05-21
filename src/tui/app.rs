@@ -527,6 +527,19 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             self.loading_progress = phase_progress;
         }
 
+        if upper.contains("LLAMA-SERVER EXITED") || upper.contains("LLAMA-BENCH EXITED") {
+            self.server_handle = None;
+            self.loading_phases.clear();
+            self.loading_progress = 0.0;
+            self.load_progress = Default::default();
+            self.needs_redraw = true;
+
+            // Reset all model states to Available
+            for state in self.model_states.values_mut() {
+                *state = crate::models::ModelState::Available;
+            }
+        }
+
         // Trim before pushing to prevent memory spikes
         if self.log_entries.len() >= 500 {
             self.log_entries.pop_front();
@@ -598,10 +611,10 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 if !self.loading_phases.contains(&LoadingPhase::Complete) {
                     self.loading_phases.push(LoadingPhase::Complete);
                 }
-            } else if matches!(self.model_states.get(&model.display_name), Some(ModelState::Loading)) {
-                // Keep current loading progress if we are already loading this model
+            } else if matches!(self.model_states.get(&model.display_name), Some(ModelState::Loading) | Some(ModelState::Benchmarking)) {
+                // Keep current loading/benchmarking progress
             } else {
-                // Not loaded and not loading, reset progress
+                // Not loaded, loading, or benchmarking, reset progress
                 self.loading_progress = 0.0;
                 self.loading_phases.clear();
                 self.load_progress = Default::default();

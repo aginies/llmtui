@@ -80,10 +80,11 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 |---------|---------|-------------|
 | **Host** | 127.0.0.1 | Bind address for the llama.cpp server. Use `0.0.0.0` to accept connections from other machines. |
 | **Port** | 8080 | Port for the llama.cpp server. |
-| **Backend** | vulkan | Acceleration backend: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU). |
+| **Backend** | vulkan | Acceleration backend: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU). Shows the currently selected version. |
 | **Threads** | (physical cores) | CPU threads for generation. Set to your physical core count for best performance. |
 | **Threads Batch** | 8 | CPU threads for batch processing (prompt evaluation). |
-| **Mode** | Normal | Server mode: `Normal` loads a single model, `Router` supports multiple models in memory. |
+| **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models), or `Bench` (run llama-bench). |
+| **RPC Workers** | None | Open a dedicated window to manage distributed inference nodes (IP:Port). |
 | **Timeout** | 600 | Server timeout in seconds before auto-shutdown. |
 | **Max Models** | 4 | Maximum concurrent models in Router mode. |
 | **API Endpoint** | false | Enable the API proxy server (see Serve Mode). |
@@ -97,8 +98,8 @@ The LLM Settings panel has 22 fields organized into 6 groups. Arrow keys adjust 
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| **Context** | 32096 | Context window size in tokens. Must be a power of two. Larger values consume more VRAM and RAM. Models often have a maximum context length (e.g., 32K, 128K). |
 | **Prompt** | General | System prompt preset that defines the model's initial behavior. Presets include General, Coder, Thinker, Mathematician, and any user-defined prompts. |
+| **Context** | 32096 | Context window size in tokens. Must be a power of two. Larger values consume more VRAM and RAM. Models often have a maximum context length (e.g., 32K, 128K). |
 | **Keep in memory** | false | Locks model weights in RAM (`-mlock`) to prevent the OS from swapping them out. Useful when repeatedly loading/unloading models. Increases RAM usage. |
 
 #### GPU Offload

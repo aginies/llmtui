@@ -110,7 +110,7 @@ The Server Settings panel (top-right) shows server configuration:
 | Backend | Acceleration backend (cpu / vulkan / rocm) — shows selected version |
 | Threads | CPU threads for generation |
 | Threads Batch | CPU threads for batch processing |
-| Mode | Server mode — `↵` toggles between Normal and Router |
+| Mode | Server mode — `↵` toggles between Normal, Router, and Bench |
 | API Endpoint | Enable API proxy — `↵` toggles (disabled while server is running) |
 | RPC Workers | Open the distributed inference manager window — press `↵` |
 | API Port | Port for the API proxy server (default: 49222) |

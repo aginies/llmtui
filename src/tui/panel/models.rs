@@ -152,27 +152,25 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .iter()
                 .map(|&idx| {
                     let model = &app.models[idx];
-                    let is_loaded = app.is_model_loaded(&model.display_name);
-                    let is_loading = matches!(app.model_states.get(&model.display_name), Some(crate::models::ModelState::Loading));
+                    let model_state = app.model_states.get(&model.display_name);
                     let is_selected = Some(idx) == app.selected_model_idx;
 
                     let selector = if is_selected { "> " } else { "  " };
-                    let status = if is_loaded { 
-                        "[loaded] " 
-                    } else if is_loading {
-                        "[loading] "
-                    } else { 
-                        "" 
+                    let status = match model_state {
+                        Some(crate::models::ModelState::Loaded { .. }) => "[loaded] ",
+                        Some(crate::models::ModelState::Loading) => "[loading] ",
+                        Some(crate::models::ModelState::Benchmarking) => "[benchmarking] ",
+                        _ => "",
                     };
 
                     let name_style = if is_selected {
                         Style::default().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD)
-                    } else if is_loaded {
-                        Style::default().fg(Color::Green)
-                    } else if is_loading {
-                        Style::default().fg(Color::Yellow)
                     } else {
-                        Style::default().fg(Color::White)
+                        match model_state {
+                            Some(crate::models::ModelState::Loaded { .. }) => Style::default().fg(Color::Green),
+                            Some(crate::models::ModelState::Loading) | Some(crate::models::ModelState::Benchmarking) => Style::default().fg(Color::Yellow),
+                            _ => Style::default().fg(Color::White),
+                        }
                     };
 
                     ListItem::new(Line::from(vec![

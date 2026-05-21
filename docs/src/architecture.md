@@ -44,12 +44,18 @@ Each mode controls rendering in `render.rs` and key handling in `event.rs`. The 
 ```rust
 pub enum GlobalMode {
     Normal,
-    DeleteConfirmation,
-    ResetConfirmation,
-    ExitConfirmation,
+    Confirmation { selected: bool, kind: ConfirmationKind },
     CmdLine { cmd_line: String },
+    HostPicker { entries: Vec<(String, String)>, selected: usize },
+    BackendPicker { entries: Vec<(Backend, Option<String>)>, selected: usize },
+    RpcManager,
+    About,
 }
 ```
+
+## Local Model Filter
+
+The application supports real-time filtering of the local models list. Triggered by the `f` key when the Models panel is focused, it allows users to quickly narrow down large collections using case-insensitive substring matching.
 
 ## Model Discovery
 

@@ -1135,7 +1135,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     // Toggle server mode
                     app.server_mode = match app.server_mode {
                         crate::models::ServerMode::Normal => crate::models::ServerMode::Router,
-                        crate::models::ServerMode::Router => crate::models::ServerMode::Normal,
+                        crate::models::ServerMode::Router => crate::models::ServerMode::Bench,
+                        crate::models::ServerMode::Bench => crate::models::ServerMode::Normal,
                     };
                 }
                 5 => {

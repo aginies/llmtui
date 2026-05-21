@@ -495,6 +495,23 @@ pub async fn resolve_backend_binary(
         }
     }
 
+    // Also try to extract llama-bench if it exists
+    let bench_bin_path = bin_dir.join("llama-bench");
+    let mut bench_found = None;
+    walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
+        if entry.file_name().to_str().map(|n| n == "llama-bench").unwrap_or(false) {
+            bench_found = Some(entry.path().to_path_buf());
+        }
+    });
+    if let Some(path) = bench_found {
+        let _ = std::fs::rename(path, &bench_bin_path);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&bench_bin_path, std::fs::Permissions::from_mode(0o755));
+        }
+    }
+
     // Also extract shared libraries (*.so*) from the archive into bin_dir
     walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
         let name = entry.file_name();
