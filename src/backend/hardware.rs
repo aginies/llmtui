@@ -10,29 +10,39 @@ pub enum GpuVendor {
     Unknown,
 }
 
-/// Detect the GPU vendor by scanning /sys/class/drm/card*/device/vendor
-pub fn detect_gpu_vendor() -> GpuVendor {
+/// Returns paths to all primary DRM card directories (card0, card1, ...).
+fn drm_card_paths() -> Vec<std::path::PathBuf> {
     let drm_path = Path::new("/sys/class/drm");
     if !drm_path.exists() {
-        return GpuVendor::Unknown;
+        return Vec::new();
     }
+    fs::read_dir(drm_path)
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|e| {
+                    let n = e.file_name();
+                    let s = n.to_string_lossy();
+                    s.starts_with("card") && !s.contains('-')
+                })
+                .map(|e| e.path())
+                .collect()
+        })
+        .unwrap_or_default()
+}
 
-    if let Ok(entries) = fs::read_dir(drm_path) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let name_str = name.to_string_lossy();
-            if name_str.starts_with("card") && !name_str.contains('-') {
-                let vendor_path = entry.path().join("device/vendor");
-                if let Ok(vendor_id) = fs::read_to_string(vendor_path) {
-                    let vendor_id = vendor_id.trim();
-                    if vendor_id == "0x1002" {
-                        return GpuVendor::Amd;
-                    } else if vendor_id == "0x10de" {
-                        return GpuVendor::Nvidia;
-                    } else if vendor_id == "0x8086" {
-                        return GpuVendor::Intel;
-                    }
-                }
+/// Detect the GPU vendor by scanning /sys/class/drm/card*/device/vendor
+pub fn detect_gpu_vendor() -> GpuVendor {
+    for card_path in drm_card_paths() {
+        let vendor_path = card_path.join("device/vendor");
+        if let Ok(vendor_id) = fs::read_to_string(vendor_path) {
+            let vendor_id = vendor_id.trim();
+            if vendor_id == "0x1002" {
+                return GpuVendor::Amd;
+            } else if vendor_id == "0x10de" {
+                return GpuVendor::Nvidia;
+            } else if vendor_id == "0x8086" {
+                return GpuVendor::Intel;
             }
         }
     }
@@ -42,39 +52,28 @@ pub fn detect_gpu_vendor() -> GpuVendor {
 
 /// Detect the GPU model name (e.g. "Radeon RX 7900 XTX")
 pub fn detect_gpu_model() -> Option<String> {
-    let drm_path = Path::new("/sys/class/drm");
-    if !drm_path.exists() {
-        return None;
-    }
-
-    if let Ok(entries) = fs::read_dir(drm_path) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let name_str = name.to_string_lossy();
-            if name_str.starts_with("card") && !name_str.contains('-') {
-                // Try reading device/device (PCI ID) or other sysfs attributes
-                // On some systems, the model name isn't directly in sysfs without pci.ids mapping.
-                // However, we can try common paths or just return vendor + GFX target if specific model is hard.
-                // For now, let's try to find a "model" or "device" name if it exists.
-                
-                // fallback to vendor name + GFX if we can't get exact model
-                let vendor = detect_gpu_vendor();
-                let vendor_name = match vendor {
-                    GpuVendor::Amd => "AMD",
-                    GpuVendor::Nvidia => "NVIDIA",
-                    GpuVendor::Intel => "Intel",
-                    GpuVendor::Unknown => return None,
-                };
-                
-                if vendor == GpuVendor::Amd {
-                    if let Some(gfx) = detect_amd_gfx_target() {
-                        return Some(format!("{} ({})", vendor_name, gfx));
-                    }
-                }
-                
-                return Some(vendor_name.to_string());
+    if !drm_card_paths().is_empty() {
+        // Try reading device/device (PCI ID) or other sysfs attributes
+        // On some systems, the model name isn't directly in sysfs without pci.ids mapping.
+        // However, we can try common paths or just return vendor + GFX target if specific model is hard.
+        // For now, let's try to find a "model" or "device" name if it exists.
+        
+        // fallback to vendor name + GFX if we can't get exact model
+        let vendor = detect_gpu_vendor();
+        let vendor_name = match vendor {
+            GpuVendor::Amd => "AMD",
+            GpuVendor::Nvidia => "NVIDIA",
+            GpuVendor::Intel => "Intel",
+            GpuVendor::Unknown => return None,
+        };
+        
+        if vendor == GpuVendor::Amd {
+            if let Some(gfx) = detect_amd_gfx_target() {
+                return Some(format!("{} ({})", vendor_name, gfx));
             }
         }
+        
+        return Some(vendor_name.to_string());
     }
 
     None

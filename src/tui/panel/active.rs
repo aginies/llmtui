@@ -54,9 +54,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             let bar_width = 20usize;
             let filled = (pct as f64 / 100.0 * bar_width as f64) as usize;
             let bar_only = format!(
-                "{}{}{}",
-                "█".repeat(filled.saturating_sub(1)),
-                "█",
+                "{}{}",
+                "█".repeat(filled),
                 "░".repeat(bar_width.saturating_sub(filled)),
             );
             let token_str = format!("{}/{} ({:.0}%)", app.metrics.ctx_used, app.metrics.ctx_max, pct as f64 / 100.0 * 100.0);

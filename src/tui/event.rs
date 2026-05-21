@@ -276,14 +276,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
         }
-          KeyCode::Char('h')
+        KeyCode::Char('h')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) && !key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) =>
         {
             // Toggle panel help
+            app.panel_help = !app.panel_help;
             if app.panel_help {
-                app.panel_help = false;
-            } else {
-                app.panel_help = true;
                 app.panel_help_offset = 0;
             }
             app.set_redraw();
