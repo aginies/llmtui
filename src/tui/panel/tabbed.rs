@@ -272,7 +272,7 @@ pub fn render_info_only(f: &mut Frame, area: Rect, app: &mut App) {
 /// Render the info paragraph with a block and borders.
 fn render_info_paragraph(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
-        .title(" Model Info (F3) [3] ")
+        .title(" Model Info (F3)")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Blue));
 

@@ -12,7 +12,7 @@ use crate::models::strip_gguf;
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let mut title_spans = if app.is_panel_visible(4) {
-        vec![Span::raw(" Active Model (F5) [5] ")]
+        vec![Span::raw(" Active Model (F5) ")]
     } else {
         vec![Span::raw(" Active Model(s) ")]
     };
