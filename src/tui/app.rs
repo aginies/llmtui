@@ -546,6 +546,20 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         )
     }
 
+    pub fn get_filtered_model_indices(&self) -> Vec<usize> {
+        self.models
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| {
+                self.local_filter.is_empty()
+                    || m.display_name
+                        .to_lowercase()
+                        .contains(&self.local_filter.to_lowercase())
+            })
+            .map(|(i, _)| i)
+            .collect()
+    }
+
     /// Return the current number of search results.
     pub fn search_results_len(&self) -> usize {
         if let ModelsMode::Search { results, .. } = &self.models_mode {

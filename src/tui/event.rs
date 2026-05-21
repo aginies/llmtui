@@ -835,31 +835,77 @@ fn handle_readme_key(app: &mut App, key: crossterm::event::KeyEvent) {
 }
 
 async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
+    if app.filtering_local {
+        match key.code {
+            KeyCode::Esc => {
+                app.filtering_local = false;
+                app.local_filter.clear();
+                app.on_model_selection_change();
+            }
+            KeyCode::Enter => {
+                app.filtering_local = false;
+            }
+            KeyCode::Char(c) => {
+                app.local_filter.push(c);
+                app.on_model_selection_change();
+            }
+            KeyCode::Backspace => {
+                app.local_filter.pop();
+                app.on_model_selection_change();
+            }
+            _ => {}
+        }
+        app.set_redraw();
+        return;
+    }
+
     match key.code {
+        KeyCode::Char('f') => {
+            if matches!(app.models_mode, ModelsMode::List) {
+                app.filtering_local = true;
+                if app.selected_model_idx.is_none() {
+                    let filtered = app.get_filtered_model_indices();
+                    if !filtered.is_empty() {
+                        app.selected_model_idx = Some(filtered[0]);
+                        app.on_model_selection_change();
+                    }
+                }
+                app.set_redraw();
+                return;
+            }
+        }
         KeyCode::Up | KeyCode::Char('k') => {
-            match app.selected_model_idx {
-                Some(idx) if idx > 0 => {
-                    app.selected_model_idx = Some(idx - 1);
+            let filtered = app.get_filtered_model_indices();
+            if let Some(idx) = app.selected_model_idx {
+                if let Some(pos) = filtered.iter().position(|&i| i == idx) {
+                    if pos > 0 {
+                        app.selected_model_idx = Some(filtered[pos - 1]);
+                        app.on_model_selection_change();
+                    }
+                } else if !filtered.is_empty() {
+                    app.selected_model_idx = Some(filtered[0]);
                     app.on_model_selection_change();
                 }
-                None if !app.models.is_empty() => {
-                    app.selected_model_idx = Some(0);
-                    app.on_model_selection_change();
-                }
-                _ => {}
+            } else if !filtered.is_empty() {
+                app.selected_model_idx = Some(filtered[0]);
+                app.on_model_selection_change();
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            match app.selected_model_idx {
-                Some(idx) if idx + 1 < app.models.len() => {
-                    app.selected_model_idx = Some(idx + 1);
+            let filtered = app.get_filtered_model_indices();
+            if let Some(idx) = app.selected_model_idx {
+                if let Some(pos) = filtered.iter().position(|&i| i == idx) {
+                    if pos + 1 < filtered.len() {
+                        app.selected_model_idx = Some(filtered[pos + 1]);
+                        app.on_model_selection_change();
+                    }
+                } else if !filtered.is_empty() {
+                    app.selected_model_idx = Some(filtered[0]);
                     app.on_model_selection_change();
                 }
-                None if !app.models.is_empty() => {
-                    app.selected_model_idx = Some(0);
-                    app.on_model_selection_change();
-                }
-                _ => {}
+            } else if !filtered.is_empty() {
+                app.selected_model_idx = Some(filtered[0]);
+                app.on_model_selection_change();
             }
         }
         KeyCode::Enter | KeyCode::Char('l') => {

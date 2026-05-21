@@ -97,13 +97,14 @@ fn format_speed(bytes_per_second: f64) -> String {
 }
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
-    let (block, items) = match &app.models_mode {
+    match &app.models_mode {
         ModelsMode::List => {
             let title = if app.is_panel_visible(0) {
                 format!(" Models (F1) [1] ")
             } else {
                 format!(" Models ")
             };
+
             let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
@@ -114,14 +115,46 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color));
 
-            let list_items: Vec<ListItem> = app
-                .models
+            let inner_area = block.inner(area);
+            f.render_widget(block, area);
+
+            let (list_area, filter_area) = if app.filtering_local || !app.local_filter.is_empty() {
+                let chunks = ratatui::layout::Layout::default()
+                    .direction(ratatui::layout::Direction::Vertical)
+                    .constraints([
+                        Constraint::Length(1),
+                        Constraint::Fill(1),
+                    ])
+                    .split(inner_area);
+                (chunks[1], Some(chunks[0]))
+            } else {
+                (inner_area, None)
+            };
+
+            if let Some(fa) = filter_area {
+                let filter_text = if app.filtering_local {
+                    Line::from(vec![
+                        Span::styled(" Filter: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                        Span::styled(&app.local_filter, Style::default().fg(Color::Black).bg(Color::Yellow)),
+                        Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)),
+                    ])
+                } else {
+                    Line::from(vec![
+                        Span::styled(" Filter: ", Style::default().fg(Color::DarkGray)),
+                        Span::styled(&app.local_filter, Style::default().fg(Color::Cyan)),
+                    ])
+                };
+                f.render_widget(ratatui::widgets::Paragraph::new(filter_text), fa);
+            }
+
+            let filtered_indices = app.get_filtered_model_indices();
+            let list_items: Vec<ListItem> = filtered_indices
                 .iter()
-                .enumerate()
-                .map(|(i, model)| {
+                .map(|&idx| {
+                    let model = &app.models[idx];
                     let is_loaded = app.is_model_loaded(&model.display_name);
                     let is_loading = matches!(app.model_states.get(&model.display_name), Some(crate::models::ModelState::Loading));
-                    let is_selected = Some(i) == app.selected_model_idx;
+                    let is_selected = Some(idx) == app.selected_model_idx;
 
                     let selector = if is_selected { "> " } else { "  " };
                     let status = if is_loaded { 
@@ -150,7 +183,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .collect();
 
-            (block, list_items)
+            let mut list_state = ListState::default();
+            if let Some(idx) = app.selected_model_idx {
+                if let Some(pos) = filtered_indices.iter().position(|&i| i == idx) {
+                    list_state.select(Some(pos));
+                }
+            }
+
+            let list = List::new(list_items);
+            f.render_stateful_widget(list, list_area, &mut list_state);
         }
         ModelsMode::Search { query, results, sort_by, loading, has_more, .. } => {
             let sort_label = sort_by.label();
@@ -228,7 +269,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .highlight_symbol("> ");
 
             app.search_table_state.select(app.search_results_idx);
-            return f.render_stateful_widget(table, area, &mut app.search_table_state);
+            f.render_stateful_widget(table, area, &mut app.search_table_state);
         }
         ModelsMode::Files { model_id, files, selected_idx, selected_result: _, .. } => {
             let title = format!(" {} - GGUF files ", model_id);
@@ -275,18 +316,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             app.files_table_state.select(*selected_idx);
 
             f.render_stateful_widget(table, inner_area, &mut app.files_table_state);
-            return;
         }
-    };
-
-    let mut list_state = ListState::default();
-    list_state.select(match &app.models_mode {
-        ModelsMode::Files { selected_idx, .. } => *selected_idx,
-        _ => app.selected_model_idx,
-    });
-
-    let list = List::new(items).block(block);
-    f.render_stateful_widget(list, area, &mut list_state);
+    }
 }
 
 
