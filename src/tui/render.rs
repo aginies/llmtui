@@ -7,7 +7,6 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::config::Profile;
 use crate::tui::app::{App, ActivePanel, ConfirmationKind, GlobalMode, ModelsMode};
 use crate::tui::panel;
 
@@ -276,7 +275,95 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     .border_style(Style::default().fg(Color::Yellow)),
             ), picker_area);
             return;
-        }    // Main layout: status bar + top panels + active model + log
+            }
+
+            // RPC Manager overlay
+            if matches!(app.global_mode, GlobalMode::RpcManager) {
+            let area = f.area();
+            let w = (area.width as f64 * 0.8).clamp(70.0, 90.0) as u16;
+            let h = (area.height as f64 * 0.8).clamp(20.0, 35.0) as u16;
+            let rpc_area = Rect {
+                x: (area.width.saturating_sub(w)) / 2,
+                y: (area.height.saturating_sub(h)) / 2,
+                width: w,
+                height: h,
+            };
+
+            let workers = &app.config.rpc_workers;
+            let worker_lines = panel::rpc_workers::render_all(
+                workers,
+                app.rpc_workers_selected_idx,
+                app.editing_rpc_worker.is_some(),
+                &app.settings_edit_buffer,
+                app.edit_cursor_pos,
+            );
+
+            let available_height = rpc_area.height.saturating_sub(2);
+            let max_offset = worker_lines.len().saturating_sub(available_height as usize) as u16;
+            if app.rpc_workers_scroll_offset > max_offset {
+                app.rpc_workers_scroll_offset = max_offset;
+            }
+
+            let start_idx = app.rpc_workers_scroll_offset as usize;
+            let visible_lines: Vec<Line> = worker_lines
+                .iter()
+                .skip(start_idx)
+                .take(available_height as usize)
+                .cloned()
+                .collect();
+
+            let block = Block::default()
+                .title(" RPC Workers Manager ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+
+            f.render_widget(ratatui::widgets::Clear, rpc_area);
+            f.render_widget(Paragraph::new(visible_lines).block(block), rpc_area);
+
+            if worker_lines.len() > available_height as usize {
+                let scrollbar_area = Rect {
+                    x: rpc_area.right().saturating_sub(1),
+                    y: rpc_area.top() + 1,
+                    width: 1,
+                    height: rpc_area.height.saturating_sub(2),
+                };
+                let mut scrollbar_state = ScrollbarState::new(worker_lines.len())
+                    .position(app.rpc_workers_scroll_offset as usize);
+                f.render_stateful_widget(
+                    Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                        .begin_symbol(Some("↑"))
+                        .end_symbol(Some("↓")),
+                    scrollbar_area,
+                    &mut scrollbar_state,
+                );
+            }
+            return;
+            }
+
+            // About overlay
+            if matches!(app.global_mode, GlobalMode::About) {
+            let area = f.area();
+            let w = (area.width as f64 * 0.6).clamp(50.0, 70.0) as u16;
+            let h = 16;
+            let about_area = Rect {
+                x: (area.width.saturating_sub(w)) / 2,
+                y: (area.height.saturating_sub(h)) / 2,
+                width: w,
+                height: h,
+            };
+
+            let about_lines = panel::about::render_about();
+            let block = Block::default()
+                .title(" About ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+
+            f.render_widget(ratatui::widgets::Clear, about_area);
+            f.render_widget(Paragraph::new(about_lines).block(block).alignment(ratatui::layout::Alignment::Center), about_area);
+            return;
+            }
+
+            // Main layout: status bar + top panels + active model + log
     let is_search = matches!(app.models_mode, ModelsMode::Search { .. });
     let active_model_visible = app.is_panel_visible(4) && !is_search;
     let log_visible = app.is_panel_visible(5);
@@ -304,7 +391,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         } else {
             // Calculate base height for bottom area
             let mut h = 0;
-            if log_visible { h += 5; }
+            if log_visible { h += 3; }
             if app.downloading { h += 7; }
             
             if h > 0 {
@@ -618,6 +705,8 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                 parts.push(Span::styled("⌃R reset", y));
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled("⌃E toggle", y));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("A about", c));
                 if app.is_settings_dirty() {
                     parts.push(Span::raw("  "));
                     parts.push(Span::styled("*unsaved*", r));
@@ -636,6 +725,8 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::styled("/ search", y),
                             Span::raw("  "),
                             Span::styled("l/u un/load", y),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                             Span::raw("  "),
                             Span::styled("⌃H help", c),
                         ]
@@ -665,6 +756,8 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("↵ toggle", y),
                             Span::raw("  "),
+                            Span::styled("A about", c),
+                            Span::raw("  "),
                             Span::styled("⇥ panels", c),
                         ]
                     }
@@ -675,6 +768,8 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::styled("↵ apply", y),
                             Span::raw("  "),
                             Span::styled("s save", c),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                             Span::raw("  "),
                             Span::styled("⎋ done", c),
                             Span::raw("  "),
@@ -691,6 +786,8 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("n new", c),
                             Span::raw("  "),
+                            Span::styled("A about", c),
+                            Span::raw("  "),
                             Span::styled("⎋ done", c),
                             Span::raw("  "),
                             Span::styled("⇥ panels", c),
@@ -699,6 +796,8 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                     crate::tui::app::ActivePanel::SearchReadme => {
                         vec![
                             Span::styled("j/k nav", c),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                             Span::raw("  "),
                             Span::styled("⎋ collapse", c),
                             Span::raw("  "),
@@ -710,6 +809,8 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::styled("⇥ panels", c),
                             Span::raw("  "),
                             Span::styled("/ search", y),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                             Span::raw("  "),
                             Span::styled("⌃H help", c),
                         ]
@@ -742,9 +843,14 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         parts.push(Span::styled("[HOST PICKER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
     }
 
-    if matches!(app.global_mode, GlobalMode::BackendPicker { .. }) {
+    if matches!(app.global_mode, GlobalMode::RpcManager) {
         parts.push(Span::raw("  "));
-        parts.push(Span::styled("[BACKEND PICKER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+        parts.push(Span::styled("[RPC MANAGER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+    }
+
+    if matches!(app.global_mode, GlobalMode::About) {
+        parts.push(Span::raw("  "));
+        parts.push(Span::styled("[ABOUT]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
     }
 
     match &app.models_mode {

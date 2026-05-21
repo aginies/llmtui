@@ -104,6 +104,19 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Skip all if in RpcManager overlay
+    if matches!(app.global_mode, GlobalMode::RpcManager) {
+        handle_rpc_workers_key(app, key);
+        return;
+    }
+
+    // Skip all if in About overlay
+    if matches!(app.global_mode, GlobalMode::About) {
+        app.global_mode = GlobalMode::Normal;
+        app.set_redraw();
+        return;
+    }
+
     // Skip all if in host picker
     if let GlobalMode::HostPicker { entries, selected } = &mut app.global_mode {
         match key.code {
@@ -416,6 +429,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Char('p') => {
             app.active_panel = ActivePanel::Profiles;
+            return;
+        }
+        KeyCode::Char('A') => {
+            app.global_mode = GlobalMode::About;
+            app.set_redraw();
             return;
         }
         _ => {}
@@ -761,12 +779,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         ActivePanel::Profiles => handle_profiles_key(app, key),
         ActivePanel::SystemPromptPresets => handle_system_prompt_presets_key(app, key),
        ActivePanel::SearchReadme => handle_readme_key(app, key),
-        ActivePanel::ActiveModel => {}
-        ActivePanel::ModelInfo => {}
-    }
-}
-
-async fn fetch_and_store_readme(app: &mut App, model_id: String) {
+       ActivePanel::ActiveModel => {}
+       ActivePanel::ModelInfo => {}
+       }
+       }async fn fetch_and_store_readme(app: &mut App, model_id: String) {
     match crate::backend::hub::fetch_readme(&model_id).await {
         Ok(readme) => {
             if let ModelsMode::Search { results, .. } = &mut app.models_mode
@@ -991,7 +1007,12 @@ fn sync_global_settings(app: &mut App) {
         || app.config.default.api_endpoint_enabled != app.settings.api_endpoint_enabled
         || app.config.default.api_endpoint_port != app.settings.api_endpoint_port
         || app.config.default.server_mode != app.server_mode
-        || app.config.default.router_max_models != app.router_max_models;
+        || app.config.default.router_max_models != app.router_max_models
+        || app.config.default.llama_cpp_version_cpu != app.settings.llama_cpp_version_cpu
+        || app.config.default.llama_cpp_version_vulkan != app.settings.llama_cpp_version_vulkan
+        || app.config.default.llama_cpp_version_rocm != app.settings.llama_cpp_version_rocm
+        || app.config.default.llama_cpp_version_rocm_lemonade != app.settings.llama_cpp_version_rocm_lemonade
+        || app.config.default.llama_cpp_version_cuda != app.settings.llama_cpp_version_cuda;
     if !changed {
         return;
     }
@@ -1006,6 +1027,11 @@ fn sync_global_settings(app: &mut App) {
     app.config.default.api_endpoint_port = app.settings.api_endpoint_port;
     app.config.default.server_mode = app.server_mode.clone();
     app.config.default.router_max_models = app.router_max_models;
+    app.config.default.llama_cpp_version_cpu = app.settings.llama_cpp_version_cpu.clone();
+    app.config.default.llama_cpp_version_vulkan = app.settings.llama_cpp_version_vulkan.clone();
+    app.config.default.llama_cpp_version_rocm = app.settings.llama_cpp_version_rocm.clone();
+    app.config.default.llama_cpp_version_rocm_lemonade = app.settings.llama_cpp_version_rocm_lemonade.clone();
+    app.config.default.llama_cpp_version_cuda = app.settings.llama_cpp_version_cuda.clone();
     if let Err(e) = app.config.save() {
         app.add_log(
             format!("Failed to save global settings: {}", e),
@@ -1021,7 +1047,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.server_settings_selected_idx = (app.server_settings_selected_idx + 1).min(5);
+            app.server_settings_selected_idx = (app.server_settings_selected_idx + 1).min(6);
             app.set_redraw();
         }
         KeyCode::Enter => {
@@ -1074,6 +1100,12 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.settings.api_endpoint_enabled = !app.settings.api_endpoint_enabled;
                     }
                 }
+                6 => {
+                    // Open RPC Workers modal
+                    app.global_mode = crate::tui::app::GlobalMode::RpcManager;
+                    app.rpc_workers_selected_idx = 0;
+                    app.editing_rpc_worker = None;
+                }
                 _ => {}
             }
             sync_global_settings(app);
@@ -1105,6 +1137,137 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 }
 
+fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
+    let editing = app.editing_rpc_worker.is_some();
+    
+    if editing {
+        match key.code {
+            KeyCode::Enter => {
+                if !app.settings_edit_buffer.is_empty() {
+                    // Parse: [Name], IP, Port
+                    let parts: Vec<&str> = app.settings_edit_buffer.split(',').map(|s| s.trim()).collect();
+                    let (name, ip_str, port_str) = match parts.len() {
+                        1 => ("".to_string(), parts[0].to_string(), "50052".to_string()),
+                        2 => {
+                            // Check if second part is a port
+                            if parts[1].parse::<u16>().is_ok() {
+                                ("".to_string(), parts[0].to_string(), parts[1].to_string())
+                            } else {
+                                (parts[0].to_string(), parts[1].to_string(), "50052".to_string())
+                            }
+                        }
+                        3 => (parts[0].to_string(), parts[1].to_string(), parts[2].to_string()),
+                        _ => ("".to_string(), "".to_string(), "0".to_string()),
+                    };
+
+                    // Validate IP
+                    let is_valid_ip = ip_str.parse::<std::net::IpAddr>().is_ok();
+                    // Validate Port (Unix range 1-65535, though 0 is technically reserved)
+                    let port = port_str.parse::<u32>().unwrap_or(0);
+                    let is_valid_port = port > 0 && port <= 65535;
+
+                    if !is_valid_ip {
+                        app.add_log(format!("Invalid IP address: {}", ip_str), crate::config::LogLevel::Error);
+                    } else if !is_valid_port {
+                        app.add_log(format!("Invalid port (1-65535): {}", port_str), crate::config::LogLevel::Error);
+                    } else {
+                        let worker = crate::config::RpcWorker {
+                            selected: true,
+                            name,
+                            ip: ip_str,
+                            port: port as u16,
+                        };
+                        
+                        if let Some(idx) = app.editing_rpc_worker {
+                            if idx < app.config.rpc_workers.len() {
+                                app.config.rpc_workers[idx] = worker;
+                            } else {
+                                app.config.rpc_workers.push(worker);
+                            }
+                        }
+                        let _ = app.config.save();
+                        app.add_log("RPC worker saved.", crate::config::LogLevel::Info);
+                    }
+                }
+                app.editing_rpc_worker = None;
+                app.settings_edit_buffer.clear();
+                app.edit_cursor_pos = 0;
+            }
+            KeyCode::Esc => {
+                app.editing_rpc_worker = None;
+                app.settings_edit_buffer.clear();
+                app.edit_cursor_pos = 0;
+            }
+            KeyCode::Char(c) => {
+                app.settings_edit_buffer.insert(app.edit_cursor_pos, c);
+                app.edit_cursor_pos += 1;
+            }
+            KeyCode::Backspace => {
+                if app.edit_cursor_pos > 0 {
+                    app.edit_cursor_pos -= 1;
+                    app.settings_edit_buffer.remove(app.edit_cursor_pos);
+                }
+            }
+            KeyCode::Delete => {
+                if app.edit_cursor_pos < app.settings_edit_buffer.len() {
+                    app.settings_edit_buffer.remove(app.edit_cursor_pos);
+                }
+            }
+            KeyCode::Left => {
+                app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
+            }
+            KeyCode::Right => {
+                app.edit_cursor_pos = (app.edit_cursor_pos + 1).min(app.settings_edit_buffer.len());
+            }
+            _ => {}
+        }
+    } else {
+        match key.code {
+            KeyCode::Esc => {
+                app.global_mode = crate::tui::app::GlobalMode::Normal;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                app.rpc_workers_selected_idx = app.rpc_workers_selected_idx.saturating_sub(1);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                let total = app.config.rpc_workers.len();
+                if total > 0 {
+                    app.rpc_workers_selected_idx = (app.rpc_workers_selected_idx + 1).min(total - 1);
+                }
+            }
+            KeyCode::Char(' ') => {
+                if let Some(worker) = app.config.rpc_workers.get_mut(app.rpc_workers_selected_idx) {
+                    worker.selected = !worker.selected;
+                    let _ = app.config.save();
+                }
+            }
+            KeyCode::Char('n') => {
+                app.editing_rpc_worker = Some(app.config.rpc_workers.len());
+                app.settings_edit_buffer.clear();
+                app.edit_cursor_pos = 0;
+            }
+            KeyCode::Char('e') => {
+                if let Some(worker) = app.config.rpc_workers.get(app.rpc_workers_selected_idx) {
+                    app.editing_rpc_worker = Some(app.rpc_workers_selected_idx);
+                    app.settings_edit_buffer = format!("{}, {}, {}", worker.name, worker.ip, worker.port);
+                    app.edit_cursor_pos = app.settings_edit_buffer.len();
+                }
+            }
+            KeyCode::Char('d') => {
+                if !app.config.rpc_workers.is_empty() {
+                    app.config.rpc_workers.remove(app.rpc_workers_selected_idx);
+                    if app.rpc_workers_selected_idx >= app.config.rpc_workers.len() && !app.config.rpc_workers.is_empty() {
+                        app.rpc_workers_selected_idx = app.config.rpc_workers.len() - 1;
+                    }
+                    let _ = app.config.save();
+                }
+            }
+            _ => {}
+        }
+    }
+    app.set_redraw();
+}
+
 // Settings field indices for navigation and editing
 // Loading: 0: Context, 1: Prompt, 2: Keep in memory (mlock)
 // GPU: 3: GPU Layers, 4: Flash Attention, 5: KV Cache Offload, 6: Cache Type K, 7: Cache Type V, 8: Active Experts
@@ -1116,7 +1279,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
 fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _max_threads: u32, max_context: u32) {
     match idx {
         // Loading
-        0 => {
+        1 => {
             if let Ok(v) = buf.parse::<u32>() {
                 let mut val = v.max(128);
                 if max_context > 0 {
@@ -1165,7 +1328,7 @@ fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _m
 fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_threads: u32, max_context: u32, total_layers: u32) {
     match idx {
         // Loading
-        0 => {
+        1 => {
             let mut val = (settings.context_length as i32 + delta * 128).max(128) as u32;
             if max_context > 0 {
                 val = val.min(max_context);
@@ -1310,7 +1473,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         // System Prompt: open presets panel on Enter
-        _ if idx == 1 => {
+        _ if idx == 0 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();

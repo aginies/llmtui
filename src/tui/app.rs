@@ -83,6 +83,8 @@ pub enum GlobalMode {
         selected: usize,
     },
     Confirmation { selected: bool, kind: ConfirmationKind },
+    RpcManager,
+    About,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -125,6 +127,8 @@ pub struct App {
     pub models: Vec<DiscoveredModel>,
     pub selected_model_idx: Option<usize>,
     pub models_mode: ModelsMode,
+    pub local_filter: String,
+    pub filtering_local: bool,
     pub search_results_idx: Option<usize>,
     pub settings: ModelSettings,
     pub model_settings_cache: ModelSettings,
@@ -143,6 +147,7 @@ pub struct App {
     pub log_scroll_offset: u16,
     pub settings_selected_idx: usize,
     pub server_settings_selected_idx: usize, // 0=Host, 1=Backend
+    pub server_settings_scroll_offset: u16,
     pub settings_edit_buffer: String,
     pub settings_scroll_offset: u16,
     pub host_picker_entries: Vec<(String, String)>,
@@ -154,6 +159,9 @@ pub struct App {
     pub system_prompt_presets_scroll_offset: u16,
     pub readme_scroll_offset: u16,
     pub editing_preset: Option<usize>,
+    pub rpc_workers_selected_idx: usize,
+    pub editing_rpc_worker: Option<usize>,
+    pub rpc_workers_scroll_offset: u16,
     pub edit_cursor_pos: usize,
     pub gguf_metadata_cache: std::collections::HashMap<String, crate::models::GgufMetadata>,
     pub vram_estimate: u64, // estimated VRAM in MiB
@@ -224,6 +232,8 @@ impl App {
             models: Vec::new(),
             selected_model_idx: None,
             models_mode: ModelsMode::List,
+            local_filter: String::new(),
+            filtering_local: false,
             search_results_idx: None,
             model_settings_cache: settings.clone(),
             readme_cache: None,
@@ -242,6 +252,7 @@ impl App {
             log_scroll_offset: 0,
             settings_selected_idx: 0,
             server_settings_selected_idx: 0,
+            server_settings_scroll_offset: 0,
             settings_edit_buffer: String::new(),
             settings_scroll_offset: 0,
             host_picker_entries: Vec::new(),
@@ -252,6 +263,9 @@ impl App {
             system_prompt_presets_scroll_offset: 0,
             readme_scroll_offset: 0,
             editing_preset: None,
+            rpc_workers_selected_idx: 0,
+            editing_rpc_worker: None,
+            rpc_workers_scroll_offset: 0,
             edit_cursor_pos: 0,
             gguf_metadata_cache: Default::default(),
             vram_estimate: 0,
@@ -1162,6 +1176,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("B", y), Span::raw("  Go back one page")]),
                 Line::from(vec![Span::styled("Down at bottom", y), Span::raw("  Load more results (infinite scroll)")]),
                 Line::from(vec![Span::styled("R", y), Span::raw("  Fetch and view README")]),
+                Line::from(""),
+                Line::from(vec![Span::styled("Shift+A", y), Span::raw("  About box (GPLv3)")]),
             ],
             ActivePanel::Log => vec![
                 Line::from(Span::styled("LOG PANEL", y.add_modifier(Modifier::BOLD))),
@@ -1173,6 +1189,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("G", y), Span::raw("  Jump to top")]),
                 Line::from(vec![Span::styled("Enter", y), Span::raw("  Expand log (fills screen)")]),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse log")]),
+                Line::from(""),
+                Line::from(vec![Span::styled("Shift+A", y), Span::raw("  About box (GPLv3)")]),
             ],
   ActivePanel::ServerSettings => {
                 vec![
@@ -1191,6 +1209,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                     Line::from(vec![Span::styled("Mode", y), Span::raw("  Server mode (Normal / Router)")]),
                     Line::from(vec![Span::styled("API Endpoint", y), Span::raw("  Enable API proxy (True/False)")]),
                     Line::from(vec![Span::styled("API Port", y), Span::raw(self.get_api_port_str())]),
+                    Line::from(""),
+                    Line::from(vec![Span::styled("Shift+A", y), Span::raw("  About box (GPLv3)")]),
                 ]
             }
             ActivePanel::LlmSettings => vec![
@@ -1232,6 +1252,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("Top-p", y), Span::raw("  Nucleus sampling: only consider tokens whose cumulative probability reaches p. Smaller top-p (e.g., 0.9) is more conservative, larger (e.g., 0.95-0.99) allows more variety. Often preferred over top-k. Typical: 0.9-0.95.")]),
                 Line::from(vec![Span::styled("Min P", y), Span::raw("  Minimum probability threshold relative to the most likely token. Tokens below min_p * max_prob are excluded. A filter that's more principled than top-k/top-p for controlling diversity. Typical: 0.01-0.1.")]),
                          Line::from(vec![Span::styled("Max Tokens", y), Span::raw("  Maximum number of tokens to generate in the response. Prevents runaway responses. Set to 0 or Disabled for no limit. Typical: 4096-8192 for chat, higher for code generation.")]),
+                         Line::from(""),
+                         Line::from(vec![Span::styled("Shift+A", y), Span::raw("  About box (GPLv3)")]),
             ],
             ActivePanel::ActiveModel => vec![
                 Line::from(Span::styled("ACTIVE MODEL PANEL", y.add_modifier(Modifier::BOLD))),

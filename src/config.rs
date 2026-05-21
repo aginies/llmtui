@@ -33,6 +33,20 @@ pub fn physical_cores() -> u32 {
     seen.len() as u32
 }
 
+/// A remote RPC worker for distributed inference.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RpcWorker {
+    #[serde(default)]
+    pub selected: bool,
+    #[serde(default)]
+    pub name: String,
+    pub ip: String,
+    #[serde(default = "default_rpc_port")]
+    pub port: u16,
+}
+
+fn default_rpc_port() -> u16 { 50052 }
+
 /// Global configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -48,6 +62,9 @@ pub struct Config {
     /// System prompt presets.
     #[serde(default)]
     pub system_prompt_presets: Vec<SystemPromptPreset>,
+    /// RPC Workers for distributed inference.
+    #[serde(default)]
+    pub rpc_workers: Vec<RpcWorker>,
     /// Number of results per HuggingFace search query.
     #[serde(default = "default_search_limit")]
     pub search_limit: u32,
@@ -701,6 +718,7 @@ impl Default for Config {
             model_overrides: Default::default(),
             profiles: builtin_profiles(),
             system_prompt_presets: builtin_system_prompt_presets(),
+            rpc_workers: Vec::new(),
             search_limit: 5,
         }
     }

@@ -159,11 +159,24 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         parts.push("--lora-scaled".to_string());
         parts.push(format!("{}:{}", lora.display(), scale));
     }
+
+    let mut rpc_list = Vec::new();
     if !settings.rpc.is_empty() {
-        cmd.arg("--rpc").arg(&settings.rpc);
-        parts.push("--rpc".to_string());
-        parts.push(settings.rpc.clone());
+        rpc_list.push(settings.rpc.clone());
     }
+    for worker in &config.rpc_workers {
+        if worker.selected {
+            rpc_list.push(format!("{}:{}", worker.ip, worker.port));
+        }
+    }
+
+    if !rpc_list.is_empty() {
+        let joined_rpc = rpc_list.join(",");
+        cmd.arg("--rpc").arg(&joined_rpc);
+        parts.push("--rpc".to_string());
+        parts.push(joined_rpc);
+    }
+
     if settings.embedding {
         cmd.arg("--embedding");
         parts.push("--embedding".to_string());

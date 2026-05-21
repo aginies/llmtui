@@ -49,10 +49,10 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
         Span::styled("--- Loading ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let loading_names = ["Context", "Prompt", "Keep in memory (mlock)"];
+    let loading_names = ["Prompt", "Context", "Keep in memory (mlock)"];
     let loading_vals = vec![
-        format!("{}", settings.context_length),
         format!("{}", settings.system_prompt_preset_name),
+        format!("{}", settings.context_length),
         format!("{}", settings.mlock),
     ];
 
@@ -204,8 +204,8 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
 
     // Compute dirty flag from current_idx into the dirty array
     let dirty = match current_idx {
-        0 => settings.context_length != cached.context_length,
-        1 => settings.system_prompt_preset_name != cached.system_prompt_preset_name,
+        0 => settings.system_prompt_preset_name != cached.system_prompt_preset_name,
+        1 => settings.context_length != cached.context_length,
         2 => settings.mlock != cached.mlock,
         3 => settings.gpu_layers_mode != cached.gpu_layers_mode,
         4 => settings.flash_attn != cached.flash_attn,

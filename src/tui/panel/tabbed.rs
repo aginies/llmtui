@@ -86,7 +86,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
       );
   }
   }
-fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
+fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     if area.height < 2 || area.width < 10 {
         return;
     }
@@ -98,28 +98,75 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &App) {
 
     let host_val = crate::models::format_host(&app.settings.host);
 
-    let backend_name = format!("{}", app.settings.backend);
+    let backend_name = format!("{} (v{})", app.settings.backend, app.settings.get_active_backend_version_display());
     let threads_val = format!("{}", app.settings.threads);
     let threads_batch_val = format!("{}", app.settings.threads_batch);
     let mode_val = format!("{}", app.server_mode);
     let api_enabled = if app.settings.api_endpoint_enabled { "True" } else { "False" };
+    let rpc_workers_count = app.config.rpc_workers.iter().filter(|w| w.selected).count();
+    let rpc_workers_val = if rpc_workers_count > 0 {
+        format!("{} active", rpc_workers_count)
+    } else {
+        "None".to_string()
+    };
 
     let mut lines = Vec::new();
     let mut count = 0;
-  settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", host_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", host_val, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false);
-  settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", api_enabled, selected, "", server_running);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", api_enabled, selected, "", server_running);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "RPC Workers", &rpc_workers_val, selected, "", false);
+
+    let total_settings = lines.len();
+    let available_height = area.height.saturating_sub(2);
+
+    // Handle scrolling
+    if selected < app.server_settings_scroll_offset as usize {
+        app.server_settings_scroll_offset = selected as u16;
+    } else if available_height > 0 && (selected - app.server_settings_scroll_offset as usize) >= (available_height as usize) {
+        app.server_settings_scroll_offset = (selected as u16).saturating_sub(available_height).saturating_add(1);
+    }
+
+    let max_offset = total_settings.saturating_sub(available_height as usize) as u16;
+    if app.server_settings_scroll_offset > max_offset {
+        app.server_settings_scroll_offset = max_offset;
+    }
+
+    let start_idx = app.server_settings_scroll_offset as usize;
+    let visible_lines: Vec<Line> = lines
+        .into_iter()
+        .skip(start_idx)
+        .take(available_height as usize)
+        .collect();
 
     let block = Block::default()
         .title(" Server Settings (F2) [2] ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    let paragraph = Paragraph::new(lines).block(block);
+    let paragraph = Paragraph::new(visible_lines).block(block);
     f.render_widget(paragraph, area);
+
+    if total_settings > available_height as usize {
+        let scrollbar_area = Rect {
+            x: area.right().saturating_sub(1),
+            y: area.top() + 1,
+            width: 1,
+            height: area.height.saturating_sub(2),
+        };
+        let mut scrollbar_state = ScrollbarState::new(total_settings)
+            .position(app.server_settings_scroll_offset as usize);
+        f.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓")),
+            scrollbar_area,
+            &mut scrollbar_state,
+        );
+    }
 }
 
 pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
