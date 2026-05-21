@@ -70,7 +70,7 @@ pub enum ModelsMode {
 }
 
 /// Global mode that overlays all panels.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GlobalMode {
     Normal,
     CmdLine { cmd_line: String },

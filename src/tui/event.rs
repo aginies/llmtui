@@ -315,6 +315,54 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
+        KeyCode::Char(c @ '1'..='6') | KeyCode::Char(c @ '9') => {
+            let is_search = matches!(app.models_mode, ModelsMode::Search { .. }) && app.active_panel == ActivePanel::Models;
+            let is_llm_settings = app.active_panel == ActivePanel::LlmSettings;
+            let is_editing_preset = app.active_panel == ActivePanel::SystemPromptPresets && app.editing_preset.is_some();
+            
+            if !is_search && !is_llm_settings && !is_editing_preset {
+                match c {
+                    '1' => app.active_panel = ActivePanel::Models,
+                    '2' => {
+                        app.toggle_panel_visibility(1);
+                        if app.is_panel_visible(1) && app.server_handle.is_none() {
+                            app.active_panel = ActivePanel::ServerSettings;
+                        }
+                    }
+                    '3' => {
+                        app.toggle_panel_visibility(2);
+                        if app.is_panel_visible(2) {
+                            app.active_panel = ActivePanel::ModelInfo;
+                        }
+                    }
+                    '4' => {
+                        app.toggle_panel_visibility(3);
+                        if app.is_panel_visible(3) {
+                            app.active_panel = ActivePanel::LlmSettings;
+                        }
+                    }
+                    '5' => {
+                        app.toggle_panel_visibility(4);
+                        if app.is_panel_visible(4) {
+                            app.active_panel = ActivePanel::ActiveModel;
+                        }
+                    }
+                    '6' => {
+                        app.toggle_panel_visibility(5);
+                        if app.is_panel_visible(5) {
+                            app.active_panel = ActivePanel::Log;
+                        }
+                    }
+                    '9' => {
+                        app.panel_visibility = 0b111111;
+                        app.log_expanded = false;
+                        app.set_redraw();
+                    }
+                    _ => {}
+                }
+                return;
+            }
+        }
         KeyCode::Char('k')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
                 && key.modifiers.contains(crossterm::event::KeyModifiers::ALT) =>
@@ -1468,7 +1516,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.pop();
             } else {
-                adjust_setting(&mut app.settings, idx, -1, app.max_threads, app.model_n_ctx_train, app.model_metadata.current_model_total_layers);
+                adjust_setting(&mut app.settings, idx, -1, app.max_threads, app.model_n_ctx_train, app.model_total_layers);
                 if idx == 11 {
                     sync_global_settings(app);
                 }
@@ -1478,7 +1526,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
         }
         KeyCode::Right => {
-            adjust_setting(&mut app.settings, idx, 1, app.max_threads, app.model_n_ctx_train, app.model_metadata.current_model_total_layers);
+            adjust_setting(&mut app.settings, idx, 1, app.max_threads, app.model_n_ctx_train, app.model_total_layers);
             if idx == 11 {
                 sync_global_settings(app);
             }

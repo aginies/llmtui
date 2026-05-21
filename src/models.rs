@@ -1272,6 +1272,7 @@ pub fn kv_quant_bytes_from_str(k: &str, v: &str) -> f64 {
     let k_type = CacheTypeK::from(k);
     let v_type = CacheTypeV::from(v);
     kv_quant_bytes(k_type, v_type)
+}
 
 pub fn format_mib(mib: u64) -> String {
     crate::tui::format_size(mib * 1024 * 1024)
