@@ -2,6 +2,16 @@ use anyhow::Result;
 use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 
+fn default_tag(repo: &str) -> String {
+    if repo.contains("lemonade") {
+        "b1273".to_string()
+    } else if repo.contains("cuda") {
+        "b9244".to_string()
+    } else {
+        "b4100".to_string()
+    }
+}
+
 /// Search models on HuggingFace.
 ///
 /// `limit` is the number of results per page (default 10, max 200).
@@ -374,28 +384,12 @@ pub async fn resolve_backend_binary(
                             .get("tag_name")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string())
-                            .unwrap_or_else(|| {
-                                if repo.contains("lemonade") { "b1273".to_string() }
-                                else if repo.contains("cuda") { "b9244".to_string() }
-                                else { "b4100".to_string() }
-                            }),
-                        Err(_) => {
-                             if repo.contains("lemonade") { "b1273".to_string() }
-                             else if repo.contains("cuda") { "b9244".to_string() }
-                             else { "b4100".to_string() }
-                        }
+                            .unwrap_or_else(|| default_tag(repo)),
+                        Err(_) => default_tag(repo),
                     },
-                    Err(_) => {
-                         if repo.contains("lemonade") { "b1273".to_string() }
-                         else if repo.contains("cuda") { "b9244".to_string() }
-                         else { "b4100".to_string() }
-                    }
+                    Err(_) => default_tag(repo),
                 },
-                Err(_) => {
-                     if repo.contains("lemonade") { "b1273".to_string() }
-                     else if repo.contains("cuda") { "b9244".to_string() }
-                     else { "b4100".to_string() }
-                }
+                Err(_) => default_tag(repo),
             }
         }
     };

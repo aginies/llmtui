@@ -1061,37 +1061,11 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.settings.context_length.hash(&mut h);
         self.settings.system_prompt_preset_name.hash(&mut h);
         self.settings.mlock.hash(&mut h);
-        match self.settings.gpu_layers_mode {
-            crate::models::GpuLayersMode::Auto => 0u32,
-            crate::models::GpuLayersMode::Specific(n) => n,
-            crate::models::GpuLayersMode::All => u32::MAX,
-        }.hash(&mut h);
+        self.settings.gpu_layers_mode.hash(&mut h);
         self.settings.flash_attn.hash(&mut h);
         self.settings.kv_cache_offload.hash(&mut h);
-        match self.settings.cache_type_k {
-            Some(crate::models::CacheTypeK::F32) => 0u32,
-            Some(crate::models::CacheTypeK::F16) => 1,
-            Some(crate::models::CacheTypeK::BF16) => 2,
-            Some(crate::models::CacheTypeK::Q8_0) => 3,
-            Some(crate::models::CacheTypeK::Q5_0) => 4,
-            Some(crate::models::CacheTypeK::Q5_1) => 5,
-            Some(crate::models::CacheTypeK::Q4_0) => 6,
-            Some(crate::models::CacheTypeK::Q4_1) => 7,
-            Some(crate::models::CacheTypeK::Iq4Nl) => 8,
-            None => u32::MAX,
-        }.hash(&mut h);
-        match self.settings.cache_type_v {
-            Some(crate::models::CacheTypeV::F32) => 0u32,
-            Some(crate::models::CacheTypeV::F16) => 1,
-            Some(crate::models::CacheTypeV::BF16) => 2,
-            Some(crate::models::CacheTypeV::Q8_0) => 3,
-            Some(crate::models::CacheTypeV::Q5_0) => 4,
-            Some(crate::models::CacheTypeV::Q5_1) => 5,
-            Some(crate::models::CacheTypeV::Q4_0) => 6,
-            Some(crate::models::CacheTypeV::Q4_1) => 7,
-            Some(crate::models::CacheTypeV::Iq4Nl) => 8,
-            None => u32::MAX,
-        }.hash(&mut h);
+        self.settings.cache_type_k.hash(&mut h);
+        self.settings.cache_type_v.hash(&mut h);
         self.settings.expert_count.hash(&mut h);
         self.settings.batch_size.hash(&mut h);
         self.settings.uniform_cache.hash(&mut h);
@@ -1108,12 +1082,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.settings.frequency_penalty.map(|v| v.to_bits()).hash(&mut h);
         self.settings.keep.hash(&mut h);
         self.settings.mmap.hash(&mut h);
-        match self.settings.numa {
-            crate::models::NumMode::None => 0u32,
-            crate::models::NumMode::Distribute => 1,
-            crate::models::NumMode::Isolate => 2,
-            crate::models::NumMode::Numactl => 3,
-        }.hash(&mut h);
+        self.settings.numa.hash(&mut h);
         self.settings.threads.hash(&mut h);
         self.settings.threads_batch.hash(&mut h);
         self.settings.get_active_backend_version().hash(&mut h);

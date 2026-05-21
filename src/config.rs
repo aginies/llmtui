@@ -311,16 +311,16 @@ impl ModelOverride {
             _ => crate::models::GpuLayersMode::Auto,
         };
         base.split_mode = self.split_mode.unwrap_or(base.split_mode);
-        base.tensor_split = self.tensor_split.clone().unwrap_or(base.tensor_split.clone());
+        if let Some(v) = &self.tensor_split { base.tensor_split = v.clone(); }
         base.main_gpu = self.main_gpu.unwrap_or(base.main_gpu);
         base.fit = self.fit.unwrap_or(base.fit);
-        base.lora = self.lora.clone();
-        base.lora_scaled = self.lora_scaled.clone();
-        base.rpc = self.rpc.clone().unwrap_or(base.rpc.clone());
+        if let Some(v) = &self.lora { base.lora = Some(v.clone()); }
+        if let Some(v) = &self.lora_scaled { base.lora_scaled = Some(v.clone()); }
+        if let Some(v) = &self.rpc { base.rpc = v.clone(); }
         base.embedding = self.embedding.unwrap_or(base.embedding);
         base.flash_attn = self.flash_attn.unwrap_or(base.flash_attn);
         base.jinja = self.jinja.unwrap_or(base.jinja);
-        base.chat_template = self.chat_template.clone();
+        if let Some(v) = &self.chat_template { base.chat_template = Some(v.clone()); }
         base.expert_count = self.expert_count.unwrap_or(base.expert_count);
         base.reasoning_mode = self.reasoning_mode.unwrap_or(base.reasoning_mode);
         base.seed = self.seed.unwrap_or(base.seed);
@@ -333,7 +333,7 @@ impl ModelOverride {
         base.mirostat_lr = self.mirostat_lr.unwrap_or(base.mirostat_lr);
         base.mirostat_ent = self.mirostat_ent.unwrap_or(base.mirostat_ent);
         base.ignore_eos = self.ignore_eos.unwrap_or(base.ignore_eos);
-        base.samplers = self.samplers.clone().unwrap_or(base.samplers.clone());
+        if let Some(v) = &self.samplers { base.samplers = v.clone(); }
         base.repeat_penalty = self.repeat_penalty.unwrap_or(base.repeat_penalty);
         base.repeat_last_n = self.repeat_last_n.unwrap_or(base.repeat_last_n);
         base.presence_penalty = self.presence_penalty;
@@ -751,55 +751,42 @@ impl Config {
         settings
     }
 
+    fn normalize_config(mut config: Config) -> Config {
+        // normalize models_dir
+        let path_str = config.models_dir.to_string_lossy();
+        if path_str.starts_with("~/") {
+            let home = dirs::home_dir().unwrap_or_default();
+            config.models_dir = home.join(&path_str[2..]);
+        } else if !config.models_dir.is_absolute() {
+            config.models_dir = dirs::home_dir()
+                .unwrap_or_default()
+                .join(&config.models_dir);
+        }
+
+        // Merge built-in profiles (add any missing ones)
+        let builtin = builtin_profiles();
+        for p in builtin {
+            if !config.profiles.iter().any(|u| u.name == p.name) {
+                config.profiles.push(p);
+            }
+        }
+
+        // Merge built-in system prompt presets (add any missing ones)
+        let builtin_presets = builtin_system_prompt_presets();
+        for p in builtin_presets {
+            if !config.system_prompt_presets.iter().any(|u| u.name == p.name) {
+                config.system_prompt_presets.push(p);
+            }
+        }
+        config
+    }
+
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
         let path = Self::config_path();
         if path.exists() {
             let content = std::fs::read_to_string(&path)?;
-            let mut config: Config = serde_yaml::from_str(&content)?;
-            // normalize models_dir
-            let path_str = config.models_dir.to_string_lossy();
-            if path_str.starts_with("~/") {
-                let home = dirs::home_dir().unwrap_or_default();
-                config.models_dir = home.join(&path_str[2..]);
-            } else if !config.models_dir.is_absolute() {
-                config.models_dir = dirs::home_dir()
-                    .unwrap_or_default()
-                    .join(&config.models_dir);
-            }
-            // Merge built-in profiles (add any missing ones)
-            let builtin = builtin_profiles();
-            let mut builtin_names: std::collections::HashSet<&str> = builtin.iter().map(|p| p.name.as_str()).collect();
-            config.profiles.retain(|p| {
-                if builtin_names.contains(p.name.as_str()) {
-                    builtin_names.remove(p.name.as_str());
-                    true
-                } else {
-                    true
-                }
-            });
-            // Add any built-in profiles that weren't in the config
-            for p in builtin {
-                if config.profiles.iter().all(|u| u.name != p.name) {
-                    config.profiles.push(p);
-                }
-            }
-            // Merge built-in system prompt presets (add any missing ones)
-            let builtin_presets = builtin_system_prompt_presets();
-            let mut builtin_preset_names: std::collections::HashSet<&str> = builtin_presets.iter().map(|p| p.name.as_str()).collect();
-            config.system_prompt_presets.retain(|p| {
-                if builtin_preset_names.contains(p.name.as_str()) {
-                    builtin_preset_names.remove(p.name.as_str());
-                    true
-                } else {
-                    true
-                }
-            });
-            for p in builtin_presets {
-                if config.system_prompt_presets.iter().all(|u| u.name != p.name) {
-                    config.system_prompt_presets.push(p);
-                }
-            }
-            Ok(config)
+            let config: Config = serde_yaml::from_str(&content)?;
+            Ok(Self::normalize_config(config))
         } else {
             let config = Config::default();
             config.save()?;
@@ -810,48 +797,8 @@ impl Config {
     pub fn load_from(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         if path.exists() {
             let content = std::fs::read_to_string(&path)?;
-            let mut config: Config = serde_yaml::from_str(&content)?;
-            // normalize models_dir
-            let path_str = config.models_dir.to_string_lossy();
-            if path_str.starts_with("~/") {
-                let home = dirs::home_dir().unwrap_or_default();
-                config.models_dir = home.join(&path_str[2..]);
-            } else if !config.models_dir.is_absolute() {
-                config.models_dir = dirs::home_dir()
-                    .unwrap_or_default()
-                    .join(&config.models_dir);
-            }
-            let builtin = builtin_profiles();
-            let mut builtin_names: std::collections::HashSet<&str> = builtin.iter().map(|p| p.name.as_str()).collect();
-            config.profiles.retain(|p| {
-                if builtin_names.contains(p.name.as_str()) {
-                    builtin_names.remove(p.name.as_str());
-                    true
-                } else {
-                    true
-                }
-            });
-            for p in builtin {
-                if config.profiles.iter().all(|u| u.name != p.name) {
-                    config.profiles.push(p);
-                }
-            }
-            let builtin_presets = builtin_system_prompt_presets();
-            let mut builtin_preset_names: std::collections::HashSet<&str> = builtin_presets.iter().map(|p| p.name.as_str()).collect();
-            config.system_prompt_presets.retain(|p| {
-                if builtin_preset_names.contains(p.name.as_str()) {
-                    builtin_preset_names.remove(p.name.as_str());
-                    true
-                } else {
-                    true
-                }
-            });
-            for p in builtin_presets {
-                if config.system_prompt_presets.iter().all(|u| u.name != p.name) {
-                    config.system_prompt_presets.push(p);
-                }
-            }
-            Ok(config)
+            let config: Config = serde_yaml::from_str(&content)?;
+            Ok(Self::normalize_config(config))
         } else {
             Err(format!("Config file not found: {}", path.display()).into())
         }

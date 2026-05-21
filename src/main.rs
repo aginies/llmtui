@@ -120,34 +120,34 @@ async fn main() -> Result<()> {
             let mut config = config;
             config.default.backend = backend;
 
-    // Ensure models directory exists
-    std::fs::create_dir_all(&config.models_dir)?;
+            // Ensure models directory exists
+            std::fs::create_dir_all(&config.models_dir)?;
 
-    // Discover models asynchronously
-    let models_dir = config.models_dir.clone();
-    let models = tokio::task::spawn_blocking(move || {
-        discover_models(&models_dir)
-    }).await.unwrap_or_default();
-    
-    info!("Discovered {} models", models.len());
+            // Discover models asynchronously
+            let models_dir = config.models_dir.clone();
+            let models = tokio::task::spawn_blocking(move || {
+                discover_models(&models_dir)
+            }).await.unwrap_or_default();
+            
+            info!("Discovered {} models", models.len());
 
-    let mut app = App::new(config);
-    app.models = models;
-    if !app.models.is_empty() {
-        app.selected_model_idx = Some(0);
-        app.on_model_selection_change();
-    }
+            let mut app = App::new(config);
+            app.models = models;
+            if !app.models.is_empty() {
+                app.selected_model_idx = Some(0);
+                app.on_model_selection_change();
+            }
 
-    // Setup terminal
-    crossterm::terminal::enable_raw_mode().map_err(|e| anyhow::anyhow!("Failed to enable raw terminal mode (are you running in a TTY?): {}", e))?;
-    crossterm::execute!(
-        std::io::stdout(),
-        crossterm::terminal::EnterAlternateScreen,
-        crossterm::event::EnableMouseCapture,
-    )?;
-    crossterm::execute!(std::io::stdout(), crossterm::terminal::Clear(crossterm::terminal::ClearType::All))?;
+            // Setup terminal
+            crossterm::terminal::enable_raw_mode().map_err(|e| anyhow::anyhow!("Failed to enable raw terminal mode (are you running in a TTY?): {}", e))?;
+            crossterm::execute!(
+                std::io::stdout(),
+                crossterm::terminal::EnterAlternateScreen,
+                crossterm::event::EnableMouseCapture,
+            )?;
+            crossterm::execute!(std::io::stdout(), crossterm::terminal::Clear(crossterm::terminal::ClearType::All))?;
 
-    let mut terminal = ratatui::Terminal::new(ratatui::backend::CrosstermBackend::new(std::io::stdout()))?;
+            let mut terminal = ratatui::Terminal::new(ratatui::backend::CrosstermBackend::new(std::io::stdout()))?;
 
     // Main event loop
     loop {

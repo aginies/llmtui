@@ -187,7 +187,10 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             system_prompt: dp.system_prompt,
             system_prompt_preset_name: dp.system_prompt_preset_name,
             reasoning_mode: dp.reasoning_mode,
-            gpu_layers_mode: dp.gpu_layers_mode,
+            gpu_layers_mode: match dp.gpu_layers {
+                n if n < 0 => GpuLayersMode::All,
+                _ => dp.gpu_layers_mode,
+            },
             split_mode: dp.split_mode,
             tensor_split: dp.tensor_split,
             main_gpu: dp.main_gpu,
@@ -244,7 +247,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
 }
 
 /// How to handle GPU layer offloading.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Hash)]
 pub enum GpuLayersMode {
     Auto,
     Specific(u32),
@@ -267,7 +270,7 @@ pub enum DownloadStatus {
 // ── Cache type enums ──────────────────────────────────────────
 
 /// Main KV cache data type.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
 #[derive(Default)]
 pub enum CacheType {
     #[serde(rename = "f16")]
@@ -293,10 +296,9 @@ impl std::fmt::Display for CacheType {
     }
 }
 
-/// KV cache data type for K.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
-pub enum CacheTypeK {
+/// KV cache quantization type.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default, Hash)]
+pub enum CacheQuantType {
     #[serde(rename = "f32")]
     F32,
     #[serde(rename = "f16")]
@@ -318,7 +320,10 @@ pub enum CacheTypeK {
     Q5_1,
 }
 
-impl CacheTypeK {
+pub type CacheTypeK = CacheQuantType;
+pub type CacheTypeV = CacheQuantType;
+
+impl CacheQuantType {
     pub fn from_u8(n: u8) -> Self {
         match n {
             0 => Self::F32,
@@ -362,125 +367,23 @@ impl CacheTypeK {
 }
 
 
-impl std::fmt::Display for CacheTypeK {
+impl std::fmt::Display for CacheQuantType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CacheTypeK::F32 => write!(f, "f32"),
-            CacheTypeK::F16 => write!(f, "f16"),
-            CacheTypeK::BF16 => write!(f, "bf16"),
-            CacheTypeK::Q8_0 => write!(f, "q8_0"),
-            CacheTypeK::Q4_0 => write!(f, "q4_0"),
-            CacheTypeK::Q4_1 => write!(f, "q4_1"),
-            CacheTypeK::Iq4Nl => write!(f, "iq4_nl"),
-            CacheTypeK::Q5_0 => write!(f, "q5_0"),
-            CacheTypeK::Q5_1 => write!(f, "q5_1"),
+            Self::F32 => write!(f, "f32"),
+            Self::F16 => write!(f, "f16"),
+            Self::BF16 => write!(f, "bf16"),
+            Self::Q8_0 => write!(f, "q8_0"),
+            Self::Q4_0 => write!(f, "q4_0"),
+            Self::Q4_1 => write!(f, "q4_1"),
+            Self::Iq4Nl => write!(f, "iq4_nl"),
+            Self::Q5_0 => write!(f, "q5_0"),
+            Self::Q5_1 => write!(f, "q5_1"),
         }
     }
 }
 
-impl From<&str> for CacheTypeK {
-    fn from(s: &str) -> Self {
-        match s {
-            "F32" => Self::F32,
-            "F16" => Self::F16,
-            "BF16" => Self::BF16,
-            "Q8_0" => Self::Q8_0,
-            "Q4_0" => Self::Q4_0,
-            "Q4_1" => Self::Q4_1,
-            "Iq4Nl" => Self::Iq4Nl,
-            "Q5_0" => Self::Q5_0,
-            "Q5_1" => Self::Q5_1,
-            _ => Self::F16, // Default or error handling
-        }
-    }
-}
-
-/// KV cache data type for V.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
-pub enum CacheTypeV {
-    #[serde(rename = "f32")]
-    F32,
-    #[serde(rename = "f16")]
-    #[default]
-    F16,
-    #[serde(rename = "bf16")]
-    BF16,
-    #[serde(rename = "q8_0")]
-    Q8_0,
-    #[serde(rename = "q4_0")]
-    Q4_0,
-    #[serde(rename = "q4_1")]
-    Q4_1,
-    #[serde(rename = "iq4_nl")]
-    Iq4Nl,
-    #[serde(rename = "q5_0")]
-    Q5_0,
-    #[serde(rename = "q5_1")]
-    Q5_1,
-}
-
-impl CacheTypeV {
-    pub fn from_u8(n: u8) -> Self {
-        match n {
-            0 => Self::F32,
-            1 => Self::F16,
-            2 => Self::BF16,
-            3 => Self::Q8_0,
-            4 => Self::Q5_1,
-            5 => Self::Q5_0,
-            6 => Self::Q4_1,
-            7 => Self::Q4_0,
-            8 => Self::Iq4Nl,
-            _ => Self::F16,
-        }
-    }
-    pub fn next(&self) -> Self {
-        match self {
-            Self::F32 => Self::F16,
-            Self::F16 => Self::BF16,
-            Self::BF16 => Self::Q8_0,
-            Self::Q8_0 => Self::Q5_1,
-            Self::Q5_1 => Self::Q5_0,
-            Self::Q5_0 => Self::Q4_1,
-            Self::Q4_1 => Self::Q4_0,
-            Self::Q4_0 => Self::Iq4Nl,
-            Self::Iq4Nl => Self::F32,
-        }
-    }
-    pub fn prev(&self) -> Self {
-        match self {
-            Self::F32 => Self::Iq4Nl,
-            Self::F16 => Self::F32,
-            Self::BF16 => Self::F16,
-            Self::Q8_0 => Self::BF16,
-            Self::Q5_1 => Self::Q8_0,
-            Self::Q5_0 => Self::Q5_1,
-            Self::Q4_1 => Self::Q5_0,
-            Self::Q4_0 => Self::Q4_1,
-            Self::Iq4Nl => Self::Q4_0,
-        }
-    }
-}
-
-
-impl std::fmt::Display for CacheTypeV {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CacheTypeV::F32 => write!(f, "f32"),
-            CacheTypeV::F16 => write!(f, "f16"),
-            CacheTypeV::BF16 => write!(f, "bf16"),
-            CacheTypeV::Q8_0 => write!(f, "q8_0"),
-            CacheTypeV::Q4_0 => write!(f, "q4_0"),
-            CacheTypeV::Q4_1 => write!(f, "q4_1"),
-            CacheTypeV::Iq4Nl => write!(f, "iq4_nl"),
-            CacheTypeV::Q5_0 => write!(f, "q5_0"),
-            CacheTypeV::Q5_1 => write!(f, "q5_1"),
-        }
-    }
-}
-
-impl From<&str> for CacheTypeV {
+impl From<&str> for CacheQuantType {
     fn from(s: &str) -> Self {
         match s {
             "F32" => Self::F32,
@@ -498,7 +401,7 @@ impl From<&str> for CacheTypeV {
 }
 
 /// Split mode for multi-GPU.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
 #[derive(Default)]
 pub enum SplitMode {
     #[serde(rename = "none")]
@@ -525,7 +428,7 @@ impl std::fmt::Display for SplitMode {
 }
 
 /// NUMA optimization mode.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
 #[derive(Default)]
 pub enum NumMode {
     #[serde(rename = "none")]
@@ -552,7 +455,7 @@ impl std::fmt::Display for NumMode {
 }
 
 /// RoPE frequency scaling method.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
 #[derive(Default)]
 pub enum RopeScaling {
     #[serde(rename = "none")]
@@ -576,7 +479,7 @@ impl std::fmt::Display for RopeScaling {
 }
 
 /// Mirostat version.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
 #[derive(Default)]
 pub enum Mirostat {
     #[serde(rename = "0")]
@@ -959,80 +862,7 @@ impl Default for ModelSettings {
 impl ModelSettings {
     /// Create ModelSettings from config defaults, applying model-specific overrides.
     pub fn from_config(config: &crate::config::Config) -> Self {
-        let mut settings = Self::default();
-        settings.context_length = config.default.context_length;
-        settings.threads = config.default.threads;
-        settings.threads_batch = config.default.threads_batch;
-        settings.batch_size = config.default.batch_size;
-        settings.ubatch_size = config.default.ubatch_size;
-        settings.cache_type_k = config.default.cache_type_k;
-        settings.cache_type_v = config.default.cache_type_v;
-        settings.keep = config.default.keep;
-        settings.swa_full = config.default.swa_full;
-        settings.mlock = config.default.mlock;
-        settings.mmap = config.default.mmap;
-        settings.numa = config.default.numa;
-        settings.uniform_cache = config.default.uniform_cache;
-        settings.kv_cache_offload = config.default.kv_cache_offload;
-        settings.parallel = config.default.parallel;
-        settings.system_prompt = config.default.system_prompt.clone();
-        settings.system_prompt_preset_name = config.default.system_prompt_preset_name.clone();
-        settings.reasoning_mode = config.default.reasoning_mode;
-        settings.gpu_layers_mode = match config.default.gpu_layers {
-            n if n < 0 => GpuLayersMode::All,
-            _ => GpuLayersMode::Auto,
-        };
-        settings.split_mode = config.default.split_mode;
-        settings.tensor_split = config.default.tensor_split.clone();
-        settings.main_gpu = config.default.main_gpu;
-        settings.fit = config.default.fit;
-        settings.lora = config.default.lora.clone();
-        settings.lora_scaled = config.default.lora_scaled.clone();
-        settings.rpc = config.default.rpc.clone();
-        settings.embedding = config.default.embedding;
-        settings.flash_attn = config.default.flash_attn;
-        settings.jinja = config.default.jinja;
-        settings.chat_template = config.default.chat_template.clone();
-        settings.expert_count = config.default.expert_count;
-        settings.seed = config.default.seed;
-        settings.temperature = config.default.temperature;
-        settings.top_k = config.default.top_k;
-        settings.top_p = config.default.top_p;
-        settings.min_p = config.default.min_p;
-        settings.typical_p = config.default.typical_p;
-        settings.mirostat = config.default.mirostat;
-        settings.mirostat_lr = config.default.mirostat_lr;
-        settings.mirostat_ent = config.default.mirostat_ent;
-        settings.ignore_eos = config.default.ignore_eos;
-        settings.samplers = config.default.samplers.clone();
-        settings.repeat_penalty = config.default.repeat_penalty;
-        settings.repeat_last_n = config.default.repeat_last_n;
-        settings.presence_penalty = config.default.presence_penalty;
-        settings.frequency_penalty = config.default.frequency_penalty;
-        settings.dry_multiplier = config.default.dry_multiplier;
-        settings.dry_base = config.default.dry_base;
-        settings.dry_allowed_length = config.default.dry_allowed_length;
-        settings.dry_penalty_last_n = config.default.dry_penalty_last_n;
-        settings.rope_scaling = config.default.rope_scaling;
-        settings.rope_scale = config.default.rope_scale;
-        settings.rope_freq_base = config.default.rope_freq_base;
-        settings.rope_freq_scale = config.default.rope_freq_scale;
-        settings.host = config.default.host.clone();
-        settings.port = config.default.port;
-        settings.timeout = config.default.timeout;
-        settings.cache_prompt = config.default.cache_prompt;
-        settings.cache_reuse = config.default.cache_reuse;
-        settings.webui = config.default.webui;
-        settings.max_tokens = config.default.max_tokens;
-        settings.cache_type = config.default.cache_type;
-        settings.backend = config.default.backend;
-        settings.llama_cpp_version_cpu = config.default.llama_cpp_version_cpu.clone();
-        settings.llama_cpp_version_vulkan = config.default.llama_cpp_version_vulkan.clone();
-        settings.llama_cpp_version_rocm = config.default.llama_cpp_version_rocm.clone();
-        settings.llama_cpp_version_rocm_lemonade = config.default.llama_cpp_version_rocm_lemonade.clone();
-        settings.api_endpoint_enabled = config.default.api_endpoint_enabled;
-        settings.api_endpoint_port = config.default.api_endpoint_port;
-        settings
+        config.default.clone().into()
     }
 }
 
@@ -1248,24 +1078,15 @@ pub fn estimate_vram_mib(
 ///
 /// KV cache stores K and V separately, potentially at different precisions.
 /// We average the two to get a single per-element size.
-fn kv_quant_bytes(k_type: CacheTypeK, v_type: CacheTypeV) -> f64 {
-    let k_bytes = match k_type {
-        CacheTypeK::F32 => 4.0,
-        CacheTypeK::F16 | CacheTypeK::BF16 => 2.0,
-        CacheTypeK::Q8_0 => 1.0,
-        CacheTypeK::Q5_0 | CacheTypeK::Q5_1 => 0.625, // 5 bits
-        CacheTypeK::Q4_0 | CacheTypeK::Q4_1 => 0.5,   // 4 bits
-        CacheTypeK::Iq4Nl => 0.5,                      // 4 bits
+fn kv_quant_bytes(k_type: CacheQuantType, v_type: CacheQuantType) -> f64 {
+    let get_bytes = |t: CacheQuantType| match t {
+        CacheQuantType::F32 => 4.0,
+        CacheQuantType::F16 | CacheQuantType::BF16 => 2.0,
+        CacheQuantType::Q8_0 => 1.0,
+        CacheQuantType::Q5_0 | CacheQuantType::Q5_1 => 0.625, // 5 bits
+        CacheQuantType::Q4_0 | CacheQuantType::Q4_1 | CacheQuantType::Iq4Nl => 0.5, // 4 bits
     };
-    let v_bytes = match v_type {
-        CacheTypeV::F32 => 4.0,
-        CacheTypeV::F16 | CacheTypeV::BF16 => 2.0,
-        CacheTypeV::Q8_0 => 1.0,
-        CacheTypeV::Q5_0 | CacheTypeV::Q5_1 => 0.625,
-        CacheTypeV::Q4_0 | CacheTypeV::Q4_1 => 0.5,
-        CacheTypeV::Iq4Nl => 0.5,
-    };
-    (k_bytes + v_bytes) / 2.0
+    (get_bytes(k_type) + get_bytes(v_type)) / 2.0
 }
 
 pub fn kv_quant_bytes_from_str(k: &str, v: &str) -> f64 {

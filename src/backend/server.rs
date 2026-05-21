@@ -17,9 +17,18 @@ pub struct ServerHandle {
     pub kill_tx: mpsc::Sender<()>,
 }
 
-/// Helper: add an argument if the value differs from default.
-fn add_arg(cmd: &mut Command, name: &str, value: impl Display) {
-    cmd.arg(name).arg(value.to_string());
+/// Helper: add an argument to both the Command and the display parts list.
+fn push_arg(cmd: &mut Command, parts: &mut Vec<String>, name: &str, value: impl Display) {
+    let val_str = value.to_string();
+    cmd.arg(name).arg(&val_str);
+    parts.push(name.to_string());
+    parts.push(val_str);
+}
+
+/// Helper: add a flag (argument without value) to both the Command and display parts.
+fn push_flag(cmd: &mut Command, parts: &mut Vec<String>, name: &str) {
+    cmd.arg(name);
+    parts.push(name.to_string());
 }
 
 /// Build the full llama-server command line from settings.
@@ -32,132 +41,84 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     match server_mode {
         crate::models::ServerMode::Normal => {
             if let Some(model) = model {
-                cmd.arg("-m").arg(&model.path);
-                parts.push("-m".to_string());
-                parts.push(model.path.display().to_string());
-
+                push_arg(&mut cmd, &mut parts, "-m", model.path.display());
                 // Add alias for router mode identification (uses the unique relative path)
-                cmd.arg("--alias").arg(&model.display_name);
-                parts.push("--alias".to_string());
-                parts.push(model.display_name.clone());
+                push_arg(&mut cmd, &mut parts, "--alias", &model.display_name);
             }
         }
         crate::models::ServerMode::Router => {
             // Router mode: no model in CLI, use /load API to load models
             if router_max_models > 0 {
-                add_arg(&mut cmd, "--models-max", router_max_models);
-                parts.push("--models-max".to_string());
-                parts.push(router_max_models.to_string());
+                push_arg(&mut cmd, &mut parts, "--models-max", router_max_models);
             }
             // Always pass --models-dir in router mode (global config setting)
-            add_arg(&mut cmd, "--models-dir", config.models_dir.to_string_lossy());
-            parts.push("--models-dir".to_string());
-            parts.push(config.models_dir.display().to_string());
+            push_arg(&mut cmd, &mut parts, "--models-dir", config.models_dir.display());
         }
     }
 
     // ── Loading ──────────────────────────────────────────────
-    add_arg(&mut cmd, "--threads", settings.threads);
-    parts.push("--threads".to_string());
-    parts.push(settings.threads.to_string());
-    add_arg(&mut cmd, "--threads-batch", settings.threads_batch);
-    parts.push("--threads-batch".to_string());
-    parts.push(settings.threads_batch.to_string());
-    add_arg(&mut cmd, "--ctx-size", settings.context_length);
-    parts.push("--ctx-size".to_string());
-    parts.push(settings.context_length.to_string());
-    add_arg(&mut cmd, "--ubatch-size", settings.ubatch_size);
-    parts.push("--ubatch-size".to_string());
-    parts.push(settings.ubatch_size.to_string());
+    push_arg(&mut cmd, &mut parts, "--threads", settings.threads);
+    push_arg(&mut cmd, &mut parts, "--threads-batch", settings.threads_batch);
+    push_arg(&mut cmd, &mut parts, "--ctx-size", settings.context_length);
+    push_arg(&mut cmd, &mut parts, "--ubatch-size", settings.ubatch_size);
     if let Some(n) = settings.max_concurrent_predictions {
-        add_arg(&mut cmd, "--parallel", n);
-        parts.push("--parallel".to_string());
-        parts.push(n.to_string());
+        push_arg(&mut cmd, &mut parts, "--parallel", n);
     }
     
-    cmd.arg("--no-warmup");
-    parts.push("--no-warmup".to_string());
+    push_flag(&mut cmd, &mut parts, "--no-warmup");
 
     if let Some(cache_k) = settings.cache_type_k {
-        add_arg(&mut cmd, "--cache-type-k", cache_k);
-        parts.push("--cache-type-k".to_string());
-        parts.push(cache_k.to_string());
+        push_arg(&mut cmd, &mut parts, "--cache-type-k", cache_k);
     }
     if let Some(cache_v) = settings.cache_type_v {
-        add_arg(&mut cmd, "--cache-type-v", cache_v);
-        parts.push("--cache-type-v".to_string());
-        parts.push(cache_v.to_string());
+        push_arg(&mut cmd, &mut parts, "--cache-type-v", cache_v);
     }
 
     if settings.keep != 0 {
-        cmd.arg("--keep").arg(settings.keep.to_string());
-        parts.push("--keep".to_string());
-        parts.push(settings.keep.to_string());
+        push_arg(&mut cmd, &mut parts, "--keep", settings.keep);
     }
     if settings.swa_full {
-        cmd.arg("--swa-full");
-        parts.push("--swa-full".to_string());
+        push_flag(&mut cmd, &mut parts, "--swa-full");
     }
     if settings.mlock {
-        cmd.arg("--mlock");
-        parts.push("--mlock".to_string());
+        push_flag(&mut cmd, &mut parts, "--mlock");
     }
     if !settings.mmap {
-        cmd.arg("--no-mmap");
-        parts.push("--no-mmap".to_string());
+        push_flag(&mut cmd, &mut parts, "--no-mmap");
     }
     if settings.numa != Default::default() {
-        cmd.arg("--numa").arg(settings.numa.to_string());
-        parts.push("--numa".to_string());
-        parts.push(settings.numa.to_string());
+        push_arg(&mut cmd, &mut parts, "--numa", settings.numa.to_string());
     }
     if settings.kv_cache_offload {
-        cmd.arg("--kv-offload");
-        parts.push("--kv-offload".to_string());
+        push_flag(&mut cmd, &mut parts, "--kv-offload");
     }
 
    // ── GPU ──────────────────────────────────────────────────
     if let crate::models::GpuLayersMode::Specific(n) = settings.gpu_layers_mode {
-        cmd.arg("-ngl").arg(n.to_string());
-        parts.push("-ngl".to_string());
-        parts.push(n.to_string());
+        push_arg(&mut cmd, &mut parts, "-ngl", n);
     }
     if matches!(settings.gpu_layers_mode, crate::models::GpuLayersMode::All) {
-        cmd.arg("-ngl").arg("999");
-        parts.push("-ngl".to_string());
-        parts.push("999".to_string());
+        push_arg(&mut cmd, &mut parts, "-ngl", "999");
     }
     
     if settings.split_mode != Default::default() {
-        cmd.arg("--split-mode").arg(settings.split_mode.to_string());
-        parts.push("--split-mode".to_string());
-        parts.push(settings.split_mode.to_string());
+        push_arg(&mut cmd, &mut parts, "--split-mode", settings.split_mode.to_string());
     }
     if !settings.tensor_split.is_empty() {
-        cmd.arg("--tensor-split").arg(&settings.tensor_split);
-        parts.push("--tensor-split".to_string());
-        parts.push(settings.tensor_split.clone());
+        push_arg(&mut cmd, &mut parts, "--tensor-split", &settings.tensor_split);
     }
     if settings.main_gpu != 0 {
-        cmd.arg("--main-gpu").arg(settings.main_gpu.to_string());
-        parts.push("--main-gpu".to_string());
-        parts.push(settings.main_gpu.to_string());
+        push_arg(&mut cmd, &mut parts, "--main-gpu", settings.main_gpu);
     }
     if !settings.fit {
-        cmd.arg("--fit").arg("off");
-        parts.push("--fit".to_string());
-        parts.push("off".to_string());
+        push_arg(&mut cmd, &mut parts, "--fit", "off");
     }
 
     if let Some(ref lora) = settings.lora {
-        add_arg(&mut cmd, "--lora", lora.display());
-        parts.push("--lora".to_string());
-        parts.push(lora.display().to_string());
+        push_arg(&mut cmd, &mut parts, "--lora", lora.display());
     }
     if let Some((ref lora, scale)) = settings.lora_scaled {
-        add_arg(&mut cmd, "--lora-scaled", format!("{}:{}", lora.display(), scale));
-        parts.push("--lora-scaled".to_string());
-        parts.push(format!("{}:{}", lora.display(), scale));
+        push_arg(&mut cmd, &mut parts, "--lora-scaled", format!("{}:{}", lora.display(), scale));
     }
 
     let mut rpc_list = Vec::new();
@@ -172,167 +133,97 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
 
     if !rpc_list.is_empty() {
         let joined_rpc = rpc_list.join(",");
-        cmd.arg("--rpc").arg(&joined_rpc);
-        parts.push("--rpc".to_string());
-        parts.push(joined_rpc);
+        push_arg(&mut cmd, &mut parts, "--rpc", joined_rpc);
     }
 
     if settings.embedding {
-        cmd.arg("--embedding");
-        parts.push("--embedding".to_string());
+        push_flag(&mut cmd, &mut parts, "--embedding");
     }
 
     if settings.expert_count > 0 {
-        cmd.arg("--override-kv").arg(format!("llama.expert_used_count=int:int:{}", settings.expert_count));
-        parts.push("--override-kv".to_string());
-        parts.push(format!("llama.expert_used_count=int:int:{}", settings.expert_count));
+        push_arg(&mut cmd, &mut parts, "--override-kv", format!("llama.expert_used_count=int:int:{}", settings.expert_count));
     }
 
-    cmd.arg("-fa").arg(if settings.flash_attn { "on" } else { "off" });
-    parts.push("-fa".to_string());
-    parts.push(if settings.flash_attn { "on" } else { "off" }.to_string());
+    push_arg(&mut cmd, &mut parts, "-fa", if settings.flash_attn { "on" } else { "off" });
 
     if settings.jinja {
-        cmd.arg("--jinja");
-        parts.push("--jinja".to_string());
+        push_flag(&mut cmd, &mut parts, "--jinja");
     }
 
     if let Some(ref template) = settings.chat_template {
-        cmd.arg("--chat-template").arg(template);
-        parts.push("--chat-template".to_string());
-        parts.push(template.clone());
+        push_arg(&mut cmd, &mut parts, "--chat-template", template);
     }
 
     // ── Sampling ─────────────────────────────────────────────
     if settings.seed != -1 {
-        add_arg(&mut cmd, "--seed", settings.seed);
-        parts.push("--seed".to_string());
-        parts.push(settings.seed.to_string());
+        push_arg(&mut cmd, &mut parts, "--seed", settings.seed);
     }
     if let Some(max_tokens) = settings.max_tokens {
-        add_arg(&mut cmd, "--n-predict", max_tokens);
-        parts.push("--n-predict".to_string());
-        parts.push(max_tokens.to_string());
+        push_arg(&mut cmd, &mut parts, "--n-predict", max_tokens);
     }
-    add_arg(&mut cmd, "--temp", format!("{:.2}", settings.temperature));
-    parts.push("--temp".to_string());
-    parts.push(format!("{:.2}", settings.temperature));
+    push_arg(&mut cmd, &mut parts, "--temp", format!("{:.2}", settings.temperature));
 
-    add_arg(&mut cmd, "--top-k", settings.top_k);
-    parts.push("--top-k".to_string());
-    parts.push(settings.top_k.to_string());
+    push_arg(&mut cmd, &mut parts, "--top-k", settings.top_k);
 
-    add_arg(&mut cmd, "--top-p", format!("{:.2}", settings.top_p));
-    parts.push("--top-p".to_string());
-    parts.push(format!("{:.2}", settings.top_p));
+    push_arg(&mut cmd, &mut parts, "--top-p", format!("{:.2}", settings.top_p));
 
-    add_arg(&mut cmd, "--min-p", format!("{:.2}", settings.min_p));
-    parts.push("--min-p".to_string());
-    parts.push(format!("{:.2}", settings.min_p));
+    push_arg(&mut cmd, &mut parts, "--min-p", format!("{:.2}", settings.min_p));
 
-    add_arg(&mut cmd, "--typical", format!("{:.2}", settings.typical_p));
-    parts.push("--typical".to_string());
-    parts.push(format!("{:.2}", settings.typical_p));
+    push_arg(&mut cmd, &mut parts, "--typical", format!("{:.2}", settings.typical_p));
 
     if settings.mirostat != Default::default() {
-        add_arg(&mut cmd, "--mirostat", settings.mirostat.to_string());
-        parts.push("--mirostat".to_string());
-        parts.push(settings.mirostat.to_string());
-
-        add_arg(&mut cmd, "--mirostat-lr", format!("{:.2}", settings.mirostat_lr));
-        parts.push("--mirostat-lr".to_string());
-        parts.push(format!("{:.2}", settings.mirostat_lr));
-
-        add_arg(&mut cmd, "--mirostat-ent", format!("{:.2}", settings.mirostat_ent));
-        parts.push("--mirostat-ent".to_string());
-        parts.push(format!("{:.2}", settings.mirostat_ent));
+        push_arg(&mut cmd, &mut parts, "--mirostat", settings.mirostat.to_string());
+        push_arg(&mut cmd, &mut parts, "--mirostat-lr", format!("{:.2}", settings.mirostat_lr));
+        push_arg(&mut cmd, &mut parts, "--mirostat-ent", format!("{:.2}", settings.mirostat_ent));
     }
 
     if settings.ignore_eos {
-        cmd.arg("--ignore-eos");
-        parts.push("--ignore-eos".to_string());
+        push_flag(&mut cmd, &mut parts, "--ignore-eos");
     }
 
     if !settings.samplers.0.is_empty() {
-        cmd.arg("--samplers").arg(settings.samplers.to_string());
-        parts.push("--samplers".to_string());
-        parts.push(settings.samplers.to_string());
+        push_arg(&mut cmd, &mut parts, "--samplers", settings.samplers.to_string());
     }
 
     if let Some(frequency) = settings.frequency_penalty {
-        add_arg(&mut cmd, "--frequency-penalty", format!("{:.2}", frequency));
-        parts.push("--frequency-penalty".to_string());
-        parts.push(format!("{:.2}", frequency));
+        push_arg(&mut cmd, &mut parts, "--frequency-penalty", format!("{:.2}", frequency));
     }
 
     if settings.dry_multiplier != 0.0 {
-        add_arg(&mut cmd, "--dry-multiplier", format!("{:.2}", settings.dry_multiplier));
-        parts.push("--dry-multiplier".to_string());
-        parts.push(format!("{:.2}", settings.dry_multiplier));
-
-        add_arg(&mut cmd, "--dry-base", format!("{:.2}", settings.dry_base));
-        parts.push("--dry-base".to_string());
-        parts.push(format!("{:.2}", settings.dry_base));
-
-        add_arg(&mut cmd, "--dry-allowed-length", settings.dry_allowed_length);
-        parts.push("--dry-allowed-length".to_string());
-        parts.push(settings.dry_allowed_length.to_string());
-
-        add_arg(&mut cmd, "--dry-penalty-last-n", settings.dry_penalty_last_n);
-        parts.push("--dry-penalty-last-n".to_string());
-        parts.push(settings.dry_penalty_last_n.to_string());
+        push_arg(&mut cmd, &mut parts, "--dry-multiplier", format!("{:.2}", settings.dry_multiplier));
+        push_arg(&mut cmd, &mut parts, "--dry-base", format!("{:.2}", settings.dry_base));
+        push_arg(&mut cmd, &mut parts, "--dry-allowed-length", settings.dry_allowed_length);
+        push_arg(&mut cmd, &mut parts, "--dry-penalty-last-n", settings.dry_penalty_last_n);
     }
 
     // ── RoPE ─────────────────────────────────────────────────
     if settings.rope_scaling != Default::default() {
-        cmd.arg("--rope-scaling").arg(settings.rope_scaling.to_string());
-        parts.push("--rope-scaling".to_string());
-        parts.push(settings.rope_scaling.to_string());
+        push_arg(&mut cmd, &mut parts, "--rope-scaling", settings.rope_scaling.to_string());
     }
     if settings.rope_scale != 0.0 {
-        cmd.arg("--rope-scale").arg(format!("{:.2}", settings.rope_scale));
-        parts.push("--rope-scale".to_string());
-        parts.push(format!("{:.2}", settings.rope_scale));
+        push_arg(&mut cmd, &mut parts, "--rope-scale", format!("{:.2}", settings.rope_scale));
     }
     if settings.rope_freq_base != 0.0 {
-        cmd.arg("--rope-freq-base").arg(format!("{:.2}", settings.rope_freq_base));
-        parts.push("--rope-freq-base".to_string());
-        parts.push(format!("{:.2}", settings.rope_freq_base));
+        push_arg(&mut cmd, &mut parts, "--rope-freq-base", format!("{:.2}", settings.rope_freq_base));
     }
     if settings.rope_freq_scale != 1.0 {
-        cmd.arg("--rope-freq-scale").arg(format!("{:.2}", settings.rope_freq_scale));
-        parts.push("--rope-freq-scale".to_string());
-        parts.push(format!("{:.2}", settings.rope_freq_scale));
+        push_arg(&mut cmd, &mut parts, "--rope-freq-scale", format!("{:.2}", settings.rope_freq_scale));
     }
 
-    // ── Server ───────────────────────────────────────────────
     let resolved_host = clean_host(&settings.host);
-    cmd.arg("--host").arg(&resolved_host);
-    parts.push("--host".to_string());
-    parts.push(resolved_host);
+    push_arg(&mut cmd, &mut parts, "--host", resolved_host);
+    push_arg(&mut cmd, &mut parts, "--port", settings.port);
+    push_arg(&mut cmd, &mut parts, "--timeout", settings.timeout);
 
-    cmd.arg("--port").arg(settings.port.to_string());
-    parts.push("--port".to_string());
-    parts.push(settings.port.to_string());
-
-    add_arg(&mut cmd, "--timeout", settings.timeout);
-    parts.push("--timeout".to_string());
-    parts.push(settings.timeout.to_string());
-
-    cmd.arg("--metrics");
-    parts.push("--metrics".to_string());
+    push_flag(&mut cmd, &mut parts, "--metrics");
     if !settings.cache_prompt {
-        cmd.arg("--no-cache-prompt");
-        parts.push("--no-cache-prompt".to_string());
+        push_flag(&mut cmd, &mut parts, "--no-cache-prompt");
     }
     if settings.cache_reuse != 0 {
-        cmd.arg("--cache-reuse").arg(settings.cache_reuse.to_string());
-        parts.push("--cache-reuse".to_string());
-        parts.push(settings.cache_reuse.to_string());
+        push_arg(&mut cmd, &mut parts, "--cache-reuse", settings.cache_reuse);
     }
     if !settings.webui {
-        cmd.arg("--no-webui");
-        parts.push("--no-webui".to_string());
+        push_flag(&mut cmd, &mut parts, "--no-webui");
     }
 
     // ── General ──────────────────────────────────────────────
