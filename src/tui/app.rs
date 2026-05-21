@@ -70,7 +70,7 @@ pub enum ModelsMode {
 }
 
 /// Global mode that overlays all panels.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GlobalMode {
     Normal,
     CmdLine { cmd_line: String },
@@ -436,7 +436,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 }
                 for name in to_update {
                     self.model_states.insert(name.clone(), ModelState::Loaded { port, pid });
-                    self.loaded_model_names.lock().unwrap().push(name);
+                    self.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner()).push(name);
                 }
             }
         }
@@ -610,7 +610,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
 
         // Remove from loaded list and set to Failed
         for name in to_fail {
-            self.loaded_model_names.lock().unwrap().retain(|n| n != &name);
+            self.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner()).retain(|n| n != &name);
             let error = self.last_error_message.clone().unwrap_or_else(|| {
                 let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
                 format!("Last Failed to load a model ({})", timestamp)

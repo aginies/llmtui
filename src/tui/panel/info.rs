@@ -68,7 +68,7 @@ pub fn max_context_for_vram(
     let flash_attn_factor = if flash_attn { 0.5 } else { 1.0 };
 
     // KV quant factor (relative to f16 = 2 bytes)
-    let kv_quant_factor = kv_quant_bytes(cache_type_k, cache_type_v) / 2.0;
+    let kv_quant_factor = crate::models::kv_quant_bytes_from_str(cache_type_k, cache_type_v) / 2.0;
 
     // KV cache per token per layer: 2 * hidden * 2 * gqa_ratio * flash * quant
     let kv_per_token = 2.0 * hidden_size as f64 * 2.0 * gqa_ratio * flash_attn_factor * kv_quant_factor;
@@ -83,27 +83,7 @@ pub fn max_context_for_vram(
     }
 }
 
-fn kv_quant_bytes(cache_type_k: &str, cache_type_v: &str) -> f64 {
-    let k_bytes = match cache_type_k {
-        "F32" => 4.0,
-        "F16" | "BF16" => 2.0,
-        "Q8_0" => 1.0,
-        "Q5_0" | "Q5_1" => 0.625,
-        "Q4_0" | "Q4_1" => 0.5,
-        "Iq4Nl" => 0.5,
-        _ => 2.0,
-    };
-    let v_bytes = match cache_type_v {
-        "F32" => 4.0,
-        "F16" | "BF16" => 2.0,
-        "Q8_0" => 1.0,
-        "Q5_0" | "Q5_1" => 0.625,
-        "Q4_0" | "Q4_1" => 0.5,
-        "Iq4Nl" => 0.5,
-        _ => 2.0,
-    };
-    (k_bytes + v_bytes) / 2.0
-}
+
 
 /// Render model metadata as a list of (label, value) pairs.
 ///

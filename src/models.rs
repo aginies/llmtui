@@ -378,6 +378,23 @@ impl std::fmt::Display for CacheTypeK {
     }
 }
 
+impl From<&str> for CacheTypeK {
+    fn from(s: &str) -> Self {
+        match s {
+            "F32" => Self::F32,
+            "F16" => Self::F16,
+            "BF16" => Self::BF16,
+            "Q8_0" => Self::Q8_0,
+            "Q4_0" => Self::Q4_0,
+            "Q4_1" => Self::Q4_1,
+            "Iq4Nl" => Self::Iq4Nl,
+            "Q5_0" => Self::Q5_0,
+            "Q5_1" => Self::Q5_1,
+            _ => Self::F16, // Default or error handling
+        }
+    }
+}
+
 /// KV cache data type for V.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[derive(Default)]
@@ -459,6 +476,23 @@ impl std::fmt::Display for CacheTypeV {
             CacheTypeV::Iq4Nl => write!(f, "iq4_nl"),
             CacheTypeV::Q5_0 => write!(f, "q5_0"),
             CacheTypeV::Q5_1 => write!(f, "q5_1"),
+        }
+    }
+}
+
+impl From<&str> for CacheTypeV {
+    fn from(s: &str) -> Self {
+        match s {
+            "F32" => Self::F32,
+            "F16" => Self::F16,
+            "BF16" => Self::BF16,
+            "Q8_0" => Self::Q8_0,
+            "Q4_0" => Self::Q4_0,
+            "Q4_1" => Self::Q4_1,
+            "Iq4Nl" => Self::Iq4Nl,
+            "Q5_0" => Self::Q5_0,
+            "Q5_1" => Self::Q5_1,
+            _ => Self::F16, // Default or error handling
         }
     }
 }
@@ -1233,6 +1267,11 @@ fn kv_quant_bytes(k_type: CacheTypeK, v_type: CacheTypeV) -> f64 {
     };
     (k_bytes + v_bytes) / 2.0
 }
+
+pub fn kv_quant_bytes_from_str(k: &str, v: &str) -> f64 {
+    let k_type = CacheTypeK::from(k);
+    let v_type = CacheTypeV::from(v);
+    kv_quant_bytes(k_type, v_type)
 
 pub fn format_mib(mib: u64) -> String {
     crate::tui::format_size(mib * 1024 * 1024)

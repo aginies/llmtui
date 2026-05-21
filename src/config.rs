@@ -848,6 +848,17 @@ impl Config {
         std::fs::write(&path, content)?;
         Ok(())
     }
+
+    pub fn merged_profiles(&self) -> Vec<Profile> {
+        let builtin = builtin_profiles();
+        let mut all: Vec<Profile> = builtin.to_vec();
+        for p in &self.profiles {
+            if !builtin.iter().any(|b| b.name == p.name) {
+                all.push(p.clone());
+            }
+        }
+        all
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -387,13 +387,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     // Right: Settings or Profiles
     match app.active_panel {
         ActivePanel::Profiles => {
-            let builtin = crate::config::builtin_profiles();
-            let mut all_profiles: Vec<Profile> = builtin.to_vec();
-            for p in &app.config.profiles {
-                if !builtin.iter().any(|b| b.name == p.name) {
-                    all_profiles.push(p.clone());
-                }
-            }
+            let all_profiles = app.config.merged_profiles();
             let (profile_lines, count) = panel::profiles::render_all(
                 &all_profiles,
                 app.settings_selected_idx,

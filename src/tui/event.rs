@@ -9,6 +9,32 @@ use crate::config::builtin_profiles;
 use crate::models::{ModelSettings, SearchSort};
 use crate::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, LoadingPhase, ConfirmationKind};
 
+async fn execute_confirmation(app: &mut App, kind: ConfirmationKind) {
+    match kind {
+        ConfirmationKind::Exit => {
+            app.running = false;
+        }
+        ConfirmationKind::Reset => {
+            app.reset_to_defaults();
+        }
+        ConfirmationKind::Delete => {
+            if let Some(model) = app.selected_model() {
+                let display_name = model.display_name.clone();
+                app.add_log(format!("Deleting model {}...", display_name), crate::config::LogLevel::Info);
+            }
+        }
+        ConfirmationKind::Unload => {
+            if let Some((name, _)) = &app.pending_api_unload {
+                app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
+            }
+        }
+        ConfirmationKind::DeleteBackend => {
+            // Handled in main.rs loop by looking at pending_backend_deletion
+            // and confirming global_mode transitioned back to Normal
+        }
+    }
+}
+
 pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     debug!("Key: {:?}", key);
 
@@ -39,30 +65,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if let GlobalMode::Confirmation { selected, kind } = &app.global_mode {
         match key.code {
             KeyCode::Char('y') => {
-                match kind {
-                    ConfirmationKind::Exit => {
-                        app.running = false;
-                    }
-                    ConfirmationKind::Reset => {
-                        app.reset_to_defaults();
-                    }
-                    ConfirmationKind::Delete => {
-                        if let Some(model) = app.selected_model() {
-                            let display_name = model.display_name.clone();
-                            app.add_log(format!("Deleting model {}...", display_name), crate::config::LogLevel::Info);
-                        }
-                    }
-                    ConfirmationKind::Unload => {
-                        if let Some((name, _)) = &app.pending_api_unload {
-                            app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
-                        }
-                    }
-                    ConfirmationKind::DeleteBackend => {
-                        if let Some((backend, tag)) = &app.pending_backend_deletion {
-                            app.add_log(format!("Deleting backend {} ({})", backend, tag), crate::config::LogLevel::Info);
-                        }
-                    }
-                }
+                execute_confirmation(app, *kind).await;
                 app.global_mode = GlobalMode::Normal;
             }
             KeyCode::Char('n') | KeyCode::Esc => {
@@ -73,30 +76,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             KeyCode::Enter => {
                 if *selected {
-                    // Confirmed (Yes)
-                    match kind {
-                        ConfirmationKind::Exit => {
-                            app.running = false;
-                        }
-                        ConfirmationKind::Reset => {
-                            app.reset_to_defaults();
-                        }
-                        ConfirmationKind::Delete => {
-                            if let Some(model) = app.selected_model() {
-                                let display_name = model.display_name.clone();
-                                app.add_log(format!("Deleting model {}...", display_name), crate::config::LogLevel::Info);
-                            }
-                        }
-                        ConfirmationKind::DeleteBackend => {
-                            // Handled in main.rs loop by looking at pending_backend_deletion
-                            // and confirming global_mode transitioned back to Normal
-                        }
-                        ConfirmationKind::Unload => {
-                            if let Some((name, _)) = &app.pending_api_unload {
-                                app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
-                            }
-                        }
-                    }
+                    execute_confirmation(app, *kind).await;
                 } else {
                     // Cancelled (No)
                     app.pending_deletion = None;
@@ -499,7 +479,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             let b_date = b.created_at.as_deref().unwrap_or("");
                             b_date.cmp(a_date)
                         }
-                        SearchSort::Relevance => a.downloads.cmp(&b.downloads),
+                        SearchSort::Relevance => std::cmp::Ordering::Equal,
                     });
                     if !results.is_empty() {
                         app.search_results_idx = Some(0);
@@ -571,31 +551,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if let Some(model_id) = model_id {
                     app.add_log(format!("Fetching README for {}...", model_id), crate::config::LogLevel::Info);
                     app.add_log("This may take a moment...", crate::config::LogLevel::Info);
-                    // Spawn a task to fetch the README without blocking the UI
-                    let handle = tokio::spawn(async move {
-                        hub::fetch_readme(&model_id).await
-                    });
-                    match handle.await {
-                        Ok(Ok(readme)) => {
-                            if let ModelsMode::Search { results, .. } = &mut app.models_mode
-                                && let Some(idx) = app.search_results_idx
-                                    && let Some(r) = results.get_mut(idx) {
-                                        r.readme = Some(readme);
-                                    }
-                            app.add_log("README loaded.", crate::config::LogLevel::Info);
-                        }
-                        Ok(Err(e)) => {
-                            app.add_log(format!("Failed to fetch README: {}", e), crate::config::LogLevel::Error);
-                            if let ModelsMode::Search { results, .. } = &mut app.models_mode
-                                && let Some(idx) = app.search_results_idx
-                                    && let Some(r) = results.get_mut(idx) {
-                                        r.readme = Some(String::new());
-                                    }
-                        }
-                        Err(e) => {
-                            app.add_log(format!("Task failed: {}", e), crate::config::LogLevel::Error);
-                        }
-                    }
+                    fetch_and_store_readme(app, model_id).await;
                     if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
                         *show_readme = true;
                     }
@@ -775,6 +731,23 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 }
 
+async fn fetch_and_store_readme(app: &mut App, model_id: String) {
+    match crate::backend::hub::fetch_readme(&model_id).await {
+        Ok(readme) => {
+            if let ModelsMode::Search { results, .. } = &mut app.models_mode
+                && let Some(idx) = app.search_results_idx
+                && let Some(r) = results.get_mut(idx)
+            {
+                r.readme = Some(readme);
+            }
+            app.add_log("README loaded.", crate::config::LogLevel::Info);
+        }
+        Err(e) => {
+            app.add_log(format!("Failed to fetch README: {}", e), crate::config::LogLevel::Error);
+        }
+    }
+}
+
 async fn fetch_readme_for_selected(app: &mut App, model_id: String) {
     if let ModelsMode::Search { results, show_readme, .. } = &app.models_mode
         && *show_readme
@@ -782,24 +755,7 @@ async fn fetch_readme_for_selected(app: &mut App, model_id: String) {
                 && let Some(r) = results.get(idx)
                     && r.readme.is_none() {
                         app.add_log(format!("Fetching README for {}...", model_id), crate::config::LogLevel::Info);
-                        let handle = tokio::spawn(async move {
-                            hub::fetch_readme(&model_id).await
-                        });
-                        match handle.await {
-                            Ok(Ok(readme)) => {
-                                if let ModelsMode::Search { results, .. } = &mut app.models_mode
-                                    && let Some(r) = results.get_mut(idx) {
-                                        r.readme = Some(readme);
-                                    }
-                                app.add_log("README loaded.", crate::config::LogLevel::Info);
-                            }
-                            Ok(Err(e)) => {
-                                app.add_log(format!("Failed to fetch README: {}", e), crate::config::LogLevel::Error);
-                            }
-                            Err(e) => {
-                                app.add_log(format!("Task failed: {}", e), crate::config::LogLevel::Error);
-                            }
-                        }
+                        fetch_and_store_readme(app, model_id).await;
                     }
 }
 
@@ -1015,7 +971,12 @@ fn sync_global_settings(app: &mut App) {
     app.config.default.api_endpoint_port = app.settings.api_endpoint_port;
     app.config.default.server_mode = app.server_mode.clone();
     app.config.default.router_max_models = app.router_max_models;
-    let _ = app.config.save();
+    if let Err(e) = app.config.save() {
+        app.add_log(
+            format!("Failed to save global settings: {}", e),
+            crate::config::LogLevel::Error,
+        );
+    }
 }
 
 fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
@@ -1166,7 +1127,7 @@ fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _m
     }
 }
 
-fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_threads: u32, max_context: u32) {
+fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_threads: u32, max_context: u32, total_layers: u32) {
     match idx {
         // Loading
         0 => {
@@ -1185,7 +1146,10 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_thr
                 (-1, crate::models::GpuLayersMode::Specific(n)) if *n == 0 => crate::models::GpuLayersMode::Auto,
                 (-1, crate::models::GpuLayersMode::Specific(n)) if *n == 1 => crate::models::GpuLayersMode::Specific(0),
                 (-1, crate::models::GpuLayersMode::Specific(n)) => crate::models::GpuLayersMode::Specific(n - 1),
-                (-1, crate::models::GpuLayersMode::All) => crate::models::GpuLayersMode::Specific(999),
+                (-1, crate::models::GpuLayersMode::All) => {
+                    let n = if total_layers > 0 { total_layers.min(256) } else { 256 };
+                    crate::models::GpuLayersMode::Specific(n)
+                }
                 _ => settings.gpu_layers_mode,
             };
         }
@@ -1504,7 +1468,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.pop();
             } else {
-                adjust_setting(&mut app.settings, idx, -1, app.max_threads, app.model_n_ctx_train);
+                adjust_setting(&mut app.settings, idx, -1, app.max_threads, app.model_n_ctx_train, app.model_metadata.current_model_total_layers);
                 if idx == 11 {
                     sync_global_settings(app);
                 }
@@ -1514,7 +1478,7 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
         }
         KeyCode::Right => {
-            adjust_setting(&mut app.settings, idx, 1, app.max_threads, app.model_n_ctx_train);
+            adjust_setting(&mut app.settings, idx, 1, app.max_threads, app.model_n_ctx_train, app.model_metadata.current_model_total_layers);
             if idx == 11 {
                 sync_global_settings(app);
             }
@@ -1599,14 +1563,7 @@ fn handle_profiles_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('d') => {
             // Delete the selected user profile (not built-in)
             if app.delete_profile(app.settings_selected_idx) {
-                // Recalculate total after deletion
-                let mut new_all: Vec<crate::config::Profile> = builtin.to_vec();
-                for p in &app.config.profiles {
-                    if !builtin.iter().any(|b| b.name == p.name) {
-                        new_all.push(p.clone());
-                    }
-                }
-                let new_total = new_all.len();
+                let new_total = app.config.merged_profiles().len();
                 if new_total > 0 && app.settings_selected_idx >= new_total {
                     app.settings_selected_idx = new_total - 1;
                 }
