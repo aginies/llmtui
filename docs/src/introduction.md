@@ -7,14 +7,17 @@
 - **Model search** on HuggingFace (filters to GGUF models, paginated with infinite scroll)
 - **Download** GGUF model files with progress tracking and cancellation
 - **Load/unload** models via llama.cpp server with progress visualization
+- **Local Model Filter** — quickly find models in your list with `f`
+- **RPC Workers Manager** — dedicated window to manage distributed inference nodes
 - **Chat** with loaded models in the terminal
 - **Configure** loading and inference parameters per model
 - **GGUF file browser** — list and select specific GGUF files for a model
 - **Log panel** — expand/collapse with Enter/Esc
+- **About Box** — application info and GPLv3 license link (`Shift+A`)
 - **CmdLine overlay** — view the full llama-server command line (`Ctrl+K`)
 - **API proxy** — expose an OpenAI-compatible API on a configurable port
 - **Profiles** — save and apply named presets of settings
-- **Multi-backend** — CPU, Vulkan, and ROCm (AMD) support with version picker
+- **Multi-backend** — CPU, Vulkan, and ROCm (AMD) support with version picker and persistence
 
 ## Prerequisites
 

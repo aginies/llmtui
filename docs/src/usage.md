@@ -6,6 +6,9 @@
 
 The Models panel shows all `.gguf` files found in your models directory (recursively). The display name is the relative path from the models directory.
 
+- `f` — Filter local models by name (case-insensitive substring match)
+- `Esc` — Clear active filter and return to full list
+
 ### Loading and Unloading
 
 - `l` or `Enter` — Load selected model
@@ -157,12 +160,14 @@ Dirty (changed) fields are highlighted in yellow.
 |-----|--------|
 | `j` / `k` | Navigate up/down |
 | `Enter` | Load model / Execute search / Expand log |
-| `Esc` | Back / Exit search / Collapse log |
+| `f` | Filter local models list |
+| `Esc` | Back / Exit search / Collapse log / Clear local filter |
 | `Tab` | Switch panels |
 | `t` | Switch settings tab |
 | `/` | Search models |
 | `l` | Load model |
 | `u` | Unload model |
+| `Shift+A` | About box (license and version info) |
 | `Ctrl+D` | Delete model |
 | `Ctrl+H` | Panel-specific help |
 | `Ctrl+K` | CmdLine overlay |

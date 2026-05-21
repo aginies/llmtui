@@ -9,10 +9,13 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - **Search models** on HuggingFace by name (filters to GGUF models, 70 results per page)
 - **Download** GGUF model files with progress tracking
 - **Load/unload** models via llama.cpp server
+- **Local Model Filter** — quickly find models in your list with `f`
+- **RPC Workers Manager** — dedicated window to manage distributed inference nodes
 - **Chat** with loaded models in the terminal
 - **Configure** loading and inference parameters per model
 - **GGUF file browser** — list and select specific GGUF files for a model
 - **Log panel** — expand/collapse with Enter/Esc
+- **About Box** — application info and GPLv3 license link (`Shift+A`)
 - **HuggingFace URL links** — navigate to model pages from Model Info
 - **CmdLine overlay** — full-screen view of the computed llama-server command line (`Ctrl+K`)
 - **Export to script** — write the llama-server command to `/tmp/test_llamaserver.sh` from the CmdLine overlay (`e`)
@@ -104,11 +107,12 @@ The Server Settings panel (top-right) shows server configuration:
 | Setting | Description |
 |---------|-------------|
 | Host | Bind address — press `↵` to open host picker (lists all network interfaces) |
-| Backend | Acceleration backend (cpu / vulkan / rocm) |
+| Backend | Acceleration backend (cpu / vulkan / rocm) — shows selected version |
 | Threads | CPU threads for generation |
 | Threads Batch | CPU threads for batch processing |
 | Mode | Server mode — `↵` toggles between Normal and Router |
 | API Endpoint | Enable API proxy — `↵` toggles (disabled while server is running) |
+| RPC Workers | Open the distributed inference manager window — press `↵` |
 | API Port | Port for the API proxy server (default: 49222) |
 
 When API Endpoint is enabled, a proxy server starts on port `49222` that forwards requests to the running llama-server instance, exposing the full llama.cpp API (see Serve mode above).
@@ -127,11 +131,13 @@ The System Prompt Presets panel contains named system prompts for different use 
 
 - `j` / `k` — Navigate up/down
 - `↵` — Load model / Download selected / Expand log panel
-- `⎋` — Back / Exit search / Collapse log panel
+- `f` — Filter local models list
+- `⎋` — Back / Exit search / Collapse log panel / Clear local filter
 - `⇥` — Switch panels
 - `t` — Switch settings tab
 - `/` — Search models
 - `l` — Load / `u` — Unload (with confirmation)
+- `Shift+A` — About box (license and version info)
 - `⌃H` — Help
 - `⌃K` — CmdLine overlay
 - `⌃D` — Delete model (with confirmation)
@@ -216,7 +222,7 @@ From the CmdLine overlay, press `e` to export the command to `/tmp/test_llamaser
 
 The LLM Settings panel (22+ fields organized into 6 groups):
 
-**Loading:** Context length, System prompt preset, Keep in memory (mlock), Keep tokens, SWA full, Memory-map, NUMA optimization, Reasoning mode, Split mode, Tensor split, Main GPU, Fit to device memory, LoRA adapter, LoRA adapter with scale, RPC servers, Embedding mode, Jinja template, Custom chat template, Typical P
+**Loading:** System prompt preset, Context length, Keep in memory (mlock), Keep tokens, SWA full, Memory-map, NUMA optimization, Reasoning mode, Split mode, Tensor split, Main GPU, Fit to device memory, LoRA adapter, LoRA adapter with scale, RPC servers, Embedding mode, Jinja template, Custom chat template, Typical P
 
 **GPU:** GPU Layers, Flash Attention, KV Cache Offload, Cache Type K, Cache Type V, Active Experts
 
