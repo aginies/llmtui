@@ -147,6 +147,8 @@ pub struct App {
     pub active_panel: ActivePanel,
     pub log_expanded: bool,
     pub log_scroll_offset: u16,
+    pub log_follow: bool,
+    pub log_total_lines: usize,
     pub settings_selected_idx: usize,
     pub server_settings_selected_idx: usize, // 0=Host, 1=Backend
     pub server_settings_scroll_offset: u16,
@@ -252,6 +254,8 @@ impl App {
             active_panel: ActivePanel::Models,
             log_expanded: false,
             log_scroll_offset: 0,
+            log_follow: true,
+            log_total_lines: 0,
             settings_selected_idx: 0,
             server_settings_selected_idx: 0,
             server_settings_scroll_offset: 0,
@@ -622,12 +626,14 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 self.loading_phases.clear();
                 self.load_progress = Default::default();
             }
-        } else {
+ } else {
             let default_params = self.config.default.clone();
             self.model_settings_cache = default_params.into();
             self.model_total_layers = 0;
             self.model_hidden_size = 0;
             self.model_n_ctx_train = 0;
+            self.settings.is_mtp = false;
+            self.settings.draft_tokens = 0;
             self.vram_estimate = 0;
             self.loading_progress = 0.0;
             self.loading_phases.clear();
@@ -756,6 +762,17 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                         if let Some(value) = model_data.metadata().get("general.architecture")
                             && let Some(v) = value.as_str() { arch = v.to_string(); }
 
+                        // Detect MTP (Multi-Token Prediction)
+                        if arch == "mtp" {
+                            self.settings.is_mtp = true;
+                            if let Some(value) = model_data.metadata().get("mtp.draft_tokens") {
+                                self.settings.draft_tokens = value.as_u64()
+                                    .or_else(|| value.as_i64().map(|x| x as u64))
+                                    .or_else(|| value.as_f64().map(|x| x as u64))
+                                    .unwrap_or(0) as u32;
+                            }
+                        }
+
                         // Capabilities
                         if model_data.metadata().contains_key("tokenizer.chat_template") {
                             capabilities.push("chat".to_string());
@@ -874,10 +891,11 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                                 file_type,
                                 quantization,
                                 model_parameters,
-                                domain,
+ domain,
                                 capabilities,
                                 tokenizer,
                                 vocab_size,
+                                draft_tokens: self.settings.draft_tokens,
                             });
                         }
                         self.set_redraw();
@@ -1191,9 +1209,10 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(""),
                 Line::from("Live output from the llama.cpp server."),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Scroll log")]),
-                Line::from(vec![Span::styled("g", y), Span::raw("  Jump to bottom")]),
-                Line::from(vec![Span::styled("G", y), Span::raw("  Jump to top")]),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Scroll log (Manual mode)")]),
+                Line::from(vec![Span::styled("f", y), Span::raw("  Toggle Follow mode")]),
+                Line::from(vec![Span::styled("g", y), Span::raw("  Jump to top (Manual mode)")]),
+                Line::from(vec![Span::styled("G", y), Span::raw("  Jump to bottom (Follow mode)")]),
                 Line::from(vec![Span::styled("Enter", y), Span::raw("  Expand log (fills screen)")]),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse log")]),
                 Line::from(""),
@@ -1380,6 +1399,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.model_n_head = 0;
         self.model_n_kv_head = 0;
         self.vram_estimate = 0;
+        self.settings.is_mtp = false;
+        self.settings.draft_tokens = 0;
         self.settings_render_cache = None;
         self.add_log("Reset LLM Settings to defaults", crate::config::LogLevel::Info);
     }

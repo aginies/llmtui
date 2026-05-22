@@ -239,10 +239,12 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_cpu: dp.llama_cpp_version_cpu,
             llama_cpp_version_vulkan: dp.llama_cpp_version_vulkan,
             llama_cpp_version_rocm: dp.llama_cpp_version_rocm,
-            llama_cpp_version_rocm_lemonade: dp.llama_cpp_version_rocm_lemonade,
+           llama_cpp_version_rocm_lemonade: dp.llama_cpp_version_rocm_lemonade,
             llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
             api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
+            is_mtp: dp.is_mtp,
+            draft_tokens: dp.draft_tokens,
         }
     }
 }
@@ -770,6 +772,10 @@ pub struct ModelSettings {
     pub api_endpoint_enabled: bool,
     /// Port for the API proxy server.
     pub api_endpoint_port: u16,
+    /// Whether this model uses MTP (Multi-Token Prediction) architecture.
+    pub is_mtp: bool,
+    /// Number of draft tokens for MTP.
+    pub draft_tokens: u32,
 }
 
 impl Default for ModelSettings {
@@ -857,8 +863,10 @@ impl Default for ModelSettings {
             llama_cpp_version_rocm: None,
             llama_cpp_version_rocm_lemonade: None,
             llama_cpp_version_cuda: None,
-            api_endpoint_enabled: false,
+           api_endpoint_enabled: false,
             api_endpoint_port: 49222,
+            is_mtp: false,
+            draft_tokens: 0,
         }
     }
 }
@@ -895,6 +903,7 @@ pub struct GgufMetadata {
     pub capabilities: Vec<String>,
     pub tokenizer: String,
     pub vocab_size: u32,
+    pub draft_tokens: u32,
 }
 
 /// Metrics reported by the llama.cpp server.

@@ -15,7 +15,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     let log_area = area;
 
-    let title = if app.is_panel_visible(5) { " Log (F6) " } else { " Log " };
+    let title = if app.is_panel_visible(5) {
+        if app.log_follow { " Log (F6) - Following " } else { " Log (F6) - Manual " }
+    } else {
+        if app.log_follow { " Log - Following " } else { " Log - Manual " }
+    };
     let border_color = if app.active_panel == crate::tui::app::ActivePanel::Log {
         Color::Green
     } else {
@@ -51,8 +55,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .map(|l| (l.width().max(1) + width - 1) / width)
         .sum::<usize>();
     
-    // Always auto-scroll to bottom
-    app.log_scroll_offset = total_screen_lines.saturating_sub(inner_area.height as usize) as u16;
+    app.log_total_lines = total_screen_lines;
+
+    // Auto-scroll to bottom if follow is enabled
+    if app.log_follow {
+        app.log_scroll_offset = total_screen_lines.saturating_sub(inner_area.height as usize) as u16;
+    }
 
     let paragraph = Paragraph::new(lines)
         .block(block)

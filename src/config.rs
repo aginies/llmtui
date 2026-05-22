@@ -201,13 +201,15 @@ pub struct ModelOverride {
     pub cache_reuse: Option<u32>,
     pub webui: Option<bool>,
 
-    // Other
+   // Other
     pub max_tokens: Option<u32>,
     pub cache_type: Option<CacheType>,
     pub reasoning_mode: Option<crate::models::ReasoningMode>,
     pub llama_cpp_version_cpu: Option<String>,
     pub llama_cpp_version_vulkan: Option<String>,
     pub llama_cpp_version_rocm: Option<String>,
+    pub is_mtp: Option<bool>,
+    pub draft_tokens: Option<u32>,
 }
 
 impl ModelOverride {
@@ -278,9 +280,11 @@ impl ModelOverride {
             max_tokens: s.max_tokens,
             cache_type: Some(s.cache_type),
             reasoning_mode: Some(s.reasoning_mode),
-   llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
+llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
             llama_cpp_version_vulkan: s.llama_cpp_version_vulkan.clone(),
             llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
+            is_mtp: Some(s.is_mtp),
+            draft_tokens: Some(s.draft_tokens),
         }
     }
 
@@ -354,6 +358,7 @@ impl ModelOverride {
 if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_vulkan { base.llama_cpp_version_vulkan = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
+        if let Some(v) = self.is_mtp { base.is_mtp = v; }
     }
 }
 
@@ -584,11 +589,15 @@ pub struct DefaultParams {
     #[serde(default)]
     pub llama_cpp_version_cuda: Option<String>,
 
- // API
+// API
     #[serde(default)]
     pub api_endpoint_enabled: bool,
     #[serde(default = "default_api_endpoint_port")]
     pub api_endpoint_port: u16,
+    #[serde(default)]
+    pub is_mtp: bool,
+    #[serde(default)]
+    pub draft_tokens: u32,
 }
 
 fn default_api_endpoint_port() -> u16 {
@@ -703,8 +712,10 @@ impl Default for DefaultParams {
             llama_cpp_version_rocm: None,
             llama_cpp_version_rocm_lemonade: None,
             llama_cpp_version_cuda: None,
-           api_endpoint_enabled: false,
+            api_endpoint_enabled: false,
             api_endpoint_port: 49222,
+            is_mtp: false,
+            draft_tokens: 0,
         }
     }
 }

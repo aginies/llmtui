@@ -70,6 +70,10 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     
     push_flag(&mut cmd, &mut parts, "--no-warmup");
 
+    if settings.is_mtp {
+        push_flag(&mut cmd, &mut parts, "--draft-mtp");
+    }
+
     if let Some(cache_k) = settings.cache_type_k {
         push_arg(&mut cmd, &mut parts, "--cache-type-k", cache_k);
     }
@@ -252,6 +256,10 @@ pub fn build_bench_cmd(binary: &std::path::Path, model: &DiscoveredModel, settin
 
     if settings.flash_attn {
         push_arg(&mut cmd, &mut parts, "-fa", "1");
+    }
+
+    if settings.is_mtp {
+        push_flag(&mut cmd, &mut parts, "--draft-mtp");
     }
 
     push_flag(&mut cmd, &mut parts, "--progress");

@@ -6,7 +6,7 @@ fn default_tag(repo: &str) -> String {
     if repo.contains("lemonade") {
         "b1273".to_string()
     } else if repo.contains("cuda") {
-        "b9244".to_string()
+        "b9279".to_string()
     } else {
         "b4100".to_string()
     }
@@ -433,7 +433,7 @@ pub async fn resolve_backend_binary(
             )
         }
         crate::models::Backend::Cuda => (
-            format!("https://github.com/ai-dock/llama.cpp-cuda/releases/download/{tag}/llama.cpp-{tag}-cuda-12.8.tar.gz"),
+            format!("https://github.com/ai-dock/llama.cpp-cuda/releases/download/{tag}/llama.cpp-{tag}-cuda-12.8-amd64.tar.gz"),
             false
         )
     };

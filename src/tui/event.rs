@@ -1027,20 +1027,45 @@ fn handle_log_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.log_expanded = false;
             app.set_redraw();
         }
-        KeyCode::Char('g') => {
-            app.log_scroll_offset = 0;
+        KeyCode::Char('f') => {
+            app.log_follow = !app.log_follow;
             app.set_redraw();
         }
-        KeyCode::Char('G') => {
-            app.log_scroll_offset = app.log_entries.len().saturating_sub(1) as u16;
+        KeyCode::Char('g') | KeyCode::Home => {
+            app.log_scroll_offset = 0;
+            app.log_follow = false;
+            app.set_redraw();
+        }
+        KeyCode::Char('G') | KeyCode::End => {
+            app.log_follow = true;
             app.set_redraw();
         }
         KeyCode::Up | KeyCode::Char('k') => {
             app.log_scroll_offset = app.log_scroll_offset.saturating_sub(1);
+            app.log_follow = false;
             app.set_redraw();
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.log_scroll_offset = (app.log_scroll_offset + 1).min(app.log_entries.len().saturating_sub(1) as u16);
+            let max_offset = app.log_total_lines.saturating_sub(1) as u16;
+            app.log_scroll_offset = (app.log_scroll_offset + 1).min(max_offset);
+            if app.log_scroll_offset >= max_offset {
+                app.log_follow = true;
+            } else {
+                app.log_follow = false;
+            }
+            app.set_redraw();
+        }
+        KeyCode::PageUp => {
+            app.log_scroll_offset = app.log_scroll_offset.saturating_sub(15);
+            app.log_follow = false;
+            app.set_redraw();
+        }
+        KeyCode::PageDown => {
+            let max_offset = app.log_total_lines.saturating_sub(1) as u16;
+            app.log_scroll_offset = (app.log_scroll_offset + 15).min(max_offset);
+            if app.log_scroll_offset >= max_offset {
+                app.log_follow = true;
+            }
             app.set_redraw();
         }
         _ => {}
@@ -2038,11 +2063,17 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                 }
                 MouseEventKind::ScrollUp => {
                     app.log_scroll_offset = app.log_scroll_offset.saturating_sub(1);
+                    app.log_follow = false;
                     app.set_redraw();
                 }
                 MouseEventKind::ScrollDown => {
-                    let max_offset = app.log_entries.len().saturating_sub(1) as u16;
+                    let max_offset = app.log_total_lines.saturating_sub(1) as u16;
                     app.log_scroll_offset = (app.log_scroll_offset + 1).min(max_offset);
+                    if app.log_scroll_offset >= max_offset {
+                        app.log_follow = true;
+                    } else {
+                        app.log_follow = false;
+                    }
                     app.set_redraw();
                 }
                 _ => {}
@@ -2073,12 +2104,18 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
             }
             MouseEventKind::ScrollUp => {
                 app.log_scroll_offset = app.log_scroll_offset.saturating_sub(1);
+                app.log_follow = false;
                 app.active_panel = ActivePanel::Log;
                 app.set_redraw();
             }
             MouseEventKind::ScrollDown => {
-                let max_offset = app.log_entries.len().saturating_sub(1) as u16;
+                let max_offset = app.log_total_lines.saturating_sub(1) as u16;
                 app.log_scroll_offset = (app.log_scroll_offset + 1).min(max_offset);
+                if app.log_scroll_offset >= max_offset {
+                    app.log_follow = true;
+                } else {
+                    app.log_follow = false;
+                }
                 app.active_panel = ActivePanel::Log;
                 app.set_redraw();
             }

@@ -128,6 +128,14 @@ pub fn render_model_lines(
             });
         }
 
+        if meta.arch == "mtp" {
+            pairs.push(ModelInfoPair {
+                label: "MTP".to_string(),
+                value: format!("{} drafts", meta.draft_tokens),
+                value_style: Color::Magenta,
+            });
+        }
+
         if !meta.domain.is_empty() {
             pairs.push(ModelInfoPair {
                 label: "Domain".to_string(),
