@@ -11,8 +11,22 @@ use crate::tui::format_size;
 use crate::models::{strip_gguf, ModelState};
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
+    let mut title_spans = if app.is_panel_visible(4) {
+        vec![Span::raw(" Active Model (F5) ")]
+    } else {
+        vec![Span::raw(" Active Model(s) (F5) ")]
+    };
+    if app.metrics.total_vram_used > 0 {
+        title_spans.push(Span::styled("[ ", Style::default().fg(Color::White)));
+        title_spans.push(Span::styled("Total VRAM: ", Style::default().fg(Color::Yellow)));
+        title_spans.push(Span::styled(format_size(app.metrics.total_vram_used), Style::default().fg(Color::Cyan)));
+        title_spans.push(Span::styled(" / ", Style::default().fg(Color::White)));
+        title_spans.push(Span::styled(format_size(app.metrics.gpu_mem_total), Style::default().fg(Color::Cyan)));
+        title_spans.push(Span::styled(" ]", Style::default().fg(Color::White)));
+    }
+
     let block = Block::default()
-        .title(" Active Model(s) (F5) ")
+        .title(Line::from(title_spans))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(if app.active_panel == crate::tui::app::ActivePanel::ActiveModel { Color::Green } else { Color::DarkGray }));
 
