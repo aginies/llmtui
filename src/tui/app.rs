@@ -93,6 +93,8 @@ pub enum GlobalMode {
     BenchTuneSetup {
         config: crate::models::BenchTuneConfig,
         selected_idx: usize,
+        bench_mode_selection: usize,
+        editing_prompt: bool,
     },
 }
 
@@ -250,6 +252,8 @@ pub struct App {
     pub bench_tune_result_row: usize,
     /// Index of the selected output within the current result
     pub bench_tune_output_index: usize,
+    pub editing_n_predict: bool,
+    pub n_predict_edit_buffer: String,
  }
 
 impl App {
@@ -361,6 +365,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             bench_tune_output_h_scroll: 0,
             bench_tune_result_row: 0,
             bench_tune_output_index: 0,
+            editing_n_predict: false,
+            n_predict_edit_buffer: String::new(),
             }
             }
     pub fn selected_model(&self) -> Option<&DiscoveredModel> {

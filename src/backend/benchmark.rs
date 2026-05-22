@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
 use crate::backend::server::spawn_server;
-use crate::models::{BenchTuneConfig, BenchTuneMetrics, BenchTuneParamValue, BenchTuneResult, BenchTuneStatus, ModelSettings, ServerMode, DiscoveredModel};
+use crate::models::{BenchTuneConfig, BenchTuneMetrics, BenchTuneParamValue, BenchTuneResult, BenchTuneStatus, BenchTuneMode, ModelSettings, ServerMode, DiscoveredModel};
 
 /// Run a benchmark tuning test with multiple parameter combinations
 pub async fn run_bench_tune(
@@ -24,35 +24,60 @@ pub async fn run_bench_tune(
     // Results storage
     let mut results = Vec::new();
 
-    // Run each parameter combination
-    for (idx, combination) in combinations.iter().enumerate() {
-        // Update progress
-        let progress = (idx as f32 / total_tests as f32) * 100.0;
-        progress_tx.send(BenchTuneStatus::Running {
-            current: idx + 1,
-            total: total_tests,
-            progress,
-            current_params: combination.clone(),
-        }).await?;
+    // If runtime-only mode, send params in request body (no server restarts)
+    if config.bench_mode == BenchTuneMode::RuntimeOnly {
+        for (idx, combination) in combinations.iter().enumerate() {
+            let progress = (idx as f32 / total_tests as f32) * 100.0;
+            progress_tx.send(BenchTuneStatus::Running {
+                current: idx + 1,
+                total: total_tests,
+                progress,
+                current_params: combination.clone(),
+            }).await?;
 
-        // Run the test
-        let result = run_bench_tune_single_test(
-            main_config,
-            combination,
-            model,
-            settings,
-            config.num_iterations,
-            config.prompt.clone(),
-            log_tx.clone(),
-        ).await;
+            let result = run_bench_tune_runtime_only(
+                combination,
+                settings,
+                config.num_iterations,
+                config.prompt.clone(),
+                log_tx.clone(),
+                config,
+            ).await;
 
-        match result {
-            Ok(test_result) => {
-                results.push(test_result);
+            match result {
+                Ok(test_result) => results.push(test_result),
+                Err(e) => {
+                    let _ = log_tx.send(format!("Benchmark test {}/{} failed: {}", idx + 1, total_tests, e)).await;
+                }
             }
-            Err(e) => {
-                // Log error but continue with other tests
-                let _ = log_tx.send(format!("Benchmark test {}/{} failed: {}", idx + 1, total_tests, e)).await;
+        }
+    } else {
+        // Full mode: spawn a new server for each parameter combination
+        for (idx, combination) in combinations.iter().enumerate() {
+            let progress = (idx as f32 / total_tests as f32) * 100.0;
+            progress_tx.send(BenchTuneStatus::Running {
+                current: idx + 1,
+                total: total_tests,
+                progress,
+                current_params: combination.clone(),
+            }).await?;
+
+            let result = run_bench_tune_single_test(
+                main_config,
+                combination,
+                model,
+                settings,
+                config.num_iterations,
+                config.prompt.clone(),
+                log_tx.clone(),
+                config,
+            ).await;
+
+            match result {
+                Ok(test_result) => results.push(test_result),
+                Err(e) => {
+                    let _ = log_tx.send(format!("Benchmark test {}/{} failed: {}", idx + 1, total_tests, e)).await;
+                }
             }
         }
     }
@@ -76,6 +101,123 @@ pub async fn run_bench_tune(
     Ok(results)
 }
 
+/// Run benchmark in runtime-only mode: sends params in /completion request body, no server restarts
+async fn run_bench_tune_runtime_only(
+    params: &BenchTuneParamValue,
+    settings: &ModelSettings,
+    num_iterations: u32,
+    prompt: String,
+    log_tx: mpsc::Sender<String>,
+    config: &BenchTuneConfig,
+) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
+    let mut total_prompt_tokens = 0u64;
+    let mut total_generation_tokens = 0u64;
+    let mut total_prompt_time = Duration::ZERO;
+    let mut total_generation_time = Duration::ZERO;
+    let mut total_time = Duration::ZERO;
+    let mut first_token_times = Vec::new();
+    let mut outputs = Vec::new();
+    let mut per_iteration_metrics = Vec::new();
+
+    let _ = log_tx.send(format!("Running {} inference iterations (runtime-only mode)...", num_iterations)).await;
+
+    for i in 0..num_iterations {
+        let result = send_inference_request(&prompt, "127.0.0.1", 8080, params, config).await;
+
+        match result {
+            Ok(res) => {
+                total_prompt_tokens += res.prompt_tokens;
+                total_generation_tokens += res.generation_tokens;
+                total_prompt_time += res.prompt_time;
+                total_generation_time += res.generation_time;
+                total_time += res.total_time;
+                first_token_times.push(res.first_token_time);
+                outputs.push(res.content.clone());
+
+                let iter_prompt_tps = if res.prompt_time.as_secs_f64() > 0.0 {
+                    res.prompt_tokens as f64 / res.prompt_time.as_secs_f64()
+                } else {
+                    0.0
+                };
+                let iter_gen_tps = if res.generation_time.as_secs_f64() > 0.0 {
+                    res.generation_tokens as f64 / res.generation_time.as_secs_f64()
+                } else {
+                    0.0
+                };
+                let iter_latency = if res.generation_tokens > 0 {
+                    res.generation_time.as_millis() as f64 / res.generation_tokens as f64
+                } else {
+                    0.0
+                };
+
+                per_iteration_metrics.push(BenchTuneMetrics {
+                    prompt_tps: iter_prompt_tps,
+                    generation_tps: iter_gen_tps,
+                    combined_tps: 0.0,
+                    latency_per_token: iter_latency,
+                    first_token_time: iter_gen_tps,
+                });
+
+                if num_iterations > 1 {
+                    let _ = log_tx.send(format!("  Iteration {}/{}: {:.2} gen t/s", i + 1, num_iterations, iter_gen_tps)).await;
+                }
+
+                let _ = log_tx.send(format!("--- Generated Output (Iter {}) ---\n{}\n----------------------------------", i + 1, res.content)).await;
+            }
+            Err(e) => {
+                let _ = log_tx.send(format!("  Iteration {}/{} FAILED: {}", i + 1, num_iterations, e)).await;
+                if i == 0 {
+                    return Err(format!("Inference failed: {}", e).into());
+                }
+            }
+        }
+    }
+
+    let prompt_tps = if total_prompt_time.as_secs_f64() > 0.0 {
+        (total_prompt_tokens as f64) / total_prompt_time.as_secs_f64()
+    } else {
+        0.0
+    };
+
+    let generation_tps = if total_generation_time.as_secs_f64() > 0.0 {
+        (total_generation_tokens as f64) / total_generation_time.as_secs_f64()
+    } else {
+        0.0
+    };
+
+    let combined_tps = if total_time.as_secs_f64() > 0.0 {
+        ((total_prompt_tokens + total_generation_tokens) as f64) / total_time.as_secs_f64()
+    } else {
+        0.0
+    };
+
+    let avg_latency_per_token = if total_generation_tokens > 0 {
+        total_generation_time.as_millis() as f64 / (total_generation_tokens as f64)
+    } else {
+        0.0
+    };
+
+    let avg_first_token_time = if !first_token_times.is_empty() {
+        first_token_times.iter().sum::<u128>() as f64 / first_token_times.len() as f64
+    } else {
+        0.0
+    };
+
+    Ok(BenchTuneResult {
+        params: params.clone(),
+        metrics: BenchTuneMetrics {
+            prompt_tps,
+            generation_tps,
+            combined_tps,
+            latency_per_token: avg_latency_per_token,
+            first_token_time: avg_first_token_time,
+        },
+        outputs,
+        per_iteration_metrics,
+        base_settings: Some(settings.clone()),
+    })
+}
+
 /// Run a single benchmark tuning test with specific parameters
 async fn run_bench_tune_single_test(
     main_config: &crate::config::Config,
@@ -85,6 +227,7 @@ async fn run_bench_tune_single_test(
     num_iterations: u32,
     prompt: String,
     log_tx: mpsc::Sender<String>,
+    config: &BenchTuneConfig,
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
     // Create settings with test parameters
     let mut settings = base_settings.clone();
@@ -165,7 +308,7 @@ async fn run_bench_tune_single_test(
     
     for i in 0..num_iterations {
         // Send prompt and measure response
-        let result = send_inference_request(&prompt, host, server_handle.port).await;
+        let result = send_inference_request(&prompt, host, server_handle.port, params, config).await;
         
         match result {
             Ok(res) => {
@@ -275,21 +418,34 @@ async fn run_bench_tune_single_test(
 }
 
 /// Send an inference request and measure response time
-async fn send_inference_request(prompt: &str, host: &str, port: u16) -> Result<InferenceResult, Box<dyn std::error::Error + Send + Sync>> {
+async fn send_inference_request(prompt: &str, host: &str, port: u16, params: &BenchTuneParamValue, config: &BenchTuneConfig) -> Result<InferenceResult, Box<dyn std::error::Error + Send + Sync>> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(120)) // High timeout for slow generation
         .build()?;
-        
-    let url = format!("http://{}:{}/completion", host, port);
     
-    let body = serde_json::json!({
+    // Build request body with benchmark params
+    let mut body = serde_json::json!({
         "prompt": prompt,
-        "n_predict": 128,
+        "n_predict": config.n_predict,
         "stream": false
     });
     
+    if let Some(temperature) = params.temperature {
+        body["temperature"] = serde_json::json!(temperature);
+    }
+    if let Some(top_p) = params.top_p {
+        body["top_p"] = serde_json::json!(top_p);
+    }
+    if let Some(top_k) = params.top_k {
+        body["top_k"] = serde_json::json!(top_k);
+    }
+    if let Some(repeat_penalty) = params.repeat_penalty {
+        body["repeat_penalty"] = serde_json::json!(repeat_penalty);
+    }
+    
+    let url = format!("http://{}:{}/completion", host, port);
     let start = Instant::now();
-    let resp = client.post(&url)
+    let resp = client.post(url)
         .json(&body)
         .send()
         .await?;

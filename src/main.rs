@@ -330,11 +330,11 @@ async fn main() -> Result<()> {
                     }
                 };
 
-                let bench_tune_config = app.bench_tune_config.take().unwrap_or_else(|| {
+               let bench_tune_config = app.bench_tune_config.take().unwrap_or_else(|| {
                     crate::models::BenchTuneConfig::new(
                         model.path.clone(),
                         3, // Default iterations
-                        "Create a scrneeshot of the game \"PACMAN\" picture in text, size will be 20 lines x 55 columns. Display it. Use a high level of detail. Do it in one attempt, just display it on the screen. dont write it to a file before. Donc forget anything from the game.".to_string(),
+                        "Create Mona Lisa in ascii art using text, number, symbol, everything possible. this should be the perfect painting.".to_string(),
                     )
                 });
                 

@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::{Position, Rect};
 use ratatui::widgets::TableState;
 use tracing::debug;
@@ -155,30 +155,123 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // BenchTune Setup
-    if let GlobalMode::BenchTuneSetup { config, selected_idx } = &mut app.global_mode {
+    if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt } = &mut app.global_mode {
         match key.code {
+            KeyCode::Char('m') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // Toggle benchmark mode
+                *bench_mode_selection = if *bench_mode_selection == 0 { 1 } else { 0 };
+                config.bench_mode = match *bench_mode_selection {
+                    0 => crate::models::BenchTuneMode::RuntimeOnly,
+                    _ => crate::models::BenchTuneMode::Full,
+                };
+            }
+            KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // Toggle prompt editing
+                *editing_prompt = !*editing_prompt;
+                if *editing_prompt {
+                    app.edit_cursor_pos = config.prompt.len();
+                }
+            }
+            KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // Toggle n_predict editing
+                app.editing_n_predict = !app.editing_n_predict;
+                if app.editing_n_predict {
+                    app.n_predict_edit_buffer = config.n_predict.to_string();
+                }
+            }
             KeyCode::Up | KeyCode::Char('k') => {
-                *selected_idx = selected_idx.saturating_sub(1);
+                if *editing_prompt {
+                    // Move cursor left
+                    if app.edit_cursor_pos > 0 {
+                        app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
+                    }
+                } else {
+                    *selected_idx = selected_idx.saturating_sub(1);
+                }
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                *selected_idx = (*selected_idx + 1).min(config.params_to_test.len().saturating_sub(1));
+                if *editing_prompt {
+                    // Move cursor right
+                    app.edit_cursor_pos = (app.edit_cursor_pos + 1).min(config.prompt.len());
+                } else {
+                    *selected_idx = (*selected_idx + 1).min(config.params_to_test.len().saturating_sub(1));
+                }
             }
             KeyCode::Char(' ') => {
-                config.params_to_test[*selected_idx].enabled = !config.params_to_test[*selected_idx].enabled;
+                if *editing_prompt {
+                    // Insert space in prompt
+                    if app.edit_cursor_pos <= config.prompt.len() {
+                        config.prompt.insert(app.edit_cursor_pos, ' ');
+                        app.edit_cursor_pos += 1;
+                    }
+                } else {
+                    // Toggle parameter
+                    if *selected_idx < config.params_to_test.len() {
+                        config.params_to_test[*selected_idx].enabled = !config.params_to_test[*selected_idx].enabled;
+                    }
+                }
+            }
+            KeyCode::Char(c) => {
+                if *editing_prompt {
+                    config.prompt.insert(app.edit_cursor_pos, c);
+                    app.edit_cursor_pos += 1;
+                } else if app.editing_n_predict {
+                    if c.is_ascii_digit() {
+                        app.n_predict_edit_buffer.push(c);
+                    }
+                }
+            }
+            KeyCode::Backspace => {
+                if *editing_prompt {
+                    if app.edit_cursor_pos > 0 {
+                        config.prompt.remove(app.edit_cursor_pos - 1);
+                        app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
+                    }
+                } else {
+                    *selected_idx = selected_idx.saturating_sub(1);
+                }
+            }
+            KeyCode::Delete => {
+                if *editing_prompt {
+                    if app.edit_cursor_pos < config.prompt.len() {
+                        config.prompt.remove(app.edit_cursor_pos);
+                    }
+                } else if app.editing_n_predict {
+                    let buf = app.n_predict_edit_buffer.clone();
+                    if !buf.is_empty() {
+                        app.n_predict_edit_buffer = buf[..buf.len()-1].to_string();
+                    }
+                }
             }
             KeyCode::Enter => {
-                let config_final = config.clone();
-                if let Some(idx) = app.selected_model_idx {
-                    let model = app.models[idx].clone();
-                    let settings = app.settings.clone();
-                    
-                    app.global_mode = GlobalMode::Normal;
-                    app.bench_tune_config = Some(config_final);
-                    app.pending_spawn = Some((Some(model), settings));
+                if *editing_prompt {
+                    *editing_prompt = false;
+                } else if app.editing_n_predict {
+                    if let Ok(val) = app.n_predict_edit_buffer.parse::<u32>() {
+                        let clamped = val.clamp(128, 4096);
+                        config.n_predict = clamped;
+                    }
+                    app.editing_n_predict = false;
+                } else {
+                    let config_final = config.clone();
+                    if let Some(idx) = app.selected_model_idx {
+                        let model = app.models[idx].clone();
+                        let settings = app.settings.clone();
+                        
+                        app.global_mode = GlobalMode::Normal;
+                        app.bench_tune_config = Some(config_final);
+                        app.pending_spawn = Some((Some(model), settings));
+                    }
                 }
             }
             KeyCode::Esc => {
-                app.global_mode = GlobalMode::Normal;
+                if *editing_prompt {
+                    *editing_prompt = false;
+                } else if app.editing_n_predict {
+                    app.editing_n_predict = false;
+                } else {
+                    app.global_mode = GlobalMode::Normal;
+                }
             }
             _ => {}
         }
@@ -1122,17 +1215,21 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         // Start server (with model in CLI for normal mode, without model for router mode)
                         app.last_error_message = None;
                         
-                        if app.server_mode == crate::models::ServerMode::BenchTune {
+                       if app.server_mode == crate::models::ServerMode::BenchTune {
                             let bench_tune_config = crate::models::BenchTuneConfig::new(
                                 model.path.clone(),
                                 3, // Default iterations
-                                "Create a scrneeshot of the game \"PACMAN\" picture in text, size will be 20 lines x 55 columns. Display it. Use a high level of detail. Do it in one attempt, just display it on the screen. dont write it to a file before. Donc forget anything from the game!".to_string(),
+                                "Create Mona Lisa in ascii art using text, number, symbol, everything possible. this should be the perfect painting.".to_string(),
                             );
                             app.global_mode = GlobalMode::BenchTuneSetup {
                                 config: bench_tune_config,
                                 selected_idx: 0,
+                                bench_mode_selection: 0,
+                                editing_prompt: false,
                             };
-                        } else if app.server_mode == crate::models::ServerMode::Router {
+                            return;
+                        }
+                        if app.server_mode == crate::models::ServerMode::Router {
                             // Router mode: start server without a model, then load via /load API
                             app.pending_spawn = Some((None, settings.clone()));
                             // Queue the load so it triggers once server is ready

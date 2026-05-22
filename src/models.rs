@@ -1131,6 +1131,8 @@ pub struct BenchTuneConfig {
     pub prompt: String,
     pub params_to_test: Vec<BenchTuneParam>,
     pub test_duration: Duration,
+    pub bench_mode: BenchTuneMode,
+    pub n_predict: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1215,6 +1217,20 @@ pub enum BenchTuneStatus {
     Error {
         error: String,
     },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BenchTuneMode {
+    /// Runtime-only mode: sends all params in /completion request body, no server restarts
+    RuntimeOnly,
+    /// Full mode: spawns a new server for each parameter combination (tests server-level params)
+    Full,
+}
+
+impl Default for BenchTuneMode {
+    fn default() -> Self {
+        Self::Full
+    }
 }
 
 /// Progress status for benchmark tuning
@@ -1325,6 +1341,8 @@ impl BenchTuneConfig {
                 },
                 ],
                 test_duration: Duration::from_secs(30),
+                bench_mode: BenchTuneMode::default(),
+                n_predict: 2048,
                 }
                 }
 

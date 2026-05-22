@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Cell, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table},
+    widgets::{Block, Borders, Cell, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table, Wrap},
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -278,10 +278,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
             }
 
             // BenchTune setup overlay
-            if let GlobalMode::BenchTuneSetup { config, selected_idx } = &app.global_mode {
+            if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt } = &app.global_mode {
             let area = f.area();
+            let mode_count = 2;
             let w = (area.width as f64 * 0.6).clamp(50.0, 75.0) as u16;
-            let h = (config.params_to_test.len() + 10) as u16;
+            let h = (mode_count + config.params_to_test.len() + 24).min(area.height as usize).max(10) as u16;
             let popup_area = Rect {
                 x: (area.width - w) / 2,
                 y: (area.height - h) / 2,
@@ -289,10 +290,57 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 height: h,
             };
 
+            let mode_options = [
+                ("Runtime Only", "Sends params in /completion request (no restarts)"),
+                ("Full", "Spawns new server for each combination (tests all params)"),
+            ];
+
+            let mode_idx = *bench_mode_selection.min(&1);
+            let _mode_desc = mode_options[mode_idx].1;
+
             let mut lines = Vec::new();
             lines.push(Line::from(vec![
                 Span::styled(" Configure Benchmark Tuning ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
             ]));
+            lines.push(Line::from(""));
+            lines.push(Line::from(" Benchmark mode:"));
+            let mode_descs = [mode_options[0].1, mode_options[1].1];
+            lines.push(Line::from(format!("   {} [{:<2}] {} ({})", if mode_idx == 0 { ">" } else { " " }, if mode_idx == 0 { "X" } else { " " }, "Runtime Only", mode_descs[0])));
+            lines.push(Line::from(format!("   {} [{:<2}] {} ({})", if mode_idx == 1 { ">" } else { " " }, if mode_idx == 1 { "X" } else { " " }, "Full", mode_descs[1])));
+      lines.push(Line::from(""));
+            lines.push(Line::from(" Prompt:"));
+            if *editing_prompt {
+                let prompt = &config.prompt;
+                let cursor_pos = app.edit_cursor_pos.min(prompt.len());
+                let before = &prompt[..cursor_pos];
+                let after = &prompt[cursor_pos..];
+                let cursor_char = prompt.chars().nth(cursor_pos).unwrap_or(' ');
+                let before_lines: Vec<&str> = before.lines().collect();
+                let after_lines: Vec<&str> = after.lines().collect();
+                for (i, line) in before_lines.iter().enumerate() {
+                    if i == before_lines.len() - 1 {
+                        lines.push(Line::from(format!("   {}|{}{}", line, cursor_char, after_lines.first().unwrap_or(&""))));
+                    } else {
+                        lines.push(Line::from(format!("   {}", line)));
+                    }
+                }
+                for line in after_lines.iter().skip(1) {
+                    lines.push(Line::from(format!("   {}", line)));
+                }
+                lines.push(Line::from(format!("   [{} chars]", prompt.len())));
+            } else {
+                let prompt = &config.prompt;
+                for line in prompt.lines() {
+                    lines.push(Line::from(format!("   {}", line)));
+                }
+            }
+            lines.push(Line::from(""));
+            lines.push(Line::from(" n_predict:"));
+            if app.editing_n_predict {
+                lines.push(Line::from(format!("   [{}]", app.n_predict_edit_buffer)));
+            } else {
+                lines.push(Line::from(format!("   {}", config.n_predict)));
+            }
             lines.push(Line::from(""));
             lines.push(Line::from(" Select parameters to vary in the benchmark:"));
             lines.push(Line::from(""));
@@ -310,7 +358,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     "flash_attn" => "(On and Off)".to_string(),
                     "threads" => format!("({} to {}, step {})", p.min as u32, p.max as u32, p.step as u32),
                     "top_k" => format!("({} to {}, step {})", p.min as i32, p.max as i32, p.step as i32),
-                    "expert_count" => format!("({} to {}, step {})", p.min as i32, p.max as i32, p.step as i32),
+                   "expert_count" => format!("({} to {}, step {})", p.min as i32, p.max as i32, p.step as i32),
                     _ => format!("({:.1} to {:.1}, step {:.1})", p.min, p.max, p.step),
                 };
 
@@ -330,6 +378,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ]));
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
+                Span::styled(" [Alt+P]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Edit Prompt  "),
+                Span::styled(" [Alt+N]", Style::default().fg(Color::Yellow)),
+                Span::raw(" N-Predict  "),
+                Span::styled(" [Alt+M]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Mode  "),
                 Span::styled(" [Space]", Style::default().fg(Color::Yellow)),
                 Span::raw(" Toggle  "),
                 Span::styled(" [Enter]", Style::default().fg(Color::Yellow)),
@@ -338,13 +392,16 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 Span::raw(" Cancel"),
             ]));
 
+            // Render the full popup with wrapped prompt if in edit mode
+            let popup_lines = lines;
+
             f.render_widget(ratatui::widgets::Clear, popup_area);
-            f.render_widget(Paragraph::new(lines).block(
+            f.render_widget(Paragraph::new(popup_lines).block(
                 Block::default()
                     .title(" Benchmark Setup ")
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Yellow)),
-            ), popup_area);
+            ).wrap(Wrap { trim: true }), popup_area);
             return;
             }
             // RPC Manager overlay
@@ -1266,6 +1323,15 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     if matches!(app.global_mode, GlobalMode::About) {
         parts.push(Span::raw("  "));
         parts.push(Span::styled("[ABOUT]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+    }
+
+    if let GlobalMode::BenchTuneSetup { editing_prompt, .. } = &app.global_mode {
+        parts.push(Span::raw("  "));
+        if *editing_prompt {
+            parts.push(Span::styled("[EDITING PROMPT]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+        } else {
+            parts.push(Span::styled("[BENCH SETUP]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+        }
     }
 
     match &app.models_mode {
