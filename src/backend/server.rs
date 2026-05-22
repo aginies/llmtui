@@ -251,7 +251,7 @@ pub fn build_bench_cmd(binary: &std::path::Path, model: &DiscoveredModel, settin
     }
 
     if settings.flash_attn {
-        push_flag(&mut cmd, &mut parts, "-fa");
+        push_arg(&mut cmd, &mut parts, "-fa", "1");
     }
 
     push_flag(&mut cmd, &mut parts, "--progress");
@@ -336,6 +336,7 @@ pub async fn spawn_server(
     }
 
     info!("Spawning: {}", cmd_string);
+    let _ = log_tx.send(format!("{}: {}", backend_name, cmd_string)).await;
     let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn process: {}", e))?;
     let pid = child.id().unwrap_or(0);
 

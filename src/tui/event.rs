@@ -227,6 +227,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Skip all if in max concurrent picker
+    if matches!(app.global_mode, GlobalMode::MaxConcurrentPicker { .. }) {
+        handle_max_concurrent_picker_key(app, key);
+        return;
+    }
+
     // Handle normal mode
     match key.code {
         KeyCode::Char('c')
@@ -1529,6 +1535,22 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     match key.code {
+        // Max Concurrent Pred: Enter opens picker modal
+        _ if idx == 11 && key.code == KeyCode::Enter => {
+            if app.settings_edit_buffer.is_empty() {
+                let current = app.settings.max_concurrent_predictions
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "1".to_string());
+                app.global_mode = GlobalMode::MaxConcurrentPicker {
+                    value: current,
+                };
+                app.settings_render_cache = None;
+                app.set_redraw();
+            } else {
+                app.settings_edit_buffer.clear();
+                app.set_redraw();
+            }
+        }
         KeyCode::Up | KeyCode::Char('k') => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
@@ -1791,6 +1813,39 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
         }
         _ => {}
+    }
+}
+
+fn handle_max_concurrent_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
+    if let GlobalMode::MaxConcurrentPicker { value } = &mut app.global_mode {
+        match key.code {
+            KeyCode::Char(c @ '0'..='9') => {
+                if value.len() < 3 {
+                    value.push(c);
+                }
+                app.set_redraw();
+            }
+            KeyCode::Backspace | KeyCode::Left => {
+                value.pop();
+                app.set_redraw();
+            }
+            KeyCode::Enter => {
+                if let Ok(n) = value.parse::<u32>() {
+                    let n = n.clamp(1, 10);
+                    app.settings.max_concurrent_predictions = Some(n);
+                    sync_global_settings(app);
+                    app.update_vram_estimate();
+                }
+                app.global_mode = GlobalMode::Normal;
+                app.settings_render_cache = None;
+                app.set_redraw();
+            }
+            KeyCode::Esc => {
+                app.global_mode = GlobalMode::Normal;
+                app.set_redraw();
+            }
+            _ => {}
+        }
     }
 }
 

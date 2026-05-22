@@ -43,28 +43,28 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         })
         .collect();
 
-    // Height inside borders
-    let inner_height = log_area.height.saturating_sub(2);
-    let total_lines = lines.len();
+    let inner_area = block.inner(log_area);
+    let width = inner_area.width.max(1) as usize;
 
-    // If not focused on log, auto-scroll to bottom
-    if app.active_panel != crate::tui::app::ActivePanel::Log {
-        app.log_scroll_offset = total_lines.saturating_sub(inner_height as usize) as u16;
-    }
+    // Calculate total lines after wrapping (estimation since line_count is unstable/private)
+    let total_screen_lines = lines.iter()
+        .map(|l| (l.width().max(1) + width - 1) / width)
+        .sum::<usize>();
+    
+    // Always auto-scroll to bottom
+    app.log_scroll_offset = total_screen_lines.saturating_sub(inner_area.height as usize) as u16;
 
     let paragraph = Paragraph::new(lines)
         .block(block)
-        .scroll((app.log_scroll_offset, 0))
         .wrap(Wrap { trim: false });
 
-
-    f.render_widget(paragraph, log_area);
+    f.render_widget(paragraph.scroll((app.log_scroll_offset, 0)), log_area);
 
     // Render scrollbar inside borders (below content)
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
         .begin_symbol(Some("↑"))
         .end_symbol(Some("↓"));
-    let mut scrollbar_state = ScrollbarState::new(total_lines)
+    let mut scrollbar_state = ScrollbarState::new(total_screen_lines)
         .position(app.log_scroll_offset as usize);
 
     f.render_stateful_widget(

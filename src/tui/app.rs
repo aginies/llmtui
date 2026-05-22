@@ -86,6 +86,7 @@ pub enum GlobalMode {
     Confirmation { selected: bool, kind: ConfirmationKind },
     RpcManager,
     About,
+    MaxConcurrentPicker { value: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -308,9 +309,9 @@ impl App {
             panel_help_offset: 0,
             last_error_message: None,
 last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
-           pending_search_load: None,
-            search_loading: false,
-            server_mode,
+            pending_search_load: None,
+             search_loading: false,
+             server_mode,
             router_max_models,
             settings_render_cache: None,
         }
@@ -546,6 +547,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             self.log_entries.pop_front();
         }
         self.log_entries.push_back(LogEntry::new(msg, level));
+        self.needs_redraw = true;
     }
 
     /// Mark the app as needing a redraw in the next main loop iteration.
@@ -1248,7 +1250,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("--- Evaluation ---", y)]),
                 Line::from(vec![Span::styled("Eval Batch", y), Span::raw("  Batch size for evaluation (inference). Larger batches use more VRAM but can improve throughput via parallelism. Small values (1-8) for low VRAM, larger (16-128) for high VRAM setups.")]),
                 Line::from(vec![Span::styled("Unified KV", y), Span::raw("  Share KV cache across sequences. Reduces VRAM usage when running multiple requests by reusing allocated cache. May slightly reduce performance but enables more concurrent users.")]),
-                Line::from(vec![Span::styled("Max Concurrent Pred", y), Span::raw("  Maximum number of models that can run simultaneously. Useful when managing multiple models. Each model needs its own VRAM/CPU resources. Set based on available hardware.")]),
+                Line::from(vec![Span::styled("Max Concurrent Pred", y), Span::raw("  Maximum number of models that can run simultaneously. Press Enter to open a picker that shows how context length divides per model. Each model needs its own VRAM/CPU resources.")]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Sampling ---", y)]),
                 Line::from(vec![Span::styled("Seed", y), Span::raw("  Random seed for reproducible outputs. -1 = random (default). Set to a fixed value for deterministic, repeatable responses — useful for debugging or testing prompts.")]),

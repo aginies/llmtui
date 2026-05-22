@@ -363,6 +363,65 @@ pub fn render(f: &mut Frame, app: &mut App) {
             return;
             }
 
+            // MaxConcurrentPicker overlay
+            if let GlobalMode::MaxConcurrentPicker { value } = &app.global_mode {
+            let area = f.area();
+            let w = 55u16;
+            let h = 10u16;
+            let picker_area = Rect {
+                x: (area.width - w) / 2,
+                y: (area.height - h) / 2,
+                width: w,
+                height: h,
+            };
+
+            let ctx_len = app.settings.context_length;
+            let entered = value.parse::<u32>().unwrap_or(0).clamp(1, 10);
+            let per_model = if entered > 0 && ctx_len > 0 {
+                ctx_len / entered
+            } else {
+                ctx_len
+            };
+
+            let mut picker_lines: Vec<Line> = Vec::new();
+            picker_lines.push(Line::from(Span::styled(
+                " Max Concurrent Predictions ",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )));
+            picker_lines.push(Line::from(""));
+            picker_lines.push(Line::from(vec![
+                Span::raw("This divides the context length per loaded model: "),
+            ]));
+            picker_lines.push(Line::from(vec![
+                Span::styled(ctx_len.to_string(), Style::default().fg(Color::Yellow)),
+                Span::raw(" / "),
+                Span::styled(format!("{}", if entered > 0 { entered } else { 1 }), Style::default().fg(Color::Cyan)),
+                Span::raw(" = "),
+                Span::styled(format!("{}", per_model), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+                Span::raw(" tokens per model"),
+            ]));
+            picker_lines.push(Line::from(""));
+            picker_lines.push(Line::from(vec![
+                Span::raw("Value: "),
+                Span::styled(value.as_str(), Style::default().fg(Color::Black).bg(Color::Yellow)),
+            ]));
+            picker_lines.push(Line::from(""));
+            picker_lines.push(Line::from(vec![
+                Span::styled("  [Enter] confirm  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
+                Span::raw("  "),
+                Span::styled("  [Esc] cancel  ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
+            ]));
+
+            f.render_widget(ratatui::widgets::Clear, picker_area);
+            f.render_widget(Paragraph::new(picker_lines).block(
+                Block::default()
+                    .title(" Max Concurrent Predictions ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow)),
+            ), picker_area);
+            return;
+            }
+
             // Main layout: status bar + top panels + active model + log
     let is_search = matches!(app.models_mode, ModelsMode::Search { .. });
     let active_model_visible = app.is_panel_visible(4) && !is_search;
