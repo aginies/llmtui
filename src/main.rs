@@ -334,7 +334,7 @@ async fn main() -> Result<()> {
                     crate::models::BenchTuneConfig::new(
                         model.path.clone(),
                         3, // Default iterations
-                        "Create Mona Lisa in ascii art using text, number, symbol, everything possible. this should be the perfect painting.".to_string(),
+                        "Create Mona Lisa image in ascii art using text, number, symbol, everything possible. this should be the perfect painting.".to_string(),
                     )
                 });
                 

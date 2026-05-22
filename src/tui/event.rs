@@ -981,7 +981,19 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Handle bench_tune mode
     if matches!(app.models_mode, ModelsMode::BenchTune { .. }) {
         match key.code {
-            KeyCode::Esc => {
+           KeyCode::Esc => {
+                if let Some(handle) = app.server_handle.take() {
+                    let port = handle.port;
+                    app.add_log(format!("BenchTune: stopping server on port {}", port), crate::config::LogLevel::Info);
+                    let _ = crate::backend::server::kill_server(handle).await;
+                    app.server_handle = None;
+                    app.metrics_rx = None;
+                    app.metrics = Default::default();
+                }
+                if let Some(task) = app.bench_tune_task_handle.take() {
+                    task.abort();
+                }
+                app.bench_tune_running = false;
                 app.models_mode = ModelsMode::List;
                 app.set_redraw();
                 return;
@@ -1219,7 +1231,7 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             let bench_tune_config = crate::models::BenchTuneConfig::new(
                                 model.path.clone(),
                                 3, // Default iterations
-                                "Create Mona Lisa in ascii art using text, number, symbol, everything possible. this should be the perfect painting.".to_string(),
+                                "Create Mona Lisa image in ascii art using text, number, symbol, everything possible. this should be the perfect painting.".to_string(),
                             );
                             app.global_mode = GlobalMode::BenchTuneSetup {
                                 config: bench_tune_config,
