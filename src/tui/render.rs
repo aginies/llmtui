@@ -1,9 +1,9 @@
 use ratatui::{
     Frame,
-    layout::Rect,
+    layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Cell, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table},
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -310,6 +310,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     "flash_attn" => "(On and Off)".to_string(),
                     "threads" => format!("({} to {}, step {})", p.min as u32, p.max as u32, p.step as u32),
                     "top_k" => format!("({} to {}, step {})", p.min as i32, p.max as i32, p.step as i32),
+                    "expert_count" => format!("({} to {}, step {})", p.min as i32, p.max as i32, p.step as i32),
                     _ => format!("({:.1} to {:.1}, step {:.1})", p.min, p.max, p.step),
                 };
 
@@ -369,8 +370,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
             let available_height = rpc_area.height.saturating_sub(2);
             let max_offset = worker_lines.len().saturating_sub(available_height as usize) as u16;
-            if app.rpc_workers_scroll_offset > max_offset {
-                app.rpc_workers_scroll_offset = max_offset;
+            if app.rpc_workers_scroll_offset > max_offset.into() {
+                app.rpc_workers_scroll_offset = max_offset.into();
             }
 
             let start_idx = app.rpc_workers_scroll_offset as usize;
@@ -489,6 +490,231 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     .border_style(Style::default().fg(Color::Yellow)),
             ), picker_area);
             return;
+            }
+
+            // BenchTune output view modal (fullscreen)
+            if let Some(result_idx) = app.bench_tune_output_view {
+                let results = app.bench_tune_results.clone();
+                if let Some(result) = results.get(result_idx) {
+                    let area = f.area();
+                    let modal_area = Rect {
+                        x: 0,
+                        y: 0,
+                        width: area.width,
+                        height: area.height,
+                    };
+
+                    // Clear the entire area first
+                    f.render_widget(ratatui::widgets::Clear, modal_area);
+
+                    // Main Title - show what parameters were varied for this result
+                    let mut p_parts = Vec::new();
+                    if let Some(v) = result.params.temperature { p_parts.push(format!("temp={:.1}", v)); }
+                    if let Some(v) = result.params.top_p { p_parts.push(format!("top_p={:.1}", v)); }
+                    if let Some(v) = result.params.threads { p_parts.push(format!("th={}", v)); }
+                    if let Some(v) = result.params.batch_size { p_parts.push(format!("bs={}", v)); }
+                    if let Some(v) = result.params.expert_count { p_parts.push(format!("experts={}", v)); }
+                    if let Some(v) = result.params.flash_attn { p_parts.push(format!("fa={}", if v { "on" } else { "off" })); }
+                    
+                    let p_str = if p_parts.is_empty() { "Baseline".to_string() } else { p_parts.join(", ") };
+
+                    let main_title = Line::from(vec![
+                        Span::styled(" BenchTune Result: ", Style::default().fg(Color::Yellow)),
+                        Span::styled(p_str, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                    ]);
+
+                    // Parameters table
+                    let settings = result.base_settings.as_ref();
+                    let param_rows: Vec<Row> = vec![
+                        Row::new(vec![
+                            Cell::from(Span::styled("temperature", Style::default().fg(Color::Yellow))),
+                            Cell::from(Span::styled(settings.map(|s| format!("{:.2}", s.temperature)).unwrap_or_else(|| result.params.temperature.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string())), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("top_p", Style::default().fg(Color::Yellow))),
+                            Cell::from(Span::styled(settings.map(|s| format!("{:.2}", s.top_p)).unwrap_or_else(|| result.params.top_p.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string())), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("top_k", Style::default().fg(Color::Yellow))),
+                            Cell::from(Span::styled(settings.map(|s| s.top_k.to_string()).unwrap_or_else(|| result.params.top_k.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string())), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("repeat_penalty", Style::default().fg(Color::Yellow))),
+                            Cell::from(Span::styled(settings.map(|s| format!("{:.2}", s.repeat_penalty)).unwrap_or_else(|| result.params.repeat_penalty.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string())), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("context_length", Style::default().fg(Color::Yellow))),
+                            Cell::from(Span::styled(settings.map(|s| s.context_length.to_string()).unwrap_or_else(|| result.params.context_length.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string())), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("batch_size", Style::default().fg(Color::Yellow))),
+                            Cell::from(Span::styled(settings.map(|s| s.batch_size.to_string()).unwrap_or_else(|| result.params.batch_size.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string())), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("flash_attn", Style::default().fg(Color::Yellow))),
+                            Cell::from(Span::styled(settings.map(|s| if s.flash_attn { "on".to_string() } else { "off".to_string() }).unwrap_or_else(|| result.params.flash_attn.map(|v| if v { "on".to_string() } else { "off".to_string() }).unwrap_or_else(|| "-".to_string())), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("threads", Style::default().fg(Color::Yellow))),
+                            Cell::from(Span::styled(settings.map(|s| s.threads.to_string()).unwrap_or_else(|| result.params.threads.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string())), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("expert_count", Style::default().fg(Color::Yellow))),
+                            Cell::from(Span::styled(settings.map(|s| s.expert_count.to_string()).unwrap_or_else(|| result.params.expert_count.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string())), Style::default().fg(Color::Cyan))),
+                        ]),
+                    ];
+
+                    let params_table = Table::new(param_rows, [
+                        Constraint::Fill(1),
+                        Constraint::Fill(1),
+                    ])
+                    .header(Row::new(vec![
+                        Cell::from(Span::styled("Parameter", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))),
+                        Cell::from(Span::styled("Value", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))),
+                    ]))
+                    .block(Block::default()
+                        .title(" Parameters ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)));
+
+                    // Metrics table (for the selected output)
+                    let output_idx = app.bench_tune_output_index.min(result.outputs.len().saturating_sub(1));
+                    let metrics_for_output = result.per_iteration_metrics.get(output_idx).unwrap_or(&result.metrics);
+
+                    let metric_rows: Vec<Row> = vec![
+                        Row::new(vec![
+                            Cell::from(Span::styled("prompt_tps", Style::default().fg(Color::Green))),
+                            Cell::from(Span::styled(format!("{:.2}", metrics_for_output.prompt_tps), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("gen_tps", Style::default().fg(Color::Green))),
+                            Cell::from(Span::styled(format!("{:.2}", metrics_for_output.generation_tps), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("combined_tps", Style::default().fg(Color::Green))),
+                            Cell::from(Span::styled(format!("{:.2}", metrics_for_output.combined_tps), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("latency/token", Style::default().fg(Color::Green))),
+                            Cell::from(Span::styled(format!("{:.2} ms", metrics_for_output.latency_per_token), Style::default().fg(Color::Cyan))),
+                        ]),
+                        Row::new(vec![
+                            Cell::from(Span::styled("first_token", Style::default().fg(Color::Green))),
+                            Cell::from(Span::styled(format!("{:.2} ms", metrics_for_output.first_token_time), Style::default().fg(Color::Cyan))),
+                        ]),
+                    ];
+
+                    let metrics_table = Table::new(metric_rows, [
+                        Constraint::Fill(1),
+                        Constraint::Fill(1),
+                    ])
+                    .header(Row::new(vec![
+                        Cell::from(Span::styled("Metric", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))),
+                        Cell::from(Span::styled("Value", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))),
+                    ]))
+                    .block(Block::default()
+                        .title(format!(" Metrics (Iter {}/{}) ", output_idx + 1, result.outputs.len()))
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)));
+
+                    // Output section
+                    let output_lines: Vec<Line> = if !result.outputs.is_empty() {
+                        let output = &result.outputs[output_idx];
+                        output.lines().map(|l| Line::from(l.to_string())).collect()
+                    } else {
+                        vec![Line::from("No output captured.")]
+                    };
+
+                    // Layout Definition
+                    // y=0: Title
+                    // y=1..11: Params (left) and Metrics (right)
+                    // y=12..area.height-1: Output (full width)
+                    // y=area.height-1: Controls
+
+                    let title_area = Rect { x: 0, y: 0, width: area.width, height: 1 };
+                    f.render_widget(Paragraph::new(main_title).alignment(ratatui::layout::Alignment::Center), title_area);
+
+                    let top_height = 11; // enough for 9 params + header + borders
+                    let left_width = area.width / 2;
+                    let right_width = area.width - left_width;
+
+                    let left_area = Rect {
+                        x: 0,
+                        y: 1,
+                        width: left_width,
+                        height: top_height,
+                    };
+                    f.render_widget(params_table, left_area);
+
+                    let metrics_area = Rect {
+                        x: left_width,
+                        y: 1,
+                        width: right_width,
+                        height: top_height,
+                    };
+                    f.render_widget(metrics_table, metrics_area);
+
+                    // Output area (Full Width)
+                    let output_y = 1 + top_height;
+                    let controls_height = 1;
+                    if output_y < area.height.saturating_sub(controls_height) {
+                        let output_area = Rect {
+                            x: 0,
+                            y: output_y,
+                            width: area.width,
+                            height: area.height.saturating_sub(output_y + controls_height),
+                        };
+
+                        let output_block = Block::default()
+                            .title(" Captured Output ")
+                            .borders(Borders::ALL)
+                            .border_style(Style::default().fg(Color::Cyan));
+
+                        if !output_lines.is_empty() {
+                            let scroll = app.bench_tune_output_scroll as u16;
+                            f.render_widget(
+                                Paragraph::new(output_lines)
+                                    .block(output_block)
+                                    .wrap(ratatui::widgets::Wrap { trim: false })
+                                    .scroll((scroll, 0)),
+                                output_area
+                            );
+                        } else {
+                            f.render_widget(Paragraph::new(output_lines).block(output_block), output_area);
+                        }
+                    }
+
+                    // Calculate absolute index and total across all results
+                    let mut absolute_idx = 0;
+                    let mut total_outputs = 0;
+                    for (r_idx, r) in results.iter().enumerate() {
+                        if r_idx < result_idx {
+                            absolute_idx += r.outputs.len();
+                        }
+                        total_outputs += r.outputs.len();
+                    }
+                    absolute_idx += output_idx + 1;
+
+                    // Controls line
+                    let controls = Line::from(vec![
+                        Span::styled("  [Esc] close  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
+                        Span::raw("  "),
+                        Span::styled("[j/↓/PgDn] scroll  ", Style::default().fg(Color::Yellow)),
+                        Span::styled("[k/↑/PgUp] scroll  ", Style::default().fg(Color::Yellow)),
+                        Span::raw("  "),
+                        Span::styled(format!("[p] prev({}/{}) ", absolute_idx, total_outputs), Style::default().fg(Color::Yellow)),
+                        Span::raw("  "),
+                        Span::styled("[n] next  ", Style::default().fg(Color::Yellow)),
+                    ]);
+                    let controls_area = Rect {
+                        x: 0,
+                        y: area.height.saturating_sub(1),
+                        width: area.width,
+                        height: 1,
+                    };
+                    f.render_widget(Paragraph::new(controls).alignment(ratatui::layout::Alignment::Center), controls_area);
+                    return;
+                }
             }
 
             // Main layout: status bar + top panels + active model + log
@@ -617,8 +843,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
             
             // Clamp scroll offset to max
             let max_offset = profile_lines.len().saturating_sub(available_height as usize) as u16;
-            if app.profiles_scroll_offset > max_offset {
-                app.profiles_scroll_offset = max_offset;
+            if app.profiles_scroll_offset > max_offset.into() {
+                app.profiles_scroll_offset = max_offset.into();
             }
             
             // Build visible profile lines with scroll offset applied
@@ -673,8 +899,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
             
             // Clamp scroll offset to max
             let max_offset = preset_lines.len().saturating_sub(available_height as usize) as u16;
-            if app.system_prompt_presets_scroll_offset > max_offset {
-                app.system_prompt_presets_scroll_offset = max_offset;
+            if app.system_prompt_presets_scroll_offset > max_offset.into() {
+                app.system_prompt_presets_scroll_offset = max_offset.into();
             }
             
             // Build visible preset lines with scroll offset applied
@@ -961,11 +1187,27 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
             }
         }
         crate::tui::app::ModelsMode::BenchTune => {
-            vec![
-                Span::styled("⎋ stop", r),
-                Span::raw("  "),
-                Span::styled("⇥ panels", c),
-            ]
+            if app.bench_tune_progress.is_some() && matches!(app.bench_tune_progress.as_ref().unwrap(), crate::models::BenchTuneProgress::Running { .. }) {
+                vec![
+                    Span::styled("⎋ stop", r),
+                    Span::raw("  "),
+                    Span::styled("⇥ panels", c),
+                ]
+            } else if !app.bench_tune_results.is_empty() {
+                vec![
+                    Span::styled("↵ view output", y),
+                    Span::raw("  "),
+                    Span::styled("⎋ stop", r),
+                    Span::raw("  "),
+                    Span::styled("⇥ panels", c),
+                ]
+            } else {
+                vec![
+                    Span::styled("⎋ stop", r),
+                    Span::raw("  "),
+                    Span::styled("⇥ panels", c),
+                ]
+            }
         }
     }
 }

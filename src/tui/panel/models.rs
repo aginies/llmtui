@@ -374,33 +374,60 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     crate::models::BenchTuneProgress::Running { current, total, progress: p, current_params } => {
                         lines.push(Line::from(format!("Progress: {}/{} ({:.0}%)", current, total, p)));
                         lines.push(Line::from(""));
-                        lines.push(Line::from("Current parameters:"));
-                        if let Some(temp) = current_params.temperature {
-                            lines.push(Line::from(format!("  temperature: {}", temp)));
-                        }
-                        if let Some(tp) = current_params.top_p {
-                            lines.push(Line::from(format!("  top_p: {}", tp)));
-                        }
-                        if let Some(tk) = current_params.top_k {
-                            lines.push(Line::from(format!("  top_k: {}", tk)));
-                        }
-                        if let Some(rp) = current_params.repeat_penalty {
-                            lines.push(Line::from(format!("  repeat_penalty: {}", rp)));
-                        }
-                        if let Some(cl) = current_params.context_length {
-                            lines.push(Line::from(format!("  context_length: {}", cl)));
-                        }
-                        if let Some(bs) = current_params.batch_size {
-                            lines.push(Line::from(format!("  batch_size: {}", bs)));
+                        lines.push(Line::from(Span::styled("Current parameters:", Style::default().add_modifier(Modifier::BOLD))));
+                        
+                        let mut p_parts = Vec::new();
+                        if let Some(v) = current_params.temperature { p_parts.push(format!("  temperature: {:.2}", v)); }
+                        if let Some(v) = current_params.top_p { p_parts.push(format!("  top_p: {:.2}", v)); }
+                        if let Some(v) = current_params.top_k { p_parts.push(format!("  top_k: {}", v)); }
+                        if let Some(v) = current_params.repeat_penalty { p_parts.push(format!("  repeat_penalty: {:.2}", v)); }
+                        if let Some(v) = current_params.context_length { p_parts.push(format!("  context_length: {}", v)); }
+                        if let Some(v) = current_params.batch_size { p_parts.push(format!("  batch_size: {}", v)); }
+                        if let Some(v) = current_params.threads { p_parts.push(format!("  threads: {}", v)); }
+                        if let Some(v) = current_params.flash_attn { p_parts.push(format!("  flash_attn: {}", if v { "on" } else { "off" })); }
+                        if let Some(v) = current_params.expert_count { p_parts.push(format!("  expert_count: {}", v)); }
+
+                        if p_parts.is_empty() {
+                            lines.push(Line::from("  (Baseline)"));
+                        } else {
+                            for part in p_parts {
+                                lines.push(Line::from(part));
+                            }
                         }
                     }
                     crate::models::BenchTuneProgress::Completed { total_tests, successful_tests, elapsed } => {
                         let elapsed_str = format!("{}s", elapsed.as_secs());
-                        lines.push(Line::from(format!("Completed: {}/{} tests in {}", total_tests, successful_tests, elapsed_str)));
+                        lines.push(Line::from(vec![
+                            Span::raw("Status: "),
+                            Span::styled("COMPLETED", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+                            Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
+                        ]));
+                        
+                        let success_style = if *successful_tests == *total_tests {
+                            Style::default().fg(Color::Green)
+                        } else if *successful_tests > 0 {
+                            Style::default().fg(Color::Yellow)
+                        } else {
+                            Style::default().fg(Color::Red)
+                        };
+                        
+                        lines.push(Line::from(vec![
+                            Span::raw("Success: "),
+                            Span::styled(format!("{}/{}", successful_tests, total_tests), success_style.add_modifier(Modifier::BOLD)),
+                        ]));
+
+                        if *successful_tests < *total_tests {
+                            lines.push(Line::from(Span::styled(
+                                format!("Warning: {} test(s) failed. Check Log (F6) for details.", total_tests - successful_tests),
+                                Style::default().fg(Color::Red)
+                            )));
+                        }
                         
                         if !app.bench_tune_results.is_empty() {
                             lines.push(Line::from(""));
-                            lines.push(Line::from(Span::styled(" Best results (by Generation speed): ", Style::default().add_modifier(Modifier::BOLD))));
+                            lines.push(Line::from(Span::styled(" Benchmark results (sorted by generation speed):", Style::default().add_modifier(Modifier::BOLD))));
+                            lines.push(Line::from(Span::styled(" (Press [Enter] to view details of selected result)", Style::default().fg(Color::DarkGray))));
+                            lines.push(Line::from(""));
                             
                             use ratatui::widgets::{Row, Cell};
                             
@@ -411,27 +438,34 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                 Cell::from("Params"),
                             ]).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
 
-                            let mut sorted = app.bench_tune_results.clone();
-                            sorted.sort_by(|a, b| b.metrics.generation_tps.partial_cmp(&a.metrics.generation_tps).unwrap_or(std::cmp::Ordering::Equal));
-                            
                             let mut rows = Vec::new();
-                            for (i, result) in sorted.iter().take(10).enumerate() {
+                            for (i, result) in app.bench_tune_results.iter().enumerate() {
                                 let mut p_parts = Vec::new();
                                 if let Some(v) = result.params.temperature { p_parts.push(format!("t:{:.1}", v)); }
                                 if let Some(v) = result.params.top_p { p_parts.push(format!("p:{:.1}", v)); }
                                 if let Some(v) = result.params.threads { p_parts.push(format!("th:{}", v)); }
                                 if let Some(v) = result.params.batch_size { p_parts.push(format!("bs:{}", v)); }
+                                if let Some(v) = result.params.expert_count { p_parts.push(format!("ec:{}", v)); }
                                 if let Some(v) = result.params.flash_attn { p_parts.push(format!("fa:{}", if v { "on" } else { "off" })); }
                                 
                                 let p_str = p_parts.join(",");
+                                
+                                let mut style = Style::default().fg(Color::White);
+                                if i == 0 {
+                                    style = style.fg(Color::Green);
+                                }
                                 
                                 rows.push(Row::new(vec![
                                     Cell::from(format!(" {:<2} ", i + 1)),
                                     Cell::from(format!("{:.2}", result.metrics.generation_tps)),
                                     Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
                                     Cell::from(p_str),
-                                ]).style(if i == 0 { Style::default().fg(Color::Green) } else { Style::default().fg(Color::White) }));
+                                ]).style(style));
                             }
+
+                            // Use TableState for scrolling and selection
+                            let mut state = ratatui::widgets::TableState::default();
+                            state.select(Some(app.bench_tune_result_row));
 
                             let table = ratatui::widgets::Table::new(rows, [
                                 ratatui::layout::Constraint::Length(4),
@@ -440,10 +474,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                 ratatui::layout::Constraint::Fill(1),
                             ])
                             .header(header)
-                            .block(Block::default().borders(Borders::NONE));
+                            .block(Block::default().borders(Borders::NONE))
+                            .row_highlight_style(Style::default().bg(Color::Rgb(60, 60, 60)).add_modifier(Modifier::BOLD))
+                            .highlight_symbol("> ");
                             
-                            // We need to render the table separately because we can't easily put a Table inside a Paragraph's lines
-                            // So we'll render the header lines first, then the table.
                             let header_height = lines.len() as u16;
                             let table_area = Rect {
                                 x: inner_area.x,
@@ -453,7 +487,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             };
                             
                             f.render_widget(Paragraph::new(lines.clone()), inner_area);
-                            f.render_widget(table, table_area);
+                            f.render_stateful_widget(table, table_area, &mut state);
                             return;
                         }
                     }

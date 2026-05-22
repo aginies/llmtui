@@ -25,14 +25,14 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
             let settings_height = c.lines.len();
 
             // Clamp scroll so selected item is within the visible window.
-            if selected_line_idx < (app.settings_scroll_offset as usize) {
-                app.settings_scroll_offset = selected_line_idx as u16;
-            } else if available_height > 0 && (selected_line_idx - app.settings_scroll_offset as usize) >= (available_height as usize) {
-                app.settings_scroll_offset = (selected_line_idx as u16).saturating_sub(available_height).saturating_add(1);
+            if selected_line_idx < app.settings_scroll_offset {
+                app.settings_scroll_offset = selected_line_idx;
+            } else if available_height > 0 && (selected_line_idx - app.settings_scroll_offset) >= (available_height as usize) {
+                app.settings_scroll_offset = (selected_line_idx).saturating_sub(available_height as usize).saturating_add(1);
             }
 
             // Clamp scroll offset to max
-            let max_offset = settings_height.saturating_sub(available_height as usize) as u16;
+            let max_offset = settings_height.saturating_sub(available_height as usize);
             if app.settings_scroll_offset > max_offset {
                 app.settings_scroll_offset = max_offset;
             }
@@ -182,16 +182,18 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
 
     // Handle scrolling
     let available_height = area.height.saturating_sub(2);
-    if selected_line_idx < (app.settings_scroll_offset as usize) {
-        app.settings_scroll_offset = selected_line_idx as u16;
-    } else if available_height > 0 && (selected_line_idx - app.settings_scroll_offset as usize) >= (available_height as usize) {
-        app.settings_scroll_offset = (selected_line_idx as u16).saturating_sub(available_height).saturating_add(1);
+    if selected_line_idx < app.settings_scroll_offset {
+        app.settings_scroll_offset = selected_line_idx;
+    } else if selected_line_idx >= app.settings_scroll_offset + available_height as usize {
+        app.settings_scroll_offset = (selected_line_idx).saturating_sub(available_height as usize).saturating_add(1);
     }
 
-    let max_offset = settings_height.saturating_sub(available_height as usize) as u16;
+    let max_offset = total_count.saturating_sub(available_height as usize);
     if app.settings_scroll_offset > max_offset {
         app.settings_scroll_offset = max_offset;
     }
+
+
 
     (lines, total_count, settings_height, selected_line_idx)
 }

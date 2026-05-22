@@ -334,7 +334,7 @@ async fn main() -> Result<()> {
                     crate::models::BenchTuneConfig::new(
                         model.path.clone(),
                         3, // Default iterations
-                        "Linux: pong game in C code, playable, up to buildable".to_string(),
+                        "Create a scrneeshot of the game \"PACMAN\" picture in text, size will be 20 lines x 55 columns. Display it. Use a high level of detail. Do it in one attempt, just display it on the screen. dont write it to a file before. Donc forget anything from the game.".to_string(),
                     )
                 });
                 
@@ -342,6 +342,8 @@ async fn main() -> Result<()> {
                 app.bench_tune_tx = Some(tx_tune.clone());
                 app.bench_tune_config = Some(bench_tune_config.clone());
                 app.bench_tune_running = true;
+                app.bench_tune_results.clear();
+                app.bench_tune_result_row = 0;
                 app.models_mode = crate::tui::app::ModelsMode::BenchTune;
                 
                 let bench_tune_config_clone = bench_tune_config.clone();
@@ -353,6 +355,7 @@ async fn main() -> Result<()> {
                 
                 let handle = tokio::spawn(async move {
                     let results = crate::backend::benchmark::run_bench_tune(
+                        &config_clone,
                         &bench_tune_config_clone,
                         &model_clone,
                         &settings_clone,
@@ -529,12 +532,25 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                                     }
                                 }
 
-                                app.bench_tune_results = bench_results;
-                                app.bench_tune_running = false;
+                                    // Sort results by generation TPS (descending)
+                                    let mut sorted_results = bench_results;
+                                    sorted_results.sort_by(|a, b| b.metrics.generation_tps.partial_cmp(&a.metrics.generation_tps).unwrap_or(std::cmp::Ordering::Equal));
+                                    app.bench_tune_results = sorted_results;
+                                    app.bench_tune_running = false;
                                 
-                                // Update model state to Loaded
+                                // Unload the model after benchmarking
                                 if let Some(model) = app.selected_model() {
-                                    app.model_states.insert(model.display_name.clone(), crate::models::ModelState::Loaded { port: 0, pid: 0 });
+                                    if let Some(handle) = &app.server_handle {
+                                        let host = handle.host.clone();
+                                        let port = handle.port;
+                                        let model_name = model.display_name.clone();
+                                        let model_path = model.path.clone();
+                                        let model_path_str = model_path.to_str().map(|s| s.to_string());
+                                        tokio::spawn(async move {
+                                            let _ = server::unload_model(&host, port, &model_name, model_path_str.as_deref()).await;
+                                        });
+                                    }
+                                    app.model_states.insert(model.display_name.clone(), crate::models::ModelState::Available);
                                 }
                             }
                             Err(e) => {

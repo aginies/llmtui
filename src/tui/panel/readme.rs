@@ -376,8 +376,8 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     let available_height = area.height.saturating_sub(2);
     let max_offset = lines.len().saturating_sub(available_height as usize) as u16;
 
-    if app.readme_scroll_offset > max_offset {
-        app.readme_scroll_offset = max_offset;
+    if app.readme_scroll_offset > max_offset.into() {
+        app.readme_scroll_offset = max_offset.into();
     }
 
     let start_idx = app.readme_scroll_offset as usize;

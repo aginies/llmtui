@@ -170,7 +170,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 let config_final = config.clone();
                 if let Some(idx) = app.selected_model_idx {
                     let model = app.models[idx].clone();
-                    let settings = app.config.resolve_settings(Some(&model.display_name), None);
+                    let settings = app.settings.clone();
                     
                     app.global_mode = GlobalMode::Normal;
                     app.bench_tune_config = Some(config_final);
@@ -801,6 +801,76 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Handle bench_tune output view modal
+    if app.bench_tune_output_view.is_some() {
+        match key.code {
+            KeyCode::Esc => {
+                app.bench_tune_output_view = None;
+                app.set_redraw();
+                return;
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                app.bench_tune_output_scroll = app.bench_tune_output_scroll.saturating_add(1);
+                app.set_redraw();
+                return;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                app.bench_tune_output_scroll = app.bench_tune_output_scroll.saturating_sub(1);
+                app.set_redraw();
+                return;
+            }
+            KeyCode::PageDown => {
+                app.bench_tune_output_scroll = app.bench_tune_output_scroll.saturating_add(10);
+                app.set_redraw();
+                return;
+            }
+            KeyCode::PageUp => {
+                app.bench_tune_output_scroll = app.bench_tune_output_scroll.saturating_sub(10);
+                app.set_redraw();
+                return;
+            }
+            KeyCode::Char('n') => {
+                if let Some(mut result_idx) = app.bench_tune_output_view {
+                    if let Some(result) = app.bench_tune_results.get(result_idx) {
+                        let max_iter_idx = result.outputs.len().saturating_sub(1);
+                        if app.bench_tune_output_index < max_iter_idx {
+                            app.bench_tune_output_index += 1;
+                            app.bench_tune_output_scroll = 0;
+                        } else if result_idx < app.bench_tune_results.len().saturating_sub(1) {
+                            result_idx += 1;
+                            app.bench_tune_output_view = Some(result_idx);
+                            app.bench_tune_output_index = 0;
+                            app.bench_tune_output_scroll = 0;
+                        }
+                        app.set_redraw();
+                    }
+                }
+                return;
+            }
+            KeyCode::Char('p') => {
+                if let Some(mut result_idx) = app.bench_tune_output_view {
+                    if app.bench_tune_output_index > 0 {
+                        app.bench_tune_output_index -= 1;
+                        app.bench_tune_output_scroll = 0;
+                    } else if result_idx > 0 {
+                        result_idx -= 1;
+                        app.bench_tune_output_view = Some(result_idx);
+                        if let Some(prev_result) = app.bench_tune_results.get(result_idx) {
+                            app.bench_tune_output_index = prev_result.outputs.len().saturating_sub(1);
+                        } else {
+                            app.bench_tune_output_index = 0;
+                        }
+                        app.bench_tune_output_scroll = 0;
+                    }
+                    app.set_redraw();
+                }
+                return;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     // Handle bench_tune mode
     if matches!(app.models_mode, ModelsMode::BenchTune { .. }) {
         match key.code {
@@ -808,6 +878,25 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.models_mode = ModelsMode::List;
                 app.set_redraw();
                 return;
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                app.bench_tune_result_row = app.bench_tune_result_row.saturating_add(1).min(app.bench_tune_results.len().saturating_sub(1));
+                app.set_redraw();
+                return;
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                app.bench_tune_result_row = app.bench_tune_result_row.saturating_sub(1);
+                app.set_redraw();
+                return;
+            }
+            KeyCode::Enter => {
+                if !app.bench_tune_results.is_empty() {
+                    app.bench_tune_output_view = Some(app.bench_tune_result_row);
+                    app.bench_tune_output_scroll = 0;
+                    app.bench_tune_output_index = 0;
+                    app.set_redraw();
+                    return;
+                }
             }
             _ => {}
         }
@@ -1023,7 +1112,7 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             let bench_tune_config = crate::models::BenchTuneConfig::new(
                                 model.path.clone(),
                                 3, // Default iterations
-                                "Linux: pong game in C code, playable, up to buildable".to_string(),
+                                "Create a scrneeshot of the game \"PACMAN\" picture in text, size will be 20 lines x 55 columns. Display it. Use a high level of detail. Do it in one attempt, just display it on the screen. dont write it to a file before. Donc forget anything from the game!".to_string(),
                             );
                             app.global_mode = GlobalMode::BenchTuneSetup {
                                 config: bench_tune_config,
@@ -1133,12 +1222,13 @@ fn handle_log_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            let max_offset = app.log_total_lines.saturating_sub(1) as u16;
-            app.log_scroll_offset = (app.log_scroll_offset + 1).min(max_offset);
-            if app.log_scroll_offset >= max_offset {
-                app.log_follow = true;
+            app.log_scroll_offset = app.log_scroll_offset + 1;
+            // Get inner height (approximate, since we don't have layout here)
+            // But we can just use the total lines check
+            if app.log_scroll_offset >= app.log_total_lines.saturating_sub(5) {
+                 app.log_follow = true;
             } else {
-                app.log_follow = false;
+                 app.log_follow = false;
             }
             app.set_redraw();
         }
@@ -1148,9 +1238,8 @@ fn handle_log_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
         }
         KeyCode::PageDown => {
-            let max_offset = app.log_total_lines.saturating_sub(1) as u16;
-            app.log_scroll_offset = (app.log_scroll_offset + 15).min(max_offset);
-            if app.log_scroll_offset >= max_offset {
+            app.log_scroll_offset = app.log_scroll_offset + 15;
+            if app.log_scroll_offset >= app.log_total_lines.saturating_sub(5) {
                 app.log_follow = true;
             }
             app.set_redraw();
@@ -2155,9 +2244,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                     app.set_redraw();
                 }
                 MouseEventKind::ScrollDown => {
-                    let max_offset = app.log_total_lines.saturating_sub(1) as u16;
-                    app.log_scroll_offset = (app.log_scroll_offset + 1).min(max_offset);
-                    if app.log_scroll_offset >= max_offset {
+                    app.log_scroll_offset = app.log_scroll_offset + 1;
+                    if app.log_scroll_offset >= app.log_total_lines.saturating_sub(5) {
                         app.log_follow = true;
                     } else {
                         app.log_follow = false;
@@ -2197,9 +2285,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                 app.set_redraw();
             }
             MouseEventKind::ScrollDown => {
-                let max_offset = app.log_total_lines.saturating_sub(1) as u16;
-                app.log_scroll_offset = (app.log_scroll_offset + 1).min(max_offset);
-                if app.log_scroll_offset >= max_offset {
+                app.log_scroll_offset = app.log_scroll_offset + 1;
+                if app.log_scroll_offset >= app.log_total_lines.saturating_sub(5) {
                     app.log_follow = true;
                 } else {
                     app.log_follow = false;

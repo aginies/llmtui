@@ -30,22 +30,42 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    let lines: Vec<Line> = app
-        .log_entries
-        .iter()
-        .map(|e| {
-            let level_color = match e.level {
-                crate::config::LogLevel::Info => Color::Cyan,
-                crate::config::LogLevel::Warning => Color::Yellow,
-                crate::config::LogLevel::Error => Color::Red,
-            };
-            Line::from(vec![
-                Span::styled(format!("[{}] ", e.timestamp), Style::default().fg(Color::DarkGray)),
-                Span::styled(format!("[{}] ", e.level.label()), Style::default().fg(level_color).add_modifier(Modifier::BOLD)),
+    let mut lines: Vec<Line> = Vec::new();
+    for e in &app.log_entries {
+        let level_color = match e.level {
+            crate::config::LogLevel::Info => Color::Cyan,
+            crate::config::LogLevel::Warning => Color::Yellow,
+            crate::config::LogLevel::Error => Color::Red,
+        };
+
+        let ts_prefix = format!("[{}] ", e.timestamp);
+        let lv_prefix = format!("[{}] ", e.level.label());
+        let prefix_width = ts_prefix.len() + lv_prefix.len();
+
+        let msg_lines: Vec<&str> = e.message.lines().collect();
+        if msg_lines.is_empty() {
+             lines.push(Line::from(vec![
+                Span::styled(ts_prefix, Style::default().fg(Color::DarkGray)),
+                Span::styled(lv_prefix, Style::default().fg(level_color).add_modifier(Modifier::BOLD)),
                 Span::styled(&e.message, Style::default().fg(Color::White)),
-            ])
-        })
-        .collect();
+            ]));
+        } else {
+            for (i, line) in msg_lines.into_iter().enumerate() {
+                if i == 0 {
+                    lines.push(Line::from(vec![
+                        Span::styled(ts_prefix.clone(), Style::default().fg(Color::DarkGray)),
+                        Span::styled(lv_prefix.clone(), Style::default().fg(level_color).add_modifier(Modifier::BOLD)),
+                        Span::styled(line, Style::default().fg(Color::White)),
+                    ]));
+                } else {
+                    lines.push(Line::from(vec![
+                        Span::raw(" ".repeat(prefix_width)),
+                        Span::styled(line, Style::default().fg(Color::White)),
+                    ]));
+                }
+            }
+        }
+    }
 
     let inner_area = block.inner(log_area);
     let width = inner_area.width.max(1) as usize;
@@ -59,14 +79,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Auto-scroll to bottom if follow is enabled
     if app.log_follow {
-        app.log_scroll_offset = total_screen_lines.saturating_sub(inner_area.height as usize) as u16;
+        app.log_scroll_offset = total_screen_lines.saturating_sub(inner_area.height as usize);
     }
 
     let paragraph = Paragraph::new(lines)
         .block(block)
         .wrap(Wrap { trim: false });
 
-    f.render_widget(paragraph.scroll((app.log_scroll_offset, 0)), log_area);
+    f.render_widget(paragraph.scroll((app.log_scroll_offset as u16, 0)), log_area);
 
     // Render scrollbar inside borders (below content)
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)

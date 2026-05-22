@@ -8,6 +8,7 @@ use crate::models::{BenchTuneConfig, BenchTuneMetrics, BenchTuneParamValue, Benc
 
 /// Run a benchmark tuning test with multiple parameter combinations
 pub async fn run_bench_tune(
+    main_config: &crate::config::Config,
     config: &BenchTuneConfig,
     model: &DiscoveredModel,
     settings: &ModelSettings,
@@ -16,13 +17,13 @@ pub async fn run_bench_tune(
 ) -> Result<Vec<BenchTuneResult>, Box<dyn std::error::Error + Send + Sync>> {
     let start_time = Instant::now();
     let total_tests = config.get_total_tests_count();
-    
+
     // Generate all parameter combinations
     let combinations = config.generate_combinations();
-    
+
     // Results storage
     let mut results = Vec::new();
-    
+
     // Run each parameter combination
     for (idx, combination) in combinations.iter().enumerate() {
         // Update progress
@@ -33,9 +34,10 @@ pub async fn run_bench_tune(
             progress,
             current_params: combination.clone(),
         }).await?;
-        
+
         // Run the test
         let result = run_bench_tune_single_test(
+            main_config,
             combination,
             model,
             settings,
@@ -43,7 +45,7 @@ pub async fn run_bench_tune(
             config.prompt.clone(),
             log_tx.clone(),
         ).await;
-        
+
         match result {
             Ok(test_result) => {
                 results.push(test_result);
@@ -54,28 +56,29 @@ pub async fn run_bench_tune(
             }
         }
     }
-    
+
     // Sort results by combined_tps (descending)
     results.sort_by(|a, b| {
         b.metrics.combined_tps.partial_cmp(&a.metrics.combined_tps)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    
+
     let elapsed = start_time.elapsed();
     let successful_tests = results.len();
-    
+
     // Final progress update
     progress_tx.send(BenchTuneStatus::Completed {
         total_tests,
         successful_tests,
         elapsed,
     }).await?;
-    
+
     Ok(results)
 }
 
 /// Run a single benchmark tuning test with specific parameters
 async fn run_bench_tune_single_test(
+    main_config: &crate::config::Config,
     params: &BenchTuneParamValue,
     model: &DiscoveredModel,
     base_settings: &ModelSettings,
@@ -85,7 +88,7 @@ async fn run_bench_tune_single_test(
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
     // Create settings with test parameters
     let mut settings = base_settings.clone();
-    
+
     // Apply test parameters
     if let Some(temperature) = params.temperature {
         settings.temperature = temperature as f32;
@@ -110,19 +113,20 @@ async fn run_bench_tune_single_test(
         settings.batch_size = batch_size;
         settings.ubatch_size = batch_size;
     }
-    
-// Spawn server with test parameters
-    let config = crate::config::Config::default();
+    if let Some(expert_count) = params.expert_count {
+        settings.expert_count = expert_count;
+    }
+
+    // Spawn server with test parameters
     let (server_handle, _command) = spawn_server(
-        &config,
+        main_config,
         Some(model),
         &settings,
         log_tx.clone(),
         None,
         ServerMode::Normal,
         1,
-    ).await?;
-    
+    ).await?;    
     // Wait for server to be ready
     let mut ready = false;
     let host = if server_handle.host == "0.0.0.0" { "127.0.0.1" } else { &server_handle.host };
@@ -154,6 +158,8 @@ async fn run_bench_tune_single_test(
     let mut total_generation_time = Duration::ZERO;
     let mut total_time = Duration::ZERO;
     let mut first_token_times = Vec::new();
+    let mut outputs = Vec::new();
+    let mut per_iteration_metrics = Vec::new();
     
     let _ = log_tx.send(format!("Running {} inference iterations...", num_iterations)).await;
     
@@ -169,12 +175,43 @@ async fn run_bench_tune_single_test(
                 total_generation_time += res.generation_time;
                 total_time += res.total_time;
                 first_token_times.push(res.first_token_time);
+                let output_text = res.content.clone();
+                outputs.push(res.content);
+                
+                // Collect per-iteration metrics
+                let iter_prompt_tps = if res.prompt_time.as_secs_f64() > 0.0 {
+                    res.prompt_tokens as f64 / res.prompt_time.as_secs_f64()
+                } else {
+                    0.0
+                };
+                let iter_gen_tps = if res.generation_time.as_secs_f64() > 0.0 {
+                    res.generation_tokens as f64 / res.generation_time.as_secs_f64()
+                } else {
+                    0.0
+                };
+                let iter_latency = if res.generation_tokens > 0 {
+                    res.generation_time.as_millis() as f64 / res.generation_tokens as f64
+                } else {
+                    0.0
+                };
+                let iter_first_token = res.first_token_time as f64;
+                
+                per_iteration_metrics.push(BenchTuneMetrics {
+                    prompt_tps: iter_prompt_tps,
+                    generation_tps: iter_gen_tps,
+                    combined_tps: 0.0,
+                    latency_per_token: iter_latency,
+                    first_token_time: iter_first_token,
+                });
                 
                 if num_iterations > 1 {
                     let _ = log_tx.send(format!("  Iteration {}/{}: {:.2} gen t/s", i + 1, num_iterations, 
                         if res.generation_time.as_secs_f64() > 0.0 { res.generation_tokens as f64 / res.generation_time.as_secs_f64() } else { 0.0 }
                     )).await;
                 }
+                
+                // Display the generated content in the log
+                let _ = log_tx.send(format!("--- Generated Output (Iter {}) ---\n{}\n----------------------------------", i + 1, output_text)).await;
             }
             Err(e) => {
                 let _ = log_tx.send(format!("  Iteration {}/{} FAILED: {}", i + 1, num_iterations, e)).await;
@@ -220,7 +257,7 @@ async fn run_bench_tune_single_test(
     
     // Clean up server
     let _ = crate::backend::server::kill_server(server_handle).await;
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
     
     Ok(BenchTuneResult {
         params: params.clone(),
@@ -231,6 +268,9 @@ async fn run_bench_tune_single_test(
             latency_per_token: avg_latency_per_token,
             first_token_time: avg_first_token_time,
         },
+        outputs,
+        per_iteration_metrics,
+        base_settings: Some(base_settings.clone()),
     })
 }
 
@@ -288,10 +328,11 @@ async fn send_inference_request(prompt: &str, host: &str, port: u16) -> Result<I
         generation_time: Duration::from_millis(generation_time_ms as u64),
         total_time,
         first_token_time: prompt_time_ms as u128,
+        content: json["content"].as_str().unwrap_or("").to_string(),
     })
 }
 
-/// Save benchmark results to disk in Markdown format
+  /// Save benchmark results to disk in Markdown format
 pub async fn save_results(results: &[BenchTuneResult], output_dir: &PathBuf) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Create output directory if it doesn't exist
     std::fs::create_dir_all(output_dir)?;
@@ -305,8 +346,8 @@ pub async fn save_results(results: &[BenchTuneResult], output_dir: &PathBuf) -> 
     md.push_str("# LLM Benchmark Results\n\n");
     md.push_str(&format!("Generated on: {}\n\n", chrono::Local::now().format("%Y-%m-%d %H:%M:%S")));
 
-    md.push_str("| Temp | Top-P | Top-K | RepPen | FA | Threads | Batch | Prompt t/s | Gen t/s | Latency (ms) | First Tok (ms) |\n");
-    md.push_str("|------|-------|-------|--------|----|---------|-------|------------|---------|--------------|----------------|\n");
+    md.push_str("| Temp | Top-P | Top-K | RepPen | FA | Threads | Batch | Exp | Prompt t/s | Gen t/s | Latency (ms) | First Tok (ms) |\n");
+    md.push_str("|------|-------|-------|--------|----|---------|-------|-----|------------|---------|--------------|----------------|\n");
 
     for r in results {
         let temp = r.params.temperature.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string());
@@ -316,17 +357,25 @@ pub async fn save_results(results: &[BenchTuneResult], output_dir: &PathBuf) -> 
         let fa = r.params.flash_attn.map(|v| if v { "ON" } else { "OFF" }).unwrap_or("-");
         let threads = r.params.threads.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
         let batch = r.params.batch_size.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
+        let exp = r.params.expert_count.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
 
-        md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {} | {:.2} | {:.2} | {:.2} | {:.2} |\n",
-            temp, top_p, top_k, rep_pen, fa, threads, batch,
+        md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {} | {} | {:.2} | {:.2} | {:.2} | {:.2} |\n",
+            temp, top_p, top_k, rep_pen, fa, threads, batch, exp,
             r.metrics.prompt_tps,
             r.metrics.generation_tps,
             r.metrics.latency_per_token,
             r.metrics.first_token_time
         ));
     }
+
     tokio::fs::write(&filepath, md).await?;
-    
+
+    // Also save full results as YAML with outputs
+    let yaml_filename = format!("benchmark_{}.yaml", timestamp);
+    let yaml_filepath = output_dir.join(yaml_filename);
+    let yaml_content = serde_yaml::to_string(&results)?;
+    tokio::fs::write(&yaml_filepath, yaml_content).await?;
+
     Ok(())
 }
 
@@ -338,4 +387,5 @@ struct InferenceResult {
     generation_time: Duration,
     total_time: Duration,
     first_token_time: u128, // milliseconds
+    content: String,
 }

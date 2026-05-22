@@ -124,13 +124,13 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let available_height = area.height.saturating_sub(2);
 
     // Handle scrolling
-    if selected < app.server_settings_scroll_offset as usize {
-        app.server_settings_scroll_offset = selected as u16;
-    } else if available_height > 0 && (selected - app.server_settings_scroll_offset as usize) >= (available_height as usize) {
-        app.server_settings_scroll_offset = (selected as u16).saturating_sub(available_height).saturating_add(1);
+    if selected < app.server_settings_scroll_offset {
+        app.server_settings_scroll_offset = selected;
+    } else if available_height > 0 && (selected - app.server_settings_scroll_offset) >= (available_height as usize) {
+        app.server_settings_scroll_offset = (selected).saturating_sub(available_height as usize).saturating_add(1);
     }
 
-    let max_offset = total_settings.saturating_sub(available_height as usize) as u16;
+    let max_offset = total_settings.saturating_sub(available_height as usize);
     if app.server_settings_scroll_offset > max_offset {
         app.server_settings_scroll_offset = max_offset;
     }

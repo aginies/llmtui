@@ -577,7 +577,7 @@ pub enum ServerMode {
     Normal,
     #[serde(rename = "router")]
     Router,
-    #[serde(rename = "bench")]
+    #[serde(rename = "bench_gpu", alias = "bench")]
     Bench,
     #[serde(rename = "bench_tune")]
     BenchTune,
@@ -589,7 +589,7 @@ impl std::fmt::Display for ServerMode {
         match self {
             ServerMode::Normal => write!(f, "Normal"),
             ServerMode::Router => write!(f, "Router (XP!)"),
-            ServerMode::Bench => write!(f, "Bench"),
+            ServerMode::Bench => write!(f, "Bench GPU"),
             ServerMode::BenchTune => write!(f, "BenchTune"),
         }
     }
@@ -1163,6 +1163,7 @@ pub struct BenchTuneParamValue {
     pub batch_size: Option<u32>,
     pub flash_attn: Option<bool>,
     pub threads: Option<u32>,
+    pub expert_count: Option<i32>,
 }
 
 impl PartialEq for BenchTuneParamValue {
@@ -1174,7 +1175,8 @@ impl PartialEq for BenchTuneParamValue {
         self.context_length == other.context_length &&
         self.batch_size == other.batch_size &&
         self.flash_attn == other.flash_attn &&
-        self.threads == other.threads
+        self.threads == other.threads &&
+        self.expert_count == other.expert_count
     }
 }
 impl Eq for BenchTuneParamValue {}
@@ -1183,6 +1185,9 @@ impl Eq for BenchTuneParamValue {}
 pub struct BenchTuneResult {
     pub params: BenchTuneParamValue,
     pub metrics: BenchTuneMetrics,
+    pub outputs: Vec<String>,
+    pub per_iteration_metrics: Vec<BenchTuneMetrics>,
+    pub base_settings: Option<ModelSettings>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1306,15 +1311,23 @@ impl BenchTuneConfig {
                 },
                 BenchTuneParam {
                     name: "batch_size".to_string(),
-                    min: 256.0,
-                    max: 1024.0,
-                    step: 256.0,
+                    min: 512.0,
+                    max: 2048.0,
+                    step: 512.0,
                     enabled: false,
                 },
-            ],
-            test_duration: Duration::from_secs(30),
-        }
-    }
+                BenchTuneParam {
+                    name: "expert_count".to_string(),
+                    min: 1.0,
+                    max: 4.0,
+                    step: 1.0,
+                    enabled: false,
+                },
+                ],
+                test_duration: Duration::from_secs(30),
+                }
+                }
+
 
     /// Generate all parameter combinations based on the config
     pub fn generate_combinations(&self) -> Vec<BenchTuneParamValue> {
@@ -1325,6 +1338,7 @@ impl BenchTuneConfig {
         let mut flash_attn_values = vec![None];
         let mut threads_values = vec![None];
         let mut batch_size_values = vec![None];
+        let mut expert_count_values = vec![None];
 
         for p in &self.params_to_test {
             if !p.enabled { continue; }
@@ -1342,6 +1356,7 @@ impl BenchTuneConfig {
                 "flash_attn" => flash_attn_values = vals.into_iter().map(|v| Some(v >= 0.5)).collect(),
                 "threads" => threads_values = vals.into_iter().map(|v| Some(v as u32)).collect(),
                 "batch_size" => batch_size_values = vals.into_iter().map(|v| Some(v as u32)).collect(),
+                "expert_count" => expert_count_values = vals.into_iter().map(|v| Some(v as i32)).collect(),
                 _ => {}
             }
         }
@@ -1354,16 +1369,19 @@ impl BenchTuneConfig {
                         for &fa in &flash_attn_values {
                             for &th in &threads_values {
                                 for &bs in &batch_size_values {
-                                    combinations.push(BenchTuneParamValue {
-                                        temperature: temp,
-                                        top_p,
-                                        top_k,
-                                        repeat_penalty: rp,
-                                        context_length: None,
-                                        batch_size: bs,
-                                        flash_attn: fa,
-                                        threads: th,
-                                    });
+                                    for &ec in &expert_count_values {
+                                        combinations.push(BenchTuneParamValue {
+                                            temperature: temp,
+                                            top_p,
+                                            top_k,
+                                            repeat_penalty: rp,
+                                            context_length: None,
+                                            batch_size: bs,
+                                            flash_attn: fa,
+                                            threads: th,
+                                            expert_count: ec,
+                                        });
+                                    }
                                 }
                             }
                         }

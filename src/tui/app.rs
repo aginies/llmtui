@@ -153,26 +153,26 @@ pub struct App {
     pub log_entries: VecDeque<LogEntry>,
     pub active_panel: ActivePanel,
     pub log_expanded: bool,
-    pub log_scroll_offset: u16,
+    pub log_scroll_offset: usize,
     pub log_follow: bool,
     pub log_total_lines: usize,
     pub settings_selected_idx: usize,
     pub server_settings_selected_idx: usize, // 0=Host, 1=Backend
-    pub server_settings_scroll_offset: u16,
+    pub server_settings_scroll_offset: usize,
     pub settings_edit_buffer: String,
-    pub settings_scroll_offset: u16,
+    pub settings_scroll_offset: usize,
     pub host_picker_entries: Vec<(String, String)>,
     pub host_picker_selected: usize,
     pub backend_picker_entries: Vec<(crate::models::Backend, Option<String>)>,
     pub backend_picker_selected: usize,
 
-    pub profiles_scroll_offset: u16,
-    pub system_prompt_presets_scroll_offset: u16,
-    pub readme_scroll_offset: u16,
+    pub profiles_scroll_offset: usize,
+    pub system_prompt_presets_scroll_offset: usize,
+    pub readme_scroll_offset: usize,
     pub editing_preset: Option<usize>,
     pub rpc_workers_selected_idx: usize,
     pub editing_rpc_worker: Option<usize>,
-    pub rpc_workers_scroll_offset: u16,
+    pub rpc_workers_scroll_offset: usize,
     pub edit_cursor_pos: usize,
     pub gguf_metadata_cache: std::collections::HashMap<String, crate::models::GgufMetadata>,
     pub vram_estimate: u64, // estimated VRAM in MiB
@@ -213,7 +213,7 @@ pub struct App {
     pub needs_redraw: bool,
     pub panel_help: bool,
     pub panel_visibility: u8,
-    pub panel_help_offset: u16,
+    pub panel_help_offset: usize,
     /// Last error message captured from the log (used for Failed state display).
     pub last_error_message: Option<String>,
     /// Global server mode (Normal or Router) — persists across model switches.
@@ -240,6 +240,14 @@ pub struct App {
     pub bench_tune_rx: Option<tokio::sync::mpsc::Receiver<BenchTuneStatus>>,
     /// Benchmark tuning channel sender
     pub bench_tune_tx: Option<tokio::sync::mpsc::Sender<BenchTuneStatus>>,
+    /// Whether the benchmark output view modal is open
+    pub bench_tune_output_view: Option<usize>,
+    /// Scroll offset within the output view modal
+    pub bench_tune_output_scroll: usize,
+    /// Index of the selected result row in the results table
+    pub bench_tune_result_row: usize,
+    /// Index of the selected output within the current result
+    pub bench_tune_output_index: usize,
  }
 
 impl App {
@@ -346,6 +354,10 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             bench_tune_config: None,
             bench_tune_rx: None,
             bench_tune_tx: None,
+            bench_tune_output_view: None,
+            bench_tune_output_scroll: 0,
+            bench_tune_result_row: 0,
+            bench_tune_output_index: 0,
         }
     }
 
