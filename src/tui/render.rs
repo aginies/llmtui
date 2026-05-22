@@ -699,8 +699,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     let controls = Line::from(vec![
                         Span::styled("  [Esc] close  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
                         Span::raw("  "),
-                        Span::styled("[j/↓/PgDn] scroll  ", Style::default().fg(Color::Yellow)),
-                        Span::styled("[k/↑/PgUp] scroll  ", Style::default().fg(Color::Yellow)),
+                        Span::styled("[j/k] scroll  ", Style::default().fg(Color::Yellow)),
                         Span::raw("  "),
                         Span::styled(format!("[p] prev({}/{}) ", absolute_idx, total_outputs), Style::default().fg(Color::Yellow)),
                         Span::raw("  "),

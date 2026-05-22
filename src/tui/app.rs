@@ -244,6 +244,8 @@ pub struct App {
     pub bench_tune_output_view: Option<usize>,
     /// Scroll offset within the output view modal
     pub bench_tune_output_scroll: usize,
+    /// Horizontal scroll offset within the output view modal
+    pub bench_tune_output_h_scroll: usize,
     /// Index of the selected result row in the results table
     pub bench_tune_result_row: usize,
     /// Index of the selected output within the current result
@@ -356,11 +358,11 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             bench_tune_tx: None,
             bench_tune_output_view: None,
             bench_tune_output_scroll: 0,
+            bench_tune_output_h_scroll: 0,
             bench_tune_result_row: 0,
             bench_tune_output_index: 0,
-        }
-    }
-
+            }
+            }
     pub fn selected_model(&self) -> Option<&DiscoveredModel> {
         self.selected_model_idx.and_then(|i| self.models.get(i))
     }

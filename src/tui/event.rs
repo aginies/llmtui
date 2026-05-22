@@ -829,6 +829,16 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
                 return;
             }
+            KeyCode::Left | KeyCode::Char('h') => {
+                app.bench_tune_output_h_scroll = app.bench_tune_output_h_scroll.saturating_sub(5);
+                app.set_redraw();
+                return;
+            }
+            KeyCode::Right | KeyCode::Char('l') => {
+                app.bench_tune_output_h_scroll = app.bench_tune_output_h_scroll.saturating_add(5);
+                app.set_redraw();
+                return;
+            }
             KeyCode::Char('n') => {
                 if let Some(mut result_idx) = app.bench_tune_output_view {
                     if let Some(result) = app.bench_tune_results.get(result_idx) {
@@ -836,11 +846,13 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         if app.bench_tune_output_index < max_iter_idx {
                             app.bench_tune_output_index += 1;
                             app.bench_tune_output_scroll = 0;
+                            app.bench_tune_output_h_scroll = 0;
                         } else if result_idx < app.bench_tune_results.len().saturating_sub(1) {
                             result_idx += 1;
                             app.bench_tune_output_view = Some(result_idx);
                             app.bench_tune_output_index = 0;
                             app.bench_tune_output_scroll = 0;
+                            app.bench_tune_output_h_scroll = 0;
                         }
                         app.set_redraw();
                     }
@@ -852,6 +864,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     if app.bench_tune_output_index > 0 {
                         app.bench_tune_output_index -= 1;
                         app.bench_tune_output_scroll = 0;
+                        app.bench_tune_output_h_scroll = 0;
                     } else if result_idx > 0 {
                         result_idx -= 1;
                         app.bench_tune_output_view = Some(result_idx);
@@ -861,6 +874,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             app.bench_tune_output_index = 0;
                         }
                         app.bench_tune_output_scroll = 0;
+                        app.bench_tune_output_h_scroll = 0;
                     }
                     app.set_redraw();
                 }
