@@ -277,6 +277,75 @@ pub fn render(f: &mut Frame, app: &mut App) {
             return;
             }
 
+            // BenchTune setup overlay
+            if let GlobalMode::BenchTuneSetup { config, selected_idx } = &app.global_mode {
+            let area = f.area();
+            let w = (area.width as f64 * 0.6).clamp(50.0, 75.0) as u16;
+            let h = (config.params_to_test.len() + 10) as u16;
+            let popup_area = Rect {
+                x: (area.width - w) / 2,
+                y: (area.height - h) / 2,
+                width: w,
+                height: h,
+            };
+
+            let mut lines = Vec::new();
+            lines.push(Line::from(vec![
+                Span::styled(" Configure Benchmark Tuning ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+            lines.push(Line::from(""));
+            lines.push(Line::from(" Select parameters to vary in the benchmark:"));
+            lines.push(Line::from(""));
+
+            for (i, p) in config.params_to_test.iter().enumerate() {
+                let marker = if i == *selected_idx { "> " } else { "  " };
+                let checkbox = if p.enabled { "[X] " } else { "[ ] " };
+                let style = if i == *selected_idx {
+                    Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+
+                let desc = match p.name.as_str() {
+                    "flash_attn" => "(On and Off)".to_string(),
+                    "threads" => format!("({} to {}, step {})", p.min as u32, p.max as u32, p.step as u32),
+                    "top_k" => format!("({} to {}, step {})", p.min as i32, p.max as i32, p.step as i32),
+                    _ => format!("({:.1} to {:.1}, step {:.1})", p.min, p.max, p.step),
+                };
+
+                lines.push(Line::from(vec![
+                    Span::styled(marker, Style::default().fg(Color::Yellow)),
+                    Span::styled(checkbox, if p.enabled { Style::default().fg(Color::Green) } else { Style::default().fg(Color::DarkGray) }),
+                    Span::styled(format!("{:<15}", p.name.replace("_", " ")), style),
+                    Span::styled(format!(" {}", desc), Style::default().fg(Color::DarkGray)),
+                ]));
+            }
+
+            lines.push(Line::from(""));
+            let total_tests = config.get_total_tests_count();
+            lines.push(Line::from(vec![
+                Span::raw(" Total tests to run: "),
+                Span::styled(total_tests.to_string(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            ]));
+            lines.push(Line::from(""));
+            lines.push(Line::from(vec![
+                Span::styled(" [Space]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Toggle  "),
+                Span::styled(" [Enter]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Start  "),
+                Span::styled(" [Esc]", Style::default().fg(Color::Yellow)),
+                Span::raw(" Cancel"),
+            ]));
+
+            f.render_widget(ratatui::widgets::Clear, popup_area);
+            f.render_widget(Paragraph::new(lines).block(
+                Block::default()
+                    .title(" Benchmark Setup ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow)),
+            ), popup_area);
+            return;
+            }
             // RPC Manager overlay
             if matches!(app.global_mode, GlobalMode::RpcManager) {
             let area = f.area();

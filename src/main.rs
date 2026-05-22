@@ -322,11 +322,21 @@ async fn main() -> Result<()> {
             app.add_log(format!("Loading {}...", display_name), crate::config::LogLevel::Info);
 
             if server_mode_clone == crate::models::ServerMode::BenchTune {
-                let bench_tune_config = crate::models::BenchTuneConfig::new(
-                    model_clone.as_ref().unwrap().path.clone(),
-                    3, // Default iterations
-                    "What is the capital of France?".to_string(),
-                );
+                let model = match model_opt {
+                    Some(m) => m,
+                    None => {
+                        app.add_log("Error: Benchmark tuning requires a selected model.", crate::config::LogLevel::Error);
+                        continue;
+                    }
+                };
+
+                let bench_tune_config = app.bench_tune_config.take().unwrap_or_else(|| {
+                    crate::models::BenchTuneConfig::new(
+                        model.path.clone(),
+                        3, // Default iterations
+                        "Linux: pong game in C code, playable, up to buildable".to_string(),
+                    )
+                });
                 
                 let (tx_tune, rx_tune) = tokio::sync::mpsc::channel(100);
                 app.bench_tune_tx = Some(tx_tune.clone());
@@ -336,14 +346,18 @@ async fn main() -> Result<()> {
                 
                 let bench_tune_config_clone = bench_tune_config.clone();
                 let settings_clone = settings_clone.clone();
-                let model_clone = model_clone.clone();
+                let model_clone = model.clone();
+                
+                let tx_tune_clone = tx_tune.clone();
+                let spawn_log_tx_clone = tx.clone();
                 
                 let handle = tokio::spawn(async move {
                     let results = crate::backend::benchmark::run_bench_tune(
                         &bench_tune_config_clone,
-                        &model_clone.as_ref().unwrap().path,
+                        &model_clone,
                         &settings_clone,
-                        tx_tune,
+                        tx_tune_clone,
+                        spawn_log_tx_clone,
                     ).await.map_err(|e| e.to_string());
                     
                     (results, display_name)
@@ -504,11 +518,15 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                             Ok(bench_results) => {
                                 app.add_log(format!("Benchmark tuning completed for {} with {} results", display_name, bench_results.len()), crate::config::LogLevel::Info);
                                 
-                                // Save results to file
-                                let output_dir = crate::config::Config::config_path().parent().unwrap().join("benchmarks");
-                                match crate::backend::benchmark::save_results(&bench_results, &output_dir).await {
-                                    Ok(()) => app.add_log(format!("Results saved to {}/", output_dir.display()), crate::config::LogLevel::Info),
-                                    Err(e) => app.add_log(format!("Failed to save benchmark results: {}", e), crate::config::LogLevel::Error),
+                                if bench_results.is_empty() {
+                                    app.add_log("No successful benchmark results were obtained. Check the Log (F6) for details on test failures.", crate::config::LogLevel::Warning);
+                                } else {
+                                    // Save results to file
+                                    let output_dir = crate::config::Config::config_path().parent().unwrap().join("benchmarks");
+                                    match crate::backend::benchmark::save_results(&bench_results, &output_dir).await {
+                                        Ok(()) => app.add_log(format!("Results saved to {}/", output_dir.display()), crate::config::LogLevel::Info),
+                                        Err(e) => app.add_log(format!("Failed to save benchmark results: {}", e), crate::config::LogLevel::Error),
+                                    }
                                 }
 
                                 app.bench_tune_results = bench_results;

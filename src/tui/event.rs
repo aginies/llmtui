@@ -154,6 +154,38 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // BenchTune Setup
+    if let GlobalMode::BenchTuneSetup { config, selected_idx } = &mut app.global_mode {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                *selected_idx = selected_idx.saturating_sub(1);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                *selected_idx = (*selected_idx + 1).min(config.params_to_test.len().saturating_sub(1));
+            }
+            KeyCode::Char(' ') => {
+                config.params_to_test[*selected_idx].enabled = !config.params_to_test[*selected_idx].enabled;
+            }
+            KeyCode::Enter => {
+                let config_final = config.clone();
+                if let Some(idx) = app.selected_model_idx {
+                    let model = app.models[idx].clone();
+                    let settings = app.config.resolve_settings(Some(&model.display_name), None);
+                    
+                    app.global_mode = GlobalMode::Normal;
+                    app.bench_tune_config = Some(config_final);
+                    app.pending_spawn = Some((Some(model), settings));
+                }
+            }
+            KeyCode::Esc => {
+                app.global_mode = GlobalMode::Normal;
+            }
+            _ => {}
+        }
+        app.set_redraw();
+        return;
+    }
+
     // Skip all if in backend picker
     if let GlobalMode::BackendPicker { entries, selected } = &mut app.global_mode {
         match key.code {
@@ -987,7 +1019,17 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         // Start server (with model in CLI for normal mode, without model for router mode)
                         app.last_error_message = None;
                         
-                        if app.server_mode == crate::models::ServerMode::Router {
+                        if app.server_mode == crate::models::ServerMode::BenchTune {
+                            let bench_tune_config = crate::models::BenchTuneConfig::new(
+                                model.path.clone(),
+                                3, // Default iterations
+                                "Linux: pong game in C code, playable, up to buildable".to_string(),
+                            );
+                            app.global_mode = GlobalMode::BenchTuneSetup {
+                                config: bench_tune_config,
+                                selected_idx: 0,
+                            };
+                        } else if app.server_mode == crate::models::ServerMode::Router {
                             // Router mode: start server without a model, then load via /load API
                             app.pending_spawn = Some((None, settings.clone()));
                             // Queue the load so it triggers once server is ready

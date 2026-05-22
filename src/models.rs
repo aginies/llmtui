@@ -1124,7 +1124,7 @@ pub fn format_mib(mib: u64) -> String {
 }
 
 // Benchmark Tuning types
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BenchTuneConfig {
     pub model_path: PathBuf,
     pub num_iterations: u32,
@@ -1139,7 +1139,19 @@ pub struct BenchTuneParam {
     pub min: f64,
     pub max: f64,
     pub step: f64,
+    pub enabled: bool,
 }
+
+impl PartialEq for BenchTuneParam {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name &&
+        self.min.to_bits() == other.min.to_bits() &&
+        self.max.to_bits() == other.max.to_bits() &&
+        self.step.to_bits() == other.step.to_bits() &&
+        self.enabled == other.enabled
+    }
+}
+impl Eq for BenchTuneParam {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchTuneParamValue {
@@ -1149,7 +1161,23 @@ pub struct BenchTuneParamValue {
     pub repeat_penalty: Option<f64>,
     pub context_length: Option<u32>,
     pub batch_size: Option<u32>,
+    pub flash_attn: Option<bool>,
+    pub threads: Option<u32>,
 }
+
+impl PartialEq for BenchTuneParamValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.temperature.map(|v| v.to_bits()) == other.temperature.map(|v| v.to_bits()) &&
+        self.top_p.map(|v| v.to_bits()) == other.top_p.map(|v| v.to_bits()) &&
+        self.top_k == other.top_k &&
+        self.repeat_penalty.map(|v| v.to_bits()) == other.repeat_penalty.map(|v| v.to_bits()) &&
+        self.context_length == other.context_length &&
+        self.batch_size == other.batch_size &&
+        self.flash_attn == other.flash_attn &&
+        self.threads == other.threads
+    }
+}
+impl Eq for BenchTuneParamValue {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchTuneResult {
@@ -1159,7 +1187,9 @@ pub struct BenchTuneResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchTuneMetrics {
-    pub tokens_per_sec: f64,
+    pub prompt_tps: f64,
+    pub generation_tps: f64,
+    pub combined_tps: f64,
     pub latency_per_token: f64,
     pub first_token_time: f64,
 }
@@ -1237,24 +1267,49 @@ impl BenchTuneConfig {
                     min: 0.4,
                     max: 1.0,
                     step: 0.1,
+                    enabled: false,
                 },
                 BenchTuneParam {
                     name: "top_p".to_string(),
                     min: 0.8,
                     max: 1.0,
                     step: 0.1,
+                    enabled: false,
                 },
                 BenchTuneParam {
                     name: "top_k".to_string(),
                     min: 40.0,
                     max: 50.0,
                     step: 10.0,
+                    enabled: false,
                 },
                 BenchTuneParam {
                     name: "repeat_penalty".to_string(),
                     min: 1.0,
                     max: 1.2,
                     step: 0.1,
+                    enabled: false,
+                },
+                BenchTuneParam {
+                    name: "flash_attn".to_string(),
+                    min: 0.0,
+                    max: 1.0,
+                    step: 1.0,
+                    enabled: false,
+                },
+                BenchTuneParam {
+                    name: "threads".to_string(),
+                    min: 4.0,
+                    max: 16.0,
+                    step: 4.0,
+                    enabled: false,
+                },
+                BenchTuneParam {
+                    name: "batch_size".to_string(),
+                    min: 256.0,
+                    max: 1024.0,
+                    step: 256.0,
+                    enabled: false,
                 },
             ],
             test_duration: Duration::from_secs(30),
@@ -1263,39 +1318,58 @@ impl BenchTuneConfig {
 
     /// Generate all parameter combinations based on the config
     pub fn generate_combinations(&self) -> Vec<BenchTuneParamValue> {
-        let mut combinations = Vec::new();
-        
-        // Generate temperature combinations
-        for temp in self.params_to_test.iter().filter(|p| p.name == "temperature").flat_map(|p| {
-            let step_count = ((p.max - p.min) / p.step).ceil() as usize;
-            (0..step_count).map(|i| p.min + (i as f64 * p.step))
-        }) {
-            // Generate top_p combinations
-            for top_p in self.params_to_test.iter().filter(|p| p.name == "top_p").flat_map(|p| {
+        let mut temp_values = vec![None];
+        let mut top_p_values = vec![None];
+        let mut top_k_values = vec![None];
+        let mut repeat_penalty_values = vec![None];
+        let mut flash_attn_values = vec![None];
+        let mut threads_values = vec![None];
+        let mut batch_size_values = vec![None];
+
+        for p in &self.params_to_test {
+            if !p.enabled { continue; }
+            
+            let vals: Vec<f64> = {
                 let step_count = ((p.max - p.min) / p.step).ceil() as usize;
-                (0..step_count).map(|i| p.min + (i as f64 * p.step))
-            }) {
-                combinations.push(BenchTuneParamValue {
-                    temperature: Some(temp),
-                    top_p: Some(top_p),
-                    top_k: None,
-                    repeat_penalty: None,
-                    context_length: None,
-                    batch_size: None,
-                });
+                (0..=step_count).map(|i| (p.min + (i as f64 * p.step)).min(p.max)).collect()
+            };
+
+            match p.name.as_str() {
+                "temperature" => temp_values = vals.into_iter().map(Some).collect(),
+                "top_p" => top_p_values = vals.into_iter().map(Some).collect(),
+                "top_k" => top_k_values = vals.into_iter().map(|v| Some(v as i64)).collect(),
+                "repeat_penalty" => repeat_penalty_values = vals.into_iter().map(Some).collect(),
+                "flash_attn" => flash_attn_values = vals.into_iter().map(|v| Some(v >= 0.5)).collect(),
+                "threads" => threads_values = vals.into_iter().map(|v| Some(v as u32)).collect(),
+                "batch_size" => batch_size_values = vals.into_iter().map(|v| Some(v as u32)).collect(),
+                _ => {}
             }
         }
-        
-        // Add default configuration if no combinations were generated
-        if combinations.is_empty() {
-            combinations.push(BenchTuneParamValue {
-                temperature: Some(0.8),
-                top_p: Some(0.9),
-                top_k: None,
-                repeat_penalty: None,
-                context_length: None,
-                batch_size: None,
-            });
+
+        let mut combinations = Vec::new();
+        for &temp in &temp_values {
+            for &top_p in &top_p_values {
+                for &top_k in &top_k_values {
+                    for &rp in &repeat_penalty_values {
+                        for &fa in &flash_attn_values {
+                            for &th in &threads_values {
+                                for &bs in &batch_size_values {
+                                    combinations.push(BenchTuneParamValue {
+                                        temperature: temp,
+                                        top_p,
+                                        top_k,
+                                        repeat_penalty: rp,
+                                        context_length: None,
+                                        batch_size: bs,
+                                        flash_attn: fa,
+                                        threads: th,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         
         combinations

@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Row, Table, TableState, List, ListItem, ListState},
+    widgets::{Block, Borders, Cell, Row, Table, TableState, List, ListItem, ListState, Paragraph},
 };
 
 use crate::tui::app::{App, ModelsMode};
@@ -400,13 +400,61 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         
                         if !app.bench_tune_results.is_empty() {
                             lines.push(Line::from(""));
-                            lines.push(Line::from("Best results:"));
-                            // Sort results by tokens_per_sec descending
+                            lines.push(Line::from(Span::styled(" Best results (by Generation speed): ", Style::default().add_modifier(Modifier::BOLD))));
+                            
+                            use ratatui::widgets::{Row, Cell};
+                            
+                            let header = Row::new(vec![
+                                Cell::from(" # "),
+                                Cell::from("Gen t/s"),
+                                Cell::from("Inf t/s"),
+                                Cell::from("Params"),
+                            ]).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+
                             let mut sorted = app.bench_tune_results.clone();
-                            sorted.sort_by(|a, b| b.metrics.tokens_per_sec.partial_cmp(&a.metrics.tokens_per_sec).unwrap_or(std::cmp::Ordering::Equal));
-                            for (i, result) in sorted.iter().take(5).enumerate() {
-                                lines.push(Line::from(format!("  {}. {:.2} tok/s", i + 1, result.metrics.tokens_per_sec)));
+                            sorted.sort_by(|a, b| b.metrics.generation_tps.partial_cmp(&a.metrics.generation_tps).unwrap_or(std::cmp::Ordering::Equal));
+                            
+                            let mut rows = Vec::new();
+                            for (i, result) in sorted.iter().take(10).enumerate() {
+                                let mut p_parts = Vec::new();
+                                if let Some(v) = result.params.temperature { p_parts.push(format!("t:{:.1}", v)); }
+                                if let Some(v) = result.params.top_p { p_parts.push(format!("p:{:.1}", v)); }
+                                if let Some(v) = result.params.threads { p_parts.push(format!("th:{}", v)); }
+                                if let Some(v) = result.params.batch_size { p_parts.push(format!("bs:{}", v)); }
+                                if let Some(v) = result.params.flash_attn { p_parts.push(format!("fa:{}", if v { "on" } else { "off" })); }
+                                
+                                let p_str = p_parts.join(",");
+                                
+                                rows.push(Row::new(vec![
+                                    Cell::from(format!(" {:<2} ", i + 1)),
+                                    Cell::from(format!("{:.2}", result.metrics.generation_tps)),
+                                    Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
+                                    Cell::from(p_str),
+                                ]).style(if i == 0 { Style::default().fg(Color::Green) } else { Style::default().fg(Color::White) }));
                             }
+
+                            let table = ratatui::widgets::Table::new(rows, [
+                                ratatui::layout::Constraint::Length(4),
+                                ratatui::layout::Constraint::Length(10),
+                                ratatui::layout::Constraint::Length(10),
+                                ratatui::layout::Constraint::Fill(1),
+                            ])
+                            .header(header)
+                            .block(Block::default().borders(Borders::NONE));
+                            
+                            // We need to render the table separately because we can't easily put a Table inside a Paragraph's lines
+                            // So we'll render the header lines first, then the table.
+                            let header_height = lines.len() as u16;
+                            let table_area = Rect {
+                                x: inner_area.x,
+                                y: inner_area.y + header_height,
+                                width: inner_area.width,
+                                height: inner_area.height.saturating_sub(header_height),
+                            };
+                            
+                            f.render_widget(Paragraph::new(lines.clone()), inner_area);
+                            f.render_widget(table, table_area);
+                            return;
                         }
                     }
                     crate::models::BenchTuneProgress::Error { error } => {

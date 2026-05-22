@@ -123,12 +123,23 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                 Span::styled(" Test: ", Style::default().fg(Color::Yellow)),
                                 Span::styled(format!("{}/{}", current, total), Style::default().fg(Color::White)),
                             ]));
+                            let mut p_str = format!("temp={:.1}, top_p={:.1}", 
+                                current_params.temperature.unwrap_or(0.0),
+                                current_params.top_p.unwrap_or(0.0));
+                            
+                            if let Some(fa) = current_params.flash_attn {
+                                p_str.push_str(&format!(", fa={}", if fa { "on" } else { "off" }));
+                            }
+                            if let Some(th) = current_params.threads {
+                                p_str.push_str(&format!(", th={}", th));
+                            }
+                            if let Some(bs) = current_params.batch_size {
+                                p_str.push_str(&format!(", bs={}", bs));
+                            }
+
                             lines.push(Line::from(vec![
                                 Span::styled(" Current: ", Style::default().fg(Color::Yellow)),
-                                Span::styled(format!("temp={:.2}, top_p={:.2}", 
-                                    current_params.temperature.unwrap_or(0.0),
-                                    current_params.top_p.unwrap_or(0.0)), 
-                                Style::default().fg(Color::Cyan)),
+                                Span::styled(p_str, Style::default().fg(Color::Cyan)),
                             ]));
                         }
                         crate::models::BenchTuneProgress::Completed { total_tests, successful_tests, elapsed } => {

@@ -90,6 +90,10 @@ pub enum GlobalMode {
     RpcManager,
     About,
     MaxConcurrentPicker { value: String },
+    BenchTuneSetup {
+        config: crate::models::BenchTuneConfig,
+        selected_idx: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1374,6 +1378,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(""),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Stop benchmark tuning")]),
             ],
+            // Note: BenchTuneSetup is handled via GlobalMode logic in render/event,
+            // but we can add a placeholder if we want dedicated help for it.
         }
     }
 

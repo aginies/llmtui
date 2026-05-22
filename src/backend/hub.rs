@@ -376,8 +376,18 @@ pub async fn resolve_backend_binary(
     let tag = match version {
         Some(v) if !v.is_empty() => v.to_string(),
         _ => {
-            // Fetch latest release tag (best-effort; falls back to hardcoded tag)
-            let client = reqwest::Client::new();
+            // Check if we have any local version first before asking GitHub
+            let installed = list_installed_backends();
+            let latest_local = installed.iter()
+                .filter(|(b, _)| *b == backend)
+                .map(|(_, t)| t.clone())
+                .next(); // list_installed_backends is already sorted by tag desc
+
+            if let Some(t) = latest_local {
+                t
+            } else {
+                // Fetch latest release tag (best-effort; falls back to hardcoded tag)
+                let client = reqwest::Client::new();
             let repo = match backend {
                 crate::models::Backend::RocmLemonade => "lemonade-sdk/llamacpp-rocm",
                 crate::models::Backend::Cuda => "ai-dock/llama.cpp-cuda",
@@ -404,6 +414,7 @@ pub async fn resolve_backend_binary(
                 },
                 Err(_) => default_tag(repo),
             }
+          }
         }
     };
 
