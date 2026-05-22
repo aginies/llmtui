@@ -62,6 +62,7 @@ pub fn render_download_panel(
                 Cell::from(d.filename.as_str()),
                 Cell::from(progress_str),
                 Cell::from(speed_str),
+                Cell::from(format_eta(d)),
                 Cell::from(status).style(Style::default().fg(status_color)),
             ])
         })
@@ -72,6 +73,7 @@ pub fn render_download_panel(
         Cell::from("File").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
         Cell::from("Progress").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
         Cell::from("Speed").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Cell::from("ETA").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
         Cell::from("Status").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
     ];
 
@@ -81,6 +83,7 @@ pub fn render_download_panel(
         Constraint::Length(8),
         Constraint::Length(10),
         Constraint::Length(14),
+        Constraint::Length(12),
     ];
 
     let table = Table::new(rows, widths)
@@ -94,6 +97,37 @@ pub fn render_download_panel(
 
 fn format_speed(bytes_per_second: f64) -> String {
     format!("{}/s", crate::tui::format_size(bytes_per_second as u64))
+}
+
+fn format_eta(d: &crate::models::DownloadState) -> String {
+    if d.total_bytes == 0 || d.downloaded_bytes >= d.total_bytes {
+        return "—".to_string();
+    }
+
+    let remaining = (d.total_bytes as f64 - d.downloaded_bytes as f64) as u64;
+    if d.bytes_per_second > 0.0 {
+        let secs = remaining as f64 / d.bytes_per_second;
+        format_time_remaining(secs as u64)
+    } else {
+        "calculating...".to_string()
+    }
+}
+
+fn format_time_remaining(total_secs: u64) -> String {
+    let days = total_secs / 86400;
+    let hours = (total_secs % 86400) / 3600;
+    let minutes = (total_secs % 3600) / 60;
+    let secs = total_secs % 60;
+
+    if days > 0 {
+        format!("{days}d {hours}h {minutes}m")
+    } else if hours > 0 {
+        format!("{hours}h {minutes}m {secs}s")
+    } else if minutes > 0 {
+        format!("{minutes}m {secs}s")
+    } else {
+        format!("{secs}s")
+    }
 }
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {

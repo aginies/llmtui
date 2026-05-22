@@ -778,8 +778,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         ActivePanel::SystemPromptPresets => handle_system_prompt_presets_key(app, key),
        ActivePanel::SearchReadme => handle_readme_key(app, key),
        ActivePanel::ActiveModel => {}
-       ActivePanel::ModelInfo => {}
-       }
+        ActivePanel::ModelInfo => {}
+        ActivePanel::Downloads => handle_downloads_key(app, key),
+        }
        }async fn fetch_and_store_readme(app: &mut App, model_id: String) {
     match crate::backend::hub::fetch_readme(&model_id).await {
         Ok(readme) => {
@@ -1176,6 +1177,36 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.update_vram_estimate();
             sync_global_settings(app);
             app.settings_render_cache = None;
+            app.set_redraw();
+        }
+        _ => {}
+    }
+}
+
+fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.download_scroll_state.select_previous();
+            app.set_redraw();
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            app.download_scroll_state.select_next();
+            app.set_redraw();
+        }
+        KeyCode::Char('c')
+            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+        {
+            if let Some(idx) = app.download_scroll_state.selected() {
+                let filename = app.download_progress.get(idx).map(|d| d.filename.clone());
+                if let Some(state) = app.download_progress.get_mut(idx)
+                    && let Some(token) = &state.cancel_token {
+                        token.store(true, std::sync::atomic::Ordering::Relaxed);
+                        state.cancelled = true;
+                        if let Some(ref name) = filename {
+                            app.add_log(format!("Cancelling download of {}...", name), crate::config::LogLevel::Info);
+                        }
+                    }
+            }
             app.set_redraw();
         }
         _ => {}

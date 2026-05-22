@@ -40,6 +40,7 @@ pub enum ActivePanel {
     SearchReadme,
     ActiveModel,
     ModelInfo,
+    Downloads,
 }
 /// Mode for the models panel.
 #[derive(Debug, Clone)]
@@ -943,6 +944,11 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             visible.push(ActivePanel::Log);
         }
 
+        // 6. Downloads (Bottom, shown when downloading)
+        if self.downloading {
+            visible.push(ActivePanel::Downloads);
+        }
+
         visible
     }
 
@@ -1298,6 +1304,15 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Scroll")]),
                 Line::from(vec![Span::styled("h / l", y), Span::raw("  Scroll horizontally")]),
                 Line::from(vec![Span::styled("Enter", y), Span::raw("  Expand to fullscreen")]),
+                Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse / Exit")]),
+            ],
+            ActivePanel::Downloads => vec![
+                Line::from(Span::styled("DOWNLOADS PANEL", y.add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Active model downloads from HuggingFace."),
+                Line::from(""),
+                Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Select download")]),
+                Line::from(vec![Span::styled("Ctrl+C", y), Span::raw("  Cancel selected download")]),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse / Exit")]),
             ],
         }

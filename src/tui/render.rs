@@ -586,10 +586,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 );
             }
         }
-        ActivePanel::SearchReadme => {
-            panel::readme::render(f, top_chunks[1], app);
-        }
-     _ => {
+      _ => {
             // In search/files mode with README shown, display it in the right panel by default
             let show_readme = match &app.models_mode {
                 ModelsMode::Search { show_readme, .. } => *show_readme,
@@ -634,6 +631,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ])
             .split(bottom_area);
         
+        let downloads_focused = app.active_panel == ActivePanel::Downloads;
+        
         panel::log::render(f, bottom_chunks[0], app);
         
         let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
@@ -642,18 +641,19 @@ pub fn render(f: &mut Frame, app: &mut App) {
             &app.download_progress,
             total_speed,
             &mut app.download_scroll_state,
-            false, // Never focused now since F3 panel is gone
+            downloads_focused,
         );
     } else if log_visible {
         panel::log::render(f, bottom_area, app);
     } else if app.downloading {
         let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
+        let downloads_focused = app.active_panel == ActivePanel::Downloads;
         panel::models::render_download_panel(
             f, bottom_area,
             &app.download_progress,
             total_speed,
             &mut app.download_scroll_state,
-            false,
+            downloads_focused,
         );
     }
 }
@@ -806,6 +806,15 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::styled("⇥ panels", c),
                         ]
                     }
+                    crate::tui::app::ActivePanel::Downloads => {
+                        vec![
+                            Span::styled("j/k nav", c),
+                            Span::raw("  "),
+                            Span::styled("⌃C cancel", y),
+                            Span::raw("  "),
+                            Span::styled("⇥ panels", c),
+                        ]
+                    }
                     _ => {
                         vec![
                             Span::styled("⇥ panels", c),
@@ -911,6 +920,7 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                 crate::tui::app::ActivePanel::Profiles => "PROFILES",
                 crate::tui::app::ActivePanel::SystemPromptPresets => "PROMPTS",
                 crate::tui::app::ActivePanel::SearchReadme => "README",
+                crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
                 _ => "APP",
             };
             parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));

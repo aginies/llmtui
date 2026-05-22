@@ -56,27 +56,34 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             lines.push(Line::from(vec![
                 Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
                 Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::styled("  [ ", Style::default().fg(Color::White)),
+            ]));
+
+            lines.push(Line::from(vec![
+                Span::styled(" [ ", Style::default().fg(Color::White)),
                 Span::styled("TPS: ", Style::default().fg(Color::Yellow)),
                 Span::styled(format!("{:.1}", app.metrics.tps), Style::default().fg(Color::Green)),
                 Span::styled(" (in: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(format!("{:.1}", app.metrics.prompt_tps), Style::default().fg(Color::Green)),
                 Span::styled(")", Style::default().fg(Color::DarkGray)),
                 Span::styled(" ]", Style::default().fg(Color::White)),
-            ]));
-
-            lines.push(Line::from(vec![
-                Span::styled(" Context: ", Style::default().fg(Color::Yellow)),
+                Span::styled("  [ ", Style::default().fg(Color::White)),
+                Span::styled("Context: ", Style::default().fg(Color::Yellow)),
                 Span::styled(bar_only, Style::default().fg(Color::Cyan)),
                 Span::styled(" ", Style::default().fg(Color::Cyan)),
                 Span::styled(token_str, Style::default().fg(Color::Cyan)),
-                Span::styled("  [ ", Style::default().fg(Color::White)),
+                Span::styled(" ]", Style::default().fg(Color::White)),
+            ]));
+
+            lines.push(Line::from(vec![
+                Span::styled(" [ ", Style::default().fg(Color::White)),
                 Span::styled("CPU: ", Style::default().fg(Color::Yellow)),
                 Span::styled(format!("{:.1}%", app.metrics.cpu_usage), Style::default().fg(Color::Cyan)),
-                Span::styled(" ]  [ ", Style::default().fg(Color::White)),
+                Span::styled(" ]", Style::default().fg(Color::White)),
+                Span::styled("  [ ", Style::default().fg(Color::White)),
                 Span::styled("RAM: ", Style::default().fg(Color::Yellow)),
                 Span::styled(format_size(app.metrics.ram_used), Style::default().fg(Color::Cyan)),
-                Span::styled(" ]  [ ", Style::default().fg(Color::White)),
+                Span::styled(" ]", Style::default().fg(Color::White)),
+                Span::styled("  [ ", Style::default().fg(Color::White)),
                 Span::styled("VRAM: ", Style::default().fg(Color::Yellow)),
                 Span::styled(format_size(app.metrics.gpu_mem_used), Style::default().fg(Color::Cyan)),
                 Span::styled(" / ", Style::default().fg(Color::White)),
