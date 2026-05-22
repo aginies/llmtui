@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
@@ -83,6 +84,10 @@ pub struct DownloadState {
     pub status: DownloadStatus,
     pub cancelled: bool,
     pub cancel_token: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    /// Download control: 1=downloading, 2=paused, 3=cancelled
+    pub download_state: u8,
+    /// Shared atomic state for pausing/resuming the download loop
+    pub download_state_arc: Option<std::sync::Arc<std::sync::atomic::AtomicU8>>,
     pub start_time: std::time::Instant,
     pub bytes_per_second: f64,
 }
@@ -97,6 +102,8 @@ impl DownloadState {
             status: DownloadStatus::Downloading,
             cancelled: false,
             cancel_token: None,
+            download_state: 1,
+            download_state_arc: None,
             start_time: std::time::Instant::now(),
             bytes_per_second: 0.0,
         }
@@ -266,6 +273,7 @@ impl Default for GpuLayersMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DownloadStatus {
     Downloading,
+    Paused,
     Complete,
     Error(String),
 }
@@ -571,6 +579,8 @@ pub enum ServerMode {
     Router,
     #[serde(rename = "bench")]
     Bench,
+    #[serde(rename = "bench_tune")]
+    BenchTune,
 }
 
 
@@ -580,6 +590,7 @@ impl std::fmt::Display for ServerMode {
             ServerMode::Normal => write!(f, "Normal"),
             ServerMode::Router => write!(f, "Router (XP!)"),
             ServerMode::Bench => write!(f, "Bench"),
+            ServerMode::BenchTune => write!(f, "BenchTune"),
         }
     }
 }
@@ -1111,3 +1122,188 @@ pub fn kv_quant_bytes_from_str(k: &str, v: &str) -> f64 {
 pub fn format_mib(mib: u64) -> String {
     crate::tui::format_size(mib * 1024 * 1024)
 }
+
+// Benchmark Tuning types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchTuneConfig {
+    pub model_path: PathBuf,
+    pub num_iterations: u32,
+    pub prompt: String,
+    pub params_to_test: Vec<BenchTuneParam>,
+    pub test_duration: Duration,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchTuneParam {
+    pub name: String,
+    pub min: f64,
+    pub max: f64,
+    pub step: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchTuneParamValue {
+    pub temperature: Option<f64>,
+    pub top_p: Option<f64>,
+    pub top_k: Option<i64>,
+    pub repeat_penalty: Option<f64>,
+    pub context_length: Option<u32>,
+    pub batch_size: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchTuneResult {
+    pub params: BenchTuneParamValue,
+    pub metrics: BenchTuneMetrics,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchTuneMetrics {
+    pub tokens_per_sec: f64,
+    pub latency_per_token: f64,
+    pub first_token_time: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum BenchTuneStatus {
+    Running {
+        current: usize,
+        total: usize,
+        progress: f32,
+        current_params: BenchTuneParamValue,
+    },
+    Completed {
+        total_tests: usize,
+        successful_tests: usize,
+        elapsed: Duration,
+    },
+    Error {
+        error: String,
+    },
+}
+
+/// Progress status for benchmark tuning
+#[derive(Debug, Clone)]
+pub enum BenchTuneProgress {
+    /// Tuning is running.
+    Running {
+        current: usize,
+        total: usize,
+        progress: f32,
+        current_params: BenchTuneParamValue,
+    },
+    /// Tuning is complete.
+    Completed {
+        total_tests: usize,
+        successful_tests: usize,
+        elapsed: Duration,
+    },
+    /// Tuning failed.
+    Error {
+        error: String,
+    },
+}
+
+impl BenchTuneProgress {
+    pub fn from_status(status: &BenchTuneStatus) -> Option<Self> {
+        match status {
+            BenchTuneStatus::Running { current, total, progress, current_params } => Some(BenchTuneProgress::Running {
+                current: *current,
+                total: *total,
+                progress: *progress,
+                current_params: current_params.clone(),
+            }),
+            BenchTuneStatus::Completed { total_tests, successful_tests, elapsed } => Some(BenchTuneProgress::Completed {
+                total_tests: *total_tests,
+                successful_tests: *successful_tests,
+                elapsed: *elapsed,
+            }),
+            BenchTuneStatus::Error { error } => Some(BenchTuneProgress::Error {
+                error: error.clone(),
+            }),
+        }
+    }
+}
+
+impl BenchTuneConfig {
+    pub fn new(model_path: PathBuf, num_iterations: u32, prompt: String) -> Self {
+        Self {
+            model_path,
+            num_iterations,
+            prompt,
+            params_to_test: vec![
+                BenchTuneParam {
+                    name: "temperature".to_string(),
+                    min: 0.4,
+                    max: 1.0,
+                    step: 0.1,
+                },
+                BenchTuneParam {
+                    name: "top_p".to_string(),
+                    min: 0.8,
+                    max: 1.0,
+                    step: 0.1,
+                },
+                BenchTuneParam {
+                    name: "top_k".to_string(),
+                    min: 40.0,
+                    max: 50.0,
+                    step: 10.0,
+                },
+                BenchTuneParam {
+                    name: "repeat_penalty".to_string(),
+                    min: 1.0,
+                    max: 1.2,
+                    step: 0.1,
+                },
+            ],
+            test_duration: Duration::from_secs(30),
+        }
+    }
+
+    /// Generate all parameter combinations based on the config
+    pub fn generate_combinations(&self) -> Vec<BenchTuneParamValue> {
+        let mut combinations = Vec::new();
+        
+        // Generate temperature combinations
+        for temp in self.params_to_test.iter().filter(|p| p.name == "temperature").flat_map(|p| {
+            let step_count = ((p.max - p.min) / p.step).ceil() as usize;
+            (0..step_count).map(|i| p.min + (i as f64 * p.step))
+        }) {
+            // Generate top_p combinations
+            for top_p in self.params_to_test.iter().filter(|p| p.name == "top_p").flat_map(|p| {
+                let step_count = ((p.max - p.min) / p.step).ceil() as usize;
+                (0..step_count).map(|i| p.min + (i as f64 * p.step))
+            }) {
+                combinations.push(BenchTuneParamValue {
+                    temperature: Some(temp),
+                    top_p: Some(top_p),
+                    top_k: None,
+                    repeat_penalty: None,
+                    context_length: None,
+                    batch_size: None,
+                });
+            }
+        }
+        
+        // Add default configuration if no combinations were generated
+        if combinations.is_empty() {
+            combinations.push(BenchTuneParamValue {
+                temperature: Some(0.8),
+                top_p: Some(0.9),
+                top_k: None,
+                repeat_penalty: None,
+                context_length: None,
+                batch_size: None,
+            });
+        }
+        
+        combinations
+    }
+
+    /// Get total number of tests to run
+    pub fn get_total_tests_count(&self) -> usize {
+        self.generate_combinations().len()
+    }
+}
+

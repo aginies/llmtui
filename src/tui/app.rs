@@ -2,6 +2,7 @@ use crate::backend::server::ServerHandle;
 use crate::config::{Config, LogEntry, Profile};
 use crate::models::{
     GPUBuffer, DiscoveredModel, LoadProgress, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
+    BenchTuneConfig, BenchTuneProgress, BenchTuneResult, BenchTuneStatus,
 };
 use chrono::Local;
 use ratatui::style::{Color, Modifier, Style};
@@ -12,8 +13,6 @@ use std::sync::{Arc, atomic::AtomicBool, Mutex};
 
 /// Static cell for caching the API port string in help text.
 static API_PORT_CACHE: Mutex<(u16, String)> = Mutex::new((0, String::new()));
-
-use gguf_rs;
 
 use ratatui::text::Line;
 
@@ -41,6 +40,8 @@ pub enum ActivePanel {
     ActiveModel,
     ModelInfo,
     Downloads,
+    #[allow(dead_code)]
+    BenchTune,
 }
 /// Mode for the models panel.
 #[derive(Debug, Clone)]
@@ -68,6 +69,8 @@ pub enum ModelsMode {
         previous_results: Vec<SearchResult>,
         selected_result: Option<SearchResult>,
     },
+    /// Benchmark tuning mode: running bench_tune on a model.
+    BenchTune,
 }
 
 /// Global mode that overlays all panels.
@@ -198,11 +201,12 @@ pub struct App {
     pub sync_task_handle: Option<tokio::task::JoinHandle<()>>,
     pub sync_rx: Option<tokio::sync::mpsc::Receiver<Vec<(String, String, Option<String>)>>>,
     pub spawn_task_handle: Option<tokio::task::JoinHandle<Result<(String, ServerHandle, String), String>>>,
+    pub bench_tune_task_handle: Option<tokio::task::JoinHandle<(Result<Vec<crate::models::BenchTuneResult>, String>, String)>>,
     pub spawn_log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,
     pub api_proxy_handle: Option<tokio::task::JoinHandle<()>>,
-   pub needs_redraw: bool,
+    pub needs_redraw: bool,
     pub panel_help: bool,
     pub panel_visibility: u8,
     pub panel_help_offset: u16,
@@ -218,8 +222,20 @@ pub struct App {
     pub settings_render_cache: Option<SettingsRenderCache>,
     /// Pending search load (page) — set when user presses B or Down at bottom.
     pub pending_search_load: Option<(String, u32)>, // (query, offset)
-     /// Whether search results are currently being loaded.
+    /// Whether search results are currently being loaded.
     pub search_loading: bool,
+    /// Benchmark tuning progress
+    pub bench_tune_progress: Option<BenchTuneProgress>,
+    /// Benchmark tuning results
+    pub bench_tune_results: Vec<BenchTuneResult>,
+    /// Whether benchmark tuning is currently running
+    pub bench_tune_running: bool,
+    /// Benchmark tuning configuration
+    pub bench_tune_config: Option<BenchTuneConfig>,
+    /// Benchmark tuning channel receiver
+    pub bench_tune_rx: Option<tokio::sync::mpsc::Receiver<BenchTuneStatus>>,
+    /// Benchmark tuning channel sender
+    pub bench_tune_tx: Option<tokio::sync::mpsc::Sender<BenchTuneStatus>>,
  }
 
 impl App {
@@ -303,7 +319,9 @@ impl App {
             sync_task_handle: None,
             sync_rx: None,
             spawn_task_handle: None,
+            bench_tune_task_handle: None,
             spawn_log_tx: None,
+
            metrics_model_name: Arc::new(std::sync::Mutex::new(None)),
             loaded_model_names: Arc::new(std::sync::Mutex::new(Vec::new())),
             api_proxy_handle: None,
@@ -318,6 +336,12 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
              server_mode,
             router_max_models,
             settings_render_cache: None,
+            bench_tune_progress: None,
+            bench_tune_results: Vec::new(),
+            bench_tune_running: false,
+            bench_tune_config: None,
+            bench_tune_rx: None,
+            bench_tune_tx: None,
         }
     }
 
@@ -698,7 +722,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         }
     }
 
-    /// Read metadata (layers, hidden size) from the model's GGUF file.
+   /// Read metadata (layers, hidden size) from the model's GGUF file.
     ///
     /// Uses a single cache keyed by the model's full path, so each unique
     /// model is parsed only once regardless of how many times it's selected.
@@ -708,6 +732,15 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             None => return,
         };
         let key = model.path.to_string_lossy().to_string();
+        
+        // Evict cache entries if it exceeds the maximum size
+        const MAX_CACHE_SIZE: usize = 50;
+        if self.gguf_metadata_cache.len() > MAX_CACHE_SIZE {
+            // Remove the oldest entry (first inserted)
+            if let Some(first_key) = self.gguf_metadata_cache.keys().next().cloned() {
+                self.gguf_metadata_cache.remove(&first_key);
+            }
+        }
         
         // 1. Check persistent cache first
         if let Some(cached) = self.gguf_metadata_cache.get(&key) {
@@ -726,7 +759,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         if self.model_hidden_size > 0 {
             self.update_vram_estimate();
         }
-
+        
         // 2. Debounce logic: only skip if we tried this EXACT file (path + mtime) very recently
         // and it wasn't GGUF or we failed to parse it.
         if let Ok(meta) = std::fs::metadata(&model.path) {
@@ -880,8 +913,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                         self.model_n_kv_head = n_kv_head;
 
                         // Cache the parsed metadata
-                        if layers > 0 || hidden > 0 {
-                            self.gguf_metadata_cache.insert(key, crate::models::GgufMetadata {
+                        self.gguf_metadata_cache.insert(key, crate::models::GgufMetadata {
                                 layers,
                                 hidden_size: hidden,
                                 n_ctx_train,
@@ -891,13 +923,12 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                                 file_type,
                                 quantization,
                                 model_parameters,
- domain,
+                                domain,
                                 capabilities,
                                 tokenizer,
                                 vocab_size,
                                 draft_tokens: self.settings.draft_tokens,
                             });
-                        }
                         self.set_redraw();
 
                         // Compute VRAM estimate now that metadata is loaded
@@ -1335,6 +1366,13 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Select download")]),
                 Line::from(vec![Span::styled("Ctrl+C", y), Span::raw("  Cancel selected download")]),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse / Exit")]),
+            ],
+            ActivePanel::BenchTune => vec![
+                Line::from(Span::styled("BENCHTUNE PANEL", y.add_modifier(Modifier::BOLD))),
+                Line::from(""),
+                Line::from("Auto-tuning llama-server for optimal performance."),
+                Line::from(""),
+                Line::from(vec![Span::styled("Esc", y), Span::raw("  Stop benchmark tuning")]),
             ],
         }
     }

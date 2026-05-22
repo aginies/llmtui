@@ -233,8 +233,44 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Handle normal mode
+  // Handle normal mode
     match key.code {
+        KeyCode::Char('p') => {
+            if !app.download_progress.is_empty()
+                && let Some(idx) = app.download_scroll_state.selected() {
+                    let (is_downloading, filename) = {
+                        if let Some(state) = app.download_progress.get(idx) {
+                            match state.status {
+                                crate::models::DownloadStatus::Downloading => (true, state.filename.clone()),
+                                crate::models::DownloadStatus::Paused => (false, state.filename.clone()),
+                                _ => (false, String::new()),
+                            }
+                        } else {
+                            (false, String::new())
+                        }
+                    };
+                    if is_downloading {
+                        if let Some(state) = app.download_progress.get_mut(idx) {
+                            state.status = crate::models::DownloadStatus::Paused;
+                            state.bytes_per_second = 0.0;
+                            if let Some(arc) = &state.download_state_arc {
+                                arc.store(2, std::sync::atomic::Ordering::Relaxed);
+                            }
+                        }
+                        app.add_log(format!("Paused download of {}", filename), crate::config::LogLevel::Info);
+                    } else if !filename.is_empty() {
+                        if let Some(state) = app.download_progress.get_mut(idx) {
+                            state.status = crate::models::DownloadStatus::Downloading;
+                            if let Some(arc) = &state.download_state_arc {
+                                arc.store(1, std::sync::atomic::Ordering::Relaxed);
+                            }
+                        }
+                        app.add_log(format!("Resumed download of {}", filename), crate::config::LogLevel::Info);
+                    }
+                    app.set_redraw();
+                    return;
+                }
+        }
         KeyCode::Char('c')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
@@ -429,11 +465,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             // Hide Active Model (4) and Log (5) panels by default in search mode
             app.panel_visibility &= !(1 << 4);
             app.panel_visibility &= !(1 << 5);
-            return;
-        }
-        KeyCode::Char('p') => {
-            app.active_panel = ActivePanel::Profiles;
-            return;
+           return;
         }
         KeyCode::Char('A') => {
             app.global_mode = GlobalMode::About;
@@ -737,7 +769,18 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-  
+    // Handle bench_tune mode
+    if matches!(app.models_mode, ModelsMode::BenchTune { .. }) {
+        match key.code {
+            KeyCode::Esc => {
+                app.models_mode = ModelsMode::List;
+                app.set_redraw();
+                return;
+            }
+            _ => {}
+        }
+        return;
+    }
 
     // Skip normal key handling when panel help is showing
     if app.panel_help {
@@ -786,8 +829,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
        ActivePanel::ActiveModel => {}
         ActivePanel::ModelInfo => {}
         ActivePanel::Downloads => handle_downloads_key(app, key),
-        }
-       }async fn fetch_and_store_readme(app: &mut App, model_id: String) {
+        ActivePanel::BenchTune => {}
+    }
+}
+async fn fetch_and_store_readme(app: &mut App, model_id: String) {
     match crate::backend::hub::fetch_readme(&model_id).await {
         Ok(readme) => {
             if let ModelsMode::Search { results, .. } = &mut app.models_mode
@@ -1168,7 +1213,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.server_mode = match app.server_mode {
                         crate::models::ServerMode::Normal => crate::models::ServerMode::Router,
                         crate::models::ServerMode::Router => crate::models::ServerMode::Bench,
-                        crate::models::ServerMode::Bench => crate::models::ServerMode::Normal,
+                        crate::models::ServerMode::Bench => crate::models::ServerMode::BenchTune,
+                        crate::models::ServerMode::BenchTune => crate::models::ServerMode::Normal,
                     };
                 }
                 5 => {

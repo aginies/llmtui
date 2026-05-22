@@ -743,6 +743,93 @@ impl Config {
             .join("config.yaml")
     }
 
+    /// Validate config values and return a list of warnings for invalid entries.
+    pub fn validate(&self) -> Vec<String> {
+        let mut warnings = Vec::new();
+        let default = &self.default;
+
+        // Numeric range checks
+        if default.context_length < 512 || default.context_length > 131072 {
+            warnings.push(format!(
+                "context_length {} is outside recommended range 512-131072",
+                default.context_length
+            ));
+        }
+        if default.temperature < 0.0 || default.temperature > 2.0 {
+            warnings.push(format!(
+                "temperature {} is outside recommended range 0.0-2.0",
+                default.temperature
+            ));
+        }
+        if (default.top_p < 0.0 || default.top_p > 1.0) && default.top_p != 0.0 {
+            warnings.push(format!(
+                "top_p {} is outside recommended range 0.0-1.0",
+                default.top_p
+            ));
+        }
+        if (default.repeat_penalty < 0.0 || default.repeat_penalty > 3.0) && default.repeat_penalty != 1.0 {
+            warnings.push(format!(
+                "repeat_penalty {} is outside recommended range 0.0-3.0",
+                default.repeat_penalty
+            ));
+        }
+        if default.mirostat_lr < 0.0 || default.mirostat_lr > 1.0 {
+            warnings.push(format!(
+                "mirostat_lr {} is outside recommended range 0.0-1.0",
+                default.mirostat_lr
+            ));
+        }
+        if default.mirostat_ent < 0.0 || default.mirostat_ent > 10.0 {
+            warnings.push(format!(
+                "mirostat_ent {} is outside recommended range 0.0-10.0",
+                default.mirostat_ent
+            ));
+        }
+ 
+        if default.timeout < 1 {
+            warnings.push(format!(
+                "timeout {} must be at least 1 second",
+                default.timeout
+            ));
+        }
+
+        // Path validation
+        if let Some(lora) = &default.lora {
+            if !lora.exists() {
+                warnings.push(format!("lora path {} does not exist", lora.display()));
+            }
+        }
+        if let Some((lora, _)) = &default.lora_scaled {
+            if !lora.exists() {
+                warnings.push(format!("lora path {} does not exist", lora.display()));
+            }
+        }
+
+ 
+
+        // Model override validation
+        for (model_name, override_settings) in &self.model_overrides {
+            if let Some(lora) = &override_settings.lora {
+                if !lora.exists() {
+                    warnings.push(format!(
+                        "model '{}' lora path {} does not exist",
+                        model_name, lora.display()
+                    ));
+                }
+            }
+            if let Some((lora, _)) = &override_settings.lora_scaled {
+                if !lora.exists() {
+                    warnings.push(format!(
+                        "model '{}' lora path {} does not exist",
+                        model_name, lora.display()
+                    ));
+                }
+            }
+        }
+
+        warnings
+    }
+
     /// Resolve settings for a specific model and profile.
     pub fn resolve_settings(&self, model_name: Option<&str>, profile_name: Option<&str>) -> crate::models::ModelSettings {
         let mut settings = crate::models::ModelSettings::from_config(self);
@@ -796,8 +883,18 @@ impl Config {
         let path = Self::config_path();
         if path.exists() {
             let content = std::fs::read_to_string(&path)?;
-            let config: Config = serde_yaml::from_str(&content)?;
-            Ok(Self::normalize_config(config))
+            let config: Config = serde_yaml::from_str(&content).map_err(|e| {
+                format!("Failed to parse config file {}: {}", path.display(), e)
+            })?;
+            let config = Self::normalize_config(config);
+            let warnings = config.validate();
+            if !warnings.is_empty() {
+                eprintln!("Config validation warnings:");
+                for warning in &warnings {
+                    eprintln!("  - {}", warning);
+                }
+            }
+            Ok(config)
         } else {
             let config = Config::default();
             config.save()?;
@@ -808,8 +905,18 @@ impl Config {
     pub fn load_from(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         if path.exists() {
             let content = std::fs::read_to_string(&path)?;
-            let config: Config = serde_yaml::from_str(&content)?;
-            Ok(Self::normalize_config(config))
+            let config: Config = serde_yaml::from_str(&content).map_err(|e| {
+                format!("Failed to parse config file {}: {}", path.display(), e)
+            })?;
+            let config = Self::normalize_config(config);
+            let warnings = config.validate();
+            if !warnings.is_empty() {
+                eprintln!("Config validation warnings:");
+                for warning in &warnings {
+                    eprintln!("  - {}", warning);
+                }
+            }
+            Ok(config)
         } else {
             Err(format!("Config file not found: {}", path.display()).into())
         }

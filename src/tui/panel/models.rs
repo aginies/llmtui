@@ -47,12 +47,14 @@ pub fn render_download_panel(
             
             let status = match &d.status {
                 crate::models::DownloadStatus::Downloading => "Downloading...",
+                crate::models::DownloadStatus::Paused => "Paused",
                 crate::models::DownloadStatus::Complete => "Complete",
                 crate::models::DownloadStatus::Error(e) => e.as_str(),
             };
 
             let status_color = match &d.status {
                 crate::models::DownloadStatus::Downloading => Color::Yellow,
+                crate::models::DownloadStatus::Paused => Color::White,
                 crate::models::DownloadStatus::Complete => Color::Green,
                 crate::models::DownloadStatus::Error(_) => Color::Red,
             };
@@ -348,6 +350,75 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             app.files_table_state.select(*selected_idx);
 
             f.render_stateful_widget(table, inner_area, &mut app.files_table_state);
+        }
+        ModelsMode::BenchTune => {
+            let title = " BenchTune ".to_string();
+            let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
+                Color::Green
+            } else {
+                Color::Yellow
+            };
+            let block = Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(border_color));
+
+            let inner_area = block.inner(area);
+            f.render_widget(block, area);
+
+            // Show bench_tune progress or results
+            let mut lines: Vec<Line> = Vec::new();
+
+            if let Some(progress) = &app.bench_tune_progress {
+                match progress {
+                    crate::models::BenchTuneProgress::Running { current, total, progress: p, current_params } => {
+                        lines.push(Line::from(format!("Progress: {}/{} ({:.0}%)", current, total, p)));
+                        lines.push(Line::from(""));
+                        lines.push(Line::from("Current parameters:"));
+                        if let Some(temp) = current_params.temperature {
+                            lines.push(Line::from(format!("  temperature: {}", temp)));
+                        }
+                        if let Some(tp) = current_params.top_p {
+                            lines.push(Line::from(format!("  top_p: {}", tp)));
+                        }
+                        if let Some(tk) = current_params.top_k {
+                            lines.push(Line::from(format!("  top_k: {}", tk)));
+                        }
+                        if let Some(rp) = current_params.repeat_penalty {
+                            lines.push(Line::from(format!("  repeat_penalty: {}", rp)));
+                        }
+                        if let Some(cl) = current_params.context_length {
+                            lines.push(Line::from(format!("  context_length: {}", cl)));
+                        }
+                        if let Some(bs) = current_params.batch_size {
+                            lines.push(Line::from(format!("  batch_size: {}", bs)));
+                        }
+                    }
+                    crate::models::BenchTuneProgress::Completed { total_tests, successful_tests, elapsed } => {
+                        let elapsed_str = format!("{}s", elapsed.as_secs());
+                        lines.push(Line::from(format!("Completed: {}/{} tests in {}", total_tests, successful_tests, elapsed_str)));
+                        
+                        if !app.bench_tune_results.is_empty() {
+                            lines.push(Line::from(""));
+                            lines.push(Line::from("Best results:"));
+                            // Sort results by tokens_per_sec descending
+                            let mut sorted = app.bench_tune_results.clone();
+                            sorted.sort_by(|a, b| b.metrics.tokens_per_sec.partial_cmp(&a.metrics.tokens_per_sec).unwrap_or(std::cmp::Ordering::Equal));
+                            for (i, result) in sorted.iter().take(5).enumerate() {
+                                lines.push(Line::from(format!("  {}. {:.2} tok/s", i + 1, result.metrics.tokens_per_sec)));
+                            }
+                        }
+                    }
+                    crate::models::BenchTuneProgress::Error { error } => {
+                        lines.push(Line::from(format!("Error: {}", error)));
+                    }
+                }
+            } else {
+                lines.push(Line::from("Benchmark tuning not started."));
+            }
+
+            let paragraph = ratatui::widgets::Paragraph::new(lines).block(Block::default());
+            f.render_widget(paragraph, inner_area);
         }
     }
 }

@@ -18,7 +18,7 @@ use crate::tui::app::ModelsMode;
 use crate::models::Backend;
 use crate::models::{DiscoveredModel, DownloadState};
 use crate::tui::app::App;
-use std::sync::{Arc, atomic::AtomicBool};
+use std::sync::{Arc, atomic::{AtomicBool, AtomicU8}};
 use tracing_subscriber::prelude::*;
 
 #[derive(Parser)]
@@ -185,11 +185,15 @@ async fn main() -> Result<()> {
                     let tx = app.download_tx.as_ref().unwrap().clone();
                     let tx_clone = tx.clone();
                     let cancelled_for_state = cancelled_clone.clone();
+                    let download_state = Arc::new(AtomicU8::new(1));
+                    let download_state_clone = download_state.clone();
 
                     tokio::spawn(async move {
                         let mut state = DownloadState::new(model_id_clone.clone(), filename_clone.clone(), 0);
                         state.cancel_token = Some(cancelled_for_state);
-                        let result = hub::download_file(&model_id_clone, &filename_clone, &url_clone, &dest, &mut state, cancelled_clone, tx_clone).await;
+                        state.download_state = 1;
+                        state.download_state_arc = Some(download_state_clone.clone());
+                        let result = hub::download_file(&model_id_clone, &filename_clone, &url_clone, &dest, &mut state, download_state_clone, tx_clone).await;
                         if let Err(e) = result {
                             state.status = crate::models::DownloadStatus::Error(e.to_string());
                             let _ = tx.send(state);
@@ -308,19 +312,58 @@ async fn main() -> Result<()> {
             if let Some(m) = &model_opt {
                 let state = if server_mode_clone == crate::models::ServerMode::Bench {
                     crate::models::ModelState::Benchmarking
+                } else if server_mode_clone == crate::models::ServerMode::BenchTune {
+                    crate::models::ModelState::Benchmarking
                 } else {
                     crate::models::ModelState::Loading
                 };
                 app.model_states.insert(m.display_name.clone(), state);
             }
             app.add_log(format!("Loading {}...", display_name), crate::config::LogLevel::Info);
-            let handle = tokio::spawn(async move {
-                server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone, download_tx_clone, server_mode_clone, router_max_models_clone).await
-                    .map(|(handle, cmd)| (display_name, handle, cmd))
-            });
-            app.spawn_task_handle = Some(handle);
-            app.spawn_log_tx = Some(tx);
-            app.set_redraw();
+
+            if server_mode_clone == crate::models::ServerMode::BenchTune {
+                let bench_tune_config = crate::models::BenchTuneConfig::new(
+                    model_clone.as_ref().unwrap().path.clone(),
+                    3, // Default iterations
+                    "What is the capital of France?".to_string(),
+                );
+                
+                let (tx_tune, rx_tune) = tokio::sync::mpsc::channel(100);
+                app.bench_tune_tx = Some(tx_tune.clone());
+                app.bench_tune_config = Some(bench_tune_config.clone());
+                app.bench_tune_running = true;
+                app.models_mode = crate::tui::app::ModelsMode::BenchTune;
+                
+                let bench_tune_config_clone = bench_tune_config.clone();
+                let settings_clone = settings_clone.clone();
+                let model_clone = model_clone.clone();
+                
+                let handle = tokio::spawn(async move {
+                    let results = crate::backend::benchmark::run_bench_tune(
+                        &bench_tune_config_clone,
+                        &model_clone.as_ref().unwrap().path,
+                        &settings_clone,
+                        tx_tune,
+                    ).await.map_err(|e| e.to_string());
+                    
+                    (results, display_name)
+                });
+                
+                app.bench_tune_task_handle = Some(handle);
+                app.spawn_log_tx = Some(tx); // Keep using the original tx for other logs
+                app.set_redraw();
+                
+                // Actually app will poll rx_tune in main loop
+                app.bench_tune_rx = Some(rx_tune);
+            } else {
+                let handle = tokio::spawn(async move {
+                    server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone, download_tx_clone, server_mode_clone, router_max_models_clone).await
+                        .map(|(handle, cmd)| (display_name, handle, cmd))
+                });
+                app.spawn_task_handle = Some(handle);
+                app.spawn_log_tx = Some(tx);
+                app.set_redraw();
+            }
         }
         // Check if server spawn task is done
         if let Some(handle) = &app.spawn_task_handle
@@ -450,6 +493,50 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                     }
                     app.set_redraw();
                 }
+
+        // Check if benchmark tuning task is done
+        if let Some(handle) = &app.bench_tune_task_handle
+            && handle.is_finished()
+            && let Some(handle) = app.bench_tune_task_handle.take() {
+                match handle.await {
+                    Ok((results, display_name)) => {
+                        match results {
+                            Ok(bench_results) => {
+                                app.add_log(format!("Benchmark tuning completed for {} with {} results", display_name, bench_results.len()), crate::config::LogLevel::Info);
+                                
+                                // Save results to file
+                                let output_dir = crate::config::Config::config_path().parent().unwrap().join("benchmarks");
+                                match crate::backend::benchmark::save_results(&bench_results, &output_dir).await {
+                                    Ok(()) => app.add_log(format!("Results saved to {}/", output_dir.display()), crate::config::LogLevel::Info),
+                                    Err(e) => app.add_log(format!("Failed to save benchmark results: {}", e), crate::config::LogLevel::Error),
+                                }
+
+                                app.bench_tune_results = bench_results;
+                                app.bench_tune_running = false;
+                                
+                                // Update model state to Loaded
+                                if let Some(model) = app.selected_model() {
+                                    app.model_states.insert(model.display_name.clone(), crate::models::ModelState::Loaded { port: 0, pid: 0 });
+                                }
+                            }
+                            Err(e) => {
+                                app.add_log(format!("Benchmark tuning failed: {}", e), crate::config::LogLevel::Error);
+                                app.bench_tune_running = false;
+                                
+                                // Update model state to Failed
+                                if let Some(model) = app.selected_model() {
+                                    app.model_states.insert(model.display_name.clone(), crate::models::ModelState::Failed { error: e.to_string() });
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        app.add_log(format!("Benchmark task panicked: {:?}", e), crate::config::LogLevel::Error);
+                        app.bench_tune_running = false;
+                    }
+                }
+                app.set_redraw();
+            }
 
         // Handle pending API load
         if let Some((model_name, model_path)) = app.pending_api_load.clone() {
@@ -649,6 +736,15 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
         }
         if redraw {
             app.set_redraw();
+        }
+
+        // Poll benchmark tuning progress
+        if let Some(mut rx) = app.bench_tune_rx.take() {
+            while let Ok(status) = rx.try_recv() {
+                app.bench_tune_progress = crate::models::BenchTuneProgress::from_status(&status);
+                app.set_redraw();
+            }
+            app.bench_tune_rx = Some(rx);
         }
 
         // Process completed downloads (separate pass to avoid borrow issues)

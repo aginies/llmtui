@@ -891,6 +891,13 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                 parts
             }
         }
+        crate::tui::app::ModelsMode::BenchTune => {
+            vec![
+                Span::styled("⎋ stop", r),
+                Span::raw("  "),
+                Span::styled("⇥ panels", c),
+            ]
+        }
     }
 }
 
@@ -901,6 +908,7 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         ModelsMode::List => "List".to_string(),
         ModelsMode::Search { results, .. } => format!("Search({} results)", results.len()),
         ModelsMode::Files { files, .. } => format!("Files({} files)", files.len()),
+        ModelsMode::BenchTune => "BenchTune".to_string(),
     };
     parts.push(Span::styled(format!("[Mode: {}] ", mode_name), Style::default().fg(Color::DarkGray)));
 
@@ -911,6 +919,26 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             format!("{} {}", handle.port, app.server_mode)
         };
         parts.push(Span::styled(format!("● {}", label), Style::default().fg(Color::Green)));
+    } else if app.server_mode == crate::models::ServerMode::BenchTune {
+        // Show benchmark tuning status
+        if let Some(progress) = &app.bench_tune_progress {
+            match progress {
+                crate::models::BenchTuneProgress::Running { current, total, progress, current_params: _ } => {
+                    let progress_str = format!("BENCH TUNE {}/{} ({:.0}%)", current, total, progress);
+                    parts.push(Span::styled(format!("● {}", progress_str), Style::default().fg(Color::Yellow)));
+                }
+                crate::models::BenchTuneProgress::Completed { total_tests, successful_tests, elapsed } => {
+                    let elapsed_str = format!("{}s", elapsed.as_secs());
+                    let progress_str = format!("BENCH TUNE COMPLETED ({}/{}) in {}", total_tests, successful_tests, elapsed_str);
+                    parts.push(Span::styled(format!("● {}", progress_str), Style::default().fg(Color::Green)));
+                }
+                crate::models::BenchTuneProgress::Error { error } => {
+                    parts.push(Span::styled(format!("● BENCH TUNE ERROR: {}", error), Style::default().fg(Color::Red)));
+                }
+            }
+        } else {
+            parts.push(Span::styled("● BENCH TUNE READY", Style::default().fg(Color::Yellow)));
+        }
     } else {
         parts.push(Span::styled("○ Server", Style::default().fg(Color::DarkGray)));
     }
@@ -980,9 +1008,14 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                 crate::tui::app::ActivePanel::SystemPromptPresets => "PROMPTS",
                 crate::tui::app::ActivePanel::SearchReadme => "README",
                 crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
+                crate::tui::app::ActivePanel::BenchTune => "BENCHTUNE",
                 _ => "APP",
             };
             parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+        }
+        crate::tui::app::ModelsMode::BenchTune => {
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("BENCHTUNE", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
         }
     }
 

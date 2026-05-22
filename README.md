@@ -142,13 +142,15 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `⌃K` — CmdLine overlay
 - `⌃D` — Delete model (with confirmation)
 - `⌃L` — Focus Log panel
-- `p` — Open Profiles panel
+- `p` — Open Profiles panel / Pause or resume download (in Downloads panel)
 - `S` — Cycle search sort (Relevance/Downloads/Likes/Trending/Created)
 - `B` — Back one page in search results
 - `↓` at bottom — Load more search results (infinite scroll)
 - `R` — Fetch README for selected model
 - `⌃⌥K` — Kill llama-server process
-- `g` / `G` — Jump to bottom/top of log panel
+- `g` / `G` — Jump to top/bottom of log panel (toggles Follow mode)
+- `f` (in Log panel) — Toggle Follow mode (auto-scroll to bottom)
+- `PageUp` / `PageDown` — Scroll 15 lines up/down in log panel
 - `⌃S` — Save settings for selected model
 - `⌃R` — Reset settings to defaults
 - `⌃E` — Toggle enabled/disabled for specific fields
@@ -172,6 +174,21 @@ In the LLM Settings panel, the GPU Layers field cycles through three modes with 
 | All | Offloads all layers (equivalent to `-ngl 999`) |
 
 Arrow keys cycle: `Auto` → `1` → `2` → ... → `N` → `All` → `Auto`. Pressing `↵` from a specific number opens an edit buffer for direct input.
+
+### MTP (Multi-Token Prediction)
+
+MTP is an experimental feature that uses a draft model to predict multiple tokens in parallel, improving inference speed. When a model with MTP architecture is selected, the app automatically detects it and enables the `--draft-mtp` flag. The number of draft tokens is read from the GGUF metadata and displayed in the Model Info panel.
+
+### Log panel modes
+
+The Log panel supports two modes:
+
+| Mode | Behavior |
+|------|----------|
+| **Following** (default) | Auto-scrolls to the bottom as new log entries arrive. Press `g` to exit. |
+| **Manual** | Allows manual scrolling through log history. Press `G` to return to bottom and re-enable following. |
+
+Press `f` in the Log panel to toggle between modes. The current mode is displayed in the panel title (e.g., "Log (F6) - Following" or "Log (F6) - Manual"). PageUp/PageDown keys scroll 15 lines at a time.
 
 ### Panels
 
@@ -262,6 +279,10 @@ The Active Model panel shows real-time metrics:
 Models load through several phases detected from llama.cpp log output: ServerStarting → LoadingModel → LoadingMeta → LoadingTensors → ServerListening → Complete. During loading, a progress bar shows the phase and details (layers loaded/total, tensor count, VRAM used).
 
 Models have status states: Available, Loading, Loaded, Failed (with error message shown in red, e.g., "OOM", "Router Crash").
+
+### Download Management
+
+Downloads can be paused and resumed by pressing `p` while a download is selected in the Downloads panel. Press `c` (Ctrl+C) to cancel a download entirely. Download progress shows bytes per second and percentage complete.
 
 ### Confirmation dialogs
 

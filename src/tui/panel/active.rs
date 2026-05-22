@@ -97,11 +97,79 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
                 Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
             ]));
-            lines.push(Line::from(vec![
-                Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
-                Span::styled("BENCHMARKING", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                Span::styled(" (see log for output)", Style::default().fg(Color::DarkGray)),
-            ]));
+            
+            // Show benchmark tuning progress if available
+            if app.server_mode == crate::models::ServerMode::BenchTune {
+                if let Some(progress) = &app.bench_tune_progress {
+                    match progress {
+                        crate::models::BenchTuneProgress::Running { current, total, progress: p, current_params } => {
+                            let label = " Progress: ";
+                            // Available width inside borders (area.width - 2)
+                            // Overhead: label (11) + brackets (2) + percentage " 100% " (6)
+                            let overhead = label.len() + 2 + 6;
+                            let bar_width = area.width.saturating_sub(overhead as u16 + 2) as usize;
+                            let filled = (*p as f64 / 100.0 * bar_width as f64) as usize;
+                            let bar = format!(
+                                "[{}{}] {:.0}%",
+                                "█".repeat(filled),
+                                "░".repeat(bar_width.saturating_sub(filled)),
+                                p
+                            );
+                            lines.push(Line::from(vec![
+                                Span::styled(label, Style::default().fg(Color::Yellow)),
+                                Span::styled(bar, Style::default().fg(Color::Yellow)),
+                            ]));
+                            lines.push(Line::from(vec![
+                                Span::styled(" Test: ", Style::default().fg(Color::Yellow)),
+                                Span::styled(format!("{}/{}", current, total), Style::default().fg(Color::White)),
+                            ]));
+                            lines.push(Line::from(vec![
+                                Span::styled(" Current: ", Style::default().fg(Color::Yellow)),
+                                Span::styled(format!("temp={:.2}, top_p={:.2}", 
+                                    current_params.temperature.unwrap_or(0.0),
+                                    current_params.top_p.unwrap_or(0.0)), 
+                                Style::default().fg(Color::Cyan)),
+                            ]));
+                        }
+                        crate::models::BenchTuneProgress::Completed { total_tests, successful_tests, elapsed } => {
+                            let elapsed_str = format!("{}s", elapsed.as_secs());
+                            lines.push(Line::from(vec![
+                                Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
+                                Span::styled("COMPLETED", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+                            ]));
+                            lines.push(Line::from(vec![
+                                Span::styled(" Results: ", Style::default().fg(Color::Yellow)),
+                                Span::styled(format!("{}/{} successful", successful_tests, total_tests), Style::default().fg(Color::Green)),
+                            ]));
+                            lines.push(Line::from(vec![
+                                Span::styled(" Time: ", Style::default().fg(Color::Yellow)),
+                                Span::styled(elapsed_str, Style::default().fg(Color::Green)),
+                            ]));
+                        }
+                        crate::models::BenchTuneProgress::Error { error } => {
+                            lines.push(Line::from(vec![
+                                Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
+                                Span::styled("ERROR", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                            ]));
+                            lines.push(Line::from(vec![
+                                Span::styled(" Error: ", Style::default().fg(Color::Yellow)),
+                                Span::styled(error.clone(), Style::default().fg(Color::Red)),
+                            ]));
+                        }
+                    }
+                } else {
+                    lines.push(Line::from(vec![
+                        Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
+                        Span::styled("READY", Style::default().fg(Color::Yellow)),
+                    ]));
+                }
+            } else {
+                lines.push(Line::from(vec![
+                    Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
+                    Span::styled("BENCHMARKING", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                    Span::styled(" (see log for output)", Style::default().fg(Color::DarkGray)),
+                ]));
+            }
         }
         Some(ModelState::Loading) => {
             let m = model.unwrap();
@@ -116,7 +184,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             // Show loading progress with details
             if app.loading_progress > 0.0 && app.loading_progress < 1.0 {
-                let bar_width = area.width.saturating_sub(10) as usize;
+                // Available width inside borders (area.width - 2)
+                // Brackets (2) + percentage " 100%" (5)
+                let overhead = 2 + 5;
+                let bar_width = area.width.saturating_sub(overhead as u16 + 2) as usize;
                 let filled = (app.loading_progress * bar_width as f32) as usize;
                 let bar = format!(
                     "[{}{}] {:.0}%",

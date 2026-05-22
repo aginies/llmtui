@@ -57,6 +57,9 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         crate::models::ServerMode::Bench => {
             // Should not be reached as Bench uses build_bench_cmd
         }
+        crate::models::ServerMode::BenchTune => {
+            // Should not be reached as BenchTune uses benchmark tuning function
+        }
     }
 
     // ── Loading ──────────────────────────────────────────────
@@ -72,6 +75,9 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
 
     if settings.is_mtp {
         push_flag(&mut cmd, &mut parts, "--draft-mtp");
+        if settings.draft_tokens > 0 {
+            push_arg(&mut cmd, &mut parts, "-nd", settings.draft_tokens);
+        }
     }
 
     if let Some(cache_k) = settings.cache_type_k {
@@ -260,6 +266,9 @@ pub fn build_bench_cmd(binary: &std::path::Path, model: &DiscoveredModel, settin
 
     if settings.is_mtp {
         push_flag(&mut cmd, &mut parts, "--draft-mtp");
+        if settings.draft_tokens > 0 {
+            push_arg(&mut cmd, &mut parts, "-nd", settings.draft_tokens);
+        }
     }
 
     push_flag(&mut cmd, &mut parts, "--progress");
@@ -279,12 +288,18 @@ pub async fn spawn_server(
     server_mode: crate::models::ServerMode,
     router_max_models: u32,
 ) -> Result<(ServerHandle, String), String> {
-    if server_mode != crate::models::ServerMode::Bench {
+    if server_mode != crate::models::ServerMode::Bench && server_mode != crate::models::ServerMode::BenchTune {
         let port = settings.port;
         // Check if port is already in use
         if std::net::TcpListener::bind(("127.0.0.1", port)).is_err() {
             return Err(format!("Port {} is already in use", port));
         }
+    }
+
+    // For BenchTune mode, we don't spawn a server process
+    if server_mode == crate::models::ServerMode::BenchTune {
+        // Handle benchmark tuning in main.rs instead
+        return Err("BenchTune mode requires special handling in main.rs".to_string());
     }
 
     // Resolve the backend binary (downloads if needed)

@@ -168,7 +168,7 @@ pub async fn download_file(
     url: &str,
     dest: &std::path::Path,
     progress: &mut crate::models::DownloadState,
-    cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    download_state: std::sync::Arc<std::sync::atomic::AtomicU8>,
     tx: tokio::sync::broadcast::Sender<crate::models::DownloadState>,
 ) -> Result<()> {
     let client = reqwest::Client::new();
@@ -209,10 +209,23 @@ pub async fn download_file(
             progress.bytes_per_second = progress.downloaded_bytes as f64 / elapsed;
         }
 
-        if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+        let state = download_state.load(std::sync::atomic::Ordering::Relaxed);
+        if state == 3 {
             drop(file);
             let _ = tokio::fs::remove_file(dest).await;
             return Err(anyhow::anyhow!("Download cancelled"));
+        }
+        if state == 2 {
+            // Check if download_state_arc is also paused (for UI consistency)
+            if let Some(arc) = &progress.download_state_arc {
+                if arc.load(std::sync::atomic::Ordering::Relaxed) == 2 {
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    continue;
+                }
+            } else {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                continue;
+            }
         }
 
         // Send progress update at most every 100ms and only if bytes changed
@@ -450,8 +463,8 @@ pub async fn resolve_backend_binary(
     
     if let Some(ref tx) = progress_tx {
         let mut progress = crate::models::DownloadState::new("llama-server".to_string(), tmp_filename.clone(), 0);
-        let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        download_file("llama-server", &tmp_filename, &download_url, &tmp_path, &mut progress, cancelled, tx.clone()).await?;
+        let download_state = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(1));
+        download_file("llama-server", &tmp_filename, &download_url, &tmp_path, &mut progress, download_state, tx.clone()).await?;
     } else {
         let resp = client
             .get(&download_url)
