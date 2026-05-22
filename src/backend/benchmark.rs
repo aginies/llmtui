@@ -26,6 +26,33 @@ pub async fn run_bench_tune(
 
     // If runtime-only mode, send params in request body (no server restarts)
     if config.bench_mode == BenchTuneMode::RuntimeOnly {
+        // Spawn a single server for all runtime-only iterations
+        let (server_handle, _command) = spawn_server(
+            main_config,
+            Some(model),
+            settings,
+            log_tx.clone(),
+            None,
+            ServerMode::Normal,
+            1,
+        ).await?;
+
+        let host = if server_handle.host == "0.0.0.0" { "127.0.0.1" } else { &server_handle.host };
+
+        // Wait for server to be ready
+        for i in 0..120 {
+            if crate::backend::server::check_health(host, server_handle.port).await {
+                break;
+            }
+            if i % 10 == 0 && i > 0 {
+                let _ = log_tx.send(format!("  ... still waiting ({:.0}s)...", i as f32 * 0.5)).await;
+            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+
+        let server_port = server_handle.port;
+        let server_host = host.to_string();
+
         for (idx, combination) in combinations.iter().enumerate() {
             let progress = (idx as f32 / total_tests as f32) * 100.0;
             progress_tx.send(BenchTuneStatus::Running {
@@ -37,9 +64,11 @@ pub async fn run_bench_tune(
 
             let result = run_bench_tune_runtime_only(
                 combination,
-                settings,
+                &settings,
                 config.num_iterations,
                 config.prompt.clone(),
+                &server_host,
+                server_port,
                 log_tx.clone(),
                 config,
             ).await;
@@ -51,6 +80,8 @@ pub async fn run_bench_tune(
                 }
             }
         }
+
+        let _ = crate::backend::server::kill_server(server_handle).await;
     } else {
         // Full mode: spawn a new server for each parameter combination
         for (idx, combination) in combinations.iter().enumerate() {
@@ -107,6 +138,8 @@ async fn run_bench_tune_runtime_only(
     settings: &ModelSettings,
     num_iterations: u32,
     prompt: String,
+    server_host: &str,
+    server_port: u16,
     log_tx: mpsc::Sender<String>,
     config: &BenchTuneConfig,
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
@@ -122,7 +155,7 @@ async fn run_bench_tune_runtime_only(
     let _ = log_tx.send(format!("Running {} inference iterations (runtime-only mode)...", num_iterations)).await;
 
     for i in 0..num_iterations {
-        let result = send_inference_request(&prompt, "127.0.0.1", 8080, params, config).await;
+        let result = send_inference_request(&prompt, server_host, server_port, params, config).await;
 
         match result {
             Ok(res) => {
@@ -155,7 +188,7 @@ async fn run_bench_tune_runtime_only(
                     generation_tps: iter_gen_tps,
                     combined_tps: 0.0,
                     latency_per_token: iter_latency,
-                    first_token_time: iter_gen_tps,
+                    first_token_time: res.first_token_time as f64,
                 });
 
                 if num_iterations > 1 {
