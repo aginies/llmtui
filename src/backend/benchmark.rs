@@ -21,7 +21,7 @@ pub async fn run_bench_tune(
     // Generate all parameter combinations
     let combinations = config.generate_combinations();
 
- // Results storage
+    // Results storage
     let mut results = Vec::new();
 
     // Apply chat_template_kwargs from config to settings
@@ -527,7 +527,7 @@ async fn send_inference_request(prompt: &str, host: &str, port: u16, params: &Be
     })
 }
 
-  /// Save benchmark results to disk in Markdown format
+    /// Save benchmark results to disk in Markdown format
 pub async fn save_results(results: &[BenchTuneResult], output_dir: &PathBuf, config: &BenchTuneConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Create output directory if it doesn't exist
     std::fs::create_dir_all(output_dir)?;
@@ -759,7 +759,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         (1.0 - (cv * 5.0)).clamp(0.0, 1.0)
     }).collect();
 
-  // Top N for charts
+    // Top N for charts
     let top_n = std::cmp::min(20, total_tests);
     let top_indices: Vec<(usize, usize)> = (0..total_tests)
         .map(|i| (i, results[i].metrics.generation_tps))
@@ -780,7 +780,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     let scatter_latency: Vec<f64> = results.iter().map(|r| r.metrics.latency_per_token).collect();
     let scatter_first_token: Vec<f64> = results.iter().map(|r| r.metrics.first_token_time).collect();
 
-  let param_headers: Vec<String> = vec!["Temp".to_string(), "Top-P".to_string(), "Top-K".to_string(), "RepPen".to_string(), "FA".to_string(), "Threads".to_string(), "Batch".to_string(), "Exp".to_string()];
+    let param_headers: Vec<String> = vec!["Temp".to_string(), "Top-P".to_string(), "Top-K".to_string(), "RepPen".to_string(), "FA".to_string(), "Threads".to_string(), "Batch".to_string(), "Exp".to_string()];
     let param_vals: Vec<Vec<String>> = results.iter().map(|r| {
         let base = r.base_settings.as_ref().unwrap();
         let rp = resolve_params(&r.params, base);
@@ -923,7 +923,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     let top_gen_tps_json = serde_json::to_string(&top_gen_tps).unwrap();
 
     // Build model metadata HTML
-  let model_meta_html = model_info.as_ref().map(|(name, _size, s)| {
+    let model_meta_html = model_info.as_ref().map(|(name, _size, s)| {
          format!(r#"
 <div class="meta-section">
 <h2>Model &amp; Configuration</h2>
@@ -947,7 +947,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         )
     }).unwrap_or_default();
 
-   // Build winner section HTML
+    // Build winner section HTML
     let winner_html = best_idx.and_then(|idx| {
         let r = &results[idx];
         let base = r.base_settings.as_ref()?;

@@ -217,7 +217,7 @@ pub struct ModelOverride {
 }
 
 impl ModelOverride {
-   pub fn from_settings(s: &crate::models::ModelSettings) -> Self {
+    pub fn from_settings(s: &crate::models::ModelSettings) -> Self {
         Self {
             context_length: Some(s.context_length),
             batch_size: Some(s.batch_size),
@@ -607,7 +607,7 @@ pub struct DefaultParams {
     #[serde(default)]
     pub llama_cpp_version_cuda: Option<String>,
 
-  // API
+    // API
     #[serde(default)]
     pub api_endpoint_enabled: bool,
     #[serde(default = "default_api_endpoint_port")]

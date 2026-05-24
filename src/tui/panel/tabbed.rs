@@ -38,54 +38,54 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     // ── Server Settings box (always shown) ───────────────────
     render_server_settings(f, server_area, app);
 
-  // ── LLM Settings ─────────────────────────────────────────
-  let (settings_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, llm_area);
+    // ── LLM Settings ─────────────────────────────────────────
+    let (settings_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, llm_area);
 
-  let available_height = llm_area.height.saturating_sub(2);
+    let available_height = llm_area.height.saturating_sub(2);
 
-  // Build visible settings lines with scroll offset applied
-  let start_idx = app.settings_scroll_offset as usize;
-  let visible_lines: Vec<Line<'static>> = settings_lines
-      .iter()
-      .skip(start_idx)
-      .take(available_height as usize)
-      .cloned()
-      .collect();
+    // Build visible settings lines with scroll offset applied
+    let start_idx = app.settings_scroll_offset as usize;
+    let visible_lines: Vec<Line<'static>> = settings_lines
+        .iter()
+        .skip(start_idx)
+        .take(available_height as usize)
+        .cloned()
+        .collect();
 
-  let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
-  let vram_text = crate::models::format_mib(app.vram_estimate);
-  let block = Block::default()
-      .title(Line::from(vec![
+    let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
+    let vram_text = crate::models::format_mib(app.vram_estimate);
+    let block = Block::default()
+        .title(Line::from(vec![
             Span::raw(" LLM Settings (F4) [4] "),
-          Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
-      ]))
-      .borders(Borders::ALL)
-      .border_style(Style::default().fg(border_color));
+            Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
+        ]))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(border_color));
 
-  let paragraph = Paragraph::new(visible_lines).block(block);
-  f.render_widget(paragraph, llm_area);
+    let paragraph = Paragraph::new(visible_lines).block(block);
+    f.render_widget(paragraph, llm_area);
 
-  // Render scrollbar if settings overflow
-  if settings_height > available_height as usize {
-      let scrollbar_area = Rect {
-          x: llm_area.right().saturating_sub(1),
-          y: llm_area.top(),
-          width: 1,
-          height: llm_area.height,
-      };
+    // Render scrollbar if settings overflow
+    if settings_height > available_height as usize {
+        let scrollbar_area = Rect {
+            x: llm_area.right().saturating_sub(1),
+            y: llm_area.top(),
+            width: 1,
+            height: llm_area.height,
+        };
 
-      let mut scrollbar_state = ScrollbarState::new(settings_height)
-          .position(app.settings_scroll_offset as usize);
+        let mut scrollbar_state = ScrollbarState::new(settings_height)
+            .position(app.settings_scroll_offset as usize);
 
-      f.render_stateful_widget(
-          Scrollbar::new(ScrollbarOrientation::VerticalRight)
-              .begin_symbol(Some("↑"))
-              .end_symbol(Some("↓")),
-          scrollbar_area,
-          &mut scrollbar_state,
-      );
-  }
-  }
+        f.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓")),
+            scrollbar_area,
+            &mut scrollbar_state,
+        );
+    }
+}
 fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     if area.height < 2 || area.width < 10 {
         return;
@@ -180,7 +180,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let vram_text = crate::models::format_mib(app.vram_estimate);
     let block = Block::default()
         .title(Line::from(vec![
-          Span::raw(" LLM Settings (F4) [4] "),
+            Span::raw(" LLM Settings (F4) [4] "),
             Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
         ]))
         .borders(Borders::ALL)

@@ -106,7 +106,7 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         push_flag(&mut cmd, &mut parts, "--kv-offload");
     }
 
-   // ── GPU ──────────────────────────────────────────────────
+    // ── GPU ──────────────────────────────────────────────────
     if let crate::models::GpuLayersMode::Specific(n) = settings.gpu_layers_mode {
         push_arg(&mut cmd, &mut parts, "-ngl", n);
     }

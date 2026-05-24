@@ -393,7 +393,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.selected_model_idx.and_then(|i| self.models.get(i))
     }
 
-   pub fn selected_model_settings(&self) -> ModelSettings {
+    pub fn selected_model_settings(&self) -> ModelSettings {
         let model_name = self.selected_model().map(|m| m.name.as_str());
         // For the TUI, we don't currently support a separate profile_name 
         // in this method since it's already accounted for in overrides or the default settings.
@@ -861,7 +861,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         }
     }
 
-   /// Read metadata (layers, hidden size) from the model's GGUF file.
+    /// Read metadata (layers, hidden size) from the model's GGUF file.
     ///
     /// Uses a single cache keyed by the model's full path, so each unique
     /// model is parsed only once regardless of how many times it's selected.
@@ -1201,7 +1201,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     }
 
     /// Save current settings as an override for the selected model.
-   pub fn save_model_settings(&mut self) {
+    pub fn save_model_settings(&mut self) {
         if let Some(model) = self.selected_model() {
             let name = model.name.clone();
             let override_cfg = crate::config::ModelOverride::from_settings(&self.settings);
@@ -1389,7 +1389,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(""),
                 Line::from(vec![Span::styled("Shift+A", y), Span::raw("  About box (GPLv3)")]),
             ],
-  ActivePanel::ServerSettings => {
+            ActivePanel::ServerSettings => {
                 vec![
                     Line::from(Span::styled("SERVER SETTINGS", y.add_modifier(Modifier::BOLD))),
                     Line::from(""),

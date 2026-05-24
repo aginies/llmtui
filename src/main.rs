@@ -1108,7 +1108,7 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
         }
     }
 
-  // Cleanup before exit: kill running server and background tasks
+    // Cleanup before exit: kill running server and background tasks
     tracing::info!("Shutting down all processes...");
     if let Some(handle) = app.server_handle.take() {
         let _ = server::kill_server(handle).await;
@@ -1116,10 +1116,10 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
     if let Some(task) = app.metrics_task_handle.take() {
         task.abort();
     }
-   if let Some(task) = app.spawn_task_handle.take() {
+    if let Some(task) = app.spawn_task_handle.take() {
         task.abort();
     }
-   if let Some(task) = app.api_proxy_handle.take() {
+    if let Some(task) = app.api_proxy_handle.take() {
         task.abort();
     }
 

@@ -110,7 +110,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
- // Skip all if in About overlay
+    // Skip all if in About overlay
     if let GlobalMode::About = &app.global_mode {
         app.global_mode = GlobalMode::Normal;
         app.set_redraw();
@@ -174,7 +174,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // BenchTune Setup
-  if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs } = &mut app.global_mode {
+    if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs } = &mut app.global_mode {
         match key.code {
             KeyCode::Char('m') if key.modifiers.contains(KeyModifiers::ALT) => {
                 // Toggle benchmark mode
@@ -435,7 +435,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-  // Handle normal mode
+    // Handle normal mode
     match key.code {
         KeyCode::Char('p') => {
             if !app.download_progress.is_empty()
@@ -1135,14 +1135,14 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
- match app.active_panel {
+    match app.active_panel {
         ActivePanel::Models => handle_models_key(app, key).await,
         ActivePanel::Log => handle_log_key(app, key),
         ActivePanel::ServerSettings => { /* handled above */ }
         ActivePanel::LlmSettings => handle_settings_key(app, key),
         ActivePanel::Profiles => handle_profiles_key(app, key),
         ActivePanel::SystemPromptPresets => handle_system_prompt_presets_key(app, key),
-       ActivePanel::SearchReadme => handle_readme_key(app, key),
+        ActivePanel::SearchReadme => handle_readme_key(app, key),
        ActivePanel::ActiveModel => {}
         ActivePanel::ModelInfo => {}
         ActivePanel::Downloads => handle_downloads_key(app, key),
@@ -1819,7 +1819,7 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_thr
             }
             settings.context_length = val;
         }
-   3 => {
+        3 => {
             settings.gpu_layers_mode = match (delta, &settings.gpu_layers_mode) {
                 (1, crate::models::GpuLayersMode::Auto) => crate::models::GpuLayersMode::Specific(1),
                 (1, crate::models::GpuLayersMode::Specific(n)) => crate::models::GpuLayersMode::Specific(n + 1),
@@ -2147,8 +2147,8 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_render_cache = None;
                 app.set_redraw();
             }
-        }
-   // GPU Layers: arrow keys cycle Auto → 1 → 2 → ... → N → All → Auto
+       }
+       // GPU Layers: arrow keys cycle Auto → 1 → 2 → ... → N → All → Auto
         _ if idx == 3 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();

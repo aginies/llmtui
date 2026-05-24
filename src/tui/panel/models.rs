@@ -80,12 +80,12 @@ pub fn render_download_panel(
     ];
 
     let widths = [
-        Constraint::Length(25),
-        Constraint::Length(30),
-        Constraint::Length(8),
-        Constraint::Length(10),
-        Constraint::Length(14),
-        Constraint::Length(12),
+        Constraint::Ratio(3, 10),
+        Constraint::Ratio(3, 10),
+        Constraint::Ratio(8, 100),
+        Constraint::Ratio(1, 10),
+        Constraint::Ratio(3, 25),
+        Constraint::Ratio(1, 10),
     ];
 
     let table = Table::new(rows, widths)

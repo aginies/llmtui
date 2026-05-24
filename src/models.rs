@@ -1021,7 +1021,7 @@ pub struct LoadProgress {
     pub layers_total: Option<u32>,
     /// Number of layers already offloaded to GPU.
     pub layers_loaded: Option<u32>,
-   /// Number of tensors loaded (counted from dot-lines in log).
+    /// Number of tensors loaded (counted from dot-lines in log).
     pub tensors_loaded: u32,
     /// GPU device buffers with their sizes.
     pub buffers: Vec<GPUBuffer>,
