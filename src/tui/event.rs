@@ -1602,7 +1602,7 @@ fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
         }
         KeyCode::Char('c')
-            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+            if key.modifiers.contains(crossterm::event::KeyModifiers::ALT) =>
         {
             if let Some(idx) = app.download_scroll_state.selected() {
                 let filename = app.download_progress.get(idx).map(|d| d.filename.clone());
