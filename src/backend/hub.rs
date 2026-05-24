@@ -28,16 +28,17 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
     let resp = reqwest::get(&url).await?.error_for_status()?;
     let models: Vec<serde_json::Value> = resp.json().await?;
 
-    let query_trimmed = query.trim().to_lowercase();
+    let query_words: Vec<String> = query.trim().split_whitespace().map(|w| w.to_lowercase()).collect();
     let raw_ids: Vec<String> = models.iter().filter_map(|m| m.get("id").and_then(|v| v.as_str())).map(|s| s.to_string()).collect();
     let results: Vec<crate::models::SearchResult> = models
         .into_iter()
         .filter_map(|m| {
             let model_id = m.get("id")?.as_str()?.to_string();
-            // Post-filter: only keep results where the model_id contains the search query.
+            // Post-filter: only keep results where the model_id contains each search word.
             // The HF API does full-text search across descriptions/tags, so unrelated
-            // models can appear. We trim and check case-insensitive.
-            if !query_trimmed.is_empty() && !model_id.to_lowercase().contains(&query_trimmed) {
+            // models can appear. We check each word case-insensitively (AND logic).
+            let model_lower = model_id.to_lowercase();
+            if !query_words.is_empty() && !query_words.iter().all(|w| model_lower.contains(w)) {
                 return None;
             }
             let model_name = model_id.clone();

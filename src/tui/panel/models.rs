@@ -115,31 +115,42 @@ fn format_eta(d: &crate::models::DownloadState) -> String {
     }
 }
 
-/// Highlight occurrences of `query` in `text` (case-insensitive).
+/// Highlight occurrences of each word in `query` within `text` (case-insensitive).
 fn highlight_query<'a>(text: &'a str, query: &str) -> Line<'a> {
-    if query.is_empty() {
+    let words: Vec<String> = query.trim().split_whitespace().map(|w| w.to_lowercase()).collect();
+    if words.is_empty() || text.is_empty() {
         return Line::from(text);
     }
     let lower_text = text.to_lowercase();
-    let lower_query = query.to_lowercase();
-    let mut spans = Vec::new();
-    let mut last_end = 0;
-    let mut pos = 0;
-    while let Some(idx) = lower_text[pos..].find(&lower_query) {
-        let start = pos + idx;
-        let end = start + query.len();
-        if start > last_end {
-            spans.push(Span::from(&text[last_end..start]));
+    // Build a set of character positions that match any query word
+    let mut highlight = vec![false; text.len()];
+    for word in &words {
+        let mut pos = 0;
+        while let Some(idx) = lower_text[pos..].find(word) {
+            let start = pos + idx;
+            let end = start + word.len();
+            for i in start..end {
+                highlight[i] = true;
+            }
+            pos = end;
         }
-        spans.push(Span::styled(
-            &text[start..end],
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-        ));
-        last_end = end;
-        pos = end;
     }
-    if last_end < text.len() {
-        spans.push(Span::from(&text[last_end..]));
+    let mut spans = Vec::new();
+    let mut start = 0;
+    let mut in_highlight = highlight[0];
+    for i in 1..=text.len() {
+        if i == text.len() || highlight[i] != in_highlight {
+            let style = if in_highlight {
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            spans.push(Span::styled(&text[start..i], style));
+            start = i;
+            if i < text.len() {
+                in_highlight = highlight[i];
+            }
+        }
     }
     Line::from(spans)
 }
