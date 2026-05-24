@@ -1,6 +1,14 @@
 use std::fs;
 use std::path::Path;
 
+/// Detected operating system platform.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Platform {
+    Linux,
+    Windows,
+    Macos,
+}
+
 /// GPU vendors
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GpuVendor {
@@ -8,6 +16,59 @@ pub enum GpuVendor {
     Nvidia,
     Intel,
     Unknown,
+}
+
+/// Detect the current operating system platform.
+pub fn detect_platform() -> Platform {
+    match std::env::consts::OS {
+        "windows" => Platform::Windows,
+        "macos" => Platform::Macos,
+        _ => Platform::Linux,
+    }
+}
+
+/// Check if the current architecture is ARM64.
+pub fn is_arm64() -> bool {
+    cfg!(target_arch = "aarch64")
+}
+
+/// Get the platform as a string slice.
+pub fn platform_name(platform: Platform) -> &'static str {
+    match platform {
+        Platform::Linux => "linux",
+        Platform::Windows => "windows",
+        Platform::Macos => "macos",
+    }
+}
+
+/// Check if a backend variant is available on the given platform.
+pub fn backend_supported(backend: crate::models::Backend, platform: Platform) -> bool {
+    match platform {
+        Platform::Linux => backend.is_linux(),
+        Platform::Windows => backend.is_windows(),
+        Platform::Macos => backend.is_macos(),
+    }
+}
+
+/// Get the list of all backends supported on the given platform.
+#[allow(dead_code)]
+pub fn supported_backends(platform: Platform) -> Vec<crate::models::Backend> {
+    let all = [
+        crate::models::Backend::Cpu,
+        crate::models::Backend::Vulkan,
+        crate::models::Backend::Rocm,
+        crate::models::Backend::RocmLemonade,
+        crate::models::Backend::Cuda,
+        crate::models::Backend::CpuArm64,
+        crate::models::Backend::CpuWindows,
+        crate::models::Backend::VulkanWindows,
+        crate::models::Backend::CudaWindows12_4,
+        crate::models::Backend::CudaWindows13_1,
+        crate::models::Backend::HipWindows,
+        crate::models::Backend::CpuMacosArm64,
+        crate::models::Backend::CpuMacosX64,
+    ];
+    all.into_iter().filter(|b| backend_supported(*b, platform)).collect()
 }
 
 /// Returns paths to all primary DRM card directories (card0, card1, ...).

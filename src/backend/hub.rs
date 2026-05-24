@@ -243,13 +243,37 @@ pub async fn download_file(
     Ok(())
 }
 
-use std::os::unix::fs::PermissionsExt;
-
 pub fn get_bin_base() -> std::path::PathBuf {
     dirs::data_local_dir()
         .unwrap_or_default()
         .join("llm-manager")
         .join("bin")
+}
+
+/// Get the binary sentinel name for a platform (llama-server, llama-server.exe, etc.)
+pub fn binary_name() -> &'static str {
+    match std::env::consts::OS {
+        "windows" => "llama-server.exe",
+        _ => "llama-server",
+    }
+}
+
+/// Get the shared library sentinel patterns for a platform
+pub fn lib_sentinel_name() -> &'static str {
+    match std::env::consts::OS {
+        "windows" => "libllama.dll",
+        "macos" => "libllama.dylib",
+        _ => "libllama.so",
+    }
+}
+
+/// Get the shared library extension for matching during extraction
+pub fn lib_extension() -> &'static str {
+    match std::env::consts::OS {
+        "windows" => ".dll",
+        "macos" => ".dylib",
+        _ => ".so",
+    }
 }
 
 /// Get the directory path for a specific backend version.
@@ -266,14 +290,16 @@ pub fn is_backend_any_version_installed(backend: crate::models::Backend) -> bool
 
     let prefix = format!("llama-server-{}-", backend.slug());
 
+    let bin_name = binary_name();
+    let lib_name = lib_sentinel_name();
 
     if let Ok(entries) = std::fs::read_dir(bin_base) {
         for entry in entries.flatten() {
             let name = entry.file_name();
             let name_str = name.to_string_lossy();
             if name_str.starts_with(&prefix) {
-                let bin_path = entry.path().join("llama-server");
-                let lib_sentinel = entry.path().join("libllama.so");
+                let bin_path = entry.path().join(bin_name);
+                let lib_sentinel = entry.path().join(lib_name);
                 if bin_path.exists() && lib_sentinel.exists() {
                     return true;
                 }
@@ -295,8 +321,10 @@ pub fn is_backend_version_installed(backend: crate::models::Backend, tag: Option
     };
 
     let bin_dir = get_backend_dir(backend, tag);
-    let bin_path = bin_dir.join("llama-server");
-    let lib_sentinel = bin_dir.join("libllama.so");
+    let bin_name = binary_name();
+    let lib_name = lib_sentinel_name();
+    let bin_path = bin_dir.join(bin_name);
+    let lib_sentinel = bin_dir.join(lib_name);
 
     bin_path.exists() && lib_sentinel.exists()
 }
@@ -309,6 +337,8 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
     if !bin_base.exists() {
         return installed;
     }
+
+    let bin_name = binary_name();
 
     if let Ok(entries) = std::fs::read_dir(bin_base) {
         for entry in entries.flatten() {
@@ -326,6 +356,7 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
             let parts: Vec<&str> = name_str.split('-').collect();
             // parts: ["llama", "server", backend, tag]
             // For rocm-lemonade it might be: ["llama", "server", "rocm", "lemonade", tag]
+            // For win-cuda-12.4 it might be: ["llama", "server", "win", "cuda", "12.4", tag]
             
             if parts.len() < 4 {
                 continue;
@@ -334,19 +365,46 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
             let (backend, tag) = if parts[2] == "rocm" && parts.get(3) == Some(&"lemonade") {
                 if parts.len() < 5 { continue; }
                 (crate::models::Backend::RocmLemonade, parts[4].to_string())
+            } else if parts[2] == "win" && parts.get(3) == Some(&"cuda") && parts.get(4) == Some(&"12.4") {
+                if parts.len() < 6 { continue; }
+                (crate::models::Backend::CudaWindows12_4, parts[5].to_string())
+            } else if parts[2] == "win" && parts.get(3) == Some(&"cuda") && parts.get(4) == Some(&"13.1") {
+                if parts.len() < 6 { continue; }
+                (crate::models::Backend::CudaWindows13_1, parts[5].to_string())
+            } else if parts[2] == "cpu" && parts.get(3) == Some(&"arm64") {
+                if parts.len() < 5 { continue; }
+                (crate::models::Backend::CpuArm64, parts[4].to_string())
+            } else if parts[2] == "macos" && parts.get(3) == Some(&"arm64") {
+                if parts.len() < 5 { continue; }
+                (crate::models::Backend::CpuMacosArm64, parts[4].to_string())
+            } else if parts[2] == "macos" && parts.get(3) == Some(&"x64") {
+                if parts.len() < 5 { continue; }
+                (crate::models::Backend::CpuMacosX64, parts[4].to_string())
             } else {
-                let b = match parts[2] {
-                    "cpu" => crate::models::Backend::Cpu,
-                    "vulkan" => crate::models::Backend::Vulkan,
-                    "rocm" => crate::models::Backend::Rocm,
-                    "cuda" => crate::models::Backend::Cuda,
+                let b = match (parts[2], parts.get(3)) {
+                    ("cpu", _) => crate::models::Backend::Cpu,
+                    ("vulkan", _) => crate::models::Backend::Vulkan,
+                    ("rocm", _) => crate::models::Backend::Rocm,
+                    ("cuda", _) => crate::models::Backend::Cuda,
+                    ("win-cpu", _) => crate::models::Backend::CpuWindows,
+                    ("win-vulkan", _) => crate::models::Backend::VulkanWindows,
+                    ("win-hip", _) => crate::models::Backend::HipWindows,
                     _ => continue,
                 };
-                (b, parts[3].to_string())
+                // For simple slugs, tag is parts[3]; for complex slugs, tag is parts[4]
+                let tag_idx = if b == crate::models::Backend::CpuArm64 
+                    || b == crate::models::Backend::CpuMacosArm64 
+                    || b == crate::models::Backend::CpuMacosX64 {
+                    4
+                } else {
+                    3
+                };
+                if parts.len() <= tag_idx { continue; }
+                (b, parts[tag_idx].to_string())
             };
 
             // Verify it actually contains the binary
-            if entry.path().join("llama-server").exists() {
+            if entry.path().join(bin_name).exists() {
                 installed.push((backend, tag));
             }
         }
@@ -419,10 +477,12 @@ pub async fn resolve_backend_binary(
     };
 
     let bin_dir = get_backend_dir(backend, &tag);
-    let bin_path = bin_dir.join("llama-server");
+    let bin_name = binary_name();
+    let bin_path = bin_dir.join(bin_name);
 
     // Check if both the binary and at least one shared library exist
-    let lib_sentinel = bin_dir.join("libllama.so");
+    let lib_name = lib_sentinel_name();
+    let lib_sentinel = bin_dir.join(lib_name);
 
     if bin_path.exists() && lib_sentinel.exists() {
         return Ok(bin_path);
@@ -435,6 +495,7 @@ pub async fn resolve_backend_binary(
 
     // Construct asset name and URL
     let (download_url, is_zip) = match backend {
+        // Linux x64 backends
         crate::models::Backend::Cpu => (
             format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-x64.tar.gz"),
             false
@@ -459,7 +520,42 @@ pub async fn resolve_backend_binary(
         crate::models::Backend::Cuda => (
             format!("https://github.com/ai-dock/llama.cpp-cuda/releases/download/{tag}/llama.cpp-{tag}-cuda-12.8-amd64.tar.gz"),
             false
-        )
+        ),
+        // Linux ARM64
+        crate::models::Backend::CpuArm64 => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-arm64.tar.gz"),
+            false
+        ),
+        // Windows backends
+        crate::models::Backend::CpuWindows => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cpu-x64.zip"),
+            true
+        ),
+        crate::models::Backend::VulkanWindows => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-vulkan-x64.zip"),
+            true
+        ),
+        crate::models::Backend::CudaWindows12_4 => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cuda-12.4-x64.zip"),
+            true
+        ),
+        crate::models::Backend::CudaWindows13_1 => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cuda-13.1-x64.zip"),
+            true
+        ),
+        crate::models::Backend::HipWindows => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-hip-radeon-x64.zip"),
+            true
+        ),
+        // macOS backends
+        crate::models::Backend::CpuMacosArm64 => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-macos-arm64.tar.gz"),
+            false
+        ),
+        crate::models::Backend::CpuMacosX64 => (
+            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-macos-x64.tar.gz"),
+            false
+        ),
     };
 
     if let Some(tx) = &log_tx {
@@ -501,21 +597,21 @@ pub async fn resolve_backend_binary(
     }
 
     // The archive contains llama-xxx/bin/llama-server; find it and move into bin_dir
-    let extracted_bin = extract_dir.join("llama-server");
+    let extracted_bin = extract_dir.join(bin_name);
     if extracted_bin.exists() {
         std::fs::rename(&extracted_bin, &bin_path)?;
     } else {
-        // Try searching recursively
+        // Try searching recursively for the binary name
         let mut found = None;
         walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
-            if entry.file_name().to_str().map(|n| n == "llama-server").unwrap_or(false) {
+            if entry.file_name().to_str() == Some(bin_name) {
                 found = Some(entry.path().to_path_buf());
             }
         });
         if let Some(path) = found {
             std::fs::rename(path, &bin_path)?;
         } else {
-            anyhow::bail!("Could not find llama-server binary in archive");
+            anyhow::bail!("Could not find {} binary in archive", bin_name);
         }
     }
 
@@ -536,19 +632,24 @@ pub async fn resolve_backend_binary(
         }
     }
 
-    // Also extract shared libraries (*.so*) from the archive into bin_dir
+    // Also extract shared libraries from the archive into bin_dir
+    let lib_ext = lib_extension();
     walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
-        if name_str.ends_with(".so") || name_str.contains(".so.") {
+        if name_str.ends_with(lib_ext) || name_str.contains(&format!(".{}", lib_ext.trim_start_matches('.'))) {
             let dest = bin_dir.join(name);
             // Use std::fs::copy which follows symlinks and creates a regular file at dest
             let _ = std::fs::copy(entry.path(), dest);
         }
     });
 
-    // Make executable
-    std::fs::set_permissions(&bin_path, std::fs::Permissions::from_mode(0o755))?;
+    // Make executable (Unix-only)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&bin_path, std::fs::Permissions::from_mode(0o755))?;
+    }
 
     // Clean up temp files
     let _ = tokio::fs::remove_file(&tmp_path).await;

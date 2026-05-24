@@ -585,6 +585,9 @@ pub struct DefaultParams {
     pub cache_type: CacheType,
     #[serde(default)]
     pub backend: Backend,
+    /// Platform override: "linux", "windows", or "macos". If None, auto-detected.
+    #[serde(default)]
+    pub platform: Option<String>,
     #[serde(default)]
     pub llama_cpp_version_cpu: Option<String>,
     #[serde(default)]
@@ -717,6 +720,7 @@ impl Default for DefaultParams {
                     GpuVendor::Unknown => Backend::Cpu,
                 }
             },
+            platform: None,
             llama_cpp_version_cpu: None,
             llama_cpp_version_vulkan: None,
             llama_cpp_version_rocm: None,
@@ -898,6 +902,7 @@ impl Config {
                 format!("Failed to parse config file {}: {}", path.display(), e)
             })?;
             let config = Self::normalize_config(config);
+            let config = config.auto_detect_platform();
             let warnings = config.validate();
             if !warnings.is_empty() {
                 eprintln!("Config validation warnings:");
@@ -920,6 +925,7 @@ impl Config {
                 format!("Failed to parse config file {}: {}", path.display(), e)
             })?;
             let config = Self::normalize_config(config);
+            let config = config.auto_detect_platform();
             let warnings = config.validate();
             if !warnings.is_empty() {
                 eprintln!("Config validation warnings:");
@@ -931,6 +937,14 @@ impl Config {
         } else {
             Err(format!("Config file not found: {}", path.display()).into())
         }
+    }
+
+    /// Auto-detect the platform if not explicitly set in config.
+    fn auto_detect_platform(mut self) -> Self {
+        if self.default.platform.is_none() {
+            self.default.platform = Some(crate::backend::hardware::platform_name(crate::backend::hardware::detect_platform()).to_string());
+        }
+        self
     }
 
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {

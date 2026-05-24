@@ -314,6 +314,14 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     crate::models::Backend::Rocm => "ROCm (AMD Native)",
                     crate::models::Backend::RocmLemonade => "ROCm Lemonade (AMD Optimized)",
                     crate::models::Backend::Cuda => "CUDA (NVIDIA Native)",
+                    crate::models::Backend::CpuArm64 => "CPU ARM64",
+                    crate::models::Backend::CpuWindows => "CPU (Windows)",
+                    crate::models::Backend::VulkanWindows => "Vulkan (Windows)",
+                    crate::models::Backend::CudaWindows12_4 => "CUDA 12.4 (Windows)",
+                    crate::models::Backend::CudaWindows13_1 => "CUDA 13.1 (Windows)",
+                    crate::models::Backend::HipWindows => "HIP Radeon (Windows)",
+                    crate::models::Backend::CpuMacosArm64 => "CPU (macOS ARM64)",
+                    crate::models::Backend::CpuMacosX64 => "CPU (macOS Intel)",
                 };
                 let display_label = if let Some(t) = tag {
                     format!("{} ({})", label, t)

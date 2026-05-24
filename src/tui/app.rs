@@ -1530,28 +1530,58 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
     }
 
     pub fn fetch_backend_picker_entries(&self) -> Vec<(crate::models::Backend, Option<String>)> {
-        use crate::backend::hardware::{detect_gpu_vendor, GpuVendor};
+        use crate::backend::hardware::{detect_gpu_vendor, detect_platform, is_arm64, GpuVendor};
+        let platform = detect_platform();
         let mut entries = Vec::new();
 
-        // 1. Add "latest" entries for standard backends
-        entries.push((crate::models::Backend::Cpu, None));
-        entries.push((crate::models::Backend::Vulkan, None));
-        
-        match detect_gpu_vendor() {
-            GpuVendor::Amd => {
-                entries.push((crate::models::Backend::Rocm, None));
-                entries.push((crate::models::Backend::RocmLemonade, None));
+        // 1. Add "latest" entries for backends supported on this platform
+        match platform {
+            crate::backend::hardware::Platform::Linux => {
+                entries.push((crate::models::Backend::Cpu, None));
+                entries.push((crate::models::Backend::Vulkan, None));
+                if is_arm64() {
+                    entries.push((crate::models::Backend::CpuArm64, None));
+                }
+                match detect_gpu_vendor() {
+                    GpuVendor::Amd => {
+                        entries.push((crate::models::Backend::Rocm, None));
+                        entries.push((crate::models::Backend::RocmLemonade, None));
+                    }
+                    GpuVendor::Nvidia => {
+                        entries.push((crate::models::Backend::Cuda, None));
+                    }
+                    _ => {}
+                }
             }
-            GpuVendor::Nvidia => {
-                entries.push((crate::models::Backend::Cuda, None));
+            crate::backend::hardware::Platform::Windows => {
+                entries.push((crate::models::Backend::CpuWindows, None));
+                entries.push((crate::models::Backend::VulkanWindows, None));
+                match detect_gpu_vendor() {
+                    GpuVendor::Nvidia => {
+                        entries.push((crate::models::Backend::CudaWindows12_4, None));
+                        entries.push((crate::models::Backend::CudaWindows13_1, None));
+                    }
+                    GpuVendor::Amd => {
+                        entries.push((crate::models::Backend::HipWindows, None));
+                    }
+                    _ => {}
+                }
             }
-            _ => {}
+            crate::backend::hardware::Platform::Macos => {
+                if is_arm64() {
+                    entries.push((crate::models::Backend::CpuMacosArm64, None));
+                } else {
+                    entries.push((crate::models::Backend::CpuMacosX64, None));
+                }
+            }
         }
 
-        // 2. Add all installed versions
+        // 2. Add all installed versions (filtered by platform)
         let installed = crate::backend::hub::list_installed_backends();
         for (b, tag) in installed {
-            entries.push((b, Some(tag)));
+            if crate::backend::hardware::backend_supported(b, platform) {
+                entries.push((b, Some(tag)));
+            }
         }
         
         entries

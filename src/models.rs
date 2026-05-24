@@ -119,6 +119,7 @@ impl ModelSettings {
             Backend::Rocm => self.llama_cpp_version_rocm.as_ref(),
             Backend::RocmLemonade => self.llama_cpp_version_rocm_lemonade.as_ref(),
             Backend::Cuda => self.llama_cpp_version_cuda.as_ref(),
+            _ => None,
         }
     }
 
@@ -137,6 +138,7 @@ impl ModelSettings {
             Backend::Rocm => self.llama_cpp_version_rocm = tag,
             Backend::RocmLemonade => self.llama_cpp_version_rocm_lemonade = tag,
             Backend::Cuda => self.llama_cpp_version_cuda = tag,
+            _ => {}
         }
     }
 }
@@ -547,6 +549,22 @@ pub enum Backend {
     RocmLemonade,
     #[serde(rename = "cuda")]
     Cuda,
+    #[serde(rename = "cpu_arm64")]
+    CpuArm64,
+    #[serde(rename = "win_cpu")]
+    CpuWindows,
+    #[serde(rename = "win_vulkan")]
+    VulkanWindows,
+    #[serde(rename = "win_cuda_12_4")]
+    CudaWindows12_4,
+    #[serde(rename = "win_cuda_13_1")]
+    CudaWindows13_1,
+    #[serde(rename = "win_hip")]
+    HipWindows,
+    #[serde(rename = "macos_arm64")]
+    CpuMacosArm64,
+    #[serde(rename = "macos_x64")]
+    CpuMacosX64,
 }
 
 
@@ -559,7 +577,30 @@ impl Backend {
             Backend::Rocm => "rocm",
             Backend::RocmLemonade => "rocm-lemonade",
             Backend::Cuda => "cuda",
+            Backend::CpuArm64 => "cpu-arm64",
+            Backend::CpuWindows => "win-cpu",
+            Backend::VulkanWindows => "win-vulkan",
+            Backend::CudaWindows12_4 => "win-cuda-12.4",
+            Backend::CudaWindows13_1 => "win-cuda-13.1",
+            Backend::HipWindows => "win-hip",
+            Backend::CpuMacosArm64 => "macos-arm64",
+            Backend::CpuMacosX64 => "macos-x64",
         }
+    }
+
+    /// Returns true if this backend is for Linux.
+    pub fn is_linux(self) -> bool {
+        matches!(self, Backend::Cpu | Backend::Vulkan | Backend::Rocm | Backend::RocmLemonade | Backend::Cuda | Backend::CpuArm64)
+    }
+
+    /// Returns true if this backend is for Windows.
+    pub fn is_windows(self) -> bool {
+        matches!(self, Backend::CpuWindows | Backend::VulkanWindows | Backend::CudaWindows12_4 | Backend::CudaWindows13_1 | Backend::HipWindows)
+    }
+
+    /// Returns true if this backend is for macOS.
+    pub fn is_macos(self) -> bool {
+        matches!(self, Backend::CpuMacosArm64 | Backend::CpuMacosX64)
     }
 }
 

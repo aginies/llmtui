@@ -354,12 +354,33 @@ pub async fn spawn_server(
     cmd.stdout(Stdio::piped())
        .stderr(Stdio::piped());
 
-    // Set LD_LIBRARY_PATH so the binary can find its shared libraries
+    // Set platform-specific env vars so the binary can find its shared libraries
     let bin_dir = binary.parent().unwrap();
-    if let Ok(current) = std::env::var("LD_LIBRARY_PATH") {
-        cmd.env("LD_LIBRARY_PATH", format!("{}:{}", bin_dir.display(), current));
-    } else {
-        cmd.env("LD_LIBRARY_PATH", bin_dir);
+    match std::env::consts::OS {
+        "windows" => {
+            // On Windows, add bin_dir to PATH so llama-server.exe finds libllama.dll
+            if let Ok(current) = std::env::var("PATH") {
+                cmd.env("PATH", format!("{};{}", bin_dir.display(), current));
+            } else {
+                cmd.env("PATH", bin_dir);
+            }
+        }
+        "macos" => {
+            // On macOS, set DYLD_LIBRARY_PATH for dylib loading
+            if let Ok(current) = std::env::var("DYLD_LIBRARY_PATH") {
+                cmd.env("DYLD_LIBRARY_PATH", format!("{}:{}", bin_dir.display(), current));
+            } else {
+                cmd.env("DYLD_LIBRARY_PATH", bin_dir);
+            }
+        }
+        _ => {
+            // On Linux, set LD_LIBRARY_PATH for so loading
+            if let Ok(current) = std::env::var("LD_LIBRARY_PATH") {
+                cmd.env("LD_LIBRARY_PATH", format!("{}:{}", bin_dir.display(), current));
+            } else {
+                cmd.env("LD_LIBRARY_PATH", bin_dir);
+            }
+        }
     }
 
     info!("Spawning: {}", cmd_string);
