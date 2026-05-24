@@ -1010,14 +1010,16 @@ impl LogEntry {
 fn sanitize_log(input: &str) -> String {
     // Limit length to avoid layout/perf issues with massive lines
     let max_len = 2000;
-    let input = if input.len() > max_len {
-        &input[..max_len]
+    let chars: Vec<char> = input.chars().collect();
+    let truncated = chars.len() > max_len;
+    let chars = if truncated {
+        chars[..max_len].to_vec()
     } else {
-        input
+        chars
     };
 
-    let mut output = String::with_capacity(input.len());
-    for c in input.chars() {
+    let mut output = String::with_capacity(chars.len());
+    for c in chars {
         // Strip ALL control characters except newline and tab.
         // Critically: strip \r (carriage return) as it breaks TUI rendering.
         if c.is_control() && c != '\n' && c != '\t' {
@@ -1031,7 +1033,7 @@ fn sanitize_log(input: &str) -> String {
     
     // Final trim to remove trailing junk
     let mut result = output.trim_end().to_string();
-    if input.len() >= max_len {
+    if truncated {
         result.push_str("... (truncated)");
     }
     result
