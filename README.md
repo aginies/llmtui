@@ -27,7 +27,6 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 ## Prerequisites
 
 - Rust toolchain (edition 2024)
-- A HuggingFace account (for downloading gated models)
 
 ## Installation
 
