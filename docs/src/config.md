@@ -88,15 +88,26 @@ Binaries are downloaded from the `ggml-org/llama.cpp` GitHub releases on first u
 llama_cpp_version_cpu: null
 llama_cpp_version_vulkan: null
 llama_cpp_version_rocm: null
+llama_cpp_version_rocm_lemonade: null
+llama_cpp_version_cuda: null
 ```
+
+Windows and macOS have separate backend variants (e.g. `llama_cpp_version_cpu_windows`, `llama_cpp_version_cpu_macos_arm64`). Each backend has its own independently configurable version.
 
 Setting to `null` uses the latest release. Specific versions can be set via the version picker in LLM Settings. These selections are automatically persisted to your configuration and remembered across restarts.
 
 ### Asset Names
 
-- **CPU:** `llama-{tag}-bin-ubuntu-x64.tar.gz`
+Assets are selected based on the detected platform. Linux examples:
+
+- **CPU (x64):** `llama-{tag}-bin-ubuntu-x64.tar.gz`
+- **CPU (ARM64):** `llama-{tag}-bin-ubuntu-arm64.tar.gz`
 - **Vulkan:** `llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz`
 - **ROCm:** `llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz`
+- **ROCm Lemonade:** `llama-{tag}-ubuntu-rocm-{gfx}-x64.zip` (auto-detects GPU architecture)
+- **CUDA:** `llama.cpp-{tag}-cuda-12.8-amd64.tar.gz`
+
+Windows assets use `*.zip` (e.g. `llama-{tag}-bin-win-cpu-x64.zip`). macOS assets use `*-macos-arm64.tar.gz` or `*-macos-x64.tar.gz`.
 
 ## Serve Mode
 

@@ -10,6 +10,20 @@ cd llmtui
 cargo build --release
 ```
 
+### Platform Support
+
+llm-manager runs on Linux, macOS, and Windows. GPU backends available per platform:
+
+| Platform | CPU | Vulkan | ROCm | CUDA |
+|----------|-----|--------|------|------|
+| **Linux x64** | Yes | Yes | Yes | Yes |
+| **Linux ARM64** | Yes | — | — | — |
+| **Windows x64** | Yes | Yes | Yes (HIP) | Yes (12.4 / 13.1) |
+| **macOS ARM64** | Yes | — | — | — |
+| **macOS x64** | Yes | — | — | — |
+
+ROCm Lemonade (AMD optimized) is Linux-only and auto-detects your GPU architecture (e.g. `gfx1100`).
+
 ### Using the build script
 
 A convenience script is included for common operations:
@@ -59,6 +73,8 @@ To search HuggingFace for models:
 5. Press `B` to go back one page, or scroll down at the bottom for more results
 6. Press `R` to fetch and view the model's README
 
+**Multi-word search:** Type space-separated words (e.g. `qwen opus`) to search with AND logic — all words must match the model name.
+
 ### Downloading Models
 
 To download a model from HuggingFace:
@@ -67,9 +83,9 @@ To download a model from HuggingFace:
 2. Type your query and press `Enter`
 3. Press `l` on a result to browse available GGUF files
 4. Select a file and press `Enter` to download
-5. Press `c` to cancel the download at any time
+5. Press `⌃C` to cancel, or `p` to pause/resume the download at any time
 
-The download progress is shown in the Download panel. Once complete, the model appears in the Models panel (in your models directory).
+The download progress is shown in the Download panel with speed (MiB/s), ETA, and status indicators. Once complete, the model appears in the Models panel (in your models directory).
 
 ### Loading Models
 
@@ -86,6 +102,18 @@ The loading process shows a progress bar with phases:
 - Loading tensors (with GPU layer count)
 - Server listening
 - Ready
+
+### Log Panel
+
+The Log panel shows live output from the llama.cpp server. Press `Enter` to expand to fullscreen, `Esc` to collapse. Press `f` to toggle between Following (auto-scroll) and Manual (scroll history) modes.
+
+### Other Features
+
+- **Profiles** (`p`) — Quick-switch between saved settings presets
+- **System Prompt Presets** — Named system prompts for different use cases (Coder, Thinker, Mathematician)
+- **RPC Workers** — Manage distributed inference nodes from Server Settings
+- **Benchmark Tuning** — Auto-tune model parameters for optimal performance (set Mode to BenchTune)
+- **Mouse support** — Click panels to focus, scroll in logs, README, and settings
 
 ## Using Serve Mode
 

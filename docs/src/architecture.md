@@ -73,10 +73,12 @@ Downloads run in a spawned tokio task with progress flowing through a broadcast 
 
 1. User selects a file and presses `Enter`
 2. `pending_download` is set with `(model_id, filename, url)`
-3. A tokio task calls `hub::download_file()` with an `Arc<AtomicBool>` cancel token
+3. A tokio task calls `hub::download_file()` with an `Arc<AtomicBool>` cancel token and `Arc<AtomicU8>` state
 4. Progress updates flow through `download_tx` → `download_rx`
 5. The main loop polls `download_rx` each iteration and updates the Download panel
-6. Pressing `c` sets the cancel flag on the download
+6. Pressing `⌃C` cancels the download; `p` pauses/resumes it
+
+The download loop checks the state atomically each iteration: `1` = downloading, `2` = paused (sleeps 100ms and retries), `3` = cancelled (removes file, returns error). Each `DownloadState` tracks bytes downloaded, speed, ETA, and status (Downloading/Paused/Complete/Error).
 
 ## Server Spawning
 
@@ -102,7 +104,7 @@ Metrics are collected from two sources:
 
 When both are available, log-parsed values take priority. This ensures the display reflects actual inference state, including context compaction drops.
 
-Each log entry is stored in `log_entries: VecDeque<LogEntry>` with a max of 500 entries. The log panel supports scrolling and expansion (Enter/Esc).
+Each log entry is stored in `log_entries: VecDeque<LogEntry>` with a max of 500 entries. The log panel supports scrolling, expansion (Enter/Esc), and two modes: **Following** (auto-scroll to bottom) and **Manual** (free scroll). Press `f` to toggle modes.
 
 ## Search
 
@@ -112,7 +114,11 @@ Search uses the HuggingFace API with `&filter=gguf` to only return GGUF models:
 pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<SearchResult>, bool)>
 ```
 
-- Default: 70 results per page
+A post-filter checks that the model_id contains the search query (case-insensitive), since the HF API does full-text search across descriptions/tags and can return unrelated models.
+
+**Multi-word search:** Space-separated words are split and each word must match the model name (AND logic). Matching words are highlighted in cyan in the results list.
+
+- Default: 70 results per page (max 200)
 - Pagination: `B` goes back, `Down` at bottom loads more
 - Sort order cycles: Relevance → Downloads → Likes → Trending → Created
 - README fetching: `R` downloads and renders the model's README
@@ -146,6 +152,23 @@ Model loading phases are detected from llama.cpp log output:
 
 During tensor loading, the progress bar refines using layer counts parsed from "offloaded X/Y layers" log messages.
 
+## RPC Workers
+
+Remote workers for distributed inference are stored in the config as `Vec<RpcWorker>`. Each worker has a name, IP address, and port (default: 50052). The `RpcManager` global mode provides a dedicated window for managing workers: add (`n`), edit (`e`), delete (`d`), toggle selection (`Space`).
+
+## Benchmark Tuning
+
+The benchmark system (`src/backend/benchmark.rs`) supports two modes:
+
+- **RuntimeOnly**: Single server, params sent in request body (no server restarts)
+- **Full**: New server spawned for each parameter combination
+
+Key types:
+- `BenchTuneConfig`: Model path, iterations, prompt, params to test, duration, mode
+- `BenchTuneParam`: name, min, max, step, enabled
+- `BenchTuneResult`: params, metrics (prompt_tps, generation_tps, combined_tps, latency_per_token, first_token_time), outputs, per-iteration metrics
+- `BenchTuneStatus`: Running (with progress), Completed, Error
+
 ## Error Handling
 
 Errors are detected from log patterns:
@@ -155,3 +178,7 @@ Errors are detected from log patterns:
 - **General error**: "ERROR", "FAILED TO LOAD", "EXCEPTION"
 
 On error, affected models are marked as `Failed` with the error message, and the server is killed if it crashed.
+
+## Confirmation Dialogs
+
+Destructive actions trigger a `GlobalMode::Confirmation` overlay with `ConfirmationKind` variants: `Exit`, `Reset`, `Delete`, `Unload`, `DeleteBackend`. The user confirms with `Enter` or cancels with `Esc`.

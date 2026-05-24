@@ -36,6 +36,10 @@ Search mode lets you browse and download GGUF models from HuggingFace:
 | `Down` (at bottom) | Load more results |
 | `R` | Fetch and view README |
 
+### Multi-word Search
+
+Type space-separated words (e.g. `qwen opus`) to search with AND logic — all words must match the model name. Matching words are highlighted in cyan in the results list.
+
 ### GGUF File Browser
 
 When viewing GGUF files for a model:
@@ -45,9 +49,19 @@ When viewing GGUF files for a model:
 | `j` / `k` | Navigate files |
 | `Enter` | Download selected file |
 | `Esc` | Go back to search results |
-| `c` | Cancel download |
+| `⌃C` | Cancel download |
 
-Downloads are tracked in the Download panel, which shows progress and status for all active downloads.
+### Download Panel
+
+When one or more files are downloading, the Download panel appears at the bottom of the screen, showing progress, speed (MiB/s), ETA, and status for each download.
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` | Navigate downloads |
+| `p` | Pause / Resume selected download |
+| `⌃C` | Cancel selected download |
+
+Status indicators: **Downloading** (yellow), **Paused** (white), **Complete** (green), **Error** (red).
 
 ## Loading Models
 
@@ -80,10 +94,10 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 |---------|---------|-------------|
 | **Host** | 127.0.0.1 | Bind address for the llama.cpp server. Use `0.0.0.0` to accept connections from other machines. |
 | **Port** | 8080 | Port for the llama.cpp server. |
-| **Backend** | vulkan | Acceleration backend: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU). Shows the currently selected version. |
+| **Backend** | vulkan | Acceleration backend: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU), `rocm-lemonade` (AMD optimized), `cuda` (NVIDIA CUDA 12.8). Shows the currently selected version. |
 | **Threads** | (physical cores) | CPU threads for generation. Set to your physical core count for best performance. |
 | **Threads Batch** | 8 | CPU threads for batch processing (prompt evaluation). |
-| **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models), or `Bench` (run llama-bench). |
+| **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models), `Bench` (run llama-bench), or `BenchTune` (parameter auto-tuning). |
 | **RPC Workers** | None | Open a dedicated window to manage distributed inference nodes (IP:Port). |
 | **Timeout** | 600 | Server timeout in seconds before auto-shutdown. |
 | **Max Models** | 4 | Maximum concurrent models in Router mode. |
@@ -92,7 +106,7 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 
 ### LLM Settings
 
-The LLM Settings panel has 22 fields organized into 6 groups. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields (Flash Attention, Unified KV, Keep in memory) respond to `e` or `Ctrl+E`.
+The LLM Settings panel has 24 fields organized into 6 groups. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields (Flash Attention, Unified KV, Keep in memory) respond to `e` or `Ctrl+E`.
 
 #### Loading
 
@@ -141,11 +155,17 @@ The LLM Settings panel has 22 fields organized into 6 groups. Arrow keys adjust 
 | **Presence Penalty** | 0.0 | Adds penalty to tokens that have appeared at least once. Encourages the model to discuss new topics. Range: -2.0 to 2.0. |
 | **Frequency Penalty** | 0.0 | Adds penalty proportional to how often a token has appeared. Stronger than presence penalty. Range: -2.0 to 2.0. |
 
+#### Additional Settings
+
+Additional fields beyond the tables above: `threads_batch`, `batch_size`, `ubatch_size`, `parallel`, `keep`, `swa_full` (SWA cache), `mmap`, `numa` (None/Distribute/Isolate/Numactl), `reasoning_mode` (Default/Gemma), `split_mode` (None/Layer/Row/Tensor), `tensor_split`, `main_gpu`, `fit`, `embedding`, `expert_count`, `jinja`, `chat_template`, `chat_template_kwargs`, `typical_p`, `mirostat` (Off/1/2), `mirostat_lr`, `mirostat_ent`, `ignore_eos`, `samplers` (semicolon-separated order), `repeat_penalty`, `repeat_last_n`, `presence_penalty`, `frequency_penalty`.
+
+**Cache Type K/V options:** F32, F16, BF16, Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl
+
 > **Note:** These parameters are stored in the config and adjustable in the UI, but currently not passed to the llama.cpp server. They will be activated once the app supports them.
 
 #### Changing Values
 
-Use `Left`/`Right` to adjust numeric fields by 1, or `Up`/`Down` for larger steps. Toggle fields respond to `e` or `Ctrl+E`. Dirty (changed) fields are highlighted in yellow.
+Use `Left`/`Right` to adjust numeric fields by 1, or `Up`/`Down` for larger steps. Toggle fields respond to `e` or `Ctrl+E`. Dirty (changed) fields are highlighted in yellow with a trailing `*`. The status bar shows `*unsaved*` when settings are dirty.
 
 ### Saving Settings
 
@@ -177,6 +197,152 @@ Dirty (changed) fields are highlighted in yellow.
 | `Ctrl+R` | Reset settings |
 | `Ctrl+E` | Toggle enabled/disabled |
 | `g` / `G` | Jump to top/bottom of log |
+| `h` / `l` | Horizontal scroll (README panel) |
+| `PageUp` / `PageDown` | Fast scroll (logs, README, benchmarks) |
+| `F1`–`F6` | Toggle panels (Models, Server, Info, Settings, Active, Log) |
+| `F9` | Show all panels |
+| `p` | Open Profiles panel / Pause/resume download / Previous benchmark result |
+| `n` | New preset (System Prompt Presets) / Next benchmark result |
+| `S` | Cycle search sort order |
+| `B` | Back one page in search |
+| `R` | Fetch README for selected model |
+| `Space` | Toggle selection (RPC workers, benchmark parameters) |
+| `Alt+M` | Toggle benchmark mode (RuntimeOnly / Full) |
+| `Alt+P` | Edit benchmark prompt |
+| `Alt+N` | Edit n_predict (max tokens) |
+| `Alt+I` | Edit iterations |
+| `Alt+C` | Edit chat template kwargs |
+
+## Log Panel
+
+The Log panel displays live output from the llama.cpp server with level-based coloring.
+
+### Log Modes
+
+| Mode | Behavior |
+|------|----------|
+| **Following** (default) | Auto-scrolls to the bottom as new entries arrive. Press `g` to exit. |
+| **Manual** | Allows manual scrolling through log history. Press `G` to return to bottom. |
+
+Press `f` in the Log panel to toggle between modes. The current mode is shown in the panel title. Expand the log to fullscreen with `Enter`; collapse with `Esc`.
+
+## RPC Workers
+
+RPC Workers enable distributed inference across multiple machines. Each worker has a name, IP address, and port (default: 50052).
+
+Open the RPC Workers manager from the Server Settings panel. Within the manager:
+
+| Key | Action |
+|-----|--------|
+| `n` | Add new worker |
+| `e` | Edit selected worker |
+| `d` | Delete selected worker |
+| `Space` | Toggle worker selection |
+| `Esc` | Close manager |
+
+## Benchmark Tuning
+
+Benchmark Tuning auto-tunes model parameters for optimal performance. Access it by setting the Server Mode to **BenchTune**.
+
+Two modes are available:
+
+- **RuntimeOnly** — Single server, params sent in request body (no server restarts)
+- **Full** — New server spawned for each parameter combination
+
+Tunable parameters: temperature (0.4–1.0), top_p (0.8–1.0), top_k (40–50), repeat_penalty (1.0–1.2), flash_attn (0/1), threads (4–16), batch_size (512–2048), expert_count (1–4).
+
+Results can be exported as Markdown table, JSON, YAML, or HTML report with summary cards, winner section, impact analysis, and Chart.js charts. Navigate between results with `p` (previous) and `n` (next).
+
+## System Prompt Presets
+
+Named system prompts for different use cases. Built-in presets: General, Coder, Thinker, Mathematician.
+
+Open the System Prompt Presets panel and manage presets:
+
+| Key | Action |
+|-----|--------|
+| `n` | Create new preset |
+| `e` | Edit selected preset |
+| `↵` | Apply preset |
+| `d` | Delete selected preset |
+| `⌃S` | Save preset during edit |
+| `Esc` | Close / Cancel edit |
+
+## GPU Layers Cycling
+
+In the LLM Settings panel, the GPU Layers field cycles through three modes with arrow keys:
+
+| Mode | Behavior |
+|------|----------|
+| **Auto** | Lets llama.cpp auto-detect based on available VRAM (default) |
+| **Specific number** | Offloads exactly that many layers to GPU |
+| **All** | Offloads all layers (equivalent to `-ngl 999`) |
+
+Arrow keys cycle: `Auto` → `1` → `2` → ... → `N` → `All` → `Auto`. Pressing `Enter` from a specific number opens an edit buffer for direct input. The `-ngl` flag is only added for Specific and All modes.
+
+## MTP (Multi-Token Prediction)
+
+MTP is an experimental feature that uses a draft model to predict multiple tokens in parallel, improving inference speed. When a model with MTP architecture is selected, the app automatically detects it and enables the `--draft-mtp` flag. The number of draft tokens is read from the GGUF metadata and displayed in the Model Info panel.
+
+## GGUF Metadata
+
+The Model Info panel shows parsed GGUF metadata including: architecture, layers, hidden size, context length, attention heads, KV heads, domain, capabilities, quantization, parameters (e.g., "7B", "405B"), tokenizer type, vocabulary size, and max context for VRAM. Metadata is parsed once and cached (debounced by file mtime).
+
+## Active Model Metrics
+
+The Active Model panel shows real-time metrics:
+
+| Metric | Description |
+|--------|-------------|
+| TPS | Tokens per second (generation speed) |
+| Prompt TPS | Inference speed |
+| Context usage | Progress bar showing ctx_used/ctx_max |
+| CPU% | CPU usage percentage |
+| RAM | RAM usage |
+| VRAM | GPU memory used/total |
+
+The panel also shows benchmarking state with progress bar and current parameter display when running BenchTune.
+
+## Backend Selection
+
+Multiple backends are supported via the llama.cpp server:
+
+| Backend | Source | Description |
+|---------|--------|-------------|
+| **CPU** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | CPU-only inference (standard) |
+| **Vulkan** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | GPU via Vulkan (Universal: AMD/NVIDIA/Intel) |
+| **ROCm** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | GPU via ROCm (AMD Native) |
+| **ROCm Lemonade** | [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) | GPU via ROCm (AMD Optimized, auto-detects GFX architecture) |
+| **CUDA** | [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) | GPU via CUDA (NVIDIA Native, CUDA 12.8) |
+
+Each backend has its own independently configurable llama.cpp version. Switching versions is instant — no re-download.
+
+## Server Modes
+
+| Mode | Description |
+|------|-------------|
+| **Normal** | Single model via CLI (default) |
+| **Router** | Multiple models via API, loads via `/load` endpoint |
+| **Bench** | GPU benchmarking mode (runs llama-bench) |
+| **BenchTune** | Parameter auto-tuning mode |
+
+## VRAM Estimate
+
+The app computes a detailed VRAM estimate based on model size, GPU layers, KV cache, activation overhead, and fixed overhead. The formula accounts for GQA ratio, FlashAttention (0.5× KV cache reduction), unified KV cache, KV cache quantization bytes, activation overhead (8× multiplier), and fixed overhead (3.8% of max VRAM or 500 MiB fallback). The estimate is shown in the LLM Settings title (e.g., "VRAM ~= 8.2 GB").
+
+## Confirmation Dialogs
+
+The app uses confirmation dialogs for destructive actions:
+
+- **Exit** — warns about loaded models
+- **Delete** — confirms irreversible deletion
+- **Reset** — confirms resetting all LLM settings
+- **Unload** — confirms unloading a model via API
+- **DeleteBackend** — confirms deleting a backend binary version from disk
+
+## Mouse Support
+
+Mouse interactions are supported: clicking on panels to focus them, and scrolling in the log panel, README panel, settings, profiles, and presets panels.
 
 ## CmdLine Overlay
 
