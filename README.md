@@ -132,48 +132,43 @@ The System Prompt Presets panel contains named system prompts for different use 
 
 ### Keyboard shortcuts
 
-- `j` / `k` — Navigate up/down
-- `↵` — Load model / Download selected / Expand log panel / Apply profile or preset
+- `j` / `k` or `↓` / `↑` — Navigate up/down in lists and menus
+- `h` / `l` or `←` / `→` — Navigate left/right (e.g., horizontal scroll in README)
+- `↵` (Enter) — Load model / Download selected / Expand log / Apply profile / Edit setting
 - `f` — Filter local models list / Toggle Follow mode (in Log panel)
-- `⎋` — Back / Exit search / Collapse log panel / Clear local filter
-- `⇥` — Switch panels
+- `⎋` (Esc) — Back / Exit search / Collapse log / Clear local filter / Close modals
+- `⇥` (Tab) — Switch active panels
 - `t` — Switch settings tab / Open tags modal (in LLM Settings)
-- `/` — Search models
-- `l` — Load / `u` — Unload (with confirmation)
+- `/` — Search models on HuggingFace
+- `l` — Load selected model / `u` — Unload selected model
 - `A` — About box (license and version info)
-- `⌃H` — Help
-- `⌃K` — CmdLine overlay
-- `⌃D` — Delete model (with confirmation)
-- `⌃L` — Focus Log panel
-- `p` — Open Profiles panel / Pause or resume download (in Downloads panel)
-- `S` — Cycle search sort (Relevance/Downloads/Likes/Trending/Created)
-- `B` — Back one page in search results
+- `⌃H` (Ctrl+H) — Show Help overlay
+- `⌃K` (Ctrl+K) — Show CmdLine overlay
+- `⌃D` (Ctrl+D) — Delete model (with confirmation)
+- `⌃L` (Ctrl+L) — Focus Log panel
+- `p` — Open Profiles panel / Pause or resume download / Previous Benchmark result
+- `n` — New preset (in System Prompt Presets) / Next Benchmark result
+- `S` (Shift+s) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created)
+- `B` (Shift+b) — Back one page in search results
 - `↓` at bottom — Load more search results (infinite scroll)
-- `R` — Fetch README for selected model
-- `⌃⌥K` — Kill llama-server process
-- `g` / `G` — Jump to top/bottom of log panel (toggles Follow mode)
-- `PageUp` / `PageDown` — Scroll 15 lines up/down in log panel
-- `⌃S` — Save settings for selected model / Save preset (in System Prompt Presets)
-- `⌃R` — Reset settings to defaults
-- `⌃E` — Toggle enabled/disabled for specific fields
-- `⌃⇟` — Jump 10 settings down
-- `⌃⇞` — Jump 10 settings up
-- `⇟` / `⇞` — Scroll 5 settings down/up
-- `F1`–`F6` — Focus/toggle individual panels (Models, ServerSettings, ModelInfo, LlmSettings, ActiveModel, Log)
+- `R` (Shift+r) — Fetch README for selected model
+- `⌃⌥K` (Ctrl+Alt+K) — Kill llama-server process forcefully
+- `g` / `G` — Jump to top/bottom of log panel
+- `PageUp` / `PageDown` — Scroll fast in logs, README, and Benchmark Output
+- `⌃S` (Ctrl+S) — Save settings for selected model / Save preset
+- `⌃R` (Ctrl+R) — Reset LLM settings to defaults
+- `⌃E` (Ctrl+E) — Toggle enabled/disabled for specific settings
+- `⌃⇟` / `⌃⇞` (Ctrl+PgDn/PgUp) — Jump 10 settings down/up
+- `F1`–`F6` — Focus/toggle individual panels (Models, Server, Info, Settings, Active, Log)
 - `F9` — Show all panels
-- `h` / `l` — Scroll README horizontally
 - `e` (in CmdLine) — Export command to script
-- `c` — Cancel download
-- `n` — New preset (in System Prompt Presets)
-- `e` (in Presets) — Edit preset
-- `d` (in Presets) — Delete preset
-- `Space` — Toggle RPC worker selection
-- `d` (in BackendPicker) — Delete backend version
-- `Alt+m` — Toggle benchmark mode (in BenchTuneSetup)
-- `Alt+p` — Edit benchmark prompt
-- `Alt+n` — Edit n_predict
-- `Alt+i` — Edit iterations
-- `Alt+c` — Edit chat template kwargs
+- `c` (in Downloads) — Cancel download
+- `Space` — Toggle selection (RPC workers, Benchmark parameters)
+- `Alt+M` (in BenchTuneSetup) — Toggle benchmark mode
+- `Alt+P` (in BenchTuneSetup) — Edit benchmark prompt
+- `Alt+N` (in BenchTuneSetup) — Edit max tokens (n_predict)
+- `Alt+I` (in BenchTuneSetup) — Edit iterations per test
+- `Alt+C` (in BenchTuneSetup) — Edit chat template kwargs
 
 ### GPU Layers cycling
 
