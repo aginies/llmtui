@@ -1323,13 +1323,15 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             app.pending_spawn = Some((None, settings.clone()));
                             // Queue the load so it triggers once server is ready
                             app.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
-                            app.loading_phases = vec![LoadingPhase::ServerStarting];
+                            app.loading_phases = std::iter::once(LoadingPhase::ServerStarting).collect();
+                            app.last_active_phase = Some(LoadingPhase::ServerStarting);
                             app.loading_progress = 0.25;
                             app.add_log(format!("Starting router server..."), crate::config::LogLevel::Info);
                         } else {
                             // Normal mode: start server WITH the specific model directly
                             app.pending_spawn = Some((Some(model.clone()), settings));
-                            app.loading_phases = vec![LoadingPhase::ServerStarting];
+                            app.loading_phases = std::iter::once(LoadingPhase::ServerStarting).collect();
+                            app.last_active_phase = Some(LoadingPhase::ServerStarting);
                             app.loading_progress = 0.25;
                             app.add_log(format!("Starting server with {}...", model.display_name), crate::config::LogLevel::Info);
                         }
@@ -1349,7 +1351,8 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
                         app.last_error_message = None;
                         app.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
-                        app.loading_phases = vec![LoadingPhase::LoadingModel];
+                        app.loading_phases = std::iter::once(LoadingPhase::LoadingModel).collect();
+                        app.last_active_phase = Some(LoadingPhase::LoadingModel);
                         app.loading_progress = 0.5;
                         app.add_log(format!("Loading {} via API...", model.display_name), crate::config::LogLevel::Info);
                     }

@@ -239,7 +239,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     detail_parts.push(format!("{} VRAM", format_size((total_gpu * 1024.0 * 1024.0) as u64)));
                 }
 
-                let phase = app.loading_phases.last().map(|p| p.label()).unwrap_or("Loading...");
+                let phase = app.loading_phases.iter().next().map(|p| p.label()).unwrap_or("Loading...");
                 let detail = detail_parts.join(", ");
                 lines.push(Line::from(vec![
                     Span::styled("  ", Style::default()),

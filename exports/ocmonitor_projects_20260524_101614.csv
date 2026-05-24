@@ -1,0 +1,19 @@
+# OpenCode Monitor Export
+# Generated: 2026-05-24T10:16:14.899676
+# Records: 13
+# Currency: USD (rate: 1.0 from USD)
+#
+cache_read_tokens,cache_write_tokens,first_activity,input_tokens,last_activity,models_used,output_tokens,project_name,total_cost,total_interactions,total_sessions,total_tokens
+698419010,728827,2026-05-13T09:28:30.762000,314009273,2026-05-24T10:15:33.743000,"""Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf, qwen2.5-1.5b-instruct-q8_0, Qwen3.6-35B-A3B-UD-Q5_K_XL.gguf, Qwen3.6-35B-A3B-MXFP4_MOE, gemini-2.5-flash, Qwen3.6-35B-A3B-Claude-4.7-Opus-Reasoning-Distilled-APEX-I-Quality, Qw3.6-35B-A3B-Claude-4.7-Opus-Reasoning-Distill-i1-Q6_K, qwen2.5-0.5b-instruct-q2_k, claude-sonnet-4-6@default, gemini-3-pro-preview, qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1, claude-sonnet-4-5@20250929, Qwen3.6-27B-Q8_0.gguf""",4011205,llmtui,15.84070259,12395,203,1017168315
+8886119,0,2026-05-12T11:04:45.288000,7702019,2026-05-18T16:16:31.145000,"""Qw3.6-35B-A3B-Claude-4.7-Opus-Reasoning-Distill-i1-Q6_K, qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1""",80742,virtui-manager,0.0,269,10,16668880
+12596,0,2026-05-16T22:50:39.038000,13621,2026-05-16T22:58:41.861000,Qwen3.6-35B-A3B-Claude-4.7-Opus-Reasoning-Distilled-APEX-I-Quality,76,aginies,0.0,2,2,26293
+2709277,0,2026-05-15T11:35:06.382000,307580,2026-05-16T19:22:09.683000,"""Qwen3.6-35B-A3B-Claude-4.7-Opus-Reasoning-Distilled-APEX-I-Quality, Qwen3.6-35B-A3B-MXFP4_MOE, qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1""",88205,mario,0.0,124,9,3105062
+180646,0,2026-05-13T14:58:52.995000,89392,2026-05-14T15:57:15.784000,"""qwen2.5-0.5b-instruct-q8_0.gguf, qwen2.5-0.5b-instruct-q2_k""",7793,opencode,0.0,21,6,277831
+0,0,2026-05-13T09:19:44.710000,233610,2026-05-13T09:21:07.220000,qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1,4944,pong,0.0,14,1,238554
+0,0,2026-05-13T00:50:00.618000,4222229,2026-05-13T09:12:21.723000,"""gm4-26b-a4b-claude-opus-distill-v2-it-i1, qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1, qwen3.5-0.8b-claude-4.6-opus-reasoning-distilled""",185520,pv-router-esp32,0.0,80,5,4407749
+0,0,2026-05-13T00:13:58.407000,14540256,2026-05-13T00:44:35.193000,qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1,53066,Virtu_news,0.0,242,1,14593322
+0,0,2026-05-12T23:27:40.779000,5924360,2026-05-13T00:11:59.223000,"""qwen/qwen2.5-coder-14b, qwen/qwen3.5-9b, qwen_qwen3.6-35b-a3b@q4_k_s, qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1""",66910,t,0.0,141,5,5991270
+0,0,2026-05-12T10:31:17.572000,12225663,2026-05-12T23:22:55.643000,"""qwen/qwen3.5-9b, qwen3.5-9b-claude-4.6-opus-reasoning-distilled-v2, qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1""",85917,routeur_solaire,0.0,231,7,12311580
+0,0,2026-05-12T19:40:58.013000,1795979,2026-05-12T19:49:27.500000,"""qwen/qwen3.5-9b, qwen3.5-9b-claude-4.6-opus-reasoning-distilled-v2""",11270,asteroid,0.0,39,2,1807249
+0,0,2026-05-12T16:33:47.950000,2633658,2026-05-12T18:54:54.469000,"""gemma-4-26b-a4b-it-claude-opus-distill-v2, qwen3.6-35b-a3b-claude-4.7-opus-reasoning-distilled-apex, gemma-4-26b-a4b-it-claude-opus-distill-apex, qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1""",59510,JKDApp,0.0,75,8,2693168
+0,0,2026-05-12T17:41:11.342000,224714,2026-05-12T17:46:22.728000,qw3.6-35b-a3b-claude-4.7-opus-reasoning-distill-i1,1985,scripts,0.0,16,1,226699

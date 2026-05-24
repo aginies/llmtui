@@ -5,6 +5,7 @@ mod serve;
 mod serve_api;
 mod tui;
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -408,7 +409,8 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                                 app.add_log(format!("API proxy started on port {}", port), crate::config::LogLevel::Info);
                             }
                             
-                            app.loading_phases = vec![crate::tui::app::LoadingPhase::Complete];
+                            app.loading_phases = std::iter::once(crate::tui::app::LoadingPhase::Complete).collect();
+                            app.last_active_phase = Some(crate::tui::app::LoadingPhase::Complete);
                             app.loading_progress = 1.0;
                             
                             // Start continuous metrics polling task (runs until server stops).
@@ -739,7 +741,7 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                     }
                     app.loaded_model_names.lock().unwrap().clear();
 
-                    app.loading_phases = Vec::new();
+                    app.loading_phases = HashSet::new();
                     app.loading_progress = 0.0;
                  }
                 Err(e) => {
