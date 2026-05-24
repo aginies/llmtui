@@ -6,7 +6,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 
 ## Features
 
-- **Search models** on HuggingFace by name (filters to GGUF models, 70 results per page)
+- **Search models** on HuggingFace by name (multi-word AND search, highlights matches, GGUF filter, 70 results per page)
 - **Download** GGUF model files with progress tracking (pause/resume with `p`)
 - **Load/unload** models via llama.cpp server
 - **Local Model Filter** — quickly find models in your list with `f`
@@ -224,6 +224,7 @@ Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSetti
 | **Pagination** | `B` key goes back one page; `Down` at bottom loads more results (infinite scroll) |
 | **README viewing** | `R` fetches and displays the model's README from HuggingFace; `Enter` expands to fullscreen |
 | **README horizontal scroll** | `h`/`l` keys scroll horizontally |
+| **Multi-word search** | Type space-separated words (e.g. "qwen opus"); all must match the model name. Matching words are highlighted in cyan. |
 | **README rendering** | Full markdown renderer with headings, code blocks, lists, blockquotes, tables, and task lists |
 
 ### Backend selection
@@ -320,7 +321,7 @@ Models have status states: Available, Loading, Loaded, Failed (with error messag
 
 ### Download Management
 
-Downloads can be paused and resumed by pressing `p` while a download is selected. Press `c` to cancel a download entirely. Download progress shows bytes per second and percentage complete. The Downloads panel shows all active downloads with individual controls.
+Downloads can be paused and resumed by pressing `p` while a download is selected. Press `Ctrl+C` to cancel a download entirely. Download progress shows bytes per second and percentage complete. The Downloads panel shows all active downloads with individual controls.
 
 ### Confirmation dialogs
 
