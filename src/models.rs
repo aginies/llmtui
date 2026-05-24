@@ -602,6 +602,26 @@ impl Backend {
     pub fn is_macos(self) -> bool {
         matches!(self, Backend::CpuMacosArm64 | Backend::CpuMacosX64)
     }
+
+    /// Parse backend from string representation.
+    pub fn from_str(s: &str) -> Self {
+        let s = s.to_lowercase();
+        if s.starts_with("vulkan") || s.starts_with("vk") {
+            Backend::Vulkan
+        } else if s.starts_with("rocm") || s.starts_with("ro") {
+            if s.contains("lemonade") {
+                Backend::RocmLemonade
+            } else {
+                Backend::Rocm
+            }
+        } else if s.starts_with("cuda") || s.starts_with("cu") {
+            Backend::Cuda
+        } else if s.starts_with("cpu") || s.starts_with("cp") {
+            Backend::Cpu
+        } else {
+            Backend::Cpu // Default
+        }
+    }
 }
 
 impl std::fmt::Display for Backend {

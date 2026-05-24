@@ -199,8 +199,8 @@ pub struct App {
     pub loading_phases: Vec<LoadingPhase>,
     pub loading_progress: f32,
     pub load_progress: LoadProgress,
-    /// Timestamp of the last log message during loading (for spinner animation).
-    pub last_log_time: Option<std::time::Instant>,
+    /// Timestamp of the last spinner animation update.
+    pub last_spinner_time: Option<tokio::time::Instant>,
     /// Current spinner frame index (0-3) for loading animation.
     pub loading_spinner: usize,
     pub cancelled: Option<Arc<AtomicBool>>,
@@ -214,6 +214,8 @@ pub struct App {
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,
     pub api_proxy_handle: Option<tokio::task::JoinHandle<()>>,
+    /// Collection of background tasks for cleanup on shutdown
+    pub background_tasks: std::collections::HashMap<String, tokio::task::JoinHandle<()>>,
     pub needs_redraw: bool,
     pub panel_help: bool,
     pub panel_visibility: u8,
@@ -340,7 +342,7 @@ impl App {
             loading_phases: Vec::new(),
             loading_progress: 0.0,
             load_progress: Default::default(),
-            last_log_time: None,
+            last_spinner_time: None,
             loading_spinner: 0,
             cancelled: None,
             server_handle: None,
@@ -354,6 +356,7 @@ impl App {
            metrics_model_name: Arc::new(std::sync::Mutex::new(None)),
             loaded_model_names: Arc::new(std::sync::Mutex::new(Vec::new())),
             api_proxy_handle: None,
+            background_tasks: std::collections::HashMap::new(),
             needs_redraw: true,
             panel_visibility: 0b111111,
             panel_help: false,
@@ -406,7 +409,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         }
 
         // Track timing for spinner animation
-        self.last_log_time = Some(std::time::Instant::now());
+        self.last_spinner_time = Some(tokio::time::Instant::now());
         self.loading_spinner = 0;
 
         // Detect loading phases from llama-server log output
@@ -631,8 +634,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 let phase_fraction = match phase {
                     LoadingPhase::ServerStarting => {
                         // ServerStarting gets smoother progress based on time since first log
-                        if let Some(last_log) = self.last_log_time {
-                            let elapsed = last_log.elapsed();
+                        if let Some(last_spinner) = self.last_spinner_time {
+                            let elapsed = last_spinner.elapsed();
                             // 2 seconds to fully start
                             (elapsed.as_millis() as f32 / 2000.0).min(1.0)
                         } else {
@@ -804,7 +807,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.loading_phases.clear();
         self.loading_progress = 0.0;
         self.load_progress = Default::default();
-        self.last_log_time = None;
+        self.last_spinner_time = None;
         self.loading_spinner = 0;
         
         // Models to fail: always any that were Loading. 

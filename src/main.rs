@@ -113,10 +113,7 @@ async fn main() -> Result<()> {
             };
 
             // Apply CLI backend override
-            let backend = match backend.to_lowercase().as_str() {
-                "vulkan" => Backend::Vulkan,
-                _ => Backend::Cpu,
-            };
+            let backend = Backend::from_str(&backend);
             let mut config = config;
             config.default.backend = backend;
 
@@ -538,20 +535,34 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                                     app.bench_tune_results = sorted_results;
                                     app.bench_tune_running = false;
                                 
-                                // Unload the model after benchmarking
-                                if let Some(model) = app.selected_model() {
-                                    if let Some(handle) = &app.server_handle {
-                                        let host = handle.host.clone();
-                                        let port = handle.port;
-                                        let model_name = model.display_name.clone();
-                                        let model_path = model.path.clone();
-                                        let model_path_str = model_path.to_str().map(|s| s.to_string());
-                                        tokio::spawn(async move {
+// Unload the model after benchmarking
+                                    {
+                                        // Clone data from model to release immutable borrow
+                                        let (host, port, model_name, model_path_str, task_name, model_display_name) = {
+                                            let model = match app.selected_model() {
+                                                Some(m) => m,
+                                                None => continue,
+                                            };
+                                            let handle = match &app.server_handle {
+                                                Some(h) => h,
+                                                None => continue,
+                                            };
+                                            (
+                                                handle.host.clone(),
+                                                handle.port,
+                                                model.display_name.clone(),
+                                                model.path.to_str().map(|s| s.to_string()),
+                                                format!("bench_unload_{}", model.display_name),
+                                                model.display_name.clone(),
+                                            )
+                                        };
+                                        // Model reference dropped here, now we can do mutable operations
+                                        let task_handle = tokio::spawn(async move {
                                             let _ = server::unload_model(&host, port, &model_name, model_path_str.as_deref()).await;
                                         });
+                                        app.background_tasks.insert(task_name, task_handle);
+                                        app.model_states.insert(model_display_name, crate::models::ModelState::Available);
                                     }
-                                    app.model_states.insert(model.display_name.clone(), crate::models::ModelState::Available);
-                                }
                             }
                             Err(e) => {
                                 app.add_log(format!("Benchmark tuning failed: {}", e), crate::config::LogLevel::Error);
@@ -647,37 +658,41 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                     let server_clone = app.server_handle.clone();
                     let host_clone = host.clone();
                     let port_clone = port;
+                    let model_name_task = model_name_clone.clone();
                     
-                    tokio::spawn(async move {
-                        if let Err(e) = server::unload_model(&host, port, &model_name_clone, model_path_clone.as_deref()).await {
-                            if let Some(tx) = kill_tx {
-                                let _ = tx.send(format!("Failed to unload model via API: {}", e)).await;
-                            }
-                            return;
-                        }
-                        
-                        // Wait for the server to finish unloading
-                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                        
-                        // Check what's actually loaded on the server
-                        if let Ok(loaded) = crate::backend::server::list_models(&host_clone, port_clone).await {
-                            if loaded.is_empty() {
+                    app.background_tasks.insert(
+                        format!("api_unload_{}", model_name_task),
+                        tokio::spawn(async move {
+                            if let Err(e) = server::unload_model(&host, port, &model_name_clone, model_path_clone.as_deref()).await {
                                 if let Some(tx) = kill_tx {
-                                    let _ = tx.send("No models left, stopping router...".to_string()).await;
+                                    let _ = tx.send(format!("Failed to unload model via API: {}", e)).await;
                                 }
-                                if let Some(server) = server_clone {
-                                    let _ = crate::backend::server::kill_server(server).await;
-                               if let Some(tx) = kill_tx2 {
-                                    let _ = tx.send("Server stopped".to_string()).await;
-                                }
-                                }
-                            } else {
-                                if let Some(tx) = kill_tx {
-                                    let _ = tx.send(format!("{} models still loaded on server", loaded.len())).await;
+                                return;
+                            }
+                            
+                            // Wait for the server to finish unloading
+                            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                            
+                            // Check what's actually loaded on the server
+                            if let Ok(loaded) = crate::backend::server::list_models(&host_clone, port_clone).await {
+                                if loaded.is_empty() {
+                                    if let Some(tx) = kill_tx {
+                                        let _ = tx.send("No models left, stopping router...".to_string()).await;
+                                    }
+                                    if let Some(server) = server_clone {
+                                        let _ = crate::backend::server::kill_server(server).await;
+                                   if let Some(tx) = kill_tx2 {
+                                        let _ = tx.send("Server stopped".to_string()).await;
+                                    }
+                                    }
+                                } else {
+                                    if let Some(tx) = kill_tx {
+                                        let _ = tx.send(format!("{} models still loaded on server", loaded.len())).await;
+                                    }
                                 }
                             }
-                        }
-                    });
+                        })
+                    );
                 }
                 
                 app.loaded_model_names.lock().unwrap().retain(|n| n != &model_name);
@@ -1036,14 +1051,13 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
         // Animate spinner when model is loading but no log messages arrive
         let is_loading = app.model_states.values().any(|s| matches!(s, crate::models::ModelState::Loading));
         if is_loading {
-            if let Some(last_log) = app.last_log_time {
-                let elapsed = last_log.elapsed();
-                // Cycle spinner every 200ms when no log messages
-                if elapsed.as_millis() > 150 {
-                    app.loading_spinner = (app.loading_spinner + 1) % 4;
-                    app.last_log_time = Some(std::time::Instant::now() - std::time::Duration::from_millis(elapsed.as_millis() as u64 - 150));
-                    app.set_redraw();
-                }
+            let spinner_interval = std::time::Duration::from_millis(150);
+            
+            if app.last_spinner_time.is_none() 
+                || app.last_spinner_time.unwrap().elapsed() > spinner_interval {
+                app.loading_spinner = (app.loading_spinner + 1) % 4;
+                app.last_spinner_time = Some(tokio::time::Instant::now());
+                app.set_redraw();
             }
         }
 
@@ -1106,6 +1120,11 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
         task.abort();
     }
    if let Some(task) = app.api_proxy_handle.take() {
+        task.abort();
+    }
+
+    // Abort all background tasks
+    for (_, task) in app.background_tasks.drain() {
         task.abort();
     }
 
