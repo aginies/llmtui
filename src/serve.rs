@@ -143,11 +143,13 @@ pub async fn serve_model(
 
     // Optionally start the API proxy server
     let (api_done_tx, api_done_rx) = tokio::sync::oneshot::channel();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     let mut api_server_handle = if let Some(port) = api_port {
         let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
         let model_name = model.display_name.clone();
         let server_port = settings.port;
         let api_key_clone = api_key.clone();
+        let shutdown_rx_for_api = shutdown_rx.clone();
         let handle = tokio::spawn(async move {
             let _ = crate::serve_api::start_api_server(
                 addr,
@@ -155,34 +157,45 @@ pub async fn serve_model(
                 server_port,
                 model_name,
                 server_pid,
+                shutdown_rx_for_api,
             )
             .await;
             let _ = api_done_tx.send(());
         });
         info!("API proxy server enabled on http://127.0.0.1:{}", port);
-        Some((handle, api_done_rx))
+        Some((handle, api_done_rx, shutdown_tx))
     } else {
         None
     };
 
-    // Wait for either llama-server, API server, or Ctrl+C
+  // Wait for either llama-server, API server, or Ctrl+C
     let status = select! {
         status = child.wait() => {
+            // llama-server exited — gracefully shut down API server
+            if let Some((_, _, tx)) = &mut api_server_handle {
+                let _ = tx.send(true);
+            }
             status.context("Failed to wait for llama-server")?
         }
         _ = async {
-            if let Some((_, rx)) = &mut api_server_handle {
-                let _ = rx.await;
+            let (_, rx, _) = api_server_handle.as_mut().unwrap();
+            let _ = rx.await;
+        }, if api_server_handle.is_some() => {
+            // API server exited — gracefully shut down, then wait for llama-server
+            if let Some((_, _, tx)) = &mut api_server_handle {
+                let _ = tx.send(true);
             }
-        } => {
             child.wait().await.context("Failed to wait for llama-server")?
         }
         _ = signal::ctrl_c() => {
             info!("Received SIGINT, shutting down llama-server...");
             let _ = child.kill().await;
+            if let Some((_, _, tx)) = &mut api_server_handle {
+                let _ = tx.send(true);
+            }
             std::process::exit(0);
         }
-    };
+   };
 
     // Kill the other process if both are running
     if !status.success() {
@@ -190,7 +203,7 @@ pub async fn serve_model(
     }
 
     // Drop the API server handle so the spawned task can finish
-    if let Some((handle, _)) = api_server_handle {
+    if let Some((handle, _, _)) = api_server_handle {
         let _ = handle.await;
     }
 

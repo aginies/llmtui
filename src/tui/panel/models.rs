@@ -115,6 +115,35 @@ fn format_eta(d: &crate::models::DownloadState) -> String {
     }
 }
 
+/// Highlight occurrences of `query` in `text` (case-insensitive).
+fn highlight_query<'a>(text: &'a str, query: &str) -> Line<'a> {
+    if query.is_empty() {
+        return Line::from(text);
+    }
+    let lower_text = text.to_lowercase();
+    let lower_query = query.to_lowercase();
+    let mut spans = Vec::new();
+    let mut last_end = 0;
+    let mut pos = 0;
+    while let Some(idx) = lower_text[pos..].find(&lower_query) {
+        let start = pos + idx;
+        let end = start + query.len();
+        if start > last_end {
+            spans.push(Span::from(&text[last_end..start]));
+        }
+        spans.push(Span::styled(
+            &text[start..end],
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        ));
+        last_end = end;
+        pos = end;
+    }
+    if last_end < text.len() {
+        spans.push(Span::from(&text[last_end..]));
+    }
+    Line::from(spans)
+}
+
 fn format_time_remaining(total_secs: u64) -> String {
     let days = total_secs / 86400;
     let hours = (total_secs % 86400) / 3600;
@@ -257,7 +286,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let license = result.license.as_deref().unwrap_or("—");
 
                     Row::new(vec![
-                        Cell::from(result.model_id.clone()),
+                        Cell::from(highlight_query(&result.model_id, query)),
                         Cell::from(format_number(result.downloads)),
                         Cell::from(format_number(result.likes)),
                         Cell::from(license.to_string()),

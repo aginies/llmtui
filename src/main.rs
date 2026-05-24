@@ -398,9 +398,10 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                                 let model_name = server_display_name.clone();
                                 let server_port = app.server_handle.as_ref().map(|h| h.port).unwrap_or(8080);
                                 let pid = app.server_handle.as_ref().map(|h| h.pid).unwrap_or(0);
+                                let (_, shutdown_rx) = tokio::sync::watch::channel(false);
                                 let handle = tokio::spawn(async move {
                                     let _ = crate::serve_api::start_api_server(
-                                        addr, None, server_port, model_name, pid
+                                        addr, None, server_port, model_name, pid, shutdown_rx
                                     ).await;
                                 });
                                 app.api_proxy_handle = Some(handle);

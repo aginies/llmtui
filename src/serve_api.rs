@@ -176,6 +176,7 @@ pub async fn start_api_server(
     server_port: u16,
     model_name: String,
     pid: u32,
+    mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let start_time = Instant::now();
     let client = Client::new();
@@ -214,6 +215,10 @@ pub async fn start_api_server(
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
-    axum::serve(tokio::net::TcpListener::bind(bind).await?, app).await?;
+    axum::serve(tokio::net::TcpListener::bind(bind).await?, app)
+        .with_graceful_shutdown(async move {
+            let _ = shutdown_rx.wait_for(|v| *v).await;
+        })
+        .await?;
     Ok(())
 }

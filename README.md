@@ -368,6 +368,10 @@ llama_cpp_version_rocm_lemonade: null
 llama_cpp_version_cuda: null
 ```
 
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to report bugs, suggest features, and submit pull requests.
+
 ## License
 
 GPLv3
