@@ -202,13 +202,15 @@ pub struct ModelOverride {
     pub cache_reuse: Option<u32>,
     pub webui: Option<bool>,
 
-   // Other
+    // Other
     pub max_tokens: Option<u32>,
     pub cache_type: Option<CacheType>,
     pub reasoning_mode: Option<crate::models::ReasoningMode>,
     pub llama_cpp_version_cpu: Option<String>,
     pub llama_cpp_version_vulkan: Option<String>,
     pub llama_cpp_version_rocm: Option<String>,
+    pub llama_cpp_version_rocm_lemonade: Option<String>,
+    pub llama_cpp_version_cuda: Option<String>,
     pub is_mtp: Option<bool>,
     pub draft_tokens: Option<u32>,
     pub tags: Option<Vec<String>>,
@@ -227,8 +229,8 @@ impl ModelOverride {
             mlock: Some(s.mlock),
             mmap: Some(s.mmap),
             numa: Some(s.numa),
-            uniform_cache: Some(s.uniform_cache),
-        system_prompt: Some(s.system_prompt.clone()),
+       uniform_cache: Some(s.uniform_cache),
+            system_prompt: Some(s.system_prompt.clone()),
             system_prompt_preset_name: Some(s.system_prompt_preset_name.clone()),
             max_concurrent_predictions: s.max_concurrent_predictions,
             threads: Some(s.threads),
@@ -282,10 +284,12 @@ impl ModelOverride {
             webui: Some(s.webui),
             max_tokens: s.max_tokens,
             cache_type: Some(s.cache_type),
-            reasoning_mode: Some(s.reasoning_mode),
-llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
+       reasoning_mode: Some(s.reasoning_mode),
+            llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
             llama_cpp_version_vulkan: s.llama_cpp_version_vulkan.clone(),
             llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
+            llama_cpp_version_rocm_lemonade: s.llama_cpp_version_rocm_lemonade.clone(),
+            llama_cpp_version_cuda: s.llama_cpp_version_cuda.clone(),
             is_mtp: Some(s.is_mtp),
             draft_tokens: Some(s.draft_tokens),
             tags: Some(s.tags.clone()),
@@ -329,6 +333,7 @@ llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
         base.flash_attn = self.flash_attn.unwrap_or(base.flash_attn);
         base.jinja = self.jinja.unwrap_or(base.jinja);
         if let Some(v) = &self.chat_template { base.chat_template = Some(v.clone()); }
+        if let Some(v) = &self.chat_template_kwargs { base.chat_template_kwargs = Some(v.clone()); }
         base.expert_count = self.expert_count.unwrap_or(base.expert_count);
         base.reasoning_mode = self.reasoning_mode.unwrap_or(base.reasoning_mode);
         base.seed = self.seed.unwrap_or(base.seed);
@@ -359,10 +364,13 @@ llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
         base.webui = self.webui.unwrap_or(base.webui);
         base.max_tokens = self.max_tokens;
         base.cache_type = self.cache_type.unwrap_or(base.cache_type);
-if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
+        if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_vulkan { base.llama_cpp_version_vulkan = Some(v.clone()); }
-        if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
-        if let Some(v) = self.is_mtp { base.is_mtp = v; }
+         if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
+         if let Some(v) = &self.llama_cpp_version_rocm_lemonade { base.llama_cpp_version_rocm_lemonade = Some(v.clone()); }
+         if let Some(v) = &self.llama_cpp_version_cuda { base.llama_cpp_version_cuda = Some(v.clone()); }
+         if let Some(v) = self.is_mtp { base.is_mtp = v; }
+        if let Some(v) = self.draft_tokens { base.draft_tokens = v; }
         if let Some(v) = &self.tags { base.tags = v.clone(); }
     }
 }
@@ -599,7 +607,7 @@ pub struct DefaultParams {
     #[serde(default)]
     pub llama_cpp_version_cuda: Option<String>,
 
-// API
+  // API
     #[serde(default)]
     pub api_endpoint_enabled: bool,
     #[serde(default = "default_api_endpoint_port")]
@@ -632,7 +640,7 @@ impl Default for DefaultParams {
     fn default() -> Self {
         Self {
             // Loading
-            context_length: 32096,
+            context_length: 32768,
             threads: physical_cores(),
             threads_batch: 8,
             batch_size: 512,
@@ -894,23 +902,27 @@ impl Config {
         config
     }
 
+    fn load_impl(path: &PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
+        let content = std::fs::read_to_string(path)?;
+        let config: Config = serde_yaml::from_str(&content).map_err(|e| {
+            format!("Failed to parse config file {}: {}", path.display(), e)
+        })?;
+        let config = Self::normalize_config(config);
+        let config = config.auto_detect_platform();
+        let warnings = config.validate();
+        if !warnings.is_empty() {
+            eprintln!("Config validation warnings:");
+            for warning in &warnings {
+                eprintln!("  - {}", warning);
+            }
+        }
+        Ok(config)
+    }
+
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
         let path = Self::config_path();
         if path.exists() {
-            let content = std::fs::read_to_string(&path)?;
-            let config: Config = serde_yaml::from_str(&content).map_err(|e| {
-                format!("Failed to parse config file {}: {}", path.display(), e)
-            })?;
-            let config = Self::normalize_config(config);
-            let config = config.auto_detect_platform();
-            let warnings = config.validate();
-            if !warnings.is_empty() {
-                eprintln!("Config validation warnings:");
-                for warning in &warnings {
-                    eprintln!("  - {}", warning);
-                }
-            }
-            Ok(config)
+            Self::load_impl(&path)
         } else {
             let config = Config::default();
             config.save()?;
@@ -920,20 +932,7 @@ impl Config {
 
     pub fn load_from(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         if path.exists() {
-            let content = std::fs::read_to_string(&path)?;
-            let config: Config = serde_yaml::from_str(&content).map_err(|e| {
-                format!("Failed to parse config file {}: {}", path.display(), e)
-            })?;
-            let config = Self::normalize_config(config);
-            let config = config.auto_detect_platform();
-            let warnings = config.validate();
-            if !warnings.is_empty() {
-                eprintln!("Config validation warnings:");
-                for warning in &warnings {
-                    eprintln!("  - {}", warning);
-                }
-            }
-            Ok(config)
+            Self::load_impl(&path)
         } else {
             Err(format!("Config file not found: {}", path.display()).into())
         }
