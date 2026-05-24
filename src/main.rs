@@ -213,7 +213,7 @@ async fn main() -> Result<()> {
                 let path_clone = path.clone();
                 tokio::spawn(async move {
                     if let Err(e) = tokio::fs::remove_file(&path_clone).await {
-                        eprintln!("Failed to delete file: {}", e);
+                        tracing::warn!("Failed to delete file: {}", e);
                     }
                 });
                 // Remove this model's settings override from config
@@ -222,7 +222,7 @@ async fn main() -> Result<()> {
                     .unwrap_or_default();
                 app.config.model_overrides.remove(&model_key);
                 if let Err(e) = app.config.save() {
-                    eprintln!("Failed to save config after deletion: {}", e);
+                    app.add_log(format!("Failed to save config after deletion: {}", e), crate::config::LogLevel::Error);
                 }
 
                 // Update UI list immediately
@@ -1080,8 +1080,8 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
         }
     }
 
- // Cleanup before exit: kill running server and background tasks
-    println!("Shutting down all processes...");
+  // Cleanup before exit: kill running server and background tasks
+    tracing::info!("Shutting down all processes...");
     if let Some(handle) = app.server_handle.take() {
         let _ = server::kill_server(handle).await;
     }

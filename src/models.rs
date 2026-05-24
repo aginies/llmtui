@@ -252,6 +252,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             api_endpoint_port: dp.api_endpoint_port,
             is_mtp: dp.is_mtp,
             draft_tokens: dp.draft_tokens,
+            tags: dp.tags,
         }
     }
 }
@@ -787,6 +788,8 @@ pub struct ModelSettings {
     pub is_mtp: bool,
     /// Number of draft tokens for MTP.
     pub draft_tokens: u32,
+    /// Tags for the model.
+    pub tags: Vec<String>,
 }
 
 impl Default for ModelSettings {
@@ -865,19 +868,20 @@ impl Default for ModelSettings {
             cache_reuse: 0,
             webui: false,
 
-            // Other
-            max_tokens: Some(2048),
-            cache_type: CacheType::F16,
-            backend: Backend::Vulkan,
+          // Other
+            max_tokens: None,
+            cache_type: CacheType::default(),
+            backend: Backend::Cpu,
             llama_cpp_version_cpu: None,
             llama_cpp_version_vulkan: None,
             llama_cpp_version_rocm: None,
-            llama_cpp_version_rocm_lemonade: None,
+           llama_cpp_version_rocm_lemonade: None,
             llama_cpp_version_cuda: None,
-           api_endpoint_enabled: false,
+            api_endpoint_enabled: false,
             api_endpoint_port: 49222,
             is_mtp: false,
             draft_tokens: 0,
+            tags: Vec::new(),
         }
     }
 }

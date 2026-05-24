@@ -210,6 +210,7 @@ pub struct ModelOverride {
     pub llama_cpp_version_rocm: Option<String>,
     pub is_mtp: Option<bool>,
     pub draft_tokens: Option<u32>,
+    pub tags: Option<Vec<String>>,
 }
 
 impl ModelOverride {
@@ -285,6 +286,7 @@ llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
             llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
             is_mtp: Some(s.is_mtp),
             draft_tokens: Some(s.draft_tokens),
+            tags: Some(s.tags.clone()),
         }
     }
 
@@ -359,6 +361,7 @@ if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some
         if let Some(v) = &self.llama_cpp_version_vulkan { base.llama_cpp_version_vulkan = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
         if let Some(v) = self.is_mtp { base.is_mtp = v; }
+        if let Some(v) = &self.tags { base.tags = v.clone(); }
     }
 }
 
@@ -598,6 +601,8 @@ pub struct DefaultParams {
     pub is_mtp: bool,
     #[serde(default)]
     pub draft_tokens: u32,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 fn default_api_endpoint_port() -> u16 {
@@ -716,6 +721,7 @@ impl Default for DefaultParams {
             api_endpoint_port: 49222,
             is_mtp: false,
             draft_tokens: 0,
+            tags: Vec::new(),
         }
     }
 }

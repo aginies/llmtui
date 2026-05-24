@@ -112,22 +112,23 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
 
     let mut lines = Vec::new();
     let mut count = 0;
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Host", host_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Backend", &backend_name, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads", &threads_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Threads Batch", &threads_batch_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "Mode", &mode_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "API Endpoint", api_enabled, selected, "", server_running);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, "RPC Workers", &rpc_workers_val, selected, "", false);
+    let mut selected_line_idx = 0;
+    let mut selected_content_line = 0;
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 0, "Host", host_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 1, "Backend", &backend_name, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 2, "Threads", &threads_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 3, "Threads Batch", &threads_batch_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 4, "Mode", &mode_val, selected, "", false);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 5, "API Endpoint", api_enabled, selected, "", server_running);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 6, "RPC Workers", &rpc_workers_val, selected, "", false);
 
     let total_settings = lines.len();
     let available_height = area.height.saturating_sub(2);
 
-    // Handle scrolling
-    if selected < app.server_settings_scroll_offset {
-        app.server_settings_scroll_offset = selected;
-    } else if available_height > 0 && (selected - app.server_settings_scroll_offset) >= (available_height as usize) {
-        app.server_settings_scroll_offset = (selected).saturating_sub(available_height as usize).saturating_add(1);
+    if selected_content_line < app.server_settings_scroll_offset {
+        app.server_settings_scroll_offset = selected_content_line;
+    } else if available_height > 0 && (selected_content_line - app.server_settings_scroll_offset) >= (available_height as usize) {
+        app.server_settings_scroll_offset = (selected_content_line).saturating_sub(available_height as usize).saturating_add(1);
     }
 
     let max_offset = total_settings.saturating_sub(available_height as usize);

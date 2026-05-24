@@ -142,20 +142,25 @@ pub async fn serve_model(
     let server_pid = child.id().unwrap_or(0);
 
     // Optionally start the API proxy server
-    let api_server_handle = if let Some(port) = api_port {
+    let (api_done_tx, api_done_rx) = tokio::sync::oneshot::channel();
+    let mut api_server_handle = if let Some(port) = api_port {
         let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
         let model_name = model.display_name.clone();
         let server_port = settings.port;
         let api_key_clone = api_key.clone();
-        let handle = tokio::spawn(crate::serve_api::start_api_server(
-            addr,
-            api_key_clone,
-            server_port,
-            model_name,
-            server_pid,
-        ));
+        let handle = tokio::spawn(async move {
+            let _ = crate::serve_api::start_api_server(
+                addr,
+                api_key_clone,
+                server_port,
+                model_name,
+                server_pid,
+            )
+            .await;
+            let _ = api_done_tx.send(());
+        });
         info!("API proxy server enabled on http://127.0.0.1:{}", port);
-        Some(handle)
+        Some((handle, api_done_rx))
     } else {
         None
     };
@@ -166,8 +171,8 @@ pub async fn serve_model(
             status.context("Failed to wait for llama-server")?
         }
         _ = async {
-            if let Some(handle) = api_server_handle {
-                let _ = handle.await;
+            if let Some((_, rx)) = &mut api_server_handle {
+                let _ = rx.await;
             }
         } => {
             child.wait().await.context("Failed to wait for llama-server")?
@@ -184,11 +189,20 @@ pub async fn serve_model(
         let _ = child.kill().await;
     }
 
+    // Drop the API server handle so the spawned task can finish
+    if let Some((handle, _)) = api_server_handle {
+        let _ = handle.await;
+    }
+
     if status.success() {
         info!("llama-server exited normally");
     } else {
         info!("llama-server exited with status: {}", status);
     }
 
-    Ok(())
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("llama-server exited with status: {}", status)
+    }
 }

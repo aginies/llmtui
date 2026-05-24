@@ -4,46 +4,85 @@ use ratatui::{
     text::{Line, Span},
 };
 
-/// Render the LLM Settings panel (Loading + GPU + Evaluation + Sampling + Repetition).
-/// Returns (lines, total_count, settings_height, selected_line_idx).
+/// Render the LLM Settings panel.
 #[allow(clippy::too_many_arguments)]
 pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'static>>, usize, usize, usize) {
     let settings = &app.settings;
     let cached = &app.model_settings_cache;
     let selected = app.settings_selected_idx;
+
+    let mut selected_content_line = 0;
+    let mut total_count = 0;
+
     let edit_buf = &app.settings_edit_buffer;
     let editing = !edit_buf.is_empty();
     let hash = app.settings_fingerprint();
 
-    // Cache hit: return a clone of the cached lines.
+    // Cache hit with same selection: track cached total_count, but render_settings
+    // always runs after (setting selected_content_line correctly).
+    let mut cache_hit_total_count = 0;
     if let Some(c) = &app.settings_render_cache
         && c.hash == hash
-        && c.selected == selected {
-            // Even on cache hit, we need to update scrolling if area changed
-            let available_height = area.height.saturating_sub(2);
-            let selected_line_idx = c.selected_line_idx;
-            let settings_height = c.lines.len();
+        && c.selected == selected
+    {
+        cache_hit_total_count = c.lines.len();
+    }
 
-            // Clamp scroll so selected item is within the visible window.
-            if selected_line_idx < app.settings_scroll_offset {
-                app.settings_scroll_offset = selected_line_idx;
-            } else if available_height > 0 && (selected_line_idx - app.settings_scroll_offset) >= (available_height as usize) {
-                app.settings_scroll_offset = (selected_line_idx).saturating_sub(available_height as usize).saturating_add(1);
-            }
-
-            // Clamp scroll offset to max
-            let max_offset = settings_height.saturating_sub(available_height as usize);
-            if app.settings_scroll_offset > max_offset {
-                app.settings_scroll_offset = max_offset;
-            }
-
-            return (c.lines.clone(), 22, settings_height, selected_line_idx);
-        }
-
+    // Build lines -- render_settings sets selected_content_line for the current selection.
+    // Always runs, regardless of cache hit state.
     let mut lines = Vec::new();
-    let mut total_count = 0;
     let mut selected_line_idx = 0;
+    render_settings(
+        &mut lines, &mut total_count, &mut selected_line_idx, &mut selected_content_line,
+        settings, cached, selected, edit_buf, editing,
+    );
 
+    // On cache hit, use cached lines (faster). On miss, update cache.
+    let (lines_to_return, final_total_count) = if let Some(c) = &app.settings_render_cache
+        && c.hash == hash
+        && c.selected == selected
+    {
+        // Cache hit: use cached total_count
+        (c.lines.clone(), cache_hit_total_count.max(total_count))
+    } else {
+        // Cache miss: store and use built lines
+        app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
+            hash,
+            selected,
+            lines: lines.clone(),
+        });
+        (lines, total_count)
+    };
+
+    let settings_height = lines_to_return.len();
+
+    // Scroll clamp (always executes)
+    let available_height = area.height.saturating_sub(2);
+    if selected_content_line < app.settings_scroll_offset {
+        app.settings_scroll_offset = selected_content_line;
+    } else if available_height > 0 && (selected_content_line - app.settings_scroll_offset) >= (available_height as usize) {
+        app.settings_scroll_offset = (selected_content_line).saturating_sub(available_height as usize).saturating_add(1);
+    }
+    let max_offset = settings_height.saturating_sub(available_height as usize);
+    if app.settings_scroll_offset > max_offset {
+        app.settings_scroll_offset = max_offset;
+    }
+
+    (lines_to_return, final_total_count, settings_height, selected_content_line)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_settings(
+    lines: &mut Vec<Line<'static>>,
+    total_count: &mut usize,
+    selected_line_idx: &mut usize,
+    selected_content_line: &mut usize,
+    settings: &crate::models::ModelSettings,
+    cached: &crate::models::ModelSettings,
+    selected: usize,
+    edit_buf: &str,
+    editing: bool,
+) {
     // ── Loading ──────────────────────────────────────────────
     lines.push(Line::from(vec![
         Span::styled("--- Loading ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
@@ -57,11 +96,12 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
     ];
 
     for (i, val) in loading_vals.into_iter().enumerate() {
-        if total_count == selected {
-            selected_line_idx = lines.len();
+        if *total_count == selected {
+            *selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, loading_names[i], &val, selected, edit_buf, editing);
+        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, i as usize, loading_names[i], &val, selected, edit_buf, editing);
     }
+
     // ── GPU Offload ──────────────────────────────────────────
     lines.push(Line::from(vec![
         Span::styled("--- GPU Offload ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
@@ -86,10 +126,10 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
     ];
 
     for (i, val) in gpu_vals.into_iter().enumerate() {
-        if total_count == selected {
-            selected_line_idx = lines.len();
+        if *total_count == selected {
+            *selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, gpu_names[i], &val, selected, edit_buf, editing);
+        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 3 + i as usize, gpu_names[i], &val, selected, edit_buf, editing);
     }
 
     // ── Evaluation ───────────────────────────────────────────
@@ -105,10 +145,10 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
     ];
 
     for (i, val) in eval_vals.into_iter().enumerate() {
-        if total_count == selected {
-            selected_line_idx = lines.len();
+        if *total_count == selected {
+            *selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, eval_names[i], &val, selected, edit_buf, editing);
+        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 9 + i as usize, eval_names[i], &val, selected, edit_buf, editing);
     }
 
     // ── Sampling ─────────────────────────────────────────────
@@ -127,10 +167,10 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
     ];
 
     for (i, val) in sampling_vals.into_iter().enumerate() {
-        if total_count == selected {
-            selected_line_idx = lines.len();
+        if *total_count == selected {
+            *selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, sampling_names[i], &val, selected, edit_buf, editing);
+        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 12 + i as usize, sampling_names[i], &val, selected, edit_buf, editing);
     }
 
     // ── Repetition ───────────────────────────────────────────
@@ -147,65 +187,66 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
     ];
 
     for (i, val) in rep_vals.into_iter().enumerate() {
-        if total_count == selected {
-            selected_line_idx = lines.len();
+        if *total_count == selected {
+            *selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, rep_names[i], &val, selected, edit_buf, editing);
+        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 18 + i as usize, rep_names[i], &val, selected, edit_buf, editing);
     }
+
+    // ── Tags ─────────────────────────────────────────────────
+    lines.push(Line::from(vec![
+        Span::styled("--- Tags ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+    ]));
+
+    let tags_val = if settings.tags.is_empty() {
+        "None".to_string()
+    } else {
+        settings.tags.join(", ")
+    };
+    if *total_count == selected {
+        *selected_line_idx = lines.len();
+    }
+    add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 22, "Tags (Enter to edit)", &tags_val, selected, edit_buf, editing);
 
     // ── Backend ──────────────────────────────────────────────
     lines.push(Line::from(vec![
         Span::styled("--- Backend ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
     ]));
 
-    let backend_names = ["LLama.cpp Version"];
-    let backend_vals = vec![
-        settings.get_active_backend_version_display().to_string(),
-    ];
-
-    for (i, val) in backend_vals.into_iter().enumerate() {
-        if total_count == selected {
-            selected_line_idx = lines.len();
+    let backend_vals = vec![settings.get_active_backend_version_display().to_string()];
+    for i in 0..backend_vals.len() {
+        if *total_count == selected {
+            *selected_line_idx = lines.len();
         }
-        add_setting(&mut lines, &mut total_count, settings, cached, backend_names[i], &val, selected, edit_buf, editing);
+        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 23 + i as usize, "LLama.cpp Version", &backend_vals[i], selected, edit_buf, editing);
     }
-
-    let settings_height = lines.len();
-    
-    // Update cache
-    app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
-        hash,
-        selected,
-        selected_line_idx,
-        lines: lines.clone(),
-    });
-
-    // Handle scrolling
-    let available_height = area.height.saturating_sub(2);
-    if selected_line_idx < app.settings_scroll_offset {
-        app.settings_scroll_offset = selected_line_idx;
-    } else if selected_line_idx >= app.settings_scroll_offset + available_height as usize {
-        app.settings_scroll_offset = (selected_line_idx).saturating_sub(available_height as usize).saturating_add(1);
-    }
-
-    let max_offset = total_count.saturating_sub(available_height as usize);
-    if app.settings_scroll_offset > max_offset {
-        app.settings_scroll_offset = max_offset;
-    }
-
-
-
-    (lines, total_count, settings_height, selected_line_idx)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, settings: &crate::models::ModelSettings, cached: &crate::models::ModelSettings, name: &str, val: &str, selected: usize, edit_buf: &str, editing: bool, ) {
-    let current_idx = *total_count;
-    let marker = if current_idx == selected { "> " } else { "  " };
+pub fn add_setting(
+    lines: &mut Vec<Line<'static>>,
+    total_count: &mut usize,
+    settings: &crate::models::ModelSettings,
+    cached: &crate::models::ModelSettings,
+    selected_line_idx: &mut usize,
+    selected_content_line: &mut usize,
+    idx: usize,
+    name: &str,
+    val: &str,
+    selected: usize,
+    edit_buf: &str,
+    editing: bool,
+) {
+    let current_line = lines.len();
+    let marker = if idx == selected { "> " } else { "  " };
     let name_style = Style::default().fg(Color::Yellow);
 
-    // Compute dirty flag from current_idx into the dirty array
-    let dirty = match current_idx {
+    if idx == selected {
+        *selected_line_idx = current_line;
+        *selected_content_line = current_line;
+    }
+
+    let dirty = match idx {
         0 => settings.system_prompt_preset_name != cached.system_prompt_preset_name,
         1 => settings.context_length != cached.context_length,
         2 => settings.mlock != cached.mlock,
@@ -236,13 +277,14 @@ pub fn add_setting(lines: &mut Vec<Line<'static>>, total_count: &mut usize, sett
             (None, None) => false,
             _ => true,
         },
-        22 => settings.get_active_backend_version() != cached.get_active_backend_version(),
+        22 => settings.tags != cached.tags,
+        23 => settings.get_active_backend_version() != cached.get_active_backend_version(),
         _ => false,
     };
 
-    let (display_val, val_style) = if current_idx == selected && editing {
+    let (display_val, val_style) = if idx == selected && editing {
         (edit_buf.to_string(), Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD))
-    } else if current_idx == selected {
+    } else if idx == selected {
         (val.to_string(), Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD))
     } else if dirty {
         (format!("{}*", val), Style::default().fg(Color::Red))

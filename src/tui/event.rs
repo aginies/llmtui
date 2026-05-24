@@ -110,12 +110,31 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Skip all if in About overlay
-    if matches!(app.global_mode, GlobalMode::About) {
+ // Skip all if in About overlay
+    if let GlobalMode::About = &app.global_mode {
         app.global_mode = GlobalMode::Normal;
         app.set_redraw();
         return;
     }
+
+    // Skip all if in tags modal
+    if app.tags_editing {
+        handle_tags_key(app, key);
+        return;
+    }
+
+    // Open tags modal from settings panel
+    if app.active_panel == ActivePanel::LlmSettings
+        && key.code == KeyCode::Char('t')
+        && !app.tags_editing {
+            app.tags_editing = true;
+            app.tags_insert_mode = true;
+            app.tags_edit_buffer = String::new();
+            app.tags_selected_idx = None;
+            app.settings_render_cache = None;
+            app.set_redraw();
+            return;
+        }
 
     // Skip all if in host picker
     if let GlobalMode::HostPicker { entries, selected } = &mut app.global_mode {
@@ -1069,7 +1088,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
        ActivePanel::ActiveModel => {}
         ActivePanel::ModelInfo => {}
         ActivePanel::Downloads => handle_downloads_key(app, key),
-        ActivePanel::BenchTune => {}
     }
 }
 async fn fetch_and_store_readme(app: &mut App, model_id: String) {
@@ -1805,6 +1823,161 @@ fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_thr
     }
 }
 
+fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
+    let tags = &app.settings.tags;
+    let selected = app.tags_selected_idx;
+    let edit_buf = &app.tags_edit_buffer;
+    let insert_mode = app.tags_insert_mode;
+
+    match key.code {
+        // Close modal
+        KeyCode::Esc => {
+            app.tags_editing = false;
+            app.tags_edit_buffer.clear();
+            app.tags_selected_idx = None;
+            app.tags_insert_mode = false;
+            app.settings_render_cache = None;
+            app.set_redraw();
+        }
+        // Save and close modal
+        KeyCode::Enter => {
+            if insert_mode && !edit_buf.is_empty() {
+                // Add new tag
+                let new_tag = edit_buf.trim().to_string();
+                if !new_tag.is_empty() {
+                    app.settings.tags.push(new_tag);
+                }
+                app.tags_edit_buffer.clear();
+                app.tags_insert_mode = false;
+                app.tags_selected_idx = None;
+                app.settings_render_cache = None;
+            } else if !insert_mode {
+                // Edit selected tag
+                if let Some(idx) = selected {
+                    if !edit_buf.is_empty() {
+                        let trimmed = edit_buf.trim();
+                        if trimmed.is_empty() {
+                            // Delete tag if edit buffer is empty
+                            app.settings.tags.remove(idx);
+                        } else {
+                            // Update tag
+                            if idx < app.settings.tags.len() {
+                                app.settings.tags[idx] = trimmed.to_string();
+                            }
+                        }
+                    }
+                    app.tags_edit_buffer.clear();
+                    app.tags_selected_idx = None;
+                    app.tags_insert_mode = false;
+                    app.settings_render_cache = None;
+                } else {
+                    // No tag selected, close modal
+                    app.tags_editing = false;
+                    app.tags_edit_buffer.clear();
+                    app.tags_selected_idx = None;
+                    app.tags_insert_mode = false;
+                    app.settings_render_cache = None;
+                }
+            } else {
+                // Just close modal without adding
+                app.tags_editing = false;
+                app.tags_edit_buffer.clear();
+                app.tags_selected_idx = None;
+                app.tags_insert_mode = false;
+                app.settings_render_cache = None;
+            }
+            app.set_redraw();
+        }
+        // Navigate tags
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.tags_edit_buffer.clear();
+            if insert_mode {
+                app.tags_insert_mode = false;
+                app.tags_selected_idx = Some(tags.len().saturating_sub(1));
+            } else if let Some(idx) = selected {
+                app.tags_selected_idx = Some(idx.saturating_sub(1));
+            } else {
+                app.tags_selected_idx = Some(tags.len().saturating_sub(1));
+            }
+            app.set_redraw();
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            app.tags_edit_buffer.clear();
+            if insert_mode {
+                app.tags_insert_mode = false;
+                app.tags_selected_idx = Some(tags.len().saturating_sub(1));
+            } else if let Some(idx) = selected {
+                app.tags_selected_idx = Some((idx + 1).min(tags.len().saturating_sub(1)));
+            } else if !tags.is_empty() {
+                app.tags_selected_idx = Some(0);
+            } else {
+                app.tags_insert_mode = true;
+            }
+            app.set_redraw();
+        }
+        // Edit selected tag
+        KeyCode::Char('e') | KeyCode::Char('i') => {
+            if !insert_mode {
+                if let Some(idx) = selected {
+                    app.tags_edit_buffer = tags[idx].clone();
+                    app.set_redraw();
+                }
+            }
+        }
+        // Delete selected tag
+        KeyCode::Char('d') | KeyCode::Delete => {
+            if !insert_mode {
+                if let Some(idx) = selected {
+                    app.settings.tags.remove(idx);
+                    app.tags_selected_idx = None;
+                    app.tags_edit_buffer.clear();
+                    app.tags_insert_mode = false;
+                    app.settings_render_cache = None;
+                }
+            }
+            app.set_redraw();
+        }
+        // Add new tag
+        KeyCode::Char('a') => {
+            app.tags_insert_mode = true;
+            app.tags_selected_idx = None;
+            app.tags_edit_buffer.clear();
+            app.set_redraw();
+        }
+        // Input characters for tag editing
+        KeyCode::Char(c) => {
+            app.tags_edit_buffer.push(c);
+            app.set_redraw();
+        }
+        KeyCode::Backspace => {
+            if !app.tags_edit_buffer.is_empty() {
+                app.tags_edit_buffer.pop();
+            } else if !insert_mode {
+                // Move to previous tag if no edit buffer
+                if let Some(idx) = selected {
+                    app.tags_selected_idx = Some(idx.saturating_sub(1));
+                }
+            }
+            app.set_redraw();
+        }
+        KeyCode::Tab => {
+            // Toggle between insert and edit mode
+            if insert_mode {
+                app.tags_insert_mode = false;
+                if !tags.is_empty() {
+                    app.tags_selected_idx = Some(tags.len().saturating_sub(1));
+                }
+            } else {
+                app.tags_insert_mode = true;
+                app.tags_selected_idx = None;
+            }
+            app.settings_edit_buffer.clear();
+            app.set_redraw();
+        }
+        _ => {}
+    }
+}
+
 fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     let idx = app.settings_selected_idx;
 
@@ -1890,12 +2063,11 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else {
- let count = 22; // Total LLM settings
+                let count = 24; // Total LLM settings (0-23)
                 app.settings_selected_idx = (app.settings_selected_idx + 1).min(count - 1);
                 app.set_redraw();
             }
-        }
-        // System Prompt: open presets panel on Enter
+        }        // System Prompt: open presets panel on Enter
         _ if idx == 0 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
@@ -2048,8 +2220,23 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
             }
         }
-        // LLama.cpp Version: cycle on Enter, or open picker
+        // Tags: open tags modal on Enter
         _ if idx == 22 => {
+            if !app.settings_edit_buffer.is_empty() {
+                app.settings_edit_buffer.clear();
+                app.set_redraw();
+            } else if key.code == KeyCode::Enter {
+                // Open tags modal
+                app.tags_editing = true;
+                app.tags_insert_mode = true;
+                app.tags_edit_buffer = String::new();
+                app.tags_selected_idx = None;
+                app.settings_render_cache = None;
+                app.set_redraw();
+            }
+        }
+        // LLama.cpp Version: cycle on Enter, or open picker
+        _ if idx == 23 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();

@@ -20,7 +20,6 @@ use ratatui::text::Line;
 pub struct SettingsRenderCache {
     pub hash: u64,
     pub selected: usize,
-    pub selected_line_idx: usize,
     pub lines: Vec<Line<'static>>,
 }
 
@@ -40,8 +39,6 @@ pub enum ActivePanel {
     ActiveModel,
     ModelInfo,
     Downloads,
-    #[allow(dead_code)]
-    BenchTune,
 }
 /// Mode for the models panel.
 #[derive(Debug, Clone)]
@@ -254,6 +251,11 @@ pub struct App {
     pub bench_tune_output_index: usize,
     pub editing_n_predict: bool,
     pub n_predict_edit_buffer: String,
+    /// Tags editing state
+    pub tags_editing: bool,
+    pub tags_edit_buffer: String,
+    pub tags_selected_idx: Option<usize>,
+    pub tags_insert_mode: bool,
  }
 
 impl App {
@@ -367,6 +369,10 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             bench_tune_output_index: 0,
             editing_n_predict: false,
             n_predict_edit_buffer: String::new(),
+            tags_editing: false,
+            tags_edit_buffer: String::new(),
+            tags_selected_idx: None,
+            tags_insert_mode: false,
             }
             }
     pub fn selected_model(&self) -> Option<&DiscoveredModel> {
@@ -1144,6 +1150,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             || s.mmap != c.mmap
             || s.numa != c.numa
             || s.expert_count != c.expert_count
+            || s.tags != c.tags
             || s.get_active_backend_version() != c.get_active_backend_version()
     }
 
@@ -1390,13 +1397,6 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Select download")]),
                 Line::from(vec![Span::styled("Ctrl+C", y), Span::raw("  Cancel selected download")]),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse / Exit")]),
-            ],
-            ActivePanel::BenchTune => vec![
-                Line::from(Span::styled("BENCHTUNE PANEL", y.add_modifier(Modifier::BOLD))),
-                Line::from(""),
-                Line::from("Auto-tuning llama-server for optimal performance."),
-                Line::from(""),
-                Line::from(vec![Span::styled("Esc", y), Span::raw("  Stop benchmark tuning")]),
             ],
             // Note: BenchTuneSetup is handled via GlobalMode logic in render/event,
             // but we can add a placeholder if we want dedicated help for it.

@@ -176,6 +176,78 @@ pub fn render(f: &mut Frame, app: &mut App) {
         return;
         }
 
+        // Tags modal
+        if app.tags_editing {
+            let area = f.area();
+            let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
+            let h = (app.settings.tags.len() + 8).min(area.height as usize - 4) as u16;
+            let modal_area = Rect {
+                x: (area.width - w) / 2,
+                y: (area.height - h) / 2,
+                width: w,
+                height: h,
+            };
+
+            let mut modal_lines: Vec<Line> = Vec::new();
+            modal_lines.push(Line::from(Span::styled(
+                " Tags Editor ",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )));
+            modal_lines.push(Line::from(""));
+
+            // Show instructions
+            if app.tags_insert_mode {
+                modal_lines.push(Line::from(Span::styled(
+                    " [Enter] Add tag  [Esc] Cancel  [Tab] Switch to edit mode ",
+                    Style::default().fg(Color::DarkGray),
+                )));
+            } else {
+                modal_lines.push(Line::from(Span::styled(
+                    " [e/i] Edit  [d/Del] Delete  [a] Add  [Tab] Switch to add mode ",
+                    Style::default().fg(Color::DarkGray),
+                )));
+            }
+            modal_lines.push(Line::from(""));
+
+            // Show tags
+            for (i, tag) in app.settings.tags.iter().enumerate() {
+                let marker = if Some(i) == app.tags_selected_idx { "> " } else { "  " };
+                let style = if Some(i) == app.tags_selected_idx {
+                    Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+                modal_lines.push(Line::from(vec![
+                    Span::styled(marker, Style::default().fg(Color::Yellow)),
+                    Span::styled(tag.clone(), style),
+                ]));
+            }
+
+            // Show insert/edit line
+            if app.tags_insert_mode {
+                modal_lines.push(Line::from(vec![
+                    Span::styled(" New: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(&app.tags_edit_buffer, Style::default().fg(Color::Black).bg(Color::Yellow)),
+                    Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)),
+                ]));
+            } else if app.tags_selected_idx.is_some() {
+                modal_lines.push(Line::from(vec![
+                    Span::styled(" Edit: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(&app.tags_edit_buffer, Style::default().fg(Color::Black).bg(Color::Yellow)),
+                    Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)),
+                ]));
+            }
+
+            f.render_widget(ratatui::widgets::Clear, modal_area);
+            f.render_widget(Paragraph::new(modal_lines).block(
+                Block::default()
+                    .title(" Tags Editor ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow)),
+            ), modal_area);
+            return;
+        }
+
         // Backend picker overlay
         if let GlobalMode::BackendPicker { entries, selected } = &app.global_mode {
             let area = f.area();
@@ -1384,7 +1456,6 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                 crate::tui::app::ActivePanel::SystemPromptPresets => "PROMPTS",
                 crate::tui::app::ActivePanel::SearchReadme => "README",
                 crate::tui::app::ActivePanel::Downloads => "DOWNLOADS",
-                crate::tui::app::ActivePanel::BenchTune => "BENCHTUNE",
                 _ => "APP",
             };
             parts.push(Span::styled(panel_label, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
