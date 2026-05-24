@@ -363,7 +363,7 @@ async fn main() -> Result<()> {
                         spawn_log_tx_clone,
                     ).await.map_err(|e| e.to_string());
                     
-                    (results, display_name)
+                    (results, display_name, bench_tune_config_clone)
                 });
                 
                 app.bench_tune_task_handle = Some(handle);
@@ -516,7 +516,7 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
             && handle.is_finished()
             && let Some(handle) = app.bench_tune_task_handle.take() {
                 match handle.await {
-                    Ok((results, display_name)) => {
+                    Ok((results, display_name, bench_config)) => {
                         match results {
                             Ok(bench_results) => {
                                 app.add_log(format!("Benchmark tuning completed for {} with {} results", display_name, bench_results.len()), crate::config::LogLevel::Info);
@@ -526,7 +526,7 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                                 } else {
                                     // Save results to file
                                     let output_dir = crate::config::Config::config_path().parent().unwrap().join("benchmarks");
-                                    match crate::backend::benchmark::save_results(&bench_results, &output_dir).await {
+                                    match crate::backend::benchmark::save_results(&bench_results, &output_dir, &bench_config).await {
                                         Ok(()) => app.add_log(format!("Results saved to {}/", output_dir.display()), crate::config::LogLevel::Info),
                                         Err(e) => app.add_log(format!("Failed to save benchmark results: {}", e), crate::config::LogLevel::Error),
                                     }
@@ -1031,6 +1031,20 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
             }
             app.search_loading = false;
             app.set_redraw();
+        }
+
+        // Animate spinner when model is loading but no log messages arrive
+        let is_loading = app.model_states.values().any(|s| matches!(s, crate::models::ModelState::Loading));
+        if is_loading {
+            if let Some(last_log) = app.last_log_time {
+                let elapsed = last_log.elapsed();
+                // Cycle spinner every 200ms when no log messages
+                if elapsed.as_millis() > 150 {
+                    app.loading_spinner = (app.loading_spinner + 1) % 4;
+                    app.last_log_time = Some(std::time::Instant::now() - std::time::Duration::from_millis(elapsed.as_millis() as u64 - 150));
+                    app.set_redraw();
+                }
+            }
         }
 
         if app.needs_redraw {

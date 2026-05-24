@@ -187,14 +187,22 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
                     Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
                 ]));
+                
+                let status_content = if app.loading_progress <= 0.0 {
+                    let spinners = ["⠋", "⠙", "⠹", "⠸"];
+                    format!("LOADING {}", spinners[app.loading_spinner])
+                } else {
+                    "LOADING".to_string()
+                };
                 lines.push(Line::from(vec![
                     Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
-                    Span::styled("LOADING", Style::default().fg(Color::Yellow)),
+                    Span::styled(status_content, Style::default().fg(Color::Yellow)),
                 ]));
 
+                let overhead = 2 + 5;
+                let bar_width = area.width.saturating_sub(overhead as u16 + 2) as usize;
+                
                 if app.loading_progress > 0.0 && app.loading_progress <= 1.0 {
-                    let overhead = 2 + 5;
-                    let bar_width = area.width.saturating_sub(overhead as u16 + 2) as usize;
                     let filled = (app.loading_progress * bar_width as f32) as usize;
                     let bar = format!(
                         "[{}{}] {:.0}%",
@@ -205,31 +213,40 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     lines.push(Line::from(vec![
                         Span::styled(bar, Style::default().fg(Color::Yellow)),
                     ]));
-
-                    let mut detail_parts = Vec::new();
-                    if let (Some(loaded), Some(total)) = (app.load_progress.layers_loaded, app.load_progress.layers_total) {
-                        detail_parts.push(format!("({}/{})", loaded, total));
-                    }
-                    if app.load_progress.tensors_loaded > 0 {
-                        detail_parts.push(format!("{} tensors", app.load_progress.tensors_loaded));
-                    }
-                    let total_gpu: f64 = app.load_progress.buffers.iter()
-                        .filter(|b| b.device != "CPU_Mapped" && b.device != "CPU_Cached")
-                        .map(|b| b.buffer_size_mib)
-                        .sum();
-                    if total_gpu > 0.0 {
-                        detail_parts.push(format!("{} VRAM", format_size((total_gpu * 1024.0 * 1024.0) as u64)));
-                    }
-
-                    let phase = app.loading_phases.last().map(|p| p.label()).unwrap_or("Loading...");
-                    let detail = detail_parts.join(", ");
+                } else {
+                    // Show empty progress bar with spinner
+                    let bar = format!(
+                        "[{}] 0%",
+                        "░".repeat(bar_width)
+                    );
                     lines.push(Line::from(vec![
-                        Span::styled("  ", Style::default()),
-                        Span::styled(phase, Style::default().fg(Color::Cyan)),
-                        Span::raw(" "),
-                        Span::styled(detail, Style::default().fg(Color::Magenta)),
+                        Span::styled(bar, Style::default().fg(Color::DarkGray)),
                     ]));
                 }
+
+                let mut detail_parts = Vec::new();
+                if let (Some(loaded), Some(total)) = (app.load_progress.layers_loaded, app.load_progress.layers_total) {
+                    detail_parts.push(format!("({}/{})", loaded, total));
+                }
+                if app.load_progress.tensors_loaded > 0 {
+                    detail_parts.push(format!("{} tensors", app.load_progress.tensors_loaded));
+                }
+                let total_gpu: f64 = app.load_progress.buffers.iter()
+                    .filter(|b| b.device != "CPU_Mapped" && b.device != "CPU_Cached")
+                    .map(|b| b.buffer_size_mib)
+                    .sum();
+                if total_gpu > 0.0 {
+                    detail_parts.push(format!("{} VRAM", format_size((total_gpu * 1024.0 * 1024.0) as u64)));
+                }
+
+                let phase = app.loading_phases.last().map(|p| p.label()).unwrap_or("Loading...");
+                let detail = detail_parts.join(", ");
+                lines.push(Line::from(vec![
+                    Span::styled("  ", Style::default()),
+                    Span::styled(phase, Style::default().fg(Color::Cyan)),
+                    Span::raw(" "),
+                    Span::styled(detail, Style::default().fg(Color::Magenta)),
+                ]));
             }
             Some(ModelState::Available) => {
                 let m = model.unwrap();

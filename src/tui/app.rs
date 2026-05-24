@@ -198,13 +198,17 @@ pub struct App {
     pub loading_phases: Vec<LoadingPhase>,
     pub loading_progress: f32,
     pub load_progress: LoadProgress,
+    /// Timestamp of the last log message during loading (for spinner animation).
+    pub last_log_time: Option<std::time::Instant>,
+    /// Current spinner frame index (0-3) for loading animation.
+    pub loading_spinner: usize,
     pub cancelled: Option<Arc<AtomicBool>>,
     pub server_handle: Option<ServerHandle>,
     pub metrics_task_handle: Option<tokio::task::JoinHandle<()>>,
     pub sync_task_handle: Option<tokio::task::JoinHandle<()>>,
     pub sync_rx: Option<tokio::sync::mpsc::Receiver<Vec<(String, String, Option<String>)>>>,
     pub spawn_task_handle: Option<tokio::task::JoinHandle<Result<(String, ServerHandle, String), String>>>,
-    pub bench_tune_task_handle: Option<tokio::task::JoinHandle<(Result<Vec<crate::models::BenchTuneResult>, String>, String)>>,
+    pub bench_tune_task_handle: Option<tokio::task::JoinHandle<(Result<Vec<crate::models::BenchTuneResult>, String>, String, crate::models::BenchTuneConfig)>>,
     pub spawn_log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,
@@ -333,6 +337,8 @@ impl App {
             loading_phases: Vec::new(),
             loading_progress: 0.0,
             load_progress: Default::default(),
+            last_log_time: None,
+            loading_spinner: 0,
             cancelled: None,
             server_handle: None,
             metrics_task_handle: None,
@@ -394,8 +400,18 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             crate::config::LogLevel::Error => tracing::error!("{}", msg),
         }
 
+        // Track timing for spinner animation
+        self.last_log_time = Some(std::time::Instant::now());
+        self.loading_spinner = 0;
+
         // Detect loading phases from llama-server log output
         let upper = msg.to_uppercase();
+        // Detect server starting (first log line after spawn)
+        if !self.loading_phases.contains(&LoadingPhase::ServerStarting)
+            && (upper.contains("LLAMA") || upper.contains("SERVER") || upper.contains("GGML"))
+        {
+            self.loading_phases.push(LoadingPhase::ServerStarting);
+        }
         if upper.contains("LLAMA_MODEL_LOADER") || upper.contains("LOADING MODEL") {
             self.last_error_message = None;
             if !self.loading_phases.contains(&LoadingPhase::LoadingModel) {
@@ -412,6 +428,28 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             self.last_error_message = None;
             if !self.loading_phases.contains(&LoadingPhase::LoadingTensors) {
                 self.loading_phases.push(LoadingPhase::LoadingTensors);
+            }
+        }
+
+        // Count tensors loaded from "loading tensor N out of M" or dot progress lines
+        if self.loading_phases.contains(&LoadingPhase::LoadingTensors) {
+            // Parse "loading tensor X out of Y" pattern
+            if upper.contains("LOADING TENSOR") && upper.contains("OUT OF") {
+                if let Some(pos) = msg.to_lowercase().find("loading tensor") {
+                    let rest = &msg[pos + "loading tensor".len()..];
+                    let parts: Vec<&str> = rest.split_whitespace().collect();
+                    if parts.len() >= 3 {
+                        if let Ok(n) = parts[0].parse::<u32>() {
+                            self.load_progress.tensors_loaded = n;
+                        }
+                    }
+                }
+            }
+            // Also count dots from progress lines like "................................"
+            // Each dot represents a tensor being loaded
+            let dot_count = msg.chars().filter(|&c| c == '.').count();
+            if dot_count > 0 && dot_count <= 200 {
+                self.load_progress.tensors_loaded += dot_count as u32;
             }
         }
         if (upper.contains("SERVER LISTENING") || upper.contains("HTTP SERVER LISTENING"))
@@ -562,6 +600,7 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             (LoadingPhase::ServerListening, 0.08),
         ];
 
+        // Base progress from completed phases (full weight for completed phases, 0 for future)
         let mut phase_progress: f32 = 0.0;
         for (phase, weight) in &PHASE_WEIGHTS {
             if self.loading_phases.contains(phase) {
@@ -569,7 +608,67 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             }
         }
 
-       // During tensor loading, refine progress using layer count
+        // Interpolate within the current active phase for smooth transitions
+        // Find the last phase that was added (the "current" phase being worked on)
+        if self.loading_phases.len() > 1
+            && !self.loading_phases.contains(&LoadingPhase::Complete)
+        {
+            // Get the index of the last phase in the list
+            let last_phase = self.loading_phases.last().copied();
+            if let Some(phase) = last_phase {
+                // Find the cumulative weight before this phase
+                let cumulative_before: f32 = PHASE_WEIGHTS.iter()
+                    .filter(|(p, _)| *p != phase && self.loading_phases.contains(p))
+                    .map(|(_, w)| w)
+                    .sum();
+
+                // Interpolate within the current phase based on available signals
+                let phase_fraction = match phase {
+                    LoadingPhase::ServerStarting => {
+                        // ServerStarting gets smoother progress based on time since first log
+                        if let Some(last_log) = self.last_log_time {
+                            let elapsed = last_log.elapsed();
+                            // 2 seconds to fully start
+                            (elapsed.as_millis() as f32 / 2000.0).min(1.0)
+                        } else {
+                            0.0
+                        }
+                    }
+                    LoadingPhase::LoadingModel => 0.5, // Fixed midpoint until we have better signals
+                    LoadingPhase::LoadingMeta => 0.5,  // Fixed midpoint until we have better signals
+                    LoadingPhase::LoadingTensors => {
+                        // Combine layer progress and tensor dot progress
+                        let mut tensor_fraction: f32 = 0.0;
+
+                        // Use layer progress if available
+                        if let (Some(loaded), Some(total)) = (self.load_progress.layers_loaded, self.load_progress.layers_total) {
+                            let layer_fraction = loaded as f32 / total as f32;
+                            tensor_fraction = layer_fraction.min(1.0);
+                        }
+
+                        // Boost tensor progress from dot counting if no layer data yet
+                        if self.load_progress.layers_loaded.is_none() && self.load_progress.tensors_loaded > 0 {
+                            // Estimate total tensors from model size (rough heuristic)
+                            // Most models have 400-600 tensors
+                            let estimated_total: f32 = 500.0;
+                            tensor_fraction = (self.load_progress.tensors_loaded as f32 / estimated_total).min(0.95);
+                        }
+
+                        tensor_fraction
+                    }
+                    LoadingPhase::ServerListening => 0.8, // Nearly done
+                    LoadingPhase::Complete => 1.0,
+                };
+
+                // Apply interpolation within current phase
+                phase_progress = cumulative_before + phase_fraction * PHASE_WEIGHTS.iter()
+                    .find(|(p, _)| *p == phase)
+                    .map(|(_, w)| *w)
+                    .unwrap_or(0.0);
+            }
+        }
+
+        // During tensor loading with layer data, use precise layer-based progress
         if self.loading_phases.contains(&LoadingPhase::LoadingTensors)
             && !self.loading_phases.contains(&LoadingPhase::Complete)
         {
@@ -700,6 +799,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
         self.loading_phases.clear();
         self.loading_progress = 0.0;
         self.load_progress = Default::default();
+        self.last_log_time = None;
+        self.loading_spinner = 0;
         
         // Models to fail: always any that were Loading. 
         // If it's a crash, also fail all that were Loaded.

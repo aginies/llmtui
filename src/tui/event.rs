@@ -447,7 +447,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Esc if app.log_expanded => {
+        KeyCode::Esc if app.log_expanded && !app.filtering_local => {
             app.log_expanded = false;
             app.set_redraw();
             return;
@@ -1042,7 +1042,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Skip normal key handling when panel help is showing
-    if app.panel_help {
+    if app.panel_help && !app.filtering_local {
         match key.code {
             KeyCode::Esc => {
                 app.panel_help = false;
