@@ -7,18 +7,22 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 ## Features
 
 - **Search models** on HuggingFace by name (filters to GGUF models, 70 results per page)
-- **Download** GGUF model files with progress tracking
+- **Download** GGUF model files with progress tracking (pause/resume with `p`)
 - **Load/unload** models via llama.cpp server
 - **Local Model Filter** — quickly find models in your list with `f`
 - **RPC Workers Manager** — dedicated window to manage distributed inference nodes
 - **Chat** with loaded models in the terminal
 - **Configure** loading and inference parameters per model
 - **GGUF file browser** — list and select specific GGUF files for a model
-- **Log panel** — expand/collapse with Enter/Esc
-- **About Box** — application info and GPLv3 license link (`Shift+A`)
+- **Log panel** — expand/collapse with Enter/Esc, follow mode with `f`
+- **About Box** — application info and GPLv3 license link (`A`)
 - **HuggingFace URL links** — navigate to model pages from Model Info
 - **CmdLine overlay** — full-screen view of the computed llama-server command line (`Ctrl+K`)
 - **Export to script** — write the llama-server command to `/tmp/test_llamaserver.sh` from the CmdLine overlay (`e`)
+- **Benchmark Tuning** — auto-tune model parameters for optimal performance
+- **Profiles** — saved presets of settings for quick switching (`p`)
+- **System Prompt Presets** — named system prompts for different use cases
+- **Router Mode** — load multiple models simultaneously
 
 ## Prerequisites
 
@@ -107,10 +111,10 @@ The Server Settings panel (top-right) shows server configuration:
 | Setting | Description |
 |---------|-------------|
 | Host | Bind address — press `↵` to open host picker (lists all network interfaces) |
-| Backend | Acceleration backend (cpu / vulkan / rocm) — shows selected version |
+| Backend | Acceleration backend (cpu / vulkan / rocm / rocm-lemonade / cuda) — shows selected version |
 | Threads | CPU threads for generation |
 | Threads Batch | CPU threads for batch processing |
-| Mode | Server mode — `↵` toggles between Normal, Router, and Bench |
+| Mode | Server mode — `↵` toggles between Normal, Router, Bench GPU, and BenchTune |
 | API Endpoint | Enable API proxy — `↵` toggles (disabled while server is running) |
 | RPC Workers | Open the distributed inference manager window — press `↵` |
 | API Port | Port for the API proxy server (default: 49222) |
@@ -130,14 +134,14 @@ The System Prompt Presets panel contains named system prompts for different use 
 ### Keyboard shortcuts
 
 - `j` / `k` — Navigate up/down
-- `↵` — Load model / Download selected / Expand log panel
-- `f` — Filter local models list
+- `↵` — Load model / Download selected / Expand log panel / Apply profile or preset
+- `f` — Filter local models list / Toggle Follow mode (in Log panel)
 - `⎋` — Back / Exit search / Collapse log panel / Clear local filter
 - `⇥` — Switch panels
-- `t` — Switch settings tab
+- `t` — Switch settings tab / Open tags modal (in LLM Settings)
 - `/` — Search models
 - `l` — Load / `u` — Unload (with confirmation)
-- `Shift+A` — About box (license and version info)
+- `A` — About box (license and version info)
 - `⌃H` — Help
 - `⌃K` — CmdLine overlay
 - `⌃D` — Delete model (with confirmation)
@@ -149,19 +153,28 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `R` — Fetch README for selected model
 - `⌃⌥K` — Kill llama-server process
 - `g` / `G` — Jump to top/bottom of log panel (toggles Follow mode)
-- `f` (in Log panel) — Toggle Follow mode (auto-scroll to bottom)
 - `PageUp` / `PageDown` — Scroll 15 lines up/down in log panel
-- `⌃S` — Save settings for selected model
+- `⌃S` — Save settings for selected model / Save preset (in System Prompt Presets)
 - `⌃R` — Reset settings to defaults
 - `⌃E` — Toggle enabled/disabled for specific fields
 - `⌃⇟` — Jump 10 settings down
 - `⌃⇞` — Jump 10 settings up
 - `⇟` / `⇞` — Scroll 5 settings down/up
-- `F1`–`F6` — Focus/toggle individual panels
+- `F1`–`F6` — Focus/toggle individual panels (Models, ServerSettings, ModelInfo, LlmSettings, ActiveModel, Log)
 - `F9` — Show all panels
 - `h` / `l` — Scroll README horizontally
 - `e` (in CmdLine) — Export command to script
 - `c` — Cancel download
+- `n` — New preset (in System Prompt Presets)
+- `e` (in Presets) — Edit preset
+- `d` (in Presets) — Delete preset
+- `Space` — Toggle RPC worker selection
+- `d` (in BackendPicker) — Delete backend version
+- `Alt+m` — Toggle benchmark mode (in BenchTuneSetup)
+- `Alt+p` — Edit benchmark prompt
+- `Alt+n` — Edit n_predict
+- `Alt+i` — Edit iterations
+- `Alt+c` — Edit chat template kwargs
 
 ### GPU Layers cycling
 
@@ -200,13 +213,14 @@ The app has several panels that can be toggled visible or hidden:
 | **Server Settings** | Server configuration (host, backend, threads, mode, API) |
 | **Model Info** | GGUF metadata: architecture, parameters, tokenizer, VRAM estimate |
 | **LLM Settings** | Loading, GPU, evaluation, sampling, and repetition parameters |
-| **Active Model** | Real-time metrics: TPS, context usage, CPU/RAM/VRAM |
+| **Active Model** | Real-time metrics: TPS, context usage, CPU/RAM/VRAM, benchmarking state |
 | **Log** | Server log with expand/collapse and level coloring |
 | **Profiles** | Saved presets of settings for quick switching |
 | **System Prompt Presets** | Named system prompts for different use cases |
 | **README** | Markdown-rendered documentation for HuggingFace models |
+| **Downloads** | Download progress with pause/resume and cancel |
 
-Panels can be individually toggled on/off via `F1`–`F6`. Press `F9` to show all panels. When a panel is hidden, other panels expand to fill the space.
+Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSettings=2, ModelInfo=3, LlmSettings=4, ActiveModel=5, Log=6). Press `F9` to show all panels. When a panel is hidden, other panels expand to fill the space.
 
 ### Search features
 
@@ -216,6 +230,7 @@ Panels can be individually toggled on/off via `F1`–`F6`. Press `F9` to show al
 | **Pagination** | `B` key goes back one page; `Down` at bottom loads more results (infinite scroll) |
 | **README viewing** | `R` fetches and displays the model's README from HuggingFace; `Enter` expands to fullscreen |
 | **README horizontal scroll** | `h`/`l` keys scroll horizontally |
+| **README rendering** | Full markdown renderer with headings, code blocks, lists, blockquotes, tables, and task lists |
 
 ### Backend selection
 
@@ -226,8 +241,32 @@ Multiple backends are supported via the llama.cpp server:
 | **CPU** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | CPU-only inference (standard) |
 | **Vulkan** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | GPU via Vulkan (Universal: AMD/NVIDIA/Intel) |
 | **ROCm** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | GPU via ROCm (AMD Native) |
-| **ROCm Lemonade** | [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) | GPU via ROCm (AMD Optimized) |
-| **CUDA** | [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) | GPU via CUDA (NVIDIA Native) |
+| **ROCm Lemonade** | [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) | GPU via ROCm (AMD Optimized, auto-detects GFX architecture) |
+| **CUDA** | [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) | GPU via CUDA (NVIDIA Native, CUDA 12.8) |
+
+### Server modes
+
+| Mode | Description |
+|------|-------------|
+| **Normal** | Single model via CLI (default) |
+| **Router (XP!)** | Multiple models via API, loads via `/load` endpoint |
+| **Bench GPU** | GPU benchmarking mode |
+| **BenchTune** | Parameter auto-tuning mode |
+
+### Benchmark Tuning
+
+The Benchmark Tuning system auto-tunes model parameters for optimal performance. Two modes are available:
+
+- **RuntimeOnly**: Single server, params sent in request body (no server restarts)
+- **Full**: New server spawned for each parameter combination
+
+Tunable parameters: temperature (0.4-1.0), top_p (0.8-1.0), top_k (40-50), repeat_penalty (1.0-1.2), flash_attn (0/1), threads (4-16), batch_size (512-2048), expert_count (1-4).
+
+Results can be exported as Markdown table, JSON, YAML, or HTML report with summary cards, winner section, impact analysis, and Chart.js charts.
+
+### RPC Workers
+
+Remote workers for distributed inference. Each worker has a name, IP address, and port (default: 50052). Managed via the dedicated RPC Workers window — add (`n`), edit (`e`), delete (`d`), or toggle selection (`Space`).
 
 ### CmdLine overlay
 
@@ -237,25 +276,27 @@ From the CmdLine overlay, press `e` to export the command to `/tmp/test_llamaser
 
 ### LLM Settings
 
-The LLM Settings panel (22+ fields organized into 6 groups):
+The LLM Settings panel (24 fields organized into 6 groups):
 
-**Loading:** System prompt preset, Context length, Keep in memory (mlock), Keep tokens, SWA full, Memory-map, NUMA optimization, Reasoning mode, Split mode, Tensor split, Main GPU, Fit to device memory, LoRA adapter, LoRA adapter with scale, RPC servers, Embedding mode, Jinja template, Custom chat template, Typical P
+**Loading (0-2):** Context length, System prompt preset, Keep in memory (mlock)
 
-**GPU:** GPU Layers, Flash Attention, KV Cache Offload, Cache Type K, Cache Type V, Active Experts
+**GPU (3-8):** GPU Layers, Flash Attention, KV Cache Offload, Cache Type K, Cache Type V, Active Experts
 
-**Evaluation:** Eval Batch, Unified KV, Max Concurrent Predictions
+**Evaluation (9-11):** Eval Batch, Unified KV, Max Concurrent Predictions
 
-**Sampling:** Seed, Temperature, Top-k, Top-p, Min P, Max Tokens
+**Sampling (12-17):** Seed, Temperature, Top-k, Top-p, Min P, Max Tokens
 
-**Repetition:** Repetition Penalty, Rep. Last N, Presence Penalty, Frequency Penalty
+**Repetition (18-21):** Repetition Penalty, Rep. Last N, Presence Penalty, Frequency Penalty
 
-**Additional fields:** Mirostat version, Mirostat learning rate, Mirostat target entropy, Ignore EOS, Sampler order, DRY multiplier/base/allowed length/penalty last N, RoPE scaling/type/scale/frequency, Timeout, Cache prompt, Cache reuse, WebUI, Physical max batch size
+**Backend (22-23):** Tags (semicolon-separated), LLama.cpp Version (per-backend: CPU / Vulkan / ROCm / ROCm Lemonade / CUDA)
+
+**Additional settings:** threads_batch, batch_size, ubatch_size, parallel, keep, swa_full, mmap, numa (None/Distribute/Isolate/Numactl), reasoning_mode (Default/Gemma), split_mode (None/Layer/Row/Tensor), tensor_split, main_gpu, fit, embedding, expert_count, jinja, chat_template, chat_template_kwargs, typical_p, mirostat (Off/1/2), mirostat_lr, mirostat_ent, ignore_eos, samplers (semicolon-separated order), repeat_penalty, repeat_last_n, presence_penalty, frequency_penalty
 
 **Cache Type K/V options:** F32, F16, BF16, Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl
 
-**Dirty tracking:** Modified fields are shown in red with a trailing `*`. The status bar shows `*unsaved*` when settings are dirty. Press `⌃S` to save or `⌃R` to reset to defaults.
+**Dirty tracking:** Modified fields are shown in yellow with a trailing `*`. The status bar shows `*unsaved*` when settings are dirty. Press `⌃S` to save or `⌃R` to reset to defaults.
 
-**VRAM estimate:** The app computes a detailed VRAM estimate based on model size, GPU layers, KV cache, activation overhead, and fixed overhead. The estimate is shown in the LLM Settings title (e.g., "VRAM ~= 8.2 GB").
+**VRAM estimate:** The app computes a detailed VRAM estimate based on model size, GPU layers, KV cache, activation overhead, and fixed overhead. The formula accounts for GQA ratio, FlashAttention (0.5x KV cache reduction), unified KV cache, KV cache quantization bytes, activation overhead (8x multiplier), and fixed overhead (3.8% of max VRAM or 500 MiB fallback). The estimate is shown in the LLM Settings title (e.g., "VRAM ~= 8.2 GB").
 
 ### GGUF Metadata
 
@@ -273,16 +314,19 @@ The Active Model panel shows real-time metrics:
 | CPU% | CPU usage percentage |
 | RAM | RAM usage |
 | VRAM | GPU memory used/total |
+| Total VRAM | Sum of VRAM across all loaded models (in title bar) |
+
+The panel also shows benchmarking state with progress bar and current parameter display when running BenchTune.
 
 ### Model Loading
 
 Models load through several phases detected from llama.cpp log output: ServerStarting → LoadingModel → LoadingMeta → LoadingTensors → ServerListening → Complete. During loading, a progress bar shows the phase and details (layers loaded/total, tensor count, VRAM used).
 
-Models have status states: Available, Loading, Loaded, Failed (with error message shown in red, e.g., "OOM", "Router Crash").
+Models have status states: Available, Loading, Loaded, Failed (with error message shown in red, e.g., "OOM", "Router Crash"), and Benchmarking.
 
 ### Download Management
 
-Downloads can be paused and resumed by pressing `p` while a download is selected in the Downloads panel. Press `c` (Ctrl+C) to cancel a download entirely. Download progress shows bytes per second and percentage complete.
+Downloads can be paused and resumed by pressing `p` while a download is selected. Press `c` to cancel a download entirely. Download progress shows bytes per second and percentage complete. The Downloads panel shows all active downloads with individual controls.
 
 ### Confirmation dialogs
 
@@ -290,6 +334,8 @@ The app uses confirmation dialogs for:
 - **Exit** — warns about loaded models
 - **Delete** — confirms irreversible deletion
 - **Reset** — confirms resetting all LLM settings
+- **Unload** — confirms unloading a model via API
+- **DeleteBackend** — confirms deleting a backend binary version from disk
 
 ### Mouse support
 
@@ -315,8 +361,8 @@ llama-server binaries are stored in `~/.local/share/llm-manager/bin/` with versi
 Switching versions is instant — no re-download. The binary is automatically downloaded from specialized repositories on first use:
 
 - **CPU, Vulkan, ROCm (Native):** Fetched from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp)
-- **ROCm (Lemonade):** Fetched from [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) (auto-detects GFX architecture like `gfx1100`)
-- **CUDA (NVIDIA):** Fetched from [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) (includes CUDA 12.8 builds)
+- **ROCm (Lemonade):** Fetched from [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) (ZIP, auto-detects GFX architecture like `gfx1100`)
+- **CUDA (NVIDIA):** Fetched from [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) (CUDA 12.8 builds)
 
 Per-backend version config:
 

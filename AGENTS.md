@@ -10,12 +10,15 @@
 
 ```
 src/
-├── main.rs          # Entry point, event loop, model discovery
-├── config.rs        # Config loading/saving, YAML-based
+├── main.rs          # Entry point, event loop, model discovery, metrics polling
+├── config.rs        # Config loading/saving, YAML-based, profiles, presets
 ├── models.rs        # Domain types (SearchResult, DownloadState, ModelSettings, etc.)
+├── serve.rs         # Standalone serve mode CLI (--model, --profile, --api-port, --api-key)
+├── serve_api.rs     # Axum-based API proxy server for serve mode
 ├── backend/
 │   ├── hub.rs       # HuggingFace API: search, list files, download
-│   └── server.rs    # llama.cpp server spawning (resolve_backend_binary, spawn_server)
+│   ├── server.rs    # llama.cpp server spawning (resolve_backend_binary, spawn_server)
+│   └── benchmark.rs # Benchmark tuning system (RuntimeOnly and Full modes)
 └── tui/
     ├── mod.rs       # Module declaration
     ├── app.rs       # App state (App struct, enums for modes/panels)
@@ -23,12 +26,18 @@ src/
     ├── render.rs    # Top-level render dispatcher
     ├── panel/
     │   ├── mod.rs
-    │   ├── models.rs  # Left panel: model list / search results / download / version picker
+    │   ├── models.rs  # Left panel: model list / search results / download
     │   ├── info.rs    # GGUF metadata rendering for local models
+    │   ├── active.rs  # Active Model panel: real-time metrics, benchmarking state
     │   ├── tabbed.rs  # Right panel: Model Info / Settings tabs
     │   ├── settings.rs
     │   ├── log.rs
-    │   └── help.rs
+    │   ├── help.rs
+    │   ├── about.rs   # About dialog (version, license, website)
+    │   ├── profiles.rs # Profiles management (create, apply, delete presets)
+    │   ├── readme.rs  # README markdown renderer (pulldown_cmark)
+    │   ├── rpc_workers.rs # RPC Workers manager for distributed inference
+    │   └── system_prompt_presets.rs # System prompt presets management
 ```
 
 ## Key architectural patterns
@@ -40,12 +49,40 @@ src/
 ```rust
 pub enum ModelsMode {
     List,       // Local model list
-    Search { query, results },
+    Search { query, results, sort_by, show_readme, page, loading, has_more },
     Files { model_id, files, selected_idx, previous_query, previous_results, selected_result },
-    Download { state },
-    VersionPicker { releases, selected_idx, previous_mode },
+    BenchTune,  // Benchmark tuning mode showing results table
 }
 ```
+
+`ActivePanel` enum controls which panel has focus:
+
+```rust
+pub enum ActivePanel {
+    Models, Log, ServerSettings, LlmSettings, Profiles,
+    SystemPromptPresets, SearchReadme, ActiveModel, ModelInfo, Downloads,
+}
+```
+
+`GlobalMode` enum controls overlay modes:
+
+```rust
+pub enum GlobalMode {
+    Normal,
+    CmdLine { cmd_line: String },
+    HostPicker { entries: Vec<(String, String)>, selected: usize },
+    BackendPicker { entries: Vec<(Backend, Option<String>)>, selected: usize },
+    Confirmation { selected: bool, kind: ConfirmationKind },
+    RpcManager,
+    About,
+    MaxConcurrentPicker { value: String },
+    BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs },
+}
+```
+
+`ConfirmationKind` variants: `Exit`, `Reset`, `Delete`, `Unload`, `DeleteBackend`.
+
+`LoadingPhase` variants: `ServerStarting`, `LoadingModel`, `LoadingMeta`, `LoadingTensors`, `ServerListening`, `Complete`.
 
 ### Log panel expand/collapse (`src/tui/app.rs`, `src/tui/event.rs`, `src/tui/render.rs`)
 
@@ -107,17 +144,21 @@ Top-level layout: status bar → top panels → active model → log. The models
 
 Download runs in a spawned tokio task. Cancellation uses `Arc<AtomicBool>` shared between the task and the UI. Pressing `c` sets the flag; the download loop checks it each iteration.
 
-### Version picker (`src/tui/panel/models.rs`, `src/tui/event.rs`)
+### Backend picker (`src/tui/event.rs`)
 
-The version picker allows selecting llama.cpp binary versions per-backend (CPU, Vulkan, ROCm). Triggered from the "LLama.cpp Version" field in LLM Settings.
+The backend picker allows selecting llama.cpp binary versions per-backend. Triggered from the "LLama.cpp Version" field in LLM Settings. Lists installed backends and allows downloading new ones.
 
-- `TAB` cycles backend (CPU → Vulkan → ROCm → CPU)
-- `Enter` selects version for the active backend
-- `R` refreshes releases from GitHub
-- `C` toggles cached versions display
+- `Enter` selects backend+version for the active backend
+- `d` deletes a backend version from disk (with `ConfirmationKind::DeleteBackend`)
 - `Esc` exits back to settings
 
-The picker shows a backend toggle header (`[CPU] | [Vulkan] | [ROCm]`) and a backend column in each row.
+Auto-downloads if the selected backend version is not installed (triggers `resolve_backend_binary`).
+
+**HostPicker** (`GlobalMode::HostPicker`): Shows network interfaces and their IPs. `Enter` selects host, `d` refreshes, `Ctrl+H` closes. Opens from ServerSettings field 0 (Host).
+
+**MaxConcurrentPicker** (`GlobalMode::MaxConcurrentPicker`): Numeric entry modal for max concurrent predictions (1-10). Opens when pressing Enter on field index 11 in settings.
+
+**BenchTuneSetup** (`GlobalMode::BenchTuneSetup`): Full benchmark configuration modal. `Alt+m` toggles benchmark mode (RuntimeOnly vs Full), `Alt+p` edits prompt, `Alt+n` edits n_predict, `Alt+i` edits iterations, `Alt+c` edits chat template kwargs. Space toggles parameter enablement, Enter starts benchmark.
 
 **Dirty tracking** (`is_settings_dirty` in `app.rs`) compares each field index-by-index. When a field is dirty, its label is rendered in yellow.
 
@@ -128,9 +169,9 @@ The picker shows a backend toggle header (`[CPU] | [Vulkan] | [ROCm]`) and a bac
 - `event.rs` comment block (line ~836)
 - `app.rs` `is_settings_dirty` match arms
 
-### LLM Settings panel (22 fields, `src/tui/panel/settings.rs`, `src/tui/event.rs`)
+### LLM Settings panel (24 fields, `src/tui/panel/settings.rs`, `src/tui/event.rs`)
 
-The settings panel has 22 fields organized into 6 groups:
+The settings panel has 24 fields organized into 6 groups:
 
 ```
 Loading (0-2):   Context length, System prompt preset, Keep in memory (mlock)
@@ -138,7 +179,8 @@ GPU (3-8):       GPU Layers, Flash Attention, KV Cache Offload, Cache Type K, Ca
 Evaluation (9-11): Eval Batch, Unified KV, Max Concurrent Predictions
 Sampling (12-17): Seed, Temperature, Top-k, Top-p, Min P, Max Tokens
 Repetition (18-21): Repetition Penalty, Rep. Last N, Presence Penalty, Frequency Penalty
-Backend (22):    LLama.cpp Version (shows CPU / Vulkan / ROCm versions)
+Backend (22):    Tags (semicolon-separated list)
+Backend (23):    LLama.cpp Version (shows CPU / Vulkan / ROCm / CUDA versions)
 ```
 
 Each group is rendered with a header line. Arrow keys adjust values; `+`/`-` for coarse, `Left`/`Right` for fine. Toggle fields (Flash Attention, Unified KV, Keep in memory) respond to `e`/`Ctrl+E`.
@@ -177,26 +219,29 @@ The `-ngl` parameter is only added to the llama-server command for `Specific` an
 
 ### Backend selection (`src/models.rs`)
 
-Three backends are supported:
+Five backends are supported:
 
 ```rust
 pub enum Backend {
-    Cpu,       // CPU-only inference
-    Vulkan,     // GPU via Vulkan (AMD/NVIDIA/Intel)
-    Rocm,       // GPU via ROCm (AMD)
+    Cpu,          // CPU-only inference
+    Vulkan,       // GPU via Vulkan (AMD/NVIDIA/Intel)
+    Rocm,         // GPU via ROCm (AMD)
     RocmLemonade, // Optimized ROCm via Lemonade
-    }
+    Cuda,         // GPU via CUDA (NVIDIA)
+}
 ```
 
 ### Binary storage
 
-Binaries are downloaded from `ggml-org/llama.cpp` GitHub releases and stored in versioned directories:
+Binaries are downloaded from various GitHub releases and stored in versioned directories:
 
 ```
 ~/.local/share/llm-manager/bin/
 ├── llama-server-cpu-{version}/llama-server
 ├── llama-server-vulkan-{version}/llama-server
-└── llama-server-rocm-{version}/llama-server
+├── llama-server-rocm-{version}/llama-server
+├── llama-server-rocm-lemonade-{version}/llama-server
+└── llama-server-cuda-{version}/llama-server
 ```
 
 Switching versions is instant — no re-download. The version is stored per-backend in config.
@@ -209,6 +254,8 @@ Switching versions is instant — no re-download. The version is stored per-back
 llama_cpp_version_cpu: null      # null = latest
 llama_cpp_version_vulkan: null   # null = latest
 llama_cpp_version_rocm: null     # null = latest
+llama_cpp_version_rocm_lemonade: null  # null = latest
+llama_cpp_version_cuda: null     # null = latest
 ```
 
 ### Asset names
@@ -216,6 +263,8 @@ llama_cpp_version_rocm: null     # null = latest
 - **CPU:** `llama-{tag}-bin-ubuntu-x64.tar.gz`
 - **Vulkan:** `llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz`
 - **ROCm:** `llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz`
+- **ROCm Lemonade:** `llama-{tag}-ubuntu-rocm-{gfx_suffix}-x64.zip` (ZIP, auto-detects GFX architecture)
+- **CUDA:** `llama.cpp-{tag}-cuda-12.8-amd64.tar.gz`
 
 ### Binary resolution (`src/backend/hub.rs`)
 
@@ -224,6 +273,218 @@ llama_cpp_version_rocm: null     # null = latest
 ### Server spawning (`src/backend/server.rs`)
 
 `spawn_server()` resolves the binary using the per-backend version from `settings`, then spawns the server process. Log message: `Downloading {backend} (v{version}) binary...`
+
+## New domain types (`src/models.rs`)
+
+### Server mode (`ServerMode`, lines 573-598)
+
+```rust
+pub enum ServerMode {
+    Normal,    // Single model via CLI
+    Router,    // Multiple models via API
+    Bench,     // GPU benchmarking
+    BenchTune, // Parameter auto-tuning
+}
+```
+
+### Reasoning mode (`ReasoningMode`, lines 600-619)
+
+```rust
+pub enum ReasoningMode {
+    Default, // DeepSeek/OpenAI style: <think>...</think>
+    Gemma,   // Gemma style: <|channel>thought<|channel|>
+}
+```
+
+### Cache types (`CacheType`, `CacheQuantType`, lines 286-414)
+
+- **CacheType** (main KV cache): `F16`, `BF16`, `Fq8_0`, `Fq4_1`
+- **CacheQuantType** (KV quantization): `F32`, `F16`, `BF16`, `Q8_0`, `Q4_0`, `Q4_1`, `Iq4Nl`, `Q5_0`, `Q5_1`
+
+### Split mode (`SplitMode`, lines 417-441)
+
+`None`, `Layer` (default), `Row`, `Tensor`
+
+### NUMA mode (`NumMode`, lines 444-468)
+
+`None` (default), `Distribute`, `Isolate`, `Numactl`
+
+### RoPE scaling (`RopeScaling`, lines 471-492)
+
+`None` (default), `Linear`, `Yarn`
+
+### Mirostat (`Mirostat`, lines 495-516)
+
+`Off` (default), `Mirostat`, `Mirostat2`
+
+### Samplers (`Samplers`, lines 518-533)
+
+Semicolon-separated sampler order string. Default: `penalties;dry;top_n_sigma;top_k;typ_p;top_p;min_p;xtc;temperature`
+
+### ModelState (`ModelState`, lines 7-19)
+
+```rust
+pub enum ModelState {
+    Available,
+    Loading,
+    Benchmarking,
+    Loaded { port: u16, pid: u32 },
+    Failed { error: String },
+}
+```
+
+### Search sort (`SearchSort`, lines 22-51)
+
+`Relevance`, `Downloads`, `Likes`, `Trending`, `CreatedAt` — cycled with `S` key.
+
+### SearchResult fields (lines 54-75)
+
+All fields: `model_id`, `model_name`, `tags`, `downloads`, `likes`, `pipeline_tag`, `size`, `parameters`, `capabilities`, `context_length`, `readme`, `quantization`, `license`, `trending_score`, `created_at`.
+
+### GGUF metadata (`GgufMetadata`, lines 909-926)
+
+`layers`, `hidden_size`, `n_ctx_train`, `n_head`, `n_kv_head`, `arch`, `file_type`, `quantization`, `model_parameters`, `domain`, `capabilities`, `tokenizer`, `vocab_size`, `draft_tokens`.
+
+### Load progress (`LoadProgress`, lines 956-967)
+
+`layers_total`, `layers_loaded`, `tensors_loaded`, `buffers: Vec<GPUBuffer>`.
+
+### Model settings additions
+
+New fields in `ModelSettings`: `threads_batch`, `batch_size`, `ubatch_size`, `parallel`, `max_concurrent_predictions`, `keep`, `swa_full`, `mlock`, `mmap`, `numa`, `reasoning_mode`, `split_mode`, `tensor_split`, `main_gpu`, `fit`, `embedding`, `expert_count`, `jinja`, `chat_template`, `chat_template_kwargs`, `typical_p`, `mirostat`, `mirostat_lr`, `mirostat_ent`, `ignore_eos`, `samplers`, `repeat_penalty`, `repeat_last_n`, `presence_penalty`, `frequency_penalty`.
+
+## Benchmark Tuning (`src/backend/benchmark.rs`)
+
+A comprehensive benchmark system with two modes:
+
+- **RuntimeOnly**: Single server, params sent in request body (no server restarts)
+- **Full**: New server spawned for each parameter combination
+
+### Tunable parameters
+
+| Parameter | Range | Step |
+|-----------|-------|------|
+| temperature | 0.4 - 1.0 | 0.1 |
+| top_p | 0.8 - 1.0 | 0.1 |
+| top_k | 40 - 50 | 10 |
+| repeat_penalty | 1.0 - 1.2 | 0.1 |
+| flash_attn | 0 / 1 | - |
+| threads | 4 - 16 | 4 |
+| batch_size | 512 - 2048 | 512 |
+| expert_count | 1 - 4 | 1 |
+
+### Benchmark types
+
+- `BenchTuneConfig`: Model path, iterations, prompt, params to test, duration, mode, n_predict, chat template kwargs
+- `BenchTuneParam`: name, min, max, step, enabled
+- `BenchTuneParamValue`: Actual values for each tunable parameter
+- `BenchTuneResult`: params, metrics, outputs, per-iteration metrics, base settings
+- `BenchTuneMetrics`: prompt_tps, generation_tps, combined_tps, latency_per_token, first_token_time
+- `BenchTuneStatus`: Running (with progress), Completed, Error
+- `BenchTuneProgress`: Running, Completed, Error (UI-facing)
+- `BenchTuneMode`: RuntimeOnly, Full
+
+### Output formats
+
+Markdown table, JSON, YAML, and HTML report with summary cards, winner section, impact analysis, Chart.js charts, and filterable/sortable results table.
+
+## Profiles, System Prompt Presets, and RPC Workers (`src/config.rs`)
+
+### Profiles (`Profile` struct, lines 78-86)
+
+Named profiles of settings presets. Built-in profiles: Qwen, Gemma, Llama, Mistral, Phi. User profiles can be created, applied, and deleted.
+
+```rust
+pub struct Profile {
+    pub name: String,
+    pub description: String,
+    pub settings: ModelOverride,
+}
+```
+
+### System Prompt Presets (`SystemPromptPreset` struct, lines 97-102)
+
+Named system prompts for different use cases. Built-in presets: General, Coder, Thinker, Mathematician.
+
+```rust
+pub struct SystemPromptPreset {
+    pub name: String,
+    pub description: String,
+    pub content: String,
+}
+```
+
+### RPC Workers (`RpcWorker` struct, lines 37-46)
+
+Remote workers for distributed inference.
+
+```rust
+pub struct RpcWorker {
+    pub selected: bool,
+    pub name: String,
+    pub ip: String,
+    pub port: u16,  // default: 50052
+}
+```
+
+### Config struct (`Config` struct, lines 51-71)
+
+```rust
+pub struct Config {
+    pub models_dir: PathBuf,
+    pub llama_server: PathBuf,
+    pub default: DefaultParams,
+    pub model_overrides: HashMap<String, ModelOverride>,
+    pub profiles: Vec<Profile>,
+    pub system_prompt_presets: Vec<SystemPromptPreset>,
+    pub rpc_workers: Vec<RpcWorker>,
+    pub search_limit: u32,  // default: 50
+}
+```
+
+## Serve mode and API proxy (`src/serve.rs`, `src/serve_api.rs`)
+
+### Standalone serve CLI
+
+Run a model directly with llama-server and expose an OpenAI-compatible API:
+
+```bash
+./build.sh serve --model /path/to/model.gguf --api-port 49222 --api-key secret
+```
+
+CLI flags: `--model` (required), `--profile`, `--config`, `--api-port`, `--api-key`.
+
+Automatically resolves the llama-server binary from the backend-specific directory and sets `LD_LIBRARY_PATH` for shared libraries.
+
+### API Proxy Server
+
+An `axum`-based HTTP proxy that forwards requests to the running llama-server instance. Explicitly handled endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/chat/completions` | POST | Chat completions (OpenAI) |
+| `/v1/completions` | POST | Completions (OpenAI) |
+| `/v1/responses` | POST | Responses (Anthropic) |
+| `/v1/messages` | POST | Messages (Anthropic) |
+| `/v1/messages/count_tokens` | POST | Count tokens (Anthropic) |
+| `/v1/embeddings` | POST | Embeddings |
+| `/v1/models` | GET | List models |
+| `/completion` | POST | Legacy completion |
+| `/infill` | POST | Code completion (FIM) |
+| `/reranking` | POST | Re-ranking |
+| `/tokenize` | POST | Tokenize text |
+| `/detokenize` | POST | Detokenize tokens |
+| `/apply-template` | POST | Apply chat template |
+| `/health` | GET | Health check |
+| `/metrics` | GET | Prometheus metrics |
+| `/props` | GET/POST | Get/set server properties |
+| `/slots` | GET | Slot monitoring |
+| `/lora-adapters` | GET/POST | List/load LoRA adapters |
+| `/models/load` | POST | Load a model (router mode) |
+| `/models/unload` | POST | Unload a model (router mode) |
+| `/api/status` | GET | Server status (pid, uptime, loaded models) |
+
+All paths not listed above are automatically proxied to the llama-server instance.
 
 ## Coding rules
 
