@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Rect},
+    layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Cell, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table, Wrap},
@@ -350,130 +350,161 @@ pub fn render(f: &mut Frame, app: &mut App) {
             }
 
             // BenchTune setup overlay
-            if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt } = &app.global_mode {
+            if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs: _ } = &app.global_mode {
             let area = f.area();
-            let mode_count = 2;
-            let w = (area.width as f64 * 0.6).clamp(50.0, 75.0) as u16;
-            let h = (mode_count + config.params_to_test.len() + 24).min(area.height as usize).max(10) as u16;
+            let w = 70u16;
+            let h = 26u16; // Fixed height for predictability, scroll if needed (but 26 should fit all)
             let popup_area = Rect {
-                x: (area.width - w) / 2,
-                y: (area.height - h) / 2,
-                width: w,
-                height: h,
+                x: (area.width.saturating_sub(w)) / 2,
+                y: (area.height.saturating_sub(h)) / 2,
+                width: w.min(area.width),
+                height: h.min(area.height),
             };
 
-            let mode_options = [
-                ("Runtime Only", "Sends params in /completion request (no restarts)"),
-                ("Full", "Spawns new server for each combination (tests all params)"),
-            ];
-
             let mode_idx = *bench_mode_selection.min(&1);
-            let _mode_desc = mode_options[mode_idx].1;
+            let mode_name = if mode_idx == 0 { "Runtime Only" } else { "Full (inc. load)" };
 
-            let mut lines = Vec::new();
-            lines.push(Line::from(vec![
-                Span::styled(" Configure Benchmark Tuning ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            ]));
-            lines.push(Line::from(""));
-            lines.push(Line::from(" Benchmark mode:"));
-            let mode_descs = [mode_options[0].1, mode_options[1].1];
-            lines.push(Line::from(format!("   {} [{:<2}] {} ({})", if mode_idx == 0 { ">" } else { " " }, if mode_idx == 0 { "X" } else { " " }, "Runtime Only", mode_descs[0])));
-            lines.push(Line::from(format!("   {} [{:<2}] {} ({})", if mode_idx == 1 { ">" } else { " " }, if mode_idx == 1 { "X" } else { " " }, "Full", mode_descs[1])));
-      lines.push(Line::from(""));
-            lines.push(Line::from(" Prompt:"));
-            if *editing_prompt {
-                let prompt = &config.prompt;
-                let cursor_pos = app.edit_cursor_pos.min(prompt.len());
-                let before = &prompt[..cursor_pos];
-                let after = &prompt[cursor_pos..];
-                let cursor_char = prompt.chars().nth(cursor_pos).unwrap_or(' ');
-                let before_lines: Vec<&str> = before.lines().collect();
-                let after_lines: Vec<&str> = after.lines().collect();
-                for (i, line) in before_lines.iter().enumerate() {
-                    if i == before_lines.len() - 1 {
-                        lines.push(Line::from(format!("   {}|{}{}", line, cursor_char, after_lines.first().unwrap_or(&""))));
-                    } else {
-                        lines.push(Line::from(format!("   {}", line)));
-                    }
-                }
-                for line in after_lines.iter().skip(1) {
-                    lines.push(Line::from(format!("   {}", line)));
-                }
-                lines.push(Line::from(format!("   [{} chars]", prompt.len())));
-            } else {
-                let prompt = &config.prompt;
-                for line in prompt.lines() {
-                    lines.push(Line::from(format!("   {}", line)));
-                }
-            }
-            lines.push(Line::from(""));
-            lines.push(Line::from(" n_predict:"));
-            if app.editing_n_predict {
-                lines.push(Line::from(format!("   [{}]", app.n_predict_edit_buffer)));
-            } else {
-                lines.push(Line::from(format!("   {}", config.n_predict)));
-            }
-            lines.push(Line::from(""));
-            lines.push(Line::from(" Select parameters to vary in the benchmark:"));
-            lines.push(Line::from(""));
+            // Main block for the popup
+            let block = Block::default()
+                .title(Span::styled(" Benchmark Configuration ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow));
 
-            for (i, p) in config.params_to_test.iter().enumerate() {
-                let marker = if i == *selected_idx { "> " } else { "  " };
-                let checkbox = if p.enabled { "[X] " } else { "[ ] " };
-                let style = if i == *selected_idx {
-                    Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+            let inner_area = block.inner(popup_area);
+            f.render_widget(ratatui::widgets::Clear, popup_area);
+            f.render_widget(block, popup_area);
+
+            let regions = Layout::vertical([
+                Constraint::Length(1), // Top Spacer
+                Constraint::Length(1), // Mode & Iterations
+                Constraint::Length(1), // Spacer
+                Constraint::Length(5), // Prompt (fixed height preview)
+                Constraint::Length(1), // Spacer
+                Constraint::Length(1), // Parameters Header
+                Constraint::Min(0),    // Parameters Table
+                Constraint::Length(3), // Footer / Shortcuts
+            ]).split(inner_area);
+
+            // Region 1: Mode & Basic Config
+            let iters_display = if app.editing_iters {
+                format!("{}|", app.iters_edit_buffer)
+            } else {
+                config.num_iterations.to_string()
+            };
+            
+            let tokens_display = if app.editing_n_predict {
+                format!("{}|", app.n_predict_edit_buffer)
+            } else {
+                config.n_predict.to_string()
+            };
+
+            let mode_line = Line::from(vec![
+                Span::styled(" Mode: ", Style::default().fg(Color::Yellow)),
+                Span::styled(mode_name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                Span::raw(" | "),
+                Span::styled("Iters: ", Style::default().fg(Color::Yellow)),
+                Span::styled(iters_display, if app.editing_iters { Style::default().fg(Color::Black).bg(Color::Cyan) } else { Style::default().fg(Color::Cyan) }),
+                Span::raw(" | "),
+                Span::styled("Max Tokens: ", Style::default().fg(Color::Yellow)),
+                Span::styled(tokens_display, if app.editing_n_predict { Style::default().fg(Color::Black).bg(Color::Cyan) } else { Style::default().fg(Color::Cyan) }),
+            ]);
+            f.render_widget(Paragraph::new(mode_line), regions[1]);
+
+            // Region 3: Prompt
+            let prompt_title = if *editing_prompt { " Editing Prompt... " } else { " Prompt (Alt+P to edit) " };
+            let prompt_content = if config.prompt.is_empty() { "(Empty prompt)" } else { &config.prompt };
+            
+            let prompt_lines = if *editing_prompt {
+                let mut display_text = config.prompt.clone();
+                let cursor_pos = app.edit_cursor_pos.min(display_text.len());
+                display_text.insert(cursor_pos, '|');
+                vec![
+                    Line::from(display_text),
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::styled(format!(" [{} chars] ", config.prompt.len()), Style::default().fg(Color::Cyan)),
+                        Span::styled(" [Press Esc to finish] ", Style::default().fg(Color::Yellow)),
+                    ]),
+                ]
+            } else {
+                vec![
+                    Line::from(prompt_content),
+                    Line::from(vec![
+                        Span::styled(format!(" [{} chars] ", config.prompt.len()), Style::default().fg(Color::DarkGray)),
+                    ]),
+                ]
+            };
+
+            f.render_widget(
+                Paragraph::new(prompt_lines)
+                    .block(Block::default().title(prompt_title).borders(Borders::ALL).border_style(Style::default().fg(if *editing_prompt { Color::Green } else { Color::DarkGray })))
+                    .wrap(Wrap { trim: true }),
+                regions[3]
+            );
+
+            // Region 5: Parameters Header
+            f.render_widget(Paragraph::new(Line::from(vec![
+                Span::raw(" Select parameters to vary:"),
+                Span::styled(" (Space to toggle)", Style::default().fg(Color::DarkGray)),
+            ])), regions[5]);
+
+            // Region 6: Parameters Table
+            let data_rows: Vec<Row> = config.params_to_test.iter().enumerate().map(|(i, p)| {
+                let marker = if i == *selected_idx { ">" } else { " " };
+                let checkbox = if p.enabled { "[X]" } else { "[ ]" };
+                let name = p.name.replace("_", " ");
+
+                let desc_str = match p.name.as_str() {
+                    "flash_attn" => "(On/Off)".to_string(),
+                    "threads" => format!("{} to {}, step {}", p.min as u32, p.max as u32, p.step as u32),
+                    "top_k" => format!("{} to {}, step {}", p.min as i32, p.max as i32, p.step as i32),
+                    "expert_count" => format!("{} to {}, step {}", p.min as i32, p.max as i32, p.step as i32),
+                    _ => format!("{:.1} to {:.1}, step {:.1}", p.min, p.max, p.step),
+                };
+
+                let row_style = if i == *selected_idx {
+                    Style::default().fg(Color::Black).bg(Color::Yellow)
                 } else {
                     Style::default().fg(Color::White)
                 };
 
-                let desc = match p.name.as_str() {
-                    "flash_attn" => "(On and Off)".to_string(),
-                    "threads" => format!("({} to {}, step {})", p.min as u32, p.max as u32, p.step as u32),
-                    "top_k" => format!("({} to {}, step {})", p.min as i32, p.max as i32, p.step as i32),
-                   "expert_count" => format!("({} to {}, step {})", p.min as i32, p.max as i32, p.step as i32),
-                    _ => format!("({:.1} to {:.1}, step {:.1})", p.min, p.max, p.step),
-                };
+                Row::new(vec![
+                    Cell::from(Span::styled(marker, Style::default().fg(Color::Yellow))),
+                    Cell::from(Span::styled(checkbox, if p.enabled { Style::default().fg(Color::Green) } else { Style::default().fg(Color::DarkGray) })),
+                    Cell::from(name),
+                    Cell::from(Span::styled(desc_str, Style::default().fg(Color::DarkGray))),
+                ]).style(row_style)
+            }).collect();
 
-                lines.push(Line::from(vec![
-                    Span::styled(marker, Style::default().fg(Color::Yellow)),
-                    Span::styled(checkbox, if p.enabled { Style::default().fg(Color::Green) } else { Style::default().fg(Color::DarkGray) }),
-                    Span::styled(format!("{:<15}", p.name.replace("_", " ")), style),
-                    Span::styled(format!(" {}", desc), Style::default().fg(Color::DarkGray)),
-                ]));
-            }
+            let table = Table::new(
+                data_rows,
+                [
+                    Constraint::Length(2),
+                    Constraint::Length(4),
+                    Constraint::Length(16),
+                    Constraint::Fill(1),
+                ],
+            );
+            f.render_widget(table, regions[6]);
 
-            lines.push(Line::from(""));
+            // Region 7: Footer
             let total_tests = config.get_total_tests_count();
-            lines.push(Line::from(vec![
-                Span::raw(" Total tests to run: "),
-                Span::styled(total_tests.to_string(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]));
-            lines.push(Line::from(""));
-            lines.push(Line::from(vec![
-                Span::styled(" [Alt+P]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Edit Prompt  "),
-                Span::styled(" [Alt+N]", Style::default().fg(Color::Yellow)),
-                Span::raw(" N-Predict  "),
-                Span::styled(" [Alt+M]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Mode  "),
-                Span::styled(" [Space]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Toggle  "),
-                Span::styled(" [Enter]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Start  "),
-                Span::styled(" [Esc]", Style::default().fg(Color::Yellow)),
-                Span::raw(" Cancel"),
-            ]));
-
-            // Render the full popup with wrapped prompt if in edit mode
-            let popup_lines = lines;
-
-            f.render_widget(ratatui::widgets::Clear, popup_area);
-            f.render_widget(Paragraph::new(popup_lines).block(
-                Block::default()
-                    .title(" Benchmark Setup ")
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Yellow)),
-            ).wrap(Wrap { trim: true }), popup_area);
+            let footer_lines = vec![
+                Line::from(vec![
+                    Span::raw(" Total tests: "),
+                    Span::styled(total_tests.to_string(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                    Span::raw("  |  "),
+                    Span::styled(" [Alt+M]", Style::default().fg(Color::Yellow)), Span::raw(" Mode "),
+                    Span::styled(" [Alt+N]", Style::default().fg(Color::Yellow)), Span::raw(" Tokens "),
+                    Span::styled(" [Alt+I]", Style::default().fg(Color::Yellow)), Span::raw(" Iters "),
+                ]),
+                Line::from(vec![
+                    Span::styled(" [Enter]", Style::default().fg(Color::Yellow)), Span::styled(" START ", Style::default().fg(Color::Black).bg(Color::Green)),
+                    Span::raw("  "),
+                    Span::styled(" [Esc]", Style::default().fg(Color::Yellow)), Span::raw(" Cancel "),
+                ]),
+            ];
+            f.render_widget(Paragraph::new(footer_lines).alignment(ratatui::layout::Alignment::Center), regions[7]);
             return;
             }
             // RPC Manager overlay

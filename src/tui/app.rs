@@ -92,6 +92,7 @@ pub enum GlobalMode {
         selected_idx: usize,
         bench_mode_selection: usize,
         editing_prompt: bool,
+        editing_kwargs: bool,
     },
 }
 
@@ -255,6 +256,8 @@ pub struct App {
     pub bench_tune_output_index: usize,
     pub editing_n_predict: bool,
     pub n_predict_edit_buffer: String,
+    pub editing_iters: bool,
+    pub iters_edit_buffer: String,
     /// Tags editing state
     pub tags_editing: bool,
     pub tags_edit_buffer: String,
@@ -375,6 +378,8 @@ last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
             bench_tune_output_index: 0,
             editing_n_predict: false,
             n_predict_edit_buffer: String::new(),
+            editing_iters: false,
+            iters_edit_buffer: String::new(),
             tags_editing: false,
             tags_edit_buffer: String::new(),
             tags_selected_idx: None,

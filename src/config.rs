@@ -164,6 +164,7 @@ pub struct ModelOverride {
     pub flash_attn: Option<bool>,
     pub jinja: Option<bool>,
     pub chat_template: Option<String>,
+    pub chat_template_kwargs: Option<String>,
     pub expert_count: Option<i32>,
     pub gpu_layers_mode: Option<crate::models::GpuLayersMode>,
 
@@ -251,6 +252,7 @@ impl ModelOverride {
             flash_attn: Some(s.flash_attn),
             jinja: Some(s.jinja),
             chat_template: s.chat_template.clone(),
+            chat_template_kwargs: s.chat_template_kwargs.clone(),
             expert_count: Some(s.expert_count),
             seed: Some(s.seed),
             temperature: Some(s.temperature),
@@ -502,6 +504,8 @@ pub struct DefaultParams {
     #[serde(default)]
     pub chat_template: Option<String>,
     #[serde(default)]
+    pub chat_template_kwargs: Option<String>,
+    #[serde(default)]
     pub expert_count: i32,
 
     // Sampling
@@ -659,6 +663,7 @@ impl Default for DefaultParams {
             flash_attn: true,
             jinja: true,
             chat_template: None,
+            chat_template_kwargs: None,
             expert_count: -1,
 
             // Sampling

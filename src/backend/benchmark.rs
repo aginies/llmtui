@@ -21,8 +21,14 @@ pub async fn run_bench_tune(
     // Generate all parameter combinations
     let combinations = config.generate_combinations();
 
-    // Results storage
+ // Results storage
     let mut results = Vec::new();
+
+    // Apply chat_template_kwargs from config to settings
+    let mut settings = settings.clone();
+    if let Some(kwargs) = &config.chat_template_kwargs {
+        settings.chat_template_kwargs = Some(kwargs.clone());
+    }
 
     // If runtime-only mode, send params in request body (no server restarts)
     if config.bench_mode == BenchTuneMode::RuntimeOnly {
@@ -30,7 +36,7 @@ pub async fn run_bench_tune(
         let (server_handle, _command) = spawn_server(
             main_config,
             Some(model),
-            settings,
+            &settings,
             log_tx.clone(),
             None,
             ServerMode::Normal,
@@ -97,7 +103,7 @@ pub async fn run_bench_tune(
                 main_config,
                 combination,
                 model,
-                settings,
+                &settings,
                 config.num_iterations,
                 config.prompt.clone(),
                 log_tx.clone(),

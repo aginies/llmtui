@@ -174,7 +174,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // BenchTune Setup
-    if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt } = &mut app.global_mode {
+  if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs } = &mut app.global_mode {
         match key.code {
             KeyCode::Char('m') if key.modifiers.contains(KeyModifiers::ALT) => {
                 // Toggle benchmark mode
@@ -198,8 +198,22 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.n_predict_edit_buffer = config.n_predict.to_string();
                 }
             }
-            KeyCode::Up | KeyCode::Char('k') => {
-                if *editing_prompt {
+            KeyCode::Char('i') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // Toggle iterations editing
+                app.editing_iters = !app.editing_iters;
+                if app.editing_iters {
+                    app.iters_edit_buffer = config.num_iterations.to_string();
+                }
+            }
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // Toggle chat template kwargs editing
+                *editing_kwargs = !*editing_kwargs;
+                if *editing_kwargs {
+                    app.edit_cursor_pos = config.chat_template_kwargs.as_deref().unwrap_or("").len();
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Left => {
+                if *editing_prompt || *editing_kwargs {
                     // Move cursor left
                     if app.edit_cursor_pos > 0 {
                         app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
@@ -208,10 +222,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     *selected_idx = selected_idx.saturating_sub(1);
                 }
             }
-            KeyCode::Down | KeyCode::Char('j') => {
-                if *editing_prompt {
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Right => {
+                if *editing_prompt || *editing_kwargs {
                     // Move cursor right
-                    app.edit_cursor_pos = (app.edit_cursor_pos + 1).min(config.prompt.len());
+                    let len = if *editing_prompt { config.prompt.len() } else { config.chat_template_kwargs.as_deref().map(|s| s.len()).unwrap_or(0) };
+                    app.edit_cursor_pos = (app.edit_cursor_pos + 1).min(len);
                 } else {
                     *selected_idx = (*selected_idx + 1).min(config.params_to_test.len().saturating_sub(1));
                 }
@@ -221,6 +236,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     // Insert space in prompt
                     if app.edit_cursor_pos <= config.prompt.len() {
                         config.prompt.insert(app.edit_cursor_pos, ' ');
+                        app.edit_cursor_pos += 1;
+                    }
+                } else if *editing_kwargs {
+                    let kwargs = config.chat_template_kwargs.get_or_insert_with(String::new);
+                    if app.edit_cursor_pos <= kwargs.len() {
+                        kwargs.insert(app.edit_cursor_pos, ' ');
                         app.edit_cursor_pos += 1;
                     }
                 } else {
@@ -234,9 +255,17 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if *editing_prompt {
                     config.prompt.insert(app.edit_cursor_pos, c);
                     app.edit_cursor_pos += 1;
+                } else if *editing_kwargs {
+                    let kwargs = config.chat_template_kwargs.get_or_insert_with(String::new);
+                    kwargs.insert(app.edit_cursor_pos, c);
+                    app.edit_cursor_pos += 1;
                 } else if app.editing_n_predict {
                     if c.is_ascii_digit() {
                         app.n_predict_edit_buffer.push(c);
+                    }
+                } else if app.editing_iters {
+                    if c.is_ascii_digit() {
+                        app.iters_edit_buffer.push(c);
                     }
                 }
             }
@@ -246,6 +275,16 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         config.prompt.remove(app.edit_cursor_pos - 1);
                         app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
                     }
+                } else if *editing_kwargs {
+                    let kwargs = config.chat_template_kwargs.get_or_insert_with(String::new);
+                    if app.edit_cursor_pos > 0 {
+                        kwargs.remove(app.edit_cursor_pos - 1);
+                        app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
+                    }
+                } else if app.editing_n_predict {
+                    app.n_predict_edit_buffer.pop();
+                } else if app.editing_iters {
+                    app.iters_edit_buffer.pop();
                 } else {
                     *selected_idx = selected_idx.saturating_sub(1);
                 }
@@ -255,22 +294,37 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     if app.edit_cursor_pos < config.prompt.len() {
                         config.prompt.remove(app.edit_cursor_pos);
                     }
+                } else if *editing_kwargs {
+                    let kwargs = config.chat_template_kwargs.get_or_insert_with(String::new);
+                    if app.edit_cursor_pos < kwargs.len() {
+                        kwargs.remove(app.edit_cursor_pos);
+                    }
                 } else if app.editing_n_predict {
-                    let buf = app.n_predict_edit_buffer.clone();
-                    if !buf.is_empty() {
-                        app.n_predict_edit_buffer = buf[..buf.len()-1].to_string();
+                    if !app.n_predict_edit_buffer.is_empty() {
+                        app.n_predict_edit_buffer.pop();
+                    }
+                } else if app.editing_iters {
+                    if !app.iters_edit_buffer.is_empty() {
+                        app.iters_edit_buffer.pop();
                     }
                 }
             }
             KeyCode::Enter => {
                 if *editing_prompt {
                     *editing_prompt = false;
+                } else if *editing_kwargs {
+                    *editing_kwargs = false;
                 } else if app.editing_n_predict {
                     if let Ok(val) = app.n_predict_edit_buffer.parse::<u32>() {
-                        let clamped = val.clamp(128, 4096);
+                        let clamped = val.clamp(1, 16384);
                         config.n_predict = clamped;
                     }
                     app.editing_n_predict = false;
+                } else if app.editing_iters {
+                    if let Ok(val) = app.iters_edit_buffer.parse::<u32>() {
+                        config.num_iterations = val.max(1).min(100);
+                    }
+                    app.editing_iters = false;
                 } else {
                     let config_final = config.clone();
                     if let Some(idx) = app.selected_model_idx {
@@ -286,8 +340,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Esc => {
                 if *editing_prompt {
                     *editing_prompt = false;
+                } else if *editing_kwargs {
+                    *editing_kwargs = false;
                 } else if app.editing_n_predict {
                     app.editing_n_predict = false;
+                } else if app.editing_iters {
+                    app.editing_iters = false;
                 } else {
                     app.global_mode = GlobalMode::Normal;
                 }
@@ -1256,6 +1314,7 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                                 selected_idx: 0,
                                 bench_mode_selection: 0,
                                 editing_prompt: false,
+                                editing_kwargs: false,
                             };
                             return;
                         }

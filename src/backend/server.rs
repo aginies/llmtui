@@ -167,6 +167,10 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         push_arg(&mut cmd, &mut parts, "--chat-template", template);
     }
 
+    if let Some(ref kwargs) = settings.chat_template_kwargs {
+        push_arg(&mut cmd, &mut parts, "--chat-template-kwargs", kwargs);
+    }
+
     // ── Sampling ─────────────────────────────────────────────
     if settings.seed != -1 {
         push_arg(&mut cmd, &mut parts, "--seed", settings.seed);

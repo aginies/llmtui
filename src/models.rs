@@ -211,6 +211,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             expert_count: dp.expert_count,
             jinja: dp.jinja,
             chat_template: dp.chat_template,
+            chat_template_kwargs: dp.chat_template_kwargs,
             seed: dp.seed,
             temperature: dp.temperature,
             top_k: dp.top_k,
@@ -691,6 +692,8 @@ pub struct ModelSettings {
     pub jinja: bool,
     /// Custom chat template string.
     pub chat_template: Option<String>,
+    /// JSON string for --chat-template-kwargs (e.g. {"enable_thinking": false}).
+    pub chat_template_kwargs: Option<String>,
 
     // ── Sampling ─────────────────────────────────────────────
 
@@ -830,6 +833,7 @@ impl Default for ModelSettings {
             expert_count: -1,
             jinja: true,
             chat_template: None,
+            chat_template_kwargs: None,
 
             // Sampling
             seed: -1,
@@ -1137,6 +1141,7 @@ pub struct BenchTuneConfig {
     pub test_duration: Duration,
     pub bench_mode: BenchTuneMode,
     pub n_predict: u32,
+    pub chat_template_kwargs: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1346,7 +1351,8 @@ impl BenchTuneConfig {
                 ],
                 test_duration: Duration::from_secs(30),
                 bench_mode: BenchTuneMode::default(),
-                n_predict: 2048,
+                n_predict: 512,
+chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
                 }
                 }
 
