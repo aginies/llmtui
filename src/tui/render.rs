@@ -1331,6 +1331,8 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                         vec![
                             Span::styled("j/k nav", c),
                             Span::raw("  "),
+                            Span::styled("p pause", y),
+                            Span::raw("  "),
                             Span::styled("⌃C cancel", y),
                             Span::raw("  "),
                             Span::styled("⇥ panels", c),
