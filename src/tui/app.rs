@@ -16,6 +16,17 @@ use std::sync::{Arc, atomic::AtomicBool, Mutex};
 static API_PORT_CACHE: Mutex<(u16, String)> = Mutex::new((0, String::new()));
 
 use ratatui::text::Line;
+use ratatui::layout::Rect;
+
+/// State for an in-progress panel resize drag.
+pub struct ResizeState {
+    /// Starting X position of the mouse when drag began.
+    pub start_x: u16,
+    /// Starting left_pct value when drag began.
+    pub start_pct: u16,
+    /// The area of the top panels container (for border detection).
+    pub container: Rect,
+}
 
 /// Cache for the settings panel render output.
 pub struct SettingsRenderCache {
@@ -286,6 +297,10 @@ pub struct App {
     pub tags_edit_buffer: String,
     pub tags_selected_idx: Option<usize>,
     pub tags_insert_mode: bool,
+    /// Horizontal split percentage for left panel (20-80, default 55).
+    pub left_pct: u16,
+    /// State for an in-progress panel resize drag.
+    pub resize_state: Option<ResizeState>,
 }
 
 impl App {
@@ -413,6 +428,8 @@ impl App {
             tags_edit_buffer: String::new(),
             tags_selected_idx: None,
             tags_insert_mode: false,
+            left_pct: 55,
+            resize_state: None,
         }
     }
 
@@ -1410,6 +1427,9 @@ impl App {
                 Line::from(vec![Span::styled("B", y), Span::raw("  Go back one page")]),
                 Line::from(vec![Span::styled("Down at bottom", y), Span::raw("  Load more results (infinite scroll)")]),
                 Line::from(vec![Span::styled("R", y), Span::raw("  Fetch and view README")]),
+                Line::from(""),
+                Line::from(vec![Span::styled("Shift+← / →", y), Span::raw("  Resize panel split (20%-80%)")]),
+                Line::from(vec![Span::styled("Mouse drag on border", y), Span::raw("  Resize panel split")]),
                 Line::from(""),
                 Line::from(vec![Span::styled("Shift+A", y), Span::raw("  About box (GPLv3)")]),
             ],

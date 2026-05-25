@@ -25,6 +25,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - **Profiles** — saved presets of settings for quick switching (`p`)
 - **System Prompt Presets** — named system prompts for different use cases
 - **Router Mode** — load multiple models simultaneously
+- **Panel Resize** — drag the border between left and right panels, or use `Shift+←/→` to adjust (20%-80%)
 
 ## Prerequisites
 
@@ -161,6 +162,7 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `⌃R` (Ctrl+R) — Reset LLM settings to defaults
 - `⌃E` (Ctrl+E) — Toggle enabled/disabled for specific settings
 - `⌃⇟` / `⌃⇞` (Ctrl+PgDn/PgUp) — Jump 10 settings down/up
+- `Shift+←` / `Shift+→` — Resize horizontal panel split (20%-80%)
 - `F1`–`F6` — Focus/toggle individual panels (Models, Server, Info, Settings, Active, Log)
 - `F9` — Show all panels
 - `e` (in CmdLine) — Export command to script
@@ -338,6 +340,18 @@ The app uses confirmation dialogs for:
 ### Mouse support
 
 Mouse interactions are supported: clicking on panels to focus them, and scrolling in the log panel, README panel, settings, profiles, and presets panels.
+
+### Panel Resize
+
+The horizontal split between left panels (Models + Info) and right panels (Settings/README) can be resized:
+
+| Method | Description |
+|--------|-------------|
+| **Drag border** | Click and drag the vertical border between left and right panels |
+| **Scroll on border** | Scroll mouse wheel while hovering over the border (1% steps) |
+| **Keyboard** | `Shift+←` / `Shift+→` to adjust by 1% (range: 20%-80%) |
+
+The current split percentage is shown in the status bar (e.g., `│ 55%`). While actively resizing, the indicator shows `│ 55% ← resize →`.
 
 ## Configuration
 

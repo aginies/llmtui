@@ -779,6 +779,21 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
+        // Shift+Left/Right to resize horizontal panel split
+        KeyCode::Left
+            if key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) =>
+        {
+            app.left_pct = app.left_pct.saturating_sub(1).max(20);
+            app.set_redraw();
+            return;
+        }
+        KeyCode::Right
+            if key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) =>
+        {
+            app.left_pct = app.left_pct.saturating_add(1).min(80);
+            app.set_redraw();
+            return;
+        }
         KeyCode::Char(c @ '1'..='6') | KeyCode::Char(c @ '9') => {
             let is_search = matches!(app.models_mode, ModelsMode::Search { .. }) && app.active_panel == ActivePanel::Models;
             let is_llm_settings = app.active_panel == ActivePanel::LlmSettings;
@@ -2897,7 +2912,23 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         return;
     }
 
-
+    // If actively resizing, continue updating even if mouse moved outside the border area
+    if let Some(ref rs) = app.resize_state {
+        match mouse.kind {
+            MouseEventKind::Drag(_) => {
+                let dx = pos.x as i16 - rs.start_x as i16;
+                let delta = (dx * 100 / rs.container.width as i16).max(-5).min(5);
+                app.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
+                app.set_redraw();
+            }
+            MouseEventKind::Up(MouseButton::Left) => {
+                app.resize_state = None;
+                app.set_redraw();
+            }
+            _ => {}
+        }
+        return;
+    }
 
     // Default layout
     let chunks = ratatui::layout::Layout::default()
@@ -2940,13 +2971,57 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
 
     // 2. Check Top panels
     if chunks[1].contains(pos) {
+        let left_pct = app.left_pct.max(20).min(80);
         let top_chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
-                ratatui::layout::Constraint::Percentage(66),
-                ratatui::layout::Constraint::Fill(1),
+                ratatui::layout::Constraint::Fill(left_pct),
+                ratatui::layout::Constraint::Fill(100 - left_pct),
             ])
             .split(chunks[1]);
+
+        // Check for resize drag on the vertical border between left and right panels
+        let border_x = top_chunks[0].right().saturating_sub(1);
+        let border_y_start = chunks[1].top();
+        let border_y_end = chunks[1].bottom().saturating_sub(1);
+        let on_border = (pos.x as i16 - border_x as i16).abs() <= 2
+            && pos.y as i16 >= border_y_start as i16
+            && pos.y as i16 <= border_y_end as i16;
+
+        if on_border {
+            match mouse.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    app.resize_state = Some(crate::tui::app::ResizeState {
+                        start_x: pos.x,
+                        start_pct: app.left_pct,
+                        container: chunks[1],
+                    });
+                    app.set_redraw();
+                }
+                MouseEventKind::Drag(_) => {
+                    if let Some(ref rs) = app.resize_state {
+                        let dx = pos.x as i16 - rs.start_x as i16;
+                        let delta = (dx * 100 / rs.container.width as i16).max(-5).min(5);
+                        app.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
+                        app.set_redraw();
+                    }
+                }
+                MouseEventKind::Up(MouseButton::Left) => {
+                    app.resize_state = None;
+                    app.set_redraw();
+                }
+                MouseEventKind::ScrollUp => {
+                    app.left_pct = app.left_pct.saturating_sub(1).max(20);
+                    app.set_redraw();
+                }
+                MouseEventKind::ScrollDown => {
+                    app.left_pct = app.left_pct.saturating_add(1).min(80);
+                    app.set_redraw();
+                }
+                _ => {}
+            }
+            return;
+        }
 
         // Right side: Settings/Profiles
         if top_chunks[1].contains(pos) {

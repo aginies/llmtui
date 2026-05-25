@@ -1132,11 +1132,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ])
             .split(chunks[1])
     } else {
+        let left_pct = app.left_pct.max(20).min(80);
         ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
-                ratatui::layout::Constraint::Percentage(55), // Left side (Models + Info)
-                ratatui::layout::Constraint::Percentage(45), // Right side (Settings / README)
+                ratatui::layout::Constraint::Fill(left_pct), // Left side (Models + Info)
+                ratatui::layout::Constraint::Fill(100 - left_pct), // Right side (Settings / README)
             ])
             .split(chunks[1])
     };
@@ -1686,6 +1687,23 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
 
     if parts.is_empty() {
         return Line::from("");
+    }
+
+    // Add resize indicator
+    if app.resize_state.is_some() {
+        parts.push(Span::raw("  "));
+        parts.push(Span::styled(
+            format!("│ {}% ← resize →", app.left_pct),
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        ));
+    } else if !app.is_panel_visible(1) && !app.is_panel_visible(3) && !matches!(app.active_panel, ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme) {
+        // Only show resize hint when both settings panels are visible
+    } else {
+        parts.push(Span::raw("  "));
+        parts.push(Span::styled(
+            format!("│ {}%", app.left_pct),
+            Style::default().fg(Color::DarkGray),
+        ));
     }
 
     let left_width: usize = parts.iter().map(|s| s.width()).sum();
