@@ -945,22 +945,16 @@ impl App {
             self.model_n_kv_head = cached.n_kv_head;
         }
 
-        // Compute VRAM estimate now that metadata fields are populated.
-        // Doing it here ensures the estimate is available immediately when
-        // the model is selected, rather than waiting for a separate call to
-        // `update_vram_estimate()` which may be skipped if hidden_size is
-        // already set.
-        if self.model_hidden_size > 0 {
-            self.update_vram_estimate();
-        }
-        
-        // 2. Debounce logic: only skip if we tried this EXACT file (path + mtime) very recently
+       // 2. Debounce logic: only skip if we tried this EXACT file (path + mtime) very recently
         // and it wasn't GGUF or we failed to parse it.
         if let Ok(meta) = std::fs::metadata(&model.path) {
             let mtime = meta.modified().unwrap_or(std::time::SystemTime::now());
             let (last_path, last_mtime) = &self.last_metadata_parse;
             if last_path == &model.path && mtime == *last_mtime {
                 // Already tried this version of the file and it's not in cache (meaning it failed or is not GGUF)
+                if self.model_hidden_size > 0 {
+                    self.update_vram_estimate();
+                }
                 return;
             }
             self.last_metadata_parse = (model.path.clone(), mtime);
@@ -1124,11 +1118,6 @@ impl App {
                                 draft_tokens: self.settings.draft_tokens,
                             });
                         self.set_redraw();
-
-                        // Compute VRAM estimate now that metadata is loaded
-                        if hidden > 0 {
-                            self.update_vram_estimate();
-                        }
                     }
                     Err(e) => {
                         self.add_log(format!("Failed to decode GGUF {}: {}", model.path.display(), e), crate::config::LogLevel::Error);
@@ -1138,6 +1127,11 @@ impl App {
             Err(e) => {
                 self.add_log(format!("Failed to parse GGUF {}: {}", model.path.display(), e), crate::config::LogLevel::Error);
             }
+        }
+
+        // Compute VRAM estimate once, after metadata fields are populated.
+        if self.model_hidden_size > 0 {
+            self.update_vram_estimate();
         }
     }
 

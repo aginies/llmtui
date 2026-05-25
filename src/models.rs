@@ -1058,11 +1058,16 @@ pub fn estimate_vram_mib(
     // KV cache in MiB:
     // Formula: 2 * n_layer * n_ctx * n_embd_kv * sizeof(type)
     // n_embd_kv = hidden_size * gqa_ratio
+    // The KV cache is allocated for the total number of model layers,
+    // not just the number layers loaded into the GPU (gpu_layers).
+    // However only gpu_layers * sizeof(type) contributes to the VRAM cost.
     let kv_mib = (2.0
         * hidden_size
         * settings.context_length as f64
-        * gpu_layers as f64
+        * total_layers as f64
         * gqa_ratio
+        * gpu_layers as f64
+        / total_layers as f64  // VRAM cost: only GPU-loaded portion of KV cache
         * flash_attn_factor
         * uniform_cache_factor
         * kv_quant_bytes(

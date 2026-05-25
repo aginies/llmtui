@@ -70,11 +70,12 @@ pub fn max_context_for_vram(
     // KV quant factor (relative to f16 = 2 bytes)
     let kv_quant_factor = crate::models::kv_quant_bytes_from_str(cache_type_k, cache_type_v) / 2.0;
 
-    // KV cache per token per layer: 2 * hidden * 2 * gqa_ratio * flash * quant
+    // Total KV cache budget (all layers): 2 * hidden * ctx * total_layers * gqa * flash * quant
+    // We then factor in the VRAM cost: only gpu_layers/total_layers fraction of the KV cache lives in VRAM.
     let kv_per_token = 2.0 * hidden_size as f64 * 2.0 * gqa_ratio * flash_attn_factor * kv_quant_factor;
 
-    // Total KV budget = kv_per_token * ctx * gpu_layers
     // ctx = kv_budget / (kv_per_token * gpu_layers)
+    // Note: kv_per_token is per-token cost for gpu_layers worth of KV cache in VRAM.
     if gpu_layers > 0.0 && kv_per_token > 0.0 {
         let ctx = kv_budget / (kv_per_token * gpu_layers);
         ctx as u32
