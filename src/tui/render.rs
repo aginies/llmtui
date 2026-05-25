@@ -176,6 +176,61 @@ pub fn render(f: &mut Frame, app: &mut App) {
         return;
         }
 
+        // Profile picker overlay
+        if let GlobalMode::ProfilePicker { entries, selected } = &app.global_mode {
+            let area = f.area();
+            let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
+            let h = ((entries.len() + 8).min((area.height as usize - 4) as usize)) as u16;
+            let picker_area = Rect {
+                x: (area.width - w) / 2,
+                y: (area.height - h) / 2,
+                width: w,
+                height: h,
+            };
+
+            let mut picker_lines: Vec<Line> = Vec::new();
+            picker_lines.push(Line::from(Span::styled(
+                " [↑/↓] Select  [Enter] Apply  [Esc] Cancel ",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            )));
+            picker_lines.push(Line::from(""));
+
+            let builtin_names: std::collections::HashSet<&str> = ["Qwen", "Gemma", "Llama", "Mistral", "Phi"].into_iter().collect();
+            for (i, (name, desc)) in entries.iter().enumerate() {
+                let marker = if i == *selected { "> " } else { "  " };
+                let is_builtin = builtin_names.contains(name.as_str());
+                let style = if i == *selected {
+                    Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+                let display_name = if is_builtin {
+                    format!("{} (built-in)", name)
+                } else {
+                    name.clone()
+                };
+                picker_lines.push(Line::from(vec![
+                    Span::styled(marker, Style::default().fg(Color::Yellow)),
+                    Span::styled(display_name, style),
+                ]));
+                if !desc.is_empty() {
+                    picker_lines.push(Line::from(Span::styled(
+                        format!("        {}", desc),
+                        Style::default().fg(Color::DarkGray),
+                    )));
+                }
+            }
+
+            f.render_widget(ratatui::widgets::Clear, picker_area);
+            f.render_widget(Paragraph::new(picker_lines).wrap(Wrap { trim: true }).block(
+                Block::default()
+                    .title(" Profiles ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow)),
+            ), picker_area);
+            return;
+        }
+
   // Prompt picker overlay
         if let GlobalMode::PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete } = &app.global_mode {
             let area = f.area();
@@ -222,23 +277,28 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 )));
                 picker_lines.push(Line::from(""));
 
-                  let content_lines: Vec<&str> = edit_buffer.split('\n').collect();
+                let content_lines: Vec<&str> = edit_buffer.split('\n').collect();
                 let max_lines = (h as usize).saturating_sub(6);
-                let cursor_byte = *edit_cursor_pos;
-                let mut line_start = 0usize;
-                for (_line_idx, line) in content_lines.iter().enumerate().take(max_lines) {
-                    let line_str = line.to_string();
-                    let line_end = line_start + line.len();
-                    let in_range = cursor_byte >= line_start && cursor_byte <= line_end;
+                let cursor_pos = *edit_cursor_pos;
+                let mut current_char_idx = 0usize;
+                for line in content_lines.iter().take(max_lines) {
+                    let line_chars: Vec<char> = line.chars().collect();
+                    let line_len = line_chars.len();
+                    let in_range = cursor_pos >= current_char_idx && cursor_pos <= current_char_idx + line_len;
+                    
                     if in_range {
-                        let char_pos = edit_buffer[line_start..cursor_byte.min(line_end)].chars().count();
-                        let before: String = line.chars().take(char_pos).collect();
-                        let after: String = line.chars().skip(char_pos).collect();
-                        picker_lines.push(Line::from(Span::styled(format!("{}|{}", before, after), Style::default().fg(Color::White))));
+                        let pos_in_line = cursor_pos - current_char_idx;
+                        let before: String = line_chars.iter().take(pos_in_line).collect();
+                        let after: String = line_chars.iter().skip(pos_in_line).collect();
+                        picker_lines.push(Line::from(vec![
+                            Span::raw(before),
+                            Span::styled("|", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                            Span::raw(after),
+                        ]));
                     } else {
-                        picker_lines.push(Line::from(Span::raw(line_str)));
+                        picker_lines.push(Line::from(Span::raw(line.to_string())));
                     }
-                    line_start = line_end + 1;
+                    current_char_idx += line_len + 1; // +1 for the newline
                 }
 
                 picker_lines.push(Line::from(""));
@@ -1343,15 +1403,16 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled("⌃E toggle", y));
                 parts.push(Span::raw("  "));
-                parts.push(Span::styled("A about", c));
                 if app.is_settings_dirty() {
                     parts.push(Span::raw("  "));
                     parts.push(Span::styled("*unsaved*", r));
+                    parts.push(Span::raw("  "));
                 }
-                parts.push(Span::raw("  "));
-                parts.push(Span::styled("p profiles", y));
+                parts.push(Span::styled("Ctrl+P profiles", y));
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled("⇥ panels", c));
+                parts.push(Span::raw("  "));
+                parts.push(Span::styled("A about", c));
                 parts
             } else {
                 let parts = match app.active_panel {
@@ -1365,9 +1426,9 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("l/u un/load", y),
                             Span::raw("  "),
-                            Span::styled("A about", c),
-                            Span::raw("  "),
                             Span::styled("⌃H help", c),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                         ]
                     }
                     crate::tui::app::ActivePanel::Log => {
@@ -1395,9 +1456,9 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("↵ toggle", y),
                             Span::raw("  "),
-                            Span::styled("A about", c),
-                            Span::raw("  "),
                             Span::styled("⇥ panels", c),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                         ]
                     }
                     crate::tui::app::ActivePanel::Profiles => {
@@ -1408,11 +1469,11 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("s save", c),
                             Span::raw("  "),
-                            Span::styled("A about", c),
-                            Span::raw("  "),
                             Span::styled("⎋ done", c),
                             Span::raw("  "),
                             Span::styled("⇥ panels", c),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                         ]
                     }
                     crate::tui::app::ActivePanel::SystemPromptPresets => {
@@ -1425,22 +1486,22 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("n new", c),
                             Span::raw("  "),
-                            Span::styled("A about", c),
-                            Span::raw("  "),
                             Span::styled("⎋ done", c),
                             Span::raw("  "),
                             Span::styled("⇥ panels", c),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                         ]
                     }
                     crate::tui::app::ActivePanel::SearchReadme => {
                         vec![
                             Span::styled("j/k nav", c),
                             Span::raw("  "),
-                            Span::styled("A about", c),
-                            Span::raw("  "),
                             Span::styled("⎋ collapse", c),
                             Span::raw("  "),
                             Span::styled("⇥ panels", c),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                         ]
                     }
                     crate::tui::app::ActivePanel::Downloads => {
@@ -1462,9 +1523,9 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("f filter", y),
                             Span::raw("  "),
-                            Span::styled("A about", c),
-                            Span::raw("  "),
                             Span::styled("⌃H help", c),
+                            Span::raw("  "),
+                            Span::styled("A about", c),
                         ]
                     }
                 };

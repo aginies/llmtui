@@ -173,6 +173,39 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Profile picker
+    if let GlobalMode::ProfilePicker { entries, selected } = &mut app.global_mode {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                *selected = selected.saturating_sub(1);
+                app.set_redraw();
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
+                app.set_redraw();
+            }
+            KeyCode::Enter => {
+                if *selected < entries.len() {
+                    let name = entries[*selected].0.clone();
+                    let profile = app.config.merged_profiles().into_iter()
+                        .find(|p| p.name == name)
+                        .map(|p| p.clone());
+                    if let Some(profile) = profile {
+                        app.apply_profile(&profile);
+                    }
+                }
+                app.global_mode = GlobalMode::Normal;
+                app.set_redraw();
+            }
+            KeyCode::Esc => {
+                app.global_mode = GlobalMode::Normal;
+                app.set_redraw();
+            }
+            _ => {}
+        }
+        return;
+    }
+
 // Prompt picker
     if let GlobalMode::PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete } = &mut app.global_mode {
         // Delete confirmation
@@ -1857,25 +1890,28 @@ fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.edit_cursor_pos = 0;
             }
             KeyCode::Char(c) => {
-                app.settings_edit_buffer.insert(app.edit_cursor_pos, c);
+                let byte_idx = app.settings_edit_buffer.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(app.settings_edit_buffer.len());
+                app.settings_edit_buffer.insert(byte_idx, c);
                 app.edit_cursor_pos += 1;
             }
             KeyCode::Backspace => {
                 if app.edit_cursor_pos > 0 {
                     app.edit_cursor_pos -= 1;
-                    app.settings_edit_buffer.remove(app.edit_cursor_pos);
+                    let byte_idx = app.settings_edit_buffer.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(0);
+                    app.settings_edit_buffer.remove(byte_idx);
                 }
             }
             KeyCode::Delete => {
-                if app.edit_cursor_pos < app.settings_edit_buffer.len() {
-                    app.settings_edit_buffer.remove(app.edit_cursor_pos);
+                if app.edit_cursor_pos < app.settings_edit_buffer.chars().count() {
+                    let byte_idx = app.settings_edit_buffer.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(app.settings_edit_buffer.len());
+                    app.settings_edit_buffer.remove(byte_idx);
                 }
             }
             KeyCode::Left => {
                 app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
             }
             KeyCode::Right => {
-                app.edit_cursor_pos = (app.edit_cursor_pos + 1).min(app.settings_edit_buffer.len());
+                app.edit_cursor_pos = (app.edit_cursor_pos + 1).min(app.settings_edit_buffer.chars().count());
             }
             _ => {}
         }
@@ -2235,6 +2271,36 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.reset_to_defaults();
             return;
         }
+    }
+
+      // Ctrl+P: open profile picker modal
+    if key.code == KeyCode::Char('p') && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+        let builtin = builtin_profiles();
+        let mut all_profiles: Vec<crate::config::Profile> = builtin.to_vec();
+        for p in &app.config.profiles {
+            if !builtin.iter().any(|b| b.name == p.name) {
+                all_profiles.push(p.clone());
+            }
+        }
+        app.profile_picker_entries = all_profiles
+            .iter()
+            .map(|p| {
+                let is_builtin = builtin.iter().any(|b| b.name == p.name);
+                let desc = if is_builtin {
+                    "built-in".to_string()
+                } else {
+                    p.description.clone()
+                };
+                (p.name.clone(), desc)
+            })
+            .collect();
+        app.profile_picker_selected = 0;
+        app.global_mode = crate::tui::app::GlobalMode::ProfilePicker {
+            entries: app.profile_picker_entries.clone(),
+            selected: app.profile_picker_selected,
+        };
+        app.set_redraw();
+        return;
     }
 
     // Enable/Disable toggle

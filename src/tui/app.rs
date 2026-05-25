@@ -103,6 +103,10 @@ pub enum GlobalMode {
         edit_cursor_pos: usize,
         confirm_delete: bool,
     },
+    ProfilePicker {
+        entries: Vec<(String, String)>, // (name, description)
+        selected: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -176,6 +180,8 @@ pub struct App {
     pub backend_picker_selected: usize,
     pub prompt_picker_entries: Vec<(String, String)>,
     pub prompt_picker_selected: usize,
+    pub profile_picker_entries: Vec<(String, String)>,
+    pub profile_picker_selected: usize,
 
     pub profiles_scroll_offset: usize,
     pub system_prompt_presets_scroll_offset: usize,
@@ -327,6 +333,8 @@ impl App {
             backend_picker_selected: 0,
             prompt_picker_entries: Vec::new(),
             prompt_picker_selected: 0,
+            profile_picker_entries: Vec::new(),
+            profile_picker_selected: 0,
             profiles_scroll_offset: 0,
             system_prompt_presets_scroll_offset: 0,
             readme_scroll_offset: 0,
