@@ -306,12 +306,13 @@ The Active Model panel shows real-time metrics:
 | Metric | Description |
 |--------|-------------|
 | TPS | Tokens per second (generation speed) |
-| Prompt TPS | Inference speed |
+| Prompt TPS | Prompt processing speed |
 | Context usage | Progress bar showing ctx_used/ctx_max |
 | CPU% | CPU usage percentage |
 | RAM | RAM usage |
 | VRAM | GPU memory used/total |
 | Total VRAM | Sum of VRAM across all loaded models (in title bar) |
+| Tokens Generated | Cumulative decoded tokens throughput |
 
 The panel also shows benchmarking state with progress bar and current parameter display when running BenchTune.
 

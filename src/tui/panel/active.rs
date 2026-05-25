@@ -134,21 +134,53 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
                 ]));
 
-                lines.push(Line::from(vec![
-                    Span::styled(" [ ", Style::default().fg(Color::White)),
-                    Span::styled("TPS: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(format!("{:.1}", app.metrics.tps), Style::default().fg(Color::Green)),
-                    Span::styled(" (in: ", Style::default().fg(Color::DarkGray)),
-                    Span::styled(format!("{:.1}", app.metrics.prompt_tps), Style::default().fg(Color::Green)),
-                    Span::styled(")", Style::default().fg(Color::DarkGray)),
-                    Span::styled(" ]", Style::default().fg(Color::White)),
-                    Span::styled("  [ ", Style::default().fg(Color::White)),
-                    Span::styled("Context: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(bar_only, Style::default().fg(Color::Cyan)),
-                    Span::styled(" ", Style::default().fg(Color::Cyan)),
-                    Span::styled(token_str, Style::default().fg(Color::Cyan)),
-                    Span::styled(" ]", Style::default().fg(Color::White)),
-                ]));
+               let tps_style = if app.metrics.tps > 30.0 {
+                    Style::default().fg(Color::Green)
+                } else if app.metrics.tps > 15.0 {
+                    Style::default().fg(Color::Yellow)
+                } else if app.metrics.tps > 0.0 {
+                    Style::default().fg(Color::Red)
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                };
+                let prompt_style = if app.metrics.prompt_tps > 100.0 {
+                    Style::default().fg(Color::Green)
+                } else if app.metrics.prompt_tps > 50.0 {
+                    Style::default().fg(Color::Yellow)
+                } else if app.metrics.prompt_tps > 0.0 {
+                    Style::default().fg(Color::Red)
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                };
+                
+                let tps_str = format!("{:.1}", app.metrics.tps);
+                let prompt_str = format!("{:.1}", app.metrics.prompt_tps);
+                
+                let latency_str = if app.metrics.latency_per_token_ms > 0.0 {
+                    format!("  {:.0}ms/tok", app.metrics.latency_per_token_ms)
+                } else {
+                    String::new()
+                };
+                
+                let mut tps_parts = Vec::new();
+                tps_parts.push(Span::styled(" [ ", Style::default().fg(Color::White)));
+                tps_parts.push(Span::styled("Tokens/s: ", Style::default().fg(Color::Yellow)));
+                tps_parts.push(Span::styled(tps_str, tps_style));
+                if !latency_str.is_empty() {
+                    tps_parts.push(Span::styled(latency_str, Style::default().fg(Color::DarkGray)));
+                }
+                tps_parts.push(Span::styled(" (prompt: ", Style::default().fg(Color::DarkGray)));
+                tps_parts.push(Span::styled(prompt_str, prompt_style));
+                tps_parts.push(Span::styled(")", Style::default().fg(Color::DarkGray)));
+                tps_parts.push(Span::styled(" ]", Style::default().fg(Color::White)));
+                tps_parts.push(Span::styled("  [ ", Style::default().fg(Color::White)));
+                tps_parts.push(Span::styled("Context: ", Style::default().fg(Color::Yellow)));
+                tps_parts.push(Span::styled(bar_only, Style::default().fg(Color::Cyan)));
+                tps_parts.push(Span::styled(" ", Style::default().fg(Color::Cyan)));
+                tps_parts.push(Span::styled(token_str, Style::default().fg(Color::Cyan)));
+                tps_parts.push(Span::styled(" ]", Style::default().fg(Color::White)));
+                
+                lines.push(Line::from(tps_parts));
 
                 lines.push(Line::from(vec![
                     Span::styled(" [ ", Style::default().fg(Color::White)),
