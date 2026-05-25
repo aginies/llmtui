@@ -24,8 +24,8 @@ pub fn max_context_for_vram(
     n_kv_head: u32,
     gpu_layers: i32,
     flash_attn: bool,
-    #[allow(unused_variables)]
     uniform_cache: bool,
+    parallel: u32,
     cache_type_k: &str,
     cache_type_v: &str,
 ) -> u32 {
@@ -67,17 +67,25 @@ pub fn max_context_for_vram(
 
     let flash_attn_factor = if flash_attn { 0.5 } else { 1.0 };
 
-    // KV quant factor (relative to f16 = 2 bytes)
-    let kv_quant_factor = crate::models::kv_quant_bytes_from_str(cache_type_k, cache_type_v) / 2.0;
+    // Uniform cache factor: when enabled, KV cache is shared across `parallel` sequences,
+    // reducing per-sequence VRAM cost and allowing more context per sequence.
+    let uniform_cache_factor = if uniform_cache && parallel > 0 {
+        1.0 / parallel as f64
+    } else {
+        1.0
+    };
 
-    // Total KV cache budget (all layers): 2 * hidden * ctx * total_layers * gqa * flash * quant
-    // We then factor in the VRAM cost: only gpu_layers/total_layers fraction of the KV cache lives in VRAM.
-    let kv_per_token = 2.0 * hidden_size as f64 * 2.0 * gqa_ratio * flash_attn_factor * kv_quant_factor;
+    // KV quant factor: average bytes per K/V element.
+    let kv_bytes = crate::models::kv_quant_bytes_from_str(cache_type_k, cache_type_v);
 
-    // ctx = kv_budget / (kv_per_token * gpu_layers)
-    // Note: kv_per_token is per-token cost for gpu_layers worth of KV cache in VRAM.
-    if gpu_layers > 0.0 && kv_per_token > 0.0 {
-        let ctx = kv_budget / (kv_per_token * gpu_layers);
+    // Bytes per token per layer for K+V cache:
+    // 2 (K+V) * hidden * gqa_ratio * flash_attn_factor * kv_bytes
+    let kv_bytes_per_token_per_layer = 2.0 * hidden_size as f64 * gqa_ratio * flash_attn_factor * kv_bytes;
+
+    // ctx = (kv_budget_MiB * 1024^2) / (kv_bytes_per_token_per_layer * gpu_layers * uniform_cache_factor)
+    // uniform_cache_factor divides the denominator, effectively multiplying ctx by `parallel` when uniform is enabled.
+    if gpu_layers > 0.0 && kv_bytes_per_token_per_layer > 0.0 {
+        let ctx = (kv_budget * 1024.0 * 1024.0) / (kv_bytes_per_token_per_layer * gpu_layers * uniform_cache_factor);
         ctx as u32
     } else {
         0
@@ -221,7 +229,7 @@ pub fn render_model_lines(
 
         if effective_vram > 0 && meta.hidden_size > 0 {
             let max_ctx = max_context_for_vram(
-                model.file_size,
+                model.file_size / (1024 * 1024),
                 effective_vram,
                 meta.layers,
                 meta.hidden_size,
@@ -237,6 +245,7 @@ pub fn render_model_lines(
                 },
                 settings.flash_attn,
                 settings.uniform_cache,
+                settings.parallel,
                 &settings.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "F16".to_string()),
                 &settings.cache_type_v.map(|v| v.to_string()).unwrap_or_else(|| "F16".to_string()),
             );
