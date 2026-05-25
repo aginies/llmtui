@@ -166,44 +166,44 @@ async fn main() -> Result<()> {
 
                 // Start pending download
                 if let Some((model_id, filename, download_url)) = app.pending_download.take() {
-                    let models_dir = app.config.models_dir.clone();
-                    let dest = models_dir.join(&filename);
-                    let model_id_clone = model_id.clone();
-                    let filename_clone = filename.clone();
-                    let url_clone = download_url.clone();
-                    let cancelled = Arc::new(AtomicBool::new(false));
-                    let cancelled_clone = cancelled.clone();
-                    app.add_log(format!("Downloading {}...", model_id), crate::config::LogLevel::Info);
-                    // Create broadcast channel if not already created (shared by all downloads)
-                    if app.download_rx.is_none() {
-                        let (tx, rx) = tokio::sync::broadcast::channel(10);
-                        app.download_tx = Some(tx);
-                        app.download_rx = Some(rx);
-                    }
-                    let tx = app.download_tx.as_ref().unwrap().clone();
-                    let tx_clone = tx.clone();
-                    let cancelled_for_state = cancelled_clone.clone();
-                    let download_state = Arc::new(AtomicU8::new(1));
-                    let download_state_clone = download_state.clone();
+            let models_dir = app.config.models_dir.clone();
+            let dest = models_dir.join(&filename);
+            let model_id_clone = model_id.clone();
+            let filename_clone = filename.clone();
+            let url_clone = download_url.clone();
+            let cancelled = Arc::new(AtomicBool::new(false));
+            let cancelled_clone = cancelled.clone();
+            app.add_log(format!("Downloading {}...", model_id), crate::config::LogLevel::Info);
+            // Create broadcast channel if not already created (shared by all downloads)
+            if app.download_rx.is_none() {
+                let (tx, rx) = tokio::sync::broadcast::channel(10);
+                app.download_tx = Some(tx);
+                app.download_rx = Some(rx);
+            }
+            let tx = app.download_tx.as_ref().unwrap().clone();
+            let tx_clone = tx.clone();
+            let cancelled_for_state = cancelled_clone.clone();
+            let download_state = Arc::new(AtomicU8::new(1));
+            let download_state_clone = download_state.clone();
 
-                    tokio::spawn(async move {
-                        let mut state = DownloadState::new(model_id_clone.clone(), filename_clone.clone(), 0);
-                        state.cancel_token = Some(cancelled_for_state);
-                        state.download_state = 1;
-                        state.download_state_arc = Some(download_state_clone.clone());
-                        let result = hub::download_file(&model_id_clone, &filename_clone, &url_clone, &dest, &mut state, download_state_clone, tx_clone).await;
-                        if let Err(e) = result {
-                            state.status = crate::models::DownloadStatus::Error(e.to_string());
-                            let _ = tx.send(state);
-                        }
-                    });
-                    app.downloading = true;
-                    app.cancelled = Some(cancelled);
-                    app.download_scroll_state.select(Some(0));
-                    app.set_redraw();
-                    // Don't switch models_mode to Download here anymore,
-                    // the side panel in render.rs will handle it using app.downloading and a temporary state.
+            tokio::spawn(async move {
+                let mut state = DownloadState::new(model_id_clone.clone(), filename_clone.clone(), 0);
+                state.cancel_token = Some(cancelled_for_state);
+                state.download_state = 1;
+                state.download_state_arc = Some(download_state_clone.clone());
+                let result = hub::download_file(&model_id_clone, &filename_clone, &url_clone, &dest, &mut state, download_state_clone, tx_clone).await;
+                if let Err(e) = result {
+                    state.status = crate::models::DownloadStatus::Error(e.to_string());
+                    let _ = tx.send(state);
                 }
+            });
+            app.downloading = true;
+            app.cancelled = Some(cancelled);
+            app.download_scroll_state.select(Some(0));
+            app.set_redraw();
+            // Don't switch models_mode to Download here anymore,
+            // the side panel in render.rs will handle it using app.downloading and a temporary state.
+        }
 
         // Start pending deletion
         if !matches!(app.global_mode, crate::tui::app::GlobalMode::Confirmation { .. }) {
