@@ -188,13 +188,7 @@ async fn main() -> Result<()> {
             let cancelled = Arc::new(AtomicBool::new(false));
             let cancelled_clone = cancelled.clone();
             app.add_log(format!("Downloading {}...", model_id), crate::config::LogLevel::Info);
-            // Create broadcast channel if not already created (shared by all downloads)
-            if app.download_rx.is_none() {
-                let (tx, rx) = tokio::sync::broadcast::channel(10);
-                app.download_tx = Some(tx);
-                app.download_rx = Some(rx);
-            }
-            let tx = app.download_tx.as_ref().unwrap().clone();
+            let tx = ensure_download_channel(&mut app);
             let tx_clone = tx.clone();
             let cancelled_for_state = cancelled_clone.clone();
             let download_state = Arc::new(AtomicU8::new(1));
@@ -318,13 +312,7 @@ async fn main() -> Result<()> {
             let server_mode_clone = app.server_mode.clone();
             let router_max_models_clone = app.router_max_models;
             
-            // Ensure download channel exists so progress reporting works for backend binaries
-            if app.download_rx.is_none() {
-                let (tx, rx) = tokio::sync::broadcast::channel(10);
-                app.download_tx = Some(tx);
-                app.download_rx = Some(rx);
-            }
-            let download_tx_clone = app.download_tx.clone();
+            let download_tx_clone = Some(ensure_download_channel(&mut app));
 
             let display_name = model_opt.as_ref().map(|m| m.display_name.clone()).unwrap_or_else(|| "Router".to_string());
             if let Some(m) = &model_opt {
@@ -1223,6 +1211,15 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
         Ok(())
         }
     }
+}
+
+fn ensure_download_channel(app: &mut App) -> tokio::sync::broadcast::Sender<crate::models::DownloadState> {
+    if app.download_rx.is_none() {
+        let (tx, rx) = tokio::sync::broadcast::channel(10);
+        app.download_tx = Some(tx);
+        app.download_rx = Some(rx);
+    }
+    app.download_tx.as_ref().unwrap().clone()
 }
 
 /// Scan a directory (recursively) for .gguf model files.

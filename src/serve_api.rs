@@ -64,9 +64,19 @@ async fn proxy_streaming(
     let url = format!("{}{}", state.server_url, path);
 
     // Convert request body to a stream for reqwest
-    let body_bytes = axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
+    let body_bytes = match axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
         .await
-        .unwrap_or_default();
+    {
+        Ok(b) => b,
+        Err(e) => {
+            info!("Failed to read request body for {}: {}", path, e);
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": format!("Failed to read request body: {}", e)})),
+            )
+                .into_response();
+        }
+    };
     let body_stream = stream::iter(vec![Ok::<_, reqwest::Error>(body_bytes.clone())]);
 
     let mut request_builder = match method {
@@ -109,7 +119,17 @@ async fn proxy_streaming(
                 *response.headers_mut() = headers;
                 response
             } else {
-                let bytes = resp.bytes().await.unwrap_or_default();
+                let bytes = match resp.bytes().await {
+                    Ok(b) => b,
+                    Err(e) => {
+                        info!("Failed to read response body for {}: {}", path, e);
+                        return (
+                            StatusCode::BAD_GATEWAY,
+                            Json(serde_json::json!({"error": format!("Failed to read backend response: {}", e)})),
+                        )
+                            .into_response();
+                    }
+                };
                 (status, headers, bytes).into_response()
             }
         }
@@ -201,9 +221,12 @@ pub async fn start_api_server(
         info!("API key authentication is ENABLED");
     }
 
-    let app = Router::new()
+    let public_routes = Router::new()
         .route("/health", get(proxy_streaming))
-        .route("/metrics", get(proxy_streaming))
+        .route("/metrics", get(proxy_streaming));
+
+    let app = Router::new()
+        .merge(public_routes)
         .route("/v1/chat/completions", post(proxy_streaming))
         .route("/v1/completions", post(proxy_streaming))
         .route("/v1/embeddings", post(proxy_streaming))
