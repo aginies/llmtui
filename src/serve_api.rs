@@ -1,12 +1,15 @@
 use std::net::SocketAddr;
 use std::time::Instant;
 
+use axum::body::Body;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
+use futures_util::{stream, StreamExt};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
@@ -49,14 +52,22 @@ async fn auth_middleware(
     next.run(req).await
 }
 
-/// Proxy a request to the llama-server backend.
-async fn proxy_request(
+/// Proxy a request to the llama-server backend with SSE streaming support.
+/// Checks Content-Type: if text/event-stream, streams the body; otherwise buffers.
+async fn proxy_streaming(
     State(state): State<ApiState>,
-    method: axum::http::Method,
-    path: String,
-    body: Option<String>,
+    req: axum::extract::Request,
 ) -> impl IntoResponse {
+    let path = req.uri().path().to_string();
+    let method = req.method().clone();
+
     let url = format!("{}{}", state.server_url, path);
+
+    // Convert request body to a stream for reqwest
+    let body_bytes = axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
+        .await
+        .unwrap_or_default();
+    let body_stream = stream::iter(vec![Ok::<_, reqwest::Error>(body_bytes.clone())]);
 
     let mut request_builder = match method {
         axum::http::Method::GET => state.client.get(&url),
@@ -66,23 +77,41 @@ async fn proxy_request(
         _ => state.client.get(&url),
     };
 
-    let response = match body {
-        Some(body_str) => {
-            request_builder = request_builder.header("Content-Type", "application/json");
-            request_builder
-                .body(body_str)
-                .send()
-                .await
-        }
-        None => request_builder.send().await,
-    };
+    if matches!(method, axum::http::Method::POST | axum::http::Method::PUT) {
+        request_builder = request_builder.header("Content-Type", "application/json");
+    }
+
+    let response = request_builder
+        .body(reqwest::Body::wrap_stream(body_stream))
+        .send()
+        .await;
 
     match response {
         Ok(resp) => {
             let status = resp.status();
             let headers = resp.headers().clone();
-            let bytes = resp.bytes().await.unwrap_or_default();
-            (status, headers, bytes).into_response()
+            let is_sse = resp
+                .headers()
+                .get(axum::http::header::CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok())
+                .map(|v| v.contains("text/event-stream"))
+                .unwrap_or(false);
+
+            if is_sse {
+                let mut response = axum::response::Response::new(Body::from_stream(
+                    resp.bytes_stream().map(|result| {
+                        result.map_err(|e| {
+                            std::io::Error::new(std::io::ErrorKind::Other, e)
+                        })
+                    }),
+                ));
+                *response.status_mut() = status;
+                *response.headers_mut() = headers;
+                response
+            } else {
+                let bytes = resp.bytes().await.unwrap_or_default();
+                (status, headers, bytes).into_response()
+            }
         }
         Err(e) => {
             info!("Proxy error for {}: {}", path, e);
@@ -93,47 +122,6 @@ async fn proxy_request(
                 .into_response()
         }
     }
-}
-
-/// Proxy a POST request with JSON body.
-async fn proxy_post(
-    State(state): State<ApiState>,
-    req: axum::extract::Request,
-) -> impl IntoResponse {
-    let path = req.uri().path().to_string();
-    let body_bytes = axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
-        .await
-        .unwrap_or_default();
-    let body_str = String::from_utf8_lossy(&body_bytes).to_string();
-    proxy_request(State(state), axum::http::Method::POST, path, Some(body_str)).await
-}
-
-/// Proxy a GET request.
-async fn proxy_get(
-    State(state): State<ApiState>,
-    req: axum::extract::Request,
-) -> impl IntoResponse {
-    let path = req.uri().path().to_string();
-    proxy_request(State(state), axum::http::Method::GET, path, None).await
-}
-
-/// Catch-all fallback: proxy any unmatched path to the llama-server backend.
-async fn proxy_fallback(
-    State(state): State<ApiState>,
-    req: axum::extract::Request,
-) -> impl IntoResponse {
-    let path = req.uri().path().to_string();
-    let method = req.method().clone();
-    let body = match method {
-        axum::http::Method::POST | axum::http::Method::PUT => {
-            let body_bytes = axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
-                .await
-                .unwrap_or_default();
-            Some(String::from_utf8_lossy(&body_bytes).to_string())
-        }
-        _ => None,
-    };
-    proxy_request(State(state), method, path, body).await
 }
 
 /// Custom status endpoint.
@@ -190,6 +178,20 @@ pub async fn start_api_server(
         client,
     };
 
+    let cors = CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+            axum::http::Method::OPTIONS,
+        ])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+        ]);
+
     let api_key_clone = state.api_key.clone();
     info!(
         "API server starting on http://{} (proxying to http://127.0.0.1:{})",
@@ -200,14 +202,15 @@ pub async fn start_api_server(
     }
 
     let app = Router::new()
-        .route("/health", get(proxy_get))
-        .route("/metrics", get(proxy_get))
-        .route("/v1/chat/completions", post(proxy_post))
-        .route("/v1/completions", post(proxy_post))
-        .route("/v1/embeddings", post(proxy_post))
-        .route("/v1/models", get(proxy_get))
+        .route("/health", get(proxy_streaming))
+        .route("/metrics", get(proxy_streaming))
+        .route("/v1/chat/completions", post(proxy_streaming))
+        .route("/v1/completions", post(proxy_streaming))
+        .route("/v1/embeddings", post(proxy_streaming))
+        .route("/v1/models", get(proxy_streaming))
         .route("/api/status", get(status))
-        .fallback(proxy_fallback)
+        .fallback(proxy_streaming)
+        .layer(cors)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,

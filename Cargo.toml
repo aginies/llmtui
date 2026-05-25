@@ -30,6 +30,6 @@ flate2 = "1"
 tar = "0.4"
 zip = "2"
 axum = "0.8"
-tower-http = { version = "0.6", features = ["trace"] }
+tower-http = { version = "0.6", features = ["trace", "cors"] }
 local-ip-address = "0.6"
 libc = "0.2"
