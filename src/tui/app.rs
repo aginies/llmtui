@@ -213,7 +213,7 @@ pub struct App {
     pub model_n_head: u32, // attention head count (n_head)
     pub model_n_kv_head: u32, // KV head count (n_kv_head)
     pub max_threads: u32, // max threads = physical CPU cores
-    pub pending_download: Option<(String, String, String)>, // (model_id, filename, download_url)
+    pub pending_download: Option<(String, String, String, u64)>, // (model_id, filename, download_url, file_size)
     pub pending_deletion: Option<std::path::PathBuf>,
     pub pending_backend_deletion: Option<(crate::models::Backend, String)>,
     pub pending_spawn: Option<(Option<DiscoveredModel>, ModelSettings)>,

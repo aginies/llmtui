@@ -2,6 +2,24 @@ use anyhow::Result;
 use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 
+/// Get the amount of free disk space (in bytes) at the given path.
+/// Uses `statvfs` on Unix systems.
+pub fn get_free_space_bytes(path: &std::path::Path) -> u64 {
+    let path_str = path.to_string_lossy();
+    let c_path = std::ffi::CString::new(path_str.as_ref()).unwrap();
+
+    let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+    let result = unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) };
+
+    if result != 0 {
+        return 0;
+    }
+
+    // f_bavail = free blocks available to unprivileged user
+    // f_frsize = fundamental filesystem block size
+    stat.f_bavail as u64 * stat.f_frsize as u64
+}
+
 fn default_tag(repo: &str) -> String {
     if repo.contains("lemonade") {
         "b1273".to_string()

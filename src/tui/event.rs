@@ -1157,12 +1157,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             KeyCode::Enter => {
                 let download_info = if let ModelsMode::Files { model_id, files, selected_idx, .. } = &app.models_mode {
-                    selected_idx.and_then(|idx| files.get(idx).map(|(f, _s, u)| (model_id.clone(), f.clone(), u.clone())))
+                    selected_idx.and_then(|idx| files.get(idx).map(|(f, s, u)| (model_id.clone(), f.clone(), u.clone(), *s)))
                 } else {
                     None
                 };
 
-                if let Some((model_id, filename, url)) = download_info {
+                if let Some((model_id, filename, url, file_size)) = download_info {
                     // Check if download is already in progress
                     if app.download_progress.iter().any(|d| d.model_id == model_id && d.filename == filename) {
                         app.add_log("Download already in progress", crate::config::LogLevel::Warning);
@@ -1176,7 +1176,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         return;
                     }
                     app.add_log(format!("Downloading {}...", filename), crate::config::LogLevel::Info);
-                    app.pending_download = Some((model_id, filename, url));
+                    app.pending_download = Some((model_id, filename, url, file_size));
                 }
                 return;
             }
@@ -2941,8 +2941,38 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         ])
         .split(area);
 
-    // 1. Check Log panel
+    // 1. Check Log panel (and Downloads if downloading)
     if chunks[3].contains(pos) {
+        // When downloading, check if we're in the downloads area (bottom 7 lines)
+        if app.downloading {
+            let bottom_chunks = ratatui::layout::Layout::default()
+                .direction(ratatui::layout::Direction::Vertical)
+                .constraints([
+                    ratatui::layout::Constraint::Fill(1),    // log
+                    ratatui::layout::Constraint::Length(7),  // downloads
+                ])
+                .split(chunks[3]);
+
+            if bottom_chunks[1].contains(pos) {
+                match mouse.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        app.active_panel = ActivePanel::Downloads;
+                        app.set_redraw();
+                    }
+                    MouseEventKind::ScrollUp => {
+                        app.download_scroll_state.select_previous();
+                        app.set_redraw();
+                    }
+                    MouseEventKind::ScrollDown => {
+                        app.download_scroll_state.select_next();
+                        app.set_redraw();
+                    }
+                    _ => {}
+                }
+                return;
+            }
+        }
+
         match mouse.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 app.active_panel = ActivePanel::Log;
@@ -3096,6 +3126,35 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                     app.active_panel = ActivePanel::Models;
                     app.set_redraw();
                 }
+        }
+    }
+
+    // Handle downloads-only layout (when log is not visible but downloading)
+    if app.downloading && !app.log_expanded {
+        let bottom_area = chunks[3];
+        let bottom_chunks = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                ratatui::layout::Constraint::Length(7),  // downloads
+            ])
+            .split(bottom_area);
+
+        if bottom_chunks[0].contains(pos) {
+            match mouse.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    app.active_panel = ActivePanel::Downloads;
+                    app.set_redraw();
+                }
+                MouseEventKind::ScrollUp => {
+                    app.download_scroll_state.select_previous();
+                    app.set_redraw();
+                }
+                MouseEventKind::ScrollDown => {
+                    app.download_scroll_state.select_next();
+                    app.set_redraw();
+                }
+                _ => {}
+            }
         }
     }
 }

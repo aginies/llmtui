@@ -165,9 +165,23 @@ async fn main() -> Result<()> {
                 }
 
                 // Start pending download
-                if let Some((model_id, filename, download_url)) = app.pending_download.take() {
+                if let Some((model_id, filename, download_url, file_size)) = app.pending_download.take() {
             let models_dir = app.config.models_dir.clone();
             let dest = models_dir.join(&filename);
+            let free_space = hub::get_free_space_bytes(&models_dir);
+            if file_size > free_space {
+                app.add_log(
+                    format!(
+                        "Not enough disk space to download {}: need {} but only {} available",
+                        filename,
+                        crate::tui::format_size(file_size),
+                        crate::tui::format_size(free_space)
+                    ),
+                    crate::config::LogLevel::Warning,
+                );
+                app.set_redraw();
+                continue;
+            }
             let model_id_clone = model_id.clone();
             let filename_clone = filename.clone();
             let url_clone = download_url.clone();
