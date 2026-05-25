@@ -167,7 +167,25 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         push_arg(&mut cmd, &mut parts, "--chat-template", template);
     }
 
-    if let Some(ref kwargs) = settings.chat_template_kwargs {
+    // Inject system prompt via chat template kwargs when it differs from default
+    if settings.system_prompt != "You are a helpful assistant." {
+        let escaped = settings.system_prompt
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"");
+        let mut merged = serde_json::Map::new();
+        if let Some(ref kwargs) = settings.chat_template_kwargs {
+            if let Ok(obj) = serde_json::from_str::<serde_json::Value>(kwargs) {
+                if let serde_json::Value::Object(map) = obj {
+                    for (k, v) in map {
+                        merged.insert(k, v);
+                    }
+                }
+            }
+        }
+        merged.insert("system_prompt".to_string(), serde_json::Value::String(escaped));
+        push_arg(&mut cmd, &mut parts, "--chat-template-kwargs",
+            serde_json::to_string(&merged).unwrap());
+    } else if let Some(ref kwargs) = settings.chat_template_kwargs {
         push_arg(&mut cmd, &mut parts, "--chat-template-kwargs", kwargs);
     }
 
