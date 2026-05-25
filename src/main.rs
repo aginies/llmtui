@@ -411,7 +411,7 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                             
                             app.loading_phases = std::iter::once(crate::tui::app::LoadingPhase::Complete).collect();
                             app.last_active_phase = Some(crate::tui::app::LoadingPhase::Complete);
-                            app.loading_progress = 1.0;
+                            app.progress_target = 1.0;
                             
                             // Start continuous metrics polling task (runs until server stops).
                             let (metrics_tx, metrics_rx) = tokio::sync::mpsc::channel(10);
@@ -491,7 +491,7 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                             app.sync_task_handle = Some(_sync_task_handle);
                         }
                         Ok(Err(e)) => {
-                            app.loading_progress = 1.0;
+                            app.progress_target = 1.0;
                             app.add_log(format!("ERROR: Server failed: {}", e), crate::config::LogLevel::Error);
                             // Drain any logs already in the channel
                             if let Some(mut rx) = app.server_log_rx.take() {
@@ -504,7 +504,7 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                             app.reset_loading_state(true);
                         }
                         Err(e) => {
-                            app.loading_progress = 1.0;
+                            app.progress_target = 1.0;
                             app.add_log(format!("ERROR: Spawn task panicked: {}", e), crate::config::LogLevel::Error);
                         }
                     }
@@ -741,8 +741,9 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                     }
                     app.loaded_model_names.lock().unwrap().clear();
 
-                    app.loading_phases = HashSet::new();
+                   app.loading_phases = HashSet::new();
                     app.loading_progress = 0.0;
+                    app.progress_target = 0.0;
                  }
                 Err(e) => {
                     app.add_log(format!("Failed to stop server: {}", e), crate::config::LogLevel::Error);
@@ -846,8 +847,14 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                             && let Ok(tps) = val_str.parse::<f64>() {
                                 if line.contains("prompt eval time =") {
                                     app.metrics.prompt_tps = tps;
+                                    if tps > 0.0 {
+                                        app.metrics.prompt_latency_ms = 1000.0 / tps;
+                                    }
                                 } else if line.contains("eval time =") {
                                     app.metrics.tps = tps;
+                                    if tps > 0.0 {
+                                        app.metrics.latency_per_token_ms = 1000.0 / tps;
+                                    }
                                 }
                             }
                 // Parse Context Usage from logs: "n_tokens = 12667"
@@ -868,6 +875,26 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                             && let Ok(mib) = parts[0].parse::<f64>() {
                                 app.metrics.gpu_mem_used = (mib * 1024.0 * 1024.0) as u64;
                             }
+                    }
+                // Parse print_timing: "print_timing: id  2 | task 70 | n_decoded =    100, tg = 171.65 t/s"
+                if line.contains("print_timing:")
+                    && line.contains("n_decoded =")
+                    && line.contains("t/s") {
+                        if let Some(tokens_part) = line.split("n_decoded =").last() {
+                            let tokens_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
+                            if let Ok(tokens) = tokens_str.parse::<u64>() {
+                                app.metrics.decoded_tokens = tokens;
+                            }
+                        }
+                        if let Some(tg_part) = line.split("tg =").last() {
+                            let tg_str = tg_part.split_whitespace().next().unwrap_or("");
+                            if let Ok(tg) = tg_str.parse::<f64>() {
+                                app.metrics.throughput = tg;
+                                if tg > 0.0 {
+                                    app.metrics.latency_per_token_ms = 1000.0 / tg;
+                                }
+                            }
+                        }
                     }
                 server_logs.push(line);
                 if server_logs.len() > 100 { break; } // limit batch size
@@ -969,6 +996,10 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                 if m.tps == 0.0 && app.metrics.tps > 0.0 {
                     m.tps = app.metrics.tps;
                 }
+                // Preserve log-parsed prompt_tps if endpoint returns 0
+                if m.prompt_tps == 0.0 && app.metrics.prompt_tps > 0.0 {
+                    m.prompt_tps = app.metrics.prompt_tps;
+                }
                 // Prefer log-parsed context usage over endpoint when both are available,
                 // so the display reflects actual inference state (including compaction drops).
                 if app.metrics.ctx_used > 0 {
@@ -981,6 +1012,13 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                     if m.gpu_mem_total == 0 {
                         m.gpu_mem_total = app.metrics.gpu_mem_total;
                     }
+                }
+                     // Compute latency from TPS values
+                if m.tps > 0.0 {
+                    m.latency_per_token_ms = 1000.0 / m.tps;
+                }
+                if m.prompt_tps > 0.0 {
+                    m.prompt_latency_ms = 1000.0 / m.prompt_tps;
                 }
                 app.metrics = m;
                 received_metrics = true;

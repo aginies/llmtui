@@ -184,6 +184,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                 lines.push(Line::from(vec![
                     Span::styled(" [ ", Style::default().fg(Color::White)),
+                    Span::styled("Tokens Generated: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(format!("{:.1}", app.metrics.throughput), Style::default().fg(Color::Green)),
+                    Span::styled(" t/s, Decoded: ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(format!("{}", app.metrics.decoded_tokens), Style::default().fg(Color::Cyan)),
+                    Span::styled(" ]", Style::default().fg(Color::White)),
+                ]));
+
+                lines.push(Line::from(vec![
+                    Span::styled(" [ ", Style::default().fg(Color::White)),
                     Span::styled("CPU: ", Style::default().fg(Color::Yellow)),
                     Span::styled(format!("{:.1}%", app.metrics.cpu_usage), Style::default().fg(Color::Cyan)),
                     Span::styled(" ]", Style::default().fg(Color::White)),
