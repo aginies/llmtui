@@ -93,6 +93,8 @@ pub struct DownloadState {
     pub download_state_arc: Option<std::sync::Arc<std::sync::atomic::AtomicU8>>,
     pub start_time: std::time::Instant,
     pub bytes_per_second: f64,
+    /// Filesystem path where the download is being saved.
+    pub dest: Option<std::path::PathBuf>,
 }
 
 impl DownloadState {
@@ -109,6 +111,7 @@ impl DownloadState {
             download_state_arc: None,
             start_time: std::time::Instant::now(),
             bytes_per_second: 0.0,
+            dest: None,
         }
     }
 }
@@ -283,6 +286,7 @@ pub enum DownloadStatus {
     Paused,
     Complete,
     Error(String),
+    Cancelled,
 }
 
 // ── Cache type enums ──────────────────────────────────────────

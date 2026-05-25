@@ -49,6 +49,7 @@ pub fn render_download_panel(
                 crate::models::DownloadStatus::Downloading => "Downloading...",
                 crate::models::DownloadStatus::Paused => "Paused",
                 crate::models::DownloadStatus::Complete => "Complete",
+                crate::models::DownloadStatus::Cancelled => "Cancelled",
                 crate::models::DownloadStatus::Error(e) => e.as_str(),
             };
 
@@ -56,6 +57,7 @@ pub fn render_download_panel(
                 crate::models::DownloadStatus::Downloading => Color::Yellow,
                 crate::models::DownloadStatus::Paused => Color::White,
                 crate::models::DownloadStatus::Complete => Color::Green,
+                crate::models::DownloadStatus::Cancelled => Color::Red,
                 crate::models::DownloadStatus::Error(_) => Color::Red,
             };
 

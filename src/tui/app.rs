@@ -1563,7 +1563,7 @@ impl App {
                 Line::from(""),
                 Line::from(vec![Span::styled("j / k / Arrow keys", y), Span::raw("  Select download")]),
                 Line::from(vec![Span::styled("p", y), Span::raw("  Pause / Resume selected download")]),
-                Line::from(vec![Span::styled("⌃C", y), Span::raw("  Cancel selected download")]),
+                Line::from(vec![Span::styled("⌥C", y), Span::raw("  Cancel selected download")]),
             ],
             // Note: BenchTuneSetup is handled via GlobalMode logic in render/event,
             // but we can add a placeholder if we want dedicated help for it.

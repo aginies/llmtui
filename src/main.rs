@@ -199,11 +199,17 @@ async fn main() -> Result<()> {
             let cancelled_for_state = cancelled_clone.clone();
             let download_state = Arc::new(AtomicU8::new(1));
             let download_state_clone = download_state.clone();
+            let dest_path = dest.clone();
+            app.download_progress.last_mut().and_then(|d| {
+                d.dest = Some(dest_path.clone());
+                None::<()>
+            });
 
             tokio::spawn(async move {
                 let mut state = DownloadState::new(model_id_clone.clone(), filename_clone.clone(), 0);
                 state.cancel_token = Some(cancelled_for_state);
                 state.download_state = 1;
+                state.dest = Some(dest_path);
                 state.download_state_arc = Some(download_state_clone.clone());
                 let result = hub::download_file(&model_id_clone, &filename_clone, &url_clone, &dest, &mut state, download_state_clone, tx_clone).await;
                 if let Err(e) = result {
@@ -816,7 +822,7 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
 
         // Process completed downloads (separate pass to avoid borrow issues)
         let completed: Vec<DownloadState> = app.download_progress.iter()
-            .filter(|d| matches!(d.status, crate::models::DownloadStatus::Complete | crate::models::DownloadStatus::Error(_)))
+            .filter(|d| matches!(d.status, crate::models::DownloadStatus::Complete | crate::models::DownloadStatus::Error(_) | crate::models::DownloadStatus::Cancelled))
             .cloned()
             .collect();
         if !completed.is_empty() {
@@ -834,11 +840,22 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                         let name = if state.model_id == "llama-server" { "Backend" } else { &state.filename };
                         app.add_log(format!("Download failed ({}): {}", name, e), crate::config::LogLevel::Error);
                     }
+                    crate::models::DownloadStatus::Cancelled => {
+                        let name = if state.model_id == "llama-server" { "Backend" } else { &state.filename };
+                        app.add_log(format!("Download cancelled: {}", name), crate::config::LogLevel::Info);
+                        if let Some(ref dest) = state.dest {
+                                        if dest.exists() {
+                                if let Err(e) = std::fs::remove_file(dest) {
+                                    app.add_log(format!("Failed to remove temp file {}: {}", dest.display(), e), crate::config::LogLevel::Warning);
+                                }
+                            }
+                        }
+                    }
                     _ => {}
                 }
             }
             app.download_progress.retain(|d| {
-                !matches!(d.status, crate::models::DownloadStatus::Complete | crate::models::DownloadStatus::Error(_))
+                !matches!(d.status, crate::models::DownloadStatus::Complete | crate::models::DownloadStatus::Error(_) | crate::models::DownloadStatus::Cancelled)
             });
             app.downloading = !app.download_progress.is_empty();
             if !app.downloading {
