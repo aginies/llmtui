@@ -173,6 +173,182 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+// Prompt picker
+    if let GlobalMode::PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete } = &mut app.global_mode {
+        // Delete confirmation
+        if *confirm_delete {
+            match key.code {
+                KeyCode::Char('y') => {
+                    if *selected < entries.len() {
+                        let name = entries[*selected].0.clone();
+                        if matches!(name.as_str(), "General" | "Coder" | "Thinker" | "Mathematician") {
+                            let log_msg = "Cannot delete built-in preset";
+                            let log_level = crate::config::LogLevel::Error;
+                            *confirm_delete = false;
+                            app.add_log(log_msg, log_level);
+                            app.set_redraw();
+                            return;
+                        } else {
+                            entries.remove(*selected);
+                            if *selected >= entries.len() && *selected > 0 {
+                                *selected = entries.len() - 1;
+                            }
+                            if let Some(preset) = app.config.system_prompt_presets.iter().position(|p| p.name == name) {
+                                app.config.system_prompt_presets.remove(preset);
+                            }
+                            let _ = app.config.save();
+                        }
+                    }
+                    *confirm_delete = false;
+                    app.set_redraw();
+                }
+                KeyCode::Char('n') | KeyCode::Esc => {
+                    *confirm_delete = false;
+                    app.set_redraw();
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // Edit mode
+        if *editing {
+            match key.code {
+                KeyCode::Esc => {
+                    *editing = false;
+                    app.set_redraw();
+                }
+                KeyCode::Enter => {
+                    let byte_pos = edit_buffer.char_indices()
+                        .nth(*edit_cursor_pos)
+                        .map(|(i, _)| i)
+                        .unwrap_or(edit_buffer.len());
+                    edit_buffer.insert_str(byte_pos, "\n");
+                    *edit_cursor_pos += 1;
+                    app.set_redraw();
+                }
+                KeyCode::Char('s') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                    let mut saved = false;
+                    if *selected < entries.len() {
+                        let name = entries[*selected].0.clone();
+                        let content = edit_buffer.clone();
+                        if let Some(preset) = app.config.system_prompt_presets.iter_mut().find(|p| p.name == name) {
+                            preset.content = content;
+                            saved = app.config.save().is_ok();
+                        }
+                    }
+                    let log_msg = if saved { "Saved preset" } else { "Failed to save preset" };
+                    let log_level = if saved {
+                        crate::config::LogLevel::Info
+                    } else {
+                        crate::config::LogLevel::Error
+                    };
+                    *editing = false;
+                    app.add_log(log_msg, log_level);
+                    app.set_redraw();
+                }
+                KeyCode::Char(c) => {
+                    let char_pos = *edit_cursor_pos;
+                    let byte_pos = edit_buffer.char_indices()
+                        .nth(char_pos)
+                        .map(|(i, _)| i)
+                        .unwrap_or(edit_buffer.len());
+                    edit_buffer.insert_str(byte_pos, &c.to_string());
+                    *edit_cursor_pos += 1;
+                    app.set_redraw();
+                }
+                KeyCode::Backspace => {
+                    if *edit_cursor_pos > 0 {
+                        let char_pos = *edit_cursor_pos - 1;
+                        let byte_pos = edit_buffer.char_indices()
+                            .nth(char_pos)
+                            .map(|(i, _)| i)
+                            .unwrap_or(edit_buffer.len());
+                        let char_len = edit_buffer[byte_pos..].chars().next().unwrap_or('\0').len_utf8();
+                        edit_buffer.drain(byte_pos..byte_pos + char_len);
+                        *edit_cursor_pos -= 1;
+                        app.set_redraw();
+                    }
+                }
+                KeyCode::Left => {
+                    *edit_cursor_pos = edit_cursor_pos.saturating_sub(1);
+                    app.set_redraw();
+                }
+                KeyCode::Right => {
+                    *edit_cursor_pos = (*edit_cursor_pos + 1).min(edit_buffer.chars().count());
+                    app.set_redraw();
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // List mode
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                *selected = selected.saturating_sub(1);
+                app.set_redraw();
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
+                app.set_redraw();
+            }
+            KeyCode::Enter => {
+                let (name, _) = entries[*selected].clone();
+                app.settings.system_prompt_preset_name = name.clone();
+                app.resolve_system_prompt();
+                app.global_mode = GlobalMode::Normal;
+                app.set_redraw();
+            }
+            KeyCode::Char('e') => {
+                *editing = true;
+                *edit_cursor_pos = 0;
+                if *selected < entries.len() {
+                    let name = entries[*selected].0.clone();
+                    if let Some(preset) = app.config.system_prompt_presets.iter().find(|p| p.name == name) {
+                        *edit_buffer = preset.content.clone();
+                    } else {
+                        *edit_buffer = String::new();
+                    }
+                }
+                app.set_redraw();
+            }
+            KeyCode::Char('n') => {
+                let name = format!("Custom {}", entries.len() + 1);
+                let preset = crate::config::SystemPromptPreset {
+                    name: name.clone(),
+                    description: "User-defined preset".into(),
+                    content: String::new(),
+                };
+                app.config.system_prompt_presets.push(preset);
+                entries.push((name, "User-defined preset".into()));
+                *selected = entries.len() - 1;
+                *editing = true;
+                *edit_cursor_pos = 0;
+                *edit_buffer = String::new();
+                app.set_redraw();
+            }
+              KeyCode::Char('d') => {
+                    if *selected < entries.len() {
+                        let name = &entries[*selected].0;
+                        if matches!(name.as_str(), "General" | "Coder" | "Thinker" | "Mathematician") {
+                            app.add_log("Cannot delete built-in preset", crate::config::LogLevel::Error);
+                            app.set_redraw();
+                            return;
+                        }
+                    }
+                    *confirm_delete = true;
+                    app.set_redraw();
+                }
+            KeyCode::Esc => {
+                app.global_mode = GlobalMode::Normal;
+                app.set_redraw();
+            }
+            _ => {}
+        }
+        return;
+    }
+
     // BenchTune Setup
     if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs } = &mut app.global_mode {
         match key.code {
@@ -1985,11 +2161,13 @@ fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('d') | KeyCode::Delete => {
             if !insert_mode {
                 if let Some(idx) = selected {
-                    app.settings.tags.remove(idx);
-                    app.tags_selected_idx = None;
-                    app.tags_edit_buffer.clear();
-                    app.tags_insert_mode = false;
-                    app.settings_render_cache = None;
+                    if idx < app.settings.tags.len() {
+                        app.settings.tags.remove(idx);
+                        app.tags_selected_idx = None;
+                        app.tags_edit_buffer.clear();
+                        app.tags_insert_mode = false;
+                        app.settings_render_cache = None;
+                    }
                 }
             }
             app.set_redraw();
@@ -2124,13 +2302,27 @@ fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_selected_idx = (app.settings_selected_idx + 1).min(count - 1);
                 app.set_redraw();
             }
-        }        // System Prompt: open presets panel on Enter
+        }        // System Prompt: open picker modal on Enter
         _ if idx == 0 => {
             if !app.settings_edit_buffer.is_empty() {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else if key.code == KeyCode::Enter {
-                app.active_panel = ActivePanel::SystemPromptPresets;
+                app.prompt_picker_entries = app.config.system_prompt_presets
+                    .iter()
+                    .map(|p| (p.name.clone(), p.description.clone()))
+                    .collect();
+                app.prompt_picker_selected = app.prompt_picker_entries.iter()
+                    .position(|(name, _)| name == &app.settings.system_prompt_preset_name)
+                    .unwrap_or(0);
+                app.global_mode = crate::tui::app::GlobalMode::PromptPicker {
+                    entries: app.prompt_picker_entries.clone(),
+                    selected: app.prompt_picker_selected,
+                    editing: false,
+                    edit_buffer: String::new(),
+                    edit_cursor_pos: 0,
+                    confirm_delete: false,
+                };
                 app.set_redraw();
             }
         }
@@ -2481,89 +2673,103 @@ fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::KeyEve
             KeyCode::Esc => {
                 app.editing_preset = None;
             }
-            KeyCode::Enter => {
-                app.edit_cursor_pos += 1;
-                app.settings_edit_buffer.insert(app.edit_cursor_pos - 1, '\n');
-            }
-            KeyCode::Char('s') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
-                // Save
-                if let Some(preset_idx) = app.editing_preset
-                    && let Some(preset) = app.config.system_prompt_presets.get_mut(preset_idx) {
-                        preset.content = app.settings_edit_buffer.clone();
-                    }
-                app.editing_preset = None;
-                app.add_log("Saved preset", crate::config::LogLevel::Info);
-                if let Err(e) = app.config.save() {
-                    app.add_log(format!("Failed to save: {}", e), crate::config::LogLevel::Error);
-                }
-            }
-            KeyCode::Char(c) => {
-                app.settings_edit_buffer.insert(app.edit_cursor_pos, c);
-                app.edit_cursor_pos += 1;
-            }
-            KeyCode::Backspace => {
-                if app.edit_cursor_pos > 0 {
-                    app.edit_cursor_pos -= 1;
-                    app.settings_edit_buffer.remove(app.edit_cursor_pos);
-                }
-            }
-            KeyCode::Left => {
-                app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
-            }
-            KeyCode::Right => {
-                app.edit_cursor_pos = (app.edit_cursor_pos + 1).min(app.settings_edit_buffer.len());
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // List mode
-    let total = app.config.system_prompt_presets.len();
-    match key.code {
-        KeyCode::Up | KeyCode::Char('k') => {
-            app.settings_selected_idx = app.settings_selected_idx.saturating_sub(1);
-        }
-        KeyCode::Down | KeyCode::Char('j') => {
-            if total > 0 {
-                app.settings_selected_idx = (app.settings_selected_idx + 1).min(total - 1);
-            }
-        }
-        KeyCode::PageUp => {
-            app.system_prompt_presets_scroll_offset = app.system_prompt_presets_scroll_offset.saturating_sub(5);
-        }
-        KeyCode::PageDown => {
-            app.system_prompt_presets_scroll_offset = app.system_prompt_presets_scroll_offset.saturating_add(5);
-        }
         KeyCode::Enter => {
-            // Apply the selected preset
-            if let Some(preset) = app.config.system_prompt_presets.get(app.settings_selected_idx) {
-                let name = preset.name.clone();
-                app.settings.system_prompt_preset_name = name.clone();
-                app.resolve_system_prompt();
-                app.active_panel = ActivePanel::LlmSettings;
-                app.add_log(format!("Applied preset: {}", name), crate::config::LogLevel::Info);
+            let byte_idx = app.settings_edit_buffer.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(app.settings_edit_buffer.len());
+            app.settings_edit_buffer.insert(byte_idx, '\n');
+            app.edit_cursor_pos += 1;
+        }
+        KeyCode::Char('s') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            // Save
+            if let Some(preset_idx) = app.editing_preset {
+                if let Some(preset) = app.config.system_prompt_presets.get_mut(preset_idx) {
+                    preset.content = app.settings_edit_buffer.clone();
+                }
+            }
+            app.editing_preset = None;
+            app.add_log("Saved preset", crate::config::LogLevel::Info);
+            if let Err(e) = app.config.save() {
+                app.add_log(format!("Failed to save: {}", e), crate::config::LogLevel::Error);
             }
         }
-        KeyCode::Char('e') => {
-            // Edit the selected preset
-            app.editing_preset = Some(app.settings_selected_idx);
-            app.edit_cursor_pos = 0;
+        KeyCode::Char(c) => {
+            let byte_idx = app.settings_edit_buffer.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(app.settings_edit_buffer.len());
+            app.settings_edit_buffer.insert(byte_idx, c);
+            app.edit_cursor_pos += 1;
         }
-        KeyCode::Char('n') => {
-            // Create a new preset
-            let name = format!("Custom {}", app.config.system_prompt_presets.len() + 1);
-            let preset = crate::config::SystemPromptPreset {
-                name: name.clone(),
-                description: "User-defined preset".into(),
-                content: String::new(),
-            };
-            app.config.system_prompt_presets.push(preset);
-            // Select the new preset and enter edit mode
-            app.settings_selected_idx = app.config.system_prompt_presets.len() - 1;
-            app.editing_preset = Some(app.settings_selected_idx);
-            app.edit_cursor_pos = 0;
+        KeyCode::Backspace => {
+            if app.edit_cursor_pos > 0 {
+                app.edit_cursor_pos -= 1;
+                let byte_idx = app.settings_edit_buffer.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(0);
+                app.settings_edit_buffer.remove(byte_idx);
+            }
         }
+        KeyCode::Delete => {
+            if app.edit_cursor_pos < app.settings_edit_buffer.chars().count() {
+                let byte_idx = app.settings_edit_buffer.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(app.settings_edit_buffer.len());
+                app.settings_edit_buffer.remove(byte_idx);
+            }
+        }
+        KeyCode::Left => {
+            app.edit_cursor_pos = app.edit_cursor_pos.saturating_sub(1);
+        }
+        KeyCode::Right => {
+            app.edit_cursor_pos = (app.edit_cursor_pos + 1).min(app.settings_edit_buffer.chars().count());
+        }
+        _ => {}
+    }
+    return;
+}
+
+// List mode
+let total = app.config.system_prompt_presets.len();
+match key.code {
+    KeyCode::Up | KeyCode::Char('k') => {
+        app.settings_selected_idx = app.settings_selected_idx.saturating_sub(1);
+    }
+    KeyCode::Down | KeyCode::Char('j') => {
+        if total > 0 {
+            app.settings_selected_idx = (app.settings_selected_idx + 1).min(total - 1);
+        }
+    }
+    KeyCode::PageUp => {
+        app.system_prompt_presets_scroll_offset = app.system_prompt_presets_scroll_offset.saturating_sub(5);
+    }
+    KeyCode::PageDown => {
+        app.system_prompt_presets_scroll_offset = app.system_prompt_presets_scroll_offset.saturating_add(5);
+    }
+    KeyCode::Enter => {
+        // Apply the selected preset
+        if let Some(preset) = app.config.system_prompt_presets.get(app.settings_selected_idx) {
+            let name = preset.name.clone();
+            app.settings.system_prompt_preset_name = name.clone();
+            app.resolve_system_prompt();
+            app.active_panel = ActivePanel::LlmSettings;
+            app.add_log(format!("Applied preset: {}", name), crate::config::LogLevel::Info);
+        }
+    }
+    KeyCode::Char('e') => {
+        // Edit the selected preset
+        if let Some(preset) = app.config.system_prompt_presets.get(app.settings_selected_idx) {
+            app.settings_edit_buffer = preset.content.clone();
+            app.edit_cursor_pos = app.settings_edit_buffer.chars().count();
+            app.editing_preset = Some(app.settings_selected_idx);
+        }
+    }
+    KeyCode::Char('n') => {
+        // Create a new preset
+        let name = format!("Custom {}", app.config.system_prompt_presets.len() + 1);
+        let preset = crate::config::SystemPromptPreset {
+            name: name.clone(),
+            description: "User-defined preset".into(),
+            content: String::new(),
+        };
+        app.config.system_prompt_presets.push(preset);
+        // Select the new preset and enter edit mode
+        app.settings_selected_idx = app.config.system_prompt_presets.len() - 1;
+        app.settings_edit_buffer = String::new();
+        app.edit_cursor_pos = 0;
+        app.editing_preset = Some(app.settings_selected_idx);
+    }
         KeyCode::Char('d') => {
             // Delete custom preset (not built-in)
             if app.settings_selected_idx >= crate::config::builtin_system_prompt_presets().len() {

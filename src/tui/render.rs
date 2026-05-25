@@ -167,13 +167,129 @@ pub fn render(f: &mut Frame, app: &mut App) {
         }
 
         f.render_widget(ratatui::widgets::Clear, picker_area);
-        f.render_widget(Paragraph::new(picker_lines).block(
+       f.render_widget(Paragraph::new(picker_lines).block(
             Block::default()
                 .title(" Host Picker ")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ), picker_area);
         return;
+        }
+
+  // Prompt picker overlay
+        if let GlobalMode::PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete } = &app.global_mode {
+            let area = f.area();
+            let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
+            let h = if *editing {
+                (area.height as f64 * 0.8).clamp(25.0, 40.0) as u16
+            } else {
+                (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16
+            };
+            let picker_area = Rect {
+                x: (area.width - w) / 2,
+                y: (area.height - h) / 2,
+                width: w,
+                height: h,
+            };
+
+            let mut picker_lines: Vec<Line> = Vec::new();
+
+            // Delete confirmation
+            if *confirm_delete && *selected < entries.len() {
+                let name = &entries[*selected].0;
+                let is_builtin = matches!(name.as_str(), "General" | "Coder" | "Thinker" | "Mathematician");
+                let display_name = if is_builtin {
+                    format!("{} (built-in)", name)
+                } else {
+                    name.clone()
+                };
+                picker_lines.push(Line::from(Span::styled(
+                    format!(" Delete '{}'?", display_name),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                )));
+                picker_lines.push(Line::from(""));
+                picker_lines.push(Line::from(Span::styled(
+                    " [Y] Yes  [N] Cancel  [Esc] Cancel ",
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                )));
+                picker_lines.push(Line::from(""));
+            }
+            // Edit mode
+            else if *editing {
+                picker_lines.push(Line::from(Span::styled(
+                    format!(" Editing: {}", if *selected < entries.len() { &entries[*selected].0 } else { "New Preset" }),
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                )));
+                picker_lines.push(Line::from(""));
+
+                  let content_lines: Vec<&str> = edit_buffer.split('\n').collect();
+                let max_lines = (h as usize).saturating_sub(6);
+                let cursor_byte = *edit_cursor_pos;
+                let mut line_start = 0usize;
+                for (_line_idx, line) in content_lines.iter().enumerate().take(max_lines) {
+                    let line_str = line.to_string();
+                    let line_end = line_start + line.len();
+                    let in_range = cursor_byte >= line_start && cursor_byte <= line_end;
+                    if in_range {
+                        let char_pos = edit_buffer[line_start..cursor_byte.min(line_end)].chars().count();
+                        let before: String = line.chars().take(char_pos).collect();
+                        let after: String = line.chars().skip(char_pos).collect();
+                        picker_lines.push(Line::from(Span::styled(format!("{}|{}", before, after), Style::default().fg(Color::White))));
+                    } else {
+                        picker_lines.push(Line::from(Span::raw(line_str)));
+                    }
+                    line_start = line_end + 1;
+                }
+
+                picker_lines.push(Line::from(""));
+                picker_lines.push(Line::from(Span::styled(
+                    "[Enter] new line  [Esc] cancel  [Ctrl+S] save",
+                    Style::default().fg(Color::Cyan),
+                )));
+            }
+            // List mode
+            else {
+                picker_lines.push(Line::from(Span::styled(
+                    " [↑/↓] Select  [Enter] Confirm  [e] Edit  [n] New  [d] Delete  [Esc] Cancel ",
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                )));
+                picker_lines.push(Line::from(""));
+
+                let builtin_names: std::collections::HashSet<&str> = ["General", "Coder", "Thinker", "Mathematician"].into_iter().collect();
+                for (i, (name, desc)) in entries.iter().enumerate() {
+                    let marker = if i == *selected { "> " } else { "  " };
+                    let is_builtin = builtin_names.contains(name.as_str());
+                    let style = if i == *selected {
+                        Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(Color::White)
+                    };
+                    let display_name = if is_builtin {
+                        format!("{} (built-in)", name)
+                    } else {
+                        name.clone()
+                    };
+                    picker_lines.push(Line::from(vec![
+                        Span::styled(marker, Style::default().fg(Color::Yellow)),
+                        Span::styled(display_name, style),
+                    ]));
+                    if !desc.is_empty() {
+                        picker_lines.push(Line::from(Span::styled(
+                            format!("        {}", desc),
+                            Style::default().fg(Color::DarkGray),
+                        )));
+                    }
+                }
+            }
+
+            f.render_widget(ratatui::widgets::Clear, picker_area);
+            f.render_widget(Paragraph::new(picker_lines).wrap(Wrap { trim: true }).block(
+                Block::default()
+                    .title(" Prompt Presets ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow)),
+            ), picker_area);
+            return;
         }
 
         // Tags modal
