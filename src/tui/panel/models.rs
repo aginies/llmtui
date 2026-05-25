@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Row, Table, TableState, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, Cell, Row, Table, TableState, List, ListItem, Paragraph},
 };
 
 use crate::tui::app::{App, ModelsMode};
@@ -259,15 +259,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .collect();
 
-            let mut list_state = ListState::default();
-            if let Some(idx) = app.selected_model_idx {
-                if let Some(pos) = filtered_indices.iter().position(|&i| i == idx) {
-                    list_state.select(Some(pos));
-                }
-            }
+            app.list_state.select(app.selected_model_idx.and_then(|idx| {
+                filtered_indices.iter().position(|&i| i == idx)
+            }));
 
             let list = List::new(list_items);
-            f.render_stateful_widget(list, list_area, &mut list_state);
+            f.render_stateful_widget(list, list_area, &mut app.list_state);
         }
         ModelsMode::Search { query, results, sort_by, loading, has_more, .. } => {
             let sort_label = sort_by.label();
@@ -500,9 +497,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                 ]).style(style));
                             }
 
-                            // Use TableState for scrolling and selection
-                            let mut state = ratatui::widgets::TableState::default();
-                            state.select(Some(app.bench_tune_result_row));
+                            app.bench_tune_table_state.select(Some(app.bench_tune_result_row));
 
                             let table = ratatui::widgets::Table::new(rows, [
                                 ratatui::layout::Constraint::Length(4),
@@ -524,7 +519,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             };
                             
                             f.render_widget(Paragraph::new(lines.clone()), inner_area);
-                            f.render_stateful_widget(table, table_area, &mut state);
+                            f.render_stateful_widget(table, table_area, &mut app.bench_tune_table_state);
                             return;
                         }
                     }

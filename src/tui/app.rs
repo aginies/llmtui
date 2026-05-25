@@ -6,7 +6,7 @@ use crate::models::{
 };
 use chrono::Local;
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::TableState;
+use ratatui::widgets::{TableState, ListState};
 
 use std::collections::VecDeque;
 use std::collections::HashSet;
@@ -286,6 +286,10 @@ pub struct App {
     pub bench_tune_output_h_scroll: usize,
     /// Index of the selected result row in the results table
     pub bench_tune_result_row: usize,
+    /// Persistent scroll state for the model list in ModelsMode::List
+    pub list_state: ListState,
+    /// Persistent scroll state for the bench tune results table
+    pub bench_tune_table_state: TableState,
     /// Index of the selected output within the current result
     pub bench_tune_output_index: usize,
     pub editing_n_predict: bool,
@@ -419,6 +423,8 @@ impl App {
             bench_tune_output_scroll: 0,
             bench_tune_output_h_scroll: 0,
             bench_tune_result_row: 0,
+            list_state: ListState::default(),
+            bench_tune_table_state: TableState::default(),
             bench_tune_output_index: 0,
             editing_n_predict: false,
             n_predict_edit_buffer: String::new(),
