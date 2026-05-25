@@ -106,6 +106,8 @@ The API proxy forwards requests to the running llama-server instance. Explicitly
 
 > **Note:** All paths not listed above are automatically proxied to the llama-server instance. New endpoints added to llama.cpp work without any code changes.
 
+The API proxy supports **SSE (Server-Sent Events) streaming** for chat completions and other streaming endpoints, and **CORS** is enabled for all origins with GET/POST/PUT/DELETE/OPTIONS methods.
+
 ### Server Settings
 
 The Server Settings panel (top-right) shows server configuration:
@@ -124,6 +126,8 @@ The Server Settings panel (top-right) shows server configuration:
 When API Endpoint is enabled, a proxy server starts on port `49222` that forwards requests to the running llama-server instance, exposing the full llama.cpp API (see Serve mode above).
 
 Router mode allows loading multiple models simultaneously. The server starts without a model, then loads via `/load` API. The `Max Concurrent Predictions` setting limits how many models can be loaded at once.
+
+> **Note:** The Server Settings panel is hidden when a server is already running. Press `F2` to toggle Server Settings only when no server is active.
 
 ### Profiles
 
@@ -150,6 +154,7 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `⌃D` (Ctrl+D) — Delete model (with confirmation)
 - `⌃L` (Ctrl+L) — Focus Log panel
 - `p` — Open Profiles panel / Pause or resume download / Previous Benchmark result
+- `⌃P` (Ctrl+P) — Open Profile Picker modal (select from built-in or user profiles)
 - `n` — New preset (in System Prompt Presets) / Next Benchmark result
 - `S` (Shift+s) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created)
 - `B` (Shift+b) — Back one page in search results
@@ -164,9 +169,12 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `⌃⇟` / `⌃⇞` (Ctrl+PgDn/PgUp) — Jump 10 settings down/up
 - `Shift+←` / `Shift+→` — Resize horizontal panel split (20%-80%)
 - `F1`–`F6` — Focus/toggle individual panels (Models, Server, Info, Settings, Active, Log)
-- `F9` — Show all panels
+- `F9` / `F10` / `Ctrl+F10` — Show all panels
+- `Ctrl+F7` — Focus Models panel
+- `Ctrl+F8` — Focus Server Settings panel
+- `Ctrl+F9` — Focus LLM Settings panel
 - `e` (in CmdLine) — Export command to script
-- `c` (in Downloads) — Cancel download
+- `⌥C` (Alt+C, in Downloads) — Cancel download and remove temp file
 - `Space` — Toggle selection (RPC workers, Benchmark parameters)
 - `Alt+M` (in BenchTuneSetup) — Toggle benchmark mode
 - `Alt+P` (in BenchTuneSetup) — Edit benchmark prompt
@@ -218,7 +226,7 @@ The app has several panels that can be toggled visible or hidden:
 | **README** | Markdown-rendered documentation for HuggingFace models |
 | **Downloads** | Download progress with pause/resume and cancel |
 
-Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSettings=2, ModelInfo=3, LlmSettings=4, ActiveModel=5, Log=6). Press `F9` to show all panels. When a panel is hidden, other panels expand to fill the space.
+Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSettings=2, ModelInfo=3, LlmSettings=4, ActiveModel=5, Log=6). Focus panels with `Ctrl+F7` (Models), `Ctrl+F8` (Server Settings), `Ctrl+F9` (LLM Settings). Press `F9`, `F10`, or `Ctrl+F10` to show all panels. When a panel is hidden, other panels expand to fill the space.
 
 ### Search features
 
@@ -326,7 +334,7 @@ Models have status states: Available, Loading, Loaded, Failed (with error messag
 
 ### Download Management
 
-Downloads can be paused and resumed by pressing `p` while a download is selected. Press `Ctrl+C` to cancel a download entirely. Download progress shows bytes per second and percentage complete. The Downloads panel shows all active downloads with individual controls.
+Downloads can be paused and resumed by pressing `p` while a download is selected. Press `⌥C` (Alt+C) to cancel a download entirely, which also removes the temporary file. Before downloading, the app checks available disk space and warns if insufficient. Download progress shows bytes per second and percentage complete. The Downloads panel shows all active downloads with individual controls.
 
 ### Confirmation dialogs
 
