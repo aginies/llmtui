@@ -350,6 +350,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
                 if cached_id == &id {
                     cached_lines.clone()
                 } else {
+                    app.readme_scroll_offset = 0;
                     let new_lines = MdRenderer::render_markdown(text);
                     app.readme_cache = Some((id, new_lines.clone()));
                     new_lines
@@ -361,14 +362,17 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
             }
         }
         Some((_, Some(_))) => {
+            app.readme_scroll_offset = 0;
             // Text is Some but empty
             vec![Line::from(Span::styled("no README available", Style::default().fg(Color::Red)))]
         }
         Some((_, None)) => {
+            app.readme_scroll_offset = 0;
             // Not yet fetched
             vec![Line::from(Span::styled("Press R to Fetch the README.md", Style::default().fg(Color::Green)))]
         }
         None => {
+            app.readme_scroll_offset = 0;
             vec![Line::raw("Select a model to view README.")]
         }
     };
