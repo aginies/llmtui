@@ -8,6 +8,7 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::tui::app::{App, ActivePanel, ConfirmationKind, GlobalMode, ModelsMode};
+use crate::tui::render_vertical_scrollbar;
 use crate::tui::panel;
 
 pub fn render(f: &mut Frame, app: &mut App) {
@@ -735,21 +736,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             f.render_widget(Paragraph::new(visible_lines).block(block), rpc_area);
 
             if worker_lines.len() > available_height as usize {
-                let scrollbar_area = Rect {
-                    x: rpc_area.right().saturating_sub(1),
-                    y: rpc_area.top() + 1,
-                    width: 1,
-                    height: rpc_area.height.saturating_sub(2),
-                };
-                let mut scrollbar_state = ScrollbarState::new(worker_lines.len())
-                    .position(app.rpc_workers_scroll_offset as usize);
-                f.render_stateful_widget(
-                    Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                        .begin_symbol(Some("↑"))
-                        .end_symbol(Some("↓")),
-                    scrollbar_area,
-                    &mut scrollbar_state,
-                );
+                render_vertical_scrollbar(f, rpc_area, worker_lines.len(), app.rpc_workers_scroll_offset as usize, 1, 2);
             }
             return;
             }
@@ -852,15 +839,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     f.render_widget(ratatui::widgets::Clear, modal_area);
 
                     // Main Title - show what parameters were varied for this result
-                    let mut p_parts = Vec::new();
-                    if let Some(v) = result.params.temperature { p_parts.push(format!("temp={:.1}", v)); }
-                    if let Some(v) = result.params.top_p { p_parts.push(format!("top_p={:.1}", v)); }
-                    if let Some(v) = result.params.threads { p_parts.push(format!("th={}", v)); }
-                    if let Some(v) = result.params.batch_size { p_parts.push(format!("bs={}", v)); }
-                    if let Some(v) = result.params.expert_count { p_parts.push(format!("experts={}", v)); }
-                    if let Some(v) = result.params.flash_attn { p_parts.push(format!("fa={}", if v { "on" } else { "off" })); }
-                    
-                    let p_str = if p_parts.is_empty() { "Baseline".to_string() } else { p_parts.join(", ") };
+                    let p_str = if crate::tui::format_bench_params(&result.params, false).is_empty() {
+                        "Baseline".to_string()
+                    } else {
+                        crate::tui::format_bench_params(&result.params, false).join(", ")
+                    };
 
                     let main_title = Line::from(vec![
                         Span::styled(" BenchTune Result: ", Style::default().fg(Color::Yellow)),

@@ -71,15 +71,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(format!("{}/{}", current, total), Style::default().fg(Color::White)),
                         ]));
                         
-                        let mut p_parts = Vec::new();
-                        if let Some(v) = current_params.temperature { p_parts.push(format!("temp={:.1}", v)); }
-                        if let Some(v) = current_params.top_p { p_parts.push(format!("top_p={:.1}", v)); }
-                        if let Some(v) = current_params.threads { p_parts.push(format!("threads={}", v)); }
-                        if let Some(v) = current_params.batch_size { p_parts.push(format!("batch={}", v)); }
-                        if let Some(v) = current_params.expert_count { p_parts.push(format!("experts={}", v)); }
-                        if let Some(v) = current_params.flash_attn { p_parts.push(format!("fa={}", if v { "on" } else { "off" })); }
-                        
-                        let p_str = p_parts.join(", ");
+                        let p_str = crate::tui::format_bench_params(current_params, false).join(", ");
 
                         lines.push(Line::from(vec![
                             Span::styled(" Current: ", Style::default().fg(Color::Yellow)),

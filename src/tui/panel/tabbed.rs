@@ -3,7 +3,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Paragraph},
 };
 
 use super::info;
@@ -67,23 +67,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Render scrollbar if settings overflow
     if settings_height > available_height as usize {
-        let scrollbar_area = Rect {
-            x: llm_area.right().saturating_sub(1),
-            y: llm_area.top(),
-            width: 1,
-            height: llm_area.height,
-        };
-
-        let mut scrollbar_state = ScrollbarState::new(settings_height)
-            .position(app.settings_scroll_offset as usize);
-
-        f.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("↑"))
-                .end_symbol(Some("↓")),
-            scrollbar_area,
-            &mut scrollbar_state,
-        );
+        crate::tui::render_vertical_scrollbar(f, llm_area, settings_height, app.settings_scroll_offset as usize, 0, 0);
     }
 }
 fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
@@ -152,21 +136,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     f.render_widget(paragraph, area);
 
     if total_settings > available_height as usize {
-        let scrollbar_area = Rect {
-            x: area.right().saturating_sub(1),
-            y: area.top() + 1,
-            width: 1,
-            height: area.height.saturating_sub(2),
-        };
-        let mut scrollbar_state = ScrollbarState::new(total_settings)
-            .position(app.server_settings_scroll_offset as usize);
-        f.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("↑"))
-                .end_symbol(Some("↓")),
-            scrollbar_area,
-            &mut scrollbar_state,
-        );
+        crate::tui::render_vertical_scrollbar(f, area, total_settings, app.server_settings_scroll_offset as usize, 1, 2);
     }
 }
 
@@ -202,23 +172,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Render scrollbar if settings overflow
     if settings_height > available_height as usize {
-        let scrollbar_area = Rect {
-            x: area.right().saturating_sub(1),
-            y: area.top(),
-            width: 1,
-            height: area.height,
-        };
-        
-        let mut scrollbar_state = ScrollbarState::new(settings_height)
-            .position(app.settings_scroll_offset as usize);
-        
-        f.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("↑"))
-                .end_symbol(Some("↓")),
-            scrollbar_area,
-            &mut scrollbar_state,
-        );
+        crate::tui::render_vertical_scrollbar(f, area, settings_height, app.settings_scroll_offset as usize, 0, 0);
     }
 }
 

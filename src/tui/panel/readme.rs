@@ -1,7 +1,7 @@
 use pulldown_cmark::{Options, Event, Tag, TagEnd};
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Paragraph},
     style::{Color, Modifier, Style},
     text::{Line, Span},
 };
@@ -406,22 +406,6 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
 
     // Vertical scrollbar
     if lines.len() > available_height as usize {
-        let scrollbar_area = Rect {
-            x: area.right().saturating_sub(1),
-            y: area.top(),
-            width: 1,
-            height: area.height,
-        };
-
-        let mut scrollbar_state = ScrollbarState::new(lines.len())
-            .position(app.readme_scroll_offset as usize);
-
-        f.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("↑"))
-                .end_symbol(Some("↓")),
-            scrollbar_area,
-            &mut scrollbar_state,
-        );
+        crate::tui::render_vertical_scrollbar(f, area, lines.len(), app.readme_scroll_offset as usize, 0, 0);
     }
 }

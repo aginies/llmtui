@@ -1348,6 +1348,7 @@ dependencies = [
  "flate2",
  "futures-util",
  "gguf-rs",
+ "libc",
  "local-ip-address",
  "notify",
  "pulldown-cmark",

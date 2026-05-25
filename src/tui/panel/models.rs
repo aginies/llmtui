@@ -428,16 +428,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         lines.push(Line::from(""));
                         lines.push(Line::from(Span::styled("Current parameters:", Style::default().add_modifier(Modifier::BOLD))));
                         
-                        let mut p_parts = Vec::new();
-                        if let Some(v) = current_params.temperature { p_parts.push(format!("  temperature: {:.2}", v)); }
-                        if let Some(v) = current_params.top_p { p_parts.push(format!("  top_p: {:.2}", v)); }
-                        if let Some(v) = current_params.top_k { p_parts.push(format!("  top_k: {}", v)); }
-                        if let Some(v) = current_params.repeat_penalty { p_parts.push(format!("  repeat_penalty: {:.2}", v)); }
-                        if let Some(v) = current_params.context_length { p_parts.push(format!("  context_length: {}", v)); }
-                        if let Some(v) = current_params.batch_size { p_parts.push(format!("  batch_size: {}", v)); }
-                        if let Some(v) = current_params.threads { p_parts.push(format!("  threads: {}", v)); }
-                        if let Some(v) = current_params.flash_attn { p_parts.push(format!("  flash_attn: {}", if v { "on" } else { "off" })); }
-                        if let Some(v) = current_params.expert_count { p_parts.push(format!("  expert_count: {}", v)); }
+                        let p_parts = crate::tui::format_bench_params(current_params, true);
 
                         if p_parts.is_empty() {
                             lines.push(Line::from("  (Baseline)"));
@@ -492,15 +483,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                             let mut rows = Vec::new();
                             for (i, result) in app.bench_tune_results.iter().enumerate() {
-                                let mut p_parts = Vec::new();
-                                if let Some(v) = result.params.temperature { p_parts.push(format!("t:{:.1}", v)); }
-                                if let Some(v) = result.params.top_p { p_parts.push(format!("p:{:.1}", v)); }
-                                if let Some(v) = result.params.threads { p_parts.push(format!("th:{}", v)); }
-                                if let Some(v) = result.params.batch_size { p_parts.push(format!("bs:{}", v)); }
-                                if let Some(v) = result.params.expert_count { p_parts.push(format!("ec:{}", v)); }
-                                if let Some(v) = result.params.flash_attn { p_parts.push(format!("fa:{}", if v { "on" } else { "off" })); }
-                                
-                                let p_str = p_parts.join(",");
+                                let p_str = crate::tui::format_bench_params(&result.params, false).join(",");
                                 
                                 let mut style = Style::default().fg(Color::White);
                                 if i == 0 {

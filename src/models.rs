@@ -838,95 +838,16 @@ pub struct ModelSettings {
 
 impl Default for ModelSettings {
     fn default() -> Self {
-        Self {
-            // Loading
-            context_length: 32096,
-            threads: 8,
-            threads_batch: 8,
-            batch_size: 512,
-            ubatch_size: 512,
-            parallel: 1,
-            max_concurrent_predictions: None,
-            uniform_cache: false,
-            kv_cache_offload: true,
-            cache_type_k: Some(CacheTypeK::F16),
-            cache_type_v: Some(CacheTypeV::F16),
-            keep: 0,
-            swa_full: false,
-            mlock: false,
-            mmap: true,
-            numa: NumMode::None,
-            system_prompt: "You are a helpful assistant.".to_string(),
-            system_prompt_preset_name: "General".to_string(),
-
-            // GPU
-            gpu_layers_mode: GpuLayersMode::Auto,
-            split_mode: SplitMode::Layer,
-            tensor_split: String::new(),
-            main_gpu: 0,
-            fit: true,
-            lora: None,
-            lora_scaled: None,
-            rpc: String::new(),
-            embedding: false,
-            flash_attn: true,
-            expert_count: -1,
-            jinja: true,
-            chat_template: None,
-            chat_template_kwargs: None,
-
-            // Sampling
-            seed: -1,
-            temperature: 0.8,
-            top_k: 40,
-            top_p: 0.95,
-            min_p: 0.0,
-            typical_p: 1.0,
-            mirostat: Mirostat::Off,
-            mirostat_lr: 0.1,
-            mirostat_ent: 5.0,
-            ignore_eos: false,
-            samplers: Samplers::default(),
-
-            // Repetition
-            repeat_penalty: 1.1,
-            repeat_last_n: 64,
-            presence_penalty: Some(0.0),
-            frequency_penalty: Some(0.0),
-            dry_multiplier: 0.0,
-            dry_base: 1.75,
-            dry_allowed_length: 2,
-            dry_penalty_last_n: -1,
-
-            // RoPE
-            rope_scaling: RopeScaling::None,
-            rope_scale: 1.0,
-            rope_freq_base: 0.0, // 0 = loaded from model
-            rope_freq_scale: 1.0,
-
-            // Server
-            host: "127.0.0.1".to_string(),
-            port: 8080,
-            timeout: 600,
-            cache_prompt: true,
-            cache_reuse: 0,
-            webui: false,
-
-          // Other
-            max_tokens: None,
-            cache_type: CacheType::default(),
-            backend: Backend::Cpu,
-            llama_cpp_version_cpu: None,
-            llama_cpp_version_vulkan: None,
-            llama_cpp_version_rocm: None,
-           llama_cpp_version_rocm_lemonade: None,
-            llama_cpp_version_cuda: None,
-            api_endpoint_enabled: false,
-            api_endpoint_port: 49222,
-            is_mtp: false,
-            draft_tokens: 0,
-            tags: Vec::new(),
-        }
+        let mut s: Self = crate::config::DefaultParams::default().into();
+        // Override fields that differ from DefaultParams defaults
+        s.uniform_cache = false;
+        s.cache_type_k = Some(CacheTypeK::F16);
+        s.cache_type_v = Some(CacheTypeV::F16);
+        s.cache_type = CacheType::default();
+        s.backend = Backend::Cpu;
+        s.presence_penalty = Some(0.0);
+        s.frequency_penalty = Some(0.0);
+        s
     }
 }
 
