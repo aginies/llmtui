@@ -958,6 +958,10 @@ impl ModelSettings {
     }
 }
 
+/// Default benchmark prompt used when starting a tuning session.
+pub const BENCHMARK_PROMPT: &str =
+    "Create Mona Lisa image in ascii art using text, number, symbol, everything possible. this should be the perfect painting.";
+
 /// A discovered model file.
 #[derive(Debug, Clone)]
 pub struct DiscoveredModel {

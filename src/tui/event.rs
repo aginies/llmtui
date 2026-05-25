@@ -680,15 +680,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Handle search mode first (it takes priority)
     let is_search = matches!(app.models_mode, ModelsMode::Search { .. });
     if is_search && app.active_panel == ActivePanel::Models {
-        // Extract model_id before the match so we can call async fn after
-        let model_id = app.search_results_idx.and_then(|idx| {
-            if let ModelsMode::Search { results, .. } = &app.models_mode {
-                results.get(idx).map(|r| r.model_id.clone())
-            } else {
-                None
-            }
-        });
-
         match key.code {
             KeyCode::Esc => {
                 app.models_mode = ModelsMode::List;
@@ -871,9 +862,13 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             _ => {}
         }
 
-        // Auto-fetch README for the selected model (outside the match)
-        if let Some(model_id) = model_id {
-            fetch_readme_for_selected(app, model_id).await;
+        // Auto-fetch README for the selected model (outside the match, using current index)
+        if let ModelsMode::Search { results, .. } = &app.models_mode {
+            if let Some(idx) = app.search_results_idx {
+                if let Some(r) = results.get(idx) {
+                    fetch_readme_for_selected(app, r.model_id.clone()).await;
+                }
+            }
         }
         return;
     }
@@ -1307,7 +1302,7 @@ async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             let bench_tune_config = crate::models::BenchTuneConfig::new(
                                 model.path.clone(),
                                 3, // Default iterations
-                                "Create Mona Lisa image in ascii art using text, number, symbol, everything possible. this should be the perfect painting.".to_string(),
+                                crate::models::BENCHMARK_PROMPT.to_string(),
                             );
                             app.global_mode = GlobalMode::BenchTuneSetup {
                                 config: bench_tune_config,
