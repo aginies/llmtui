@@ -1408,7 +1408,7 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("f filter", y),
                             Span::raw("  "),
-                            Span::styled("l/u un/load", y),
+                            Span::styled("l/load, u/unload", y),
                             Span::raw("  "),
                             Span::styled("⌃H help", c),
                             Span::raw("  "),
