@@ -95,6 +95,14 @@ pub enum GlobalMode {
         editing_prompt: bool,
         editing_kwargs: bool,
     },
+    PromptPicker {
+        entries: Vec<(String, String)>, // (name, description)
+        selected: usize,
+        editing: bool,
+        edit_buffer: String,
+        edit_cursor_pos: usize,
+        confirm_delete: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -166,6 +174,8 @@ pub struct App {
     pub host_picker_selected: usize,
     pub backend_picker_entries: Vec<(crate::models::Backend, Option<String>)>,
     pub backend_picker_selected: usize,
+    pub prompt_picker_entries: Vec<(String, String)>,
+    pub prompt_picker_selected: usize,
 
     pub profiles_scroll_offset: usize,
     pub system_prompt_presets_scroll_offset: usize,
@@ -201,6 +211,8 @@ pub struct App {
     /// Tracks the most recently added phase for progress interpolation.
     pub last_active_phase: Option<LoadingPhase>,
     pub loading_progress: f32,
+    /// Smoothed target for progress interpolation.
+    pub progress_target: f32,
     pub load_progress: LoadProgress,
     /// Timestamp of the last spinner animation update.
     pub last_spinner_time: Option<tokio::time::Instant>,
@@ -268,7 +280,7 @@ pub struct App {
     pub tags_edit_buffer: String,
     pub tags_selected_idx: Option<usize>,
     pub tags_insert_mode: bool,
- }
+}
 
 impl App {
     pub fn new(config: Config) -> Self {
@@ -313,6 +325,8 @@ impl App {
             host_picker_selected: 0,
             backend_picker_entries: Vec::new(),
             backend_picker_selected: 0,
+            prompt_picker_entries: Vec::new(),
+            prompt_picker_selected: 0,
             profiles_scroll_offset: 0,
             system_prompt_presets_scroll_offset: 0,
             readme_scroll_offset: 0,
@@ -345,6 +359,7 @@ impl App {
             loading_phases: HashSet::new(),
             last_active_phase: None,
             loading_progress: 0.0,
+            progress_target: 0.0,
             load_progress: Default::default(),
             last_spinner_time: None,
             loading_spinner: 0,
@@ -390,8 +405,9 @@ impl App {
             tags_edit_buffer: String::new(),
             tags_selected_idx: None,
             tags_insert_mode: false,
-            }
-            }
+        }
+    }
+
     pub fn selected_model(&self) -> Option<&DiscoveredModel> {
         self.selected_model_idx.and_then(|i| self.models.get(i))
     }
@@ -403,14 +419,17 @@ impl App {
         self.config.resolve_settings(model_name, None)
     }
 
-    pub fn add_log(&mut self, message: impl Into<String>, level: crate::config::LogLevel) {
+  pub fn add_log(&mut self, message: impl Into<String>, level: crate::config::LogLevel) {
         let msg = message.into();
         self.log_message(&msg, level);
         self.update_spinner();
         self.detect_loading_phases(&msg);
         self.parse_loading_details(&msg);
         self.detect_load_state(&msg);
+        let previous_progress = self.loading_progress;
         self.compute_progress();
+        self.progress_target = self.loading_progress;
+        self.loading_progress = previous_progress * 0.85 + self.progress_target * 0.15;
         self.handle_server_exit(&msg);
         self.trim_log();
         self.log_entries.push_back(LogEntry::new(msg, level));
@@ -463,8 +482,8 @@ impl App {
     fn parse_loading_details(&mut self, msg: &str) {
         let upper = msg.to_uppercase();
         if self.loading_phases.contains(&LoadingPhase::LoadingTensors) {
-            // Parse "loading tensor X out of Y" pattern
-            if upper.contains("LOADING TENSOR") && upper.contains("OUT OF") {
+            // Parse "loading tensor X of Y" or "loading tensor X out of Y" pattern
+            if upper.contains("LOADING TENSOR") {
                 if let Some(pos) = msg.to_lowercase().find("loading tensor") {
                     let rest = &msg[pos + "loading tensor".len()..];
                     let parts: Vec<&str> = rest.split_whitespace().collect();
@@ -472,13 +491,29 @@ impl App {
                         if let Ok(n) = parts[0].parse::<u32>() {
                             self.load_progress.tensors_loaded = n;
                         }
+                        // "of Y" or "out of Y" — Y is at index 2 or 4
+                        let total_idx = if parts.len() >= 5 && parts[2].to_lowercase() == "out" {
+                            4
+                        } else if parts.len() >= 3 && parts[1].to_lowercase() == "of" {
+                            2
+                        } else {
+                            usize::MAX
+                        };
+                        if total_idx != usize::MAX {
+                            if let Ok(total) = parts[total_idx].trim_end_matches(|c: char| !c.is_ascii_digit()).parse::<u32>() {
+                                self.load_progress.tensors_total = Some(total);
+                            }
+                        }
                     }
                 }
             }
             // Count dots from progress lines like "................................"
-            let dot_count = msg.chars().filter(|&c| c == '.').count();
-            if dot_count > 0 && dot_count <= 200 {
-                self.load_progress.tensors_loaded += dot_count as u32;
+            // Only use dot-counting as fallback when we haven't seen an explicit tensor count yet
+            if self.load_progress.tensors_total.is_none() {
+                let dot_count = msg.chars().filter(|&c| c == '.').count();
+                if dot_count > 0 && dot_count <= 200 {
+                    self.load_progress.tensors_loaded += dot_count as u32;
+                }
             }
 
             // Offloading N repeating layers to GPU
@@ -651,14 +686,20 @@ impl App {
                     }
                     LoadingPhase::LoadingModel => 0.5,
                     LoadingPhase::LoadingMeta => 0.5,
-                    LoadingPhase::LoadingTensors => {
+                     LoadingPhase::LoadingTensors => {
                         let mut tensor_fraction: f32 = 0.0;
                         if let (Some(loaded), Some(total)) = (self.load_progress.layers_loaded, self.load_progress.layers_total) {
                             let layer_fraction = loaded as f32 / total as f32;
                             tensor_fraction = layer_fraction.min(1.0);
                         }
-                        if self.load_progress.layers_loaded.is_none() && self.load_progress.tensors_loaded > 0 {
-                            let estimated_total: f32 = 500.0;
+                        if self.load_progress.tensors_loaded > 0 {
+                            let estimated_total: f32 = match self.load_progress.tensors_total {
+                                Some(total) => total as f32,
+                                None => match self.load_progress.layers_total {
+                                    Some(layers) => (layers as f32 * 12.0 + 10.0).max(100.0),
+                                    None => 500.0,
+                                },
+                            };
                             tensor_fraction = (self.load_progress.tensors_loaded as f32 / estimated_total).min(0.95);
                         }
                         tensor_fraction
@@ -1446,7 +1487,7 @@ impl App {
                 Line::from(""),
                 Line::from("Displays metrics for the currently loaded model."),
                 Line::from(""),
-                Line::from("Shows TPS, context usage (progress bar), CPU, RAM, and VRAM."),
+                Line::from("Shows Tokens/s, context usage (progress bar), CPU, RAM, and VRAM."),
             ],
             ActivePanel::ModelInfo => vec![
                 Line::from(Span::styled("MODEL INFO PANEL", y.add_modifier(Modifier::BOLD))),
@@ -1616,10 +1657,12 @@ mod tests {
             let mut app = App::new(config);
             app.loading_phases.clear();
             app.last_active_phase = None;
-            app.loading_progress = 0.0;
+           app.loading_progress = 0.0;
+            app.progress_target = 0.0;
             app.load_progress = LoadProgress {
                 layers_total: None,
                 layers_loaded: None,
+                tensors_total: None,
                 tensors_loaded: 0,
                 buffers: vec![],
             };

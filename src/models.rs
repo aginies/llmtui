@@ -987,6 +987,14 @@ pub struct ServerMetrics {
     pub ctx_max: u32,
     /// Sum of gpu_mem_used across all loaded models (for Total VRAM display).
     pub total_vram_used: u64,
+    /// Number of decoded tokens from print_timing logs.
+    pub decoded_tokens: u64,
+    /// Throughput from print_timing logs (tokens/second).
+    pub throughput: f64,
+    /// Estimated latency per generated token in milliseconds (1000 / throughput).
+    pub latency_per_token_ms: f64,
+    /// Estimated prompt processing latency in milliseconds (1000 / prompt_tps).
+    pub prompt_latency_ms: f64,
 }
 
 /// GPU device buffer reported by llama-server during model loading.
@@ -1004,6 +1012,8 @@ pub struct LoadProgress {
     pub layers_total: Option<u32>,
     /// Number of layers already offloaded to GPU.
     pub layers_loaded: Option<u32>,
+    /// Total number of tensors in the model (from "Loading tensor X of Y" log).
+    pub tensors_total: Option<u32>,
     /// Number of tensors loaded (counted from dot-lines in log).
     pub tensors_loaded: u32,
     /// GPU device buffers with their sizes.
@@ -1026,6 +1036,10 @@ impl Default for ServerMetrics {
             ctx_used: 0,
             ctx_max: 0,
             total_vram_used: 0,
+            decoded_tokens: 0,
+            throughput: 0.0,
+            latency_per_token_ms: 0.0,
+            prompt_latency_ms: 0.0,
         }
     }
 }
