@@ -698,8 +698,17 @@ impl App {
             return;
         }
 
-        // Apply interpolation within the current active phase for smooth transitions
-        if self.loading_phases.len() > 1 {
+        // Spinner interpolation for ServerStarting (works even as the only active phase)
+        if self.loading_phases.contains(&LoadingPhase::ServerStarting)
+            && self.loading_phases.len() == 1
+            && self.last_active_phase == Some(LoadingPhase::ServerStarting)
+        {
+            if let Some(last_spinner) = self.last_spinner_time {
+                let elapsed = last_spinner.elapsed();
+                phase_progress = (elapsed.as_millis() as f32 / 2000.0).min(1.0) * PHASE_WEIGHTS[0].1;
+            }
+        } else if self.loading_phases.len() > 1 {
+            // Apply interpolation within the current active phase for smooth transitions
             if let Some(phase) = self.last_active_phase {
                 let cumulative_before: f32 = PHASE_WEIGHTS.iter()
                     .filter(|(p, _)| *p != phase && self.loading_phases.contains(p))
@@ -707,14 +716,6 @@ impl App {
                     .sum();
 
                 let phase_fraction = match phase {
-                    LoadingPhase::ServerStarting => {
-                        if let Some(last_spinner) = self.last_spinner_time {
-                            let elapsed = last_spinner.elapsed();
-                            (elapsed.as_millis() as f32 / 2000.0).min(1.0)
-                        } else {
-                            0.0
-                        }
-                    }
                     LoadingPhase::LoadingModel => 0.5,
                     LoadingPhase::LoadingMeta => 0.5,
                      LoadingPhase::LoadingTensors => {
@@ -737,6 +738,7 @@ impl App {
                     }
                     LoadingPhase::ServerListening => 0.8,
                     LoadingPhase::Complete => 1.0,
+                    LoadingPhase::ServerStarting => 0.0,
                 };
 
                 phase_progress = cumulative_before + phase_fraction * PHASE_WEIGHTS.iter()
