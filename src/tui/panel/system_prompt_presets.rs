@@ -29,32 +29,38 @@ pub fn render_all<'a>(
         }
 
         // Show the content as lines, with cursor
+        let mut current_char_idx = 0;
         let content_lines: Vec<&str> = edit_content.split('\n').collect();
-        for (i, line) in content_lines.iter().enumerate() {
+
+        for line in content_lines.iter() {
             let mut spans = Vec::new();
-            for (j, ch) in line.chars().enumerate() {
-                if i == 0 && j == edit_cursor_pos {
-                    spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Black).bg(Color::Yellow)));
-                } else if i == 0 && j == edit_cursor_pos - 1 {
-                    // cursor is between chars
-                    spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Black).bg(Color::Yellow)));
-                } else {
-                    spans.push(Span::raw(ch.to_string()));
-                }
-            }
-            if i == 0 && edit_cursor_pos == line.chars().count() {
-                // cursor at end of line
+            let line_chars: Vec<char> = line.chars().collect();
+            
+            if line_chars.is_empty() && current_char_idx == edit_cursor_pos {
                 spans.push(Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)));
-            }
-            if !spans.is_empty() {
-                lines.push(Line::from(spans));
             } else {
-                if i == 0 && edit_cursor_pos == 0 {
-                    lines.push(Line::from(Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow))));
-                } else {
-                    lines.push(Line::from(""));
+                for &ch in line_chars.iter() {
+                    if current_char_idx == edit_cursor_pos {
+                        spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Black).bg(Color::Yellow)));
+                    } else {
+                        spans.push(Span::raw(ch.to_string()));
+                    }
+                    current_char_idx += 1;
+                }
+                
+                // If cursor is at the end of this line
+                if current_char_idx == edit_cursor_pos {
+                    spans.push(Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)));
                 }
             }
+            
+            lines.push(Line::from(spans));
+            current_char_idx += 1; // for the newline char
+        }
+
+        // Special case: if content ends with a newline, we might need an extra line
+        if edit_content.ends_with('\n') && current_char_idx - 1 == edit_cursor_pos {
+             lines.push(Line::from(Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow))));
         }
 
         lines.push(Line::from(""));
