@@ -1165,7 +1165,7 @@ impl App {
         } else if show_readme && (is_search || is_files) {
             visible.push(ActivePanel::SearchReadme);
         } else {
-            if self.is_panel_visible(1) {
+            if self.is_panel_visible(1) && self.server_handle.is_none() {
                 visible.push(ActivePanel::ServerSettings);
             }
             if self.is_panel_visible(3) {
@@ -1173,10 +1173,7 @@ impl App {
             }
         }
 
-        // 4. Active Model (Bottom Middle)
-        if self.is_panel_visible(4) && !is_search {
-            visible.push(ActivePanel::ActiveModel);
-        }
+        // 4. Active Model (Bottom Middle) — read-only, not focusable
 
         // 5. Log (Bottom)
         if self.is_panel_visible(5) {

@@ -730,9 +730,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         }
         KeyCode::F(2) => {
-            app.toggle_panel_visibility(1);
-            if app.is_panel_visible(1) && app.server_handle.is_none() {
-                app.active_panel = ActivePanel::ServerSettings;
+            if app.server_handle.is_none() {
+                app.toggle_panel_visibility(1);
+                if app.is_panel_visible(1) {
+                    app.active_panel = ActivePanel::ServerSettings;
+                }
             }
             return;
         }
@@ -752,9 +754,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::F(5) => {
             app.toggle_panel_visibility(4);
-            if app.is_panel_visible(4) {
-                app.active_panel = ActivePanel::ActiveModel;
-            }
             return;
         }
         KeyCode::F(6) => {
@@ -791,8 +790,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.active_panel = ActivePanel::Models;
                     }
                     '2' => {
-                        app.panel_visibility |= 1 << 1;
                         if app.server_handle.is_none() {
+                            app.panel_visibility |= 1 << 1;
                             app.active_panel = ActivePanel::ServerSettings;
                         }
                     }
