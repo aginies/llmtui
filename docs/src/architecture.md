@@ -34,8 +34,9 @@ The `App` struct in `src/tui/app.rs` holds all application state. The main state
 ```rust
 pub enum ModelsMode {
     List,       // Local model list
-    Search { query, results, sort_by, loading, has_more },
+    Search { query, results, sort_by, show_readme, loading, has_more, page },
     Files { model_id, files, selected_idx, previous_query, previous_results, selected_result },
+    BenchTune,  // Benchmark tuning mode showing results table
 }
 ```
 
@@ -50,6 +51,12 @@ pub enum GlobalMode {
     BackendPicker { entries: Vec<(Backend, Option<String>)>, selected: usize },
     RpcManager,
     About,
+    ProfilePicker { entries: Vec<(String, String)>, selected: usize },
+    PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete },
+    MaxConcurrentPicker { value: String },
+    BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs },
+    ApiEndpoints,
+    Tags { editing, insert_mode, edit_buffer, selected_idx },
 }
 ```
 
@@ -72,13 +79,14 @@ Each `DiscoveredModel` contains the file path, name, size, and display name (rel
 Downloads run in a spawned tokio task with progress flowing through a broadcast channel:
 
 1. User selects a file and presses `Enter`
-2. `pending_download` is set with `(model_id, filename, url)`
-3. A tokio task calls `hub::download_file()` with an `Arc<AtomicBool>` cancel token and `Arc<AtomicU8>` state
-4. Progress updates flow through `download_tx` → `download_rx`
-5. The main loop polls `download_rx` each iteration and updates the Download panel
-6. Pressing `⌃C` cancels the download; `p` pauses/resumes it
+2. `pending_download` is set with `(model_id, filename, url, file_size)`
+3. Before starting, the app checks available disk space via `hub::get_free_space_bytes()` and warns if insufficient
+4. A tokio task calls `hub::download_file()` with an `Arc<AtomicBool>` cancel token and `Arc<AtomicU8>` state
+5. Progress updates flow through `download_tx` → `download_rx`
+6. The main loop polls `download_rx` each iteration and updates the Download panel
+7. Pressing `⌥C` (Alt+C) cancels the download and removes the temporary file; `p` pauses/resumes it
 
-The download loop checks the state atomically each iteration: `1` = downloading, `2` = paused (sleeps 100ms and retries), `3` = cancelled (removes file, returns error). Each `DownloadState` tracks bytes downloaded, speed, ETA, and status (Downloading/Paused/Complete/Error).
+The download loop checks the state atomically each iteration: `1` = downloading, `2` = paused (sleeps 100ms and retries), `3` = cancelled (removes temp file, returns error). Each `DownloadState` tracks bytes downloaded, speed, ETA, destination path, and status (Downloading/Paused/Complete/Cancelled/Error).
 
 ## Server Spawning
 

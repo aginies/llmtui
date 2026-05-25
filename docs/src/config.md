@@ -77,10 +77,18 @@ llama-server binaries are stored in `~/.local/share/llm-manager/bin/` with versi
 ~/.local/share/llm-manager/bin/
 ├── llama-server-cpu-{version}/llama-server
 ├── llama-server-vulkan-{version}/llama-server
-└── llama-server-rocm-{version}/llama-server
+├── llama-server-rocm-{version}/llama-server
+├── llama-server-rocm-lemonade-{version}/llama-server
+└── llama-server-cuda-{version}/llama-server
 ```
 
-Binaries are downloaded from the `ggml-org/llama.cpp` GitHub releases on first use. Switching versions is instant — no re-download.
+Binaries are downloaded from specialized repositories on first use:
+
+- **CPU, Vulkan, ROCm (Native):** Fetched from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp)
+- **ROCm Lemonade:** Fetched from [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) (ZIP, auto-detects GFX architecture like `gfx1100`)
+- **CUDA (NVIDIA):** Fetched from [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) (CUDA 12.8 builds)
+
+Switching versions is instant — no re-download.
 
 ### Per-backend Version Config
 
@@ -134,7 +142,7 @@ You can start a model directly from the command line without the TUI:
 
 ### API Proxy
 
-The API proxy forwards requests to the llama.cpp server and provides OpenAI-compatible and Anthropic-compatible endpoints. When `--api-key` is set, all requests require `Authorization: Bearer <key>`.
+The API proxy forwards requests to the llama.cpp server and provides OpenAI-compatible and Anthropic-compatible endpoints. It supports **SSE (Server-Sent Events) streaming** for chat completions and other streaming endpoints, and **CORS** is enabled for all origins with GET/POST/PUT/DELETE/OPTIONS methods. When `--api-key` is set, all requests require `Authorization: Bearer <key>`.
 
 ### API Endpoints
 

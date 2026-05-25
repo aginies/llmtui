@@ -83,9 +83,9 @@ To download a model from HuggingFace:
 2. Type your query and press `Enter`
 3. Press `l` on a result to browse available GGUF files
 4. Select a file and press `Enter` to download
-5. Press `⌃C` to cancel, or `p` to pause/resume the download at any time
+5. Press `⌥C` (Alt+C) to cancel, or `p` to pause/resume the download at any time
 
-The download progress is shown in the Download panel with speed (MiB/s), ETA, and status indicators. Once complete, the model appears in the Models panel (in your models directory).
+The download progress is shown in the Download panel with speed (MiB/s), ETA, and status indicators. Before downloading, the app checks available disk space and warns if insufficient. Cancelled downloads automatically remove the temporary file. Once complete, the model appears in the Models panel (in your models directory).
 
 ### Loading Models
 
@@ -110,9 +110,12 @@ The Log panel shows live output from the llama.cpp server. Press `Enter` to expa
 ### Other Features
 
 - **Profiles** (`p`) — Quick-switch between saved settings presets
+- **Profile Picker** (`Ctrl+P`) — Open a modal to select from built-in or user profiles
 - **System Prompt Presets** — Named system prompts for different use cases (Coder, Thinker, Mathematician)
 - **RPC Workers** — Manage distributed inference nodes from Server Settings
 - **Benchmark Tuning** — Auto-tune model parameters for optimal performance (set Mode to BenchTune)
+- **Router Mode** — Load multiple models simultaneously
+- **Panel Resize** — Drag the border between left and right panels, or use `Shift+←/→` (20%-80%)
 - **Mouse support** — Click panels to focus, scroll in logs, README, and settings
 
 ## Using Serve Mode
@@ -143,4 +146,4 @@ With authentication:
 ./build.sh serve --model model.gguf --api-port 49222 --api-key secret
 ```
 
-The API proxy forwards requests to the llama-server instance and supports all llama.cpp endpoints including chat completions, embeddings, and more.
+The API proxy forwards requests to the llama-server instance and supports all llama.cpp endpoints including chat completions, embeddings, and more. It supports **SSE (Server-Sent Events) streaming** for chat completions and other streaming endpoints, and **CORS** is enabled for all origins.

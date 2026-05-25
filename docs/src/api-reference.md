@@ -27,8 +27,8 @@ cargo doc --open
 
 | Type | Module | Description |
 |------|--------|-------------|
-| `Backend` | `models` | Acceleration backend: `Cpu`, `Vulkan`, `Rocm`, or `RocmLemonade` |
-| `ServerMode` | `models` | Server operating mode: `Normal` (single model) or `Router` (multiple) |
+| `Backend` | `models` | Acceleration backend: `Cpu`, `Vulkan`, `Rocm`, `RocmLemonade`, or `Cuda` |
+| `ServerMode` | `models` | Server operating mode: `Normal` (single model), `Router` (multiple), `Bench` (GPU benchmarking), or `BenchTune` (parameter auto-tuning) |
 | `GpuLayersMode` | `models` | GPU offloading: `Auto`, `Specific(n)`, or `All` |
 | `SearchSort` | `models` | Search result sort order: `Relevance`, `Downloads`, `Likes`, `Trending`, `Created` |
 | `CacheType` | `models` | Main KV cache data type: `F16`, `BF16`, `Fq8_0`, `Fq4_1` |
@@ -38,7 +38,13 @@ cargo doc --open
 | `NumMode` | `models` | NUMA optimization: `None`, `Distribute`, `Isolate`, `Numactl` |
 | `RopeScaling` | `models` | RoPE frequency scaling: `None`, `Linear`, `Yarn` |
 | `Mirostat` | `models` | Mirostat version: `Off`, `Mirostat`, `Mirostat2` |
+| `ReasoningMode` | `models` | Reasoning format: `Default` (DeepSeek/OpenAI style) or `Gemma` (Gemma style) |
+| `ServerMode` | `models` | Server operating mode: `Normal`, `Router`, `Bench`, or `BenchTune` |
 | `LoadingPhase` | `app` | Phase of model loading (used internally by the TUI) |
+| `LoadProgress` | `models` | Load progress with `layers_total`, `layers_loaded`, `tensors_loaded` |
+| `Samplers` | `models` | Semicolon-separated sampler order string |
+| `BenchTuneMode` | `benchmark` | Benchmark mode: `RuntimeOnly` or `Full` |
+| `BenchTuneStatus` | `benchmark` | Status: `Running`, `Completed`, or `Error` |
 
 ## Main Modules
 
@@ -63,9 +69,12 @@ pub async fn download_file(
     url: &str,
     dest: &Path,
     progress: &mut DownloadState,
-    cancelled: Arc<AtomicBool>,
+    download_state: Arc<AtomicU8>,
     tx: broadcast::Sender<DownloadState>,
 ) -> Result<()>
+
+/// Get available free disk space in bytes for a given path.
+pub fn get_free_space_bytes(path: &Path) -> u64
 
 /// Resolve the llama-server binary path for a given backend.
 /// Downloads the binary from GitHub releases if not already cached.
@@ -183,6 +192,64 @@ pub fn builtin_profiles() -> Vec<Profile>
 
 /// Built-in system prompt presets.
 pub fn builtin_system_prompt_presets() -> Vec<SystemPromptPreset>
+```
+
+### `backend::benchmark`
+
+Benchmark tuning system.
+
+```rust
+/// Configuration for a benchmark run.
+pub struct BenchTuneConfig {
+    pub model_path: PathBuf,
+    pub iterations: usize,
+    pub prompt: String,
+    pub params: Vec<BenchTuneParam>,
+    pub duration: Duration,
+    pub mode: BenchTuneMode,
+    pub n_predict: usize,
+    pub chat_template_kwargs: serde_json::Value,
+}
+
+/// A tunable parameter for benchmarking.
+pub struct BenchTuneParam {
+    pub name: String,
+    pub min: f64,
+    pub max: f64,
+    pub step: f64,
+    pub enabled: bool,
+}
+
+/// Actual parameter values for a benchmark run.
+pub struct BenchTuneParamValue {
+    pub temperature: Option<f64>,
+    pub top_p: Option<f64>,
+    pub top_k: Option<u32>,
+    pub repeat_penalty: Option<f64>,
+    pub context_length: Option<u32>,
+    pub batch_size: Option<u32>,
+    pub threads: Option<u32>,
+    pub flash_attn: Option<bool>,
+    pub expert_count: Option<i32>,
+}
+
+/// Results from a benchmark run.
+pub struct BenchTuneResult {
+    pub params: BenchTuneParamValue,
+    pub metrics: BenchTuneMetrics,
+    pub outputs: Vec<String>,
+    pub per_iteration_metrics: Vec<BenchTuneMetrics>,
+    pub base_settings: BenchTuneParamValue,
+}
+
+/// Metrics from a benchmark run.
+pub struct BenchTuneMetrics {
+    pub prompt_tps: f64,
+    pub generation_tps: f64,
+    pub combined_tps: f64,
+    pub latency_per_token: f64,
+    pub first_token_time: f64,
+}
 ```
 
 ### `models`

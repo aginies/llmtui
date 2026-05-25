@@ -49,19 +49,19 @@ When viewing GGUF files for a model:
 | `j` / `k` | Navigate files |
 | `Enter` | Download selected file |
 | `Esc` | Go back to search results |
-| `⌃C` | Cancel download |
+| `⌥C` | Cancel download and remove temp file |
 
 ### Download Panel
 
-When one or more files are downloading, the Download panel appears at the bottom of the screen, showing progress, speed (MiB/s), ETA, and status for each download.
+When one or more files are downloading, the Download panel appears at the bottom of the screen, showing progress, speed (MiB/s), ETA, and status for each download. Before downloading, the app checks available disk space and warns if insufficient. Cancelled downloads automatically remove the temporary file.
 
 | Key | Action |
 |-----|--------|
 | `j` / `k` | Navigate downloads |
 | `p` | Pause / Resume selected download |
-| `⌃C` | Cancel selected download |
+| `⌥C` | Cancel selected download and remove temp file |
 
-Status indicators: **Downloading** (yellow), **Paused** (white), **Complete** (green), **Error** (red).
+Status indicators: **Downloading** (yellow), **Paused** (white), **Complete** (green), **Cancelled** (red), **Error** (red).
 
 ## Loading Models
 
@@ -104,6 +104,8 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 | **API Endpoint** | false | Enable the API proxy server (see Serve Mode). |
 | **API Port** | 49222 | Port for the API proxy server. |
 
+> **Note:** The Server Settings panel is hidden when a server is already running. Press `F2` to toggle Server Settings only when no server is active.
+
 ### LLM Settings
 
 The LLM Settings panel has 24 fields organized into 6 groups. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields (Flash Attention, Unified KV, Keep in memory) respond to `e` or `Ctrl+E`.
@@ -134,6 +136,7 @@ The LLM Settings panel has 24 fields organized into 6 groups. Arrow keys adjust 
 | **Eval Batch** | 512 | Logical maximum batch size for evaluation. Larger batches improve throughput but increase memory usage. Set to the model's native context length for single-sequence inference. |
 | **Unified KV** | true | Shares KV cache across sequences, reducing memory usage when running multiple prompts. Can cause cache eviction conflicts. |
 | **Max Concurrent Pred** | 1 | Maximum number of concurrent predictions. Useful in Router mode for parallel inference. |
+| **Context** | 32096 | Context window size in tokens. Must be a power of two. Larger values consume more VRAM and RAM. Models often have a maximum context length (e.g., 32K, 128K). |
 
 #### Sampling
 
@@ -200,7 +203,14 @@ Dirty (changed) fields are highlighted in yellow.
 | `h` / `l` | Horizontal scroll (README panel) |
 | `PageUp` / `PageDown` | Fast scroll (logs, README, benchmarks) |
 | `F1`–`F6` | Toggle panels (Models, Server, Info, Settings, Active, Log) |
-| `F9` | Show all panels |
+| `F9` / `F10` / `Ctrl+F10` | Show all panels |
+| `Ctrl+F7` | Focus Models panel |
+| `Ctrl+F8` | Focus Server Settings panel |
+| `Ctrl+F9` | Focus LLM Settings panel |
+| `Ctrl+P` | Open Profile Picker modal |
+| `Ctrl+L` | Focus Log panel |
+| `⌃⇟` / `⌃⇞` | Jump 10 settings down/up |
+| `Shift+←` / `Shift+→` | Resize horizontal panel split (20%-80%) |
 | `p` | Open Profiles panel / Pause/resume download / Previous benchmark result |
 | `n` | New preset (System Prompt Presets) / Next benchmark result |
 | `S` | Cycle search sort order |
@@ -343,6 +353,18 @@ The app uses confirmation dialogs for destructive actions:
 ## Mouse Support
 
 Mouse interactions are supported: clicking on panels to focus them, and scrolling in the log panel, README panel, settings, profiles, and presets panels.
+
+## Panel Resize
+
+The horizontal split between left panels (Models + Info) and right panels (Settings/README) can be resized:
+
+| Method | Description |
+|--------|-------------|
+| **Drag border** | Click and drag the vertical border between left and right panels |
+| **Scroll on border** | Scroll mouse wheel while hovering over the border (1% steps) |
+| **Keyboard** | `Shift+←` / `Shift+→` to adjust by 1% (range: 20%-80%) |
+
+The current split percentage is shown in the status bar (e.g., `│ 55%`). While actively resizing, the indicator shows `│ 55% ← resize →`.
 
 ## CmdLine Overlay
 
