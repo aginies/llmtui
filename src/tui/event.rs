@@ -778,40 +778,45 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.set_redraw();
             return;
         }
-        KeyCode::Char(c @ '1'..='6') | KeyCode::Char(c @ '9') => {
-            let is_search = matches!(app.models_mode, ModelsMode::Search { .. }) && app.active_panel == ActivePanel::Models;
-            let is_llm_settings = app.active_panel == ActivePanel::LlmSettings;
-            let is_editing_preset = app.active_panel == ActivePanel::SystemPromptPresets && app.editing_preset.is_some();
-            
-            if !is_search && !is_llm_settings && !is_editing_preset {
-                match c {
-                    '1' => {
-                        app.panel_visibility |= 1 << 0;
-                        app.active_panel = ActivePanel::Models;
-                    }
-                    '2' => {
-                        if app.server_handle.is_none() {
-                            app.panel_visibility |= 1 << 1;
-                            app.active_panel = ActivePanel::ServerSettings;
-                        }
-                    }
-                    '4' => {
-                        app.panel_visibility |= 1 << 3;
-                        app.active_panel = ActivePanel::LlmSettings;
-                    }
-                    '6' => {
-                        app.panel_visibility |= 1 << 5;
-                        app.active_panel = ActivePanel::Log;
-                    }
-                    '9' => {
-                        app.panel_visibility = 0b111111;
-                        app.log_expanded = false;
-                    }
-                    _ => {}
-                }
-                app.set_redraw();
-                return;
+        KeyCode::F(7)
+            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+        {
+            app.panel_visibility |= 1 << 0;
+            app.active_panel = ActivePanel::Models;
+            app.set_redraw();
+            return;
+        }
+        KeyCode::F(8)
+            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+        {
+            if app.server_handle.is_none() {
+                app.panel_visibility |= 1 << 1;
+                app.active_panel = ActivePanel::ServerSettings;
             }
+            app.set_redraw();
+            return;
+        }
+        KeyCode::F(9)
+            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+        {
+            app.panel_visibility |= 1 << 3;
+            app.active_panel = ActivePanel::LlmSettings;
+            app.set_redraw();
+            return;
+        }
+        KeyCode::F(10)
+            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+        {
+            app.panel_visibility = 0b111111;
+            app.log_expanded = false;
+            app.set_redraw();
+            return;
+        }
+        KeyCode::F(10) => {
+            app.panel_visibility = 0b111111;
+            app.log_expanded = false;
+            app.set_redraw();
+            return;
         }
         KeyCode::Char('k')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)

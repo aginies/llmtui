@@ -1467,7 +1467,7 @@ impl App {
                 Line::from(vec![Span::styled("j / k", y), Span::raw("  Navigate settings")]),
                 Line::from(vec![Span::styled("Enter", y), Span::raw("  Apply value")]),
                 Line::from(vec![Span::styled("Left / Right", y), Span::raw("  Adjust value")]),
-                Line::from(vec![Span::styled("0-9, -, .", y), Span::raw("  Type numeric value")]),
+                Line::from(vec![Span::styled("0-9, -, .", y), Span::raw("  Type numeric value  ·  Ctrl+F7/8/9 switch panels")]),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Cancel edit")]),
                 Line::from(""),
                 Line::from(vec![Span::styled("Ctrl+S", y), Span::raw("  Save settings for selected model")]),

@@ -56,7 +56,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let vram_text = crate::models::format_mib(app.vram_estimate);
     let block = Block::default()
         .title(Line::from(vec![
-            Span::raw(" LLM Settings (F4) [4] "),
+            Span::raw(" LLM Settings (F4) [Ctrl+F9] "),
             Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
         ]))
         .borders(Borders::ALL)
@@ -128,7 +128,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         .collect();
 
     let block = Block::default()
-        .title(" Server Settings (F2) [2] ")
+        .title(" Server Settings (F2) [Ctrl+F8] ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 

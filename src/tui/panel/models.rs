@@ -178,7 +178,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     match &app.models_mode {
         ModelsMode::List => {
             let title = if app.is_panel_visible(0) {
-                format!(" Models [1] ")
+                format!(" Models [Ctrl+F7] ")
             } else {
                 format!(" Models ")
             };
@@ -272,7 +272,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         ModelsMode::Search { query, results, sort_by, loading, has_more, .. } => {
             let sort_label = sort_by.label();
             let title = if app.is_panel_visible(0) {
-                format!(" Search [1]: {} [{}] ({} results)", query, sort_label, results.len())
+                format!(" Search [Ctrl+F7]: {} [{}] ({} results)", query, sort_label, results.len())
             } else {
                 format!(" Search: {} [{}] ({} results)", query, sort_label, results.len())
             };
