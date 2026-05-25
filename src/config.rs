@@ -205,7 +205,6 @@ pub struct ModelOverride {
     // Other
     pub max_tokens: Option<u32>,
     pub cache_type: Option<CacheType>,
-    pub reasoning_mode: Option<crate::models::ReasoningMode>,
     pub llama_cpp_version_cpu: Option<String>,
     pub llama_cpp_version_vulkan: Option<String>,
     pub llama_cpp_version_rocm: Option<String>,
@@ -283,8 +282,7 @@ impl ModelOverride {
             cache_reuse: Some(s.cache_reuse),
             webui: Some(s.webui),
             max_tokens: s.max_tokens,
-            cache_type: Some(s.cache_type),
-       reasoning_mode: Some(s.reasoning_mode),
+ cache_type: Some(s.cache_type),
             llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
             llama_cpp_version_vulkan: s.llama_cpp_version_vulkan.clone(),
             llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
@@ -335,7 +333,6 @@ impl ModelOverride {
         if let Some(v) = &self.chat_template { base.chat_template = Some(v.clone()); }
         if let Some(v) = &self.chat_template_kwargs { base.chat_template_kwargs = Some(v.clone()); }
         base.expert_count = self.expert_count.unwrap_or(base.expert_count);
-        base.reasoning_mode = self.reasoning_mode.unwrap_or(base.reasoning_mode);
         base.seed = self.seed.unwrap_or(base.seed);
         base.temperature = self.temperature.unwrap_or(base.temperature);
         base.top_k = self.top_k.unwrap_or(base.top_k);
@@ -481,9 +478,6 @@ pub struct DefaultParams {
     pub system_prompt: String,
     #[serde(default = "default_system_prompt_preset_name")]
     pub system_prompt_preset_name: String,
-    #[serde(default)]
-    pub reasoning_mode: crate::models::ReasoningMode,
-
     // GPU
     #[serde(default)]
     pub gpu_layers: i32,
@@ -658,7 +652,6 @@ impl Default for DefaultParams {
             max_concurrent_predictions: None,
             system_prompt: "You are a helpful assistant.".to_string(),
             system_prompt_preset_name: "General".to_string(),
-            reasoning_mode: crate::models::ReasoningMode::Default,
 
             // GPU
             gpu_layers: -1,

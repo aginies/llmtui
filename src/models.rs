@@ -199,7 +199,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             numa: dp.numa,
             system_prompt: dp.system_prompt,
             system_prompt_preset_name: dp.system_prompt_preset_name,
-            reasoning_mode: dp.reasoning_mode,
+            
             gpu_layers_mode: match dp.gpu_layers {
                 n if n < 0 => GpuLayersMode::All,
                 _ => dp.gpu_layers_mode,
@@ -661,27 +661,6 @@ impl std::fmt::Display for ServerMode {
     }
 }
 
-/// Mode for parsing reasoning tags from model responses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
-pub enum ReasoningMode {
-    #[serde(rename = "default")]
-    #[default]
-    Default, // DeepSeek/OpenAI style: <think> ... </think>
-    #[serde(rename = "gemma")]
-    Gemma,   // Gemma style: <|channel>thought <channel|>
-}
-
-
-impl std::fmt::Display for ReasoningMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ReasoningMode::Default => write!(f, "default"),
-            ReasoningMode::Gemma => write!(f, "gemma"),
-        }
-    }
-}
-
 // ── ModelSettings ─────────────────────────────────────────────
 
 /// Settings for loading a model via llama.cpp server.
@@ -725,8 +704,6 @@ pub struct ModelSettings {
     pub system_prompt: String,
     /// Name of the system prompt preset currently selected.
     pub system_prompt_preset_name: String,
-    /// How to parse reasoning tags from model responses.
-    pub reasoning_mode: ReasoningMode,
 
     // ── GPU ──────────────────────────────────────────────────
 
@@ -881,7 +858,6 @@ impl Default for ModelSettings {
             numa: NumMode::None,
             system_prompt: "You are a helpful assistant.".to_string(),
             system_prompt_preset_name: "General".to_string(),
-            reasoning_mode: ReasoningMode::Default,
 
             // GPU
             gpu_layers_mode: GpuLayersMode::Auto,
