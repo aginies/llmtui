@@ -1,5 +1,8 @@
 # llm-manager
 
+[![CI](https://github.com/aginies/llmtui/actions/workflows/ci.yml/badge.svg)](https://github.com/aginies/llmtui/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-232-passing-green)](#testing)
+
 A terminal UI (TUI) for managing local LLM models with HuggingFace search, download, and inference control.
 
 **Work In Progress**
@@ -59,6 +62,23 @@ A convenience script is included for common operations:
 ./build.sh test       # Run tests
 ./build.sh clippy     # Run clippy
 ```
+
+### Testing
+
+The project includes a comprehensive test suite with 232 tests (228 integration + 4 unit) covering domain types, configuration, app state, and benchmark tuning.
+
+```bash
+./build.sh test       # Run all tests (verbose, all features)
+cargo test            # Alternative: run tests directly
+```
+
+Tests are organized in the `tests/` directory:
+- `tests/models_tests.rs` — 78 tests (domain types, VRAM estimation, enums)
+- `tests/config_tests.rs` — 60 tests (defaults, validation, overrides)
+- `tests/app_tests.rs` — 40 tests (App state, filtering, panels)
+- `tests/benchmark_tests.rs` — 50 tests (config, parameter generation)
+
+CI runs `cargo build` and `cargo test` on every PR and push to main.
 
 ### Serve mode
 
