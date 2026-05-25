@@ -1013,7 +1013,13 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                         let raw_len = raw_ids.len();
                         if is_append {
                             if let ModelsMode::Search { results, has_more, loading, .. } = &mut app.models_mode {
-                                results.extend(res);
+                                let models = app.models.clone();
+                                for r in res {
+                                    let downloaded = models.iter().any(|m| {
+                                        m.name == r.model_id || m.name.starts_with(&r.model_id.rsplit('/').next().unwrap_or(""))
+                                    });
+                                    results.push(crate::models::SearchResult { downloaded, ..r });
+                                }
                                 if raw_len < app.config.search_limit as usize {
                                     *has_more = false;
                                 }
@@ -1021,7 +1027,13 @@ Ok(Ok((server_display_name, server_handle, _cmd))) => {
                             }
                         } else {
                             if let ModelsMode::Search { results, loading, has_more, .. } = &mut app.models_mode {
-                                *results = res;
+                                let models = app.models.clone();
+                                *results = res.into_iter().map(|r| {
+                                    let downloaded = models.iter().any(|m| {
+                                        m.name == r.model_id || m.name.starts_with(&r.model_id.rsplit('/').next().unwrap_or(""))
+                                    });
+                                    crate::models::SearchResult { downloaded, ..r }
+                                }).collect();
                                 if !results.is_empty() {
                                     app.search_results_idx = Some(0);
                                 } else {

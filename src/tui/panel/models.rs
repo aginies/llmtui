@@ -291,13 +291,22 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 Cell::from("License").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
             ];
 
+            let downloaded_names: Vec<String> = app.models.iter()
+                .map(|m| m.name.to_lowercase())
+                .collect();
+
             let mut rows: Vec<Row> = results
                 .iter()
                 .map(|result| {
                     let license = result.license.as_deref().unwrap_or("—");
+                    let model_basename = result.model_id.rsplit('/').next().unwrap_or("").to_lowercase();
+                    let is_downloaded = downloaded_names.iter().any(|n| n.starts_with(&model_basename));
+
+                    let marker = if is_downloaded { "✓" } else { " " };
+                    let model_id_display = format!("[{}] {}", marker, highlight_query(&result.model_id, query));
 
                     Row::new(vec![
-                        Cell::from(highlight_query(&result.model_id, query)),
+                        Cell::from(model_id_display),
                         Cell::from(format_number(result.downloads)),
                         Cell::from(format_number(result.likes)),
                         Cell::from(license.to_string()),

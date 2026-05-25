@@ -109,6 +109,7 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
                 license,
                 trending_score,
                 created_at,
+                downloaded: false,
             })
         })
         .collect();

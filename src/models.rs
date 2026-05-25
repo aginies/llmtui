@@ -72,6 +72,9 @@ pub struct SearchResult {
     pub trending_score: i64,
     /// Creation timestamp string.
     pub created_at: Option<String>,
+    /// Whether a matching GGUF file is already downloaded locally.
+    #[serde(default)]
+    pub downloaded: bool,
 }
 
 /// Download progress information.
