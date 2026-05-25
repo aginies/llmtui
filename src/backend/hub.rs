@@ -173,7 +173,7 @@ pub async fn fetch_readme(model_id: &str) -> Result<String> {
     let url = format!("https://huggingface.co/{}/raw/main/README.md", model_id);
     let resp = reqwest::Client::new()
         .get(&url)
-        .header("User-Agent", "llm-manager/0.9.0")
+        .header("User-Agent", "llm-manager/0.9.2")
         .send()
         .await?
         .error_for_status()?;
@@ -475,7 +475,7 @@ pub async fn resolve_backend_binary(
             match client
                 .get(&url)
                 .header("Accept", "application/vnd.github.v3+json")
-                .header("User-Agent", "llm-manager/0.9.0")
+                .header("User-Agent", "llm-manager/0.9.2")
                 .send()
                 .await
             {
@@ -595,7 +595,7 @@ pub async fn resolve_backend_binary(
     } else {
         let resp = client
             .get(&download_url)
-            .header("User-Agent", "llm-manager/0.9.0")
+            .header("User-Agent", "llm-manager/0.9.2")
             .send()
             .await?
             .error_for_status()?;
