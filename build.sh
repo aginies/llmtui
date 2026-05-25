@@ -24,7 +24,7 @@ usage() {
     echo "  clean     - Remove build artifacts"
     echo "  format    - Format code with rustfmt"
     echo "  check     - Check code (cargo check)"
-    echo "  test      - Run tests"
+    echo "  test      - Run tests (all features, verbose)"
     echo "  clippy    - Run clippy lints"
     echo "  doc       - Build documentation"
     echo "  servedoc  - Serve documentation with watch mode"
@@ -45,6 +45,7 @@ examples() {
     echo "  $0 format             # Format source code"
     echo "  $0 clippy             # Run clippy lints"
     echo "  $0 check              # Quick compilation check"
+    echo "  $0 test               # Run all tests (verbose, all features)"
     echo "  $0 clean              # Remove target/"
     echo "  $0 doc                # Build documentation"
     echo "  $0 servedoc           # Serve docs with watch mode"
@@ -87,8 +88,8 @@ cmd_check() {
 }
 
 cmd_test() {
-    echo "Running tests..."
-    cargo test "$@"
+    echo "Running tests (all features, verbose)..."
+    cargo test --all-features -v "$@"
 }
 
 cmd_clippy() {
