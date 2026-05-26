@@ -9,6 +9,7 @@ use super::helpers::{execute_confirmation, sync_global_settings};
 use super::panel::{handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key, handle_settings_key, handle_system_prompt_presets_key};
 use super::readme::{fetch_and_store_readme, fetch_readme_for_selected, handle_readme_key};
 use super::benches::handle_rpc_workers_key;
+use arboard;
 
 pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     debug!("Key: {:?}", key);
@@ -34,7 +35,17 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-
+    // Dashboard URL modal (Ctrl+U)
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
+        app.ui.global_mode = GlobalMode::DashboardUrl {
+            host: app.settings.host.clone(),
+            port: app.settings.ws_server_port.to_string(),
+            auth_key: app.settings.ws_server_auth_key.clone().unwrap_or_default(),
+            ws_enabled: app.settings.ws_server_enabled,
+        };
+        app.set_redraw();
+        return;
+    }
 
     // Skip all if in confirmation dialog
     if let GlobalMode::Confirmation { selected, kind } = &app.ui.global_mode {
@@ -202,6 +213,38 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
+    }
+
+    // Handle DashboardUrl overlay
+    if let GlobalMode::DashboardUrl { host, port, auth_key, .. } = &app.ui.global_mode {
+        match key.code {
+            KeyCode::Esc => {
+                app.ui.global_mode = GlobalMode::Normal;
+                app.set_redraw();
+                return;
+            }
+            KeyCode::Enter => {
+                let host_val = crate::models::format_host(host);
+                let mut url = format!("http://{}:{}/dashboard", host_val, port);
+                if !auth_key.is_empty() {
+                    url.push_str(&format!("?auth={}", auth_key));
+                }
+                if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                    if let Err(e) = clipboard.set_text(&url) {
+                        app.add_log(format!("Failed to copy URL: {}", e), crate::config::LogLevel::Error);
+                    } else {
+                        app.add_log("Dashboard URL copied to clipboard", crate::config::LogLevel::Info);
+                    }
+                } else {
+                    app.add_log("Failed to create clipboard", crate::config::LogLevel::Error);
+                }
+                app.ui.global_mode = GlobalMode::Normal;
+                app.set_redraw();
+                return;
+            }
+            _ => {}
+        }
+        return;
     }
 
     // Skip all if in tags modal

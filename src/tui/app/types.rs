@@ -127,6 +127,12 @@ pub enum GlobalMode {
         edit_buffer: String,
         edit_cursor_pos: usize,
     },
+    DashboardUrl {
+        host: String,
+        port: String,
+        auth_key: String,
+        ws_enabled: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

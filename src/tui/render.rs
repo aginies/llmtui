@@ -888,6 +888,90 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 return;
             }
 
+            if let GlobalMode::DashboardUrl { host, port, auth_key, ws_enabled } = &app.ui.global_mode {
+                let area = f.area();
+                let w = 60u16;
+                let h = 18u16;
+                let picker_area = Rect {
+                    x: (area.width - w) / 2,
+                    y: (area.height - h) / 2,
+                    width: w,
+                    height: h,
+                };
+
+                let host_val = crate::models::format_host(host);
+                let backend_str = format!("{}", app.settings.backend);
+                let threads_str = app.settings.threads.to_string();
+                let threads_batch_str = app.settings.threads_batch.to_string();
+                let mode_str = format!("{}", app.server_mode);
+                let api_str = if app.settings.api_endpoint_enabled { "True" } else { "False" };
+                let rpc_workers_count = app.config.rpc_workers.iter().filter(|w| w.selected).count();
+                let rpc_str = if rpc_workers_count > 0 { format!("{} active", rpc_workers_count) } else { "None".to_string() };
+                let mut url = format!("http://{}:{}/dashboard", host, port);
+                if !auth_key.is_empty() {
+                    url.push_str(&format!("?auth={}", auth_key));
+                }
+
+                let mut picker_lines: Vec<Line> = Vec::new();
+                picker_lines.push(Line::from(Span::styled(
+                    " Server Dashboard ",
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                )));
+                picker_lines.push(Line::from(""));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("Host: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(host_val, Style::default().fg(Color::White)),
+                ]));
+                picker_lines.push(Line::from(""));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("Backend: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(&backend_str, Style::default().fg(Color::White)),
+                ]));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("Threads: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(&threads_str, Style::default().fg(Color::White)),
+                ]));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("Threads Batch: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(&threads_batch_str, Style::default().fg(Color::White)),
+                ]));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("Mode: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(&mode_str, Style::default().fg(Color::White)),
+                ]));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("API Endpoint: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(api_str, Style::default().fg(Color::White)),
+                ]));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("RPC Workers: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(&rpc_str, Style::default().fg(Color::White)),
+                ]));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("Dashboard: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(if *ws_enabled { "Enabled" } else { "Disabled" }, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+                ]));
+                picker_lines.push(Line::from(""));
+                picker_lines.push(Line::from(Span::styled(
+                    &url,
+                    Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                )));
+                picker_lines.push(Line::from(""));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("[Enter] copy URL  ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
+                    Span::styled("[Esc] close", Style::default().fg(Color::Black).bg(Color::DarkGray)),
+                ]));
+
+                f.render_widget(ratatui::widgets::Clear, picker_area);
+                f.render_widget(Paragraph::new(picker_lines).block(
+                    Block::default()
+                        .title(" Server Dashboard ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Yellow)),
+                ), picker_area);
+                return;
+            }
+
             // BenchTune output view modal (fullscreen)
             if let Some(result_idx) = app.bench_tune.bench_tune_output_view {
                 let results = app.bench_tune.bench_tune_results.clone();
