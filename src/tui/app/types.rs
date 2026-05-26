@@ -277,6 +277,8 @@ pub struct App {
     pub bench_tune_tx: Option<tokio::sync::mpsc::Sender<crate::models::BenchTuneStatus>>,
     /// Whether the benchmark output view modal is open
     pub bench_tune_output_view: Option<usize>,
+    /// Cancellation channel for benchmark tuning
+    pub bench_tune_cancel_tx: Option<tokio::sync::watch::Sender<bool>>,
     /// Scroll offset within the output view modal
     pub bench_tune_output_scroll: usize,
     /// Horizontal scroll offset within the output view modal

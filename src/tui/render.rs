@@ -1573,6 +1573,16 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     let progress_str = format!("BENCH TUNE COMPLETED ({}/{}) in {}", total_tests, successful_tests, elapsed_str);
                     parts.push(Span::styled(format!("● {}", progress_str), Style::default().fg(Color::Green)));
                 }
+                crate::models::BenchTuneProgress::PartiallyCompleted { total_tests, successful_tests, failed_tests, elapsed } => {
+                    let elapsed_str = format!("{}s", elapsed.as_secs());
+                    let progress_str = format!("BENCH TUNE PARTIALLY COMPLETED ({}/{}, {} failed) in {}", total_tests, successful_tests, failed_tests, elapsed_str);
+                    parts.push(Span::styled(format!("● {}", progress_str), Style::default().fg(Color::Yellow)));
+                }
+                crate::models::BenchTuneProgress::Cancelled { total_tests, successful_tests, failed_tests, elapsed } => {
+                    let elapsed_str = format!("{}s", elapsed.as_secs());
+                    let progress_str = format!("BENCH TUNE CANCELLED ({}/{}, {} failed) in {}", total_tests, successful_tests, failed_tests, elapsed_str);
+                    parts.push(Span::styled(format!("● {}", progress_str), Style::default().fg(Color::Yellow)));
+                }
                 crate::models::BenchTuneProgress::Error { error } => {
                     parts.push(Span::styled(format!("● BENCH TUNE ERROR: {}", error), Style::default().fg(Color::Red)));
                 }

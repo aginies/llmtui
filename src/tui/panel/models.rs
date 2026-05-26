@@ -523,6 +523,164 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             return;
                         }
                     }
+                    crate::models::BenchTuneProgress::PartiallyCompleted { total_tests, successful_tests, failed_tests, elapsed } => {
+                        let elapsed_str = format!("{}s", elapsed.as_secs());
+                        lines.push(Line::from(vec![
+                            Span::raw("Status: "),
+                            Span::styled("PARTIALLY COMPLETED", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                            Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
+                        ]));
+                        
+                        lines.push(Line::from(vec![
+                            Span::raw("Success: "),
+                            Span::styled(format!("{}/{}", successful_tests, total_tests), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                        ]));
+                        lines.push(Line::from(vec![
+                            Span::raw("Failed: "),
+                            Span::styled(format!("{} test(s)", failed_tests), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                        ]));
+                        lines.push(Line::from(Span::styled(
+                            format!("Check Log (F6) for failure details."),
+                            Style::default().fg(Color::Red)
+                        )));
+                        
+                        if !app.bench_tune_results.is_empty() {
+                            lines.push(Line::from(""));
+                            lines.push(Line::from(Span::styled(" Benchmark results (sorted by generation speed):", Style::default().add_modifier(Modifier::BOLD))));
+                            lines.push(Line::from(Span::styled(" (Press [Enter] to view details of selected result)", Style::default().fg(Color::DarkGray))));
+                            lines.push(Line::from(""));
+                            
+                            use ratatui::widgets::{Row, Cell};
+                            
+                            let header = Row::new(vec![
+                                Cell::from(" # "),
+                                Cell::from("Gen t/s"),
+                                Cell::from("Inf t/s"),
+                                Cell::from("Params"),
+                            ]).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+
+                            let mut rows = Vec::new();
+                            for (i, result) in app.bench_tune_results.iter().enumerate() {
+                                let p_str = crate::tui::format_bench_params(&result.params, false).join(",");
+                                
+                                let mut style = Style::default().fg(Color::White);
+                                if i == 0 {
+                                    style = style.fg(Color::Green);
+                                }
+                                
+                                rows.push(Row::new(vec![
+                                    Cell::from(format!(" {:<2} ", i + 1)),
+                                    Cell::from(format!("{:.2}", result.metrics.generation_tps)),
+                                    Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
+                                    Cell::from(p_str),
+                                ]).style(style));
+                            }
+
+                            app.bench_tune_table_state.select(Some(app.bench_tune_result_row));
+
+                            let table = ratatui::widgets::Table::new(rows, [
+                                ratatui::layout::Constraint::Length(4),
+                                ratatui::layout::Constraint::Length(10),
+                                ratatui::layout::Constraint::Length(10),
+                                ratatui::layout::Constraint::Fill(1),
+                            ])
+                            .header(header)
+                            .block(Block::default().borders(Borders::NONE))
+                            .row_highlight_style(Style::default().bg(Color::Rgb(60, 60, 60)).add_modifier(Modifier::BOLD))
+                            .highlight_symbol("> ");
+                            
+                            let header_height = lines.len() as u16;
+                            let table_area = Rect {
+                                x: inner_area.x,
+                                y: inner_area.y + header_height,
+                                width: inner_area.width,
+                                height: inner_area.height.saturating_sub(header_height),
+                            };
+                            
+                            f.render_widget(Paragraph::new(lines.clone()), inner_area);
+                            f.render_stateful_widget(table, table_area, &mut app.bench_tune_table_state);
+                            return;
+                        }
+                    }
+                    crate::models::BenchTuneProgress::Cancelled { total_tests, successful_tests, failed_tests, elapsed } => {
+                        let elapsed_str = format!("{}s", elapsed.as_secs());
+                        lines.push(Line::from(vec![
+                            Span::raw("Status: "),
+                            Span::styled("CANCELLED", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                            Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
+                        ]));
+                        
+                        lines.push(Line::from(vec![
+                            Span::raw("Success: "),
+                            Span::styled(format!("{}/{}", successful_tests, total_tests), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                        ]));
+                        lines.push(Line::from(vec![
+                            Span::raw("Failed: "),
+                            Span::styled(format!("{} test(s)", failed_tests), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                        ]));
+                        lines.push(Line::from(Span::styled(
+                            "Benchmark was cancelled by user.",
+                            Style::default().fg(Color::Yellow)
+                        )));
+                        
+                        if !app.bench_tune_results.is_empty() {
+                            lines.push(Line::from(""));
+                            lines.push(Line::from(Span::styled(" Benchmark results (sorted by generation speed):", Style::default().add_modifier(Modifier::BOLD))));
+                            lines.push(Line::from(Span::styled(" (Press [Enter] to view details of selected result)", Style::default().fg(Color::DarkGray))));
+                            lines.push(Line::from(""));
+                            
+                            use ratatui::widgets::{Row, Cell};
+                            
+                            let header = Row::new(vec![
+                                Cell::from(" # "),
+                                Cell::from("Gen t/s"),
+                                Cell::from("Inf t/s"),
+                                Cell::from("Params"),
+                            ]).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+
+                            let mut rows = Vec::new();
+                            for (i, result) in app.bench_tune_results.iter().enumerate() {
+                                let p_str = crate::tui::format_bench_params(&result.params, false).join(",");
+                                
+                                let mut style = Style::default().fg(Color::White);
+                                if i == 0 {
+                                    style = style.fg(Color::Green);
+                                }
+                                
+                                rows.push(Row::new(vec![
+                                    Cell::from(format!(" {:<2} ", i + 1)),
+                                    Cell::from(format!("{:.2}", result.metrics.generation_tps)),
+                                    Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
+                                    Cell::from(p_str),
+                                ]).style(style));
+                            }
+
+                            app.bench_tune_table_state.select(Some(app.bench_tune_result_row));
+
+                            let table = ratatui::widgets::Table::new(rows, [
+                                ratatui::layout::Constraint::Length(4),
+                                ratatui::layout::Constraint::Length(10),
+                                ratatui::layout::Constraint::Length(10),
+                                ratatui::layout::Constraint::Fill(1),
+                            ])
+                            .header(header)
+                            .block(Block::default().borders(Borders::NONE))
+                            .row_highlight_style(Style::default().bg(Color::Rgb(60, 60, 60)).add_modifier(Modifier::BOLD))
+                            .highlight_symbol("> ");
+                            
+                            let header_height = lines.len() as u16;
+                            let table_area = Rect {
+                                x: inner_area.x,
+                                y: inner_area.y + header_height,
+                                width: inner_area.width,
+                                height: inner_area.height.saturating_sub(header_height),
+                            };
+                            
+                            f.render_widget(Paragraph::new(lines.clone()), inner_area);
+                            f.render_stateful_widget(table, table_area, &mut app.bench_tune_table_state);
+                            return;
+                        }
+                    }
                     crate::models::BenchTuneProgress::Error { error } => {
                         lines.push(Line::from(format!("Error: {}", error)));
                     }

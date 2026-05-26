@@ -445,6 +445,11 @@ impl App {
                 self.bench_tune_results.clear();
                 self.bench_tune_result_row = 0;
                 self.models_mode = super::types::ModelsMode::BenchTune;
+                
+                // Create cancellation channel for benchmark tuning
+                let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
+                self.bench_tune_cancel_tx = Some(cancel_tx);
+                
                 let bench_tune_config_clone = bench_tune_config.clone();
                 let settings_clone = settings_clone.clone();
                 let model_clone = model.clone();
@@ -458,6 +463,7 @@ impl App {
                         &settings_clone,
                         tx_tune_clone,
                         spawn_log_tx_clone,
+                        &mut cancel_rx,
                     ).await.map_err(|e| e.to_string());
                     (results, display_name, bench_tune_config_clone)
                 });

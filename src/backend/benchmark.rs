@@ -1,10 +1,18 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 
 use crate::backend::server::spawn_server;
 use crate::models::{BenchTuneConfig, BenchTuneMetrics, BenchTuneParamValue, BenchTuneResult, BenchTuneStatus, BenchTuneMode, ModelSettings, ServerMode, DiscoveredModel};
+
+/// Benchmark tuning constants
+const HEALTH_CHECK_ITERATIONS: u32 = 120;
+const HEALTH_CHECK_INTERVAL_MS: u64 = 500;
+const HEALTH_CHECK_LOG_INTERVAL: u32 = 10;
+const SERVER_KILL_WAIT_SECS: u64 = 1;
+const REQUEST_TIMEOUT_SECS: u64 = 120;
+const CHART_TOP_N: usize = 20;
 
 /// Run a benchmark tuning test with multiple parameter combinations
 pub async fn run_bench_tune(
@@ -14,21 +22,36 @@ pub async fn run_bench_tune(
     settings: &ModelSettings,
     progress_tx: mpsc::Sender<BenchTuneStatus>,
     log_tx: mpsc::Sender<String>,
+    cancel_rx: &mut watch::Receiver<bool>,
 ) -> Result<Vec<BenchTuneResult>, Box<dyn std::error::Error + Send + Sync>> {
     let start_time = Instant::now();
     let total_tests = config.get_total_tests_count();
+
+    // Warn on large runs
+    if total_tests > 500 {
+        let _ = log_tx.send(format!(
+            "WARNING: Benchmark will run {} combinations. This may take a long time.",
+            total_tests
+        )).await;
+    }
 
     // Generate all parameter combinations
     let combinations = config.generate_combinations();
 
     // Results storage
     let mut results = Vec::new();
+    let mut failed_tests: Vec<(usize, String)> = Vec::new();
 
     // Apply chat_template_kwargs from config to settings
     let mut settings = settings.clone();
     if let Some(kwargs) = &config.chat_template_kwargs {
         settings.chat_template_kwargs = Some(kwargs.clone());
     }
+
+    // Create a shared HTTP client for all inference requests
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
+        .build()?;
 
     // If runtime-only mode, send params in request body (no server restarts)
     if config.bench_mode == BenchTuneMode::RuntimeOnly {
@@ -46,20 +69,44 @@ pub async fn run_bench_tune(
         let host = if server_handle.host == "0.0.0.0" { "127.0.0.1" } else { &server_handle.host };
 
         // Wait for server to be ready
-        for i in 0..120 {
+        for i in 0..HEALTH_CHECK_ITERATIONS {
+            if *cancel_rx.borrow() {
+                let _ = crate::backend::server::kill_server(server_handle).await;
+                let elapsed = start_time.elapsed();
+                progress_tx.send(BenchTuneStatus::Cancelled {
+                    total_tests,
+                    successful_tests: results.len(),
+                    failed_tests: failed_tests.len(),
+                    elapsed,
+                }).await?;
+                return Ok(results);
+            }
             if crate::backend::server::check_health(host, server_handle.port).await {
                 break;
             }
-            if i % 10 == 0 && i > 0 {
-                let _ = log_tx.send(format!("  ... still waiting ({:.0}s)...", i as f32 * 0.5)).await;
+            if i % HEALTH_CHECK_LOG_INTERVAL == 0 && i > 0 {
+                let _ = log_tx.send(format!("  ... still waiting ({:.0}s)...", i as f32 * (HEALTH_CHECK_INTERVAL_MS as f32 / 1000.0))).await;
             }
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tokio::time::sleep(Duration::from_millis(HEALTH_CHECK_INTERVAL_MS)).await;
         }
 
         let server_port = server_handle.port;
         let server_host = host.to_string();
 
         for (idx, combination) in combinations.iter().enumerate() {
+            // Check cancellation before each test
+            if *cancel_rx.borrow() {
+                let _ = crate::backend::server::kill_server(server_handle).await;
+                let elapsed = start_time.elapsed();
+                progress_tx.send(BenchTuneStatus::Cancelled {
+                    total_tests,
+                    successful_tests: results.len(),
+                    failed_tests: failed_tests.len(),
+                    elapsed,
+                }).await?;
+                return Ok(results);
+            }
+
             let progress = (idx as f32 / total_tests as f32) * 100.0;
             progress_tx.send(BenchTuneStatus::Running {
                 current: idx + 1,
@@ -77,11 +124,13 @@ pub async fn run_bench_tune(
                 server_port,
                 log_tx.clone(),
                 config,
+                &client,
             ).await;
 
             match result {
                 Ok(test_result) => results.push(test_result),
                 Err(e) => {
+                    failed_tests.push((idx + 1, e.to_string()));
                     let _ = log_tx.send(format!("Benchmark test {}/{} failed: {}", idx + 1, total_tests, e)).await;
                 }
             }
@@ -91,6 +140,18 @@ pub async fn run_bench_tune(
     } else {
         // Full mode: spawn a new server for each parameter combination
         for (idx, combination) in combinations.iter().enumerate() {
+            // Check cancellation before each test
+            if *cancel_rx.borrow() {
+                let elapsed = start_time.elapsed();
+                progress_tx.send(BenchTuneStatus::Cancelled {
+                    total_tests,
+                    successful_tests: results.len(),
+                    failed_tests: failed_tests.len(),
+                    elapsed,
+                }).await?;
+                return Ok(results);
+            }
+
             let progress = (idx as f32 / total_tests as f32) * 100.0;
             progress_tx.send(BenchTuneStatus::Running {
                 current: idx + 1,
@@ -108,11 +169,13 @@ pub async fn run_bench_tune(
                 config.prompt.clone(),
                 log_tx.clone(),
                 config,
+                &client,
             ).await;
 
             match result {
                 Ok(test_result) => results.push(test_result),
                 Err(e) => {
+                    failed_tests.push((idx + 1, e.to_string()));
                     let _ = log_tx.send(format!("Benchmark test {}/{} failed: {}", idx + 1, total_tests, e)).await;
                 }
             }
@@ -127,13 +190,23 @@ pub async fn run_bench_tune(
 
     let elapsed = start_time.elapsed();
     let successful_tests = results.len();
+    let failed_count = failed_tests.len();
 
-    // Final progress update
-    progress_tx.send(BenchTuneStatus::Completed {
-        total_tests,
-        successful_tests,
-        elapsed,
-    }).await?;
+    // Final progress update - distinguish between full success and partial success
+    if failed_count > 0 {
+        progress_tx.send(BenchTuneStatus::PartiallyCompleted {
+            total_tests,
+            successful_tests,
+            failed_tests: failed_count,
+            elapsed,
+        }).await?;
+    } else {
+        progress_tx.send(BenchTuneStatus::Completed {
+            total_tests,
+            successful_tests,
+            elapsed,
+        }).await?;
+    }
 
     Ok(results)
 }
@@ -148,6 +221,7 @@ async fn run_bench_tune_runtime_only(
     server_port: u16,
     log_tx: mpsc::Sender<String>,
     config: &BenchTuneConfig,
+    client: &reqwest::Client,
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
     let mut total_prompt_tokens = 0u64;
     let mut total_generation_tokens = 0u64;
@@ -161,7 +235,7 @@ async fn run_bench_tune_runtime_only(
     let _ = log_tx.send(format!("Running {} inference iterations (runtime-only mode)...", num_iterations)).await;
 
     for i in 0..num_iterations {
-        let result = send_inference_request(&prompt, server_host, server_port, params, config).await;
+        let result = send_inference_request(&prompt, server_host, server_port, params, config, client).await;
 
         match result {
             Ok(res) => {
@@ -267,6 +341,7 @@ async fn run_bench_tune_single_test(
     prompt: String,
     log_tx: mpsc::Sender<String>,
     config: &BenchTuneConfig,
+    client: &reqwest::Client,
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
     // Create settings with test parameters
     let mut settings = base_settings.clone();
@@ -315,20 +390,19 @@ async fn run_bench_tune_single_test(
     
     let _ = log_tx.send(format!("Waiting for server on {}:{}...", host, server_handle.port)).await;
     
-    // Increased timeout to 60s for large models
-    for i in 0..120 {
+    for i in 0..HEALTH_CHECK_ITERATIONS {
         if crate::backend::server::check_health(host, server_handle.port).await {
             ready = true;
             break;
         }
-        if i % 10 == 0 && i > 0 {
-            let _ = log_tx.send(format!("  ... still waiting ({:.0}s)...", i as f32 * 0.5)).await;
+        if i % HEALTH_CHECK_LOG_INTERVAL == 0 && i > 0 {
+            let _ = log_tx.send(format!("  ... still waiting ({:.0}s)...", i as f32 * (HEALTH_CHECK_INTERVAL_MS as f32 / 1000.0))).await;
         }
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        tokio::time::sleep(Duration::from_millis(HEALTH_CHECK_INTERVAL_MS)).await;
     }
     
     if !ready {
-        let _ = log_tx.send("Error: Server health check timed out after 60s".to_string()).await;
+        let _ = log_tx.send("Error: Server health check timed out".to_string()).await;
         let _ = crate::backend::server::kill_server(server_handle).await;
         return Err("Server failed to become healthy".into());
     }
@@ -347,7 +421,7 @@ async fn run_bench_tune_single_test(
     
     for i in 0..num_iterations {
         // Send prompt and measure response
-        let result = send_inference_request(&prompt, host, server_handle.port, params, config).await;
+        let result = send_inference_request(&prompt, host, server_handle.port, params, config, client).await;
         
         match result {
             Ok(res) => {
@@ -457,10 +531,14 @@ async fn run_bench_tune_single_test(
 }
 
 /// Send an inference request and measure response time
-async fn send_inference_request(prompt: &str, host: &str, port: u16, params: &BenchTuneParamValue, config: &BenchTuneConfig) -> Result<InferenceResult, Box<dyn std::error::Error + Send + Sync>> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(120)) // High timeout for slow generation
-        .build()?;
+async fn send_inference_request(
+    prompt: &str,
+    host: &str,
+    port: u16,
+    params: &BenchTuneParamValue,
+    config: &BenchTuneConfig,
+    client: &reqwest::Client,
+) -> Result<InferenceResult, Box<dyn std::error::Error + Send + Sync>> {
     
     // Build request body with benchmark params
     let mut body = serde_json::json!({

@@ -132,6 +132,7 @@ impl App {
             bench_tune_rx: None,
             bench_tune_tx: None,
             bench_tune_output_view: None,
+            bench_tune_cancel_tx: None,
             bench_tune_output_scroll: 0,
             bench_tune_output_h_scroll: 0,
             bench_tune_result_row: 0,

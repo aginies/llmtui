@@ -1266,6 +1266,18 @@ pub enum BenchTuneStatus {
         successful_tests: usize,
         elapsed: Duration,
     },
+    PartiallyCompleted {
+        total_tests: usize,
+        successful_tests: usize,
+        failed_tests: usize,
+        elapsed: Duration,
+    },
+    Cancelled {
+        total_tests: usize,
+        successful_tests: usize,
+        failed_tests: usize,
+        elapsed: Duration,
+    },
     Error {
         error: String,
     },
@@ -1301,6 +1313,20 @@ pub enum BenchTuneProgress {
         successful_tests: usize,
         elapsed: Duration,
     },
+    /// Tuning completed with some failures.
+    PartiallyCompleted {
+        total_tests: usize,
+        successful_tests: usize,
+        failed_tests: usize,
+        elapsed: Duration,
+    },
+    /// Tuning was cancelled by the user.
+    Cancelled {
+        total_tests: usize,
+        successful_tests: usize,
+        failed_tests: usize,
+        elapsed: Duration,
+    },
     /// Tuning failed.
     Error {
         error: String,
@@ -1321,6 +1347,22 @@ impl BenchTuneProgress {
                 successful_tests: *successful_tests,
                 elapsed: *elapsed,
             }),
+            BenchTuneStatus::PartiallyCompleted { total_tests, successful_tests, failed_tests, elapsed } => {
+                Some(BenchTuneProgress::PartiallyCompleted {
+                    total_tests: *total_tests,
+                    successful_tests: *successful_tests,
+                    failed_tests: *failed_tests,
+                    elapsed: *elapsed,
+                })
+            }
+            BenchTuneStatus::Cancelled { total_tests, successful_tests, failed_tests, elapsed } => {
+                Some(BenchTuneProgress::Cancelled {
+                    total_tests: *total_tests,
+                    successful_tests: *successful_tests,
+                    failed_tests: *failed_tests,
+                    elapsed: *elapsed,
+                })
+            }
             BenchTuneStatus::Error { error } => Some(BenchTuneProgress::Error {
                 error: error.clone(),
             }),

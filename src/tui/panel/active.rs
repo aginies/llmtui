@@ -89,6 +89,36 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(elapsed_str, Style::default().fg(Color::White)),
                         ]));
                     }
+                    crate::models::BenchTuneProgress::PartiallyCompleted { total_tests, successful_tests, failed_tests, elapsed } => {
+                        let elapsed_str = format!("{}s", elapsed.as_secs());
+                        lines.push(Line::from(vec![
+                            Span::styled(" Results: ", Style::default().fg(Color::Yellow)),
+                            Span::styled(format!("{}/{} tests successful", successful_tests, total_tests), Style::default().fg(Color::Yellow)),
+                        ]));
+                        lines.push(Line::from(vec![
+                            Span::styled(" Failed: ", Style::default().fg(Color::Yellow)),
+                            Span::styled(format!("{} test(s)", failed_tests), Style::default().fg(Color::Red)),
+                        ]));
+                        lines.push(Line::from(vec![
+                            Span::styled(" Total Time: ", Style::default().fg(Color::Yellow)),
+                            Span::styled(elapsed_str, Style::default().fg(Color::White)),
+                        ]));
+                    }
+                    crate::models::BenchTuneProgress::Cancelled { total_tests, successful_tests, failed_tests, elapsed } => {
+                        let elapsed_str = format!("{}s", elapsed.as_secs());
+                        lines.push(Line::from(vec![
+                            Span::styled(" Results: ", Style::default().fg(Color::Yellow)),
+                            Span::styled(format!("{}/{} tests successful", successful_tests, total_tests), Style::default().fg(Color::Yellow)),
+                        ]));
+                        lines.push(Line::from(vec![
+                            Span::styled(" Failed: ", Style::default().fg(Color::Yellow)),
+                            Span::styled(format!("{} test(s)", failed_tests), Style::default().fg(Color::Red)),
+                        ]));
+                        lines.push(Line::from(vec![
+                            Span::styled(" Total Time: ", Style::default().fg(Color::Yellow)),
+                            Span::styled(elapsed_str, Style::default().fg(Color::White)),
+                        ]));
+                    }
                     crate::models::BenchTuneProgress::Error { error } => {
                         lines.push(Line::from(vec![
                             Span::styled(" Error: ", Style::default().fg(Color::Red)),

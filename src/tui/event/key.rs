@@ -1042,16 +1042,18 @@ fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) 
 async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
         KeyCode::Esc => {
-            if let Some(handle) = app.server_handle.take() {
-                let port = handle.port;
-                app.add_log(format!("BenchTune: stopping server on port {}", port), crate::config::LogLevel::Info);
-                let _ = crate::backend::server::kill_server(handle).await;
-                app.server_handle = None;
+            // Signal cancellation to the benchmark task so it can send Cancelled status
+            if let Some(cancel_tx) = &app.bench_tune_cancel_tx {
+                let _ = cancel_tx.send(true);
+                app.add_log("BenchTune: cancellation requested", crate::config::LogLevel::Info);
+            }
+            // Clean up server handle (don't kill the server — let the benchmark task handle it)
+            if app.server_handle.take().is_some() {
                 app.metrics_rx = None;
                 app.metrics = Default::default();
             }
-            if let Some(task) = app.bench_tune_task_handle.take() { task.abort(); }
-            app.bench_tune_running = false;
+            // Don't abort the task — let it finish gracefully and send Cancelled status
+            // Keep bench_tune_running = true so the app knows the task is still finishing up
             app.models_mode = ModelsMode::List;
             app.set_redraw();
             return;
