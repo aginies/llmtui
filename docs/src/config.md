@@ -1,11 +1,38 @@
 # Configuration
 
+## Directory Layout
+
+llm-manager uses XDG directories for config and data:
+
+```
+~/.config/llm-manager/          # Config directory
+├── config.yaml                 # Global settings
+├── models/                     # Per-model YAML configs
+│   └── qwen2.5-7b.yaml
+├── profiles/                   # Per-profile YAML configs
+│   └── my-profile.yaml
+├── presets/                    # Per-preset YAML configs
+│   └── custom-preset.yaml
+├── unused/                     # Deleted model configs
+├── unused_profiles/            # Deleted profiles
+└── unused_presets/             # Deleted presets
+
+~/.local/share/llm-manager/     # Data directory
+├── models/                     # GGUF model files
+│   └── qwen2.5-7b.Q4_K_M.gguf
+└── bin/                        # llama-server binaries
+    └── llama-server-cpu-...
+```
+
+Per-model configs are named `<model_name>.yaml` where `model_name` is the GGUF filename without the `.gguf` extension. Deleted configs are moved to `unused/` subdirectories (recoverable).
+
 ## Config File
 
-Configuration is stored in `~/.config/llm-manager/config.yaml`. The config is created automatically on first run with sensible defaults.
+The main config file is `~/.config/llm-manager/config.yaml`. It is created automatically on first run with sensible defaults.
 
 ```yaml
-models_dir: ~/.local/share/llm-manager/models
+models_dirs:
+  - ~/.local/share/llm-manager/models
 llama_server: llama-server
 default:
   context_length: 32096
@@ -54,7 +81,7 @@ Profiles are named presets of settings. The built-in profiles are:
 | Mistral | Optimized for Mistral models | temp: 0.7, top-k: 50 |
 | Phi | Optimized for Phi models | temp: 0.7, top-k: 50 |
 
-User-defined profiles are stored in the `profiles` list in the config file. Built-in profiles are merged on load, so adding a new built-in profile will automatically appear.
+User-defined profiles are stored as individual YAML files in `~/.config/llm-manager/profiles/<name>.yaml`. Built-in profiles are auto-merged on load.
 
 ## System Prompt Presets
 
@@ -67,7 +94,7 @@ System prompt presets define the initial system prompt. Built-in presets:
 | Thinker | Analytical and thoughtful |
 | Mathematician | Expert in mathematics |
 
-User-defined presets are stored in the `system_prompt_presets` list in the config file.
+User-defined presets are stored as individual YAML files in `~/.config/llm-manager/presets/<name>.yaml`. Built-in presets are auto-merged on load.
 
 ## Backend Binaries
 
@@ -175,7 +202,7 @@ Any endpoint not listed above is automatically proxied to the llama-server insta
 
 ## Model Overrides
 
-Settings can be saved per-model. These overrides are stored in the `model_overrides` map in the config file, keyed by model file name. When a model is loaded, its override settings are merged into the defaults.
+Settings can be saved per-model. Overrides are stored as individual YAML files in `~/.config/llm-manager/models/<name>.yaml` (where `name` is the GGUF filename without `.gguf`). When a model is loaded, its override settings are merged into the defaults. Deleted configs are moved to `~/.config/llm-manager/unused/` for recovery.
 
 ## RPC Workers
 

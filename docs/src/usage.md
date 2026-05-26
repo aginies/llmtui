@@ -4,7 +4,7 @@
 
 ### Listing Models
 
-The Models panel shows all `.gguf` files found in your models directory (recursively). The display name is the relative path from the models directory.
+The Models panel shows all `.gguf` files found in your models directories (recursively). The display name is the relative path from the models directory.
 
 - `f` — Filter local models by name (case-insensitive substring match)
 - `Esc` — Clear active filter and return to full list
@@ -19,7 +19,7 @@ When a model is loaded, its state changes to **Loaded** showing the port and PID
 
 ### Deleting Models
 
-Pressing `Ctrl+D` prompts for confirmation before deleting a model file from disk and its settings override from the config.
+Pressing `Ctrl+D` prompts for confirmation before moving the model file and its YAML config to `~/.config/llm-manager/unused/`. Both can be restored later.
 
 ## Search
 
@@ -265,7 +265,7 @@ Results can be exported as Markdown table, JSON, YAML, or HTML report with summa
 
 ## System Prompt Presets
 
-Named system prompts for different use cases. Built-in presets: General, Coder, Thinker, Mathematician.
+Named system prompts for different use cases. Built-in presets: General, Coder, Thinker, Mathematician. User presets are stored as YAML files in `~/.config/llm-manager/presets/<name>.yaml`.
 
 Open the System Prompt Presets panel and manage presets:
 
@@ -274,7 +274,7 @@ Open the System Prompt Presets panel and manage presets:
 | `n` | Create new preset |
 | `e` | Edit selected preset |
 | `↵` | Apply preset |
-| `d` | Delete selected preset |
+| `d` | Delete selected preset (moved to `unused_presets/`) |
 | `⌃S` | Save preset during edit |
 | `Esc` | Close / Cancel edit |
 
@@ -383,8 +383,8 @@ Press `Ctrl+Alt+K` to kill the running llama-server. When stopped, all loaded mo
 
 ## Profiles
 
-Profiles are named presets of LLM settings. Built-in profiles include Qwen, Gemma, Llama, Mistral, and Phi.
+Profiles are named presets of LLM settings. Built-in profiles include Qwen, Gemma, Llama, Mistral, and Phi. User profiles are stored as YAML files in `~/.config/llm-manager/profiles/<name>.yaml`.
 
 - `p` — Apply a profile to current settings
 - `Ctrl+S` — Save current settings as a new profile (in the Profiles panel)
-- `Ctrl+D` — Delete a user-defined profile
+- `Ctrl+D` — Delete a user-defined profile (moved to `unused_profiles/`)

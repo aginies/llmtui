@@ -100,6 +100,27 @@ models_dirs:
   - /path/to/models/2
 ```
 
+### Configuration layout
+
+llm-manager uses XDG directories:
+
+```
+~/.config/llm-manager/              # Config
+├── config.yaml                     # Global settings
+├── models/                         # Per-model YAML configs
+├── profiles/                       # Per-profile YAML configs
+├── presets/                        # Per-preset YAML configs
+├── unused/                         # Deleted model configs
+├── unused_profiles/                # Deleted profiles
+└── unused_presets/                 # Deleted presets
+
+~/.local/share/llm-manager/         # Data
+├── models/                         # GGUF files
+└── bin/                            # llama-server binaries
+```
+
+Per-model configs are named `<model_name>.yaml` (without `.gguf`). Deleted configs are moved to `unused/` (recoverable).
+
 ### Serve mode
 
 Run a model directly with llama-server and expose an OpenAI-compatible API:
@@ -171,11 +192,11 @@ Router mode allows loading multiple models simultaneously. The server starts wit
 
 ### Profiles
 
-The Profiles panel (`p`) shows saved presets of settings for quick switching. Profiles include both built-in presets shipped with the application and user-defined ones. User profiles can be created (`s`), applied (`↵`), and deleted (`d`).
+The Profiles panel (`p`) shows saved presets of settings for quick switching. Profiles include both built-in presets shipped with the application and user-defined ones (stored as YAML files in `~/.config/llm-manager/profiles/`). User profiles can be created (`s`), applied (`↵`), and deleted (`d`).
 
 ### System Prompt Presets
 
-The System Prompt Presets panel contains named system prompts for different use cases. Presets support create (`n`), edit (`e`), apply (`↵`), and delete (`d`). During edit, `⌃S` saves and `⎋` cancels.
+The System Prompt Presets panel contains named system prompts for different use cases (stored as YAML files in `~/.config/llm-manager/presets/`). Presets support create (`n`), edit (`e`), apply (`↵`), and delete (`d`). During edit, `⌃S` saves and `⎋` cancels.
 
 ### Keyboard shortcuts
 
@@ -403,11 +424,26 @@ The current split percentage is shown in the status bar (e.g., `│ 55%`). While
 
 ## Configuration
 
-Configuration is stored in the application's config directory (typically `~/.config/llm-manager/`).
+Configuration uses XDG directories:
+
+```
+~/.config/llm-manager/              # Config
+├── config.yaml                     # Global settings
+├── models/                         # Per-model YAML configs
+├── profiles/                       # Per-profile YAML configs
+├── presets/                        # Per-preset YAML configs
+├── unused/                         # Deleted model configs
+├── unused_profiles/                # Deleted profiles
+└── unused_presets/                 # Deleted presets
+
+~/.local/share/llm-manager/         # Data
+├── models/                         # GGUF files
+└── bin/                            # llama-server binaries
+```
 
 ### Multiple model directories
 
-The `models_dirs` field accepts a list of directories. The app scans all directories and merges the results into a single model list. The first directory is used as the download destination.
+The `models_dirs` field in `config.yaml` accepts a list of directories. The app scans all directories and merges the results into a single model list. The first directory is used as the download destination.
 
 ```yaml
 models_dirs:
