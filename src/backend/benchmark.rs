@@ -112,6 +112,7 @@ pub async fn run_bench_tune(
     // If runtime-only mode, send params in request body (no server restarts)
     if config.bench_mode == BenchTuneMode::RuntimeOnly {
         // Spawn a single server for all runtime-only iterations
+        let (exit_tx, _exit_rx) = tokio::sync::mpsc::channel(1);
         let (server_handle, _command) = spawn_server(
             main_config,
             Some(model),
@@ -120,6 +121,7 @@ pub async fn run_bench_tune(
             None,
             ServerMode::Normal,
             1,
+            exit_tx,
         ).await?;
 
         let host = if server_handle.host == "0.0.0.0" { "127.0.0.1" } else { &server_handle.host };
@@ -400,6 +402,7 @@ async fn run_bench_tune_single_test(
     }
 
     // Spawn server with test parameters
+    let (exit_tx, _exit_rx) = tokio::sync::mpsc::channel(1);
     let (server_handle, _command) = spawn_server(
         main_config,
         Some(model),
@@ -408,6 +411,7 @@ async fn run_bench_tune_single_test(
         None,
         ServerMode::Normal,
         1,
+        exit_tx,
     ).await?;    
     // Wait for server to be ready
     let mut ready = false;
