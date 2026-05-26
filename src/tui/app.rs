@@ -224,7 +224,6 @@ mod tests {
             system_prompt_presets: crate::config::PresetStore::new(),
             rpc_workers: Vec::new(),
             ws_server: crate::config::WsServer::default(),
-            ws_server_handle: None,
             search_limit: 50,
         };
         let mut app = App::new(config);

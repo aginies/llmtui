@@ -570,7 +570,17 @@ fn config_default_empty_rpc_workers() {
 
 #[test]
 fn config_default_empty_model_overrides() {
-    let config = Config::default();
+    let config = Config {
+        models_dirs: vec![],
+        llama_server: std::path::PathBuf::new(),
+        default: DefaultParams::default(),
+        model_overrides: ModelConfigStore::new_empty(),
+        profiles: ProfileStore::new(),
+        system_prompt_presets: PresetStore::new(),
+        rpc_workers: Vec::new(),
+        ws_server: llm_manager::WsServer::default(),
+        search_limit: 50,
+    };
     assert!(config.model_overrides.is_empty());
 }
 

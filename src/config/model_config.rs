@@ -78,6 +78,16 @@ impl ModelConfigStore {
         }
     }
 
+    /// Create a new empty store without loading from disk (for tests).
+    #[allow(dead_code)]
+    pub fn new_empty() -> Self {
+        Self {
+            models_dir: models_config_dir(),
+            unused_dir: unused_config_dir(),
+            cache: HashMap::new(),
+        }
+    }
+
     /// Get the config for a model by name.
     pub fn get(&self, name: &str) -> Option<&ModelOverride> {
         self.cache.get(name)
