@@ -51,13 +51,14 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
     <div class="label">tokens/sec</div>
   </div>
   <div class="card">
+    <h2>Latency</h2>
+    <div id="latency" class="value">0 ms</div>
+    <div class="label">per token</div>
+  </div>
+  <div class="card">
     <h2>Context</h2>
     <div id="ctx" class="value">0 / 0</div>
     <div class="bar-container"><div id="ctx-bar" class="bar blue" style="width:0%"></div></div>
-  </div>
-  <div class="card">
-    <h2>CPU</h2>
-    <div id="cpu" class="value">0%</div>
   </div>
   <div class="card">
     <h2>VRAM</h2>
@@ -69,9 +70,8 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
     <div id="ram" class="value">0 MiB</div>
   </div>
   <div class="card">
-    <h2>Latency</h2>
-    <div id="latency" class="value">0 ms</div>
-    <div class="label">per token</div>
+    <h2>CPU</h2>
+    <div id="cpu" class="value">0%</div>
   </div>
   <div class="card">
     <h2>Decoded Tokens</h2>
