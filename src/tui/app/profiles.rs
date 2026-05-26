@@ -12,9 +12,8 @@ impl App {
 
     /// Resolve system_prompt from the preset name.
     pub fn resolve_system_prompt(&mut self) {
-        let presets = &self.config.system_prompt_presets;
-        if let Some(preset) = presets.iter().find(|p| p.name == self.settings.system_prompt_preset_name) {
-            self.settings.system_prompt = preset.content.clone();
+        if let Some(content) = self.config.get_preset_content(&self.settings.system_prompt_preset_name) {
+            self.settings.system_prompt = content;
         }
         self.set_redraw();
     }
@@ -26,7 +25,7 @@ impl App {
             description: format!("User-defined profile: {}", name),
             settings: crate::config::ModelOverride::from_settings(&self.settings),
         };
-        self.config.profiles.push(profile);
+        self.config.profiles.save(&profile);
         if let Err(e) = self.config.save() {
             self.add_log(format!("Failed to save profile: {}", e), crate::config::LogLevel::Error);
         } else {
@@ -101,17 +100,7 @@ impl App {
     /// Returns true if a profile was deleted, false otherwise.
     pub fn delete_profile(&mut self, selected_idx: usize) -> bool {
         let builtin = crate::config::builtin_profiles();
-        
-        // Build the merged profile list (same as render logic)
-        let mut all_profiles: Vec<crate::config::Profile> = builtin.to_vec();
-        let mut user_profiles_displayed: Vec<(usize, crate::config::Profile)> = Vec::new();
-        
-        for (idx, p) in self.config.profiles.iter().enumerate() {
-            if !builtin.iter().any(|b| b.name == p.name) {
-                user_profiles_displayed.push((idx, p.clone()));
-                all_profiles.push(p.clone());
-            }
-        }
+        let all_profiles = self.config.profiles.all();
         
         // Check if selection is valid
         if selected_idx >= all_profiles.len() {
@@ -125,17 +114,10 @@ impl App {
             return false;
         }
         
-        // Map from display index to actual config.profiles index
-        let display_user_idx = selected_idx - builtin.len();
-        if display_user_idx >= user_profiles_displayed.len() {
-            self.add_log("Invalid profile selection", crate::config::LogLevel::Info);
-            return false;
-        }
-        
-        let (actual_idx, profile) = &user_profiles_displayed[display_user_idx];
+        let profile = all_profiles[selected_idx].clone();
         let profile_name = profile.name.clone();
         
-        self.config.profiles.remove(*actual_idx);
+        self.config.profiles.delete(&profile_name);
         
         if let Err(e) = self.config.save() {
             self.add_log(format!("Failed to delete profile: {}", e), crate::config::LogLevel::Error);

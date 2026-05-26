@@ -536,9 +536,7 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             if *selected >= entries.len() && *selected > 0 {
                                 *selected = entries.len() - 1;
                             }
-                            if let Some(preset) = app.config.system_prompt_presets.iter().position(|p| p.name == name) {
-                                app.config.system_prompt_presets.remove(preset);
-                            }
+                            let _ = app.config.system_prompt_presets.delete(&name);
                             let _ = app.config.save();
                         }
                     }
@@ -568,8 +566,9 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     if *selected < entries.len() {
                         let name = entries[*selected].0.clone();
                         let content = edit_buffer.clone();
-                        if let Some(preset) = app.config.system_prompt_presets.iter_mut().find(|p| p.name == name) {
+                        if let Some(mut preset) = app.config.system_prompt_presets.get(&name).cloned() {
                             preset.content = content;
+                            app.config.system_prompt_presets.save(&preset);
                             saved = app.config.save().is_ok();
                         }
                     }
@@ -618,7 +617,7 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 *edit_cursor_pos = 0;
                 if *selected < entries.len() {
                     let name = entries[*selected].0.clone();
-                    if let Some(preset) = app.config.system_prompt_presets.iter().find(|p| p.name == name) {
+                    if let Some(preset) = app.config.system_prompt_presets.get(&name) {
                         *edit_buffer = preset.content.clone();
                     } else {
                         *edit_buffer = String::new();
@@ -627,10 +626,10 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
             }
             KeyCode::Char('n') => {
-                let name = format!("Custom {}", entries.len() + 1);
+                let name = format!("Custom {}", app.config.system_prompt_presets.user_presets().len() + 1);
                 let preset = crate::config::SystemPromptPreset { name: name.clone(), description: "User-defined preset".into(), content: String::new() };
-                app.config.system_prompt_presets.push(preset);
-                entries.push((name, "User-defined preset".into()));
+                app.config.system_prompt_presets.save(&preset);
+                entries.push((name.clone(), "User-defined preset".into()));
                 *selected = entries.len() - 1;
                 *editing = true;
                 *edit_cursor_pos = 0;

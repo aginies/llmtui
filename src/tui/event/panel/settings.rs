@@ -162,12 +162,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
       // Ctrl+P: open profile picker modal
     if key.code == KeyCode::Char('p') && key.modifiers.contains(KeyModifiers::CONTROL) {
         let builtin = builtin_profiles();
-        let mut all_profiles: Vec<crate::config::Profile> = builtin.to_vec();
-        for p in &app.config.profiles {
-            if !builtin.iter().any(|b| b.name == p.name) {
-                all_profiles.push(p.clone());
-            }
-        }
+        let all_profiles = app.config.merged_profiles();
         app.profile_picker_entries = all_profiles
             .iter()
             .map(|p| {
@@ -260,7 +255,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_edit_buffer.clear();
                 app.set_redraw();
             } else if key.code == KeyCode::Enter {
-                app.prompt_picker_entries = app.config.system_prompt_presets
+                app.prompt_picker_entries = app.config.merged_presets()
                     .iter()
                     .map(|p| (p.name.clone(), p.description.clone()))
                     .collect();

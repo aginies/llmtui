@@ -553,13 +553,13 @@ fn model_override_apply_tags() {
 #[test]
 fn config_default_has_builtin_profiles() {
     let config = Config::default();
-    assert!(!config.profiles.is_empty());
+    assert!(!config.profiles.all().is_empty());
 }
 
 #[test]
 fn config_default_has_builtin_presets() {
     let config = Config::default();
-    assert!(!config.system_prompt_presets.is_empty());
+    assert!(!config.system_prompt_presets.all().is_empty());
 }
 
 #[test]

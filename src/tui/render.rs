@@ -1212,9 +1212,9 @@ pub fn render(f: &mut Frame, app: &mut App) {
             }
         }
         ActivePanel::SystemPromptPresets => {
-            let presets = &app.config.system_prompt_presets;
+            let presets = app.config.merged_presets();
             let preset_lines = panel::system_prompt_presets::render_all(
-                presets,
+                &presets,
                 app.settings_selected_idx,
                 app.editing_preset.is_some(),
                 &app.settings_edit_buffer,

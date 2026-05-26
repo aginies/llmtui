@@ -1,18 +1,9 @@
 use crossterm::event::KeyCode;
 
-use crate::config::builtin_profiles;
 use crate::tui::app::App;
 
 pub fn handle_profiles_key(app: &mut App, key: crossterm::event::KeyEvent) {
-    let builtin = builtin_profiles();
-    
-    // Build merged profile list (same as render logic)
-    let mut all_profiles: Vec<crate::config::Profile> = builtin.to_vec();
-    for p in &app.config.profiles {
-        if !builtin.iter().any(|b| b.name == p.name) {
-            all_profiles.push(p.clone());
-        }
-    }
+    let all_profiles = app.config.merged_profiles();
     let total = all_profiles.len();
 
     match key.code {

@@ -1,4 +1,6 @@
 mod model_config;
+mod profiles;
+mod presets;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -7,6 +9,8 @@ use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 pub use model_config::{ModelConfigStore, unused_config_dir};
+pub use profiles::{ProfileStore};
+pub use presets::{PresetStore};
 use crate::models::{Backend, CacheType, CacheTypeK, CacheTypeV, Mirostat, NumMode, RopeScaling, Samplers, SplitMode};
 
 /// Count physical CPU cores on Linux (ignores hyperthreading).
@@ -61,10 +65,10 @@ pub struct Config {
     pub model_overrides: ModelConfigStore,
     /// Named profiles of settings presets.
     #[serde(default)]
-    pub profiles: Vec<Profile>,
+    pub profiles: ProfileStore,
     /// System prompt presets.
     #[serde(default)]
-    pub system_prompt_presets: Vec<SystemPromptPreset>,
+    pub system_prompt_presets: PresetStore,
     /// RPC Workers for distributed inference.
     #[serde(default)]
     pub rpc_workers: Vec<RpcWorker>,
@@ -744,8 +748,8 @@ impl Default for Config {
             llama_server: "llama-server".into(),
             default: DefaultParams::default(),
             model_overrides: Default::default(),
-            profiles: builtin_profiles(),
-            system_prompt_presets: builtin_system_prompt_presets(),
+            profiles: Default::default(),
+            system_prompt_presets: Default::default(),
             rpc_workers: Vec::new(),
             search_limit: 5,
         }
@@ -860,12 +864,20 @@ impl Config {
             }
 
         // Apply profile override if specified
-        if let Some(p_name) = profile_name
-            && let Some(profile) = self.profiles.iter().find(|p| p.name == p_name) {
+        if let Some(p_name) = profile_name {
+            if let Some(profile) = self.profiles.get(p_name) {
+                profile.settings.apply(&mut settings);
+            } else if let Some(profile) = builtin_profiles().iter().find(|p| p.name == p_name) {
                 profile.settings.apply(&mut settings);
             }
+        }
 
         settings
+    }
+
+    /// Get a system prompt preset content by name.
+    pub fn get_preset_content(&self, name: &str) -> Option<String> {
+        self.system_prompt_presets.get(name).map(|p| p.content.clone())
     }
 
     fn normalize_config(mut config: Config) -> Config {
@@ -882,18 +894,16 @@ impl Config {
         }
 
         // Merge built-in profiles (add any missing ones)
-        let builtin = builtin_profiles();
-        for p in builtin {
-            if !config.profiles.iter().any(|u| u.name == p.name) {
-                config.profiles.push(p);
+        for p in builtin_profiles() {
+            if !config.profiles.get(&p.name).is_some() {
+                config.profiles.save(&p);
             }
         }
 
         // Merge built-in system prompt presets (add any missing ones)
-        let builtin_presets = builtin_system_prompt_presets();
-        for p in builtin_presets {
-            if !config.system_prompt_presets.iter().any(|u| u.name == p.name) {
-                config.system_prompt_presets.push(p);
+        for p in builtin_system_prompt_presets() {
+            if !config.system_prompt_presets.get(&p.name).is_some() {
+                config.system_prompt_presets.save(&p);
             }
         }
         config
@@ -958,18 +968,23 @@ impl Config {
         for (name, cfg) in entries {
             self.model_overrides.save(&name, &cfg);
         }
+        // Persist profiles to individual YAML files
+        for profile in self.profiles.all() {
+            self.profiles.save(&profile);
+        }
+        // Persist presets to individual YAML files
+        for preset in self.system_prompt_presets.all() {
+            self.system_prompt_presets.save(&preset);
+        }
         Ok(())
     }
 
     pub fn merged_profiles(&self) -> Vec<Profile> {
-        let builtin = builtin_profiles();
-        let mut all: Vec<Profile> = builtin.to_vec();
-        for p in &self.profiles {
-            if !builtin.iter().any(|b| b.name == p.name) {
-                all.push(p.clone());
-            }
-        }
-        all
+        self.profiles.all()
+    }
+
+    pub fn merged_presets(&self) -> Vec<SystemPromptPreset> {
+        self.system_prompt_presets.all()
     }
 
     /// Restore a deleted model config from the unused directory.
