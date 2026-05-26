@@ -1,6 +1,7 @@
 # llm-manager
 
 [![CI](https://github.com/aginies/llmtui/actions/workflows/ci.yml/badge.svg)](https://github.com/aginies/llmtui/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aginies.github.io/llmtui/)
 
 A terminal UI (TUI) for managing local LLM models with HuggingFace search, download, and inference control.
 
