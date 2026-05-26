@@ -500,6 +500,7 @@ impl App {
                     self.server.server_handle = Some(server_handle);
                     self.server.cmd_display = Some(cmd);
                     self.server.spawned_settings = Some(spawned_settings);
+                    self.server.spawned_model_name = Some(server_display_name.clone());
                     if self.settings.api_endpoint_enabled {
                         let port = self.settings.api_endpoint_port;
                         let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap_or_else(|_| "127.0.0.1:49222".parse().unwrap());

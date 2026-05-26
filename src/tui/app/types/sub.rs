@@ -61,6 +61,7 @@ pub struct ServerState {
     pub metrics_tx: Option<tokio::sync::broadcast::Sender<crate::models::WsMetrics>>,
     pub cmd_display: Option<String>,
     pub spawned_settings: Option<crate::models::ModelSettings>,
+    pub spawned_model_name: Option<String>,
 }
 
 pub struct BenchTuneState {

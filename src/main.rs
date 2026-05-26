@@ -182,9 +182,10 @@ async fn main() -> Result<()> {
                 // Send metrics snapshot to WebSocket clients
                 if let Some(tx) = &app.server.metrics_tx {
                     let settings = app.server.spawned_settings.as_ref().unwrap_or(&app.settings);
+                    let model_name = app.server.spawned_model_name.as_deref().unwrap_or("");
                     if let Err(e) = tx.send(crate::models::WsMetrics::from_metrics(
                         &app.metrics,
-                        &app.get_model_name(),
+                        model_name,
                         &app.get_state_str(),
                         settings,
                         app.server.cmd_display.as_deref(),

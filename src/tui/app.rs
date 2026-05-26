@@ -92,6 +92,7 @@ impl App {
                 metrics_tx: None,
                 cmd_display: None,
                 spawned_settings: None,
+                spawned_model_name: None,
             },
             bench_tune: BenchTuneState {
                 bench_tune_progress: None,
@@ -182,18 +183,6 @@ impl App {
 }
 
 impl App {
-    pub fn get_model_name(&self) -> String {
-        if let Some(name) = &self.server.metrics_model_name.lock().unwrap().clone() {
-            return name.clone();
-        }
-        if let Some(idx) = self.selected_model_idx {
-            if let Some(model) = self.models.get(idx) {
-                return model.display_name.clone();
-            }
-        }
-        String::new()
-    }
-
     pub fn get_state_str(&self) -> String {
         if let Some(idx) = self.selected_model_idx {
             let name = self.models[idx].display_name.clone();
