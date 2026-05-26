@@ -21,6 +21,7 @@ cargo doc --open
 | `DownloadState` | `models` | Download progress tracking with cancellation support |
 | `GgufMetadata` | `models` | Parsed GGUF metadata (layers, hidden size, context, etc.) |
 | `ServerMetrics` | `models` | Metrics from the llama.cpp server (TPS, VRAM, CPU, context) |
+| `WsMetrics` | `models` | WebSocket-friendly metrics snapshot (serializable, includes settings and command display) |
 | `LogEntry` | `config` | A single log entry with timestamp, level, and message |
 
 ### Enums
@@ -192,6 +193,25 @@ pub fn builtin_profiles() -> Vec<Profile>
 
 /// Built-in system prompt presets.
 pub fn builtin_system_prompt_presets() -> Vec<SystemPromptPreset>
+```
+
+### `backend::ws_server`
+
+WebSocket dashboard server.
+
+```rust
+pub struct WsAppState {
+    pub metrics_rx: Arc<broadcast::Receiver<WsMetrics>>,
+    pub auth_key: Option<String>,
+}
+
+pub async fn start_ws_server(
+    port: u16,
+    metrics_rx: Arc<broadcast::Receiver<WsMetrics>>,
+    auth_key: Option<String>,
+) -> JoinHandle<()>
+
+pub fn stop_ws_server(handle: JoinHandle<()>)
 ```
 
 ### `backend::benchmark`

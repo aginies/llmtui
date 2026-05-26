@@ -68,6 +68,9 @@ cargo run -- --config /path/to/config.yaml
 | `top_p` | 0.95 | Top-p sampling |
 | `repeat_penalty` | 1.1 | Repetition penalty |
 | `backend` | vulkan | Default backend (cpu/vulkan/rocm) |
+| `ws_server_enabled` | false | Enable the WebSocket dashboard server |
+| `ws_server_port` | 49223 | Port for the WebSocket dashboard server |
+| `ws_server_auth_key` | — | Optional auth key for dashboard access |
 
 ## Profiles
 

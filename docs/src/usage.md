@@ -103,6 +103,7 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 | **Max Models** | 4 | Maximum concurrent models in Router mode. |
 | **API Endpoint** | false | Enable the API proxy server (see Serve Mode). |
 | **API Port** | 49222 | Port for the API proxy server. |
+| **Dashboard** | false | WebSocket dashboard server (port 49223). Press `Enter` to configure. |
 
 > **Note:** The Server Settings panel is hidden when a server is already running. Press `F2` to toggle Server Settings only when no server is active.
 
@@ -249,6 +250,26 @@ Open the RPC Workers manager from the Server Settings panel. Within the manager:
 | `d` | Delete selected worker |
 | `Space` | Toggle worker selection |
 | `Esc` | Close manager |
+
+## WebSocket Dashboard
+
+The WebSocket Dashboard provides a real-time visualization of model metrics in any web browser. Access it at `http://localhost:49223` (default port).
+
+### Configuration
+
+Open the Server Settings panel, navigate to **Dashboard**, and press `Enter` to configure:
+
+| Field | Description |
+|-------|-------------|
+| **Enabled** | Toggle the dashboard on/off |
+| **Port** | Server port (default: 49223) |
+| **Auth Key** | Optional authentication key |
+
+When an auth key is set, clients must include it as a URL parameter: `http://localhost:49223?auth=<key>`.
+
+### Dashboard Display
+
+The dashboard shows real-time metrics (TPS, prompt TPS, latency, context, VRAM, RAM, CPU, decoded tokens) and current inference settings (backend, threads, temperature, sampling parameters, etc.) alongside the full server command line.
 
 ## Benchmark Tuning
 
