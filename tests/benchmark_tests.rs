@@ -109,9 +109,9 @@ fn bench_tune_config_has_top_k_param() {
         "prompt".into(),
     );
     let tk = config.params_to_test.iter().find(|p| p.name == "top_k").unwrap();
-    assert_eq!(tk.min, 40.0);
-    assert_eq!(tk.max, 50.0);
-    assert_eq!(tk.step, 10.0);
+    assert_eq!(tk.min, 10.0);
+    assert_eq!(tk.max, 40.0);
+    assert_eq!(tk.step, 5.0);
 }
 
 #[test]
@@ -230,12 +230,12 @@ fn generate_combinations_one_enabled_top_k() {
         1,
         "prompt".into(),
     );
-    // Enable only top_k (40, 50 = 2 values)
+    // Enable only top_k (10, 15, 20, 25, 30, 35, 40 = 7 values)
     if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "top_k") {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    assert_eq!(combos.len(), 2);
+    assert_eq!(combos.len(), 7);
 }
 
 #[test]
@@ -722,14 +722,14 @@ fn generate_combinations_all_enabled_large_product() {
         "prompt".into(),
     );
     // Enable all 8 params:
-    // temperature: 7, top_p: 3, top_k: 2, repeat_penalty: 3
+    // temperature: 7, top_p: 3, top_k: 7, repeat_penalty: 3
     // flash_attn: 2, threads: 4, batch_size: 4, expert_count: 4
-    // Total: 7 * 3 * 2 * 3 * 2 * 4 * 4 * 4 = 16128
+    // Total: 7 * 3 * 7 * 3 * 2 * 4 * 4 * 4 = 56448
     for p in &mut config.params_to_test {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    assert_eq!(combos.len(), 16128);
+    assert_eq!(combos.len(), 56448);
 }
 
 // ── BenchTuneProgress from_status ──────────────────────────────

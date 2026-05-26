@@ -1393,9 +1393,9 @@ impl BenchTuneConfig {
                 },
                 BenchTuneParam {
                     name: "top_k".to_string(),
-                    min: 40.0,
-                    max: 50.0,
-                    step: 10.0,
+                    min: 10.0,
+                    max: 40.0,
+                    step: 5.0,
                     enabled: false,
                 },
                 BenchTuneParam {

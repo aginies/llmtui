@@ -27,38 +27,37 @@ impl App {
             None => return,
         };
         let key = model.path.to_string_lossy().to_string();
-        
-        // Evict cache entries if it exceeds the maximum size
-        const MAX_CACHE_SIZE: usize = 50;
-        if self.gguf_metadata_cache.len() > MAX_CACHE_SIZE {
-            // Remove the oldest entry (first inserted)
-            if let Some(first_key) = self.gguf_metadata_cache.keys().next().cloned() {
-                self.gguf_metadata_cache.remove(&first_key);
-            }
-        }
-        
-        // 1. Check persistent cache first
-        if let Some(cached) = self.gguf_metadata_cache.get(&key) {
-            self.model_total_layers = cached.layers;
-            self.model_hidden_size = cached.hidden_size;
-            self.model_n_ctx_train = cached.n_ctx_train;
-            self.model_n_head = cached.n_head;
-            self.model_n_kv_head = cached.n_kv_head;
-        }
 
-       // 2. Debounce logic: only skip if we tried this EXACT file (path + mtime) very recently
-        // and it wasn't GGUF or we failed to parse it.
+        // 1. Debounce: skip re-parse if file hasn't changed.
+        // This must run before the cache lookup so file changes are detected
+        // even when a stale cache entry exists.
         if let Ok(meta) = std::fs::metadata(&model.path) {
             let mtime = meta.modified().unwrap_or(std::time::SystemTime::now());
             let (last_path, last_mtime) = &self.last_metadata_parse;
             if last_path == &model.path && mtime == *last_mtime {
-                // Already tried this version of the file and it's not in cache (meaning it failed or is not GGUF)
+                // File unchanged — use cached values if available.
+                if let Some(cached) = self.gguf_metadata_cache.get(&key) {
+                    self.model_total_layers = cached.layers;
+                    self.model_hidden_size = cached.hidden_size;
+                    self.model_n_ctx_train = cached.n_ctx_train;
+                    self.model_n_head = cached.n_head;
+                    self.model_n_kv_head = cached.n_kv_head;
+                }
                 if self.model_hidden_size > 0 {
                     self.update_vram_estimate();
                 }
                 return;
             }
             self.last_metadata_parse = (model.path.clone(), mtime);
+        }
+
+        // 2. Evict cache entries if it exceeds the maximum size.
+        // BTreeMap keys are sorted, so `next()` returns the smallest (oldest) key.
+        const MAX_CACHE_SIZE: usize = 50;
+        if self.gguf_metadata_cache.len() > MAX_CACHE_SIZE {
+            if let Some(first_key) = self.gguf_metadata_cache.keys().next().cloned() {
+                self.gguf_metadata_cache.remove(&first_key);
+            }
         }
 
         // 3. Perform the actual parse

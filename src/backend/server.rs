@@ -52,7 +52,9 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
                 push_arg(&mut cmd, &mut parts, "--models-max", router_max_models);
             }
             // Always pass --models-dir in router mode (global config setting)
-            push_arg(&mut cmd, &mut parts, "--models-dir", config.models_dir.display());
+            if let Some(dir) = config.models_dirs.first() {
+                push_arg(&mut cmd, &mut parts, "--models-dir", dir.display());
+            }
         }
         crate::models::ServerMode::Bench => {
             // Should not be reached as Bench uses build_bench_cmd

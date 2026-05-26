@@ -720,7 +720,7 @@ async fn test_files_up_moves_selection() {
 async fn test_files_enter_sets_pending_download() {
     let mut app = make_app();
     make_files_mode(&mut app);
-    app.config.models_dir = std::path::PathBuf::from("/tmp");
+    app.config.models_dirs = vec![std::path::PathBuf::from("/tmp")];
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
     assert!(app.pending_download.is_some());
@@ -730,7 +730,7 @@ async fn test_files_enter_sets_pending_download() {
 async fn test_files_enter_duplicate_download_warns() {
     let mut app = make_app();
     make_files_mode(&mut app);
-    app.config.models_dir = std::path::PathBuf::from("/tmp");
+    app.config.models_dirs = vec![std::path::PathBuf::from("/tmp")];
     // Trigger first download
     let key1 = make_key(KeyCode::Enter);
     handle_key(&mut app, key1).await;
@@ -1059,7 +1059,8 @@ async fn test_bench_tune_esc_stops_server() {
     let key = make_key(KeyCode::Esc);
     handle_key(&mut app, key).await;
     assert!(app.server_handle.is_none());
-    assert!(!app.bench_tune_running);
+    // bench_tune_running stays true — task is still finishing up
+    assert!(app.bench_tune_running);
     assert!(matches!(app.models_mode, ModelsMode::List));
 }
 

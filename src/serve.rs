@@ -80,7 +80,7 @@ pub async fn serve_model(
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
     let display_name = model_path
-        .strip_prefix(&config.models_dir)
+        .strip_prefix(config.models_dirs.first().unwrap_or(&PathBuf::new()))
         .ok()
         .and_then(|p| p.to_str())
         .map(|s| s.to_string())

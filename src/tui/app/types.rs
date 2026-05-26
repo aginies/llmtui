@@ -9,7 +9,7 @@ use crate::models::Backend;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-use std::collections::{VecDeque, HashSet, HashMap};
+use std::collections::{VecDeque, HashSet, BTreeMap, HashMap};
 use ratatui::text::Line;
 use ratatui::layout::Rect;
 use ratatui::widgets::{TableState, ListState};
@@ -199,7 +199,7 @@ pub struct App {
     pub editing_rpc_worker: Option<usize>,
     pub rpc_workers_scroll_offset: usize,
     pub edit_cursor_pos: usize,
-    pub gguf_metadata_cache: HashMap<String, crate::models::GgufMetadata>,
+    pub gguf_metadata_cache: BTreeMap<String, crate::models::GgufMetadata>,
     pub vram_estimate: u64, // estimated VRAM in MiB
     pub backend_resolving: bool,
     pub backend_resolve_handle: Option<tokio::task::JoinHandle<Result<PathBuf, String>>>,

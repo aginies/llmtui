@@ -50,7 +50,7 @@ fn default_rpc_port() -> u16 { 50052 }
 /// Global configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    pub models_dir: PathBuf,
+    pub models_dirs: Vec<PathBuf>,
     pub llama_server: PathBuf,
     pub default: DefaultParams,
     /// Per-model overrides (keyed by model file name).
@@ -737,7 +737,7 @@ impl Default for DefaultParams {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            models_dir: dirs::config_dir().unwrap_or_default().join("llm-manager").join("models"),
+            models_dirs: vec![dirs::config_dir().unwrap_or_default().join("llm-manager").join("models")],
             llama_server: "llama-server".into(),
             default: DefaultParams::default(),
             model_overrides: Default::default(),
@@ -864,15 +864,16 @@ impl Config {
     }
 
     fn normalize_config(mut config: Config) -> Config {
-        // normalize models_dir
-        let path_str = config.models_dir.to_string_lossy();
-        if path_str.starts_with("~/") {
-            let home = dirs::home_dir().unwrap_or_default();
-            config.models_dir = home.join(&path_str[2..]);
-        } else if !config.models_dir.is_absolute() {
-            config.models_dir = dirs::home_dir()
-                .unwrap_or_default()
-                .join(&config.models_dir);
+        // normalize models_dirs
+        for path in &mut config.models_dirs {
+            let path_str = path.to_string_lossy();
+            if path_str.starts_with("~/") {
+                let home = dirs::home_dir().unwrap_or_default();
+                *path = home.join(&path_str[2..]);
+            } else if !path.is_absolute() {
+                let home = dirs::home_dir().unwrap_or_default();
+                *path = home.join(path_str.as_ref());
+            }
         }
 
         // Merge built-in profiles (add any missing ones)

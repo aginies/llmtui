@@ -6,7 +6,9 @@ use std::sync::atomic::{AtomicBool, AtomicU8};
 impl App {
     pub async fn start_pending_download(&mut self) {
         if let Some((model_id, filename, download_url, file_size)) = self.pending_download.take() {
-            let models_dir = self.config.models_dir.clone();
+            let models_dirs = &self.config.models_dirs;
+            // Use the first directory as the download destination
+            let models_dir = models_dirs.first().cloned().unwrap_or_default();
             let dest = models_dir.join(&filename);
             let free_space = crate::backend::hub::get_free_space_bytes(&models_dir);
             if file_size > free_space {
@@ -190,7 +192,7 @@ impl App {
                             self.add_log("Backend download complete", crate::config::LogLevel::Info);
                         } else {
                             self.add_log(format!("Download complete: {}", state.filename), crate::config::LogLevel::Info);
-                            self.models = Self::discover_models(&self.config.models_dir);
+                            self.models = Self::discover_models(&self.config.models_dirs);
                         }
                     }
                     crate::models::DownloadStatus::Error(e) => {

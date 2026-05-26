@@ -988,7 +988,7 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.add_log("Download already in progress", crate::config::LogLevel::Warning);
                     return;
                 }
-                let models_dir = app.config.models_dir.clone();
+                let models_dir = app.config.models_dirs.first().cloned().unwrap_or_default();
                 let file_path = models_dir.join(&filename);
                 if file_path.exists() {
                     app.add_log("File already downloaded", crate::config::LogLevel::Warning);

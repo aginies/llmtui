@@ -159,7 +159,7 @@ mod tests {
 
     fn make_app() -> App {
         let config = crate::config::Config {
-            models_dir: std::path::PathBuf::new(),
+            models_dirs: vec![],
             llama_server: std::path::PathBuf::new(),
             default: crate::config::DefaultParams::default(),
             model_overrides: std::collections::HashMap::new(),

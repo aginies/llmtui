@@ -1,5 +1,5 @@
 use super::types::App;
-use std::path::Path;
+use std::path::PathBuf;
 
 impl App {
     pub fn render<T: ratatui::backend::Backend>(&mut self, terminal: &mut ratatui::Terminal<T>) -> std::io::Result<()> {
@@ -10,29 +10,31 @@ impl App {
         Ok(())
     }
 
-    pub fn discover_models(dir: &Path) -> Vec<crate::models::DiscoveredModel> {
+    pub fn discover_models(dirs: &[PathBuf]) -> Vec<crate::models::DiscoveredModel> {
         let mut models = Vec::new();
-        crate::backend::hub::walk_dir_recursive(dir, 0, 10, &mut |entry| {
-            let path = entry.path();
-            if path.is_file() && path.extension().map(|e| e == "gguf").unwrap_or(false) {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    let name = name.to_string();
-                    let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                    let display_name = path
-                        .strip_prefix(dir)
-                        .ok()
-                        .and_then(|p| p.to_str())
-                        .unwrap_or(&name)
-                        .to_string();
-                    models.push(crate::models::DiscoveredModel {
-                        path,
-                        name,
-                        file_size: size,
-                        display_name,
-                    });
+        for dir in dirs {
+            crate::backend::hub::walk_dir_recursive(dir, 0, 10, &mut |entry| {
+                let path = entry.path();
+                if path.is_file() && path.extension().map(|e| e == "gguf").unwrap_or(false) {
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        let name = name.to_string();
+                        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                        let display_name = path
+                            .strip_prefix(dir)
+                            .ok()
+                            .and_then(|p| p.to_str())
+                            .unwrap_or(&name)
+                            .to_string();
+                        models.push(crate::models::DiscoveredModel {
+                            path,
+                            name,
+                            file_size: size,
+                            display_name,
+                        });
+                    }
                 }
-            }
-        });
+            });
+        }
         models.sort_by(|a, b| a.name.cmp(&b.name));
         models
     }

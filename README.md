@@ -1,7 +1,6 @@
 # llm-manager
 
 [![CI](https://github.com/aginies/llmtui/actions/workflows/ci.yml/badge.svg)](https://github.com/aginies/llmtui/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-413-passing-green)](#testing)
 
 A terminal UI (TUI) for managing local LLM models with HuggingFace search, download, and inference control.
 
@@ -28,6 +27,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - **Profiles** — saved presets of settings for quick switching (`p`)
 - **System Prompt Presets** — named system prompts for different use cases
 - **Router Mode** — load multiple models simultaneously
+- **Multiple Model Directories** — scan multiple directories for models; downloads go to the first directory
 - **Panel Resize** — drag the border between left and right panels, or use `Shift+←/→` to adjust (20%-80%)
 
 ## Prerequisites
@@ -83,6 +83,22 @@ Tests are organized in the `tests/` directory:
 - `tests/server_tests.rs` — 22 tests (command building, server management)
 
 CI runs `cargo build` and `cargo test` on every PR and push to main.
+
+### Multiple model directories
+
+Store models across multiple directories — the app scans all of them and merges the results into a single list. Downloads go to the first directory.
+
+Via CLI:
+```bash
+llm-manager --models-dir /path/to/models/1 --models-dir /path/to/models/2
+```
+
+Via config (`~/.config/llm-manager/config.yaml`):
+```yaml
+models_dirs:
+  - /path/to/models/1
+  - /path/to/models/2
+```
 
 ### Serve mode
 
@@ -291,7 +307,7 @@ The Benchmark Tuning system auto-tunes model parameters for optimal performance.
 - **RuntimeOnly**: Single server, params sent in request body (no server restarts)
 - **Full**: New server spawned for each parameter combination
 
-Tunable parameters: temperature (0.4-1.0), top_p (0.8-1.0), top_k (40-50), repeat_penalty (1.0-1.2), flash_attn (0/1), threads (4-16), batch_size (512-2048), expert_count (1-4).
+Tunable parameters: temperature (0.4-1.0), top_p (0.8-1.0), top_k (10-40), repeat_penalty (1.0-1.2), flash_attn (0/1), threads (4-16), batch_size (512-2048), expert_count (1-4).
 
 Results can be exported as Markdown table, JSON, YAML, or HTML report with summary cards, winner section, impact analysis, and Chart.js charts.
 
@@ -388,6 +404,16 @@ The current split percentage is shown in the status bar (e.g., `│ 55%`). While
 ## Configuration
 
 Configuration is stored in the application's config directory (typically `~/.config/llm-manager/`).
+
+### Multiple model directories
+
+The `models_dirs` field accepts a list of directories. The app scans all directories and merges the results into a single model list. The first directory is used as the download destination.
+
+```yaml
+models_dirs:
+  - /path/to/models/1
+  - /path/to/models/2
+```
 
 ### Backend binary resolution
 

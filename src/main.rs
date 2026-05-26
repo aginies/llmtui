@@ -23,9 +23,9 @@ enum Cli {
     /// Manage and chat with local LLMs (TUI mode, default)
     #[command(name = "tui", about = "Start the terminal UI")]
     Tui {
-        /// Path to models directory
+        /// Path to models directory (can be specified multiple times)
         #[arg(short, long)]
-        models_dir: Option<String>,
+        models_dirs: Option<Vec<String>>,
 
         /// Path to llama-server binary
         #[arg(short, long, default_value = "llama-server")]
@@ -90,7 +90,7 @@ async fn main() -> Result<()> {
             serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key).await
         }
         Cli::Tui {
-            models_dir,
+            models_dirs: cli_models_dirs,
             llama_server,
             backend,
             config,
@@ -98,28 +98,32 @@ async fn main() -> Result<()> {
             let config_path = config.map(PathBuf::from).unwrap_or(Config::config_path());
 
             // Load or create config
-            let config = if config_path.exists() {
+            let mut config = if config_path.exists() {
                 Config::load_from(config_path).map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
             } else {
                 let mut c = Config::default();
-                c.models_dir = resolve_models_dir(&models_dir);
                 c.llama_server = PathBuf::from(&llama_server);
-                c.save().map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
                 c
             };
 
+            // If CLI models_dirs are provided, override the config ones
+            if let Some(dirs) = cli_models_dirs {
+                config.models_dirs = resolve_models_dirs(&Some(dirs));
+            }
+
             // Apply CLI backend override
             let backend = Backend::from_str(&backend);
-            let mut config = config;
             config.default.backend = backend;
 
-            // Ensure models directory exists
-            std::fs::create_dir_all(&config.models_dir)?;
+            // Ensure models directories exist
+            for dir in &config.models_dirs {
+                std::fs::create_dir_all(dir)?;
+            }
 
             // Discover models asynchronously
-            let models_dir = config.models_dir.clone();
+            let models_dirs = config.models_dirs.clone();
             let models = tokio::task::spawn_blocking(move || {
-                App::discover_models(&models_dir)
+                App::discover_models(&models_dirs)
             }).await.unwrap_or_default();
             
             info!("Discovered {} models", models.len());
@@ -240,14 +244,14 @@ async fn main() -> Result<()> {
     }
 }
 
-fn resolve_models_dir(cli_value: &Option<String>) -> PathBuf {
+fn resolve_models_dirs(cli_value: &Option<Vec<String>>) -> Vec<PathBuf> {
     match cli_value {
-        Some(p) => PathBuf::from(p),
+        Some(dirs) => dirs.iter().map(PathBuf::from).collect(),
         None => {
             let home = dirs::home_dir()
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_default();
-            home.join(".local/share/llm-manager/models")
+            vec![home.join(".local/share/llm-manager/models")]
         }
     }
 }
