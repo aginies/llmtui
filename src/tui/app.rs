@@ -42,6 +42,7 @@ impl App {
             cancelled: None,
             server_mode,
             router_max_models,
+            ws_server_handle: None,
             background_tasks: Default::default(),
 
             settings_state: SettingsState {
@@ -88,6 +89,8 @@ impl App {
                 metrics_model_name: std::sync::Arc::new(std::sync::Mutex::new(None)),
                 loaded_model_names: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
                 api_proxy_handle: None,
+                metrics_tx: None,
+                cmd_display: None,
             },
             bench_tune: BenchTuneState {
                 bench_tune_progress: None,
@@ -221,6 +224,7 @@ mod tests {
             system_prompt_presets: crate::config::PresetStore::new(),
             rpc_workers: Vec::new(),
             ws_server: crate::config::WsServer::default(),
+            ws_server_handle: None,
             search_limit: 50,
         };
         let mut app = App::new(config);

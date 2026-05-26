@@ -30,6 +30,10 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
 .status .dot.off { background: #f7768e; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .meta { font-size: 0.75rem; color: #414868; margin-top: 8px; }
+ .settings-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+ .setting-item { background: #161622; border: 1px solid #3d3d55; border-radius: 5px; padding: 6px 10px; }
+ .setting-name { font-size: 0.6rem; color: #8888aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+ .setting-val { font-size: 1.3rem; color: #9ece6a; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -78,6 +82,11 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
     <div id="tokens" class="value">0</div>
   </div>
 </div>
+<div class="grid" id="settings-grid" style="display:none;"></div>
+<div class="card" id="cmd-card" style="display:none;">
+  <h2>Server Command</h2>
+  <pre id="cmd-display" style="white-space:pre-wrap;word-break:break-all;font-size:1.3rem;color:#9ece6a;margin:0;padding:0;"></pre>
+</div>
 <div class="status">
   <span class="dot off" id="dot"></span>
   <span id="status-text">Disconnected</span>
@@ -115,6 +124,63 @@ function connect() {
   };
 }
 
+function s(m, key) { return m[key] !== undefined && m[key] !== null ? m[key] : '-'; }
+function fmt(m, key) {
+  const v = m[key];
+  if (v === undefined || v === null) return '-';
+  if (typeof v === 'boolean') return v ? 'On' : 'Off';
+  if (typeof v === 'number' && v % 1 !== 0) return v.toFixed(2);
+  return String(v);
+}
+function fmt_opt(m, key) {
+  const v = m[key];
+  if (v === undefined || v === null) return 'Off';
+  if (typeof v === 'boolean') return v ? 'On' : 'Off';
+  if (typeof v === 'number' && v % 1 !== 0) return v.toFixed(2);
+  return String(v);
+}
+function render_settings(m) {
+  const grid = document.getElementById('settings-grid');
+  grid.style.display = 'grid';
+  const items = [
+    ['Backend', s(m, 'backend') + (s(m, 'llama_cpp_version') !== '-' ? ' v' + s(m, 'llama_cpp_version') : '')],
+    ['Threads', s(m, 'threads')],
+    ['Threads Batch', s(m, 'threads_batch')],
+    ['Context', s(m, 'context_length')],
+    ['Batch Size', s(m, 'batch_size')],
+    ['Ubatch Size', s(m, 'ubatch_size')],
+    ['Temp', fmt(m, 'temperature')],
+    ['Top-k', s(m, 'top_k')],
+    ['Top-p', fmt(m, 'top_p')],
+    ['Min P', fmt(m, 'min_p')],
+    ['Typical P', fmt(m, 'typical_p')],
+    ['Seed', s(m, 'seed')],
+    ['Repeat Penalty', fmt(m, 'repeat_penalty')],
+    ['Repeat Last N', s(m, 'repeat_last_n')],
+    ['Presence Penalty', fmt_opt(m, 'presence_penalty')],
+    ['Freq Penalty', fmt_opt(m, 'frequency_penalty')],
+    ['Mirostat', fmt_opt(m, 'mirostat')],
+    ['Mirostat LR', fmt_opt(m, 'mirostat_lr')],
+    ['Mirostat Ent', fmt_opt(m, 'mirostat_ent')],
+    ['Max Tokens', fmt_opt(m, 'max_tokens')],
+    ['Flash Attention', fmt(m, 'flash_attn')],
+    ['KV Cache Offload', fmt(m, 'kv_cache_offload')],
+    ['Cache Type K', fmt_opt(m, 'cache_type_k')],
+    ['Cache Type V', fmt_opt(m, 'cache_type_v')],
+    ['Unified KV', fmt(m, 'uniform_cache')],
+    ['Mlock', fmt(m, 'mlock')],
+    ['Mmap', fmt(m, 'mmap')],
+    ['Embedding', fmt(m, 'embedding')],
+    ['Jinja', fmt(m, 'jinja')],
+    ['Ignore EOS', fmt(m, 'ignore_eos')],
+    ['Expert Count', s(m, 'expert_count')],
+    ['GPU Layers', s(m, 'gpu_layers')],
+    ['Samplers', s(m, 'samplers')],
+  ];
+  grid.innerHTML = items.map(([name, val]) =>
+    `<div class="setting-item"><div class="setting-name">${name}</div><div class="setting-val">${val}</div></div>`
+  ).join('');
+}
 function update(m) {
   document.getElementById('model-name').textContent = m.model_name || 'No model loaded';
   document.getElementById('state-badge').textContent = m.state || 'unknown';
@@ -135,6 +201,15 @@ function update(m) {
   document.getElementById('ram').textContent = (m.ram_used / 1024 / 1024 / 1024).toFixed(1) + ' GB';
   document.getElementById('latency').textContent = m.latency_per_token_ms.toFixed(1) + ' ms';
   document.getElementById('tokens').textContent = m.decoded_tokens;
+  render_settings(m);
+  const cmd = m.cmd_display;
+  const cmdCard = document.getElementById('cmd-card');
+  if (cmd) {
+    cmdCard.style.display = 'block';
+    document.getElementById('cmd-display').textContent = cmd;
+  } else {
+    cmdCard.style.display = 'none';
+  }
 }
 
 connect();

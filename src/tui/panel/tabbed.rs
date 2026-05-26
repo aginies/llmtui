@@ -106,6 +106,9 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 5, "API Endpoint", api_enabled, selected, "", server_running);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 6, "RPC Workers", &rpc_workers_val, selected, "", false);
 
+    let dashboard_val = format!("Dashboard ({})", if app.settings.ws_server_enabled { "Enabled" } else { "Disabled" });
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 7, "Dashboard", &dashboard_val, selected, "", server_running);
+
     let total_settings = lines.len();
     let available_height = area.height.saturating_sub(2);
 

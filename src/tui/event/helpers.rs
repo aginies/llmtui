@@ -42,7 +42,10 @@ pub fn sync_global_settings(app: &mut App) {
         || app.config.default.llama_cpp_version_vulkan != app.settings.llama_cpp_version_vulkan
         || app.config.default.llama_cpp_version_rocm != app.settings.llama_cpp_version_rocm
         || app.config.default.llama_cpp_version_rocm_lemonade != app.settings.llama_cpp_version_rocm_lemonade
-        || app.config.default.llama_cpp_version_cuda != app.settings.llama_cpp_version_cuda;
+        || app.config.default.llama_cpp_version_cuda != app.settings.llama_cpp_version_cuda
+        || app.config.default.ws_server_enabled != app.settings.ws_server_enabled
+        || app.config.default.ws_server_port != app.settings.ws_server_port
+        || app.config.default.ws_server_auth_key != app.settings.ws_server_auth_key;
     if !changed {
         return;
     }
@@ -62,6 +65,15 @@ pub fn sync_global_settings(app: &mut App) {
     app.config.default.llama_cpp_version_rocm = app.settings.llama_cpp_version_rocm.clone();
     app.config.default.llama_cpp_version_rocm_lemonade = app.settings.llama_cpp_version_rocm_lemonade.clone();
     app.config.default.llama_cpp_version_cuda = app.settings.llama_cpp_version_cuda.clone();
+    app.config.default.ws_server_enabled = app.settings.ws_server_enabled;
+    app.config.default.ws_server_port = app.settings.ws_server_port;
+    app.config.default.ws_server_auth_key = app.settings.ws_server_auth_key.clone();
+
+    // Also sync the dedicated ws_server struct in config
+    app.config.ws_server.enabled = app.settings.ws_server_enabled;
+    app.config.ws_server.port = app.settings.ws_server_port;
+    app.config.ws_server.auth_key = app.settings.ws_server_auth_key.clone();
+
     if let Err(e) = app.config.save() {
         app.add_log(
             format!("Failed to save global settings: {}", e),

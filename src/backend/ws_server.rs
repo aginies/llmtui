@@ -9,6 +9,7 @@ use axum::{response::Html, routing::get, Router};
 use axum::http::StatusCode;
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::broadcast;
+use tokio::task::JoinHandle;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info, warn};
 
@@ -24,7 +25,7 @@ pub async fn start_ws_server(
     port: u16,
     metrics_rx: Arc<broadcast::Receiver<WsMetrics>>,
     auth_key: Option<String>,
-) {
+) -> JoinHandle<()> {
     let state = WsAppState { metrics_rx, auth_key };
 
     let app = Router::new()
@@ -39,18 +40,27 @@ pub async fn start_ws_server(
     let listener = tokio::net::TcpListener::bind(&addr).await;
     match listener {
         Ok(listener) => {
-            if let Err(e) = axum::serve(listener, app).await {
-                error!("WebSocket server error: {e}");
-            }
+            tokio::spawn(async move {
+                if let Err(e) = axum::serve(listener, app).await {
+                    error!("WebSocket server error: {e}");
+                }
+            })
         }
         Err(e) => {
             info!("Failed to bind WebSocket server to {addr}: {e}");
+            tokio::spawn(async move {
+                loop { tokio::time::sleep(std::time::Duration::from_secs(3600)).await; }
+            })
         }
     }
 }
 
+pub fn stop_ws_server(handle: JoinHandle<()>) {
+    handle.abort();
+}
+
 async fn serve_dashboard() -> Html<&'static str> {
-    Html(include_str!("dashboard.html"))
+    Html(include_str!("../dashboard.html"))
 }
 
 async fn ws_handler(

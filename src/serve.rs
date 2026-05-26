@@ -162,40 +162,41 @@ pub async fn serve_model(
             .await;
             let _ = api_done_tx.send(());
         });
-        info!("API proxy server enabled on http://127.0.0.1:{}", port);
+        info!("API proxy started on http://127.0.0.1:{}", port);
         Some((handle, api_done_rx, shutdown_tx))
     } else {
         None
     };
 
-  // Wait for either llama-server, API server, or Ctrl+C
-    let status = select! {
-        status = child.wait() => {
-            // llama-server exited — gracefully shut down API server
-            if let Some((_, _, tx)) = &mut api_server_handle {
-                let _ = tx.send(true);
+    // Wait for either llama-server, API server, or Ctrl+C
+    let status = loop {
+        select! {
+            status = child.wait() => {
+                // llama-server exited — gracefully shut down API server
+                if let Some((_, _, tx)) = &mut api_server_handle {
+                    let _ = tx.send(true);
+                }
+                break status.context("Failed to wait for llama-server")?;
             }
-            status.context("Failed to wait for llama-server")?
-        }
-        _ = async {
-            let (_, rx, _) = api_server_handle.as_mut().unwrap();
-            let _ = rx.await;
-        }, if api_server_handle.is_some() => {
-            // API server exited — gracefully shut down, then wait for llama-server
-            if let Some((_, _, tx)) = &mut api_server_handle {
-                let _ = tx.send(true);
+            _ = async {
+                let (_, rx, _) = api_server_handle.as_mut().unwrap();
+                let _ = rx.await;
+            }, if api_server_handle.is_some() => {
+                // API server exited — gracefully shut down, then wait for llama-server
+                if let Some((_, _, tx)) = &mut api_server_handle {
+                    let _ = tx.send(true);
+                }
+                break child.wait().await.context("Failed to wait for llama-server")?;
             }
-            child.wait().await.context("Failed to wait for llama-server")?
-        }
-        _ = signal::ctrl_c() => {
-            info!("Received SIGINT, shutting down llama-server...");
-            let _ = child.kill().await;
-            if let Some((_, _, tx)) = &mut api_server_handle {
-                let _ = tx.send(true);
+            _ = signal::ctrl_c() => {
+                info!("Received SIGINT, shutting down llama-server...");
+                let _ = child.kill().await;
+                if let Some((_, _, tx)) = &mut api_server_handle {
+                    let _ = tx.send(true);
+                }
             }
-            std::process::exit(0);
         }
-   };
+    };
 
     // Kill the other process if both are running
     if !status.success() {

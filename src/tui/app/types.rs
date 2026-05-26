@@ -120,6 +120,15 @@ pub enum GlobalMode {
         entries: Vec<(String, String)>, // (name, description)
         selected: usize,
     },
+    DashboardPicker {
+        enabled: bool,
+        port: String,
+        auth_key: String,
+        selected_field: i32, // -1=enabled, 0=port, 1=auth_key
+        editing: bool,
+        edit_buffer: String,
+        edit_cursor_pos: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -171,6 +180,7 @@ pub struct App {
     pub cancelled: Option<Arc<AtomicBool>>,
     pub server_mode: crate::models::ServerMode,
     pub router_max_models: u32,
+    pub ws_server_handle: Option<tokio::task::JoinHandle<()>>,
     pub background_tasks: HashMap<String, tokio::task::JoinHandle<()>>,
 
     // Sub-structs

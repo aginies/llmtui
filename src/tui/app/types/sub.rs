@@ -58,6 +58,8 @@ pub struct ServerState {
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,
     pub api_proxy_handle: Option<tokio::task::JoinHandle<()>>,
+    pub metrics_tx: Option<tokio::sync::broadcast::Sender<crate::models::WsMetrics>>,
+    pub cmd_display: Option<String>,
 }
 
 pub struct BenchTuneState {

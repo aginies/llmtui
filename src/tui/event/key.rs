@@ -91,6 +91,119 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Skip all if in DashboardPicker overlay
+    if let GlobalMode::DashboardPicker { enabled, port, auth_key, selected_field, editing, edit_buffer, edit_cursor_pos, .. } = &mut app.ui.global_mode {
+        match key.code {
+            KeyCode::Enter => {
+                if *editing {
+                    if *selected_field == 0i32 {
+                        if let Ok(p) = edit_buffer.parse::<u16>() {
+                            app.settings.ws_server_port = p;
+                            port.clone_from(edit_buffer);
+                        }
+                    }
+                    if *selected_field == 1i32 {
+                        app.settings.ws_server_auth_key = if edit_buffer.is_empty() { None } else { Some(edit_buffer.clone()) };
+                        auth_key.clone_from(edit_buffer);
+                    }
+                    *editing = false;
+                    super::helpers::sync_global_settings(app);
+                    app.set_redraw();
+                    return;
+                }
+                if *selected_field == -1 {
+                    *enabled = !*enabled;
+                    app.settings.ws_server_enabled = *enabled;
+                    super::helpers::sync_global_settings(app);
+                    app.set_redraw();
+                    return;
+                }
+                if *selected_field == 0i32 {
+                    edit_buffer.clone_from(port);
+                    *editing = true;
+                    *edit_cursor_pos = edit_buffer.chars().count();
+                    app.set_redraw();
+                    return;
+                }
+                if *selected_field == 1i32 {
+                    edit_buffer.clone_from(auth_key);
+                    *editing = true;
+                    *edit_cursor_pos = edit_buffer.chars().count();
+                    app.set_redraw();
+                    return;
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if !*editing {
+                    *selected_field = if *selected_field <= -1 { 1 } else { *selected_field - 1 };
+                    app.set_redraw();
+                }
+                return;
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if !*editing {
+                    *selected_field = if *selected_field >= 1 { -1 } else { *selected_field + 1 };
+                    app.set_redraw();
+                }
+                return;
+            }
+            KeyCode::Esc => {
+                if *editing {
+                    *editing = false;
+                    edit_buffer.clear();
+                } else {
+                    app.ui.global_mode = GlobalMode::Normal;
+                }
+                app.set_redraw();
+                return;
+            }
+            _ => {}
+        }
+        if *editing {
+            match key.code {
+                KeyCode::Char(c) => {
+                    let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
+                    edit_buffer.insert_str(byte_pos, &c.to_string());
+                    *edit_cursor_pos += c.len_utf8();
+                    app.set_redraw();
+                }
+                KeyCode::Backspace => {
+                    if *edit_cursor_pos > 0 {
+                        let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
+                        if byte_pos > 0 {
+                            let prev_char_len = edit_buffer[..byte_pos].chars().next_back().unwrap().len_utf8();
+                            edit_buffer.drain(byte_pos - prev_char_len..byte_pos);
+                            *edit_cursor_pos -= prev_char_len;
+                            app.set_redraw();
+                        }
+                    }
+                }
+                KeyCode::Left => {
+                    if *edit_cursor_pos > 0 {
+                        *edit_cursor_pos -= 1;
+                        app.set_redraw();
+                    }
+                }
+                KeyCode::Right => {
+                    if *edit_cursor_pos < edit_buffer.chars().count() {
+                        *edit_cursor_pos += 1;
+                        app.set_redraw();
+                    }
+                }
+                KeyCode::Home => {
+                    *edit_cursor_pos = 0;
+                    app.set_redraw();
+                }
+                KeyCode::End => {
+                    *edit_cursor_pos = edit_buffer.chars().count();
+                    app.set_redraw();
+                }
+                _ => {}
+            }
+            return;
+        }
+    }
+
     // Skip all if in tags modal
     if app.edit.tags_editing {
         super::panel::tags::handle_tags_key(app, key);
@@ -1069,7 +1182,7 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
 fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => { app.settings_state.server_settings_selected_idx = app.settings_state.server_settings_selected_idx.saturating_sub(1); app.set_redraw(); }
-        KeyCode::Down | KeyCode::Char('j') => { app.settings_state.server_settings_selected_idx = (app.settings_state.server_settings_selected_idx + 1).min(6); app.set_redraw(); }
+        KeyCode::Down | KeyCode::Char('j') => { app.settings_state.server_settings_selected_idx = (app.settings_state.server_settings_selected_idx + 1).min(7); app.set_redraw(); }
         KeyCode::Enter => {
             match app.settings_state.server_settings_selected_idx {
                 0 => {
@@ -1089,7 +1202,18 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 3 => { app.settings.threads_batch = (app.settings.threads_batch % 32) + 1; }
                 4 => { app.server_mode = match app.server_mode { crate::models::ServerMode::Normal => crate::models::ServerMode::Router, crate::models::ServerMode::Router => crate::models::ServerMode::Bench, crate::models::ServerMode::Bench => crate::models::ServerMode::BenchTune, crate::models::ServerMode::BenchTune => crate::models::ServerMode::Normal }; }
                 5 => { if app.server.server_handle.is_none() { app.settings.api_endpoint_enabled = !app.settings.api_endpoint_enabled; } }
-                6 => { app.ui.global_mode = GlobalMode::RpcManager; app.picker.rpc_workers_selected_idx = 0; app.picker.editing_rpc_worker = None; }
+               6 => { app.ui.global_mode = GlobalMode::RpcManager; app.picker.rpc_workers_selected_idx = 0; app.picker.editing_rpc_worker = None; }
+                7 => {
+                    app.ui.global_mode = GlobalMode::DashboardPicker {
+                        enabled: app.settings.ws_server_enabled,
+                        port: app.settings.ws_server_port.to_string(),
+                        auth_key: app.settings.ws_server_auth_key.clone().unwrap_or_default(),
+                        selected_field: -1,
+                        editing: false,
+                        edit_buffer: String::new(),
+                        edit_cursor_pos: 0,
+                    };
+                }
                 _ => {}
             }
             sync_global_settings(app);

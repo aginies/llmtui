@@ -222,6 +222,9 @@ pub struct ModelOverride {
     pub cache_prompt: Option<bool>,
     pub cache_reuse: Option<u32>,
     pub webui: Option<bool>,
+    pub ws_server_enabled: Option<bool>,
+    pub ws_server_port: Option<u16>,
+    pub ws_server_auth_key: Option<String>,
 
     // Other
     pub max_tokens: Option<u32>,
@@ -312,6 +315,9 @@ impl ModelOverride {
             is_mtp: Some(s.is_mtp),
             draft_tokens: Some(s.draft_tokens),
             tags: Some(s.tags.clone()),
+            ws_server_enabled: Some(s.ws_server_enabled),
+            ws_server_port: Some(s.ws_server_port),
+            ws_server_auth_key: s.ws_server_auth_key.clone(),
         }
     }
 
@@ -390,6 +396,9 @@ impl ModelOverride {
          if let Some(v) = self.is_mtp { base.is_mtp = v; }
         if let Some(v) = self.draft_tokens { base.draft_tokens = v; }
         if let Some(v) = &self.tags { base.tags = v.clone(); }
+        base.ws_server_enabled = self.ws_server_enabled.unwrap_or(base.ws_server_enabled);
+        base.ws_server_port = self.ws_server_port.unwrap_or(base.ws_server_port);
+        if let Some(v) = &self.ws_server_auth_key { base.ws_server_auth_key = Some(v.clone()); }
     }
 }
 
@@ -597,6 +606,12 @@ pub struct DefaultParams {
     #[serde(default)]
     pub webui: bool,
     #[serde(default)]
+    pub ws_server_enabled: bool,
+    #[serde(default = "default_ws_server_port")]
+    pub ws_server_port: u16,
+    #[serde(default)]
+    pub ws_server_auth_key: Option<String>,
+    #[serde(default)]
     pub router_max_models: u32,
     #[serde(default)]
     pub server_mode: crate::models::ServerMode,
@@ -649,6 +664,7 @@ fn default_presence_penalty() -> Option<f32> { None }
 fn default_frequency_penalty() -> Option<f32> { None }
 fn default_max_tokens() -> Option<u32> { None }
 fn default_cache_prompt() -> bool { true }
+fn default_ws_server_port() -> u16 { 49223 }
 fn default_gpu_layers_mode() -> crate::models::GpuLayersMode { crate::models::GpuLayersMode::Auto }
 
 impl Default for DefaultParams {
@@ -727,6 +743,9 @@ impl Default for DefaultParams {
             cache_prompt: true,
             cache_reuse: 0,
             webui: false,
+            ws_server_enabled: false,
+            ws_server_port: 49223,
+            ws_server_auth_key: None,
             router_max_models: 4,
             server_mode: crate::models::ServerMode::Normal,
 

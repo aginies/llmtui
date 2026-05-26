@@ -257,8 +257,11 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_rocm: dp.llama_cpp_version_rocm,
            llama_cpp_version_rocm_lemonade: dp.llama_cpp_version_rocm_lemonade,
             llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
-            api_endpoint_enabled: dp.api_endpoint_enabled,
+          api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
+            ws_server_enabled: dp.ws_server_enabled,
+            ws_server_port: dp.ws_server_port,
+            ws_server_auth_key: dp.ws_server_auth_key,
             is_mtp: dp.is_mtp,
             draft_tokens: dp.draft_tokens,
             tags: dp.tags,
@@ -838,6 +841,12 @@ pub struct ModelSettings {
     pub draft_tokens: u32,
     /// Tags for the model.
     pub tags: Vec<String>,
+    /// Whether to enable the WebSocket dashboard server.
+    pub ws_server_enabled: bool,
+    /// Port for the WebSocket dashboard server.
+    pub ws_server_port: u16,
+    /// Auth key for the WebSocket dashboard server.
+    pub ws_server_auth_key: Option<String>,
 }
 
 impl Default for ModelSettings {
@@ -986,15 +995,57 @@ pub struct WsMetrics {
     pub latency_per_token_ms: f64,
     pub decoded_tokens: u64,
     pub timestamp: u64,
+    // Server command
+    pub cmd_display: Option<String>,
+    // LLM settings
+    pub threads: u32,
+    pub threads_batch: u32,
+    pub context_length: u32,
+    pub ubatch_size: u32,
+    pub batch_size: u32,
+    pub temperature: f32,
+    pub top_k: u32,
+    pub top_p: f32,
+    pub min_p: f32,
+    pub typical_p: f32,
+    pub seed: i32,
+    pub repeat_penalty: f32,
+    pub repeat_last_n: i32,
+    pub presence_penalty: Option<f32>,
+    pub frequency_penalty: Option<f32>,
+    pub mirostat: Option<u32>,
+    pub mirostat_lr: Option<f32>,
+    pub mirostat_ent: Option<f32>,
+    pub max_tokens: Option<u32>,
+    pub flash_attn: bool,
+    pub kv_cache_offload: bool,
+    pub cache_type_k: Option<String>,
+    pub cache_type_v: Option<String>,
+    pub uniform_cache: bool,
+    pub mlock: bool,
+    pub mmap: bool,
+    pub embedding: bool,
+    pub jinja: bool,
+    pub ignore_eos: bool,
+    pub samplers: String,
+    pub expert_count: u32,
+    pub gpu_layers: String,
+    pub backend: String,
+    pub llama_cpp_version: String,
 }
 
 impl WsMetrics {
-    pub fn from_metrics(metrics: &ServerMetrics, model_name: &str, state: &str) -> Self {
+    pub fn from_metrics(metrics: &ServerMetrics, model_name: &str, state: &str, settings: &crate::models::ModelSettings, cmd_display: Option<&str>) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
+        let gpu_layers = match settings.gpu_layers_mode {
+            crate::models::GpuLayersMode::Auto => "Auto".to_string(),
+            crate::models::GpuLayersMode::Specific(n) => n.to_string(),
+            crate::models::GpuLayersMode::All => "All".to_string(),
+        };
         Self {
             model_name: model_name.to_string(),
             loaded: metrics.loaded,
@@ -1010,6 +1061,45 @@ impl WsMetrics {
             latency_per_token_ms: metrics.latency_per_token_ms,
             decoded_tokens: metrics.decoded_tokens,
             timestamp,
+            cmd_display: cmd_display.map(String::from),
+            threads: settings.threads,
+            threads_batch: settings.threads_batch,
+            context_length: settings.context_length,
+            ubatch_size: settings.ubatch_size,
+            batch_size: settings.batch_size,
+            temperature: settings.temperature,
+            top_k: settings.top_k as u32,
+            top_p: settings.top_p,
+            min_p: settings.min_p,
+            typical_p: settings.typical_p,
+            seed: settings.seed,
+            repeat_penalty: settings.repeat_penalty,
+            repeat_last_n: settings.repeat_last_n as i32,
+            presence_penalty: settings.presence_penalty,
+            frequency_penalty: settings.frequency_penalty,
+            mirostat: Some(match settings.mirostat {
+                crate::models::Mirostat::Off => 0,
+                crate::models::Mirostat::Mirostat => 1,
+                crate::models::Mirostat::Mirostat2 => 2,
+            }),
+            mirostat_lr: Some(settings.mirostat_lr),
+            mirostat_ent: Some(settings.mirostat_ent),
+            max_tokens: settings.max_tokens,
+            flash_attn: settings.flash_attn,
+            kv_cache_offload: settings.kv_cache_offload,
+            cache_type_k: settings.cache_type_k.map(|k| k.to_string()),
+            cache_type_v: settings.cache_type_v.map(|k| k.to_string()),
+            uniform_cache: settings.uniform_cache,
+            mlock: settings.mlock,
+            mmap: settings.mmap,
+            embedding: settings.embedding,
+            jinja: settings.jinja,
+            ignore_eos: settings.ignore_eos,
+            samplers: settings.samplers.to_string(),
+            expert_count: settings.expert_count as u32,
+            gpu_layers,
+            backend: settings.backend.to_string(),
+            llama_cpp_version: settings.get_active_backend_version_display().to_string(),
         }
     }
 }
@@ -1216,6 +1306,9 @@ impl ModelSettings {
             || self.expert_count != other.expert_count
             || self.tags != other.tags
             || self.get_active_backend_version() != other.get_active_backend_version()
+            || self.ws_server_enabled != other.ws_server_enabled
+            || self.ws_server_port != other.ws_server_port
+            || self.ws_server_auth_key != other.ws_server_auth_key
     }
 }
 

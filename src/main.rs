@@ -4,7 +4,6 @@ mod models;
 mod serve;
 mod serve_api;
 mod tui;
-mod ws_server;
 
 use std::path::PathBuf;
 
@@ -138,12 +137,11 @@ async fn main() -> Result<()> {
 
             // WebSocket metrics channel
             let (ws_metrics_tx, ws_metrics_rx) = tokio::sync::broadcast::channel(64);
+            app.server.metrics_tx = Some(ws_metrics_tx.clone());
             let ws_config = app.config.ws_server.clone();
             if ws_config.enabled {
                 let ws_rx = std::sync::Arc::new(ws_metrics_rx);
-                tokio::spawn(async move {
-                    ws_server::start_ws_server(ws_config.port, ws_rx, ws_config.auth_key.clone()).await;
-                });
+                app.ws_server_handle = Some(backend::ws_server::start_ws_server(ws_config.port, ws_rx, ws_config.auth_key.clone()).await);
             }
 
             // Setup terminal
@@ -182,14 +180,19 @@ async fn main() -> Result<()> {
                 app.poll_metrics();
 
                 // Send metrics snapshot to WebSocket clients
-                if let Err(e) = ws_metrics_tx.send(crate::models::WsMetrics::from_metrics(
-                    &app.metrics,
-                    &app.get_model_name(),
-                    &app.get_state_str(),
-                )) {
-                    tracing::debug!("Failed to send metrics to ws: {e}");
+                if let Some(tx) = &app.server.metrics_tx {
+                    if let Err(e) = tx.send(crate::models::WsMetrics::from_metrics(
+                        &app.metrics,
+                        &app.get_model_name(),
+                        &app.get_state_str(),
+                        &app.settings,
+                        app.server.cmd_display.as_deref(),
+                    )) {
+                        tracing::debug!("Failed to send metrics to ws: {e}");
+                    }
                 }
                 app.handle_pending_search().await;
+                app.update_ws_server().await;
                 app.tick_spinner();
                 app.render(&mut terminal)?;
 
@@ -244,6 +247,9 @@ async fn main() -> Result<()> {
     }
     if let Some(task) = app.server.api_proxy_handle.take() {
         task.abort();
+    }
+    if let Some(handle) = app.ws_server_handle.take() {
+        backend::ws_server::stop_ws_server(handle);
     }
 
     // Abort all background tasks

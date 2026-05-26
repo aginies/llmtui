@@ -491,12 +491,13 @@ impl App {
                 && let Some(handle) = self.server.spawn_task_handle.take()
         {
             match handle.await {
-                Ok(Ok((server_display_name, server_handle, _cmd))) => {
+                Ok(Ok((server_display_name, server_handle, cmd))) => {
                     let port = server_handle.port;
                     let pid = server_handle.pid;
                     let host = server_handle.host.clone();
                     self.add_log(format!("Server started on port {port} (pid={pid})"), crate::config::LogLevel::Info);
                     self.server.server_handle = Some(server_handle);
+                    self.server.cmd_display = Some(cmd);
                     if self.settings.api_endpoint_enabled {
                         let port = self.settings.api_endpoint_port;
                         let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap_or_else(|_| "127.0.0.1:49222".parse().unwrap());
@@ -917,5 +918,23 @@ impl App {
             self.download.download_rx = Some(rx);
         }
         self.download.download_tx.as_ref().unwrap().clone()
+    }
+
+    pub async fn update_ws_server(&mut self) {
+        let enabled = self.settings.ws_server_enabled;
+        let port = self.settings.ws_server_port;
+        let auth_key = self.settings.ws_server_auth_key.clone();
+
+        if enabled && self.ws_server_handle.is_none() {
+            let (tx, rx) = tokio::sync::broadcast::channel(64);
+            self.server.metrics_tx = Some(tx);
+            let ws_rx = std::sync::Arc::new(rx);
+            self.ws_server_handle = Some(crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key).await);
+            self.add_log(format!("Dashboard enabled on port {}", port), crate::config::LogLevel::Info);
+        } else if !enabled && self.ws_server_handle.is_some() {
+            let handle = self.ws_server_handle.take().unwrap();
+            crate::backend::ws_server::stop_ws_server(handle);
+            self.add_log("Dashboard disabled", crate::config::LogLevel::Info);
+        }
     }
 }

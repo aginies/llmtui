@@ -823,6 +823,71 @@ pub fn render(f: &mut Frame, app: &mut App) {
             return;
             }
 
+           // DashboardPicker overlay
+            if let GlobalMode::DashboardPicker { enabled, port, auth_key, selected_field, editing, edit_buffer, edit_cursor_pos: _ } = &app.ui.global_mode {
+                let area = f.area();
+                let w = 55u16;
+                let h = 15u16;
+                let picker_area = Rect {
+                    x: (area.width - w) / 2,
+                    y: (area.height - h) / 2,
+                    width: w,
+                    height: h,
+                };
+
+                let mut picker_lines: Vec<Line> = Vec::new();
+                picker_lines.push(Line::from(Span::styled(
+                    " Dashboard ",
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                )));
+                picker_lines.push(Line::from(""));
+               let enabled_marker = if *selected_field == -1i32 { "> " } else { "  " };
+                picker_lines.push(Line::from(vec![
+                    Span::styled(enabled_marker, Style::default().fg(Color::Yellow)),
+                    Span::styled("Enabled: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(if *enabled { "On" } else { "Off" }, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+                ]));
+                picker_lines.push(Line::from(""));
+                let port_marker = if *selected_field == 0i32 { "> " } else { "  " };
+                let port_val = if *editing && *selected_field == 0i32 {
+                    format!("{}|", edit_buffer)
+                } else {
+                    port.to_string()
+                };
+                picker_lines.push(Line::from(vec![
+                    Span::styled(port_marker, Style::default().fg(Color::Yellow)),
+                    Span::styled("Port: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(port_val, Style::default().fg(Color::White)),
+                ]));
+                picker_lines.push(Line::from(""));
+                let auth_marker = if *selected_field == 1i32 { "> " } else { "  " };
+                let auth_val = if *editing && *selected_field == 1i32 {
+                    format!("{}|", edit_buffer)
+                } else if auth_key.is_empty() {
+                    "(none)".to_string()
+                } else {
+                    auth_key.to_string()
+                };
+                picker_lines.push(Line::from(vec![
+                    Span::styled(auth_marker, Style::default().fg(Color::Yellow)),
+                    Span::styled("Auth Key: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(auth_val, Style::default().fg(Color::White)),
+                ]));
+                picker_lines.push(Line::from(""));
+                picker_lines.push(Line::from(vec![
+                    Span::styled("[Esc] close  ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
+                ]));
+
+                f.render_widget(ratatui::widgets::Clear, picker_area);
+                f.render_widget(Paragraph::new(picker_lines).block(
+                    Block::default()
+                        .title(" Dashboard ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Yellow)),
+                ), picker_area);
+                return;
+            }
+
             // BenchTune output view modal (fullscreen)
             if let Some(result_idx) = app.bench_tune.bench_tune_output_view {
                 let results = app.bench_tune.bench_tune_results.clone();
