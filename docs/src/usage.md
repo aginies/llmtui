@@ -70,7 +70,7 @@ When you load a model, the application:
 1. Resolves the llama-server binary for the selected backend (CPU/Vulkan/ROCm)
 2. Spawns the server with the current settings
 3. Loads the model via the server's `/models/load` API
-4. Polls the server's `/metrics` endpoint and log output for status
+4. Polls the server's `/metrics` and `/health` endpoints for status
 5. Displays a progress bar showing loading phases
 
 ### Loading Phases
@@ -269,7 +269,7 @@ When an auth key is set, clients must include it as a URL parameter: `http://loc
 
 ### Dashboard Display
 
-The dashboard shows real-time metrics (TPS, prompt TPS, latency, context, VRAM, RAM, CPU, decoded tokens) and current inference settings (backend, threads, temperature, sampling parameters, etc.) alongside the full server command line.
+The dashboard shows real-time metrics (TPS, prompt TPS, latency, context, VRAM, RAM, CPU) and current inference settings (backend, threads, temperature, sampling parameters, etc.) alongside the full server command line.
 
 ## Benchmark Tuning
 
@@ -326,7 +326,7 @@ The Active Model panel shows real-time metrics:
 | Metric | Description |
 |--------|-------------|
 | TPS | Tokens per second (generation speed) |
-| Prompt TPS | Inference speed |
+| Prompt TPS | Prompt processing speed |
 | Context usage | Progress bar showing ctx_used/ctx_max |
 | CPU% | CPU usage percentage |
 | RAM | RAM usage |

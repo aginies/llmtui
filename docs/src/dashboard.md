@@ -43,7 +43,6 @@ The dashboard shows real-time metrics from the llama.cpp server:
 | VRAM | GPU memory used/total (progress bar) |
 | RAM | System memory usage |
 | CPU | CPU usage percentage |
-| Decoded Tokens | Cumulative token count |
 
 ## Settings Panel
 

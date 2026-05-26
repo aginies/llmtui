@@ -97,20 +97,15 @@ When a model is loaded, `spawn_server()` in `backend/server.rs`:
 3. Spawns the process with the model path and all settings
 4. Sets up a log channel (`server_log_rx`) for parsing output
 
-The main loop polls `server_log_rx` and parses:
-- TPS from "tokens per second" lines
-- Context usage from "n_tokens = X" lines
-- VRAM from "KV buffer size = X MiB" lines
+The main loop polls `server_log_rx` and parses log messages for:
 - Loading phases (model, metadata, tensors) from log messages
+- Error detection (OOM, crash) from log messages
+
+Metrics (TPS, VRAM, context) are now collected exclusively from the `/metrics` and `/health` API endpoints rather than log parsing.
 
 ## Metrics & Logging
 
-Metrics are collected from two sources:
-
-1. **Log parsing** — parses `n_tokens`, TPS, and VRAM from llama.cpp stderr
-2. **Metrics endpoint** — polls `/metrics` every 2 seconds
-
-When both are available, log-parsed values take priority. This ensures the display reflects actual inference state, including context compaction drops.
+Metrics are collected from the `/metrics` and `/health` endpoints, which provide accurate real-time data. Loading completion is detected via the `/health` endpoint (polling for `"status": "ok"` and non-empty slots).
 
 Each log entry is stored in `log_entries: VecDeque<LogEntry>` with a max of 500 entries. The log panel supports scrolling, expansion (Enter/Esc), and two modes: **Following** (auto-scroll to bottom) and **Manual** (free scroll). Press `f` to toggle modes.
 
@@ -156,7 +151,7 @@ Model loading phases are detected from llama.cpp log output:
 | LoadingMeta | "LOADED META" / "META DATA" | 7% |
 | LoadingTensors | "LOAD_TENSORS:" | 70% |
 | ServerListening | "SERVER LISTENING" | 8% |
-| Complete | "LOADED SUCCESSFULLY" | — |
+| Complete | Detected via `/health` API polling | — |
 
 During tensor loading, the progress bar refines using layer counts parsed from "offloaded X/Y layers" log messages.
 
@@ -182,10 +177,9 @@ Key types:
 Errors are detected from log patterns:
 
 - **OOM**: "OUTOFDEVICEMEMORY" / "OUT OF MEMORY"
-- **Crash**: "LLAMA-SERVER EXITED" / "TERMINATED"
 - **General error**: "ERROR", "FAILED TO LOAD", "EXCEPTION"
 
-On error, affected models are marked as `Failed` with the error message, and the server is killed if it crashed.
+Server exit is detected via a dedicated channel (not log parsing). On error, affected models are marked as `Failed` with the error message.
 
 ## Confirmation Dialogs
 

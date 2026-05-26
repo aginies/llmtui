@@ -101,7 +101,7 @@ The loading process shows a progress bar with phases:
 - Loading metadata
 - Loading tensors (with GPU layer count)
 - Server listening
-- Ready
+- Ready (detected via `/health` API polling)
 
 ### Log Panel
 

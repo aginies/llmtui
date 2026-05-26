@@ -283,7 +283,7 @@ The app has several panels that can be toggled visible or hidden:
 | **Server Settings** | Server configuration (host, backend, threads, mode, API) |
 | **Model Info** | GGUF metadata: architecture, parameters, tokenizer, VRAM estimate |
 | **LLM Settings** | Loading, GPU, evaluation, sampling, and repetition parameters |
-| **Active Model** | Real-time metrics: TPS, context usage, CPU/RAM/VRAM, benchmarking state |
+| **Active Model** | Real-time metrics: TPS, context usage, CPU/RAM/VRAM, benchmarking state (no tokens generated) |
 | **Dashboard** | Live WebSocket metrics and settings visualization (port 49223 by default) |
 | **Log** | Server log with expand/collapse and level coloring |
 | **Profiles** | Saved presets of settings for quick switching |
@@ -317,7 +317,6 @@ The WebSocket Dashboard provides a real-time visualization of model metrics and 
 | VRAM | GPU memory used/total (progress bar) |
 | RAM | System memory usage |
 | CPU | CPU usage percentage |
-| Decoded Tokens | Cumulative token count |
 
 The dashboard also shows current inference settings (backend, threads, temperature, sampling parameters, etc.) and the full server command line.
 
@@ -412,13 +411,12 @@ The Active Model panel shows real-time metrics:
 | RAM | RAM usage |
 | VRAM | GPU memory used/total |
 | Total VRAM | Sum of VRAM across all loaded models (in title bar) |
-| Tokens Generated | Cumulative decoded tokens throughput |
 
 The panel also shows benchmarking state with progress bar and current parameter display when running BenchTune.
 
 ### Model Loading
 
-Models load through several phases detected from llama.cpp log output: ServerStarting → LoadingModel → LoadingMeta → LoadingTensors → ServerListening → Complete. During loading, a progress bar shows the phase and details (layers loaded/total, tensor count, VRAM used).
+Models load through several phases detected from llama.cpp log output: ServerStarting → LoadingModel → LoadingMeta → LoadingTensors → ServerListening. Completion is detected via the `/health` API endpoint. During loading, a progress bar shows the phase and details (layers loaded/total, tensor count, VRAM used).
 
 Models have status states: Available, Loading, Loaded, Failed (with error message shown in red, e.g., "OOM", "Router Crash"), and Benchmarking.
 
