@@ -27,6 +27,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - **Profiles** — saved presets of settings for quick switching (`p`)
 - **System Prompt Presets** — named system prompts for different use cases
 - **Router Mode** — load multiple models simultaneously
+- **WebSocket Dashboard** — live metrics and settings visualization via WebSocket server (configurable port, optional auth)
 - **Multiple Model Directories** — scan multiple directories for models; downloads go to the first directory
 - **Panel Resize** — drag the border between left and right panels, or use `Shift+←/→` to adjust (20%-80%)
 
@@ -183,6 +184,7 @@ The Server Settings panel (top-right) shows server configuration:
 | API Endpoint | Enable API proxy — `↵` toggles (disabled while server is running) |
 | RPC Workers | Open the distributed inference manager window — press `↵` |
 | API Port | Port for the API proxy server (default: 49222) |
+| Dashboard | WebSocket dashboard server — `↵` opens configuration picker |
 
 When API Endpoint is enabled, a proxy server starts on port `49222` that forwards requests to the running llama-server instance, exposing the full llama.cpp API (see Serve mode above).
 
@@ -281,6 +283,7 @@ The app has several panels that can be toggled visible or hidden:
 | **Model Info** | GGUF metadata: architecture, parameters, tokenizer, VRAM estimate |
 | **LLM Settings** | Loading, GPU, evaluation, sampling, and repetition parameters |
 | **Active Model** | Real-time metrics: TPS, context usage, CPU/RAM/VRAM, benchmarking state |
+| **Dashboard** | Live WebSocket metrics and settings visualization (port 49223 by default) |
 | **Log** | Server log with expand/collapse and level coloring |
 | **Profiles** | Saved presets of settings for quick switching |
 | **System Prompt Presets** | Named system prompts for different use cases |
@@ -299,6 +302,31 @@ Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSetti
 | **README horizontal scroll** | `h`/`l` keys scroll horizontally |
 | **Multi-word search** | Type space-separated words (e.g. "qwen opus"); all must match the model name. Matching words are highlighted in cyan. |
 | **README rendering** | Full markdown renderer with headings, code blocks, lists, blockquotes, tables, and task lists |
+
+### WebSocket Dashboard
+
+The WebSocket Dashboard provides a real-time visualization of model metrics and settings via a web browser. Access it by navigating to `http://localhost:49223` (configurable) in any browser. The dashboard displays:
+
+| Metric | Description |
+|--------|-------------|
+| Generation Speed | Tokens per second (TPS) |
+| Prompt Speed | Prompt processing TPS |
+| Latency | Milliseconds per token |
+| Context | Context window usage (progress bar) |
+| VRAM | GPU memory used/total (progress bar) |
+| RAM | System memory usage |
+| CPU | CPU usage percentage |
+| Decoded Tokens | Cumulative token count |
+
+The dashboard also shows current inference settings (backend, threads, temperature, sampling parameters, etc.) and the full server command line.
+
+To configure the dashboard:
+1. Open **Server Settings** panel (F2)
+2. Navigate to **Dashboard** field and press `↵`
+3. Toggle enabled/disabled, set port (default: 49223), and optionally set an auth key
+4. Press `↵` to save, `⎋` to close
+
+When an auth key is set, clients must include `?auth=<key>` in the URL (e.g., `http://localhost:49223/dashboard?auth=mypassword`).
 
 ### Backend selection
 
