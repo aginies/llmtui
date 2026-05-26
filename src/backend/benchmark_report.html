@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Benchmark Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.6; }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+h1 { text-align: center; padding: 20px 0; color: #58a6ff; font-size: 2em; border-bottom: 1px solid #21262d; margin-bottom: 20px; }
+h2 { color: #58a6ff; font-size: 1.3em; margin: 20px 0 10px; padding-bottom: 5px; border-bottom: 1px solid #21262d; }
+p { margin: 5px 0; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 60px 20px; color: #8b949e; }
+.empty-icon { font-size: 4em; margin-bottom: 15px; }
+.empty-title { font-size: 1.5em; color: #c9d1d9; margin-bottom: 10px; }
+.empty-text { font-size: 1em; }
+
+/* Summary cards */
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 20px 0; }
+.summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 15px; text-align: center; }
+.summary-card .value { font-size: 1.6em; font-weight: bold; color: #58a6ff; }
+.summary-card .label { font-size: 0.8em; color: #8b949e; margin-top: 4px; }
+.summary-card .stats { font-size: 0.7em; color: #6e7681; margin-top: 3px; }
+.best-card .value { color: #3fb950; }
+
+/* Winner section */
+.winner-section { background: linear-gradient(135deg, #1a2332 0%, #161b22 100%); border: 2px solid #3fb950; border-radius: 12px; padding: 25px; margin: 20px 0; display: flex; align-items: center; gap: 20px; }
+.winner-icon { font-size: 3em; flex-shrink: 0; }
+.winner-title { font-size: 1.2em; color: #3fb950; font-weight: bold; margin-bottom: 8px; }
+.winner-metrics { display: flex; gap: 25px; flex-wrap: wrap; margin: 10px 0; }
+.winner-metric { display: flex; flex-direction: column; }
+.wm-label { font-size: 0.7em; color: #8b949e; text-transform: uppercase; }
+.wm-value { font-size: 1.1em; color: #c9d1d9; font-weight: 600; }
+.winner-params { font-size: 0.85em; color: #8b949e; margin-top: 8px; }
+
+/* Meta section */
+.meta-section { margin: 20px 0; }
+.meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.meta-item { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 10px 14px; }
+.ml { font-size: 0.7em; color: #8b949e; text-transform: uppercase; }
+.mv { font-size: 1em; color: #c9d1d9; margin-top: 2px; word-break: break-word; }
+.meta-prompt { font-size: 0.85em; color: #8b949e; max-height: 3em; overflow: hidden; }
+
+/* Impact analysis */
+.impact-section { margin: 20px 0; }
+.impact-desc { font-size: 0.85em; color: #8b949e; margin-bottom: 12px; }
+.impact-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.impact-label { width: 140px; font-size: 0.9em; color: #c9d1d9; flex-shrink: 0; }
+.impact-bar-bg { flex: 1; background: #21262d; border-radius: 4px; height: 20px; overflow: hidden; }
+.impact-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+.impact-value { width: 80px; text-align: right; font-size: 0.85em; color: #8b949e; flex-shrink: 0; }
+
+/* Charts */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+.chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 15px; }
+.chart-container canvas { max-height: 350px; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; margin: 15px 0; font-size: 0.85em; }
+th { background: #21262d; color: #58a6ff; padding: 10px 8px; text-align: center; cursor: pointer; user-select: none; white-space: nowrap; position: relative; }
+th:hover { background: #30363d; }
+th .col-toggle { position: absolute; top: 2px; right: 2px; font-size: 0.6em; opacity: 0.5; cursor: pointer; }
+td { padding: 8px; text-align: center; border-top: 1px solid #21262d; }
+tr:hover { background: #1c2128; }
+tr.expanded { background: #1c2128; }
+.detail-row { display: none; background: #0d1117; }
+.detail-row.visible { display: table-row; }
+.detail-cell { padding: 15px; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 10px 0; }
+.detail-item { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; }
+.detail-item .dl { font-size: 0.75em; color: #8b949e; text-transform: uppercase; }
+.detail-item .dv { font-size: 1.1em; color: #c9d1d9; }
+.output-text { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; margin: 10px 0; max-height: 200px; overflow-y: auto; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.85em; color: #8b949e; white-space: pre-wrap; word-break: break-word; }
+.iteration-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.85em; }
+.iteration-table th { background: #161b22; color: #8b949e; padding: 5px 8px; }
+.iteration-table td { padding: 5px 8px; border-top: none; }
+
+/* Consistency stars */
+.consistency-stars { letter-spacing: 1px; }
+.star-full { color: #3fb950; }
+.star-half { color: #d29922; }
+.star-empty { color: #484f58; }
+
+/* Filter bar */
+.filter-bar { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; align-items: center; }
+.filter-bar input, .filter-bar select, .filter-bar button { background: #161b22; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 12px; border-radius: 6px; font-size: 0.9em; }
+.filter-bar input:focus, .filter-bar select:focus { outline: none; border-color: #58a6ff; }
+.filter-bar button:hover { border-color: #58a6ff; cursor: pointer; }
+.filter-bar button.primary { background: #238636; border-color: #238636; }
+.filter-bar button.primary:hover { background: #2ea043; }
+
+/* Column visibility */
+.col-vis-bar { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; padding: 10px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; }
+.col-vis-btn { padding: 3px 10px; border-radius: 12px; font-size: 0.75em; cursor: pointer; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; transition: all 0.2s; }
+.col-vis-btn.active { background: #58a6ff; border-color: #58a6ff; color: #0d1117; }
+.col-vis-btn:hover { border-color: #58a6ff; }
+
+/* Expand hint */
+.expand-hint { color: #8b949e; font-size: 0.8em; }
+
+/* Responsive */
+@media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } .winner-section { flex-direction: column; text-align: center; } .winner-metrics { justify-content: center; } }
+
+/* Print styles */
+@media print {
+    body { background: #fff; color: #000; }
+    .container { max-width: 100%; padding: 10px; }
+    h1, h2 { color: #000; border-bottom-color: #ccc; }
+    .summary-card, .meta-item, .chart-container, .detail-item { background: #f8f8f8; border-color: #ccc; }
+    .summary-card .value, .detail-item .dv { color: #000; }
+    .winner-section { border-color: #999; background: #f0f0f0; }
+    .winner-title, .winner-metric .wm-value { color: #000; }
+    .filter-bar, .col-vis-bar, .no-print { display: none !important; }
+    .detail-row { display: table-row !important; }
+    .chart-container { page-break-inside: avoid; }
+    table { font-size: 0.75em; }
+    th { background: #e0e0e0 !important; color: #000 !important; }
+    td { color: #000; }
+    .impact-bar-bg { border: 1px solid #999; }
+    .impact-bar-fill { background: #666 !important; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>LLM Benchmark Report</h1>
+<p style="text-align:center;color:#8b949e;margin-bottom:15px;">Generated: __TIMESTAMP__ &middot; __TOTAL_TESTS__ tests completed</p>
+
+__EMPTY_STATE__
+__MODEL_META__
+__WINNER__
+
+<div class="summary-grid">
+<div class="summary-card">
+<div class="value">__AVG_GEN_TPS__</div>
+<div class="label">Avg Gen t/s</div>
+<div class="stats">Std: __GEN_STD__ &middot; Range: [__MIN_GEN__, __MAX_GEN__]</div>
+</div>
+<div class="summary-card">
+<div class="value">__MED_GEN_TPS__</div>
+<div class="label">Median Gen t/s</div>
+</div>
+<div class="summary-card">
+<div class="value">__AVG_PROMPT_TPS__</div>
+<div class="label">Avg Prompt t/s</div>
+<div class="stats">Std: __PROMPT_STD__ &middot; Range: [__MIN_PROMPT__, __MAX_PROMPT__]</div>
+</div>
+<div class="summary-card">
+<div class="value">__MED_PROMPT_TPS__</div>
+<div class="label">Median Prompt t/s</div>
+</div>
+<div class="summary-card">
+<div class="value">__AVG_LATENCY__</div>
+<div class="label">Avg Latency/token</div>
+<div class="stats">Std: __LAT_STD__ &middot; Range: [__MIN_LAT__, __MAX_LAT__]</div>
+</div>
+<div class="summary-card">
+<div class="value">__MED_LATENCY__</div>
+<div class="label">Median Latency</div>
+</div>
+<div class="summary-card">
+<div class="value">__AVG_FT__</div>
+<div class="label">Avg First Token</div>
+<div class="stats">Std: __FT_STD__ &middot; Range: [__MIN_FT__, __MAX_FT__]</div>
+</div>
+<div class="summary-card best-card">
+<div class="value">__BEST_GEN__</div>
+<div class="label">Best Gen t/s</div>
+</div>
+</div>
+
+__IMPACT_HTML__
+
+<h2>Performance Comparison (Top __TOP_N__)</h2>
+<div class="charts-grid">
+<div class="chart-container">
+<canvas id="barChart"></canvas>
+</div>
+<div class="chart-container">
+<canvas id="scatterChart"></canvas>
+</div>
+</div>
+
+<h2>Latency vs Throughput</h2>
+<div class="chart-container" style="margin:15px 0;">
+<canvas id="scatter2Chart"></canvas>
+</div>
+
+<h2>All Results <span class="expand-hint">(click row to expand details)</span></h2>
+<div class="col-vis-bar no-print" id="colVisBar"></div>
+<div class="filter-bar no-print">
+<input type="text" id="filterInput" placeholder="Filter parameters..." oninput="filterTable()">
+<select id="sortSelect" onchange="sortTable(parseInt(this.value))">
+<option value="0">Sort: Gen t/s (desc)</option>
+<option value="1">Sort: Prompt t/s (desc)</option>
+<option value="2">Sort: Latency (asc)</option>
+<option value="3">Sort: First Token (asc)</option>
+</select>
+<button onclick="exportCSV()" class="primary">&#128190; Export CSV</button>
+</div>
+<div style="overflow-x:auto;">
+<table id="resultsTable">
+<thead>
+<tr id="tableHeaderRow"></tr>
+</thead>
+<tbody id="resultsBody"></tbody>
+</table>
+</div>
+</div>
+
+<script>
+const DATA = __METRICS_JSON__;
+const PARAM_HEADERS = __PARAM_HEADERS_JSON__;
+const PARAM_VALS = __PARAM_VALS_JSON__;
+const COLUMN_DEFS = __COLUMN_DEFS_JSON__;
+const CSV_B64 = '__CSV_B64__';
+const MODEL_META = __MODEL_META_JSON__;
+const currentSort = { col: 0, asc: false };
+let displayOrder = DATA.map((_, i) => i);
+let colVisibility = {};
+
+// Initialize column visibility from definitions
+COLUMN_DEFS.forEach(c => { colVisibility[c[0]] = c[2]; });
+
+function formatNum(n, d=2) { return typeof n === 'number' ? n.toFixed(d) : '-'; }
+
+function getMetricColor(val, min, max, invert) {
+    if (max === min) return '#c9d1d9';
+    const ratio = invert ? (max - val) / (max - min) : (val - min) / (max - min);
+    const r = Math.round(248 * (1 - ratio) + 63 * ratio);
+    const g = Math.round(81 * ratio + 185 * (1 - ratio));
+    const b = Math.round(73 * ratio + 80 * (1 - ratio));
+    return `rgb(${r},${g},${b})`;
+}
+
+function consistencyStars(score) {
+    const full = Math.floor(score * 5);
+    const half = (score * 5 - full) >= 0.5 ? 1 : 0;
+    const empty = 5 - full - half;
+    return '<span class="star-full">' + '\u2605'.repeat(full) + '</span>' +
+           (half ? '<span class="star-half">\u2606</span>' : '') +
+           '<span class="star-empty">' + '\u2606'.repeat(empty) + '</span>';
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Render column visibility toggles
+function renderColVis() {
+    const bar = document.getElementById('colVisBar');
+    bar.innerHTML = '<span style="font-size:0.8em;color:#8b949e;margin-right:5px;">Columns:</span>' +
+        COLUMN_DEFS.map(c =>
+            `<span class="col-vis-btn ${colVisibility[c[0]] ? 'active' : ''}" data-col="${c[0]}" onclick="toggleCol('${c[0]}')">${c[1]}</span>`
+        ).join('') +
+        '<span class="col-vis-btn" style="margin-left:auto;" onclick="resetCols()">Reset</span>';
+}
+
+function toggleCol(colId) {
+    colVisibility[colId] = !colVisibility[colId];
+    renderColVis();
+    renderTable();
+}
+
+function resetCols() {
+    COLUMN_DEFS.forEach(c => colVisibility[c[0]] = c[2]);
+    renderColVis();
+    renderTable();
+}
+
+// Render table header with column toggles
+function renderHeader() {
+    const row = document.getElementById('tableHeaderRow');
+    row.innerHTML = COLUMN_DEFS.map((c, i) =>
+        colVisibility[c[0]] ? `<th onclick="sortTable(${i})" style="display:table-cell;">${c[1]}</th>` : ''
+    ).join('');
+}
+
+function renderTable() {
+    const tbody = document.getElementById('resultsBody');
+    tbody.innerHTML = '';
+    const genMin = Math.min(...DATA.map(d => d.generation_tps));
+    const genMax = Math.max(...DATA.map(d => d.generation_tps));
+    const latMin = Math.min(...DATA.map(d => d.latency_per_token));
+    const latMax = Math.max(...DATA.map(d => d.latency_per_token));
+    const ftMin = Math.min(...DATA.map(d => d.first_token_time));
+    const ftMax = Math.max(...DATA.map(d => d.first_token_time));
+
+    displayOrder.forEach((idx, rank) => {
+        const d = DATA[idx];
+        const tr = document.createElement('tr');
+        tr.dataset.idx = idx;
+        tr.onclick = (e) => { if(e.target.tagName !== 'BUTTON') toggleDetail(idx); };
+
+        const genColor = getMetricColor(d.generation_tps, genMin, genMax, false);
+        const latColor = getMetricColor(d.latency_per_token, latMin, latMax, true);
+        const ftColor = getMetricColor(d.first_token_time, ftMin, ftMax, true);
+
+        const cells = [
+            `<td>${rank + 1}</td>`,
+            `<td class="col-temp">${PARAM_VALS[idx][0]}</td>`,
+            `<td class="col-top-p">${PARAM_VALS[idx][1]}</td>`,
+            `<td class="col-top-k">${PARAM_VALS[idx][2]}</td>`,
+            `<td class="col-rep-pen">${PARAM_VALS[idx][3]}</td>`,
+            `<td class="col-fa">${PARAM_VALS[idx][4]}</td>`,
+            `<td class="col-threads">${PARAM_VALS[idx][5]}</td>`,
+            `<td class="col-batch">${PARAM_VALS[idx][6]}</td>`,
+            `<td class="col-exp">${PARAM_VALS[idx][7]}</td>`,
+            `<td class="col-gen-tps" style="color:${genColor};font-weight:bold;">${formatNum(d.generation_tps)}</td>`,
+            `<td class="col-prompt-tps">${formatNum(d.prompt_tps)}</td>`,
+            `<td class="col-latency" style="color:${latColor}">${formatNum(d.latency_per_token)}</td>`,
+            `<td class="col-first-token" style="color:${ftColor}">${formatNum(d.first_token_time)}</td>`,
+            `<td class="col-combined">${formatNum(d.combined_tps)}</td>`,
+            `<td class="col-consistency"><span class="consistency-stars">${consistencyStars(d.consistency)}</span></td>`,
+        ];
+
+        tr.innerHTML = cells.join('');
+        tbody.appendChild(tr);
+
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'detail-row';
+        detailTr.id = 'detail-' + idx;
+        const outputsHtml = d.outputs.map((o, oi) => `<div style="margin:8px 0;"><strong>Iteration ${oi + 1}:</strong><div class="output-text">${escapeHtml(o)}</div></div>`).join('');
+        detailTr.innerHTML = `<td colspan="15" class="detail-cell">
+            <div class="detail-grid">
+                <div class="detail-item"><div class="dl">Gen t/s</div><div class="dv" style="color:#3fb950">${formatNum(d.generation_tps)}</div></div>
+                <div class="detail-item"><div class="dl">Prompt t/s</div><div class="dv">${formatNum(d.prompt_tps)}</div></div>
+                <div class="detail-item"><div class="dl">Latency/token</div><div class="dv">${formatNum(d.latency_per_token)}ms</div></div>
+                <div class="detail-item"><div class="dl">First Token</div><div class="dv">${formatNum(d.first_token_time)}ms</div></div>
+                <div class="detail-item"><div class="dl">Combined t/s</div><div class="dv">${formatNum(d.combined_tps)}</div></div>
+                <div class="detail-item"><div class="dl">Consistency</div><div class="dv"><span class="consistency-stars">${consistencyStars(d.consistency)}</span></div></div>
+            </div>
+            <h3 style="color:#58a6ff;margin:10px 0 5px;font-size:1em;">Per-Iteration Metrics</h3>
+            <table class="iteration-table"><thead><tr><th>Iter</th><th>Gen t/s</th><th>Latency (ms)</th><th>First Tok (ms)</th></tr></thead><tbody>
+            ${d.per_iteration_metrics.map((m, mi) => `<tr><td>${mi + 1}</td><td>${formatNum(m.generation_tps)}</td><td>${formatNum(m.latency_per_token)}</td><td>${formatNum(m.first_token_time)}</td></tr>`).join('')}
+            </tbody></table>
+            ${outputsHtml}
+        </td>`;
+        tbody.appendChild(detailTr);
+    });
+
+    // Apply column visibility
+    COLUMN_DEFS.forEach(c => {
+        const cols = document.querySelectorAll('.' + c[0].replace('col-', 'col-'));
+        // Use a simpler approach: set display on each column class
+    });
+
+    // Apply column visibility using CSS classes
+    COLUMN_DEFS.forEach(c => {
+        const cells = document.querySelectorAll('.' + c[0]);
+        cells.forEach(cell => {
+            cell.style.display = colVisibility[c[0]] ? '' : 'none';
+        });
+    });
+}
+
+function toggleDetail(idx) {
+    const row = document.getElementById('detail-' + idx);
+    row.classList.toggle('visible');
+    row.previousElementSibling?.classList.toggle('expanded');
+}
+
+function filterTable() {
+    const q = document.getElementById('filterInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#resultsBody tr:not(.detail-row)');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(q) ? '' : 'none';
+    });
+}
+
+function sortTable(col) {
+    if (currentSort.col === col) { currentSort.asc = !currentSort.asc; }
+    else { currentSort.col = col; currentSort.asc = col <= 1; }
+    const keys = [null, 'generation_tps', 'prompt_tps', 'latency_per_token', 'first_token_time'];
+    const key = keys[col];
+    if (!key) return;
+    displayOrder.sort((a, b) => {
+        const va = DATA[a][key], vb = DATA[b][key];
+        return currentSort.asc ? va - vb : vb - va;
+    });
+    renderTable();
+}
+
+function exportCSV() {
+    const link = document.createElement('a');
+    link.href = 'data:text/csv;base64,' + CSV_B64;
+    link.download = 'benchmark_results.csv';
+    link.click();
+}
+
+// Charts with trend lines
+const barCtx = document.getElementById('barChart').getContext('2d');
+new Chart(barCtx, {
+    type: 'bar',
+    data: {
+       labels: __TOP_LABELS_JSON__,
+        datasets: [{
+            label: 'Generation Throughput (tokens/s)',
+            data: __TOP_GEN_TPS_JSON__,
+            backgroundColor: 'rgba(88, 166, 255, 0.6)',
+            borderColor: 'rgba(88, 166, 255, 1)',
+            borderWidth: 1,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            title: { display: true, text: 'Top __TOP_N__ Configs by Gen t/s', color: '#c9d1d9' },
+            tooltip: {
+                backgroundColor: '#161b22',
+                titleColor: '#58a6ff',
+                bodyColor: '#c9d1d9',
+                borderColor: '#30363d',
+                borderWidth: 1,
+                padding: 10,
+                displayColors: false,
+            }
+        },
+        scales: {
+            y: { beginAtZero: true, grid: { color: '#21262d' }, ticks: { color: '#8b949e' } },
+            x: { grid: { display: false }, ticks: { color: '#8b949e', maxRotation: 45, font: { size: 10 } } }
+        }
+    }
+});
+
+const scatterCtx = document.getElementById('scatterChart').getContext('2d');
+new Chart(scatterCtx, {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            label: 'Config',
+            data: __SCATTER_DATA_JSON__,
+            backgroundColor: 'rgba(88, 166, 255, 0.6)',
+            borderColor: 'rgba(88, 166, 255, 1)',
+            pointRadius: 6,
+            pointHoverRadius: 8,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            title: { display: true, text: 'Throughput vs Latency (lower-right = better)', color: '#c9d1d9' },
+            tooltip: {
+                backgroundColor: '#161b22',
+                titleColor: '#58a6ff',
+                bodyColor: '#c9d1d9',
+                borderColor: '#30363d',
+                borderWidth: 1,
+                padding: 10,
+                callbacks: {
+                    label: function(ctx) {
+                        return `Gen: ${ctx.parsed.x.toFixed(2)} t/s, Lat: ${ctx.parsed.y.toFixed(2)} ms/token`;
+                    }
+                }
+            }
+        },
+        scales: {
+            x: { title: { display: true, text: 'Gen t/s', color: '#8b949e' }, grid: { color: '#21262d' }, ticks: { color: '#8b949e' } },
+            y: { title: { display: true, text: 'Latency (ms/token)', color: '#8b949e' }, grid: { color: '#21262d' }, ticks: { color: '#8b949e' }, reverse: true }
+        }
+    }
+});
+
+const scatter2Ctx = document.getElementById('scatter2Chart').getContext('2d');
+new Chart(scatter2Ctx, {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            label: 'Config',
+            data: __SCATTER_DATA2_JSON__,
+            backgroundColor: 'rgba(63, 185, 80, 0.6)',
+            borderColor: 'rgba(63, 185, 80, 1)',
+            pointRadius: 6,
+            pointHoverRadius: 8,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            title: { display: true, text: 'Throughput vs First Token Latency', color: '#c9d1d9' },
+            tooltip: {
+                backgroundColor: '#161b22',
+                titleColor: '#58a6ff',
+                bodyColor: '#c9d1d9',
+                borderColor: '#30363d',
+                borderWidth: 1,
+                padding: 10,
+                callbacks: {
+                    label: function(ctx) {
+                        return `Gen: ${ctx.parsed.x.toFixed(2)} t/s, First Tok: ${ctx.parsed.y.toFixed(2)} ms`;
+                    }
+                }
+            }
+        },
+        scales: {
+            x: { title: { display: true, text: 'Gen t/s', color: '#8b949e' }, grid: { color: '#21262d' }, ticks: { color: '#8b949e' } },
+            y: { title: { display: true, text: 'First Token (ms)', color: '#8b949e' }, grid: { color: '#21262d' }, ticks: { color: '#8b949e' }, reverse: true }
+        }
+    }
+});
+
+// Initialize
+renderColVis();
+renderHeader();
+renderTable();
+</script>
+</body>
+</html>
