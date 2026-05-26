@@ -60,14 +60,14 @@ pub struct Config {
     pub models_dirs: Vec<PathBuf>,
     pub llama_server: PathBuf,
     pub default: DefaultParams,
-    /// Per-model overrides (keyed by model file name).
-    #[serde(default)]
+    /// Per-model overrides (keyed by model file name, stored as YAML in models/).
+    #[serde(default, skip)]
     pub model_overrides: ModelConfigStore,
-    /// Named profiles of settings presets.
-    #[serde(default)]
+    /// Named profiles of settings presets (stored as YAML in profiles/).
+    #[serde(default, skip)]
     pub profiles: ProfileStore,
-    /// System prompt presets.
-    #[serde(default)]
+    /// System prompt presets (stored as YAML in presets/).
+    #[serde(default, skip)]
     pub system_prompt_presets: PresetStore,
     /// RPC Workers for distributed inference.
     #[serde(default)]
