@@ -1,18 +1,15 @@
 use crate::models::{
-    BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress, ModelState, SearchResult,
+    BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress,
 };
 use crate::models::Backend;
-use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
-use std::collections::{VecDeque, BTreeMap};
-use ratatui::widgets::{TableState, ListState};
-use ratatui::text::Line;
-use ratatui::layout::Rect;
-
-use super::{App, ActivePanel, ModelsMode, GlobalMode, LoadingPhase, SettingsRenderCache, ResizeState};
 use crate::backend::server::ServerHandle;
 use crate::config::LogEntry;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::collections::{VecDeque, BTreeMap};
+use ratatui::widgets::{TableState, ListState};
+
+use super::{ActivePanel, GlobalMode, LoadingPhase, SettingsRenderCache, ResizeState};
 
 pub struct SettingsState {
     pub settings_selected_idx: usize,

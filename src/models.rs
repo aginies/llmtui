@@ -969,6 +969,51 @@ impl Default for ServerMetrics {
     }
 }
 
+/// WebSocket-friendly metrics snapshot (serializable, no internal state).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WsMetrics {
+    pub model_name: String,
+    pub loaded: bool,
+    pub state: String,
+    pub tps: f64,
+    pub prompt_tps: f64,
+    pub ctx_used: u32,
+    pub ctx_max: u32,
+    pub cpu_usage: f64,
+    pub gpu_mem_used: u64,
+    pub gpu_mem_total: u64,
+    pub ram_used: u64,
+    pub latency_per_token_ms: f64,
+    pub decoded_tokens: u64,
+    pub timestamp: u64,
+}
+
+impl WsMetrics {
+    pub fn from_metrics(metrics: &ServerMetrics, model_name: &str, state: &str) -> Self {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        Self {
+            model_name: model_name.to_string(),
+            loaded: metrics.loaded,
+            state: state.to_string(),
+            tps: metrics.tps,
+            prompt_tps: metrics.prompt_tps,
+            ctx_used: metrics.ctx_used,
+            ctx_max: metrics.ctx_max,
+            cpu_usage: metrics.cpu_usage,
+            gpu_mem_used: metrics.gpu_mem_used,
+            gpu_mem_total: metrics.gpu_mem_total,
+            ram_used: metrics.ram_used,
+            latency_per_token_ms: metrics.latency_per_token_ms,
+            decoded_tokens: metrics.decoded_tokens,
+            timestamp,
+        }
+    }
+}
+
 /// Estimate VRAM usage (in MiB) for a model with the given settings.
 ///
 /// Model file size is the size of the GGUF file in MiB. The model itself

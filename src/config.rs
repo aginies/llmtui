@@ -54,6 +54,19 @@ pub struct RpcWorker {
 
 fn default_rpc_port() -> u16 { 50052 }
 
+  /// WebSocket dashboard server configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct WsServer {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_ws_port")]
+    pub port: u16,
+    #[serde(default)]
+    pub auth_key: Option<String>,
+}
+
+fn default_ws_port() -> u16 { 49223 }
+
 /// Global configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -72,6 +85,9 @@ pub struct Config {
     /// RPC Workers for distributed inference.
     #[serde(default)]
     pub rpc_workers: Vec<RpcWorker>,
+    /// WebSocket dashboard server for live metrics.
+    #[serde(default)]
+    pub ws_server: WsServer,
     /// Number of results per HuggingFace search query.
     #[serde(default = "default_search_limit")]
     pub search_limit: u32,
@@ -751,6 +767,11 @@ impl Default for Config {
             profiles: Default::default(),
             system_prompt_presets: Default::default(),
             rpc_workers: Vec::new(),
+            ws_server: WsServer {
+                enabled: false,
+                port: 49223,
+                auth_key: None,
+            },
             search_limit: 5,
         }
     }

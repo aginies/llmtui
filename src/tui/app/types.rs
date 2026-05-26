@@ -1,19 +1,17 @@
 pub mod sub;
-use crate::backend::server::ServerHandle;
-use crate::config::{Config, LogEntry};
+use crate::config::Config;
 use crate::models::{
     DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
-    BenchTuneConfig, BenchTuneProgress, BenchTuneResult,
+    BenchTuneConfig,
 };
+#[allow(unused_imports)]
 pub use crate::models::LoadProgress;
 use crate::models::Backend;
-use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::collections::{VecDeque, HashSet, BTreeMap, HashMap};
-use ratatui::text::Line;
+use std::sync::atomic::AtomicBool;
 use ratatui::layout::Rect;
-use ratatui::widgets::{TableState, ListState};
+use ratatui::text::Line;
 
 // Re-export sub-structs
 pub use sub::{

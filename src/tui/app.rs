@@ -177,6 +177,36 @@ impl App {
     }
 }
 
+impl App {
+    pub fn get_model_name(&self) -> String {
+        if let Some(name) = &self.server.metrics_model_name.lock().unwrap().clone() {
+            return name.clone();
+        }
+        if let Some(idx) = self.selected_model_idx {
+            if let Some(model) = self.models.get(idx) {
+                return model.display_name.clone();
+            }
+        }
+        String::new()
+    }
+
+    pub fn get_state_str(&self) -> String {
+        if let Some(idx) = self.selected_model_idx {
+            let name = self.models[idx].display_name.clone();
+            if let Some(state) = self.model_states.get(&name) {
+                return match state {
+                    crate::models::ModelState::Available => String::from("available"),
+                    crate::models::ModelState::Loading => String::from("loading"),
+                    crate::models::ModelState::Loaded { .. } => String::from("loaded"),
+                    crate::models::ModelState::Failed { error } => format!("failed: {error}"),
+                    crate::models::ModelState::Benchmarking => String::from("benchmarking"),
+                };
+            }
+        }
+        String::from("unloaded")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,6 +220,7 @@ mod tests {
             profiles: crate::config::ProfileStore::new(),
             system_prompt_presets: crate::config::PresetStore::new(),
             rpc_workers: Vec::new(),
+            ws_server: crate::config::WsServer::default(),
             search_limit: 50,
         };
         let mut app = App::new(config);

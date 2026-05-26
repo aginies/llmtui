@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>llm-manager Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace; background: #1a1b26; color: #c0caf5; padding: 24px; }
+h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px solid #292e42; padding-bottom: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.card { background: #24283b; border: 1px solid #292e42; border-radius: 8px; padding: 16px; }
+.card h2 { font-size: 0.8rem; color: #565f89; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.card .value { font-size: 1.8rem; font-weight: bold; }
+.card .label { font-size: 0.85rem; color: #737aa2; margin-top: 4px; }
+.model-name { font-size: 1.1rem; color: #9ece6a; margin-bottom: 12px; }
+.state-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+.state-badge.loaded { background: #1a3a2a; color: #9ece6a; }
+.state-badge.unloaded { background: #3a2a1a; color: #e0af68; }
+.state-badge.loading { background: #2a2a3a; color: #7aa2f7; }
+.bar-container { background: #1a1b26; border-radius: 4px; height: 8px; margin-top: 8px; overflow: hidden; }
+.bar { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+.bar.green { background: #9ece6a; }
+.bar.yellow { background: #e0af68; }
+.bar.red { background: #f7768e; }
+.bar.blue { background: #7aa2f7; }
+.status { font-size: 0.8rem; color: #565f89; margin-top: 12px; }
+.status .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; }
+.status .dot.live { background: #9ece6a; animation: pulse 1.5s infinite; }
+.status .dot.off { background: #f7768e; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.meta { font-size: 0.75rem; color: #414868; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h1>llm-manager Dashboard</h1>
+<div id="model-name" class="model-name">Connecting...</div>
+<div class="grid">
+  <div class="card">
+    <h2>Status</h2>
+    <span id="state-badge" class="state-badge unloaded">Waiting</span>
+  </div>
+  <div class="card">
+    <h2>Generation Speed</h2>
+    <div id="tps" class="value">0</div>
+    <div class="label">tokens/sec</div>
+  </div>
+  <div class="card">
+    <h2>Prompt Speed</h2>
+    <div id="prompt-tps" class="value">0</div>
+    <div class="label">tokens/sec</div>
+  </div>
+  <div class="card">
+    <h2>Context</h2>
+    <div id="ctx" class="value">0 / 0</div>
+    <div class="bar-container"><div id="ctx-bar" class="bar blue" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <h2>CPU</h2>
+    <div id="cpu" class="value">0%</div>
+  </div>
+  <div class="card">
+    <h2>VRAM</h2>
+    <div id="vram" class="value">0 / 0 MiB</div>
+    <div class="bar-container"><div id="vram-bar" class="bar green" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <h2>RAM</h2>
+    <div id="ram" class="value">0 MiB</div>
+  </div>
+  <div class="card">
+    <h2>Latency</h2>
+    <div id="latency" class="value">0 ms</div>
+    <div class="label">per token</div>
+  </div>
+  <div class="card">
+    <h2>Decoded Tokens</h2>
+    <div id="tokens" class="value">0</div>
+  </div>
+</div>
+<div class="status">
+  <span class="dot off" id="dot"></span>
+  <span id="status-text">Disconnected</span>
+</div>
+<div class="meta" id="meta"></div>
+
+<script>
+let ws = null;
+const url = new URL(window.location);
+const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+const host = url.host;
+const auth = url.searchParams.get('auth');
+
+function connect() {
+  if (ws) ws.close();
+  const wsUrl = `${protocol}//${host}/ws${auth ? '?auth=' + encodeURIComponent(auth) : ''}`;
+  ws = new WebSocket(wsUrl);
+  
+  ws.onopen = () => {
+    document.getElementById('dot').className = 'dot live';
+    document.getElementById('status-text').textContent = 'Live via WebSocket';
+  };
+  
+  ws.onmessage = (event) => {
+    try {
+      const m = JSON.parse(event.data);
+      update(m);
+    } catch(e) {}
+  };
+  
+  ws.onclose = () => {
+    document.getElementById('dot').className = 'dot off';
+    document.getElementById('status-text').textContent = 'Disconnected';
+    setTimeout(connect, 2000);
+  };
+}
+
+function update(m) {
+  document.getElementById('model-name').textContent = m.model_name || 'No model loaded';
+  document.getElementById('state-badge').textContent = m.state || 'unknown';
+  document.getElementById('state-badge').className = 'state-badge ' + (m.loaded ? 'loaded' : 'unloaded');
+  document.getElementById('tps').textContent = m.tps.toFixed(1);
+  document.getElementById('prompt-tps').textContent = m.prompt_tps.toFixed(1);
+  document.getElementById('ctx').textContent = `${m.ctx_used} / ${m.ctx_max}`;
+  const ctxPct = m.ctx_max > 0 ? (m.ctx_used / m.ctx_max * 100) : 0;
+  document.getElementById('ctx-bar').style.width = ctxPct + '%';
+  document.getElementById('cpu').textContent = m.cpu_usage.toFixed(0) + '%';
+  document.getElementById('vram').textContent = m.gpu_mem_total > 0
+    ? `${(m.gpu_mem_used / 1024*1024*1024).toFixed(1)} / ${(m.gpu_mem_total / 1024*1024*1024).toFixed(1)} GB`
+    : '0.0 / 0.0 GB';
+  const vramPct = m.gpu_mem_total > 0 ? (m.gpu_mem_used / m.gpu_mem_total * 100) : 0;
+  const vramBar = document.getElementById('vram-bar');
+  vramBar.style.width = vramPct + '%';
+  vramBar.className = 'bar ' + (vramPct > 80 ? 'red' : vramPct > 50 ? 'yellow' : 'green');
+  document.getElementById('ram').textContent = (m.ram_used / 1024 / 1024 / 1024).toFixed(1) + ' GB';
+  document.getElementById('latency').textContent = m.latency_per_token_ms.toFixed(1) + ' ms';
+  document.getElementById('tokens').textContent = m.decoded_tokens;
+}
+
+connect();
+</script>
+</body>
+</html>
