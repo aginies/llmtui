@@ -1,0 +1,199 @@
+use crossterm::event::KeyCode;
+
+use crate::tui::app::{App, GlobalMode, LoadingPhase, ModelsMode};
+
+pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
+    if app.filtering_local {
+        match key.code {
+            KeyCode::Esc => {
+                app.filtering_local = false;
+                app.local_filter.clear();
+                app.on_model_selection_change();
+            }
+            KeyCode::Enter => {
+                app.filtering_local = false;
+            }
+            KeyCode::Char(c) => {
+                app.local_filter.push(c);
+                app.on_model_selection_change();
+            }
+            KeyCode::Backspace => {
+                app.local_filter.pop();
+                app.on_model_selection_change();
+            }
+            _ => {}
+        }
+        app.set_redraw();
+        return;
+    }
+
+    match key.code {
+        KeyCode::Char('f') => {
+            if matches!(app.models_mode, ModelsMode::List) {
+                app.filtering_local = true;
+                if app.selected_model_idx.is_none() {
+                    let filtered = app.get_filtered_model_indices();
+                    if !filtered.is_empty() {
+                        app.selected_model_idx = Some(filtered[0]);
+                        app.on_model_selection_change();
+                    }
+                }
+                app.set_redraw();
+                return;
+            }
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            let filtered = app.get_filtered_model_indices();
+            if let Some(idx) = app.selected_model_idx {
+                if let Some(pos) = filtered.iter().position(|&i| i == idx) {
+                    if pos > 0 {
+                        app.selected_model_idx = Some(filtered[pos - 1]);
+                        app.on_model_selection_change();
+                    }
+                } else if !filtered.is_empty() {
+                    app.selected_model_idx = Some(filtered[0]);
+                    app.on_model_selection_change();
+                }
+            } else if !filtered.is_empty() {
+                app.selected_model_idx = Some(filtered[0]);
+                app.on_model_selection_change();
+            }
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            let filtered = app.get_filtered_model_indices();
+            if let Some(idx) = app.selected_model_idx {
+                if let Some(pos) = filtered.iter().position(|&i| i == idx) {
+                    if pos + 1 < filtered.len() {
+                        app.selected_model_idx = Some(filtered[pos + 1]);
+                        app.on_model_selection_change();
+                    }
+                } else if !filtered.is_empty() {
+                    app.selected_model_idx = Some(filtered[0]);
+                    app.on_model_selection_change();
+                }
+            } else if !filtered.is_empty() {
+                app.selected_model_idx = Some(filtered[0]);
+                app.on_model_selection_change();
+            }
+        }
+        KeyCode::Enter | KeyCode::Char('l') => {
+            if app.backend_resolving {
+                app.add_log("Wait for backend installation to finish...", crate::config::LogLevel::Info);
+                return;
+            }
+            if let Some(idx) = app.selected_model_idx {
+                let model = app.models[idx].clone();
+                let already_loaded = matches!(
+                    app.model_states.get(&model.display_name),
+                    Some(crate::models::ModelState::Loaded { .. })
+                );
+                if already_loaded {
+                    app.add_log(format!("{} is already loaded", model.display_name), crate::config::LogLevel::Info);
+                } else {
+                    app.update_model_metadata();
+                    let settings = app.selected_model_settings();
+                    
+                    if let Some(handle) = &app.server_handle
+                        && !crate::backend::server::check_health(&handle.host, handle.port).await {
+                            app.add_log("Router unresponsive, restarting...", crate::config::LogLevel::Info);
+                            if let Some(h) = app.server_handle.take() {
+                                app.pending_kill = Some(h);
+                            }
+                        }
+
+                    if app.server_handle.is_none() {
+                        // Start server (with model in CLI for normal mode, without model for router mode)
+                        app.last_error_message = None;
+                        
+                       if app.server_mode == crate::models::ServerMode::BenchTune {
+                            let bench_tune_config = crate::models::BenchTuneConfig::new(
+                                model.path.clone(),
+                                3, // Default iterations
+                                crate::models::BENCHMARK_PROMPT.to_string(),
+                            );
+                            app.global_mode = crate::tui::app::GlobalMode::BenchTuneSetup {
+                                config: bench_tune_config,
+                                selected_idx: 0,
+                                bench_mode_selection: 0,
+                                editing_prompt: false,
+                                editing_kwargs: false,
+                            };
+                            return;
+                        }
+                        if app.server_mode == crate::models::ServerMode::Router {
+                            // Router mode: start server without a model, then load via /load API
+                            app.pending_spawn = Some((None, settings.clone()));
+                            // Queue the load so it triggers once server is ready
+                            app.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
+                            app.loading_phases = std::iter::once(LoadingPhase::ServerStarting).collect();
+                            app.last_active_phase = Some(LoadingPhase::ServerStarting);
+                            app.loading_progress = 0.25;
+                            app.add_log(format!("Starting router server..."), crate::config::LogLevel::Info);
+                        } else {
+                            // Normal mode: start server WITH the specific model directly
+                            app.pending_spawn = Some((Some(model.clone()), settings));
+                            app.loading_phases = std::iter::once(LoadingPhase::ServerStarting).collect();
+                            app.last_active_phase = Some(LoadingPhase::ServerStarting);
+                            app.loading_progress = 0.25;
+                            app.add_log(format!("Starting server with {}...", model.display_name), crate::config::LogLevel::Info);
+                        }
+                    } else {
+                        // Server already running, load via API
+                        
+                        // Check if we reached the limit of models to load (based on Max Concurrent Predictions)
+                        let active_count = app.model_states.values().filter(|s| 
+                            matches!(s, crate::models::ModelState::Loaded { .. } | crate::models::ModelState::Loading)
+                        ).count();
+                        
+                        if let Some(max) = app.settings.max_concurrent_predictions
+                            && active_count as u32 >= max {
+                                app.add_log(format!("Limit reached: already {} model(s) loaded (Max Concurrent Predictions limit: {})", active_count, max), crate::config::LogLevel::Warning);
+                            return;
+                        }
+
+                        app.last_error_message = None;
+                        app.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
+                        app.loading_phases = std::iter::once(LoadingPhase::LoadingModel).collect();
+                        app.last_active_phase = Some(LoadingPhase::LoadingModel);
+                        app.loading_progress = 0.5;
+                        app.add_log(format!("Loading {} via API...", model.display_name), crate::config::LogLevel::Info);
+                    }
+                }
+            }
+        }
+        KeyCode::Char('u') => {
+            if let Some(idx) = app.selected_model_idx {
+                let model = app.models[idx].clone();
+                if let Some(crate::models::ModelState::Loaded { .. }) = app.model_states.get(&model.display_name) {
+                    app.global_mode = GlobalMode::Confirmation {
+                        selected: false,
+                        kind: crate::tui::app::ConfirmationKind::Unload,
+                    };
+                    app.pending_api_unload = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
+                } else {
+                    app.add_log(format!("{} is not loaded", model.display_name), crate::config::LogLevel::Warning);
+                }
+            } else if app.server_handle.is_some() {
+                app.add_log("Select a loaded model to unload", crate::config::LogLevel::Warning);
+            } else if app.server_mode == crate::models::ServerMode::Router {
+                // Router mode: no server running, no model loaded — fine
+            } else {
+                app.add_log("No model is currently loaded", crate::config::LogLevel::Warning);
+            }
+        }        KeyCode::Char('d') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            if app.active_panel != crate::tui::app::ActivePanel::Models {
+                app.add_log("Press Tab to switch to Models panel, then Ctrl+D to delete", crate::config::LogLevel::Warning);
+                return;
+            }
+            if let Some(model) = app.selected_model() {
+                let display_name = model.display_name.clone();
+                app.pending_deletion = Some(model.path.clone());
+                app.global_mode = GlobalMode::Confirmation { selected: false, kind: crate::tui::app::ConfirmationKind::Delete };
+                app.add_log(format!("Delete confirmation for {} shown", display_name), crate::config::LogLevel::Info);
+            } else {
+                app.add_log("No model selected to delete", crate::config::LogLevel::Warning);
+            }
+        }
+        _ => {}
+    }
+}

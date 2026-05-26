@@ -1,0 +1,94 @@
+use super::types::{App, ActivePanel, ModelsMode};
+
+impl App {
+    /// Check if a panel is visible.
+    pub fn is_panel_visible(&self, index: u8) -> bool {
+        self.panel_visibility & (1 << index) != 0
+    }
+
+    /// Toggle visibility of a panel.
+    pub fn toggle_panel_visibility(&mut self, index: u8) {
+        self.panel_visibility ^= 1 << index;
+        // If hiding the log while expanded, collapse it.
+        if index == 5 && !self.is_panel_visible(5) {
+            self.log_expanded = false;
+        }
+    }
+
+    /// Return a list of all currently visible and focusable panels in logical order.
+    pub fn get_visible_panels(&self) -> Vec<ActivePanel> {
+        let mut visible = Vec::new();
+
+        // 1. Models (Left Top)
+        if self.is_panel_visible(0) {
+            visible.push(ActivePanel::Models);
+        }
+
+        // 2. Model Info (Left Bottom)
+        if self.is_panel_visible(2) {
+            visible.push(ActivePanel::ModelInfo);
+        }
+
+        // 3. Right Panel (README / Settings / Profiles / Presets)
+        let is_search = matches!(self.models_mode, ModelsMode::Search { .. });
+        let is_files = matches!(self.models_mode, ModelsMode::Files { .. });
+        let show_readme = match &self.models_mode {
+            ModelsMode::Search { show_readme, .. } => *show_readme,
+            ModelsMode::Files { .. } => true,
+            _ => false,
+        };
+
+        if self.active_panel == ActivePanel::Profiles {
+            visible.push(ActivePanel::Profiles);
+        } else if self.active_panel == ActivePanel::SystemPromptPresets {
+            visible.push(ActivePanel::SystemPromptPresets);
+        } else if show_readme && (is_search || is_files) {
+            visible.push(ActivePanel::SearchReadme);
+        } else {
+            if self.is_panel_visible(1) && self.server_handle.is_none() {
+                visible.push(ActivePanel::ServerSettings);
+            }
+            if self.is_panel_visible(3) {
+                visible.push(ActivePanel::LlmSettings);
+            }
+        }
+
+        // 4. Active Model (Bottom Middle) — read-only, not focusable
+
+        // 5. Log (Bottom)
+        if self.is_panel_visible(5) {
+            visible.push(ActivePanel::Log);
+        }
+
+        // 6. Downloads (Bottom, shown when downloading)
+        if self.downloading {
+            visible.push(ActivePanel::Downloads);
+        }
+
+        visible
+    }
+
+    pub fn focus_next(&mut self) {
+        let visible = self.get_visible_panels();
+        if visible.is_empty() {
+            return;
+        }
+
+        let current_idx = visible.iter().position(|&p| p == self.active_panel).unwrap_or(0);
+        let next_idx = (current_idx + 1) % visible.len();
+        self.active_panel = visible[next_idx];
+        self.set_redraw();
+    }
+
+    pub fn focus_prev(&mut self) {
+        let visible = self.get_visible_panels();
+        if visible.is_empty() {
+            return;
+        }
+
+        let current_idx = visible.iter().position(|&p| p == self.active_panel).unwrap_or(0);
+        let prev_idx = (current_idx + visible.len() - 1) % visible.len();
+        self.active_panel = visible[prev_idx];
+        self.set_redraw();
+    }
+}
