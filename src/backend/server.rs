@@ -444,7 +444,8 @@ pub async fn spawn_server(
             }
         }));
 
-        // Merge loop: drain both channels until one closes
+        // Merge loop: block on whichever channel has data.
+        // When both are empty, select! sleeps with zero CPU cost.
         loop {
             tokio::select! {
                 _ = kill_rx.recv() => {
@@ -453,42 +454,13 @@ pub async fn spawn_server(
                     if let Some(h) = std_err.take() { let _ = h.await; }
                     break;
                 }
-                _ = stdout_rx.recv() => {
-                    // handled below
+                line = stdout_rx.recv() => {
+                    if let Some(line) = line { let _ = log_tx_inner.send(line).await; } else { break; }
                 }
-                _ = stderr_rx.recv() => {
-                    // handled below
+                line = stderr_rx.recv() => {
+                    if let Some(line) = line { let _ = log_tx_inner.send(line).await; } else { break; }
                 }
                 else => break,
-            }
-
-            // Drain both channels (non-blocking) to avoid starvation
-            loop {
-                let mut drained = false;
-                loop {
-                    match stdout_rx.try_recv() {
-                        Ok(line) => { let _ = log_tx_inner.send(line).await; }
-                        Err(mpsc::error::TryRecvError::Empty) => break,
-                        Err(mpsc::error::TryRecvError::Disconnected) => {
-                            drained = true;
-                            break;
-                        }
-                    }
-                }
-                if drained { break; }
-                loop {
-                    match stderr_rx.try_recv() {
-                        Ok(line) => { let _ = log_tx_inner.send(line).await; }
-                        Err(mpsc::error::TryRecvError::Empty) => break,
-                        Err(mpsc::error::TryRecvError::Disconnected) => {
-                            drained = true;
-                            break;
-                        }
-                    }
-                }
-                if drained { break; }
-                // Yield to allow more data to accumulate
-                tokio::task::yield_now().await;
             }
         }
 

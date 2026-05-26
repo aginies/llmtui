@@ -321,6 +321,9 @@ impl App {
         self.loading.load_progress = Default::default();
         self.loading.last_spinner_time = None;
         self.loading.loading_spinner = 0;
+        if let Some(h) = self.loading.health_poll_handle.take() {
+            h.abort();
+        }
         
         // Models to fail: always any that were Loading. 
         // If it's a crash, also fail all that were Loaded.

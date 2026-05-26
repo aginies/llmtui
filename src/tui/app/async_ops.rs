@@ -399,6 +399,11 @@ impl App {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
             self.loading.loading_completion_rx = Some(rx);
             
+            // Abort any previous health poll task to prevent leaked tasks
+            if let Some(prev) = self.loading.health_poll_handle.take() {
+                prev.abort();
+            }
+            
             let handle = tokio::spawn(async move {
                 let client = reqwest::Client::new();
                 let url = format!("http://{}:{}/health", host, port);
