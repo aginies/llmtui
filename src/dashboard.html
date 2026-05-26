@@ -15,8 +15,8 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
 .card .label { font-size: 0.85rem; color: #737aa2; margin-top: 4px; }
 .model-name { font-size: 1.1rem; color: #9ece6a; margin-bottom: 12px; }
 .state-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
-.state-badge.loaded { background: #1a3a2a; color: #9ece6a; }
-.state-badge.unloaded { background: #3a2a1a; color: #e0af68; }
+.state-badge.loaded { background: #1a3a2a; color: #9ece6a; font-size: 2rem; }
+.state-badge.unloaded { background: #3a2a1a; color: #e0af68; font-size: 2rem; }
 .state-badge.loading { background: #2a2a3a; color: #7aa2f7; }
 .bar-container { background: #1a1b26; border-radius: 4px; height: 8px; margin-top: 8px; overflow: hidden; }
 .bar { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
@@ -126,7 +126,7 @@ function update(m) {
   document.getElementById('ctx-bar').style.width = ctxPct + '%';
   document.getElementById('cpu').textContent = m.cpu_usage.toFixed(0) + '%';
   document.getElementById('vram').textContent = m.gpu_mem_total > 0
-    ? `${(m.gpu_mem_used / 1024*1024*1024).toFixed(1)} / ${(m.gpu_mem_total / 1024*1024*1024).toFixed(1)} GB`
+    ? `${(m.gpu_mem_used /1024/1024/1024).toFixed(1)} / ${(m.gpu_mem_total/1024/1024/1024).toFixed(1)} GB`
     : '0.0 / 0.0 GB';
   const vramPct = m.gpu_mem_total > 0 ? (m.gpu_mem_used / m.gpu_mem_total * 100) : 0;
   const vramBar = document.getElementById('vram-bar');
