@@ -12,6 +12,64 @@ const HEALTH_CHECK_INTERVAL_MS: u64 = 500;
 const HEALTH_CHECK_LOG_INTERVAL: u32 = 10;
 const REQUEST_TIMEOUT_SECS: u64 = 120;
 
+/// Build a BenchTuneResult from accumulated iteration metrics.
+fn build_bench_result(
+    params: BenchTuneParamValue,
+    total_prompt_tokens: u64,
+    total_generation_tokens: u64,
+    total_prompt_time: Duration,
+    total_generation_time: Duration,
+    total_time: Duration,
+    first_token_times: Vec<u128>,
+    outputs: Vec<String>,
+    per_iteration_metrics: Vec<BenchTuneMetrics>,
+    base_settings: Option<ModelSettings>,
+) -> BenchTuneResult {
+    let prompt_tps = if total_prompt_time.as_secs_f64() > 0.0 {
+        (total_prompt_tokens as f64) / total_prompt_time.as_secs_f64()
+    } else {
+        0.0
+    };
+
+    let generation_tps = if total_generation_time.as_secs_f64() > 0.0 {
+        (total_generation_tokens as f64) / total_generation_time.as_secs_f64()
+    } else {
+        0.0
+    };
+
+    let combined_tps = if total_time.as_secs_f64() > 0.0 {
+        ((total_prompt_tokens + total_generation_tokens) as f64) / total_time.as_secs_f64()
+    } else {
+        0.0
+    };
+
+    let avg_latency_per_token = if total_generation_tokens > 0 {
+        total_generation_time.as_millis() as f64 / (total_generation_tokens as f64)
+    } else {
+        0.0
+    };
+
+    let avg_first_token_time = if !first_token_times.is_empty() {
+        first_token_times.iter().sum::<u128>() as f64 / first_token_times.len() as f64
+    } else {
+        0.0
+    };
+
+    BenchTuneResult {
+        params,
+        metrics: BenchTuneMetrics {
+            prompt_tps,
+            generation_tps,
+            combined_tps,
+            latency_per_token: avg_latency_per_token,
+            first_token_time: avg_first_token_time,
+        },
+        outputs,
+        per_iteration_metrics,
+        base_settings,
+    }
+}
+
 /// Run a benchmark tuning test with multiple parameter combinations
 pub async fn run_bench_tune(
     main_config: &crate::config::Config,
@@ -284,49 +342,18 @@ async fn run_bench_tune_runtime_only(
         }
     }
 
-    let prompt_tps = if total_prompt_time.as_secs_f64() > 0.0 {
-        (total_prompt_tokens as f64) / total_prompt_time.as_secs_f64()
-    } else {
-        0.0
-    };
-
-    let generation_tps = if total_generation_time.as_secs_f64() > 0.0 {
-        (total_generation_tokens as f64) / total_generation_time.as_secs_f64()
-    } else {
-        0.0
-    };
-
-    let combined_tps = if total_time.as_secs_f64() > 0.0 {
-        ((total_prompt_tokens + total_generation_tokens) as f64) / total_time.as_secs_f64()
-    } else {
-        0.0
-    };
-
-    let avg_latency_per_token = if total_generation_tokens > 0 {
-        total_generation_time.as_millis() as f64 / (total_generation_tokens as f64)
-    } else {
-        0.0
-    };
-
-    let avg_first_token_time = if !first_token_times.is_empty() {
-        first_token_times.iter().sum::<u128>() as f64 / first_token_times.len() as f64
-    } else {
-        0.0
-    };
-
-    Ok(BenchTuneResult {
-        params: params.clone(),
-        metrics: BenchTuneMetrics {
-            prompt_tps,
-            generation_tps,
-            combined_tps,
-            latency_per_token: avg_latency_per_token,
-            first_token_time: avg_first_token_time,
-        },
+    Ok(build_bench_result(
+        params.clone(),
+        total_prompt_tokens,
+        total_generation_tokens,
+        total_prompt_time,
+        total_generation_time,
+        total_time,
+        first_token_times,
         outputs,
         per_iteration_metrics,
-        base_settings: Some(settings.clone()),
-    })
+        Some(settings.clone()),
+    ))
 }
 
 /// Run a single benchmark tuning test with specific parameters
@@ -478,54 +505,22 @@ async fn run_bench_tune_single_test(
         }
     }
     
-    // Calculate metrics
-    let prompt_tps = if total_prompt_time.as_secs_f64() > 0.0 {
-        (total_prompt_tokens as f64) / total_prompt_time.as_secs_f64()
-    } else {
-        0.0
-    };
-    
-    let generation_tps = if total_generation_time.as_secs_f64() > 0.0 {
-        (total_generation_tokens as f64) / total_generation_time.as_secs_f64()
-    } else {
-        0.0
-    };
-    
-    let combined_tps = if total_time.as_secs_f64() > 0.0 {
-        ((total_prompt_tokens + total_generation_tokens) as f64) / total_time.as_secs_f64()
-    } else {
-        0.0
-    };
-    
-    let avg_latency_per_token = if total_generation_tokens > 0 {
-        total_generation_time.as_millis() as f64 / (total_generation_tokens as f64)
-    } else {
-        0.0
-    };
-    
-    let avg_first_token_time = if !first_token_times.is_empty() {
-        first_token_times.iter().sum::<u128>() as f64 / first_token_times.len() as f64
-    } else {
-        0.0
-    };
-    
     // Clean up server
     let _ = crate::backend::server::kill_server(server_handle).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
     
-    Ok(BenchTuneResult {
-        params: params.clone(),
-        metrics: BenchTuneMetrics {
-            prompt_tps,
-            generation_tps,
-            combined_tps,
-            latency_per_token: avg_latency_per_token,
-            first_token_time: avg_first_token_time,
-        },
+    Ok(build_bench_result(
+        params.clone(),
+        total_prompt_tokens,
+        total_generation_tokens,
+        total_prompt_time,
+        total_generation_time,
+        total_time,
+        first_token_times,
         outputs,
         per_iteration_metrics,
-        base_settings: Some(base_settings.clone()),
-    })
+        Some(base_settings.clone()),
+    ))
 }
 
 /// Send an inference request and measure response time

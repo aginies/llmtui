@@ -243,6 +243,22 @@ fn test_build_server_cmd_includes_repetition_params() {
     assert!(display.contains("--top-k"));
 }
 
+#[test]
+fn test_build_server_cmd_includes_mtp_flags() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/test.gguf", "test", "Test");
+    let mut settings = make_settings();
+    settings.is_mtp = true;
+    settings.draft_tokens = 4;
+    let config = make_config();
+
+    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+
+    assert!(display.contains("--draft-mtp"));
+    assert!(display.contains("-nd"));
+    assert!(display.contains("4"));
+}
+
 // ── build_server_cmd — Display string ───────────────────────────
 
 #[test]

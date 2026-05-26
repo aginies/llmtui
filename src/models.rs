@@ -1250,23 +1250,6 @@ pub fn kv_quant_bytes_from_str(k: &str, v: &str) -> f64 {
     kv_quant_bytes(k_type, v_type)
 }
 
-pub fn format_mib(mib: u64) -> String {
-    let bytes = mib * 1024 * 1024;
-    let kb = 1024.0;
-    let mb = kb * 1024.0;
-    let gb = mb * 1024.0;
-    let s = bytes as f64;
-    if s < kb {
-        format!("{} B", bytes)
-    } else if s < mb {
-        format!("{:.1} KB", s / kb)
-    } else if s < gb {
-        format!("{:.1} MB", s / mb)
-    } else {
-        format!("{:.1} GB", s / gb)
-    }
-}
-
 impl ModelSettings {
     /// Check if this settings differs from `other` in any field.
     pub fn is_dirty(&self, other: &Self) -> bool {

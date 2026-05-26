@@ -190,6 +190,7 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::LoadProgress;
 
     fn make_app() -> App {
         let config = crate::config::Config {

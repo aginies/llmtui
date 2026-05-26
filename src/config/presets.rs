@@ -132,31 +132,7 @@ impl PresetStore {
         all
     }
 
-    /// Restore a deleted preset from unused directory.
-    #[allow(dead_code)]
-    pub fn restore(&mut self, name: &str) -> bool {
-        let unused_path = self.unused_dir.join(format!("{}.yaml", name));
-        let presets_path = self.presets_dir.join(format!("{}.yaml", name));
-        if unused_path.exists() && !presets_path.exists() {
-            let _ = std::fs::create_dir_all(&self.presets_dir);
-            if let Ok(content) = std::fs::read_to_string(&unused_path) {
-                if let Ok(preset) = serde_yaml::from_str::<SystemPromptPreset>(&content) {
-                    let _ = std::fs::remove_file(&unused_path);
-                    let _ = std::fs::write(&presets_path, content);
-                    self.cache.insert(name.to_string(), preset);
-                    return true;
-                }
-            }
-        }
-        false
     }
-
-    /// Reload from disk.
-    #[allow(dead_code)]
-    pub fn reload(&mut self) {
-        self.cache = load_all_from_dir(&self.presets_dir);
-    }
-}
 
 impl Default for PresetStore {
     fn default() -> Self {

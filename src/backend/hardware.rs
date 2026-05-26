@@ -50,27 +50,6 @@ pub fn backend_supported(backend: crate::models::Backend, platform: Platform) ->
     }
 }
 
-/// Get the list of all backends supported on the given platform.
-#[allow(dead_code)]
-pub fn supported_backends(platform: Platform) -> Vec<crate::models::Backend> {
-    let all = [
-        crate::models::Backend::Cpu,
-        crate::models::Backend::Vulkan,
-        crate::models::Backend::Rocm,
-        crate::models::Backend::RocmLemonade,
-        crate::models::Backend::Cuda,
-        crate::models::Backend::CpuArm64,
-        crate::models::Backend::CpuWindows,
-        crate::models::Backend::VulkanWindows,
-        crate::models::Backend::CudaWindows12_4,
-        crate::models::Backend::CudaWindows13_1,
-        crate::models::Backend::HipWindows,
-        crate::models::Backend::CpuMacosArm64,
-        crate::models::Backend::CpuMacosX64,
-    ];
-    all.into_iter().filter(|b| backend_supported(*b, platform)).collect()
-}
-
 /// Returns paths to all primary DRM card directories (card0, card1, ...).
 fn drm_card_paths() -> Vec<std::path::PathBuf> {
     let drm_path = Path::new("/sys/class/drm");

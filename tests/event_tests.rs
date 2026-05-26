@@ -9,7 +9,8 @@
 use crossterm::event::{KeyCode, KeyModifiers, KeyEvent, KeyEventKind};
 use llm_manager::config::Config;
 use llm_manager::models::*;
-use llm_manager::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, ConfirmationKind, LoadProgress};
+use llm_manager::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, ConfirmationKind};
+use llm_manager::LoadProgress;
 use llm_manager::backend::server::ServerHandle;
 use llm_manager::tui::event::handle_key;
 

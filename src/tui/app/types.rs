@@ -4,8 +4,6 @@ use crate::models::{
     DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
     BenchTuneConfig,
 };
-#[allow(unused_imports)]
-pub use crate::models::LoadProgress;
 use crate::models::Backend;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

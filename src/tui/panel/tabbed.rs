@@ -53,7 +53,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         .collect();
 
     let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
-    let vram_text = crate::models::format_mib(app.loading.vram_estimate);
+    let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(" LLM Settings (F4) [Ctrl+F9] "),
@@ -150,7 +150,7 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let is_focused = app.ui.active_panel == ActivePanel::LlmSettings;
     let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
-    let vram_text = crate::models::format_mib(app.loading.vram_estimate);
+    let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(" LLM Settings (F4) [4] "),

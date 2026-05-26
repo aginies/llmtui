@@ -7,7 +7,8 @@
 
 use llm_manager::config::Config;
 use llm_manager::models::*;
-use llm_manager::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, ConfirmationKind, LoadingPhase, LoadProgress};
+use llm_manager::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, ConfirmationKind, LoadingPhase};
+use llm_manager::LoadProgress;
 use llm_manager::tui::render::render;
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;

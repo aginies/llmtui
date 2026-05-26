@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-pub use model_config::{ModelConfigStore, unused_config_dir};
+pub use model_config::ModelConfigStore;
 
 pub use profiles::{ProfileStore};
 
@@ -1029,37 +1029,7 @@ impl Config {
         self.system_prompt_presets.all()
     }
 
-    /// Restore a deleted model config from the unused directory.
-    /// Returns true if a config was found and restored.
-    #[allow(dead_code)]
-    pub fn restore_model(&mut self, name: &str) -> bool {
-        let restored = self.model_overrides.restore(name);
-        if restored {
-            let _ = self.save();
-        }
-        restored
-    }
-
-    /// List names of deleted (unused) model configs.
-    #[allow(dead_code)]
-    pub fn list_unused_models(&self) -> Vec<String> {
-        unused_config_dir()
-            .read_dir()
-            .ok()
-            .into_iter()
-            .flatten()
-            .filter_map(|entry| {
-                let entry = entry.ok()?;
-                let path = entry.path();
-                if path.extension().map(|e| e == "yaml").unwrap_or(false) {
-                    path.file_stem().and_then(|n| n.to_str()).map(|s| s.to_string())
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-}
+ }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogLevel {

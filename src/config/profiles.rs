@@ -72,17 +72,6 @@ impl ProfileStore {
         }
     }
 
-    /// Get all user-defined profiles (excluding built-ins).
-    #[allow(dead_code)]
-    pub fn user_profiles(&self) -> Vec<Profile> {
-        let builtin = builtin_profiles();
-        self.cache
-            .values()
-            .filter(|p| !builtin.iter().any(|b| b.name == p.name))
-            .cloned()
-            .collect()
-    }
-
     /// Save (or update) a profile.
     pub fn save(&mut self, profile: &Profile) {
         // Remove from unused if it was there
@@ -134,31 +123,7 @@ impl ProfileStore {
         all
     }
 
-    /// Restore a deleted profile from unused directory.
-    #[allow(dead_code)]
-    pub fn restore(&mut self, name: &str) -> bool {
-        let unused_path = self.unused_dir.join(format!("{}.yaml", name));
-        let profiles_path = self.profiles_dir.join(format!("{}.yaml", name));
-        if unused_path.exists() && !profiles_path.exists() {
-            let _ = std::fs::create_dir_all(&self.profiles_dir);
-            if let Ok(content) = std::fs::read_to_string(&unused_path) {
-                if let Ok(profile) = serde_yaml::from_str::<Profile>(&content) {
-                    let _ = std::fs::remove_file(&unused_path);
-                    let _ = std::fs::write(&profiles_path, content);
-                    self.cache.insert(name.to_string(), profile);
-                    return true;
-                }
-            }
-        }
-        false
     }
-
-    /// Reload from disk.
-    #[allow(dead_code)]
-    pub fn reload(&mut self) {
-        self.cache = load_all_from_dir(&self.profiles_dir);
-    }
-}
 
 impl Default for ProfileStore {
     fn default() -> Self {

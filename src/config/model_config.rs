@@ -78,17 +78,7 @@ impl ModelConfigStore {
         }
     }
 
-    /// Create a new empty store without loading from disk (for tests).
-    #[allow(dead_code)]
-    pub fn new_empty() -> Self {
-        Self {
-            models_dir: models_config_dir(),
-            unused_dir: unused_config_dir(),
-            cache: HashMap::new(),
-        }
-    }
-
-    /// Get the config for a model by name.
+     /// Get the config for a model by name.
     pub fn get(&self, name: &str) -> Option<&ModelOverride> {
         self.cache.get(name)
     }
@@ -121,12 +111,6 @@ impl ModelConfigStore {
         self.cache.remove(name);
     }
 
-    /// Check if there are any model configs.
-    #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.cache.is_empty()
-    }
-
     /// Get all model config keys.
     pub fn keys(&self) -> Vec<String> {
         let mut keys: Vec<String> = self.cache.keys().cloned().collect();
@@ -134,31 +118,7 @@ impl ModelConfigStore {
         keys
     }
 
-    /// Reload from disk (e.g., after restoring from unused).
-    #[allow(dead_code)]
-    pub fn reload(&mut self) {
-        self.cache = load_all_from_dir(&self.models_dir);
     }
-
-    /// Restore a deleted config from unused directory.
-    #[allow(dead_code)]
-    pub fn restore(&mut self, name: &str) -> bool {
-        let unused_path = self.unused_dir.join(format!("{}.yaml", name));
-        let models_path = self.models_dir.join(format!("{}.yaml", name));
-        if unused_path.exists() && !models_path.exists() {
-            let _ = std::fs::create_dir_all(&self.models_dir);
-            if let Ok(content) = std::fs::read_to_string(&unused_path) {
-                if let Ok(config) = serde_yaml::from_str::<ModelOverride>(&content) {
-                    let _ = std::fs::remove_file(&unused_path);
-                    let _ = std::fs::write(&models_path, content);
-                    self.cache.insert(name.to_string(), config);
-                    return true;
-                }
-            }
-        }
-        false
-    }
-}
 
 impl Default for ModelConfigStore {
     fn default() -> Self {
