@@ -1116,7 +1116,62 @@ pub fn kv_quant_bytes_from_str(k: &str, v: &str) -> f64 {
 }
 
 pub fn format_mib(mib: u64) -> String {
-    crate::tui::format_size(mib * 1024 * 1024)
+    let bytes = mib * 1024 * 1024;
+    let kb = 1024.0;
+    let mb = kb * 1024.0;
+    let gb = mb * 1024.0;
+    let s = bytes as f64;
+    if s < kb {
+        format!("{} B", bytes)
+    } else if s < mb {
+        format!("{:.1} KB", s / kb)
+    } else if s < gb {
+        format!("{:.1} MB", s / mb)
+    } else {
+        format!("{:.1} GB", s / gb)
+    }
+}
+
+impl ModelSettings {
+    /// Check if this settings differs from `other` in any field.
+    pub fn is_dirty(&self, other: &Self) -> bool {
+        let f32_dirty = |a: Option<f32>, b: Option<f32>| match (a, b) {
+            (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
+            (None, None) => false,
+            _ => true,
+        };
+
+        self.context_length != other.context_length
+            || self.threads != other.threads
+            || self.threads_batch != other.threads_batch
+            || self.mlock != other.mlock
+            || self.system_prompt_preset_name != other.system_prompt_preset_name
+            || self.gpu_layers_mode != other.gpu_layers_mode
+            || self.flash_attn != other.flash_attn
+            || self.kv_cache_offload != other.kv_cache_offload
+            || self.cache_type_k != other.cache_type_k
+            || self.cache_type_v != other.cache_type_v
+            || self.batch_size != other.batch_size
+            || self.ubatch_size != other.ubatch_size
+            || self.uniform_cache != other.uniform_cache
+            || self.max_concurrent_predictions != other.max_concurrent_predictions
+            || self.seed != other.seed
+            || (self.temperature - other.temperature).abs() > 0.001
+            || self.top_k != other.top_k
+            || (self.top_p - other.top_p).abs() > 0.001
+            || (self.min_p - other.min_p).abs() > 0.001
+            || self.max_tokens != other.max_tokens
+            || (self.repeat_penalty - other.repeat_penalty).abs() > 0.001
+            || self.repeat_last_n != other.repeat_last_n
+            || f32_dirty(self.presence_penalty, other.presence_penalty)
+            || f32_dirty(self.frequency_penalty, other.frequency_penalty)
+            || self.keep != other.keep
+            || self.mmap != other.mmap
+            || self.numa != other.numa
+            || self.expert_count != other.expert_count
+            || self.tags != other.tags
+            || self.get_active_backend_version() != other.get_active_backend_version()
+    }
 }
 
 // Benchmark Tuning types

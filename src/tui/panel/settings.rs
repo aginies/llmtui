@@ -279,7 +279,7 @@ pub fn add_setting(
         },
         22 => settings.tags != cached.tags,
         23 => settings.get_active_backend_version() != cached.get_active_backend_version(),
-        _ => false,
+        _ => settings.is_dirty(cached),
     };
 
     let (display_val, val_style) = if idx == selected && editing {

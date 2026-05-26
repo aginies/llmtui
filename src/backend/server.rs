@@ -318,10 +318,10 @@ pub async fn spawn_server(
         }
     }
 
-    // For BenchTune mode, we don't spawn a server process
+    // BenchTune mode is handled separately in app.start_pending_spawn()
+    // and should never reach this function.
     if server_mode == crate::models::ServerMode::BenchTune {
-        // Handle benchmark tuning in main.rs instead
-        return Err("BenchTune mode requires special handling in main.rs".to_string());
+        unreachable!("BenchTune mode must be handled before calling spawn_server")
     }
 
     // Resolve the backend binary (downloads if needed)

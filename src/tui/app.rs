@@ -1282,45 +1282,7 @@ impl App {
 
     /// Check if any LLM settings have been modified since last save.
     pub fn is_settings_dirty(&self) -> bool {
-        let s = &self.settings;
-        let c = &self.model_settings_cache;
-
-        let f32_dirty = |a: Option<f32>, b: Option<f32>| match (a, b) {
-            (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
-            (None, None) => false,
-            _ => true,
-        };
-
-        s.context_length != c.context_length
-            || s.threads != c.threads
-            || s.threads_batch != c.threads_batch
-            || s.mlock != c.mlock
-            || s.system_prompt_preset_name != c.system_prompt_preset_name
-          || s.gpu_layers_mode != c.gpu_layers_mode
-            || s.flash_attn != c.flash_attn
-            || s.kv_cache_offload != c.kv_cache_offload
-            || s.cache_type_k != c.cache_type_k
-            || s.cache_type_v != c.cache_type_v
-            || s.batch_size != c.batch_size
-            || s.ubatch_size != c.ubatch_size
-            || s.uniform_cache != c.uniform_cache
-            || s.max_concurrent_predictions != c.max_concurrent_predictions
-            || s.seed != c.seed
-            || (s.temperature - c.temperature).abs() > 0.001
-            || s.top_k != c.top_k
-            || (s.top_p - c.top_p).abs() > 0.001
-            || (s.min_p - c.min_p).abs() > 0.001
-            || s.max_tokens != c.max_tokens
-            || (s.repeat_penalty - c.repeat_penalty).abs() > 0.001
-            || s.repeat_last_n != c.repeat_last_n
-            || f32_dirty(s.presence_penalty, c.presence_penalty)
-            || f32_dirty(s.frequency_penalty, c.frequency_penalty)
-            || s.keep != c.keep
-            || s.mmap != c.mmap
-            || s.numa != c.numa
-            || s.expert_count != c.expert_count
-            || s.tags != c.tags
-            || s.get_active_backend_version() != c.get_active_backend_version()
+        self.settings.is_dirty(&self.model_settings_cache)
     }
 
     /// Compute a fingerprint of the current settings for cache invalidation.
@@ -2232,10 +2194,23 @@ impl App {
     }
 
     async fn metrics_polling_task(host: String, port: u16, pid: u32, metrics_model_name: Arc<std::sync::Mutex<Option<String>>>, metrics_tx: tokio::sync::mpsc::Sender<crate::models::ServerMetrics>) {
+        let mut consecutive_failures: u32 = 0;
+        let max_failures: u32 = 15;
         loop {
             let mut m = match server::get_metrics(&host, port, None, Some(pid)).await {
-                Ok(metrics) => metrics,
+                Ok(metrics) => {
+                    consecutive_failures = 0;
+                    metrics
+                }
                 Err(_) => {
+                    consecutive_failures += 1;
+                    if consecutive_failures >= max_failures {
+                        tracing::warn!("Metrics polling aborted after {} consecutive failures (server likely dead)", max_failures);
+                        break;
+                    }
+                    if consecutive_failures % 5 == 1 {
+                        tracing::warn!("Metrics polling: server unreachable (attempt {}/{})", consecutive_failures, max_failures);
+                    }
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                     continue;
                 }

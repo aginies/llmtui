@@ -127,8 +127,6 @@ pub fn builtin_system_prompt_presets() -> Vec<SystemPromptPreset> {
     ]
 }
 
-impl DefaultParams {}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ModelOverride {
     // Loading
