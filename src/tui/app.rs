@@ -94,6 +94,7 @@ impl App {
                 spawned_settings: None,
                 spawned_model_name: None,
                 spawned_model_state: None,
+                spawned_context_length: 0,
             },
             bench_tune: BenchTuneState {
                 bench_tune_progress: None,

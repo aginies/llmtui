@@ -368,9 +368,9 @@ impl App {
     pub fn poll_metrics(&mut self) {
         if let Some(rx) = &mut self.server.metrics_rx {
             let mut received_metrics = false;
-            while let Ok(mut m) = rx.try_recv() {
+           while let Ok(mut m) = rx.try_recv() {
                 if m.ctx_max == 0 {
-                    m.ctx_max = self.settings.context_length;
+                    m.ctx_max = self.server.spawned_context_length;
                 }
                 if m.tps == 0.0 && self.metrics.tps > 0.0 {
                     m.tps = self.metrics.tps;
@@ -499,9 +499,10 @@ impl App {
                     self.add_log(format!("Server started on port {port} (pid={pid})"), crate::config::LogLevel::Info);
                     self.server.server_handle = Some(server_handle);
                     self.server.cmd_display = Some(cmd);
-                    self.server.spawned_settings = Some(spawned_settings);
+                    self.server.spawned_settings = Some(spawned_settings.clone());
                     self.server.spawned_model_name = Some(server_display_name.clone());
                     self.server.spawned_model_state = Some("loading".to_string());
+                    self.server.spawned_context_length = spawned_settings.context_length;
                     if self.settings.api_endpoint_enabled {
                         let port = self.settings.api_endpoint_port;
                         let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap_or_else(|_| "127.0.0.1:49222".parse().unwrap());
