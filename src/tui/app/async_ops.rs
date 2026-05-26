@@ -501,6 +501,7 @@ impl App {
                     self.server.cmd_display = Some(cmd);
                     self.server.spawned_settings = Some(spawned_settings);
                     self.server.spawned_model_name = Some(server_display_name.clone());
+                    self.server.spawned_model_state = Some("loading".to_string());
                     if self.settings.api_endpoint_enabled {
                         let port = self.settings.api_endpoint_port;
                         let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap_or_else(|_| "127.0.0.1:49222".parse().unwrap());
@@ -518,6 +519,7 @@ impl App {
                     }
                     self.loading.loading_phases = std::iter::once(super::types::LoadingPhase::Complete).collect();
                     self.loading.last_active_phase = Some(super::types::LoadingPhase::Complete);
+                    self.server.spawned_model_state = Some("loaded".to_string());
                     self.loading.progress_target = 1.0;
                     let (metrics_tx, metrics_rx) = tokio::sync::mpsc::channel(10);
                     self.server.metrics_rx = Some(metrics_rx);

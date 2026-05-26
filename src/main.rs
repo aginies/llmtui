@@ -183,10 +183,11 @@ async fn main() -> Result<()> {
                 if let Some(tx) = &app.server.metrics_tx {
                     let settings = app.server.spawned_settings.as_ref().unwrap_or(&app.settings);
                     let model_name = app.server.spawned_model_name.as_deref().unwrap_or("");
+                    let state = app.server.spawned_model_state.as_deref().unwrap_or("unloaded");
                     if let Err(e) = tx.send(crate::models::WsMetrics::from_metrics(
                         &app.metrics,
                         model_name,
-                        &app.get_state_str(),
+                        state,
                         settings,
                         app.server.cmd_display.as_deref(),
                     )) {

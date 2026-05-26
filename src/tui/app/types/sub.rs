@@ -62,6 +62,7 @@ pub struct ServerState {
     pub cmd_display: Option<String>,
     pub spawned_settings: Option<crate::models::ModelSettings>,
     pub spawned_model_name: Option<String>,
+    pub spawned_model_state: Option<String>,
 }
 
 pub struct BenchTuneState {

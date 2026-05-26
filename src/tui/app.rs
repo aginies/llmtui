@@ -93,6 +93,7 @@ impl App {
                 cmd_display: None,
                 spawned_settings: None,
                 spawned_model_name: None,
+                spawned_model_state: None,
             },
             bench_tune: BenchTuneState {
                 bench_tune_progress: None,
@@ -183,22 +184,7 @@ impl App {
 }
 
 impl App {
-    pub fn get_state_str(&self) -> String {
-        if let Some(idx) = self.selected_model_idx {
-            let name = self.models[idx].display_name.clone();
-            if let Some(state) = self.model_states.get(&name) {
-                return match state {
-                    crate::models::ModelState::Available => String::from("available"),
-                    crate::models::ModelState::Loading => String::from("loading"),
-                    crate::models::ModelState::Loaded { .. } => String::from("loaded"),
-                    crate::models::ModelState::Failed { error } => format!("failed: {error}"),
-                    crate::models::ModelState::Benchmarking => String::from("benchmarking"),
-                };
-            }
-        }
-        String::from("unloaded")
-    }
-}
+  }
 
 #[cfg(test)]
 mod tests {
