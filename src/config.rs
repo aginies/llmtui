@@ -740,7 +740,7 @@ impl Default for DefaultParams {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            models_dirs: vec![dirs::config_dir().unwrap_or_default().join("llm-manager").join("models")],
+            models_dirs: vec![dirs::data_dir().unwrap_or_default().join("llm-manager").join("models")],
             llama_server: "llama-server".into(),
             default: DefaultParams::default(),
             model_overrides: Default::default(),
