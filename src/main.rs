@@ -181,11 +181,12 @@ async fn main() -> Result<()> {
 
                 // Send metrics snapshot to WebSocket clients
                 if let Some(tx) = &app.server.metrics_tx {
+                    let settings = app.server.spawned_settings.as_ref().unwrap_or(&app.settings);
                     if let Err(e) = tx.send(crate::models::WsMetrics::from_metrics(
                         &app.metrics,
                         &app.get_model_name(),
                         &app.get_state_str(),
-                        &app.settings,
+                        settings,
                         app.server.cmd_display.as_deref(),
                     )) {
                         tracing::debug!("Failed to send metrics to ws: {e}");

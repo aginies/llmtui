@@ -49,7 +49,7 @@ pub struct ServerState {
     pub server_handle: Option<ServerHandle>,
     pub metrics_task_handle: Option<tokio::task::JoinHandle<()>>,
     pub sync_task_handle: Option<tokio::task::JoinHandle<()>>,
-    pub spawn_task_handle: Option<tokio::task::JoinHandle<Result<(String, ServerHandle, String), String>>>,
+    pub spawn_task_handle: Option<tokio::task::JoinHandle<Result<(String, ServerHandle, String, crate::models::ModelSettings), String>>>,
     pub bench_tune_task_handle: Option<tokio::task::JoinHandle<(Result<Vec<BenchTuneResult>, String>, String, BenchTuneConfig)>>,
     pub server_log_rx: Option<tokio::sync::mpsc::Receiver<String>>,
     pub metrics_rx: Option<tokio::sync::mpsc::Receiver<crate::models::ServerMetrics>>,
@@ -60,6 +60,7 @@ pub struct ServerState {
     pub api_proxy_handle: Option<tokio::task::JoinHandle<()>>,
     pub metrics_tx: Option<tokio::sync::broadcast::Sender<crate::models::WsMetrics>>,
     pub cmd_display: Option<String>,
+    pub spawned_settings: Option<crate::models::ModelSettings>,
 }
 
 pub struct BenchTuneState {

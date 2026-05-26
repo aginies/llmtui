@@ -474,9 +474,10 @@ impl App {
                 self.set_redraw();
                 self.bench_tune.bench_tune_rx = Some(rx_tune);
             } else {
+                let settings_for_result = settings_clone.clone();
                 let handle = tokio::spawn(async move {
                     crate::backend::server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone, download_tx_clone, server_mode_clone, router_max_models_clone).await
-                        .map(|(handle, cmd)| (display_name, handle, cmd))
+                        .map(|(handle, cmd)| (display_name, handle, cmd, settings_for_result))
                 });
                 self.server.spawn_task_handle = Some(handle);
                 self.server.spawn_log_tx = Some(tx);
@@ -491,13 +492,14 @@ impl App {
                 && let Some(handle) = self.server.spawn_task_handle.take()
         {
             match handle.await {
-                Ok(Ok((server_display_name, server_handle, cmd))) => {
+                Ok(Ok((server_display_name, server_handle, cmd, spawned_settings))) => {
                     let port = server_handle.port;
                     let pid = server_handle.pid;
                     let host = server_handle.host.clone();
                     self.add_log(format!("Server started on port {port} (pid={pid})"), crate::config::LogLevel::Info);
                     self.server.server_handle = Some(server_handle);
                     self.server.cmd_display = Some(cmd);
+                    self.server.spawned_settings = Some(spawned_settings);
                     if self.settings.api_endpoint_enabled {
                         let port = self.settings.api_endpoint_port;
                         let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap_or_else(|_| "127.0.0.1:49222".parse().unwrap());

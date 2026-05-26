@@ -91,6 +91,7 @@ impl App {
                 api_proxy_handle: None,
                 metrics_tx: None,
                 cmd_display: None,
+                spawned_settings: None,
             },
             bench_tune: BenchTuneState {
                 bench_tune_progress: None,
