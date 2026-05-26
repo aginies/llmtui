@@ -13,7 +13,7 @@ use crate::tui::panel;
 
 pub fn render(f: &mut Frame, app: &mut App) {
     // Panel-specific help overlay
-    if app.panel_help {
+    if app.ui.panel_help {
         let area = f.area();
         let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
         let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
@@ -28,7 +28,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     }
 
     // CmdLine full-screen overlay
-    if let GlobalMode::CmdLine { cmd_line } = &app.global_mode {
+    if let GlobalMode::CmdLine { cmd_line } = &app.ui.global_mode {
         let area = f.area();
         let max_width = (area.width - 2).max(10) as usize;
         let wrapped = wrap_text(cmd_line, max_width);
@@ -42,7 +42,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         return;
     }
 
-    if let GlobalMode::Confirmation { selected, kind } = &app.global_mode {
+    if let GlobalMode::Confirmation { selected, kind } = &app.ui.global_mode {
         let area = f.area();
         let popup_area = Rect {
             x: area.width.saturating_sub(50) / 2,
@@ -84,7 +84,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 ])
             }
             ConfirmationKind::Unload => {
-                let model_name = match &app.pending_api_unload {
+                let model_name = match &app.pending.pending_api_unload {
                     Some((name, _)) => name.as_str(),
                     None => "Unknown",
                 };
@@ -98,7 +98,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 ])
             }
             ConfirmationKind::DeleteBackend => {
-                let (backend, tag) = match &app.pending_backend_deletion {
+                let (backend, tag) = match &app.pending.pending_backend_deletion {
                     Some((b, t)) => (b.to_string(), t.as_str()),
                     None => ("Unknown".to_string(), "latest"),
                 };
@@ -134,7 +134,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     }
 
     // Host picker overlay
-    if let GlobalMode::HostPicker { entries, selected } = &app.global_mode {
+    if let GlobalMode::HostPicker { entries, selected } = &app.ui.global_mode {
         let area = f.area();
         let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
         let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
@@ -178,7 +178,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         }
 
         // Profile picker overlay
-        if let GlobalMode::ProfilePicker { entries, selected } = &app.global_mode {
+        if let GlobalMode::ProfilePicker { entries, selected } = &app.ui.global_mode {
             let area = f.area();
             let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
             let h = ((entries.len() + 8).min((area.height as usize - 4) as usize)) as u16;
@@ -233,7 +233,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         }
 
   // Prompt picker overlay
-        if let GlobalMode::PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete } = &app.global_mode {
+        if let GlobalMode::PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete } = &app.ui.global_mode {
             let area = f.area();
             let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
             let h = if *editing {
@@ -354,7 +354,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         }
 
         // Tags modal
-        if app.tags_editing {
+        if app.edit.tags_editing {
             let area = f.area();
             let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
             let h = (app.settings.tags.len() + 8).min(area.height as usize - 4) as u16;
@@ -373,7 +373,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             modal_lines.push(Line::from(""));
 
             // Show instructions
-            if app.tags_insert_mode {
+            if app.edit.tags_insert_mode {
                 modal_lines.push(Line::from(Span::styled(
                     " [Enter] Add tag  [Esc] Cancel  [Tab] Switch to edit mode ",
                     Style::default().fg(Color::DarkGray),
@@ -388,8 +388,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
             // Show tags
             for (i, tag) in app.settings.tags.iter().enumerate() {
-                let marker = if Some(i) == app.tags_selected_idx { "> " } else { "  " };
-                let style = if Some(i) == app.tags_selected_idx {
+                let marker = if Some(i) == app.edit.tags_selected_idx { "> " } else { "  " };
+                let style = if Some(i) == app.edit.tags_selected_idx {
                     Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(Color::White)
@@ -401,16 +401,16 @@ pub fn render(f: &mut Frame, app: &mut App) {
             }
 
             // Show insert/edit line
-            if app.tags_insert_mode {
+            if app.edit.tags_insert_mode {
                 modal_lines.push(Line::from(vec![
                     Span::styled(" New: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(&app.tags_edit_buffer, Style::default().fg(Color::Black).bg(Color::Yellow)),
+                    Span::styled(&app.edit.tags_edit_buffer, Style::default().fg(Color::Black).bg(Color::Yellow)),
                     Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)),
                 ]));
-            } else if app.tags_selected_idx.is_some() {
+            } else if app.edit.tags_selected_idx.is_some() {
                 modal_lines.push(Line::from(vec![
                     Span::styled(" Edit: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(&app.tags_edit_buffer, Style::default().fg(Color::Black).bg(Color::Yellow)),
+                    Span::styled(&app.edit.tags_edit_buffer, Style::default().fg(Color::Black).bg(Color::Yellow)),
                     Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)),
                 ]));
             }
@@ -426,7 +426,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         }
 
         // Backend picker overlay
-        if let GlobalMode::BackendPicker { entries, selected } = &app.global_mode {
+        if let GlobalMode::BackendPicker { entries, selected } = &app.ui.global_mode {
             let area = f.area();
             let w = (area.width as f64 * 0.5).clamp(50.0, 70.0) as u16;
             let gpu_info_lines = if crate::backend::hardware::detect_gpu_model().is_some() { 1 } else { 0 };
@@ -535,7 +535,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             }
 
             // BenchTune setup overlay
-            if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs: _ } = &app.global_mode {
+            if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs: _ } = &app.ui.global_mode {
             let area = f.area();
             let w = 70u16;
             let h = 26u16; // Fixed height for predictability, scroll if needed (but 26 should fit all)
@@ -571,14 +571,14 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ]).split(inner_area);
 
             // Region 1: Mode & Basic Config
-            let iters_display = if app.editing_iters {
-                format!("{}|", app.iters_edit_buffer)
+            let iters_display = if app.edit.editing_iters {
+                format!("{}|", app.edit.iters_edit_buffer)
             } else {
                 config.num_iterations.to_string()
             };
             
-            let tokens_display = if app.editing_n_predict {
-                format!("{}|", app.n_predict_edit_buffer)
+            let tokens_display = if app.edit.editing_n_predict {
+                format!("{}|", app.edit.n_predict_edit_buffer)
             } else {
                 config.n_predict.to_string()
             };
@@ -588,10 +588,10 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 Span::styled(mode_name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
                 Span::raw(" | "),
                 Span::styled("Iters: ", Style::default().fg(Color::Yellow)),
-                Span::styled(iters_display, if app.editing_iters { Style::default().fg(Color::Black).bg(Color::Cyan) } else { Style::default().fg(Color::Cyan) }),
+                Span::styled(iters_display, if app.edit.editing_iters { Style::default().fg(Color::Black).bg(Color::Cyan) } else { Style::default().fg(Color::Cyan) }),
                 Span::raw(" | "),
                 Span::styled("Max Tokens: ", Style::default().fg(Color::Yellow)),
-                Span::styled(tokens_display, if app.editing_n_predict { Style::default().fg(Color::Black).bg(Color::Cyan) } else { Style::default().fg(Color::Cyan) }),
+                Span::styled(tokens_display, if app.edit.editing_n_predict { Style::default().fg(Color::Black).bg(Color::Cyan) } else { Style::default().fg(Color::Cyan) }),
             ]);
             f.render_widget(Paragraph::new(mode_line), regions[1]);
 
@@ -601,7 +601,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             
             let prompt_lines = if *editing_prompt {
                 let mut display_text = config.prompt.clone();
-                let cursor_pos = app.edit_cursor_pos.min(display_text.len());
+                let cursor_pos = app.edit.edit_cursor_pos.min(display_text.len());
                 display_text.insert(cursor_pos, '|');
                 vec![
                     Line::from(display_text),
@@ -693,7 +693,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             return;
             }
             // RPC Manager overlay
-            if matches!(app.global_mode, GlobalMode::RpcManager) {
+            if matches!(app.ui.global_mode, GlobalMode::RpcManager) {
             let area = f.area();
             let w = (area.width as f64 * 0.8).clamp(70.0, 90.0) as u16;
             let h = (area.height as f64 * 0.8).clamp(20.0, 35.0) as u16;
@@ -707,19 +707,19 @@ pub fn render(f: &mut Frame, app: &mut App) {
             let workers = &app.config.rpc_workers;
             let worker_lines = panel::rpc_workers::render_all(
                 workers,
-                app.rpc_workers_selected_idx,
-                app.editing_rpc_worker.is_some(),
-                &app.settings_edit_buffer,
-                app.edit_cursor_pos,
+                app.picker.rpc_workers_selected_idx,
+                app.picker.editing_rpc_worker.is_some(),
+                &app.settings_state.settings_edit_buffer,
+                app.edit.edit_cursor_pos,
             );
 
             let available_height = rpc_area.height.saturating_sub(2);
             let max_offset = worker_lines.len().saturating_sub(available_height as usize) as u16;
-            if app.rpc_workers_scroll_offset > max_offset.into() {
-                app.rpc_workers_scroll_offset = max_offset.into();
+            if app.picker.rpc_workers_scroll_offset > max_offset.into() {
+                app.picker.rpc_workers_scroll_offset = max_offset.into();
             }
 
-            let start_idx = app.rpc_workers_scroll_offset as usize;
+            let start_idx = app.picker.rpc_workers_scroll_offset as usize;
             let visible_lines: Vec<Line> = worker_lines
                 .iter()
                 .skip(start_idx)
@@ -736,13 +736,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
             f.render_widget(Paragraph::new(visible_lines).block(block), rpc_area);
 
             if worker_lines.len() > available_height as usize {
-                render_vertical_scrollbar(f, rpc_area, worker_lines.len(), app.rpc_workers_scroll_offset as usize, 1, 2);
+                render_vertical_scrollbar(f, rpc_area, worker_lines.len(), app.picker.rpc_workers_scroll_offset as usize, 1, 2);
             }
             return;
             }
 
             // About overlay
-            if matches!(app.global_mode, GlobalMode::About) {
+            if matches!(app.ui.global_mode, GlobalMode::About) {
             let area = f.area();
             let w = (area.width as f64 * 0.6).clamp(50.0, 70.0) as u16;
             let h = 16;
@@ -765,7 +765,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             }
 
             // MaxConcurrentPicker overlay
-            if let GlobalMode::MaxConcurrentPicker { value } = &app.global_mode {
+            if let GlobalMode::MaxConcurrentPicker { value } = &app.ui.global_mode {
             let area = f.area();
             let w = 55u16;
             let h = 10u16;
@@ -824,8 +824,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
             }
 
             // BenchTune output view modal (fullscreen)
-            if let Some(result_idx) = app.bench_tune_output_view {
-                let results = app.bench_tune_results.clone();
+            if let Some(result_idx) = app.bench_tune.bench_tune_output_view {
+                let results = app.bench_tune.bench_tune_results.clone();
                 if let Some(result) = results.get(result_idx) {
                     let area = f.area();
                     let modal_area = Rect {
@@ -905,7 +905,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                         .border_style(Style::default().fg(Color::Cyan)));
 
                     // Metrics table (for the selected output)
-                    let output_idx = app.bench_tune_output_index.min(result.outputs.len().saturating_sub(1));
+                    let output_idx = app.bench_tune.bench_tune_output_index.min(result.outputs.len().saturating_sub(1));
                     let metrics_for_output = result.per_iteration_metrics.get(output_idx).unwrap_or(&result.metrics);
 
                     let metric_rows: Vec<Row> = vec![
@@ -947,7 +947,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     // Output section
                     let output_lines: Vec<Line> = if !result.outputs.is_empty() {
                         let output = &result.outputs[output_idx];
-                        output.lines().map(|l| Line::from(l.to_string())).collect()
+                        output.lines().map(|l: &str| Line::from(l.to_string())).collect()
                     } else {
                         vec![Line::from("No output captured.")]
                     };
@@ -998,7 +998,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                             .border_style(Style::default().fg(Color::Cyan));
 
                         if !output_lines.is_empty() {
-                            let scroll = app.bench_tune_output_scroll as u16;
+                            let scroll = app.bench_tune.bench_tune_output_scroll as u16;
                             f.render_widget(
                                 Paragraph::new(output_lines)
                                     .block(output_block)
@@ -1048,7 +1048,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     let active_model_visible = app.is_panel_visible(4) && !is_search;
     let log_visible = app.is_panel_visible(5);
 
-    let chunks = if app.log_expanded {
+    let chunks = if app.log.log_expanded {
         // Expanded: just status bar and log panel
         ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
@@ -1072,7 +1072,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             // Calculate base height for bottom area
             let mut h = 0;
             if log_visible { h += 3; }
-            if app.downloading { h += 7; }
+            if app.download.downloading { h += 7; }
             
             if h > 0 {
                 ratatui::layout::Constraint::Min(h)
@@ -1097,7 +1097,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     let status = render_status_bar(app, chunks[0]);
     f.render_widget(Paragraph::new(status), chunks[0]);
 
-    if app.log_expanded {
+    if app.log.log_expanded {
         let log_area = chunks[1];
         panel::log::render(f, log_area, app);
         return;
@@ -1105,7 +1105,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
 
 
-    let top_chunks = if !app.is_panel_visible(1) && !app.is_panel_visible(3) && !matches!(app.active_panel, ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme) {
+    let top_chunks = if !app.is_panel_visible(1) && !app.is_panel_visible(3) && !matches!(app.ui.active_panel, ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme) {
         // Both settings panels hidden — expand left side to full width
         ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
@@ -1115,7 +1115,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ])
             .split(chunks[1])
     } else {
-        let left_pct = app.left_pct.max(20).min(80);
+        let left_pct = app.ui.left_pct.max(20).min(80);
         ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
@@ -1153,16 +1153,16 @@ pub fn render(f: &mut Frame, app: &mut App) {
     }
 
     // Right: Settings or Profiles
-    match app.active_panel {
+    match app.ui.active_panel {
         ActivePanel::Profiles => {
             let all_profiles = app.config.merged_profiles();
             let (profile_lines, count) = panel::profiles::render_all(
                 &all_profiles,
-                app.settings_selected_idx,
+                app.settings_state.settings_selected_idx,
                 &app.settings,
             );
-            if app.settings_selected_idx >= count {
-                app.settings_selected_idx = count.saturating_sub(1);
+            if app.settings_state.settings_selected_idx >= count {
+                app.settings_state.settings_selected_idx = count.saturating_sub(1);
             }
             
             let area = top_chunks[1];
@@ -1170,12 +1170,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
             
             // Clamp scroll offset to max
             let max_offset = profile_lines.len().saturating_sub(available_height as usize) as u16;
-            if app.profiles_scroll_offset > max_offset.into() {
-                app.profiles_scroll_offset = max_offset.into();
+            if app.picker.profiles_scroll_offset > max_offset.into() {
+                app.picker.profiles_scroll_offset = max_offset.into();
             }
             
             // Build visible profile lines with scroll offset applied
-            let start_idx = app.profiles_scroll_offset as usize;
+            let start_idx = app.picker.profiles_scroll_offset as usize;
             let visible_lines: Vec<Line> = profile_lines
                 .iter()
                 .skip(start_idx)
@@ -1200,7 +1200,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 };
                 
                 let mut scrollbar_state = ScrollbarState::new(profile_lines.len())
-                    .position(app.profiles_scroll_offset as usize);
+                    .position(app.picker.profiles_scroll_offset as usize);
                 
                 f.render_stateful_widget(
                     Scrollbar::new(ScrollbarOrientation::VerticalRight)
@@ -1215,10 +1215,10 @@ pub fn render(f: &mut Frame, app: &mut App) {
             let presets = app.config.merged_presets();
             let preset_lines = panel::system_prompt_presets::render_all(
                 &presets,
-                app.settings_selected_idx,
-                app.editing_preset.is_some(),
-                &app.settings_edit_buffer,
-                app.edit_cursor_pos,
+                app.settings_state.settings_selected_idx,
+                app.edit.editing_preset.is_some(),
+                &app.settings_state.settings_edit_buffer,
+                app.edit.edit_cursor_pos,
             );
             
             let area = top_chunks[1];
@@ -1226,12 +1226,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
             
             // Clamp scroll offset to max
             let max_offset = preset_lines.len().saturating_sub(available_height as usize) as u16;
-            if app.system_prompt_presets_scroll_offset > max_offset.into() {
-                app.system_prompt_presets_scroll_offset = max_offset.into();
+            if app.picker.system_prompt_presets_scroll_offset > max_offset.into() {
+                app.picker.system_prompt_presets_scroll_offset = max_offset.into();
             }
             
             // Build visible preset lines with scroll offset applied
-            let start_idx = app.system_prompt_presets_scroll_offset as usize;
+            let start_idx = app.picker.system_prompt_presets_scroll_offset as usize;
             let visible_lines: Vec<Line> = preset_lines
                 .iter()
                 .skip(start_idx)
@@ -1256,7 +1256,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 };
                 
                 let mut scrollbar_state = ScrollbarState::new(preset_lines.len())
-                    .position(app.system_prompt_presets_scroll_offset as usize);
+                    .position(app.picker.system_prompt_presets_scroll_offset as usize);
                 
                 f.render_stateful_widget(
                     Scrollbar::new(ScrollbarOrientation::VerticalRight)
@@ -1303,7 +1303,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
     // Bottom area: Log and/or Download
     let bottom_area = chunks[3];
-    if log_visible && app.downloading {
+    if log_visible && app.download.downloading {
         let bottom_chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
@@ -1312,28 +1312,28 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ])
             .split(bottom_area);
         
-        let downloads_focused = app.active_panel == ActivePanel::Downloads;
+        let downloads_focused = app.ui.active_panel == ActivePanel::Downloads;
         
         panel::log::render(f, bottom_chunks[0], app);
         
-        let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
+        let total_speed: f64 = app.download.download_progress.iter().map(|d| d.bytes_per_second).sum();
         panel::models::render_download_panel(
             f, bottom_chunks[1],
-            &app.download_progress,
+            &app.download.download_progress,
             total_speed,
-            &mut app.download_scroll_state,
+            &mut app.download.download_scroll_state,
             downloads_focused,
         );
     } else if log_visible {
         panel::log::render(f, bottom_area, app);
-    } else if app.downloading {
-        let total_speed: f64 = app.download_progress.iter().map(|d| d.bytes_per_second).sum();
-        let downloads_focused = app.active_panel == ActivePanel::Downloads;
+    } else if app.download.downloading {
+        let total_speed: f64 = app.download.download_progress.iter().map(|d| d.bytes_per_second).sum();
+        let downloads_focused = app.ui.active_panel == ActivePanel::Downloads;
         panel::models::render_download_panel(
             f, bottom_area,
-            &app.download_progress,
+            &app.download.download_progress,
             total_speed,
-            &mut app.download_scroll_state,
+            &mut app.download.download_scroll_state,
             downloads_focused,
         );
     }
@@ -1377,7 +1377,7 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
             parts
         }
         crate::tui::app::ModelsMode::List => {
-            if app.active_panel == crate::tui::app::ActivePanel::LlmSettings {
+            if app.ui.active_panel == crate::tui::app::ActivePanel::LlmSettings {
                 let mut parts = Vec::new();
                 parts.push(Span::styled("j/k nav", c));
                 parts.push(Span::raw("  "));
@@ -1399,7 +1399,7 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                 parts.push(Span::styled("A about", c));
                 parts
             } else {
-                let parts = match app.active_panel {
+                let parts = match app.ui.active_panel {
                     crate::tui::app::ActivePanel::Models => {
                         vec![
                             Span::styled("⇥ panels", c),
@@ -1416,7 +1416,7 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
                         ]
                     }
                     crate::tui::app::ActivePanel::Log => {
-                        if app.log_expanded {
+                        if app.log.log_expanded {
                             vec![
                                 Span::styled("j/k scroll", c),
                                 Span::raw("  "),
@@ -1517,13 +1517,13 @@ fn render_hints(app: &App) -> Vec<Span<'static>> {
             }
         }
         crate::tui::app::ModelsMode::BenchTune => {
-            if app.bench_tune_progress.is_some() && matches!(app.bench_tune_progress.as_ref().unwrap(), crate::models::BenchTuneProgress::Running { .. }) {
+            if app.bench_tune.bench_tune_progress.is_some() && matches!(app.bench_tune.bench_tune_progress.as_ref().unwrap(), crate::models::BenchTuneProgress::Running { .. }) {
                 vec![
                     Span::styled("⎋ stop", r),
                     Span::raw("  "),
                     Span::styled("⇥ panels", c),
                 ]
-            } else if !app.bench_tune_results.is_empty() {
+            } else if !app.bench_tune.bench_tune_results.is_empty() {
                 vec![
                     Span::styled("↵ view output", y),
                     Span::raw("  "),
@@ -1553,7 +1553,7 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     };
     parts.push(Span::styled(format!("[Mode: {}] ", mode_name), Style::default().fg(Color::DarkGray)));
 
-    if let Some(handle) = &app.server_handle {
+    if let Some(handle) = &app.server.server_handle {
         let label = if app.server_mode == crate::models::ServerMode::Bench {
             "BENCHMARKING".to_string()
         } else {
@@ -1562,7 +1562,7 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         parts.push(Span::styled(format!("● {}", label), Style::default().fg(Color::Green)));
     } else if app.server_mode == crate::models::ServerMode::BenchTune {
         // Show benchmark tuning status
-        if let Some(progress) = &app.bench_tune_progress {
+        if let Some(progress) = &app.bench_tune.bench_tune_progress {
             match progress {
                 crate::models::BenchTuneProgress::Running { current, total, progress, current_params: _ } => {
                     let progress_str = format!("BENCH TUNE {}/{} ({:.0}%)", current, total, progress);
@@ -1594,22 +1594,22 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         parts.push(Span::styled("○ Server", Style::default().fg(Color::DarkGray)));
     }
 
-    if matches!(app.global_mode, GlobalMode::HostPicker { .. }) {
+    if matches!(app.ui.global_mode, GlobalMode::HostPicker { .. }) {
         parts.push(Span::raw("  "));
         parts.push(Span::styled("[HOST PICKER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
     }
 
-    if matches!(app.global_mode, GlobalMode::RpcManager) {
+    if matches!(app.ui.global_mode, GlobalMode::RpcManager) {
         parts.push(Span::raw("  "));
         parts.push(Span::styled("[RPC MANAGER]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
     }
 
-    if matches!(app.global_mode, GlobalMode::About) {
+    if matches!(app.ui.global_mode, GlobalMode::About) {
         parts.push(Span::raw("  "));
         parts.push(Span::styled("[ABOUT]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
     }
 
-    if let GlobalMode::BenchTuneSetup { editing_prompt, .. } = &app.global_mode {
+    if let GlobalMode::BenchTuneSetup { editing_prompt, .. } = &app.ui.global_mode {
         parts.push(Span::raw("  "));
         if *editing_prompt {
             parts.push(Span::styled("[EDITING PROMPT]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
@@ -1621,10 +1621,10 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     match &app.models_mode {
         crate::tui::app::ModelsMode::Search { query: _, sort_by, .. } => {
             parts.push(Span::raw("  "));
-            if app.active_panel == crate::tui::app::ActivePanel::Models {
+            if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 parts.push(Span::styled("SEARCH", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
             } else {
-                let panel_label = match app.active_panel {
+                let panel_label = match app.ui.active_panel {
                     crate::tui::app::ActivePanel::Log => "LOG",
                     crate::tui::app::ActivePanel::ServerSettings => "SERVER",
                     crate::tui::app::ActivePanel::LlmSettings => "LLM",
@@ -1640,10 +1640,10 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         }
         crate::tui::app::ModelsMode::Files { model_id, .. } => {
             parts.push(Span::raw("  "));
-            if app.active_panel == crate::tui::app::ActivePanel::Models {
+            if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 parts.push(Span::styled("FILES", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
             } else {
-                let panel_label = match app.active_panel {
+                let panel_label = match app.ui.active_panel {
                     crate::tui::app::ActivePanel::Log => "LOG",
                     crate::tui::app::ActivePanel::ServerSettings => "SERVER",
                     crate::tui::app::ActivePanel::LlmSettings => "LLM",
@@ -1659,7 +1659,7 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         }
         crate::tui::app::ModelsMode::List => {
             parts.push(Span::raw("  "));
-            let panel_label = match app.active_panel {
+            let panel_label = match app.ui.active_panel {
                 crate::tui::app::ActivePanel::Models => "MODELS",
                 crate::tui::app::ActivePanel::Log => "LOG",
                 crate::tui::app::ActivePanel::ServerSettings => "SERVER",
@@ -1683,18 +1683,18 @@ fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     }
 
     // Add resize indicator
-    if app.resize_state.is_some() {
+    if app.ui.resize_state.is_some() {
         parts.push(Span::raw("  "));
         parts.push(Span::styled(
-            format!("│ {}% ← resize →", app.left_pct),
+            format!("│ {}% ← resize →", app.ui.left_pct),
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
         ));
-    } else if !app.is_panel_visible(1) && !app.is_panel_visible(3) && !matches!(app.active_panel, ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme) {
+    } else if !app.is_panel_visible(1) && !app.is_panel_visible(3) && !matches!(app.ui.active_panel, ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme) {
         // Only show resize hint when both settings panels are visible
     } else {
         parts.push(Span::raw("  "));
         parts.push(Span::styled(
-            format!("│ {}%", app.left_pct),
+            format!("│ {}%", app.ui.left_pct),
             Style::default().fg(Color::DarkGray),
         ));
     }

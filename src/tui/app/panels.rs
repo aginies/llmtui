@@ -3,15 +3,15 @@ use super::types::{App, ActivePanel, ModelsMode};
 impl App {
     /// Check if a panel is visible.
     pub fn is_panel_visible(&self, index: u8) -> bool {
-        self.panel_visibility & (1 << index) != 0
+        self.ui.panel_visibility & (1 << index) != 0
     }
 
     /// Toggle visibility of a panel.
     pub fn toggle_panel_visibility(&mut self, index: u8) {
-        self.panel_visibility ^= 1 << index;
+        self.ui.panel_visibility ^= 1 << index;
         // If hiding the log while expanded, collapse it.
         if index == 5 && !self.is_panel_visible(5) {
-            self.log_expanded = false;
+            self.log.log_expanded = false;
         }
     }
 
@@ -38,14 +38,14 @@ impl App {
             _ => false,
         };
 
-        if self.active_panel == ActivePanel::Profiles {
+        if self.ui.active_panel == ActivePanel::Profiles {
             visible.push(ActivePanel::Profiles);
-        } else if self.active_panel == ActivePanel::SystemPromptPresets {
+        } else if self.ui.active_panel == ActivePanel::SystemPromptPresets {
             visible.push(ActivePanel::SystemPromptPresets);
         } else if show_readme && (is_search || is_files) {
             visible.push(ActivePanel::SearchReadme);
         } else {
-            if self.is_panel_visible(1) && self.server_handle.is_none() {
+            if self.is_panel_visible(1) && self.server.server_handle.is_none() {
                 visible.push(ActivePanel::ServerSettings);
             }
             if self.is_panel_visible(3) {
@@ -61,7 +61,7 @@ impl App {
         }
 
         // 6. Downloads (Bottom, shown when downloading)
-        if self.downloading {
+        if self.download.downloading {
             visible.push(ActivePanel::Downloads);
         }
 
@@ -74,9 +74,9 @@ impl App {
             return;
         }
 
-        let current_idx = visible.iter().position(|&p| p == self.active_panel).unwrap_or(0);
+        let current_idx = visible.iter().position(|&p| p == self.ui.active_panel).unwrap_or(0);
         let next_idx = (current_idx + 1) % visible.len();
-        self.active_panel = visible[next_idx];
+        self.ui.active_panel = visible[next_idx];
         self.set_redraw();
     }
 
@@ -86,9 +86,9 @@ impl App {
             return;
         }
 
-        let current_idx = visible.iter().position(|&p| p == self.active_panel).unwrap_or(0);
+        let current_idx = visible.iter().position(|&p| p == self.ui.active_panel).unwrap_or(0);
         let prev_idx = (current_idx + visible.len() - 1) % visible.len();
-        self.active_panel = visible[prev_idx];
+        self.ui.active_panel = visible[prev_idx];
         self.set_redraw();
     }
 }

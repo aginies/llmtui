@@ -5,7 +5,7 @@ impl App {
     pub fn apply_profile(&mut self, profile: &crate::config::Profile) {
         self.settings = profile.apply(self.settings.clone());
         self.resolve_system_prompt();
-        self.settings_render_cache = None;
+        self.settings_state.settings_render_cache = None;
         self.add_log(format!("Applied profile: {}", profile.name), crate::config::LogLevel::Info);
         self.set_redraw();
     }
@@ -50,7 +50,7 @@ impl App {
         } else {
             self.add_log("No model selected to save settings for", crate::config::LogLevel::Warning);
         }
-        self.settings_render_cache = None;
+        self.settings_state.settings_render_cache = None;
         self.set_redraw();
     }
 
@@ -92,7 +92,7 @@ impl App {
         self.settings.threads.hash(&mut h);
         self.settings.threads_batch.hash(&mut h);
         self.settings.get_active_backend_version().hash(&mut h);
-        self.settings_edit_buffer.hash(&mut h);
+        self.settings_state.settings_edit_buffer.hash(&mut h);
         h.finish()
     }
 

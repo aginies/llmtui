@@ -23,11 +23,11 @@ fn app_new_initial_state() {
     assert!(app.models.is_empty());
     assert!(app.selected_model_idx.is_none());
     assert!(matches!(app.models_mode, ModelsMode::List));
-    assert!(app.local_filter.is_empty());
-    assert!(!app.filtering_local);
-    assert!(!app.log_expanded);
-    assert!(matches!(app.global_mode, GlobalMode::Normal));
-    assert_eq!(app.active_panel, ActivePanel::Models);
+    assert!(app.search.local_filter.is_empty());
+    assert!(!app.search.filtering_local);
+    assert!(!app.log.log_expanded);
+    assert!(matches!(app.ui.global_mode, GlobalMode::Normal));
+    assert_eq!(app.ui.active_panel, ActivePanel::Models);
 }
 
 #[test]
@@ -44,21 +44,21 @@ fn app_new_empty_log() {
     let config = Config::default();
     let app = App::new(config);
     // Should have at least the startup log entry
-    assert!(!app.log_entries.is_empty());
+    assert!(!app.log.log_entries.is_empty());
 }
 
 #[test]
 fn app_new_no_server_handle() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(app.server_handle.is_none());
+    assert!(app.server.server_handle.is_none());
 }
 
 #[test]
 fn app_new_no_download_progress() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(app.download_progress.is_empty());
+    assert!(app.download.download_progress.is_empty());
 }
 
 #[test]
@@ -73,7 +73,7 @@ fn app_new_metrics_default() {
 fn app_new_default_left_pct() {
     let config = Config::default();
     let app = App::new(config);
-    assert_eq!(app.left_pct, 55);
+    assert_eq!(app.ui.left_pct, 55);
 }
 
 // ── Model filtering ────────────────────────────────────────────
@@ -107,7 +107,7 @@ fn app_get_filtered_model_indices_case_insensitive() {
         DiscoveredModel { path: "/a.gguf".into(), name: "Qwen2.5-7B".into(), file_size: 1000, display_name: "Qwen2.5-7B".into() },
         DiscoveredModel { path: "/b.gguf".into(), name: "Llama3-8B".into(), file_size: 2000, display_name: "Llama3-8B".into() },
     ];
-    app.local_filter = "qwen".into();
+    app.search.local_filter = "qwen".into();
     let indices = app.get_filtered_model_indices();
     assert_eq!(indices, vec![0]);
 }
@@ -119,7 +119,7 @@ fn app_get_filtered_model_indices_no_match() {
     app.models = vec![
         DiscoveredModel { path: "/a.gguf".into(), name: "model-a".into(), file_size: 1000, display_name: "a".into() },
     ];
-    app.local_filter = "nonexistent".into();
+    app.search.local_filter = "nonexistent".into();
     let indices = app.get_filtered_model_indices();
     assert!(indices.is_empty());
 }
@@ -161,11 +161,11 @@ fn app_toggle_panel_visibility_log_collapses() {
     let config = Config::default();
     let mut app = App::new(config);
     // Expand log first
-    app.log_expanded = true;
+    app.log.log_expanded = true;
     // Hide log panel (index 5)
     app.toggle_panel_visibility(5);
     assert!(!app.is_panel_visible(5));
-    assert!(!app.log_expanded); // Should collapse log when hiding it
+    assert!(!app.log.log_expanded); // Should collapse log when hiding it
 }
 
 // ── Model selection ────────────────────────────────────────────
@@ -255,9 +255,9 @@ fn app_get_api_port_str_returns_string() {
 fn app_add_log_adds_entry() {
     let config = Config::default();
     let mut app = App::new(config);
-    let initial_len = app.log_entries.len();
+    let initial_len = app.log.log_entries.len();
     app.add_log("test message", llm_manager::config::LogLevel::Info);
-    assert_eq!(app.log_entries.len(), initial_len + 1);
+    assert_eq!(app.log.log_entries.len(), initial_len + 1);
 }
 
 #[test]
@@ -265,7 +265,7 @@ fn app_add_log_sets_redraw() {
     let config = Config::default();
     let mut app = App::new(config);
     app.add_log("test", llm_manager::config::LogLevel::Info);
-    assert!(app.needs_redraw);
+    assert!(app.ui.needs_redraw);
 }
 
 // ── Settings tracking ──────────────────────────────────────────
@@ -292,23 +292,23 @@ fn app_new_model_settings_cache_initialized() {
 fn app_new_loading_progress_zero() {
     let config = Config::default();
     let app = App::new(config);
-    assert_eq!(app.loading_progress, 0.0);
+    assert_eq!(app.loading.loading_progress, 0.0);
 }
 
 #[test]
 fn app_new_no_loading_phases() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(app.loading_phases.is_empty());
+    assert!(app.loading.loading_phases.is_empty());
 }
 
 #[test]
 fn app_new_no_bench_tune_state() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(app.bench_tune_progress.is_none());
-    assert!(app.bench_tune_results.is_empty());
-    assert!(!app.bench_tune_running);
+    assert!(app.bench_tune.bench_tune_progress.is_none());
+    assert!(app.bench_tune.bench_tune_results.is_empty());
+    assert!(!app.bench_tune.bench_tune_running);
 }
 
 // ── GGUF metadata cache ────────────────────────────────────────
@@ -317,14 +317,14 @@ fn app_new_no_bench_tune_state() {
 fn app_new_empty_metadata_cache() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(app.gguf_metadata_cache.is_empty());
+    assert!(app.search.gguf_metadata_cache.is_empty());
 }
 
 #[test]
 fn app_new_vram_estimate_zero() {
     let config = Config::default();
     let app = App::new(config);
-    assert_eq!(app.vram_estimate, 0);
+    assert_eq!(app.loading.vram_estimate, 0);
 }
 
 // ── Readme cache ───────────────────────────────────────────────
@@ -333,7 +333,7 @@ fn app_new_vram_estimate_zero() {
 fn app_new_no_readme_cache() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(app.readme_cache.is_none());
+    assert!(app.search.readme_cache.is_none());
 }
 
 // ── Backend resolution ─────────────────────────────────────────
@@ -342,8 +342,8 @@ fn app_new_no_readme_cache() {
 fn app_new_no_backend_resolving() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(!app.backend_resolving);
-    assert!(app.backend_resolve_handle.is_none());
+    assert!(!app.pending.backend_resolving);
+    assert!(app.pending.backend_resolve_handle.is_none());
 }
 
 // ── Model metadata fields ──────────────────────────────────────
@@ -352,11 +352,11 @@ fn app_new_no_backend_resolving() {
 fn app_new_model_metadata_zero() {
     let config = Config::default();
     let app = App::new(config);
-    assert_eq!(app.model_total_layers, 0);
-    assert_eq!(app.model_hidden_size, 0);
-    assert_eq!(app.model_n_ctx_train, 0);
-    assert_eq!(app.model_n_head, 0);
-    assert_eq!(app.model_n_kv_head, 0);
+    assert_eq!(app.loading.model_total_layers, 0);
+    assert_eq!(app.loading.model_hidden_size, 0);
+    assert_eq!(app.loading.model_n_ctx_train, 0);
+    assert_eq!(app.loading.model_n_head, 0);
+    assert_eq!(app.loading.model_n_kv_head, 0);
 }
 
 // ── Max threads ────────────────────────────────────────────────
@@ -374,13 +374,13 @@ fn app_new_max_threads_positive() {
 fn app_new_no_pending_operations() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(app.pending_download.is_none());
-    assert!(app.pending_deletion.is_none());
-    assert!(app.pending_spawn.is_none());
-    assert!(app.pending_api_load.is_none());
-    assert!(app.pending_api_unload.is_none());
-    assert!(app.pending_kill.is_none());
-    assert!(!app.downloading);
+    assert!(app.pending.pending_download.is_none());
+    assert!(app.pending.pending_deletion.is_none());
+    assert!(app.pending.pending_spawn.is_none());
+    assert!(app.pending.pending_api_load.is_none());
+    assert!(app.pending.pending_api_unload.is_none());
+    assert!(app.pending.pending_kill.is_none());
+    assert!(!app.download.downloading);
 }
 
 // ── Server mode ────────────────────────────────────────────────
@@ -398,5 +398,5 @@ fn app_new_server_mode_normal() {
 fn app_new_panel_help_hidden() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(!app.panel_help);
+    assert!(!app.ui.panel_help);
 }

@@ -16,11 +16,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let log_area = area;
 
     let title = if app.is_panel_visible(5) {
-        if app.log_follow { " Log (F6) - Following " } else { " Log (F6) - Manual " }
+        if app.log.log_follow { " Log (F6) - Following " } else { " Log (F6) - Manual " }
     } else {
-        if app.log_follow { " Log - Following " } else { " Log - Manual " }
+        if app.log.log_follow { " Log - Following " } else { " Log - Manual " }
     };
-    let border_color = if app.active_panel == crate::tui::app::ActivePanel::Log {
+    let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Log {
         Color::Green
     } else {
         Color::Rgb(255, 165, 0)
@@ -31,7 +31,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .border_style(Style::default().fg(border_color));
 
     let mut lines: Vec<Line> = Vec::new();
-    for e in &app.log_entries {
+    for e in &app.log.log_entries {
         let level_color = match e.level {
             crate::config::LogLevel::Info => Color::Cyan,
             crate::config::LogLevel::Warning => Color::Yellow,
@@ -75,25 +75,25 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .map(|l| (l.width().max(1) + width - 1) / width)
         .sum::<usize>();
     
-    app.log_total_lines = total_screen_lines;
+    app.log.log_total_lines = total_screen_lines;
 
     // Auto-scroll to bottom if follow is enabled
-    if app.log_follow {
-        app.log_scroll_offset = total_screen_lines.saturating_sub(inner_area.height as usize);
+    if app.log.log_follow {
+        app.log.log_scroll_offset = total_screen_lines.saturating_sub(inner_area.height as usize);
     }
 
     let paragraph = Paragraph::new(lines)
         .block(block)
         .wrap(Wrap { trim: false });
 
-    f.render_widget(paragraph.scroll((app.log_scroll_offset as u16, 0)), log_area);
+    f.render_widget(paragraph.scroll((app.log.log_scroll_offset as u16, 0)), log_area);
 
     // Render scrollbar inside borders (below content)
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
         .begin_symbol(Some("↑"))
         .end_symbol(Some("↓"));
     let mut scrollbar_state = ScrollbarState::new(total_screen_lines)
-        .position(app.log_scroll_offset as usize);
+        .position(app.log.log_scroll_offset as usize);
 
     f.render_stateful_widget(
         scrollbar,

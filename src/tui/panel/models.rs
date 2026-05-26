@@ -183,7 +183,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 format!(" Models ")
             };
 
-            let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
+            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
                 Color::Yellow
@@ -196,7 +196,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let inner_area = block.inner(area);
             f.render_widget(block, area);
 
-            let (list_area, filter_area) = if app.filtering_local || !app.local_filter.is_empty() {
+            let (list_area, filter_area) = if app.search.filtering_local || !app.search.local_filter.is_empty() {
                 let chunks = ratatui::layout::Layout::default()
                     .direction(ratatui::layout::Direction::Vertical)
                     .constraints([
@@ -210,16 +210,16 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             };
 
             if let Some(fa) = filter_area {
-                let filter_text = if app.filtering_local {
+                let filter_text = if app.search.filtering_local {
                     Line::from(vec![
                         Span::styled(" Filter: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                        Span::styled(&app.local_filter, Style::default().fg(Color::Black).bg(Color::Yellow)),
+                        Span::styled(&app.search.local_filter, Style::default().fg(Color::Black).bg(Color::Yellow)),
                         Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)),
                     ])
                 } else {
                     Line::from(vec![
                         Span::styled(" Filter: ", Style::default().fg(Color::DarkGray)),
-                        Span::styled(&app.local_filter, Style::default().fg(Color::Cyan)),
+                        Span::styled(&app.search.local_filter, Style::default().fg(Color::Cyan)),
                     ])
                 };
                 f.render_widget(ratatui::widgets::Paragraph::new(filter_text), fa);
@@ -259,12 +259,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .collect();
 
-            app.list_state.select(app.selected_model_idx.and_then(|idx| {
+            app.ui.list_state.select(app.selected_model_idx.and_then(|idx| {
                 filtered_indices.iter().position(|&i| i == idx)
             }));
 
             let list = List::new(list_items);
-            f.render_stateful_widget(list, list_area, &mut app.list_state);
+            f.render_stateful_widget(list, list_area, &mut app.ui.list_state);
         }
         ModelsMode::Search { query, results, sort_by, loading, has_more, .. } => {
             let sort_label = sort_by.label();
@@ -273,7 +273,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             } else {
                 format!(" Search: {} [{}] ({} results)", query, sort_label, results.len())
             };
-            let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
+            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
                 Color::Magenta
@@ -353,12 +353,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .row_highlight_style(Style::default().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD))
                 .highlight_symbol("> ");
 
-            app.search_table_state.select(app.search_results_idx);
-            f.render_stateful_widget(table, area, &mut app.search_table_state);
+            app.search.search_table_state.select(app.search.search_results_idx);
+            f.render_stateful_widget(table, area, &mut app.search.search_table_state);
         }
         ModelsMode::Files { model_id, files, selected_idx, selected_result: _, .. } => {
             let title = format!(" {} - GGUF files ", model_id);
-            let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
+            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
                 Color::Magenta
@@ -374,7 +374,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             // Render Files Table
             let rows: Vec<Row> = files
                 .iter()
-                .map(|(filename, size, _url)| {
+                .map(|(filename, size, _url): &(_, _, _)| {
                     let name = filename.rsplit('/').next().unwrap_or(filename);
                     Row::new(vec![
                         Cell::from(name.to_string()),
@@ -398,13 +398,13 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .row_highlight_style(Style::default().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD))
                 .highlight_symbol("> ");
 
-            app.files_table_state.select(*selected_idx);
+            app.search.files_table_state.select(*selected_idx);
 
-            f.render_stateful_widget(table, inner_area, &mut app.files_table_state);
+            f.render_stateful_widget(table, inner_area, &mut app.search.files_table_state);
         }
         ModelsMode::BenchTune => {
             let title = " BenchTune ".to_string();
-            let border_color = if app.active_panel == crate::tui::app::ActivePanel::Models {
+            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
                 Color::Yellow
@@ -420,14 +420,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             // Show bench_tune progress or results
             let mut lines: Vec<Line> = Vec::new();
 
-            if let Some(progress) = &app.bench_tune_progress {
+            if let Some(progress) = &app.bench_tune.bench_tune_progress {
                 match progress {
                     crate::models::BenchTuneProgress::Running { current, total, progress: p, current_params } => {
                         lines.push(Line::from(format!("Progress: {}/{} ({:.0}%)", current, total, p)));
                         lines.push(Line::from(""));
                         lines.push(Line::from(Span::styled("Current parameters:", Style::default().add_modifier(Modifier::BOLD))));
                         
-                        let p_parts = crate::tui::format_bench_params(current_params, true);
+                        let p_parts = crate::tui::format_bench_params(&current_params, true);
 
                         if p_parts.is_empty() {
                             lines.push(Line::from("  (Baseline)"));
@@ -445,7 +445,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
                         ]));
                         
-                        let success_style = if *successful_tests == *total_tests {
+                        let success_style = if successful_tests == total_tests {
                             Style::default().fg(Color::Green)
                         } else if *successful_tests > 0 {
                             Style::default().fg(Color::Yellow)
@@ -458,14 +458,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(format!("{}/{}", successful_tests, total_tests), success_style.add_modifier(Modifier::BOLD)),
                         ]));
 
-                        if *successful_tests < *total_tests {
+                        if successful_tests < total_tests {
                             lines.push(Line::from(Span::styled(
                                 format!("Warning: {} test(s) failed. Check Log (F6) for details.", total_tests - successful_tests),
                                 Style::default().fg(Color::Red)
                             )));
                         }
                         
-                        if !app.bench_tune_results.is_empty() {
+                        if !app.bench_tune.bench_tune_results.is_empty() {
                             lines.push(Line::from(""));
                             lines.push(Line::from(Span::styled(" Benchmark results (sorted by generation speed):", Style::default().add_modifier(Modifier::BOLD))));
                             lines.push(Line::from(Span::styled(" (Press [Enter] to view details of selected result)", Style::default().fg(Color::DarkGray))));
@@ -481,7 +481,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             ]).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
 
                             let mut rows = Vec::new();
-                            for (i, result) in app.bench_tune_results.iter().enumerate() {
+                            for (i, result) in app.bench_tune.bench_tune_results.iter().enumerate() {
                                 let p_str = crate::tui::format_bench_params(&result.params, false).join(",");
                                 
                                 let mut style = Style::default().fg(Color::White);
@@ -497,7 +497,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                 ]).style(style));
                             }
 
-                            app.bench_tune_table_state.select(Some(app.bench_tune_result_row));
+                            app.bench_tune.bench_tune_table_state.select(Some(app.bench_tune.bench_tune_result_row));
 
                             let table = ratatui::widgets::Table::new(rows, [
                                 ratatui::layout::Constraint::Length(4),
@@ -519,7 +519,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             };
                             
                             f.render_widget(Paragraph::new(lines.clone()), inner_area);
-                            f.render_stateful_widget(table, table_area, &mut app.bench_tune_table_state);
+                            f.render_stateful_widget(table, table_area, &mut app.bench_tune.bench_tune_table_state);
                             return;
                         }
                     }
@@ -544,7 +544,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Style::default().fg(Color::Red)
                         )));
                         
-                        if !app.bench_tune_results.is_empty() {
+                        if !app.bench_tune.bench_tune_results.is_empty() {
                             lines.push(Line::from(""));
                             lines.push(Line::from(Span::styled(" Benchmark results (sorted by generation speed):", Style::default().add_modifier(Modifier::BOLD))));
                             lines.push(Line::from(Span::styled(" (Press [Enter] to view details of selected result)", Style::default().fg(Color::DarkGray))));
@@ -560,7 +560,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             ]).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
 
                             let mut rows = Vec::new();
-                            for (i, result) in app.bench_tune_results.iter().enumerate() {
+                            for (i, result) in app.bench_tune.bench_tune_results.iter().enumerate() {
                                 let p_str = crate::tui::format_bench_params(&result.params, false).join(",");
                                 
                                 let mut style = Style::default().fg(Color::White);
@@ -576,7 +576,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                 ]).style(style));
                             }
 
-                            app.bench_tune_table_state.select(Some(app.bench_tune_result_row));
+                            app.bench_tune.bench_tune_table_state.select(Some(app.bench_tune.bench_tune_result_row));
 
                             let table = ratatui::widgets::Table::new(rows, [
                                 ratatui::layout::Constraint::Length(4),
@@ -598,7 +598,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             };
                             
                             f.render_widget(Paragraph::new(lines.clone()), inner_area);
-                            f.render_stateful_widget(table, table_area, &mut app.bench_tune_table_state);
+                            f.render_stateful_widget(table, table_area, &mut app.bench_tune.bench_tune_table_state);
                             return;
                         }
                     }
@@ -623,7 +623,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Style::default().fg(Color::Yellow)
                         )));
                         
-                        if !app.bench_tune_results.is_empty() {
+                        if !app.bench_tune.bench_tune_results.is_empty() {
                             lines.push(Line::from(""));
                             lines.push(Line::from(Span::styled(" Benchmark results (sorted by generation speed):", Style::default().add_modifier(Modifier::BOLD))));
                             lines.push(Line::from(Span::styled(" (Press [Enter] to view details of selected result)", Style::default().fg(Color::DarkGray))));
@@ -639,7 +639,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             ]).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
 
                             let mut rows = Vec::new();
-                            for (i, result) in app.bench_tune_results.iter().enumerate() {
+                            for (i, result) in app.bench_tune.bench_tune_results.iter().enumerate() {
                                 let p_str = crate::tui::format_bench_params(&result.params, false).join(",");
                                 
                                 let mut style = Style::default().fg(Color::White);
@@ -655,7 +655,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                 ]).style(style));
                             }
 
-                            app.bench_tune_table_state.select(Some(app.bench_tune_result_row));
+                            app.bench_tune.bench_tune_table_state.select(Some(app.bench_tune.bench_tune_result_row));
 
                             let table = ratatui::widgets::Table::new(rows, [
                                 ratatui::layout::Constraint::Length(4),
@@ -677,7 +677,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             };
                             
                             f.render_widget(Paragraph::new(lines.clone()), inner_area);
-                            f.render_stateful_widget(table, table_area, &mut app.bench_tune_table_state);
+                            f.render_stateful_widget(table, table_area, &mut app.bench_tune.bench_tune_table_state);
                             return;
                         }
                     }

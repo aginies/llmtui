@@ -6,7 +6,7 @@ use crate::tui::app::{App, ActivePanel};
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
     let pos = Position::new(mouse.column, mouse.row);
 
-    if app.log_expanded {
+    if app.log.log_expanded {
         let chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
@@ -18,20 +18,20 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         if chunks[1].contains(pos) {
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
-                    app.active_panel = ActivePanel::Log;
+                    app.ui.active_panel = ActivePanel::Log;
                     app.set_redraw();
                 }
                 MouseEventKind::ScrollUp => {
-                    app.log_scroll_offset = app.log_scroll_offset.saturating_sub(1);
-                    app.log_follow = false;
+                    app.log.log_scroll_offset = app.log.log_scroll_offset.saturating_sub(1);
+                    app.log.log_follow = false;
                     app.set_redraw();
                 }
                 MouseEventKind::ScrollDown => {
-                    app.log_scroll_offset = app.log_scroll_offset + 1;
-                    if app.log_scroll_offset >= app.log_total_lines.saturating_sub(5) {
-                        app.log_follow = true;
+                    app.log.log_scroll_offset = app.log.log_scroll_offset + 1;
+                    if app.log.log_scroll_offset >= app.log.log_total_lines.saturating_sub(5) {
+                        app.log.log_follow = true;
                     } else {
-                        app.log_follow = false;
+                        app.log.log_follow = false;
                     }
                     app.set_redraw();
                 }
@@ -42,16 +42,16 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
     }
 
     // If actively resizing, continue updating even if mouse moved outside the border area
-    if let Some(ref rs) = app.resize_state {
+    if let Some(ref rs) = app.ui.resize_state {
         match mouse.kind {
             MouseEventKind::Drag(_) => {
                 let dx = pos.x as i16 - rs.start_x as i16;
                 let delta = (dx * 100 / rs.container.width as i16).max(-5).min(5);
-                app.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
+                app.ui.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
                 app.set_redraw();
             }
             MouseEventKind::Up(MouseButton::Left) => {
-                app.resize_state = None;
+                app.ui.resize_state = None;
                 app.set_redraw();
             }
             _ => {}
@@ -73,7 +73,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
     // 1. Check Log panel (and Downloads if downloading)
     if chunks[3].contains(pos) {
         // When downloading, check if we're in the downloads area (bottom 7 lines)
-        if app.downloading {
+        if app.download.downloading {
             let bottom_chunks = ratatui::layout::Layout::default()
                 .direction(ratatui::layout::Direction::Vertical)
                 .constraints([
@@ -85,15 +85,15 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
             if bottom_chunks[1].contains(pos) {
                 match mouse.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
-                        app.active_panel = ActivePanel::Downloads;
+                        app.ui.active_panel = ActivePanel::Downloads;
                         app.set_redraw();
                     }
                     MouseEventKind::ScrollUp => {
-                        app.download_scroll_state.select_previous();
+                        app.download.download_scroll_state.select_previous();
                         app.set_redraw();
                     }
                     MouseEventKind::ScrollDown => {
-                        app.download_scroll_state.select_next();
+                        app.download.download_scroll_state.select_next();
                         app.set_redraw();
                     }
                     _ => {}
@@ -104,23 +104,23 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
 
         match mouse.kind {
             MouseEventKind::Down(MouseButton::Left) => {
-                app.active_panel = ActivePanel::Log;
+                app.ui.active_panel = ActivePanel::Log;
                 app.set_redraw();
             }
             MouseEventKind::ScrollUp => {
-                app.log_scroll_offset = app.log_scroll_offset.saturating_sub(1);
-                app.log_follow = false;
-                app.active_panel = ActivePanel::Log;
+                app.log.log_scroll_offset = app.log.log_scroll_offset.saturating_sub(1);
+                app.log.log_follow = false;
+                app.ui.active_panel = ActivePanel::Log;
                 app.set_redraw();
             }
             MouseEventKind::ScrollDown => {
-                app.log_scroll_offset = app.log_scroll_offset + 1;
-                if app.log_scroll_offset >= app.log_total_lines.saturating_sub(5) {
-                    app.log_follow = true;
+                app.log.log_scroll_offset = app.log.log_scroll_offset + 1;
+                if app.log.log_scroll_offset >= app.log.log_total_lines.saturating_sub(5) {
+                    app.log.log_follow = true;
                 } else {
-                    app.log_follow = false;
+                    app.log.log_follow = false;
                 }
-                app.active_panel = ActivePanel::Log;
+                app.ui.active_panel = ActivePanel::Log;
                 app.set_redraw();
             }
             _ => {}
@@ -130,7 +130,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
 
     // 2. Check Top panels
     if chunks[1].contains(pos) {
-        let left_pct = app.left_pct.max(20).min(80);
+        let left_pct = app.ui.left_pct.max(20).min(80);
         let top_chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
@@ -150,31 +150,31 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         if on_border {
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
-                    app.resize_state = Some(crate::tui::app::ResizeState {
+                    app.ui.resize_state = Some(crate::tui::app::ResizeState {
                         start_x: pos.x,
-                        start_pct: app.left_pct,
+                        start_pct: app.ui.left_pct,
                         container: chunks[1],
                     });
                     app.set_redraw();
                 }
                 MouseEventKind::Drag(_) => {
-                    if let Some(ref rs) = app.resize_state {
+                    if let Some(ref rs) = app.ui.resize_state {
                         let dx = pos.x as i16 - rs.start_x as i16;
                         let delta = (dx * 100 / rs.container.width as i16).max(-5).min(5);
-                        app.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
+                        app.ui.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
                         app.set_redraw();
                     }
                 }
                 MouseEventKind::Up(MouseButton::Left) => {
-                    app.resize_state = None;
+                    app.ui.resize_state = None;
                     app.set_redraw();
                 }
                 MouseEventKind::ScrollUp => {
-                    app.left_pct = app.left_pct.saturating_sub(1).max(20);
+                    app.ui.left_pct = app.ui.left_pct.saturating_sub(1).max(20);
                     app.set_redraw();
                 }
                 MouseEventKind::ScrollDown => {
-                    app.left_pct = app.left_pct.saturating_add(1).min(80);
+                    app.ui.left_pct = app.ui.left_pct.saturating_add(1).min(80);
                     app.set_redraw();
                 }
                 _ => {}
@@ -186,8 +186,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         if top_chunks[1].contains(pos) {
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
-                    let server_running = app.server_handle.is_some();
-                    app.active_panel = match app.active_panel {
+                    let server_running = app.server.server_handle.is_some();
+                    app.ui.active_panel = match app.ui.active_panel {
                         ActivePanel::LlmSettings if !server_running => ActivePanel::ServerSettings,
                         ActivePanel::ServerSettings if !server_running => ActivePanel::LlmSettings,
                         ActivePanel::LlmSettings => ActivePanel::LlmSettings,
@@ -201,34 +201,34 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                     app.set_redraw();
                 }
                 MouseEventKind::ScrollUp => {
-                    match app.active_panel {
+                    match app.ui.active_panel {
                         ActivePanel::LlmSettings => {
-                            app.settings_scroll_offset = app.settings_scroll_offset.saturating_sub(1);
+                            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_sub(1);
                             app.set_redraw();
                         }
                         ActivePanel::Profiles => {
-                            app.profiles_scroll_offset = app.profiles_scroll_offset.saturating_sub(1);
+                            app.picker.profiles_scroll_offset = app.picker.profiles_scroll_offset.saturating_sub(1);
                             app.set_redraw();
                         }
                         ActivePanel::SystemPromptPresets => {
-                            app.system_prompt_presets_scroll_offset = app.system_prompt_presets_scroll_offset.saturating_sub(1);
+                            app.picker.system_prompt_presets_scroll_offset = app.picker.system_prompt_presets_scroll_offset.saturating_sub(1);
                             app.set_redraw();
                         }
                         _ => {}
                     }
                 }
                 MouseEventKind::ScrollDown => {
-                    match app.active_panel {
+                    match app.ui.active_panel {
                         ActivePanel::LlmSettings => {
-                            app.settings_scroll_offset = app.settings_scroll_offset.saturating_add(1);
+                            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_add(1);
                             app.set_redraw();
                         }
                         ActivePanel::Profiles => {
-                            app.profiles_scroll_offset = app.profiles_scroll_offset.saturating_add(1);
+                            app.picker.profiles_scroll_offset = app.picker.profiles_scroll_offset.saturating_add(1);
                             app.set_redraw();
                         }
                         ActivePanel::SystemPromptPresets => {
-                            app.system_prompt_presets_scroll_offset = app.system_prompt_presets_scroll_offset.saturating_add(1);
+                            app.picker.system_prompt_presets_scroll_offset = app.picker.system_prompt_presets_scroll_offset.saturating_add(1);
                             app.set_redraw();
                         }
                         _ => {}
@@ -252,14 +252,14 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
 
             if left_chunks[0].contains(pos)
                 && let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
-                    app.active_panel = ActivePanel::Models;
+                    app.ui.active_panel = ActivePanel::Models;
                     app.set_redraw();
                 }
         }
     }
 
     // Handle downloads-only layout (when log is not visible but downloading)
-    if app.downloading && !app.log_expanded {
+    if app.download.downloading && !app.log.log_expanded {
         let bottom_area = chunks[3];
         let bottom_chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
@@ -271,15 +271,15 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         if bottom_chunks[0].contains(pos) {
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
-                    app.active_panel = ActivePanel::Downloads;
+                    app.ui.active_panel = ActivePanel::Downloads;
                     app.set_redraw();
                 }
                 MouseEventKind::ScrollUp => {
-                    app.download_scroll_state.select_previous();
+                    app.download.download_scroll_state.select_previous();
                     app.set_redraw();
                 }
                 MouseEventKind::ScrollDown => {
-                    app.download_scroll_state.select_next();
+                    app.download.download_scroll_state.select_next();
                     app.set_redraw();
                 }
                 _ => {}

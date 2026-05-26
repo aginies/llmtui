@@ -150,10 +150,10 @@ async fn main() -> Result<()> {
             loop {
                 app.update_metrics_model_name();
                 app.start_pending_download().await;
-                if let Some(path) = app.pending_deletion.take() {
+                if let Some(path) = app.pending.pending_deletion.take() {
                     app.start_pending_deletion(path).await;
                 }
-                if let Some((backend, tag)) = app.pending_backend_deletion.take() {
+                if let Some((backend, tag)) = app.pending.pending_backend_deletion.take() {
                     app.start_pending_backend_deletion(backend, tag);
                 }
                 app.poll_backend_resolution().await;
@@ -173,7 +173,7 @@ async fn main() -> Result<()> {
                 app.tick_spinner();
                 app.render(&mut terminal)?;
 
-                let poll_timeout = if app.downloading || app.server_handle.is_some() {
+                let poll_timeout = if app.download.downloading || app.server.server_handle.is_some() {
                     std::time::Duration::from_millis(50)
                 } else {
                     std::time::Duration::from_millis(200)
@@ -213,16 +213,16 @@ async fn main() -> Result<()> {
             }
     // Cleanup before exit: kill running server and background tasks
     tracing::info!("Shutting down all processes...");
-    if let Some(handle) = app.server_handle.take() {
+    if let Some(handle) = app.server.server_handle.take() {
         let _ = server::kill_server(handle).await;
     }
-    if let Some(task) = app.metrics_task_handle.take() {
+    if let Some(task) = app.server.metrics_task_handle.take() {
         task.abort();
     }
-    if let Some(task) = app.spawn_task_handle.take() {
+    if let Some(task) = app.server.spawn_task_handle.take() {
         task.abort();
     }
-    if let Some(task) = app.api_proxy_handle.take() {
+    if let Some(task) = app.server.api_proxy_handle.take() {
         task.abort();
     }
 

@@ -15,7 +15,7 @@ pub async fn execute_confirmation(app: &mut App, kind: ConfirmationKind) {
             }
         }
         ConfirmationKind::Unload => {
-            if let Some((name, _)) = &app.pending_api_unload {
+            if let Some((name, _)) = &app.pending.pending_api_unload {
                 app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
             }
         }

@@ -6,7 +6,7 @@ impl App {
     pub fn panel_help_lines(&self) -> Vec<Line<'static>> {
         let y = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
 
-        match self.active_panel {
+        match self.ui.active_panel {
             ActivePanel::Models => vec![
                 Line::from(Span::styled("MODELS PANEL", y)),
                 Line::from(""),

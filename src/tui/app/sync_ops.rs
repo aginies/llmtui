@@ -3,9 +3,9 @@ use std::path::PathBuf;
 
 impl App {
     pub fn render<T: ratatui::backend::Backend>(&mut self, terminal: &mut ratatui::Terminal<T>) -> std::io::Result<()> {
-        if self.needs_redraw {
+        if self.ui.needs_redraw {
             terminal.draw(|frame| crate::tui::render::render(frame, self))?;
-            self.needs_redraw = false;
+            self.ui.needs_redraw = false;
         }
         Ok(())
     }
@@ -45,15 +45,15 @@ impl App {
         // Clear dirty flag by updating the cache snapshot to match new settings
         self.model_settings_cache = self.settings.clone();
         // Reset model metadata to avoid stale values
-        self.model_total_layers = 0;
-        self.model_hidden_size = 0;
-        self.model_n_ctx_train = 0;
-        self.model_n_head = 0;
-        self.model_n_kv_head = 0;
-        self.vram_estimate = 0;
+        self.loading.model_total_layers = 0;
+        self.loading.model_hidden_size = 0;
+        self.loading.model_n_ctx_train = 0;
+        self.loading.model_n_head = 0;
+        self.loading.model_n_kv_head = 0;
+        self.loading.vram_estimate = 0;
         self.settings.is_mtp = false;
         self.settings.draft_tokens = 0;
-        self.settings_render_cache = None;
+        self.settings_state.settings_render_cache = None;
         self.add_log("Reset LLM Settings to defaults", crate::config::LogLevel::Info);
     }
 
@@ -69,7 +69,7 @@ impl App {
     }
 
     pub fn on_model_selection_change(&mut self) {
-        self.readme_cache = None;
+        self.search.readme_cache = None;
         if let Some(idx) = self.selected_model_idx {
             let model = self.models[idx].clone();
             self.model_settings_cache = self.selected_model_settings();
@@ -79,31 +79,31 @@ impl App {
 
             // Sync loading progress with the newly selected model
             if self.is_model_loaded(&model.display_name) {
-                self.loading_progress = 1.0;
-                if !self.loading_phases.contains(&super::types::LoadingPhase::Complete) {
-                    self.loading_phases.insert(super::types::LoadingPhase::Complete);
+                self.loading.loading_progress = 1.0;
+                if !self.loading.loading_phases.contains(&super::types::LoadingPhase::Complete) {
+                    self.loading.loading_phases.insert(super::types::LoadingPhase::Complete);
                 }
             } else if matches!(self.model_states.get(&model.display_name), Some(crate::models::ModelState::Loading) | Some(crate::models::ModelState::Benchmarking)) {
                 // Keep current loading/benchmarking progress
             } else {
                 // Not loaded, loading, or benchmarking, reset progress
-                self.loading_progress = 0.0;
-                self.loading_phases.clear();
-                self.last_active_phase = None;
-                self.load_progress = Default::default();
+                self.loading.loading_progress = 0.0;
+                self.loading.loading_phases.clear();
+                self.loading.last_active_phase = None;
+                self.loading.load_progress = Default::default();
             }
         } else {
             let default_params = self.config.default.clone();
             self.model_settings_cache = default_params.into();
-            self.model_total_layers = 0;
-            self.model_hidden_size = 0;
-            self.model_n_ctx_train = 0;
+            self.loading.model_total_layers = 0;
+            self.loading.model_hidden_size = 0;
+            self.loading.model_n_ctx_train = 0;
             self.settings.is_mtp = false;
             self.settings.draft_tokens = 0;
-            self.vram_estimate = 0;
-            self.loading_progress = 0.0;
-            self.loading_phases.clear();
-            self.last_active_phase = None;
+            self.loading.vram_estimate = 0;
+            self.loading.loading_progress = 0.0;
+            self.loading.loading_phases.clear();
+            self.loading.last_active_phase = None;
         }
         self.set_redraw();
     }
@@ -122,10 +122,10 @@ impl App {
             .iter()
             .enumerate()
             .filter(|(_, m)| {
-                self.local_filter.is_empty()
+                self.search.local_filter.is_empty()
                     || m.display_name
                         .to_lowercase()
-                        .contains(&self.local_filter.to_lowercase())
+                        .contains(&self.search.local_filter.to_lowercase())
             })
             .map(|(i, _)| i)
             .collect()

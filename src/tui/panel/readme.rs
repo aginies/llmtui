@@ -334,7 +334,7 @@ impl MdRenderer {
 pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     let readme_state = match &app.models_mode {
         crate::tui::app::ModelsMode::Search { results, .. } => {
-            app.search_results_idx
+            app.search.search_results_idx
                 .and_then(|idx| results.get(idx).map(|r| (r.model_id.clone(), r.readme.as_ref())))
         }
         crate::tui::app::ModelsMode::Files { selected_result, model_id, .. } => {
@@ -346,33 +346,33 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     let lines = match readme_state {
         Some((id, Some(text))) if !text.is_empty() => {
             // Content exists - use cache or render
-            if let Some((cached_id, cached_lines)) = &app.readme_cache {
+            if let Some((cached_id, cached_lines)) = &app.search.readme_cache {
                 if cached_id == &id {
                     cached_lines.clone()
                 } else {
-                    app.readme_scroll_offset = 0;
+                    app.picker.readme_scroll_offset = 0;
                     let new_lines = MdRenderer::render_markdown(text);
-                    app.readme_cache = Some((id, new_lines.clone()));
+                    app.search.readme_cache = Some((id, new_lines.clone()));
                     new_lines
                 }
             } else {
                 let new_lines = MdRenderer::render_markdown(text);
-                app.readme_cache = Some((id, new_lines.clone()));
+                app.search.readme_cache = Some((id, new_lines.clone()));
                 new_lines
             }
         }
         Some((_, Some(_))) => {
-            app.readme_scroll_offset = 0;
+            app.picker.readme_scroll_offset = 0;
             // Text is Some but empty
             vec![Line::from(Span::styled("no README available", Style::default().fg(Color::Red)))]
         }
         Some((_, None)) => {
-            app.readme_scroll_offset = 0;
+            app.picker.readme_scroll_offset = 0;
             // Not yet fetched
             vec![Line::from(Span::styled("Press R to Fetch the README.md", Style::default().fg(Color::Green)))]
         }
         None => {
-            app.readme_scroll_offset = 0;
+            app.picker.readme_scroll_offset = 0;
             vec![Line::raw("Select a model to view README.")]
         }
     };
@@ -380,11 +380,11 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     let available_height = area.height.saturating_sub(2);
     let max_offset = lines.len().saturating_sub(available_height as usize) as u16;
 
-    if app.readme_scroll_offset > max_offset.into() {
-        app.readme_scroll_offset = max_offset.into();
+    if app.picker.readme_scroll_offset > max_offset.into() {
+        app.picker.readme_scroll_offset = max_offset.into();
     }
 
-    let start_idx = app.readme_scroll_offset as usize;
+    let start_idx = app.picker.readme_scroll_offset as usize;
     let visible_lines: Vec<Line> = lines
         .iter()
         .skip(start_idx)
@@ -392,7 +392,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         .cloned()
         .collect();
 
-    let is_focused = app.active_panel == crate::tui::app::ActivePanel::SearchReadme;
+    let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::SearchReadme;
     let border_color = if is_focused { Color::Green } else { Color::Yellow };
     let block = Block::default()
         .title(" README ")
@@ -406,6 +406,6 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
 
     // Vertical scrollbar
     if lines.len() > available_height as usize {
-        crate::tui::render_vertical_scrollbar(f, area, lines.len(), app.readme_scroll_offset as usize, 0, 0);
+        crate::tui::render_vertical_scrollbar(f, area, lines.len(), app.picker.readme_scroll_offset as usize, 0, 0);
     }
 }

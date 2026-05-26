@@ -5,12 +5,12 @@ impl App {
     pub fn update_vram_estimate(&mut self) {
         if let Some(model) = self.selected_model() {
             let model_mib = model.file_size / (1024 * 1024);
-            let hidden = if self.model_hidden_size > 0 { Some(self.model_hidden_size) } else { None };
-            let n_head = if self.model_n_head > 0 { Some(self.model_n_head) } else { None };
-            let n_kv_head = if self.model_n_kv_head > 0 { Some(self.model_n_kv_head) } else { None };
+            let hidden = if self.loading.model_hidden_size > 0 { Some(self.loading.model_hidden_size) } else { None };
+            let n_head = if self.loading.model_n_head > 0 { Some(self.loading.model_n_head) } else { None };
+            let n_kv_head = if self.loading.model_n_kv_head > 0 { Some(self.loading.model_n_kv_head) } else { None };
             let gpu_mem_total_mib = self.metrics.gpu_mem_total / (1024 * 1024);
-            self.vram_estimate = crate::models::estimate_vram_mib(
-                model_mib, &self.settings, self.model_total_layers, hidden,
+            self.loading.vram_estimate = crate::models::estimate_vram_mib(
+                model_mib, &self.settings, self.loading.model_total_layers, hidden,
                 n_head, n_kv_head, gpu_mem_total_mib
             );
             self.set_redraw();
@@ -33,30 +33,30 @@ impl App {
         // even when a stale cache entry exists.
         if let Ok(meta) = std::fs::metadata(&model.path) {
             let mtime = meta.modified().unwrap_or(std::time::SystemTime::now());
-            let (last_path, last_mtime) = &self.last_metadata_parse;
+            let (last_path, last_mtime) = &self.loading.last_metadata_parse;
             if last_path == &model.path && mtime == *last_mtime {
                 // File unchanged — use cached values if available.
-                if let Some(cached) = self.gguf_metadata_cache.get(&key) {
-                    self.model_total_layers = cached.layers;
-                    self.model_hidden_size = cached.hidden_size;
-                    self.model_n_ctx_train = cached.n_ctx_train;
-                    self.model_n_head = cached.n_head;
-                    self.model_n_kv_head = cached.n_kv_head;
+                if let Some(cached) = self.search.gguf_metadata_cache.get(&key) {
+                    self.loading.model_total_layers = cached.layers;
+                    self.loading.model_hidden_size = cached.hidden_size;
+                    self.loading.model_n_ctx_train = cached.n_ctx_train;
+                    self.loading.model_n_head = cached.n_head;
+                    self.loading.model_n_kv_head = cached.n_kv_head;
                 }
-                if self.model_hidden_size > 0 {
+                if self.loading.model_hidden_size > 0 {
                     self.update_vram_estimate();
                 }
                 return;
             }
-            self.last_metadata_parse = (model.path.clone(), mtime);
+            self.loading.last_metadata_parse = (model.path.clone(), mtime);
         }
 
         // 2. Evict cache entries if it exceeds the maximum size.
         // BTreeMap keys are sorted, so `next()` returns the smallest (oldest) key.
         const MAX_CACHE_SIZE: usize = 50;
-        if self.gguf_metadata_cache.len() > MAX_CACHE_SIZE {
-            if let Some(first_key) = self.gguf_metadata_cache.keys().next().cloned() {
-                self.gguf_metadata_cache.remove(&first_key);
+        if self.search.gguf_metadata_cache.len() > MAX_CACHE_SIZE {
+            if let Some(first_key) = self.search.gguf_metadata_cache.keys().next().cloned() {
+                self.search.gguf_metadata_cache.remove(&first_key);
             }
         }
 
@@ -194,14 +194,14 @@ impl App {
                                 vocab_size = arr.len() as u32;
                             }
 
-                        self.model_total_layers = layers;
-                        self.model_hidden_size = hidden;
-                        self.model_n_ctx_train = n_ctx_train;
-                        self.model_n_head = n_head;
-                        self.model_n_kv_head = n_kv_head;
+                        self.loading.model_total_layers = layers;
+                        self.loading.model_hidden_size = hidden;
+                        self.loading.model_n_ctx_train = n_ctx_train;
+                        self.loading.model_n_head = n_head;
+                        self.loading.model_n_kv_head = n_kv_head;
 
                         // Cache the parsed metadata
-                        self.gguf_metadata_cache.insert(key, crate::models::GgufMetadata {
+                        self.search.gguf_metadata_cache.insert(key, crate::models::GgufMetadata {
                                 layers,
                                 hidden_size: hidden,
                                 n_ctx_train,
@@ -230,7 +230,7 @@ impl App {
         }
 
         // Compute VRAM estimate once, after metadata fields are populated.
-        if self.model_hidden_size > 0 {
+        if self.loading.model_hidden_size > 0 {
             self.update_vram_estimate();
         }
     }

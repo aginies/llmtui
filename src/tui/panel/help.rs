@@ -33,7 +33,7 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
     let paragraph = Paragraph::new(lines)
         .block(Block::default().borders(Borders::ALL).title(" "))
         .wrap(Wrap { trim: true })
-        .scroll((app.panel_help_offset as u16, 0));
+        .scroll((app.ui.panel_help_offset as u16, 0));
     f.render_widget(paragraph, chunks[1]);
 
     // Footer

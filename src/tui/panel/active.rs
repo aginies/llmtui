@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::tui::app::App;
+use crate::tui::app::{App, LoadingPhase};
 use crate::tui::format_size;
 use crate::models::{strip_gguf, ModelState};
 
@@ -28,7 +28,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let block = Block::default()
         .title(Line::from(title_spans))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(if app.active_panel == crate::tui::app::ActivePanel::ActiveModel { Color::Green } else { Color::DarkGray }));
+        .border_style(Style::default().fg(if app.ui.active_panel == crate::tui::app::ActivePanel::ActiveModel { Color::Green } else { Color::DarkGray }));
 
     let mut lines = Vec::new();
 
@@ -37,7 +37,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let state = model.and_then(|m| app.model_states.get(&m.display_name));
 
     // Robust check for Benchmarking - prioritize global flag
-    if app.bench_tune_running {
+    if app.bench_tune.bench_tune_running {
         if let Some(m) = model {
             lines.push(Line::from(vec![
                 Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
@@ -49,7 +49,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 Span::styled("BENCHMARKING", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
             ]));
 
-            if let Some(progress) = &app.bench_tune_progress {
+            if let Some(progress) = &app.bench_tune.bench_tune_progress {
                 match progress {
                     crate::models::BenchTuneProgress::Running { current, total, progress: p, current_params } => {
                         let label = " Progress: ";
@@ -71,7 +71,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(format!("{}/{}", current, total), Style::default().fg(Color::White)),
                         ]));
                         
-                        let p_str = crate::tui::format_bench_params(current_params, false).join(", ");
+                        let p_str = crate::tui::format_bench_params(&current_params, false).join(", ");
 
                         lines.push(Line::from(vec![
                             Span::styled(" Current: ", Style::default().fg(Color::Yellow)),
@@ -251,9 +251,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(strip_gguf(&m.name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
                 ]));
                 
-                let status_content = if app.loading_progress <= 0.0 {
+                let status_content = if app.loading.loading_progress <= 0.0 {
                     let spinners = ["⠋", "⠙", "⠹", "⠸"];
-                    format!("LOADING {}", spinners[app.loading_spinner])
+                    format!("LOADING {}", spinners[app.loading.loading_spinner])
                 } else {
                     "LOADING".to_string()
                 };
@@ -265,13 +265,13 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 let overhead = 2 + 5;
                 let bar_width = area.width.saturating_sub(overhead as u16 + 2) as usize;
                 
-                if app.loading_progress > 0.0 && app.loading_progress <= 1.0 {
-                    let filled = (app.loading_progress * bar_width as f32) as usize;
+                if app.loading.loading_progress > 0.0 && app.loading.loading_progress <= 1.0 {
+                    let filled = (app.loading.loading_progress * bar_width as f32) as usize;
                     let bar = format!(
                         "[{}{}] {:.0}%",
                         "█".repeat(filled),
                         "░".repeat(bar_width.saturating_sub(filled)),
-                        app.loading_progress * 100.0
+                        app.loading.loading_progress * 100.0
                     );
                     lines.push(Line::from(vec![
                         Span::styled(bar, Style::default().fg(Color::Yellow)),
@@ -288,13 +288,13 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 }
 
                 let mut detail_parts = Vec::new();
-                if let (Some(loaded), Some(total)) = (app.load_progress.layers_loaded, app.load_progress.layers_total) {
+                if let (Some(loaded), Some(total)) = (app.loading.load_progress.layers_loaded, app.loading.load_progress.layers_total) {
                     detail_parts.push(format!("({}/{})", loaded, total));
                 }
-                if app.load_progress.tensors_loaded > 0 {
-                    detail_parts.push(format!("{} tensors", app.load_progress.tensors_loaded));
+                if app.loading.load_progress.tensors_loaded > 0 {
+                    detail_parts.push(format!("{} tensors", app.loading.load_progress.tensors_loaded));
                 }
-                let total_gpu: f64 = app.load_progress.buffers.iter()
+                let total_gpu: f64 = app.loading.load_progress.buffers.iter()
                     .filter(|b| b.device != "CPU_Mapped" && b.device != "CPU_Cached")
                     .map(|b| b.buffer_size_mib)
                     .sum();
@@ -302,7 +302,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     detail_parts.push(format!("{} VRAM", format_size((total_gpu * 1024.0 * 1024.0) as u64)));
                 }
 
-                let phase = app.loading_phases.iter().next().map(|p| p.label()).unwrap_or("Loading...");
+                let phase = app.loading.loading_phases.iter().next().map(|p: &LoadingPhase| p.label()).unwrap_or("Loading...");
                 let detail = detail_parts.join(", ");
                 lines.push(Line::from(vec![
                     Span::styled("  ", Style::default()),
@@ -320,7 +320,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 lines.push(Line::from("Model not loaded."));
             }
             _ => {
-                if app.server_handle.is_some() {
+                if app.server.server_handle.is_some() {
                      lines.push(Line::from(vec![
                         Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
                         Span::styled("llama-server", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),

@@ -18,7 +18,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         return;
     }
 
-    let is_focused = app.active_panel == crate::tui::app::ActivePanel::LlmSettings;
+    let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::LlmSettings;
 
     // Split area: top for Server Settings, rest for LLM Settings
     let server_area = Rect {
@@ -44,7 +44,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let available_height = llm_area.height.saturating_sub(2);
 
     // Build visible settings lines with scroll offset applied
-    let start_idx = app.settings_scroll_offset as usize;
+    let start_idx = app.settings_state.settings_scroll_offset as usize;
     let visible_lines: Vec<Line<'static>> = settings_lines
         .iter()
         .skip(start_idx)
@@ -53,7 +53,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         .collect();
 
     let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
-    let vram_text = crate::models::format_mib(app.vram_estimate);
+    let vram_text = crate::models::format_mib(app.loading.vram_estimate);
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(" LLM Settings (F4) [Ctrl+F9] "),
@@ -67,7 +67,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Render scrollbar if settings overflow
     if settings_height > available_height as usize {
-        crate::tui::render_vertical_scrollbar(f, llm_area, settings_height, app.settings_scroll_offset as usize, 0, 0);
+        crate::tui::render_vertical_scrollbar(f, llm_area, settings_height, app.settings_state.settings_scroll_offset as usize, 0, 0);
     }
 }
 fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
@@ -75,10 +75,10 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         return;
     }
 
-    let is_focused = app.active_panel == crate::tui::app::ActivePanel::ServerSettings;
+    let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
     let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
-    let selected = app.server_settings_selected_idx;
-    let server_running = app.server_handle.is_some();
+    let selected = app.settings_state.server_settings_selected_idx;
+    let server_running = app.server.server_handle.is_some();
 
     let host_val = crate::models::format_host(&app.settings.host);
 
@@ -109,18 +109,18 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let total_settings = lines.len();
     let available_height = area.height.saturating_sub(2);
 
-    if selected_content_line < app.server_settings_scroll_offset {
-        app.server_settings_scroll_offset = selected_content_line;
-    } else if available_height > 0 && (selected_content_line - app.server_settings_scroll_offset) >= (available_height as usize) {
-        app.server_settings_scroll_offset = (selected_content_line).saturating_sub(available_height as usize).saturating_add(1);
+    if selected_content_line < app.settings_state.server_settings_scroll_offset {
+        app.settings_state.server_settings_scroll_offset = selected_content_line;
+    } else if available_height > 0 && (selected_content_line - app.settings_state.server_settings_scroll_offset) >= (available_height as usize) {
+        app.settings_state.server_settings_scroll_offset = (selected_content_line).saturating_sub(available_height as usize).saturating_add(1);
     }
 
     let max_offset = total_settings.saturating_sub(available_height as usize);
-    if app.server_settings_scroll_offset > max_offset {
-        app.server_settings_scroll_offset = max_offset;
+    if app.settings_state.server_settings_scroll_offset > max_offset {
+        app.settings_state.server_settings_scroll_offset = max_offset;
     }
 
-    let start_idx = app.server_settings_scroll_offset as usize;
+    let start_idx = app.settings_state.server_settings_scroll_offset as usize;
     let visible_lines: Vec<Line> = lines
         .into_iter()
         .skip(start_idx)
@@ -136,7 +136,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     f.render_widget(paragraph, area);
 
     if total_settings > available_height as usize {
-        crate::tui::render_vertical_scrollbar(f, area, total_settings, app.server_settings_scroll_offset as usize, 1, 2);
+        crate::tui::render_vertical_scrollbar(f, area, total_settings, app.settings_state.server_settings_scroll_offset as usize, 1, 2);
     }
 }
 
@@ -145,9 +145,9 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
 }
 
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
-    let is_focused = app.active_panel == ActivePanel::LlmSettings;
+    let is_focused = app.ui.active_panel == ActivePanel::LlmSettings;
     let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
-    let vram_text = crate::models::format_mib(app.vram_estimate);
+    let vram_text = crate::models::format_mib(app.loading.vram_estimate);
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(" LLM Settings (F4) [4] "),
@@ -159,7 +159,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let (all_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, area);
     
     let available_height = area.height.saturating_sub(2);
-    let start_idx = app.settings_scroll_offset as usize;
+    let start_idx = app.settings_state.settings_scroll_offset as usize;
     let visible_lines: Vec<Line> = all_lines
         .iter()
         .skip(start_idx)
@@ -172,7 +172,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Render scrollbar if settings overflow
     if settings_height > available_height as usize {
-        crate::tui::render_vertical_scrollbar(f, area, settings_height, app.settings_scroll_offset as usize, 0, 0);
+        crate::tui::render_vertical_scrollbar(f, area, settings_height, app.settings_state.settings_scroll_offset as usize, 0, 0);
     }
 }
 
@@ -186,7 +186,7 @@ fn empty_info() -> Vec<Line<'static>> {
 pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
     let mut info_lines: Vec<Line<'static>> = match &app.models_mode {
         crate::tui::app::ModelsMode::Search { results, .. } => {
-            if let Some(idx) = app.search_results_idx {
+            if let Some(idx) = app.search.search_results_idx {
                 if idx < results.len() {
                     let r = &results[idx];
                     render_search_result_info(r, None)
@@ -200,7 +200,7 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
         crate::tui::app::ModelsMode::Files { selected_result, files, selected_idx, .. } => {
             let mut lines = if let Some(r) = selected_result {
                 // If a file is selected, pass its info to override the repo size and extract params
-                let file_info = selected_idx.and_then(|idx| files.get(idx).map(|(f, s, _)| (f.clone(), *s)));
+                let file_info = selected_idx.and_then(|idx| files.get(idx).map(|(f, s, _): &(_, _, _)| (f.clone(), *s)));
                 render_search_result_info(r, file_info)
             } else {
                 Vec::new()
@@ -219,9 +219,9 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
             match app.selected_model() {
                 Some(model) => {
                     let key = model.path.to_string_lossy().to_string();
-                    let cached_meta = app.gguf_metadata_cache.get(&key);
+                    let cached_meta = app.search.gguf_metadata_cache.get(&key);
                     let gpu_mem_total_mib = app.metrics.gpu_mem_total / (1024 * 1024);
-                    let pairs = info::render_model_lines(model, cached_meta, app.vram_estimate, &app.model_settings_cache, gpu_mem_total_mib);
+                    let pairs = info::render_model_lines(model, cached_meta, app.loading.vram_estimate, &app.model_settings_cache, gpu_mem_total_mib);
                     let mut lines = render_model_info_lines(&pairs, width);
                     // Hint when GGUF metadata was not available.
                     if cached_meta.is_none() {
@@ -241,7 +241,7 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
 
     // Add HuggingFace link for search results
     if let crate::tui::app::ModelsMode::Search { results, .. } = &app.models_mode {
-        if let Some(idx) = app.search_results_idx
+        if let Some(idx) = app.search.search_results_idx
             && idx < results.len() {
                 let r = &results[idx];
                 let link_line = Line::from(vec![

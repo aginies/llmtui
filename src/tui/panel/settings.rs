@@ -9,19 +9,19 @@ use ratatui::{
 pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'static>>, usize, usize, usize) {
     let settings = &app.settings;
     let cached = &app.model_settings_cache;
-    let selected = app.settings_selected_idx;
+    let selected = app.settings_state.settings_selected_idx;
 
     let mut selected_content_line = 0;
     let mut total_count = 0;
 
-    let edit_buf = &app.settings_edit_buffer;
+    let edit_buf = &app.settings_state.settings_edit_buffer;
     let editing = !edit_buf.is_empty();
     let hash = app.settings_fingerprint();
 
     // Cache hit with same selection: track cached total_count, but render_settings
     // always runs after (setting selected_content_line correctly).
     let mut cache_hit_total_count = 0;
-    if let Some(c) = &app.settings_render_cache
+    if let Some(c) = &app.settings_state.settings_render_cache
         && c.hash == hash
         && c.selected == selected
     {
@@ -38,7 +38,7 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
     );
 
     // On cache hit, use cached lines (faster). On miss, update cache.
-    let (lines_to_return, final_total_count) = if let Some(c) = &app.settings_render_cache
+    let (lines_to_return, final_total_count) = if let Some(c) = &app.settings_state.settings_render_cache
         && c.hash == hash
         && c.selected == selected
     {
@@ -46,7 +46,7 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
         (c.lines.clone(), cache_hit_total_count.max(total_count))
     } else {
         // Cache miss: store and use built lines
-        app.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
+        app.settings_state.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
             hash,
             selected,
             lines: lines.clone(),
@@ -58,14 +58,14 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
 
     // Scroll clamp (always executes)
     let available_height = area.height.saturating_sub(2);
-    if selected_content_line < app.settings_scroll_offset {
-        app.settings_scroll_offset = selected_content_line;
-    } else if available_height > 0 && (selected_content_line - app.settings_scroll_offset) >= (available_height as usize) {
-        app.settings_scroll_offset = (selected_content_line).saturating_sub(available_height as usize).saturating_add(1);
+    if selected_content_line < app.settings_state.settings_scroll_offset {
+        app.settings_state.settings_scroll_offset = selected_content_line;
+    } else if available_height > 0 && (selected_content_line - app.settings_state.settings_scroll_offset) >= (available_height as usize) {
+        app.settings_state.settings_scroll_offset = (selected_content_line).saturating_sub(available_height as usize).saturating_add(1);
     }
     let max_offset = settings_height.saturating_sub(available_height as usize);
-    if app.settings_scroll_offset > max_offset {
-        app.settings_scroll_offset = max_offset;
+    if app.settings_state.settings_scroll_offset > max_offset {
+        app.settings_state.settings_scroll_offset = max_offset;
     }
 
     (lines_to_return, final_total_count, settings_height, selected_content_line)

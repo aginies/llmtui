@@ -3,22 +3,22 @@ use crossterm::event::KeyCode;
 use crate::tui::app::{App, GlobalMode, LoadingPhase, ModelsMode};
 
 pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
-    if app.filtering_local {
+    if app.search.filtering_local {
         match key.code {
             KeyCode::Esc => {
-                app.filtering_local = false;
-                app.local_filter.clear();
+                app.search.filtering_local = false;
+                app.search.local_filter.clear();
                 app.on_model_selection_change();
             }
             KeyCode::Enter => {
-                app.filtering_local = false;
+                app.search.filtering_local = false;
             }
             KeyCode::Char(c) => {
-                app.local_filter.push(c);
+                app.search.local_filter.push(c);
                 app.on_model_selection_change();
             }
             KeyCode::Backspace => {
-                app.local_filter.pop();
+                app.search.local_filter.pop();
                 app.on_model_selection_change();
             }
             _ => {}
@@ -30,7 +30,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
         KeyCode::Char('f') => {
             if matches!(app.models_mode, ModelsMode::List) {
-                app.filtering_local = true;
+                app.search.filtering_local = true;
                 if app.selected_model_idx.is_none() {
                     let filtered = app.get_filtered_model_indices();
                     if !filtered.is_empty() {
@@ -77,7 +77,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         KeyCode::Enter | KeyCode::Char('l') => {
-            if app.backend_resolving {
+            if app.pending.backend_resolving {
                 app.add_log("Wait for backend installation to finish...", crate::config::LogLevel::Info);
                 return;
             }
@@ -93,17 +93,17 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.update_model_metadata();
                     let settings = app.selected_model_settings();
                     
-                    if let Some(handle) = &app.server_handle
+                    if let Some(handle) = &app.server.server_handle
                         && !crate::backend::server::check_health(&handle.host, handle.port).await {
                             app.add_log("Router unresponsive, restarting...", crate::config::LogLevel::Info);
-                            if let Some(h) = app.server_handle.take() {
-                                app.pending_kill = Some(h);
+                            if let Some(h) = app.server.server_handle.take() {
+                                app.pending.pending_kill = Some(h);
                             }
                         }
 
-                    if app.server_handle.is_none() {
+                    if app.server.server_handle.is_none() {
                         // Start server (with model in CLI for normal mode, without model for router mode)
-                        app.last_error_message = None;
+                        app.ui.last_error_message = None;
                         
                        if app.server_mode == crate::models::ServerMode::BenchTune {
                             let bench_tune_config = crate::models::BenchTuneConfig::new(
@@ -111,7 +111,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                                 3, // Default iterations
                                 crate::models::BENCHMARK_PROMPT.to_string(),
                             );
-                            app.global_mode = crate::tui::app::GlobalMode::BenchTuneSetup {
+                            app.ui.global_mode = crate::tui::app::GlobalMode::BenchTuneSetup {
                                 config: bench_tune_config,
                                 selected_idx: 0,
                                 bench_mode_selection: 0,
@@ -122,19 +122,19 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
                         if app.server_mode == crate::models::ServerMode::Router {
                             // Router mode: start server without a model, then load via /load API
-                            app.pending_spawn = Some((None, settings.clone()));
+                            app.pending.pending_spawn = Some((None, settings.clone()));
                             // Queue the load so it triggers once server is ready
-                            app.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
-                            app.loading_phases = std::iter::once(LoadingPhase::ServerStarting).collect();
-                            app.last_active_phase = Some(LoadingPhase::ServerStarting);
-                            app.loading_progress = 0.25;
+                            app.pending.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
+                            app.loading.loading_phases = std::iter::once(LoadingPhase::ServerStarting).collect();
+                            app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
+                            app.loading.loading_progress = 0.25;
                             app.add_log(format!("Starting router server..."), crate::config::LogLevel::Info);
                         } else {
                             // Normal mode: start server WITH the specific model directly
-                            app.pending_spawn = Some((Some(model.clone()), settings));
-                            app.loading_phases = std::iter::once(LoadingPhase::ServerStarting).collect();
-                            app.last_active_phase = Some(LoadingPhase::ServerStarting);
-                            app.loading_progress = 0.25;
+                            app.pending.pending_spawn = Some((Some(model.clone()), settings));
+                            app.loading.loading_phases = std::iter::once(LoadingPhase::ServerStarting).collect();
+                            app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
+                            app.loading.loading_progress = 0.25;
                             app.add_log(format!("Starting server with {}...", model.display_name), crate::config::LogLevel::Info);
                         }
                     } else {
@@ -151,11 +151,11 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             return;
                         }
 
-                        app.last_error_message = None;
-                        app.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
-                        app.loading_phases = std::iter::once(LoadingPhase::LoadingModel).collect();
-                        app.last_active_phase = Some(LoadingPhase::LoadingModel);
-                        app.loading_progress = 0.5;
+                        app.ui.last_error_message = None;
+                        app.pending.pending_api_load = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
+                        app.loading.loading_phases = std::iter::once(LoadingPhase::LoadingModel).collect();
+                        app.loading.last_active_phase = Some(LoadingPhase::LoadingModel);
+                        app.loading.loading_progress = 0.5;
                         app.add_log(format!("Loading {} via API...", model.display_name), crate::config::LogLevel::Info);
                     }
                 }
@@ -165,15 +165,15 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if let Some(idx) = app.selected_model_idx {
                 let model = app.models[idx].clone();
                 if let Some(crate::models::ModelState::Loaded { .. }) = app.model_states.get(&model.display_name) {
-                    app.global_mode = GlobalMode::Confirmation {
+                    app.ui.global_mode = GlobalMode::Confirmation {
                         selected: false,
                         kind: crate::tui::app::ConfirmationKind::Unload,
                     };
-                    app.pending_api_unload = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
+                    app.pending.pending_api_unload = Some((model.display_name.clone(), Some(model.path.to_string_lossy().to_string())));
                 } else {
                     app.add_log(format!("{} is not loaded", model.display_name), crate::config::LogLevel::Warning);
                 }
-            } else if app.server_handle.is_some() {
+            } else if app.server.server_handle.is_some() {
                 app.add_log("Select a loaded model to unload", crate::config::LogLevel::Warning);
             } else if app.server_mode == crate::models::ServerMode::Router {
                 // Router mode: no server running, no model loaded — fine
@@ -181,14 +181,14 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.add_log("No model is currently loaded", crate::config::LogLevel::Warning);
             }
         }        KeyCode::Char('d') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
-            if app.active_panel != crate::tui::app::ActivePanel::Models {
+            if app.ui.active_panel != crate::tui::app::ActivePanel::Models {
                 app.add_log("Press Tab to switch to Models panel, then Ctrl+D to delete", crate::config::LogLevel::Warning);
                 return;
             }
             if let Some(model) = app.selected_model() {
                 let display_name = model.display_name.clone();
-                app.pending_deletion = Some(model.path.clone());
-                app.global_mode = GlobalMode::Confirmation { selected: false, kind: crate::tui::app::ConfirmationKind::Delete };
+                app.pending.pending_deletion = Some(model.path.clone());
+                app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: crate::tui::app::ConfirmationKind::Delete };
                 app.add_log(format!("Delete confirmation for {} shown", display_name), crate::config::LogLevel::Info);
             } else {
                 app.add_log("No model selected to delete", crate::config::LogLevel::Warning);

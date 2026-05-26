@@ -17,18 +17,18 @@ use ratatui::Terminal;
 fn make_app() -> App {
     let config = Config::default();
     let mut app = App::new(config);
-    app.loading_phases.clear();
-    app.last_active_phase = None;
-    app.loading_progress = 0.0;
-    app.progress_target = 0.0;
-    app.load_progress = LoadProgress {
+    app.loading.loading_phases.clear();
+    app.loading.last_active_phase = None;
+    app.loading.loading_progress = 0.0;
+    app.loading.progress_target = 0.0;
+    app.loading.load_progress = LoadProgress {
         layers_total: None,
         layers_loaded: None,
         tensors_total: None,
         tensors_loaded: 0,
         buffers: vec![],
     };
-    app.last_spinner_time = None;
+    app.loading.last_spinner_time = None;
     app
 }
 
@@ -63,7 +63,7 @@ fn test_normal_mode_has_content() {
 #[test]
 fn test_log_expanded_mode_renders() {
     let mut app = make_app();
-    app.log_expanded = true;
+    app.log.log_expanded = true;
     let _terminal = make_terminal(&mut app);
     // Should render without panic
 }
@@ -71,7 +71,7 @@ fn test_log_expanded_mode_renders() {
 #[test]
 fn test_hidden_panels_renders() {
     let mut app = make_app();
-    app.panel_visibility = 0;
+    app.ui.panel_visibility = 0;
     let _terminal = make_terminal(&mut app);
     // Should render without panic
 }
@@ -79,8 +79,8 @@ fn test_hidden_panels_renders() {
 #[test]
 fn test_all_panels_hidden_renders() {
     let mut app = make_app();
-    app.panel_visibility = 0;
-    app.log_expanded = false;
+    app.ui.panel_visibility = 0;
+    app.log.log_expanded = false;
     let _terminal = make_terminal(&mut app);
     // Should render without panic
 }
@@ -91,14 +91,14 @@ fn test_all_panels_hidden_renders() {
 fn test_confirmation_exit_renders() {
     let mut app = make_app();
     app.model_states.insert("model.gguf".into(), ModelState::Loaded { port: 8080, pid: 1234 });
-    app.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Exit };
+    app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Exit };
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_confirmation_reset_renders() {
     let mut app = make_app();
-    app.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Reset };
+    app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Reset };
     let _terminal = make_terminal(&mut app);
 }
 
@@ -112,23 +112,23 @@ fn test_confirmation_delete_renders() {
         display_name: "test".into(),
     }];
     app.selected_model_idx = Some(0);
-    app.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Delete };
+    app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Delete };
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_confirmation_unload_renders() {
     let mut app = make_app();
-    app.pending_api_unload = Some(("test-model".into(), None));
-    app.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Unload };
+    app.pending.pending_api_unload = Some(("test-model".into(), None));
+    app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Unload };
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_confirmation_delete_backend_renders() {
     let mut app = make_app();
-    app.pending_backend_deletion = Some((Backend::Cpu, "b4100".into()));
-    app.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::DeleteBackend };
+    app.pending.pending_backend_deletion = Some((Backend::Cpu, "b4100".into()));
+    app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::DeleteBackend };
     let _terminal = make_terminal(&mut app);
 }
 
@@ -137,14 +137,14 @@ fn test_confirmation_delete_backend_renders() {
 #[test]
 fn test_help_overlay_renders() {
     let mut app = make_app();
-    app.panel_help = true;
+    app.ui.panel_help = true;
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_help_overlay_has_content() {
     let mut app = make_app();
-    app.panel_help = true;
+    app.ui.panel_help = true;
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     assert!(buffer.content.len() > 0);
@@ -153,7 +153,7 @@ fn test_help_overlay_has_content() {
 #[test]
 fn test_help_overlay_dimensions() {
     let mut app = make_app();
-    app.panel_help = true;
+    app.ui.panel_help = true;
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.draw(|f| {
@@ -167,7 +167,7 @@ fn test_help_overlay_dimensions() {
 #[test]
 fn test_cmdline_overlay_renders() {
     let mut app = make_app();
-    app.global_mode = GlobalMode::CmdLine { cmd_line: "llama-server -m model.gguf -c 4096".into() };
+    app.ui.global_mode = GlobalMode::CmdLine { cmd_line: "llama-server -m model.gguf -c 4096".into() };
     let _terminal = make_terminal(&mut app);
 }
 
@@ -175,14 +175,14 @@ fn test_cmdline_overlay_renders() {
 fn test_cmdline_overlay_long_text_wraps() {
     let mut app = make_app();
     let long_cmd = "llama-server -m /path/to/a/very/long/model/file/that/should/wrap/multiple/times.gguf -c 32768 --batch-size 2048 --threads 8";
-    app.global_mode = GlobalMode::CmdLine { cmd_line: long_cmd.into() };
+    app.ui.global_mode = GlobalMode::CmdLine { cmd_line: long_cmd.into() };
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_cmdline_overlay_has_title() {
     let mut app = make_app();
-    app.global_mode = GlobalMode::CmdLine { cmd_line: "test".into() };
+    app.ui.global_mode = GlobalMode::CmdLine { cmd_line: "test".into() };
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.draw(|f| render(f, &mut app)).unwrap();
@@ -196,14 +196,14 @@ fn test_cmdline_overlay_has_title() {
 #[test]
 fn test_about_overlay_renders() {
     let mut app = make_app();
-    app.global_mode = GlobalMode::About;
+    app.ui.global_mode = GlobalMode::About;
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_about_overlay_has_content() {
     let mut app = make_app();
-    app.global_mode = GlobalMode::About;
+    app.ui.global_mode = GlobalMode::About;
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     assert!(buffer.content.len() > 0);
@@ -214,7 +214,7 @@ fn test_about_overlay_has_content() {
 #[test]
 fn test_models_panel_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Models;
+    app.ui.active_panel = ActivePanel::Models;
     app.models = vec![
         DiscoveredModel { path: "/model1.gguf".into(), name: "model1".into(), file_size: 1000, display_name: "Model 1".into() },
         DiscoveredModel { path: "/model2.gguf".into(), name: "model2".into(), file_size: 2000, display_name: "Model 2".into() },
@@ -225,7 +225,7 @@ fn test_models_panel_renders() {
 #[test]
 fn test_models_panel_with_search_results_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Models;
+    app.ui.active_panel = ActivePanel::Models;
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
         results: vec![
@@ -243,21 +243,21 @@ fn test_models_panel_with_search_results_renders() {
 #[test]
 fn test_settings_panel_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::LlmSettings;
+    app.ui.active_panel = ActivePanel::LlmSettings;
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_server_settings_panel_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::ServerSettings;
+    app.ui.active_panel = ActivePanel::ServerSettings;
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_log_panel_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Log;
+    app.ui.active_panel = ActivePanel::Log;
     app.add_log("Test log entry", llm_manager::config::LogLevel::Info);
     let _terminal = make_terminal(&mut app);
 }
@@ -265,28 +265,28 @@ fn test_log_panel_renders() {
 #[test]
 fn test_downloads_panel_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Downloads;
+    app.ui.active_panel = ActivePanel::Downloads;
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_profiles_panel_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Profiles;
+    app.ui.active_panel = ActivePanel::Profiles;
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_system_prompt_presets_panel_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::SystemPromptPresets;
+    app.ui.active_panel = ActivePanel::SystemPromptPresets;
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_active_model_panel_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::ActiveModel;
+    app.ui.active_panel = ActivePanel::ActiveModel;
     app.metrics = ServerMetrics {
         loaded: true,
         tps: 25.5,
@@ -311,7 +311,7 @@ fn test_active_model_panel_renders() {
 #[test]
 fn test_model_info_panel_renders() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::ModelInfo;
+    app.ui.active_panel = ActivePanel::ModelInfo;
     let _terminal = make_terminal(&mut app);
 }
 
@@ -320,7 +320,7 @@ fn test_model_info_panel_renders() {
 #[test]
 fn test_status_bar_shows_in_normal_mode() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Models;
+    app.ui.active_panel = ActivePanel::Models;
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     // Buffer should have content
@@ -330,7 +330,7 @@ fn test_status_bar_shows_in_normal_mode() {
 #[test]
 fn test_status_bar_shows_in_search_mode() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Models;
+    app.ui.active_panel = ActivePanel::Models;
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
         results: vec![],
@@ -348,7 +348,7 @@ fn test_status_bar_shows_in_search_mode() {
 #[test]
 fn test_status_bar_shows_in_settings() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::LlmSettings;
+    app.ui.active_panel = ActivePanel::LlmSettings;
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     assert!(buffer.content.len() > 0);
@@ -357,7 +357,7 @@ fn test_status_bar_shows_in_settings() {
 #[test]
 fn test_status_bar_shows_when_log_expanded() {
     let mut app = make_app();
-    app.log_expanded = true;
+    app.log.log_expanded = true;
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     assert!(buffer.content.len() > 0);
@@ -366,7 +366,7 @@ fn test_status_bar_shows_when_log_expanded() {
 #[test]
 fn test_status_bar_shows_in_confirmation() {
     let mut app = make_app();
-    app.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Exit };
+    app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Exit };
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     assert!(buffer.content.len() > 0);
@@ -377,7 +377,7 @@ fn test_status_bar_shows_in_confirmation() {
 #[test]
 fn test_model_list_with_loaded_model_shows_status() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Models;
+    app.ui.active_panel = ActivePanel::Models;
     app.models = vec![
         DiscoveredModel { path: "/loaded.gguf".into(), name: "loaded".into(), file_size: 1000, display_name: "Loaded".into() },
     ];
@@ -388,7 +388,7 @@ fn test_model_list_with_loaded_model_shows_status() {
 #[test]
 fn test_model_list_with_failed_model_shows_error() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Models;
+    app.ui.active_panel = ActivePanel::Models;
     app.models = vec![
         DiscoveredModel { path: "/failed.gguf".into(), name: "failed".into(), file_size: 1000, display_name: "Failed".into() },
     ];
@@ -399,21 +399,21 @@ fn test_model_list_with_failed_model_shows_error() {
 #[test]
 fn test_model_list_with_loading_model_shows_progress() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Models;
+    app.ui.active_panel = ActivePanel::Models;
     app.models = vec![
         DiscoveredModel { path: "/loading.gguf".into(), name: "loading".into(), file_size: 1000, display_name: "Loading".into() },
     ];
     app.model_states.insert("loading.gguf".into(), ModelState::Loading);
-    app.loading_phases.insert(LoadingPhase::LoadingModel);
-    app.last_active_phase = Some(LoadingPhase::LoadingModel);
+    app.loading.loading_phases.insert(LoadingPhase::LoadingModel);
+    app.loading.last_active_phase = Some(LoadingPhase::LoadingModel);
     let _terminal = make_terminal(&mut app);
 }
 
 #[test]
 fn test_model_list_with_download_progress() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Models;
-    app.download_progress = vec![DownloadState {
+    app.ui.active_panel = ActivePanel::Models;
+    app.download.download_progress = vec![DownloadState {
         model_id: "test/model".into(),
         filename: "model.gguf".into(),
         downloaded_bytes: 1_000_000,
@@ -433,9 +433,9 @@ fn test_model_list_with_download_progress() {
 #[test]
 fn test_model_list_with_bench_tune_mode() {
     let mut app = make_app();
-    app.active_panel = ActivePanel::Models;
+    app.ui.active_panel = ActivePanel::Models;
     app.models_mode = ModelsMode::BenchTune;
-    app.bench_tune_results = vec![
+    app.bench_tune.bench_tune_results = vec![
         BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
     ];
     let _terminal = make_terminal(&mut app);
