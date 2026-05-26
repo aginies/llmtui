@@ -1,9 +1,12 @@
+mod model_config;
+
 use std::collections::HashSet;
 use std::path::PathBuf;
 
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
+pub use model_config::{ModelConfigStore, unused_config_dir};
 use crate::models::{Backend, CacheType, CacheTypeK, CacheTypeV, Mirostat, NumMode, RopeScaling, Samplers, SplitMode};
 
 /// Count physical CPU cores on Linux (ignores hyperthreading).
@@ -55,7 +58,7 @@ pub struct Config {
     pub default: DefaultParams,
     /// Per-model overrides (keyed by model file name).
     #[serde(default)]
-    pub model_overrides: std::collections::HashMap<String, ModelOverride>,
+    pub model_overrides: ModelConfigStore,
     /// Named profiles of settings presets.
     #[serde(default)]
     pub profiles: Vec<Profile>,
@@ -822,21 +825,23 @@ impl Config {
  
 
         // Model override validation
-        for (model_name, override_settings) in &self.model_overrides {
-            if let Some(lora) = &override_settings.lora {
-                if !lora.exists() {
-                    warnings.push(format!(
-                        "model '{}' lora path {} does not exist",
-                        model_name, lora.display()
-                    ));
+        for model_name in self.model_overrides.keys() {
+            if let Some(override_settings) = self.model_overrides.get(model_name.as_str()) {
+                if let Some(lora) = &override_settings.lora {
+                    if !lora.exists() {
+                        warnings.push(format!(
+                            "model '{}' lora path {} does not exist",
+                            model_name, lora.display()
+                        ));
+                    }
                 }
-            }
-            if let Some((lora, _)) = &override_settings.lora_scaled {
-                if !lora.exists() {
-                    warnings.push(format!(
-                        "model '{}' lora path {} does not exist",
-                        model_name, lora.display()
-                    ));
+                if let Some((lora, _)) = &override_settings.lora_scaled {
+                    if !lora.exists() {
+                        warnings.push(format!(
+                            "model '{}' lora path {} does not exist",
+                            model_name, lora.display()
+                        ));
+                    }
                 }
             }
         }
@@ -916,7 +921,7 @@ impl Config {
         if path.exists() {
             Self::load_impl(&path)
         } else {
-            let config = Config::default();
+            let mut config = Config::default();
             config.save()?;
             Ok(config)
         }
@@ -938,13 +943,21 @@ impl Config {
         self
     }
 
-    pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let path = Self::config_path();
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let content = serde_yaml::to_string(self)?;
         std::fs::write(&path, content)?;
+        // Persist model configs to individual YAML files
+        let entries: Vec<(String, ModelOverride)> = self.model_overrides.keys()
+            .iter()
+            .filter_map(|k| self.model_overrides.get(k).map(|v| (k.clone(), v.clone())))
+            .collect();
+        for (name, cfg) in entries {
+            self.model_overrides.save(&name, &cfg);
+        }
         Ok(())
     }
 
@@ -957,6 +970,37 @@ impl Config {
             }
         }
         all
+    }
+
+    /// Restore a deleted model config from the unused directory.
+    /// Returns true if a config was found and restored.
+    #[allow(dead_code)]
+    pub fn restore_model(&mut self, name: &str) -> bool {
+        let restored = self.model_overrides.restore(name);
+        if restored {
+            let _ = self.save();
+        }
+        restored
+    }
+
+    /// List names of deleted (unused) model configs.
+    #[allow(dead_code)]
+    pub fn list_unused_models(&self) -> Vec<String> {
+        unused_config_dir()
+            .read_dir()
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                let path = entry.path();
+                if path.extension().map(|e| e == "yaml").unwrap_or(false) {
+                    path.file_stem().and_then(|n| n.to_str()).map(|s| s.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 

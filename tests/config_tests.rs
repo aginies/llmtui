@@ -360,14 +360,11 @@ fn config_resolve_settings_returns_model_settings() {
 #[test]
 fn config_resolve_settings_with_model_override() {
     let mut config = Config::default();
-    config.model_overrides.insert(
-        "my-model.gguf".into(),
-        ModelOverride {
-            context_length: Some(8192),
-            temperature: Some(0.5),
-            ..Default::default()
-        },
-    );
+    config.model_overrides.save("my-model.gguf", &ModelOverride {
+        context_length: Some(8192),
+        temperature: Some(0.5),
+        ..Default::default()
+    });
     let settings = config.resolve_settings(Some("my-model.gguf"), None);
     assert_eq!(settings.context_length, 8192);
     assert!((settings.temperature - 0.5).abs() < f32::EPSILON);

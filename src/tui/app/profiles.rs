@@ -40,7 +40,7 @@ impl App {
         if let Some(model) = self.selected_model() {
             let name = model.name.clone();
             let override_cfg = crate::config::ModelOverride::from_settings(&self.settings);
-            self.config.model_overrides.insert(name.clone(), override_cfg);
+            self.config.model_overrides.save(&name, &override_cfg);
             if let Err(e) = self.config.save() {
                 self.add_log(format!("Failed to save settings for {}: {}", name, e), crate::config::LogLevel::Error);
             } else {

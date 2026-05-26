@@ -11,7 +11,7 @@ pub async fn execute_confirmation(app: &mut App, kind: ConfirmationKind) {
         ConfirmationKind::Delete => {
             if let Some(model) = app.selected_model() {
                 let display_name = model.display_name.clone();
-                app.add_log(format!("Deleting model {}...", display_name), crate::config::LogLevel::Info);
+                app.add_log(format!("Deleting model {} (config moved to unused)...", display_name), crate::config::LogLevel::Info);
             }
         }
         ConfirmationKind::Unload => {

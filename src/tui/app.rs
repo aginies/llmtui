@@ -162,7 +162,7 @@ mod tests {
             models_dirs: vec![],
             llama_server: std::path::PathBuf::new(),
             default: crate::config::DefaultParams::default(),
-            model_overrides: std::collections::HashMap::new(),
+            model_overrides: crate::config::ModelConfigStore::new(),
             profiles: Vec::new(),
             system_prompt_presets: Vec::new(),
             rpc_workers: Vec::new(),

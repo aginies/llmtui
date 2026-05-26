@@ -70,7 +70,7 @@ impl App {
         let model_key = path.file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
-        self.config.model_overrides.remove(&model_key);
+        self.config.model_overrides.delete(&model_key);
         if let Err(e) = self.config.save() {
             self.add_log(format!("Failed to save config after deletion: {}", e), crate::config::LogLevel::Error);
         }
