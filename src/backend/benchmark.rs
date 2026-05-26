@@ -10,9 +10,7 @@ use crate::models::{BenchTuneConfig, BenchTuneMetrics, BenchTuneParamValue, Benc
 const HEALTH_CHECK_ITERATIONS: u32 = 120;
 const HEALTH_CHECK_INTERVAL_MS: u64 = 500;
 const HEALTH_CHECK_LOG_INTERVAL: u32 = 10;
-const SERVER_KILL_WAIT_SECS: u64 = 1;
 const REQUEST_TIMEOUT_SECS: u64 = 120;
-const CHART_TOP_N: usize = 20;
 
 /// Run a benchmark tuning test with multiple parameter combinations
 pub async fn run_bench_tune(
