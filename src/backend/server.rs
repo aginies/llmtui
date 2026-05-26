@@ -311,6 +311,7 @@ pub async fn spawn_server(
     progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
     server_mode: crate::models::ServerMode,
     router_max_models: u32,
+    exit_tx: mpsc::Sender<()>,
 ) -> Result<(ServerHandle, String), String> {
     if server_mode != crate::models::ServerMode::Bench && server_mode != crate::models::ServerMode::BenchTune {
         let port = settings.port;
@@ -410,38 +411,94 @@ pub async fn spawn_server(
 
     let (kill_tx, mut kill_rx) = mpsc::channel(1);
 
-    // Background task to manage the process
+    // Background task: read stdout and stderr concurrently via separate tasks.
+    // Each stream gets its own task + mpsc channel so neither can block the other.
     let log_tx_inner = log_tx.clone();
+    let exit_tx_inner = exit_tx.clone();
     let backend_name_upper = backend_name.to_uppercase();
     tokio::spawn(async move {
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
-        let mut stdout_reader = BufReader::new(stdout).lines();
-        let mut stderr_reader = BufReader::new(stderr).lines();
+        let (stdout_tx, mut stdout_rx) = mpsc::channel::<String>(64);
+        let (stderr_tx, mut stderr_rx) = mpsc::channel::<String>(64);
 
+        // Spawn a reader task for each stream
+        let mut std_out = Some(tokio::spawn(async move {
+            let reader = BufReader::new(stdout).lines();
+            tokio::pin!(reader);
+            while let Ok(Some(line)) = reader.next_line().await {
+                if stdout_tx.send(line).await.is_err() {
+                    break;
+                }
+            }
+        }));
+
+        let mut std_err = Some(tokio::spawn(async move {
+            let reader = BufReader::new(stderr).lines();
+            tokio::pin!(reader);
+            while let Ok(Some(line)) = reader.next_line().await {
+                if stderr_tx.send(line).await.is_err() {
+                    break;
+                }
+            }
+        }));
+
+        // Merge loop: drain both channels until one closes
         loop {
             tokio::select! {
                 _ = kill_rx.recv() => {
                     let _ = child.kill().await;
+                    if let Some(h) = std_out.take() { let _ = h.await; }
+                    if let Some(h) = std_err.take() { let _ = h.await; }
                     break;
                 }
-                res = stdout_reader.next_line() => {
-                    if let Ok(Some(line)) = res {
-                        let _ = log_tx_inner.send(line).await;
-                    } else {
-                        break;
+                _ = stdout_rx.recv() => {
+                    // handled below
+                }
+                _ = stderr_rx.recv() => {
+                    // handled below
+                }
+                else => break,
+            }
+
+            // Drain both channels (non-blocking) to avoid starvation
+            loop {
+                let mut drained = false;
+                loop {
+                    match stdout_rx.try_recv() {
+                        Ok(line) => { let _ = log_tx_inner.send(line).await; }
+                        Err(mpsc::error::TryRecvError::Empty) => break,
+                        Err(mpsc::error::TryRecvError::Disconnected) => {
+                            drained = true;
+                            break;
+                        }
                     }
                 }
-                res = stderr_reader.next_line() => {
-                    if let Ok(Some(line)) = res {
-                        let _ = log_tx_inner.send(line).await;
+                if drained { break; }
+                loop {
+                    match stderr_rx.try_recv() {
+                        Ok(line) => { let _ = log_tx_inner.send(line).await; }
+                        Err(mpsc::error::TryRecvError::Empty) => break,
+                        Err(mpsc::error::TryRecvError::Disconnected) => {
+                            drained = true;
+                            break;
+                        }
                     }
                 }
+                if drained { break; }
+                // Yield to allow more data to accumulate
+                tokio::task::yield_now().await;
             }
         }
-        let _ = child.wait().await;
-        let _ = log_tx_inner.send(format!("{} EXITED", backend_name_upper)).await;
+
+        // Wait for reader tasks to finish
+        if let Some(h) = std_out.take() { let _ = h.await; }
+        if let Some(h) = std_err.take() { let _ = h.await; }
+
+        let exit_code = child.wait().await.ok().map(|s| s.code()).flatten();
+        let _ = exit_tx_inner.send(()).await;
+        let _ = log_tx_inner.send(format!("{} exited with code {:?}", backend_name_upper, exit_code)).await;
     });
 
     Ok((ServerHandle {
@@ -498,8 +555,17 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
 
     let text = resp.text().await.map_err(|e| format!("Failed to read metrics: {}", e))?;
     
-    let mut metrics = ServerMetrics::default();
-    metrics.loaded = true;
+    let mut m = ServerMetrics::default();
+    m.loaded = true;
+
+    let mut ctx_max_slots = 0u32;
+    let mut ctx_used_global = 0u32;
+    let mut ctx_max_global = 0u32;
+
+    let mut vram_used_slots = 0u64;
+    let mut vram_total_slots = 0u64;
+    let mut vram_used_global = 0u64;
+    let mut vram_total_global = 0u64;
 
     for line in text.lines() {
         if line.starts_with('#') || line.is_empty() {
@@ -512,7 +578,6 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
         }
 
         let name_with_labels = parts[0];
-        // The value is usually the first numeric part after the name
         let mut val = 0.0;
         for part in parts.iter().skip(1) {
             if let Ok(v) = part.parse::<f64>() {
@@ -521,58 +586,53 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
             }
         }
 
-        // Strip labels from name for matching: llama_kv_cache_usage_bytes{pool="default"} -> llama_kv_cache_usage_bytes
+        let is_slot = name_with_labels.contains("slot=\"") || name_with_labels.contains("pool=\"");
         let name = name_with_labels.split('{').next().unwrap_or(name_with_labels);
 
-        // Match common llama.cpp metric names (they evolve frequently)
         match name {
-            // VRAM (usually KV cache usage)
-            "llama_kv_cache_usage_bytes" | "kv_cache_usage_bytes" | "llama_server_kv_cache_usage_bytes" | "llama_server_kv_cache_used_bytes" => {
-                metrics.gpu_mem_used = val as u64;
+            "llama_kv_cache_usage_bytes" | "kv_cache_usage_bytes" | "llama_server_kv_cache_usage_bytes" | "llama_server_kv_cache_used_bytes" | "llama_server_vram_used_bytes" => {
+                if is_slot { vram_used_slots += val as u64; } else { vram_used_global = vram_used_global.max(val as u64); }
             }
-            "llama_kv_cache_total_bytes" | "kv_cache_total_bytes" | "llama_server_kv_cache_total_bytes" => {
-                metrics.gpu_mem_total = val as u64;
+            "llama_kv_cache_total_bytes" | "kv_cache_total_bytes" | "llama_server_kv_cache_total_bytes" | "llama_server_vram_total_bytes" => {
+                if is_slot { vram_total_slots += val as u64; } else { vram_total_global = vram_total_global.max(val as u64); }
             }
-            // RAM (Model weights and general memory)
             "llama_model_memory_usage_bytes" | "model_memory_usage_bytes" | "llama_server_model_memory_usage_bytes" | "llama_server_memory_usage_bytes" | "llama_server_ram_usage_bytes" | "llama_server_mem_used_bytes" => {
-                metrics.ram_used = val as u64;
+                m.ram_used = m.ram_used.max(val as u64);
             }
-            // Context Tokens
-            "llama_kv_cache_tokens_used" | "kv_cache_tokens_used" | "llama_server_kv_cache_tokens_used" | "llamacpp:n_tokens_max" => {
-                metrics.ctx_used = val as u32;
+            "llama_kv_cache_tokens_used" | "kv_cache_usage_tokens" | "kv_cache_tokens_used" | "llama_server_kv_cache_tokens_used" | "llamacpp:n_tokens_used" | "llama_server_n_tokens_used" | "llama_server_n_past" | "llamacpp:n_past" => {
+                ctx_used_global = ctx_used_global.max(val as u32);
             }
-            "llama_kv_cache_tokens_total" | "kv_cache_tokens_total" | "llama_server_kv_cache_tokens_total" | "llamacpp:n_ctx" => {
-                metrics.ctx_max = val as u32;
+            "llama_kv_cache_tokens_total" | "kv_cache_total_tokens" | "kv_cache_tokens_total" | "llama_server_kv_cache_tokens_total" | "llamacpp:n_ctx" | "llamacpp:n_tokens_max" | "llama_server_n_ctx" | "llama_server_n_tokens_max" => {
+                if is_slot { ctx_max_slots += val as u32; } else { ctx_max_global = ctx_max_global.max(val as u32); }
             }
-            // CPU
             "llama_server_cpu_usage_percentage" | "cpu_usage_percentage" | "llama_server_cpu_usage" | "llama_server_cpu_percent" => {
-                metrics.cpu_usage = val;
+                m.cpu_usage = m.cpu_usage.max(val);
             }
-            // TPS / Throughput
-            "llamacpp:predicted_tokens_seconds" => {
-                metrics.tps = val;
+            "llamacpp:predicted_tokens_seconds" | "llama_server_predicted_tokens_seconds" | "llama_server_tps" => {
+                m.tps += val;
             }
-            "llamacpp:prompt_tokens_seconds" => {
-                metrics.prompt_tps = val;
+            "llamacpp:prompt_tokens_seconds" | "llama_server_prompt_tokens_seconds" | "llama_server_prompt_tps" => {
+                m.prompt_tps += val;
             }
-            // KV Cache Ratio Fallback
-            "llamacpp:kv_cache_usage_ratio" => {
-                // If we don't have absolute VRAM but have the ratio, we can't show bytes
-                // but we can at least ensure it's used as a fallback for ctx_used calculation later if needed.
-                if metrics.ctx_used == 0 && metrics.ctx_max > 0 {
-                    metrics.ctx_used = (val * metrics.ctx_max as f64) as u32;
+            "llamacpp:kv_cache_usage_ratio" | "llama_server_kv_cache_usage_ratio" => {
+                if !is_slot && ctx_max_global > 0 {
+                    ctx_used_global = ctx_used_global.max((val * ctx_max_global as f64) as u32);
                 }
             }
             _ => {}
         }
     }
 
-    // Try /health as last resort for context usage
-    if metrics.ctx_used == 0
-        && let Ok(health) = get_metrics_health(&host, port).await {
-            metrics.ctx_used = health.ctx_used;
-            metrics.ctx_max = health.ctx_max;
-        }
+    m.gpu_mem_used = if vram_used_slots > 0 { vram_used_slots } else { vram_used_global };
+    m.gpu_mem_total = if vram_total_slots > 0 { vram_total_slots } else { vram_total_global };
+
+    // ctx_used = the actual context window size allocated by llama.cpp (llamacpp:n_ctx / n_ctx_train).
+    // This is what llama.cpp reports as the effective context it is using, which may differ
+    // from the user-configured value due to rope scaling, quantization, etc.
+    // ctx_max = the user-configured context length (-c), set via spawned_context_length in poll_metrics().
+    // Display: ctx_used/ctx_max shows "allocated context / configured max".
+    m.ctx_used = if ctx_max_slots > 0 { ctx_max_slots } else { ctx_max_global };
+    // ctx_max is left at 0 here; poll_metrics() will fill it from spawned_context_length.
 
     // Prefer actual GPU memory usage from nvidia-smi or amdgpu_top.
     // llama-server's kv_cache_usage_bytes only reports KV cache (typically 10%
@@ -590,41 +650,41 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
         };
 
         let (nv_used, nv_total) = get_nvidia_vram_metrics().unwrap_or((0, 0));
-        set_if_better(&mut metrics, nv_used, nv_total);
+        set_if_better(&mut m, nv_used, nv_total);
 
-        if metrics.gpu_mem_total == 0 {
+        if m.gpu_mem_total == 0 {
             // AMD fallback when nvidia-smi is not available.
             let (amd_used, amd_total) = get_amdgpu_vram_metrics().unwrap_or((0, 0));
-            set_if_better(&mut metrics, amd_used, amd_total);
+            set_if_better(&mut m, amd_used, amd_total);
         }
-    } else if metrics.gpu_mem_used == 0 {
+    } else if m.gpu_mem_used == 0 {
         // KV-only queries: use system tools as a last resort.
         if let Ok((used, total)) = get_nvidia_vram_metrics() {
-            metrics.gpu_mem_used = used;
-            metrics.gpu_mem_total = total;
+            m.gpu_mem_used = used;
+            m.gpu_mem_total = total;
         } else if let Ok((used, total)) = get_amdgpu_vram_metrics() {
-            metrics.gpu_mem_used = used;
-            metrics.gpu_mem_total = total;
+            m.gpu_mem_used = used;
+            m.gpu_mem_total = total;
         }
     }
 
     // Fallback for RAM and CPU using /proc if available (Linux)
     if let Some(p) = pid {
-        let cpu_ticks_prev = metrics.cpu_ticks_prev;
-        let system_uptime_prev = metrics.system_uptime_prev;
+        let cpu_ticks_prev = m.cpu_ticks_prev;
+        let system_uptime_prev = m.system_uptime_prev;
         if let Ok((ram, cpu)) = get_process_metrics(p, cpu_ticks_prev, system_uptime_prev) {
-            if metrics.ram_used == 0 {
-                metrics.ram_used = ram;
+            if m.ram_used == 0 {
+                m.ram_used = ram;
             }
-            if metrics.cpu_usage == 0.0 {
-                metrics.cpu_usage = cpu;
+            if m.cpu_usage == 0.0 {
+                m.cpu_usage = cpu;
             }
-            metrics.cpu_ticks_prev = cpu_ticks_prev;
-            metrics.system_uptime_prev = system_uptime_prev;
+            m.cpu_ticks_prev = cpu_ticks_prev;
+            m.system_uptime_prev = system_uptime_prev;
         }
     }
 
-    Ok(metrics)
+    Ok(m)
 }
 
 /// Get VRAM usage using nvidia-smi
@@ -773,36 +833,6 @@ fn get_process_metrics(pid: u32, cpu_ticks_prev: u64, system_uptime_prev: f64) -
 
     #[cfg(not(target_os = "linux"))]
     Err("OS not supported for process metrics".to_string())
-}
-
-/// Poll /health for context info (newer llama.cpp)
-async fn get_metrics_health(host: &str, port: u16) -> Result<ServerMetrics, String> {
-    let host = clean_host(host);
-    let url = format!("http://{}:{}/health", host, port);
-    let resp = reqwest::get(&url).await.map_err(|e| format!("Failed to get health metrics: {}", e))?;
-
-    if !resp.status().is_success() {
-        return Err(format!("Server returned {}", resp.status()));
-    }
-
-    let health: serde_json::Value = resp.json().await.map_err(|e| format!("Invalid response: {}", e))?;
-
-    let mut metrics = ServerMetrics::default();
-    metrics.loaded = true;
-
-    // Newer llama.cpp has "slots" array in health
-    if let Some(slots) = health.get("slots").and_then(|v| v.as_array()) {
-        if let Some(slot) = slots.first() {
-            metrics.ctx_used = slot.get("n_past").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-            metrics.ctx_max = slot.get("n_ctx").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-        }
-    } else {
-        // Fallback for older llama.cpp where it might be at the top level
-        metrics.ctx_used = health.get("n_past").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-        metrics.ctx_max = health.get("n_ctx").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-    }
-
-    Ok(metrics)
 }
 
 /// Load a model via the llama-server Router API.

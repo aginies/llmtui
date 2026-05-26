@@ -923,9 +923,7 @@ pub struct ServerMetrics {
     pub total_vram_used: u64,
     /// Number of decoded tokens from print_timing logs.
     pub decoded_tokens: u64,
-    /// Throughput from print_timing logs (tokens/second).
-    pub throughput: f64,
-    /// Estimated latency per generated token in milliseconds (1000 / throughput).
+    /// Estimated latency per generated token in milliseconds.
     pub latency_per_token_ms: f64,
     /// Estimated prompt processing latency in milliseconds (1000 / prompt_tps).
     pub prompt_latency_ms: f64,
@@ -971,7 +969,6 @@ impl Default for ServerMetrics {
             ctx_max: 0,
             total_vram_used: 0,
             decoded_tokens: 0,
-            throughput: 0.0,
             latency_per_token_ms: 0.0,
             prompt_latency_ms: 0.0,
         }

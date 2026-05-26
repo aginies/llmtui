@@ -77,11 +77,7 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
     <h2>CPU</h2>
     <div id="cpu" class="value">0%</div>
   </div>
-  <div class="card">
-    <h2>Decoded Tokens</h2>
-    <div id="tokens" class="value">0</div>
-  </div>
-</div>
+ </div>
 <div class="grid" id="settings-grid" style="display:none;"></div>
 <div class="card" id="cmd-card" style="display:none;">
   <h2>Server Command</h2>
@@ -200,7 +196,6 @@ function update(m) {
   vramBar.className = 'bar ' + (vramPct > 80 ? 'red' : vramPct > 50 ? 'yellow' : 'green');
   document.getElementById('ram').textContent = (m.ram_used / 1024 / 1024 / 1024).toFixed(1) + ' GB';
   document.getElementById('latency').textContent = m.latency_per_token_ms.toFixed(1) + ' ms';
-  document.getElementById('tokens').textContent = m.decoded_tokens;
   render_settings(m);
   const cmd = m.cmd_display;
   const cmdCard = document.getElementById('cmd-card');
