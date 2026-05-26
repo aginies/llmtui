@@ -95,6 +95,8 @@ impl App {
                 spawned_model_name: None,
                 spawned_model_state: None,
                 spawned_context_length: 0,
+                server_exit_rx: None,
+                server_exit_tx: None,
             },
             bench_tune: BenchTuneState {
                 bench_tune_progress: None,
@@ -133,6 +135,8 @@ impl App {
                 model_n_kv_head: 0,
                 vram_estimate: 0,
                 last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
+                health_poll_handle: None,
+                loading_completion_rx: None,
             },
             pending: PendingOperations {
                 pending_download: None,

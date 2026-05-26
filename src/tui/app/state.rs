@@ -16,7 +16,7 @@ impl App {
         self.compute_progress();
         self.loading.progress_target = self.loading.loading_progress;
         self.loading.loading_progress = previous_progress * 0.85 + self.loading.progress_target * 0.15;
-        self.handle_server_exit(&msg);
+        self.handle_server_exit();
         self.trim_log();
         self.log.log_entries.push_back(crate::config::LogEntry::new(msg, level));
         self.ui.needs_redraw = true;
@@ -59,7 +59,10 @@ impl App {
             self.loading.loading_phases.insert(LoadingTensors);
             self.loading.last_active_phase = Some(LoadingTensors);
         }
-        if upper.contains("SERVER LISTENING") || upper.contains("HTTP SERVER LISTENING") {
+        if upper.contains("SERVER LISTENING") 
+            || upper.contains("HTTP SERVER LISTENING") 
+            || upper.contains("LOAD_MODEL: INITIALIZING SLOTS")
+            || (upper.contains("SRV") && upper.contains("LOAD_MODEL") && upper.contains("INITIALIZING")) {
             self.loading.loading_phases.insert(ServerListening);
             self.loading.last_active_phase = Some(ServerListening);
         }
@@ -168,40 +171,14 @@ impl App {
         }
     }
 
-    fn detect_load_state(&mut self, msg: &str) {
-        let upper = msg.to_uppercase();
-
-        // Detect successful model load (including router mode)
-        if upper.contains("LOADED SUCCESSFULLY")
-            || upper.contains("LLAMA_NEW_CONTEXT_WITH_MODEL")
-            || upper.contains("MAIN: MODEL LOADED")
-            || upper.contains("UPDATE_SLOTS: ALL SLOTS ARE IDLE")
-        {
-            self.loading.loading_phases.insert(Complete);
-            self.loading.last_active_phase = Some(Complete);
-            self.loading.loading_progress = 1.0;
-            self.ui.last_error_message = None;
-
-            let mut to_update = Vec::new();
-            if let Some(handle) = &self.server.server_handle {
-                let port = handle.port;
-                let pid = handle.pid;
-                for (name, state) in &self.model_states {
-                    if matches!(state, ModelState::Loading) {
-                        to_update.push(name.clone());
-                    }
-                }
-                for name in to_update {
-                    self.model_states.insert(name.clone(), ModelState::Loaded { port, pid });
-                    self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner()).push(name);
-                }
-            }
-        }
-
-        // Detect model load failure or crash
-        let is_crash = upper.contains("LLAMA-SERVER") && (upper.contains("EXITED") || upper.contains("TERMINATED"));
-        let is_error = is_crash
-            || upper.contains("ERROR")
+    fn detect_load_state(&mut self, _msg: &str) {
+        // Log-based load state detection removed.
+        // Loading completion is now detected via /health API polling.
+        // Server exit is now detected via channel-based signaling.
+        // Error detection still uses log parsing for OOM/crash detection.
+        let upper = _msg.to_uppercase();
+        
+        let is_error = upper.contains("ERROR")
             || upper.contains("FAILED TO LOAD")
             || upper.contains("EXCEPTION")
             || upper.contains("VK::SYSTEMERROR")
@@ -210,23 +187,16 @@ impl App {
 
         if is_error {
             let is_loading = self.model_states.values().any(|s| matches!(s, ModelState::Loading));
-            if is_crash || is_loading {
+            if is_loading {
                 let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-                let mut error_msg = if upper.contains("OUTOFDEVICEMEMORY") || upper.contains("OUT OF MEMORY") {
+                let error_msg = if upper.contains("OUTOFDEVICEMEMORY") || upper.contains("OUT OF MEMORY") {
                     format!("Last Failed to load a model (OOM - {})", timestamp)
                 } else {
                     format!("Last Failed to load a model ({})", timestamp)
                 };
 
-                if is_crash {
-                    error_msg = format!("Last Failed to load a model (Router Crash - {})", timestamp);
-                    if let Some(h) = self.server.server_handle.take() {
-                        self.pending.pending_kill = Some(h);
-                    }
-                }
-
                 self.ui.last_error_message = Some(error_msg);
-                self.reset_loading_state(is_crash);
+                self.reset_loading_state(false);
             }
         }
     }
@@ -308,18 +278,19 @@ impl App {
         }
     }
 
-    fn handle_server_exit(&mut self, msg: &str) {
-        let upper = msg.to_uppercase();
-        if upper.contains("LLAMA-SERVER EXITED") || upper.contains("LLAMA-BENCH EXITED") {
-            self.server.server_handle = None;
-            self.loading.loading_phases.clear();
-            self.loading.last_active_phase = None;
-            self.loading.loading_progress = 0.0;
-            self.loading.load_progress = Default::default();
-            self.ui.needs_redraw = true;
+    fn handle_server_exit(&mut self) {
+        if let Some(rx) = &mut self.server.server_exit_rx {
+            if let Ok(()) = rx.try_recv() {
+                self.server.server_handle = None;
+                self.loading.loading_phases.clear();
+                self.loading.last_active_phase = None;
+                self.loading.loading_progress = 0.0;
+                self.loading.load_progress = Default::default();
+                self.ui.needs_redraw = true;
 
-            for state in self.model_states.values_mut() {
-                *state = crate::models::ModelState::Available;
+                for state in self.model_states.values_mut() {
+                    *state = crate::models::ModelState::Available;
+                }
             }
         }
     }

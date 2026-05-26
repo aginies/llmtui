@@ -232,61 +232,8 @@ impl App {
         let mut server_logs = Vec::new();
         if let Some(rx) = &mut self.server.server_log_rx {
             while let Ok(line) = rx.try_recv() {
-                if line.contains("tokens per second")
-                    && let Some(tps_part) = line.split("tokens per second").next()
-                        && let Some(val_str) = tps_part.split_whitespace().last()
-                            && let Ok(tps) = val_str.parse::<f64>()
-                {
-                    if line.contains("prompt eval time =") {
-                        self.metrics.prompt_tps = tps;
-                        if tps > 0.0 {
-                            self.metrics.prompt_latency_ms = 1000.0 / tps;
-                        }
-                    } else if line.contains("eval time =") {
-                        self.metrics.tps = tps;
-                        if tps > 0.0 {
-                            self.metrics.latency_per_token_ms = 1000.0 / tps;
-                        }
-                    }
-                }
-                if line.contains("n_tokens =")
-                    && let Some(tokens_part) = line.split("n_tokens =").last()
-                {
-                    let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
-                    if let Ok(tokens) = val_str.parse::<u32>() && tokens > 2048 {
-                        self.metrics.ctx_used = tokens;
-                    }
-                }
-                if line.contains("KV buffer size =")
-                    && let Some(size_part) = line.split('=').next_back()
-                {
-                    let parts: Vec<&str> = size_part.split_whitespace().collect();
-                    if !parts.is_empty()
-                        && let Ok(mib) = parts[0].parse::<f64>()
-                    {
-                        self.metrics.gpu_mem_used = (mib * 1024.0 * 1024.0) as u64;
-                    }
-                }
-                if line.contains("print_timing:")
-                    && line.contains("n_decoded =")
-                    && line.contains("t/s")
-                {
-                    if let Some(tokens_part) = line.split("n_decoded =").last() {
-                        let tokens_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
-                        if let Ok(tokens) = tokens_str.parse::<u64>() {
-                            self.metrics.decoded_tokens = tokens;
-                        }
-                    }
-                    if let Some(tg_part) = line.split("tg =").last() {
-                        let tg_str = tg_part.split_whitespace().next().unwrap_or("");
-                        if let Ok(tg) = tg_str.parse::<f64>() {
-                            self.metrics.throughput = tg;
-                            if tg > 0.0 {
-                                self.metrics.latency_per_token_ms = 1000.0 / tg;
-                            }
-                        }
-                    }
-                }
+                // Log-based metrics parsing removed to prevent "stuck" values.
+                // We rely exclusively on API polling for accuracy.
                 server_logs.push(line);
                 if server_logs.len() > 100 { break; }
             }
@@ -366,33 +313,30 @@ impl App {
     }
 
     pub fn poll_metrics(&mut self) {
-        if let Some(rx) = &mut self.server.metrics_rx {
+       if let Some(rx) = &mut self.server.metrics_rx {
             let mut received_metrics = false;
-           while let Ok(mut m) = rx.try_recv() {
-                if m.ctx_max == 0 {
+            while let Ok(mut m) = rx.try_recv() {
+                // ctx_max is always the user-configured context length.
+                if self.server.spawned_context_length > 0 {
                     m.ctx_max = self.server.spawned_context_length;
                 }
-                if m.tps == 0.0 && self.metrics.tps > 0.0 {
-                    m.tps = self.metrics.tps;
-                }
-                if m.prompt_tps == 0.0 && self.metrics.prompt_tps > 0.0 {
-                    m.prompt_tps = self.metrics.prompt_tps;
-                }
-                if self.metrics.ctx_used > 0 {
-                    m.ctx_used = self.metrics.ctx_used;
-                }
+                
+                // Only carry over values that are technically "stateful" or slow to update
+                // but don't force them to stick if the API is clearly reporting something else.
                 if m.gpu_mem_used == 0 && self.metrics.gpu_mem_used > 0 {
                     m.gpu_mem_used = self.metrics.gpu_mem_used;
                     if m.gpu_mem_total == 0 {
                         m.gpu_mem_total = self.metrics.gpu_mem_total;
                     }
                 }
+                
                 if m.tps > 0.0 {
                     m.latency_per_token_ms = 1000.0 / m.tps;
                 }
                 if m.prompt_tps > 0.0 {
                     m.prompt_latency_ms = 1000.0 / m.prompt_tps;
                 }
+                
                 self.metrics = m;
                 received_metrics = true;
             }
@@ -402,10 +346,92 @@ impl App {
         }
     }
 
+    pub async fn poll_loading_completion(&mut self) {
+        use super::types::LoadingPhase;
+        
+        if self.loading.loading_phases.contains(&LoadingPhase::Complete) {
+            return;
+        }
+        
+        if !self.loading.loading_phases.contains(&LoadingPhase::ServerListening) {
+            return;
+        }
+        
+        if self.loading.health_poll_handle.is_some() {
+            if let Some(rx) = &mut self.loading.loading_completion_rx {
+                let mut got_completion = false;
+                while let Ok(()) = rx.try_recv() {
+                    got_completion = true;
+                }
+                if got_completion {
+                    self.loading.loading_phases.insert(LoadingPhase::Complete);
+                    self.loading.last_active_phase = Some(LoadingPhase::Complete);
+                    self.loading.loading_progress = 1.0;
+                    if let Some(h) = self.loading.health_poll_handle.take() {
+                        h.abort();
+                    }
+                    self.loading.loading_completion_rx = None;
+                    self.server.spawned_model_state = Some("loaded".to_string());
+                    self.loading.progress_target = 1.0;
+                    
+                    if let Some(handle) = &self.server.server_handle {
+                        let port = handle.port;
+                        let pid = handle.pid;
+                        let to_update: Vec<String> = self.model_states.iter()
+                            .filter(|(_, s)| matches!(s, crate::models::ModelState::Loading))
+                            .map(|(n, _)| n.clone())
+                            .collect();
+                        for name in to_update {
+                            self.model_states.insert(name.clone(), crate::models::ModelState::Loaded { port, pid });
+                            self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner()).push(name);
+                        }
+                    }
+                    
+                    self.set_redraw();
+                }
+            }
+            return;
+        }
+        
+        if let Some(handle) = &self.server.server_handle {
+            let host = handle.host.clone();
+            let port = handle.port;
+            let (tx, rx) = tokio::sync::mpsc::channel(1);
+            self.loading.loading_completion_rx = Some(rx);
+            
+            let handle = tokio::spawn(async move {
+                let client = reqwest::Client::new();
+                let url = format!("http://{}:{}/health", host, port);
+                
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    match client.get(&url).send().await {
+                        Ok(resp) if resp.status().is_success() => {
+                            if let Ok(json) = resp.json::<serde_json::Value>().await {
+                                let status_ok = json.get("status").and_then(|v| v.as_str()) == Some("ok");
+                                let slots_ready = json.get("slots").and_then(|v| v.as_array()).map(|a| !a.is_empty()).unwrap_or(false);
+                                
+                                if slots_ready || status_ok {
+                                    let _ = tx.send(()).await;
+                                    return;
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            });
+            self.loading.health_poll_handle = Some(handle);
+        }
+    }
+
     pub async fn start_pending_spawn(&mut self) {
         if let Some((model_opt, settings)) = self.pending.pending_spawn.take() {
             let (tx, rx) = tokio::sync::mpsc::channel(100);
             self.server.server_log_rx = Some(rx);
+            let (exit_tx, exit_rx) = tokio::sync::mpsc::channel(1);
+            self.server.server_exit_tx = Some(exit_tx.clone());
+            self.server.server_exit_rx = Some(exit_rx);
             let config_clone = self.config.clone();
             let model_clone = model_opt.clone();
             let settings_clone = settings.clone();
@@ -475,8 +501,9 @@ impl App {
                 self.bench_tune.bench_tune_rx = Some(rx_tune);
             } else {
                 let settings_for_result = settings_clone.clone();
+                let exit_tx_clone = exit_tx.clone();
                 let handle = tokio::spawn(async move {
-                    crate::backend::server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone, download_tx_clone, server_mode_clone, router_max_models_clone).await
+                    crate::backend::server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone, download_tx_clone, server_mode_clone, router_max_models_clone, exit_tx_clone).await
                         .map(|(handle, cmd)| (display_name, handle, cmd, settings_for_result))
                 });
                 self.server.spawn_task_handle = Some(handle);
@@ -518,9 +545,9 @@ impl App {
                         self.server.api_proxy_handle = Some(handle);
                         self.add_log(format!("API proxy started on port {}", port), crate::config::LogLevel::Info);
                     }
-                    self.loading.loading_phases = std::iter::once(super::types::LoadingPhase::Complete).collect();
-                    self.loading.last_active_phase = Some(super::types::LoadingPhase::Complete);
-                    self.server.spawned_model_state = Some("loaded".to_string());
+                    self.loading.loading_phases = std::iter::once(super::types::LoadingPhase::ServerListening).collect();
+                    self.loading.last_active_phase = Some(super::types::LoadingPhase::ServerListening);
+                    self.server.spawned_model_state = Some("loading".to_string());
                     self.loading.progress_target = 1.0;
                     let (metrics_tx, metrics_rx) = tokio::sync::mpsc::channel(10);
                     self.server.metrics_rx = Some(metrics_rx);
@@ -594,9 +621,15 @@ impl App {
                 } else {
                     true
                 };
-                m.ctx_used = model_metrics.ctx_used;
-                m.ctx_max = model_metrics.ctx_max;
-                m.tps = model_metrics.tps;
+                if model_metrics.ctx_used > 0 {
+                    m.ctx_used = model_metrics.ctx_used;
+                }
+                if model_metrics.ctx_max > 0 {
+                    m.ctx_max = model_metrics.ctx_max;
+                }
+                if model_metrics.tps > 0.0 {
+                    m.tps = model_metrics.tps;
+                }
                 if should_use_model_vram {
                     m.gpu_mem_used = model_metrics.gpu_mem_used;
                 }
@@ -908,12 +941,16 @@ impl App {
             if self.is_model_loaded(&model.name) {
                 Some(model.name.clone())
             } else {
-                None
+                // Fallback to the first actually loaded model
+                let lock = self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
+                lock.first().cloned()
             }
         } else {
-            None
+            // No selection, fallback to the first actually loaded model
+            let lock = self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
+            lock.first().cloned()
         };
-        let mut lock = self.server.metrics_model_name.lock().unwrap();
+        let mut lock = self.server.metrics_model_name.lock().unwrap_or_else(|e| e.into_inner());
         *lock = active_loaded_model;
     }
 

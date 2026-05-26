@@ -64,6 +64,8 @@ pub struct ServerState {
     pub spawned_model_name: Option<String>,
     pub spawned_model_state: Option<String>,
     pub spawned_context_length: u32,
+    pub server_exit_rx: Option<tokio::sync::mpsc::Receiver<()>>,
+    pub server_exit_tx: Option<tokio::sync::mpsc::Sender<()>>,
 }
 
 pub struct BenchTuneState {
@@ -105,6 +107,8 @@ pub struct LoadingState {
     pub model_n_kv_head: u32,
     pub vram_estimate: u64,
     pub last_metadata_parse: (PathBuf, std::time::SystemTime),
+    pub health_poll_handle: Option<tokio::task::JoinHandle<()>>,
+    pub loading_completion_rx: Option<tokio::sync::mpsc::Receiver<()>>,
 }
 
 pub struct PendingOperations {
