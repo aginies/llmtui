@@ -23,6 +23,9 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             name: llm-manager-linux-aarch64
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            name: llm-manager-windows-x86_64
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -52,6 +55,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
+      - name: Install mingw cross-compiler (Windows target)
+        if: contains(matrix.target, 'windows')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
+
       - name: Build release
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
@@ -60,18 +69,30 @@ jobs:
           cargo build --release --target ${{ matrix.target }}
           cp target/${{ matrix.target }}/release/llm-manager ${{ matrix.name }}
 
-      - name: Create tarball
+      - name: Create tarball (Linux)
+        if: runner.os == 'Linux'
         run: |
           tar -czf ${{ matrix.name }}-v${{ steps.version.outputs.version }}.tar.gz ${{ matrix.name }}
-
-      - name: Generate SHA256
-        run: |
           sha256sum ${{ matrix.name }}-v${{ steps.version.outputs.version }}.tar.gz > ${{ matrix.name }}-v${{ steps.version.outputs.version }}.tar.gz.sha256
 
-      - name: Upload to release
+      - name: Create zip (Windows)
+        if: runner.os == 'Linux' && contains(matrix.name, 'windows')
+        run: |
+          zip ${{ matrix.name }}-${{ steps.version.outputs.version }}.zip ${{ matrix.name }}
+          sha256sum ${{ matrix.name }}-${{ steps.version.outputs.version }}.zip > ${{ matrix.name }}-${{ steps.version.outputs.version }}.zip.sha256
+
+      - name: Upload to release (Linux)
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           files: |
             ${{ matrix.name }}-v${{ steps.version.outputs.version }}.tar.gz
             ${{ matrix.name }}-v${{ steps.version.outputs.version }}.tar.gz.sha256
+
+      - name: Upload to release (Windows)
+        if: github.event_name == 'push' && contains(matrix.name, 'windows')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.name }}-${{ steps.version.outputs.version }}.zip
+            ${{ matrix.name }}-${{ steps.version.outputs.version }}.zip.sha256
