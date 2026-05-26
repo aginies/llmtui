@@ -599,8 +599,12 @@ pub async fn resolve_backend_binary(
             .send()
             .await?
             .error_for_status()?;
-        let bytes = resp.bytes().await?;
-        tokio::fs::write(&tmp_path, &bytes).await?;
+        let mut stream = resp.bytes_stream();
+        let mut file = tokio::fs::File::create(&tmp_path).await?;
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            file.write_all(&chunk).await?;
+        }
     }
 
     // Extract the archive to a temp directory, then pull out the binary and shared libs
