@@ -29,19 +29,23 @@ To set up your development environment:
     - `./build.sh check`: Run `cargo check`.
     - `./build.sh format`: Format code using `cargo fmt`.
     - `./build.sh clippy`: Run `cargo clippy`.
-    - `./build.sh test`: Run all 232 tests (228 integration + 4 unit). All tests must pass.
+    - `./build.sh test`: Run all 413 tests. All tests must pass.
     - `./build.sh build`: Build a debug binary.
     - `./build.sh run`: Build and run the TUI.
 
 ### Testing
 
-The project includes a comprehensive test suite with **232 tests** (228 integration + 4 unit) covering domain types, configuration, app state, and benchmark tuning. All tests must pass before submitting a PR. CI runs `cargo build` and `cargo test` on every PR and push to main.
+The project includes a comprehensive test suite with **413 tests** covering domain types, configuration, app state, benchmark tuning, event handling, rendering, backend API, and server management. All tests must pass before submitting a PR. CI runs `cargo build` and `cargo test` on every PR and push to main.
 
 Tests are organized in the `tests/` directory:
 - `tests/models_tests.rs` — 78 tests (domain types, VRAM estimation, enums)
 - `tests/config_tests.rs` — 60 tests (defaults, validation, overrides)
 - `tests/app_tests.rs` — 40 tests (App state, filtering, panels)
 - `tests/benchmark_tests.rs` — 50 tests (config, parameter generation)
+- `tests/event_tests.rs` — 106 tests (keyboard event handling, key presses)
+- `tests/hub_tests.rs` — 19 tests (HuggingFace API, binary management, archive extraction)
+- `tests/render_tests.rs` — 38 tests (TUI rendering, layout, overlays)
+- `tests/server_tests.rs` — 22 tests (command building, server management)
 
 ```bash
 ./build.sh test       # Run all tests (verbose, all features)
@@ -52,7 +56,7 @@ cargo test            # Alternative: run tests directly
 
 - **Formatting:** Always run `./build.sh format` before committing.
 - **Linting:** Ensure `./build.sh clippy` passes without warnings.
-- **Testing:** Add tests for new features or bug fixes. All 232 tests must pass before submitting a PR. CI runs `cargo build` and `cargo test` on every PR.
+- **Testing:** Add tests for new features or bug fixes. All 413 tests must pass before submitting a PR. CI runs `cargo build` and `cargo test` on every PR.
 - **Commit Messages:** Use clear, descriptive commit messages.
 
 ## AI Assistance
