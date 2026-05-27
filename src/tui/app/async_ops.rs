@@ -554,10 +554,11 @@ impl App {
                         let model_name = server_display_name.clone();
                         let server_port = self.server.server_handle.as_ref().map(|h| h.port).unwrap_or(8080);
                         let pid = self.server.server_handle.as_ref().map(|h| h.pid).unwrap_or(0);
-                        let (_, shutdown_rx) = tokio::sync::watch::channel(false);
+                        let (api_shutdown_tx, api_shutdown_rx) = tokio::sync::watch::channel(false);
+                        self.server.api_shutdown_tx = Some(api_shutdown_tx);
                         let handle = tokio::spawn(async move {
                             let _ = crate::serve_api::start_api_server(
-                                addr, None, server_port, model_name, pid, shutdown_rx
+                                addr, None, server_port, model_name, pid, api_shutdown_rx
                             ).await;
                         });
                         self.server.api_proxy_handle = Some(handle);
@@ -766,9 +767,9 @@ impl App {
                         if let Err(e) = crate::backend::server::load_model(&host, port, &model_name_clone, model_path_clone.as_deref()).await {
                             let err_msg = format!("ERROR: Failed to load model {}: {}", model_name_err, e);
                             if let Some(tx) = log_tx {
-                                let _ = tx.send(err_msg).await;
+                                let _ = tx.send(err_msg.clone()).await;
                             } else {
-                                eprintln!("{}", err_msg);
+                                tracing::error!("{}", err_msg);
                             }
                         }
                     });
@@ -860,6 +861,9 @@ impl App {
                         task.abort();
                     }
                     self.server.sync_rx = None;
+                    if let Some(tx) = self.server.api_shutdown_tx.take() {
+                        let _ = tx.send(true);
+                    }
                     if let Some(proxy) = self.server.api_proxy_handle.take() {
                         proxy.abort();
                     }

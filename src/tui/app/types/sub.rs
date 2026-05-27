@@ -66,6 +66,7 @@ pub struct ServerState {
     pub spawned_context_length: u32,
     pub server_exit_rx: Option<tokio::sync::mpsc::Receiver<()>>,
     pub server_exit_tx: Option<tokio::sync::mpsc::Sender<()>>,
+    pub api_shutdown_tx: Option<tokio::sync::watch::Sender<bool>>,
 }
 
 pub struct BenchTuneState {

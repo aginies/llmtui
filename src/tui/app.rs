@@ -97,6 +97,7 @@ impl App {
                 spawned_context_length: 0,
                 server_exit_rx: None,
                 server_exit_tx: None,
+                api_shutdown_tx: None,
             },
             bench_tune: BenchTuneState {
                 bench_tune_progress: None,
