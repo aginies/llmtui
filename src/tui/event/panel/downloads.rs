@@ -6,11 +6,9 @@ pub fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
             app.download.download_scroll_state.select_previous();
-            app.set_redraw();
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.download.download_scroll_state.select_next();
-            app.set_redraw();
         }
         KeyCode::Char('c')
             if key.modifiers.contains(crossterm::event::KeyModifiers::ALT) =>
@@ -43,7 +41,6 @@ pub fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
                          }
                          app.add_log(format!("Cancelled download of {}...", name), crate::config::LogLevel::Info);
                      }
-                app.set_redraw();
             }
         _ => {}
     }

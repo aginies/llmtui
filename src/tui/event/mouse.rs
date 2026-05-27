@@ -19,12 +19,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     app.ui.active_panel = ActivePanel::Log;
-                    app.set_redraw();
                 }
                 MouseEventKind::ScrollUp => {
                     app.log.log_scroll_offset = app.log.log_scroll_offset.saturating_sub(1);
                     app.log.log_follow = false;
-                    app.set_redraw();
                 }
                 MouseEventKind::ScrollDown => {
                     app.log.log_scroll_offset = app.log.log_scroll_offset + 1;
@@ -33,7 +31,6 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                     } else {
                         app.log.log_follow = false;
                     }
-                    app.set_redraw();
                 }
                 _ => {}
             }
@@ -48,11 +45,9 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                 let dx = pos.x as i16 - rs.start_x as i16;
                 let delta = (dx * 100 / rs.container.width as i16).max(-5).min(5);
                 app.ui.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
-                app.set_redraw();
             }
             MouseEventKind::Up(MouseButton::Left) => {
                 app.ui.resize_state = None;
-                app.set_redraw();
             }
             _ => {}
         }
@@ -86,15 +81,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                 match mouse.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         app.ui.active_panel = ActivePanel::Downloads;
-                        app.set_redraw();
                     }
                     MouseEventKind::ScrollUp => {
                         app.download.download_scroll_state.select_previous();
-                        app.set_redraw();
                     }
                     MouseEventKind::ScrollDown => {
                         app.download.download_scroll_state.select_next();
-                        app.set_redraw();
                     }
                     _ => {}
                 }
@@ -105,13 +97,11 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         match mouse.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 app.ui.active_panel = ActivePanel::Log;
-                app.set_redraw();
             }
             MouseEventKind::ScrollUp => {
                 app.log.log_scroll_offset = app.log.log_scroll_offset.saturating_sub(1);
                 app.log.log_follow = false;
                 app.ui.active_panel = ActivePanel::Log;
-                app.set_redraw();
             }
             MouseEventKind::ScrollDown => {
                 app.log.log_scroll_offset = app.log.log_scroll_offset + 1;
@@ -121,7 +111,6 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                     app.log.log_follow = false;
                 }
                 app.ui.active_panel = ActivePanel::Log;
-                app.set_redraw();
             }
             _ => {}
         }
@@ -155,27 +144,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                         start_pct: app.ui.left_pct,
                         container: chunks[1],
                     });
-                    app.set_redraw();
                 }
                 MouseEventKind::Drag(_) => {
                     if let Some(ref rs) = app.ui.resize_state {
                         let dx = pos.x as i16 - rs.start_x as i16;
                         let delta = (dx * 100 / rs.container.width as i16).max(-5).min(5);
                         app.ui.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
-                        app.set_redraw();
                     }
                 }
                 MouseEventKind::Up(MouseButton::Left) => {
                     app.ui.resize_state = None;
-                    app.set_redraw();
                 }
                 MouseEventKind::ScrollUp => {
                     app.ui.left_pct = app.ui.left_pct.saturating_sub(1).max(20);
-                    app.set_redraw();
                 }
                 MouseEventKind::ScrollDown => {
                     app.ui.left_pct = app.ui.left_pct.saturating_add(1).min(80);
-                    app.set_redraw();
                 }
                 _ => {}
             }
@@ -198,21 +182,17 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                         _ if !server_running => ActivePanel::ServerSettings,
                         _ => ActivePanel::LlmSettings,
                     };
-                    app.set_redraw();
                 }
                 MouseEventKind::ScrollUp => {
                     match app.ui.active_panel {
                         ActivePanel::LlmSettings => {
                             app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_sub(1);
-                            app.set_redraw();
                         }
                         ActivePanel::Profiles => {
                             app.picker.profiles_scroll_offset = app.picker.profiles_scroll_offset.saturating_sub(1);
-                            app.set_redraw();
                         }
                         ActivePanel::SystemPromptPresets => {
                             app.picker.system_prompt_presets_scroll_offset = app.picker.system_prompt_presets_scroll_offset.saturating_sub(1);
-                            app.set_redraw();
                         }
                         _ => {}
                     }
@@ -221,15 +201,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                     match app.ui.active_panel {
                         ActivePanel::LlmSettings => {
                             app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_add(1);
-                            app.set_redraw();
                         }
                         ActivePanel::Profiles => {
                             app.picker.profiles_scroll_offset = app.picker.profiles_scroll_offset.saturating_add(1);
-                            app.set_redraw();
                         }
                         ActivePanel::SystemPromptPresets => {
                             app.picker.system_prompt_presets_scroll_offset = app.picker.system_prompt_presets_scroll_offset.saturating_add(1);
-                            app.set_redraw();
                         }
                         _ => {}
                     }
@@ -253,7 +230,6 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
             if left_chunks[0].contains(pos)
                 && let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
                     app.ui.active_panel = ActivePanel::Models;
-                    app.set_redraw();
                 }
         }
     }
@@ -272,15 +248,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     app.ui.active_panel = ActivePanel::Downloads;
-                    app.set_redraw();
                 }
                 MouseEventKind::ScrollUp => {
                     app.download.download_scroll_state.select_previous();
-                    app.set_redraw();
                 }
                 MouseEventKind::ScrollDown => {
                     app.download.download_scroll_state.select_next();
-                    app.set_redraw();
                 }
                 _ => {}
             }

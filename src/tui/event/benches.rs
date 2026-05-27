@@ -133,5 +133,4 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
             _ => {}
         }
     }
-    app.set_redraw();
 }

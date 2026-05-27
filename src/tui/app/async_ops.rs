@@ -21,7 +21,6 @@ impl App {
                     ),
                     crate::config::LogLevel::Warning,
                 );
-                self.set_redraw();
                 return;
             }
             let model_id_clone = model_id.clone();
@@ -56,7 +55,6 @@ impl App {
             self.download.downloading = true;
             self.cancelled = Some(cancelled);
             self.download.download_scroll_state.select(Some(0));
-            self.set_redraw();
         }
     }
 
@@ -87,7 +85,6 @@ impl App {
             }
         }
         self.add_log(format!("Model deleted: {:?}", path.file_name().unwrap_or_default()), crate::config::LogLevel::Info);
-        self.set_redraw();
     }
 
     pub fn start_pending_backend_deletion(&mut self, backend: crate::models::Backend, tag: String) {
@@ -106,7 +103,6 @@ impl App {
                 }
             }
         }
-        self.set_redraw();
     }
 
     pub async fn poll_backend_resolution(&mut self) {
@@ -125,7 +121,6 @@ impl App {
                         }
                     }
                     self.pending.backend_resolving = false;
-                    self.set_redraw();
                 }
             }
         }
@@ -165,7 +160,6 @@ impl App {
             self.add_log(log, crate::config::LogLevel::Info);
         }
         if redraw {
-            self.set_redraw();
         }
     }
 
@@ -173,7 +167,6 @@ impl App {
         if let Some(mut rx) = self.bench_tune.bench_tune_rx.take() {
             while let Ok(status) = rx.try_recv() {
                 self.bench_tune.bench_tune_progress = crate::models::BenchTuneProgress::from_status(&status);
-                self.set_redraw();
             }
             self.bench_tune.bench_tune_rx = Some(rx);
         }
@@ -224,7 +217,6 @@ impl App {
             {
                 self.download.download_scroll_state.select(Some(self.download.download_progress.len() - 1));
             }
-            self.set_redraw();
         }
     }
 
@@ -248,7 +240,6 @@ impl App {
             for line in server_logs {
                 self.add_log(line, crate::config::LogLevel::Info);
             }
-            self.set_redraw();
         }
     }
 
@@ -314,7 +305,6 @@ impl App {
             }
         }
         if sync_updated {
-            self.set_redraw();
         }
     }
 
@@ -352,7 +342,6 @@ impl App {
                 received_metrics = true;
             }
             if received_metrics {
-                self.set_redraw();
             }
         }
     }
@@ -400,7 +389,6 @@ impl App {
                     
                     self.metrics.ctx_used = 0;
                     
-                    self.set_redraw();
                 }
             }
             return;
@@ -515,7 +503,6 @@ impl App {
                 });
                 self.server.bench_tune_task_handle = Some(handle);
                 self.server.spawn_log_tx = Some(tx);
-                self.set_redraw();
                 self.bench_tune.bench_tune_rx = Some(rx_tune);
             } else {
                 let settings_for_result = settings_clone.clone();
@@ -526,7 +513,6 @@ impl App {
                 });
                 self.server.spawn_task_handle = Some(handle);
                 self.server.spawn_log_tx = Some(tx);
-                self.set_redraw();
             }
         }
     }
@@ -600,7 +586,6 @@ impl App {
                     self.add_log(format!("ERROR: Spawn task panicked: {}", e), crate::config::LogLevel::Error);
                 }
             }
-            self.set_redraw();
         }
     }
 
@@ -702,14 +687,12 @@ impl App {
                                 let model = match self.selected_model() {
                                     Some(m) => m,
                                     None => {
-                                        self.set_redraw();
                                         return;
                                     }
                                 };
                                 let handle = match &self.server.server_handle {
                                     Some(h) => h,
                                     None => {
-                                        self.set_redraw();
                                         return;
                                     }
                                 };
@@ -742,7 +725,6 @@ impl App {
                     self.bench_tune.bench_tune_running = false;
                 }
             }
-            self.set_redraw();
         }
     }
 
@@ -886,7 +868,6 @@ impl App {
                     self.add_log(format!("Failed to stop server: {}", e), crate::config::LogLevel::Error);
                 }
             }
-            self.set_redraw();
         }
     }
 
@@ -960,7 +941,6 @@ impl App {
                 }
             }
             self.search.search_loading = false;
-            self.set_redraw();
         }
     }
 

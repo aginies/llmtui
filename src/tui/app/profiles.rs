@@ -7,7 +7,6 @@ impl App {
         self.resolve_system_prompt();
         self.settings_state.settings_render_cache = None;
         self.add_log(format!("Applied profile: {}", profile.name), crate::config::LogLevel::Info);
-        self.set_redraw();
     }
 
     /// Resolve system_prompt from the preset name.
@@ -15,7 +14,6 @@ impl App {
         if let Some(content) = self.config.get_preset_content(&self.settings.system_prompt_preset_name) {
             self.settings.system_prompt = content;
         }
-        self.set_redraw();
     }
 
     /// Save the current settings as a new profile.
@@ -31,7 +29,6 @@ impl App {
         } else {
             self.add_log(format!("Saved profile: {}", name), crate::config::LogLevel::Info);
         }
-        self.set_redraw();
     }
 
     /// Save current settings as an override for the selected model.
@@ -51,7 +48,6 @@ impl App {
             self.add_log("No model selected to save settings for", crate::config::LogLevel::Warning);
         }
         self.settings_state.settings_render_cache = None;
-        self.set_redraw();
     }
 
     /// Check if any LLM settings have been modified since last save.

@@ -40,15 +40,12 @@ pub fn handle_readme_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if let ModelsMode::Files { .. } = &app.models_mode {
                 app.ui.active_panel = crate::tui::app::ActivePanel::Models;
             }
-            app.set_redraw();
         }
         KeyCode::Up | KeyCode::Char('k') => {
             app.picker.readme_scroll_offset = app.picker.readme_scroll_offset.saturating_sub(1);
-            app.set_redraw();
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.picker.readme_scroll_offset = app.picker.readme_scroll_offset.saturating_add(1);
-            app.set_redraw();
         }
         _ => {}
     }

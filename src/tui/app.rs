@@ -168,7 +168,6 @@ impl App {
                 panel_help: false,
                 panel_help_offset: 0,
                 last_error_message: None,
-                needs_redraw: true,
                 list_state: Default::default(),
                 resize_state: None,
                 left_pct: 55,

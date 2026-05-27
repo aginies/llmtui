@@ -19,7 +19,6 @@ impl App {
         self.handle_server_exit();
         self.trim_log();
         self.log.log_entries.push_back(crate::config::LogEntry::new(msg, level));
-        self.ui.needs_redraw = true;
     }
 
     fn log_message(&mut self, msg: &str, level: LogLevel) {
@@ -286,7 +285,6 @@ impl App {
                 self.loading.last_active_phase = None;
                 self.loading.loading_progress = 0.0;
                 self.loading.load_progress = Default::default();
-                self.ui.needs_redraw = true;
 
                 for state in self.model_states.values_mut() {
                     *state = crate::models::ModelState::Available;
@@ -299,11 +297,6 @@ impl App {
         if self.log.log_entries.len() >= 500 {
             self.log.log_entries.pop_front();
         }
-    }
-
-    /// Mark the app as needing a redraw in the next main loop iteration.
-    pub fn set_redraw(&mut self) {
-        self.ui.needs_redraw = true;
     }
 
     pub fn is_model_loaded(&self, display_name: &str) -> bool {
@@ -341,7 +334,6 @@ impl App {
             });
             self.model_states.insert(name.clone(), ModelState::Failed { error });
         }
-        self.set_redraw();
     }
 
     pub fn tick_spinner(&mut self) {
@@ -352,7 +344,6 @@ impl App {
             {
                 self.loading.loading_spinner = (self.loading.loading_spinner + 1) % 4;
                 self.loading.last_spinner_time = Some(tokio::time::Instant::now());
-                self.set_redraw();
             }
         }
     }

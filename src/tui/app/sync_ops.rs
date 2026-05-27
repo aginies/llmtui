@@ -3,10 +3,7 @@ use std::path::PathBuf;
 
 impl App {
     pub fn render<T: ratatui::backend::Backend>(&mut self, terminal: &mut ratatui::Terminal<T>) -> std::io::Result<()> {
-        if self.ui.needs_redraw {
-            terminal.draw(|frame| crate::tui::render::render(frame, self))?;
-            self.ui.needs_redraw = false;
-        }
+        terminal.draw(|frame| crate::tui::render::render(frame, self))?;
         Ok(())
     }
 
@@ -105,7 +102,6 @@ impl App {
             self.loading.loading_phases.clear();
             self.loading.last_active_phase = None;
         }
-        self.set_redraw();
     }
 
     /// Return the current number of search results.

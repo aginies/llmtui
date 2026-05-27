@@ -13,7 +13,6 @@ impl App {
                 model_mib, &self.settings, self.loading.model_total_layers, hidden,
                 n_head, n_kv_head, gpu_mem_total_mib
             );
-            self.set_redraw();
         }
     }
 
@@ -217,7 +216,6 @@ impl App {
                                 vocab_size,
                                 draft_tokens: self.settings.draft_tokens,
                             });
-                        self.set_redraw();
                     }
                     Err(e) => {
                         self.add_log(format!("Failed to decode GGUF {}: {}", model.path.display(), e), crate::config::LogLevel::Error);

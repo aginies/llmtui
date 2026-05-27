@@ -43,7 +43,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             auth_key: app.settings.ws_server_auth_key.clone().unwrap_or_default(),
             ws_enabled: app.settings.ws_server_enabled,
         };
-        app.set_redraw();
         return;
     }
 
@@ -98,7 +97,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Skip all if in About overlay
     if let GlobalMode::About = &app.ui.global_mode {
         app.ui.global_mode = GlobalMode::Normal;
-        app.set_redraw();
         return;
     }
 
@@ -119,42 +117,36 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                     *editing = false;
                     super::helpers::sync_global_settings(app);
-                    app.set_redraw();
                     return;
                 }
                 if *selected_field == -1 {
                     *enabled = !*enabled;
                     app.settings.ws_server_enabled = *enabled;
                     super::helpers::sync_global_settings(app);
-                    app.set_redraw();
                     return;
                 }
                 if *selected_field == 0i32 {
                     edit_buffer.clone_from(port);
                     *editing = true;
                     *edit_cursor_pos = edit_buffer.chars().count();
-                    app.set_redraw();
                     return;
                 }
                 if *selected_field == 1i32 {
                     edit_buffer.clone_from(auth_key);
                     *editing = true;
                     *edit_cursor_pos = edit_buffer.chars().count();
-                    app.set_redraw();
                     return;
                 }
             }
             KeyCode::Up | KeyCode::Char('k') => {
                 if !*editing {
                     *selected_field = if *selected_field <= -1 { 1 } else { *selected_field - 1 };
-                    app.set_redraw();
                 }
                 return;
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 if !*editing {
                     *selected_field = if *selected_field >= 1 { -1 } else { *selected_field + 1 };
-                    app.set_redraw();
                 }
                 return;
             }
@@ -165,14 +157,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 } else {
                     app.ui.global_mode = GlobalMode::Normal;
                 }
-                app.set_redraw();
                 return;
             }
             KeyCode::Char(c) if *editing => {
                 let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
                 edit_buffer.insert_str(byte_pos, &c.to_string());
                 *edit_cursor_pos += c.len_utf8();
-                app.set_redraw();
             }
             KeyCode::Backspace if *editing => {
                 if *edit_cursor_pos > 0 {
@@ -181,29 +171,24 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         let prev_char_len = edit_buffer[..byte_pos].chars().next_back().unwrap().len_utf8();
                         edit_buffer.drain(byte_pos - prev_char_len..byte_pos);
                         *edit_cursor_pos -= prev_char_len;
-                        app.set_redraw();
                     }
                 }
             }
             KeyCode::Left if *editing => {
                 if *edit_cursor_pos > 0 {
                     *edit_cursor_pos -= 1;
-                    app.set_redraw();
                 }
             }
             KeyCode::Right if *editing => {
                 if *edit_cursor_pos < edit_buffer.chars().count() {
                     *edit_cursor_pos += 1;
-                    app.set_redraw();
                 }
             }
             KeyCode::Home if *editing => {
                 *edit_cursor_pos = 0;
-                app.set_redraw();
             }
             KeyCode::End if *editing => {
                 *edit_cursor_pos = edit_buffer.chars().count();
-                app.set_redraw();
             }
             _ => {}
         }
@@ -214,7 +199,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         match key.code {
             KeyCode::Esc => {
                 app.ui.global_mode = GlobalMode::Normal;
-                app.set_redraw();
                 return;
             }
             KeyCode::Enter => {
@@ -233,7 +217,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.add_log("Failed to create clipboard", crate::config::LogLevel::Error);
                 }
                 app.ui.global_mode = GlobalMode::Normal;
-                app.set_redraw();
                 return;
             }
             _ => {}
@@ -256,7 +239,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.edit.tags_edit_buffer = String::new();
             app.edit.tags_selected_idx = None;
             app.settings_state.settings_render_cache = None;
-            app.set_redraw();
             return;
         }
 
@@ -265,27 +247,22 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => {
                 *selected = selected.saturating_sub(1);
-                app.set_redraw();
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 *selected = (*selected + 1).min(entries.len().saturating_sub(1));
-                app.set_redraw();
             }
             KeyCode::Enter => {
                 let (ip, _) = entries[*selected].clone();
                 app.settings.host = ip;
                 app.ui.global_mode = GlobalMode::Normal;
                 sync_global_settings(app);
-                app.set_redraw();
             }
             KeyCode::Char('d') => {
                 *entries = App::fetch_host_picker_entries();
                 *selected = 0;
-                app.set_redraw();
             }
             KeyCode::Esc => {
                 app.ui.global_mode = GlobalMode::Normal;
-                app.set_redraw();
             }
             KeyCode::Char('h')
                 if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
@@ -302,11 +279,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => {
                 *selected = selected.saturating_sub(1);
-                app.set_redraw();
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 *selected = (*selected + 1).min(entries.len().saturating_sub(1));
-                app.set_redraw();
             }
             KeyCode::Enter => {
                 if *selected < entries.len() {
@@ -319,11 +294,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 }
                 app.ui.global_mode = GlobalMode::Normal;
-                app.set_redraw();
             }
             KeyCode::Esc => {
                 app.ui.global_mode = GlobalMode::Normal;
-                app.set_redraw();
             }
             _ => {}
         }
@@ -388,7 +361,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
                         app.add_log(format!("Resumed download of {}", filename), crate::config::LogLevel::Info);
                     }
-                    app.set_redraw();
                     return;
                 }
         }
@@ -401,7 +373,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     selected: false,
                     kind: ConfirmationKind::Exit,
                 };
-                app.set_redraw();
             } else {
                 app.running = false;
             }
@@ -409,7 +380,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Esc if app.log.log_expanded && !app.search.filtering_local => {
             app.log.log_expanded = false;
-            app.set_redraw();
             return;
         }
         KeyCode::Tab => {
@@ -429,7 +399,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if app.ui.panel_help {
                 app.ui.panel_help_offset = 0;
             }
-            app.set_redraw();
             return;
         }
         KeyCode::F(1) => {
@@ -474,14 +443,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) =>
         {
             app.ui.left_pct = app.ui.left_pct.saturating_sub(1).max(20);
-            app.set_redraw();
             return;
         }
         KeyCode::Right
             if key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) =>
         {
             app.ui.left_pct = app.ui.left_pct.saturating_add(1).min(80);
-            app.set_redraw();
             return;
         }
         KeyCode::F(7)
@@ -489,7 +456,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         {
             app.ui.panel_visibility |= 1 << 0;
             app.ui.active_panel = ActivePanel::Models;
-            app.set_redraw();
             return;
         }
         KeyCode::F(8)
@@ -499,7 +465,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.ui.panel_visibility |= 1 << 1;
                 app.ui.active_panel = ActivePanel::ServerSettings;
             }
-            app.set_redraw();
             return;
         }
         KeyCode::F(9)
@@ -507,7 +472,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         {
             app.ui.panel_visibility |= 1 << 3;
             app.ui.active_panel = ActivePanel::LlmSettings;
-            app.set_redraw();
             return;
         }
         KeyCode::F(10)
@@ -515,13 +479,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         {
             app.ui.panel_visibility = 0b111111;
             app.log.log_expanded = false;
-            app.set_redraw();
             return;
         }
         KeyCode::F(10) => {
             app.ui.panel_visibility = 0b111111;
             app.log.log_expanded = false;
-            app.set_redraw();
             return;
         }
         KeyCode::Char('k')
@@ -532,7 +494,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 let port = handle.port;
                 app.pending.pending_kill = Some(handle);
                 app.add_log(format!("Killing llama-server on port {}", port), crate::config::LogLevel::Info);
-                app.set_redraw();
             } else {
                 app.add_log("No server is running", crate::config::LogLevel::Warning);
             }
@@ -541,14 +502,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::F(9) => {
             app.ui.panel_visibility = 0b111111;
             app.log.log_expanded = false;
-            app.set_redraw();
             return;
         }
         KeyCode::Char('l')
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
             app.ui.active_panel = ActivePanel::Log;
-            app.set_redraw();
             return;
         }
         KeyCode::Char('k')
@@ -565,7 +524,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.router_max_models,
             );
             app.ui.global_mode = GlobalMode::CmdLine { cmd_line };
-            app.set_redraw();
             return;
         }
         KeyCode::Char('/') => {
@@ -587,7 +545,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Char('A') => {
             app.ui.global_mode = GlobalMode::About;
-            app.set_redraw();
             return;
         }
         _ => {}
@@ -624,17 +581,14 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         match key.code {
             KeyCode::Esc => {
                 app.ui.panel_help = false;
-                app.set_redraw();
                 return;
             }
             KeyCode::Char('j') | KeyCode::Down => {
                 app.ui.panel_help_offset = app.ui.panel_help_offset.saturating_add(1);
-                app.set_redraw();
                 return;
             }
             KeyCode::Char('k') | KeyCode::Up => {
                 app.ui.panel_help_offset = app.ui.panel_help_offset.saturating_sub(1);
-                app.set_redraw();
                 return;
             }
             _ => {}
@@ -651,7 +605,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Global shortcuts
     if key.code == KeyCode::Char('s') && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
         app.save_model_settings();
-        app.set_redraw();
         return;
     }
 
@@ -679,7 +632,6 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         if matches!(name.as_str(), "General" | "Coder" | "Thinker" | "Mathematician") {
                             *confirm_delete = false;
                             app.add_log("Cannot delete built-in preset", crate::config::LogLevel::Error);
-                            app.set_redraw();
                             return;
                         } else {
                             entries.remove(*selected);
@@ -691,11 +643,9 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
                     }
                     *confirm_delete = false;
-                    app.set_redraw();
                 }
                 KeyCode::Char('n') | KeyCode::Esc => {
                     *confirm_delete = false;
-                    app.set_redraw();
                 }
                 _ => {}
             }
@@ -704,12 +654,10 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
         if *editing {
             match key.code {
-                KeyCode::Esc => { *editing = false; app.set_redraw(); }
                 KeyCode::Enter => {
                     let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
                     edit_buffer.insert_str(byte_pos, "\n");
                     *edit_cursor_pos += 1;
-                    app.set_redraw();
                 }
                 KeyCode::Char('s') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
                     let mut saved = false;
@@ -726,14 +674,12 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     let log_level = if saved { crate::config::LogLevel::Info } else { crate::config::LogLevel::Error };
                     *editing = false;
                     app.add_log(log_msg, log_level);
-                    app.set_redraw();
                 }
                 KeyCode::Char(c) => {
                     let char_pos = *edit_cursor_pos;
                     let byte_pos = edit_buffer.char_indices().nth(char_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
                     edit_buffer.insert_str(byte_pos, &c.to_string());
                     *edit_cursor_pos += 1;
-                    app.set_redraw();
                 }
                 KeyCode::Backspace => {
                     if *edit_cursor_pos > 0 {
@@ -742,25 +688,19 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         let char_len = edit_buffer[byte_pos..].chars().next().unwrap_or('\0').len_utf8();
                         edit_buffer.drain(byte_pos..byte_pos + char_len);
                         *edit_cursor_pos -= 1;
-                        app.set_redraw();
                     }
                 }
-                KeyCode::Left => { *edit_cursor_pos = edit_cursor_pos.saturating_sub(1); app.set_redraw(); }
-                KeyCode::Right => { *edit_cursor_pos = (*edit_cursor_pos + 1).min(edit_buffer.chars().count()); app.set_redraw(); }
                 _ => {}
             }
             return;
         }
 
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') => { *selected = selected.saturating_sub(1); app.set_redraw(); }
-            KeyCode::Down | KeyCode::Char('j') => { *selected = (*selected + 1).min(entries.len().saturating_sub(1)); app.set_redraw(); }
             KeyCode::Enter => {
                 let (name, _) = entries[*selected].clone();
                 app.settings.system_prompt_preset_name = name.clone();
                 app.resolve_system_prompt();
                 app.ui.global_mode = GlobalMode::Normal;
-                app.set_redraw();
             }
             KeyCode::Char('e') => {
                 *editing = true;
@@ -773,7 +713,6 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         *edit_buffer = String::new();
                     }
                 }
-                app.set_redraw();
             }
             KeyCode::Char('n') => {
                 let name = format!("Custom {}", app.config.system_prompt_presets.user_presets().len() + 1);
@@ -784,21 +723,17 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 *editing = true;
                 *edit_cursor_pos = 0;
                 *edit_buffer = String::new();
-                app.set_redraw();
             }
             KeyCode::Char('d') => {
                 if *selected < entries.len() {
                     let name = &entries[*selected].0;
                     if matches!(name.as_str(), "General" | "Coder" | "Thinker" | "Mathematician") {
                         app.add_log("Cannot delete built-in preset", crate::config::LogLevel::Error);
-                        app.set_redraw();
                         return;
                     }
                 }
                 *confirm_delete = true;
-                app.set_redraw();
             }
-            KeyCode::Esc => { app.ui.global_mode = GlobalMode::Normal; app.set_redraw(); }
             _ => {}
         }
     }
@@ -901,15 +836,12 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             _ => {}
         }
-        app.set_redraw();
     }
 }
 
 fn handle_backend_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if let GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') => { *selected = selected.saturating_sub(1); app.set_redraw(); }
-            KeyCode::Down | KeyCode::Char('j') => { *selected = (*selected + 1).min(entries.len().saturating_sub(1)); app.set_redraw(); }
             KeyCode::Enter => {
                 let (backend, tag) = entries[*selected].clone();
                 app.settings.backend = backend;
@@ -934,16 +866,13 @@ fn handle_backend_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 app.ui.global_mode = GlobalMode::Normal;
                 sync_global_settings(app);
-                app.set_redraw();
             }
             KeyCode::Char('d') => {
                 if let Some((backend, Some(tag))) = entries.get(*selected) {
                     app.pending.pending_backend_deletion = Some((*backend, tag.clone()));
                     app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::DeleteBackend };
-                    app.set_redraw();
                 }
             }
-            KeyCode::Esc => { app.ui.global_mode = GlobalMode::Normal; app.set_redraw(); }
             KeyCode::Char('h') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => { app.ui.global_mode = GlobalMode::Normal; }
             _ => {}
         }
@@ -953,15 +882,11 @@ fn handle_backend_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
 fn handle_max_concurrent_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if let GlobalMode::MaxConcurrentPicker { value } = &mut app.ui.global_mode {
         match key.code {
-            KeyCode::Char(c @ '0'..='9') => { if value.len() < 3 { value.push(c); } app.set_redraw(); }
-            KeyCode::Backspace | KeyCode::Left => { value.pop(); app.set_redraw(); }
             KeyCode::Enter => {
                 if let Ok(n) = value.parse::<u32>() { let n = n.clamp(1, 10); app.settings.max_concurrent_predictions = Some(n); sync_global_settings(app); app.update_vram_estimate(); }
                 app.ui.global_mode = GlobalMode::Normal;
                 app.settings_state.settings_render_cache = None;
-                app.set_redraw();
             }
-            KeyCode::Esc => { app.ui.global_mode = GlobalMode::Normal; app.set_redraw(); }
             _ => {}
         }
     }
@@ -972,7 +897,6 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Esc => {
             app.models_mode = ModelsMode::List;
             app.ui.panel_visibility |= (1 << 4) | (1 << 5);
-            app.set_redraw();
             return;
         }
         KeyCode::Enter => {
@@ -984,12 +908,10 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.search.pending_search_load = Some((query, 0));
             app.search.search_loading = true;
             app.search.search_table_state = TableState::default();
-            app.set_redraw();
             return;
         }
         KeyCode::Backspace => {
             if let ModelsMode::Search { query, .. } = &mut app.models_mode { query.pop(); }
-            app.set_redraw();
             return;
         }
         KeyCode::Char('L') => {
@@ -1024,7 +946,6 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 });
                 if !results.is_empty() { app.search.search_results_idx = Some(0); } else { app.search.search_results_idx = None; }
             }
-            app.set_redraw();
             return;
         }
         KeyCode::Char('B') => {
@@ -1035,7 +956,6 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if let ModelsMode::Search { page, .. } = &mut app.models_mode { *page -= 1; }
                 app.search.pending_search_load = Some((query, offset));
                 app.search.search_loading = true;
-                app.set_redraw();
                 return;
             }
             return;
@@ -1051,7 +971,6 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.add_log("Loading more results...", crate::config::LogLevel::Info);
                         app.search.pending_search_load = Some((query, offset));
                         app.search.search_loading = true;
-                        app.set_redraw();
                         return;
                     }
                     app.search.search_results_idx = Some(len.saturating_sub(1));
@@ -1075,7 +994,6 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Char(c) => {
             if let ModelsMode::Search { query, .. } = &mut app.models_mode { query.push(c); }
-            app.set_redraw();
             return;
         }
         KeyCode::Up => {
@@ -1084,7 +1002,6 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 None => { let len = if let ModelsMode::Search { results, .. } = &app.models_mode { results.len() } else { 0 }; if len > 0 { app.search.search_results_idx = Some(0); } }
                 _ => {}
             }
-            app.set_redraw();
             return;
         }
         _ => {}
@@ -1111,21 +1028,18 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.search.search_results_idx = current_idx;
                 if should_reset { app.search.search_results_idx = Some(0); }
             }
-            app.set_redraw();
             return;
         }
         KeyCode::Up | KeyCode::Char('k') => {
             if let ModelsMode::Files { files, selected_idx, .. } = &mut app.models_mode {
                 match *selected_idx { Some(idx) if idx > 0 => *selected_idx = Some(idx - 1), None if !files.is_empty() => *selected_idx = Some(0), _ => {} }
             }
-            app.set_redraw();
             return;
         }
         KeyCode::Down | KeyCode::Char('j') => {
             if let ModelsMode::Files { files, selected_idx, .. } = &mut app.models_mode {
                 match *selected_idx { Some(idx) if idx + 1 < files.len() => *selected_idx = Some(idx + 1), None if !files.is_empty() => *selected_idx = Some(0), _ => {} }
             }
-            app.set_redraw();
             return;
         }
         KeyCode::Enter => {
@@ -1158,20 +1072,12 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
 fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
-        KeyCode::Esc => { app.bench_tune.bench_tune_output_view = None; app.set_redraw(); return; }
-        KeyCode::Down | KeyCode::Char('j') => { app.bench_tune.bench_tune_output_scroll = app.bench_tune.bench_tune_output_scroll.saturating_add(1); app.set_redraw(); return; }
-        KeyCode::Up | KeyCode::Char('k') => { app.bench_tune.bench_tune_output_scroll = app.bench_tune.bench_tune_output_scroll.saturating_sub(1); app.set_redraw(); return; }
-        KeyCode::PageDown => { app.bench_tune.bench_tune_output_scroll = app.bench_tune.bench_tune_output_scroll.saturating_add(10); app.set_redraw(); return; }
-        KeyCode::PageUp => { app.bench_tune.bench_tune_output_scroll = app.bench_tune.bench_tune_output_scroll.saturating_sub(10); app.set_redraw(); return; }
-        KeyCode::Left | KeyCode::Char('h') => { app.bench_tune.bench_tune_output_h_scroll = app.bench_tune.bench_tune_output_h_scroll.saturating_sub(5); app.set_redraw(); return; }
-        KeyCode::Right | KeyCode::Char('l') => { app.bench_tune.bench_tune_output_h_scroll = app.bench_tune.bench_tune_output_h_scroll.saturating_add(5); app.set_redraw(); return; }
         KeyCode::Char('n') => {
             if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view {
                 if let Some(result) = app.bench_tune.bench_tune_results.get(result_idx) {
                     let max_iter_idx = result.outputs.len().saturating_sub(1);
                     if app.bench_tune.bench_tune_output_index < max_iter_idx { app.bench_tune.bench_tune_output_index += 1; app.bench_tune.bench_tune_output_scroll = 0; app.bench_tune.bench_tune_output_h_scroll = 0; }
                     else if result_idx < app.bench_tune.bench_tune_results.len().saturating_sub(1) { result_idx += 1; app.bench_tune.bench_tune_output_view = Some(result_idx); app.bench_tune.bench_tune_output_index = 0; app.bench_tune.bench_tune_output_scroll = 0; app.bench_tune.bench_tune_output_h_scroll = 0; }
-                    app.set_redraw();
                 }
             }
             return;
@@ -1180,7 +1086,6 @@ fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) 
             if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view {
                 if app.bench_tune.bench_tune_output_index > 0 { app.bench_tune.bench_tune_output_index -= 1; app.bench_tune.bench_tune_output_scroll = 0; app.bench_tune.bench_tune_output_h_scroll = 0; }
                 else if result_idx > 0 { result_idx -= 1; app.bench_tune.bench_tune_output_view = Some(result_idx); if let Some(prev_result) = app.bench_tune.bench_tune_results.get(result_idx) { app.bench_tune.bench_tune_output_index = prev_result.outputs.len().saturating_sub(1); } else { app.bench_tune.bench_tune_output_index = 0; } app.bench_tune.bench_tune_output_scroll = 0; app.bench_tune.bench_tune_output_h_scroll = 0; }
-                app.set_redraw();
             }
             return;
         }
@@ -1204,13 +1109,9 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
             // Don't abort the task — let it finish gracefully and send Cancelled status
             // Keep bench_tune_running = true so the app knows the task is still finishing up
             app.models_mode = ModelsMode::List;
-            app.set_redraw();
             return;
         }
-        KeyCode::Char('j') | KeyCode::Down => { app.bench_tune.bench_tune_result_row = app.bench_tune.bench_tune_result_row.saturating_add(1).min(app.bench_tune.bench_tune_results.len().saturating_sub(1)); app.set_redraw(); return; }
-        KeyCode::Char('k') | KeyCode::Up => { app.bench_tune.bench_tune_result_row = app.bench_tune.bench_tune_result_row.saturating_sub(1); app.set_redraw(); return; }
         KeyCode::Enter => {
-            if !app.bench_tune.bench_tune_results.is_empty() { app.bench_tune.bench_tune_output_view = Some(app.bench_tune.bench_tune_result_row); app.bench_tune.bench_tune_output_scroll = 0; app.bench_tune.bench_tune_output_index = 0; app.set_redraw(); return; }
         }
         _ => {}
     }
@@ -1218,8 +1119,6 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
 fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
-        KeyCode::Up | KeyCode::Char('k') => { app.settings_state.server_settings_selected_idx = app.settings_state.server_settings_selected_idx.saturating_sub(1); app.set_redraw(); }
-        KeyCode::Down | KeyCode::Char('j') => { app.settings_state.server_settings_selected_idx = (app.settings_state.server_settings_selected_idx + 1).min(7); app.set_redraw(); }
         KeyCode::Enter => {
             match app.settings_state.server_settings_selected_idx {
                 0 => {
@@ -1254,21 +1153,24 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 _ => {}
             }
             sync_global_settings(app);
-            app.set_redraw();
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.settings_state.server_settings_selected_idx = app.settings_state.server_settings_selected_idx.saturating_sub(1);
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            app.settings_state.server_settings_selected_idx = (app.settings_state.server_settings_selected_idx + 1).min(7);
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.settings_state.server_settings_selected_idx { 2 => app.settings.threads = app.settings.threads.saturating_sub(1).max(1), 3 => app.settings.threads_batch = app.settings.threads_batch.saturating_sub(1).max(1), _ => {} }
             app.update_vram_estimate();
             sync_global_settings(app);
             app.settings_state.settings_render_cache = None;
-            app.set_redraw();
         }
         KeyCode::Right | KeyCode::Char('l') => {
             match app.settings_state.server_settings_selected_idx { 2 => app.settings.threads = (app.settings.threads + 1).min(app.max_threads), 3 => app.settings.threads_batch = (app.settings.threads_batch + 1).min(64), _ => {} }
             app.update_vram_estimate();
             sync_global_settings(app);
             app.settings_state.settings_render_cache = None;
-            app.set_redraw();
         }
         _ => {}
     }

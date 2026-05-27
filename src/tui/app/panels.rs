@@ -77,7 +77,6 @@ impl App {
         let current_idx = visible.iter().position(|&p| p == self.ui.active_panel).unwrap_or(0);
         let next_idx = (current_idx + 1) % visible.len();
         self.ui.active_panel = visible[next_idx];
-        self.set_redraw();
     }
 
     pub fn focus_prev(&mut self) {
@@ -89,6 +88,5 @@ impl App {
         let current_idx = visible.iter().position(|&p| p == self.ui.active_panel).unwrap_or(0);
         let prev_idx = (current_idx + visible.len() - 1) % visible.len();
         self.ui.active_panel = visible[prev_idx];
-        self.set_redraw();
     }
 }

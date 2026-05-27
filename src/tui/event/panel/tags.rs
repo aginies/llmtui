@@ -16,7 +16,6 @@ pub fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.edit.tags_selected_idx = None;
             app.edit.tags_insert_mode = false;
             app.settings_state.settings_render_cache = None;
-            app.set_redraw();
         }
         // Save and close modal
         KeyCode::Enter => {
@@ -65,7 +64,6 @@ pub fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.edit.tags_insert_mode = false;
                 app.settings_state.settings_render_cache = None;
             }
-            app.set_redraw();
         }
         // Navigate tags
         KeyCode::Up | KeyCode::Char('k') => {
@@ -78,7 +76,6 @@ pub fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
             } else {
                 app.edit.tags_selected_idx = Some(tags.len().saturating_sub(1));
             }
-            app.set_redraw();
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.edit.tags_edit_buffer.clear();
@@ -92,14 +89,12 @@ pub fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
             } else {
                 app.edit.tags_insert_mode = true;
             }
-            app.set_redraw();
         }
         // Edit selected tag
         KeyCode::Char('e') | KeyCode::Char('i') => {
             if !insert_mode {
                 if let Some(idx) = selected {
                     app.edit.tags_edit_buffer = tags[idx].clone();
-                    app.set_redraw();
                 }
             }
         }
@@ -116,19 +111,16 @@ pub fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 }
             }
-            app.set_redraw();
         }
         // Add new tag
         KeyCode::Char('a') => {
             app.edit.tags_insert_mode = true;
             app.edit.tags_selected_idx = None;
             app.edit.tags_edit_buffer.clear();
-            app.set_redraw();
         }
         // Input characters for tag editing
         KeyCode::Char(c) => {
             app.edit.tags_edit_buffer.push(c);
-            app.set_redraw();
         }
         KeyCode::Backspace => {
             if !app.edit.tags_edit_buffer.is_empty() {
@@ -139,7 +131,6 @@ pub fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.edit.tags_selected_idx = Some(idx.saturating_sub(1));
                 }
             }
-            app.set_redraw();
         }
         KeyCode::Tab => {
             // Toggle between insert and edit mode
@@ -153,7 +144,6 @@ pub fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.edit.tags_selected_idx = None;
             }
             app.settings_state.settings_edit_buffer.clear();
-            app.set_redraw();
         }
         _ => {}
     }

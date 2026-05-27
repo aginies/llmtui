@@ -143,7 +143,6 @@ pub struct UIState {
     pub panel_help: bool,
     pub panel_help_offset: usize,
     pub last_error_message: Option<String>,
-    pub needs_redraw: bool,
     pub list_state: ListState,
     pub resize_state: Option<ResizeState>,
     pub left_pct: u16,

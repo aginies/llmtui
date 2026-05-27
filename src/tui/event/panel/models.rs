@@ -23,7 +23,6 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             _ => {}
         }
-        app.set_redraw();
         return;
     }
 
@@ -38,7 +37,6 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.on_model_selection_change();
                     }
                 }
-                app.set_redraw();
                 return;
             }
         }

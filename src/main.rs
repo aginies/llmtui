@@ -234,7 +234,6 @@ async fn main() -> Result<()> {
                             crossterm::event::Event::Key(key) => {
                                 if key.kind != crossterm::event::KeyEventKind::Release {
                                     tui::event::handle_key(&mut app, key).await;
-                                    app.set_redraw();
                                 }
                             }
                             crossterm::event::Event::Mouse(mouse) => {
@@ -244,14 +243,11 @@ async fn main() -> Result<()> {
                                     crossterm::event::MouseEventKind::Down(_) | 
                                     crossterm::event::MouseEventKind::ScrollUp | 
                                     crossterm::event::MouseEventKind::ScrollDown => {
-                                        app.set_redraw();
-                                    }
+                                        }
                                     _ => {}
                                 }
                             }
-                            crossterm::event::Event::Resize(_, _) => {
-                                app.set_redraw();
-                            }
+                            crossterm::event::Event::Resize(_, _) => {}
                             _ => {}
                         }
                     }
