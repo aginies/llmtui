@@ -51,8 +51,8 @@ async fn start_metrics_polling_task(
         let state = "loaded";
         let ws_metrics = WsMetrics::from_metrics(&m, &model_name, state, &settings, None);
 
-        if tx.send(ws_metrics).is_err() {
-            break;
+        if let Err(e) = tx.send(ws_metrics) {
+            tracing::debug!("Failed to send metrics to broadcast channel: {e}");
         }
 
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
@@ -147,6 +147,15 @@ pub async fn serve_model(
 
     // Build settings: start with defaults, apply model override, then profile override
     let settings = config.resolve_settings(Some(&name), profile_name);
+
+    // Finalize WebSocket settings: CLI flags take precedence, then config.yaml
+    let ws_enable = ws_enable || settings.ws_server_enabled;
+    let ws_port = if ws_port != 49223 {
+        ws_port
+    } else {
+        settings.ws_server_port
+    };
+    let ws_auth = ws_auth.or(settings.ws_server_auth_key.clone());
 
     info!("Serving model: {}", model.display_name);
     let layers_str = match settings.gpu_layers_mode {
