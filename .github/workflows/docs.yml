@@ -25,11 +25,11 @@ jobs:
           mdbook-version: '0.5.2'
           install-cargo-bin: true
       - name: Build with mdBook
-        run: mdbook build docs
+        run: mdbook build documentation
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/book
+          path: documentation/book
 
   deploy:
     environment:
