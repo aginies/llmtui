@@ -81,7 +81,22 @@ pub async fn serve_model(
     ws_enable: bool,
     ws_port: u16,
     ws_auth: Option<String>,
+    backend_binary: Option<&str>,
+    host: Option<&str>,
+    log_file: Option<&str>,
 ) -> Result<()> {
+    if let Some(path) = log_file {
+        let path = PathBuf::from(path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let _file = std::fs::OpenOptions::new().create(true).append(true).open(&path)
+            .map_err(|e| anyhow::anyhow!("Failed to open log file '{}': {}", path.display(), e))?;
+        tracing::info!("Logging to {}", path.display());
+    } else {
+        tracing::info!("Logging to stdout");
+    }
+
     // Load config from explicit path or default location
     let config = match config_path {
         Some(p) => {
@@ -146,7 +161,7 @@ pub async fn serve_model(
     };
 
     // Build settings: start with defaults, apply model override, then profile override
-    let settings = config.resolve_settings(Some(&name), profile_name);
+    let mut settings = config.resolve_settings(Some(&name), profile_name);
 
     // Finalize WebSocket settings: CLI flags take precedence, then config.yaml
     let ws_enable = ws_enable || settings.ws_server_enabled;
@@ -157,6 +172,11 @@ pub async fn serve_model(
     };
     let ws_auth = ws_auth.or(settings.ws_server_auth_key.clone());
 
+    // CLI host override
+    if let Some(h) = host {
+        settings.host = h.to_string();
+    }
+
     info!("Serving model: {}", model.display_name);
     let layers_str = match settings.gpu_layers_mode {
         crate::models::GpuLayersMode::Auto => "auto".to_string(),
@@ -165,16 +185,47 @@ pub async fn serve_model(
     };
     info!("Settings: {} threads, {} layers, {} context", settings.threads, layers_str, settings.context_length);
 
+    // Trace backend binary selection
+    let active_version = settings.get_active_backend_version();
+    let version_display = settings.get_active_backend_version_display();
+    info!("Backend: {}, version config: {:?} (display: {})", settings.backend, active_version, version_display);
+    if let Some(ref cpu_ver) = settings.llama_cpp_version_cpu {
+        info!("  llama_cpp_version_cpu = {}", cpu_ver);
+    }
+    if let Some(ref cuda_ver) = settings.llama_cpp_version_cuda {
+        info!("  llama_cpp_version_cuda = {}", cuda_ver);
+    }
+
+    if ws_enable {
+        let auth_info = if let Some(ref auth) = ws_auth {
+            format!(" (auth: {})", &auth[..auth.len().min(8)])
+        } else {
+            String::new()
+        };
+        info!("WebSocket dashboard enabled on port {}{}", ws_port, auth_info);
+    }
+
     // Resolve the backend binary (downloads if needed)
-    let version_param = settings.get_active_backend_version().map(|s| s.as_str());
-    let binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, None, None).await {
-        Ok(path) => {
-            if !path.exists() {
-                anyhow::bail!("llama-server binary not found at: {}", path.display());
-            }
-            path
+    let binary = if let Some(path) = backend_binary {
+        let binary_path = PathBuf::from(path);
+        if !binary_path.exists() {
+            anyhow::bail!("Backend binary not found: {}", binary_path.display());
         }
-        Err(e) => anyhow::bail!("Failed to resolve backend binary: {}", e),
+        info!("Using custom backend binary: {}", binary_path.display());
+        binary_path
+    } else {
+        let version_param = settings.get_active_backend_version().map(|s| s.as_str());
+        info!("Resolving backend binary: backend={}, version_param={:?}", settings.backend, version_param);
+        match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, None, None).await {
+            Ok(path) => {
+                info!("Resolved binary path: {}", path.display());
+                if !path.exists() {
+                    anyhow::bail!("llama-server binary not found at: {}", path.display());
+                }
+                path
+            }
+            Err(e) => anyhow::bail!("Failed to resolve backend binary: {}", e),
+        }
     };
     info!("Using llama-server: {} (backend: {})", binary.display(), settings.backend);
 

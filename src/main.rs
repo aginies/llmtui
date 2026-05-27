@@ -74,32 +74,52 @@ enum Cli {
         /// Auth key for the WebSocket dashboard server
         #[arg(long)]
         ws_auth: Option<String>,
+
+        /// Path to a custom llama-server binary to use instead of auto-resolved
+        #[arg(long)]
+        backend_binary: Option<String>,
+
+        /// Host to bind the llama-server to (e.g. 127.0.0.1, 0.0.0.0, or an IP)
+        #[arg(long)]
+        host: Option<String>,
+
+        /// Log file path (default: stdout, useful for systemd)
+        #[arg(long)]
+        log_file: Option<String>,
     },
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Redirect tracing to a file to avoid corrupting the TUI
-    let data_dir = dirs::data_local_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
-        .join("llm-manager");
-    std::fs::create_dir_all(&data_dir)?;
-    let log_path = data_dir.join("llm-manager.log");
-    let log_file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path)?;
+    let cli = Cli::parse();
 
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().with_writer(log_file))
-        .with(tracing_subscriber::EnvFilter::from_default_env().add_directive("llm_manager=info".parse().unwrap()))
-        .init();
+    match cli {
+        Cli::Serve { model, profile, config, api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary, host, log_file } => {
+            // For serve mode, log to stdout or file
+            if let Some(path) = &log_file {
+                let path = PathBuf::from(path);
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent).ok();
+                }
+                let file = std::fs::OpenOptions::new().create(true).append(true).open(&path)
+                    .expect("Failed to open log file");
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::fmt::layer().with_writer(file))
+                    .with(tracing_subscriber::EnvFilter::from_default_env().add_directive("llm_manager=info".parse().unwrap()))
+                    .init();
+            } else {
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::fmt::layer())
+                    .with(tracing_subscriber::EnvFilter::from_default_env().add_directive("llm_manager=info".parse().unwrap()))
+                    .init();
+            }
 
-    info!("Logging to {}", log_path.display());
-
-    match Cli::parse() {
-        Cli::Serve { model, profile, config, api_port, api_key, ws_enable, ws_port, ws_auth } => {
-            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key, ws_enable, ws_port, ws_auth).await
+            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary.as_deref(), host.as_deref(), log_file.as_deref())
+                .await
+                .map_err(|e| {
+                    tracing::error!("{}", e);
+                    e
+                })
         }
         Cli::Tui {
             models_dirs: cli_models_dirs,
@@ -107,6 +127,24 @@ async fn main() -> Result<()> {
             backend,
             config,
         } => {
+            // Redirect tracing to a file to avoid corrupting the TUI
+            let data_dir = dirs::data_local_dir()
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+                .join("llm-manager");
+            std::fs::create_dir_all(&data_dir)?;
+            let log_path = data_dir.join("llm-manager.log");
+            let log_file = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&log_path)?;
+
+            tracing_subscriber::registry()
+                .with(tracing_subscriber::fmt::layer().with_writer(log_file))
+                .with(tracing_subscriber::EnvFilter::from_default_env().add_directive("llm_manager=info".parse().unwrap()))
+                .init();
+
+            info!("Logging to {}", log_path.display());
+
             let config_path = config.map(PathBuf::from).unwrap_or(Config::config_path());
 
             // Load or create config
