@@ -16,7 +16,7 @@ exec /home/aginies/llmtui/target/release/llm-manager serve \
   ${LLM_BACKEND_BINARY:+--backend-binary "${LLM_BACKEND_BINARY}"} \
   ${LLM_HOST:+--host "${LLM_HOST}"} \
   ${LLM_LOG_FILE:+--log-file "${LLM_LOG_FILE}"} \
-  ${DASHBOARD_ENABLED:+--enable-dashboard} \
+  ${DASHBOARD_ENABLED:+--ws-enable} \
   ${LLM_WS_PORT:+--ws-port "${LLM_WS_PORT}"} \
   ${LLM_WS_AUTH:+--ws-auth "${LLM_WS_AUTH}"} \
   ${LLM_API_KEY:+--api-key "${LLM_API_KEY}"}'
