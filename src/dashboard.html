@@ -38,6 +38,10 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
 </head>
 <body>
 <h1>llm-manager Dashboard</h1>
+<div class="status">
+  <span class="dot off" id="dot"></span>
+  <span id="status-text">Disconnected</span>
+</div>
 <div id="model-name" class="model-name">Connecting...</div>
 <div class="grid">
   <div class="card">
@@ -82,10 +86,6 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
 <div class="card" id="cmd-card" style="display:none;">
   <h2>Server Command</h2>
   <pre id="cmd-display" style="white-space:pre-wrap;word-break:break-all;font-size:1.3rem;color:#9ece6a;margin:0;padding:0;"></pre>
-</div>
-<div class="status">
-  <span class="dot off" id="dot"></span>
-  <span id="status-text">Disconnected</span>
 </div>
 <div class="meta" id="meta"></div>
 

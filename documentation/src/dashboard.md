@@ -10,6 +10,48 @@ The dashboard runs as a built-in HTTP server on port **49223** by default. Open 
 http://localhost:49223
 ```
 
+## Dashboard Overview
+
+The dashboard displays real-time metrics in a card-based layout:
+
+![Dashboard](dashboard.png)
+
+### Metrics Cards
+
+| Metric | Description |
+|--------|-------------|
+| **Status** | Current model state (loaded / unloaded / loading) |
+| **Generation Speed** | Tokens per second (TPS) for text generation |
+| **Prompt Speed** | Tokens per second for prompt processing |
+| **Latency** | Milliseconds per token |
+| **Context** | Context window usage with progress bar |
+| **VRAM** | GPU memory used/total with color-coded progress bar (green <50%, yellow 50-80%, red >80%) |
+| **RAM** | System memory usage |
+| **CPU** | CPU usage percentage |
+
+### Settings Panel
+
+Below the metrics, the dashboard shows a grid of current inference settings:
+
+| Setting | Description |
+|---------|-------------|
+| Backend & Version | llama.cpp backend and version |
+| Threads / Threads Batch | CPU thread configuration |
+| Context / Batch Size / Ubatch Size | Model execution parameters |
+| Temperature / Top-k / Top-p / Min P / Typical P | Sampling parameters |
+| Seed | Random seed for reproducibility |
+| Repeat Penalty / Repeat Last N | Repetition control |
+| Presence Penalty / Frequency Penalty | Advanced repetition control |
+| Flash Attention / KV Cache Offload | Performance optimizations |
+| Cache Type K / Cache Type V | KV cache quantization |
+| Unified KV / Mlock / Mmap | Memory management |
+| Expert Count / GPU Layers | Model-specific settings |
+| Samplers | Sampler order string |
+
+### Server Command
+
+The full llama-server command line is displayed at the bottom of the dashboard, showing the exact invocation with all parameters.
+
 ## Configuration
 
 To enable and configure the dashboard:
@@ -30,36 +72,12 @@ When an auth key is configured, clients must include it as a query parameter:
 http://localhost:49223?auth=mysecretkey
 ```
 
-## Metrics Displayed
+## Connection Status
 
-The dashboard shows real-time metrics from the llama.cpp server:
+The dashboard shows a connection indicator at the top of the page:
 
-| Metric | Description |
-|--------|-------------|
-| Generation Speed | Tokens per second (TPS) |
-| Prompt Speed | Prompt processing TPS |
-| Latency | Milliseconds per token |
-| Context | Context window usage (progress bar) |
-| VRAM | GPU memory used/total (progress bar) |
-| RAM | System memory usage |
-| CPU | CPU usage percentage |
-
-## Settings Panel
-
-The dashboard also displays current inference settings:
-
-- Backend and llama.cpp version
-- Threads, threads_batch, context_length, batch_size, ubatch_size
-- Sampling parameters: temperature, top_k, top_p, min_p, typical_p, seed
-- Repetition control: repeat_penalty, repeat_last_n, presence_penalty, frequency_penalty
-- Mirostat mode and parameters
-- Flash Attention, KV Cache Offload, Cache Type K/V
-- Unified KV, Mlock, Mmap, Embedding, Jinja, Ignore EOS
-- Expert Count, GPU Layers, Samplers
-
-## Server Command
-
-The full llama-server command line is displayed at the bottom of the dashboard, showing the exact invocation with all parameters.
+- **Green pulsing dot** — Connected via WebSocket
+- **Red dot** — Disconnected (auto-reconnects every 2 seconds)
 
 ## Architecture
 
