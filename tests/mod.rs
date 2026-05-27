@@ -9,3 +9,4 @@ pub mod event_tests;
 pub mod render_tests;
 pub mod hub_tests;
 pub mod server_tests;
+pub mod ui_utils_tests;

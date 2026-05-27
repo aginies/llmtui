@@ -129,6 +129,7 @@ async fn test_ctrl_h_toggles_panel_help() {
     assert_eq!(app.ui.panel_help_offset, 0);
 }
 
+#[tokio::test]
 async fn test_ctrl_h_toggles_panel_help_off() {
     let mut app = make_app();
     app.ui.panel_help = true;

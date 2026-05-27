@@ -130,7 +130,7 @@ fn app_get_filtered_model_indices_no_match() {
 fn app_is_panel_visible_default_all_hidden() {
     let config = Config::default();
     let app = App::new(config);
-    // panel_visibility = 0b111111 = 63, so all panels 0-5 should be visible
+    // panel_visibility = 0 (all bits cleared), so all panels 0-5 should be visible
     for i in 0..6 {
         assert!(app.is_panel_visible(i));
     }

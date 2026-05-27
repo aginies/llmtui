@@ -63,6 +63,7 @@ impl MdRenderer {
             self.flush_code_block();
         }
         if self.in_list {
+            self.flush_line();
             self.in_list = false;
             self.list_marker = None;
         }
@@ -130,7 +131,7 @@ impl MdRenderer {
                 self.in_list = true;
             }
             Tag::Item => {
-                // Item starts within a list
+                self.flush_line();
             }
             Tag::BlockQuote(_) => {
                 self.blockquote_depth += 1;
@@ -141,6 +142,8 @@ impl MdRenderer {
                 self.pending_table_header.clear();
             }
             Tag::TableCell => {}
+            Tag::TableHead => {}
+            Tag::TableRow => {}
             _ => {}
         }
     }
@@ -160,6 +163,7 @@ impl MdRenderer {
                 self.current_style = Style::default();
             }
             TagEnd::List(_) => {
+                self.flush_line();
                 self.in_list = false;
                 self.list_marker = None;
             }
@@ -168,6 +172,13 @@ impl MdRenderer {
                 if self.blockquote_depth > 0 {
                     self.blockquote_depth -= 1;
                 }
+            }
+            TagEnd::TableHead => {
+                self.flush_table_row();
+                self.table_is_header = false;
+            }
+            TagEnd::TableRow => {
+                self.flush_table_row();
             }
             TagEnd::Table => {
                 if self.in_table {
@@ -186,8 +197,13 @@ impl MdRenderer {
 
     fn handle_text(&mut self, text: &str) {
         if self.in_table {
-            self.pending_table_line
-                .push((text.to_string(), self.current_style));
+            if self.table_is_header {
+                self.pending_table_header
+                    .push((text.to_string(), self.current_style));
+            } else {
+                self.pending_table_line
+                    .push((text.to_string(), self.current_style));
+            }
         } else {
             self.pending.push((text.to_string(), self.current_style));
         }
@@ -195,8 +211,13 @@ impl MdRenderer {
 
     fn handle_code(&mut self, code: &str) {
         if self.in_table {
-            self.pending_table_line
-                .push((code.to_string(), Style::default().fg(Color::Green)));
+            if self.table_is_header {
+                self.pending_table_header
+                    .push((code.to_string(), Style::default().fg(Color::Green)));
+            } else {
+                self.pending_table_line
+                    .push((code.to_string(), Style::default().fg(Color::Green)));
+            }
         } else if self.in_code_block {
             self.pending.push((code.to_string(), self.code_block_style));
         } else {

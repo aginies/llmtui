@@ -96,12 +96,9 @@ fn test_is_backend_version_installed_returns_false_for_null_tag() {
 }
 
 #[test]
-fn test_is_backend_any_version_installed_returns_false_when_no_bin_dir() {
-    // This test depends on whether the bin directory exists on the system
-    // It should return false if the directory doesn't exist
-    let result = is_backend_any_version_installed(Backend::Cpu);
-    // Either true (if installed) or false (if not) - both are valid
-    assert!(result == true || result == false);
+fn test_is_backend_any_version_installed_does_not_panic() {
+    // Result depends on system state - just verify it returns without panicking
+    let _ = is_backend_any_version_installed(Backend::Cpu);
 }
 
 // ── List installed backends ─────────────────────────────────────
