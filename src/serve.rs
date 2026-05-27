@@ -8,7 +8,56 @@ use tokio::signal;
 
 use crate::backend::server;
 use crate::config::Config;
-use crate::models::DiscoveredModel;
+use crate::models::{DiscoveredModel, WsMetrics};
+
+async fn start_metrics_polling_task(
+    host: String,
+    port: u16,
+    pid: u32,
+    model_name: String,
+    settings: crate::models::ModelSettings,
+    tx: tokio::sync::broadcast::Sender<WsMetrics>,
+    shutdown_rx: tokio::sync::watch::Receiver<bool>,
+) {
+    let mut consecutive_failures: u32 = 0;
+    let max_failures: u32 = 15;
+    let _client = reqwest::Client::new();
+
+    loop {
+        // Check shutdown first
+        if *shutdown_rx.borrow() {
+            break;
+        }
+
+        let m = match server::get_metrics(&host, port, None, Some(pid)).await {
+            Ok(metrics) => {
+                consecutive_failures = 0;
+                metrics
+            }
+            Err(_) => {
+                consecutive_failures += 1;
+                if consecutive_failures >= max_failures {
+                    tracing::warn!("Metrics polling aborted after {} consecutive failures (server likely dead)", max_failures);
+                    break;
+                }
+                if consecutive_failures % 5 == 1 {
+                    tracing::warn!("Metrics polling: server unreachable (attempt {}/{})", consecutive_failures, max_failures);
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                continue;
+            }
+        };
+
+        let state = "loaded";
+        let ws_metrics = WsMetrics::from_metrics(&m, &model_name, state, &settings, None);
+
+        if tx.send(ws_metrics).is_err() {
+            break;
+        }
+
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    }
+}
 
 /// Serve a model using the llama-server binary, applying all settings from config.yaml.
 ///
@@ -29,6 +78,9 @@ pub async fn serve_model(
     config_path: Option<&str>,
     api_port: Option<u16>,
     api_key: Option<String>,
+    ws_enable: bool,
+    ws_port: u16,
+    ws_auth: Option<String>,
 ) -> Result<()> {
     // Load config from explicit path or default location
     let config = match config_path {
@@ -168,6 +220,37 @@ pub async fn serve_model(
         None
     };
 
+    // Start WebSocket dashboard server
+    let ws_server_handle = if ws_enable {
+        let (tx, rx) = tokio::sync::broadcast::channel(64);
+        let ws_rx = std::sync::Arc::new(rx);
+        let handle = crate::backend::ws_server::start_ws_server(ws_port, ws_rx, ws_auth).await;
+        info!("Dashboard enabled on port {}", ws_port);
+
+        // Start metrics polling task
+        let settings_clone = settings.clone();
+        let model_name_clone = model.display_name.clone();
+        let host_clone = settings.host.clone();
+        let server_port_clone = settings.port;
+        let pid_clone = server_pid;
+        let shutdown_rx_clone = shutdown_rx.clone();
+        tokio::spawn(async move {
+            start_metrics_polling_task(
+                host_clone,
+                server_port_clone,
+                pid_clone,
+                model_name_clone,
+                settings_clone,
+                tx,
+                shutdown_rx_clone,
+            ).await;
+        });
+
+        Some(handle)
+    } else {
+        None
+    };
+
     // Wait for either llama-server, API server, or Ctrl+C
     let status = loop {
         select! {
@@ -194,6 +277,9 @@ pub async fn serve_model(
                 if let Some((_, _, tx)) = &mut api_server_handle {
                     let _ = tx.send(true);
                 }
+                if let Some(handle) = &ws_server_handle {
+                    handle.abort();
+                }
             }
         }
     };
@@ -206,6 +292,11 @@ pub async fn serve_model(
     // Drop the API server handle so the spawned task can finish
     if let Some((handle, _, _)) = api_server_handle {
         let _ = handle.await;
+    }
+
+    // Abort the WebSocket dashboard server
+    if let Some(handle) = ws_server_handle {
+        handle.abort();
     }
 
     if status.success() {

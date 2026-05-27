@@ -1,5 +1,28 @@
 # Usage
 
+## Serve Mode
+
+Run a model directly with llama-server and expose an OpenAI-compatible API:
+
+```bash
+# Serve a model with API proxy on port 49222
+./build.sh serve --model /path/to/model.gguf --api-port 49222
+
+# Serve with a settings profile
+./build.sh serve --model model.gguf --profile qwen
+
+# Serve with API key authentication (Bearer token)
+./build.sh serve --model model.gguf --api-port 49222 --api-key secret
+
+# Serve with API proxy and WebSocket dashboard
+./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard
+
+# Serve with custom dashboard port and auth
+./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard --ws-port 8081 --ws-auth mykey
+```
+
+The serve command automatically resolves the llama-server binary from the backend-specific directory (`~/.local/share/llm-manager/bin/llama-server-{cpu,vulkan,rocm}-{version}/`) and sets `LD_LIBRARY_PATH` for shared libraries. If the binary is not found, it downloads it from the llama.cpp GitHub releases.
+
 ## Model Management
 
 ### Listing Models

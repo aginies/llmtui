@@ -62,6 +62,18 @@ enum Cli {
         /// API key for authentication (Bearer token)
         #[arg(long)]
         api_key: Option<String>,
+
+        /// Enable the WebSocket dashboard server
+        #[arg(long)]
+        ws_enable: bool,
+
+        /// Port for the WebSocket dashboard server
+        #[arg(long, default_value = "49223")]
+        ws_port: u16,
+
+        /// Auth key for the WebSocket dashboard server
+        #[arg(long)]
+        ws_auth: Option<String>,
     },
 }
 
@@ -86,8 +98,8 @@ async fn main() -> Result<()> {
     info!("Logging to {}", log_path.display());
 
     match Cli::parse() {
-        Cli::Serve { model, profile, config, api_port, api_key } => {
-            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key).await
+        Cli::Serve { model, profile, config, api_port, api_key, ws_enable, ws_port, ws_auth } => {
+            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key, ws_enable, ws_port, ws_auth).await
         }
         Cli::Tui {
             models_dirs: cli_models_dirs,

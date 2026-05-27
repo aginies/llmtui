@@ -10,6 +10,32 @@ The dashboard runs as a built-in HTTP server on port **49223** by default. Open 
 http://localhost:49223
 ```
 
+## Enabling in Serve Mode
+
+The dashboard can be enabled in serve mode using the `--enable-dashboard` flag:
+
+```bash
+./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard
+```
+
+Customize the dashboard port and authentication:
+
+```bash
+./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard --ws-port 8081 --ws-auth mykey
+```
+
+## Enabling in TUI Mode
+
+The dashboard can also be enabled from the TUI:
+
+1. Open the **Server Settings** panel (F2)
+2. Navigate to **Dashboard** and press `Enter`
+3. Configure:
+   - **Enabled** — toggle on/off
+   - **Port** — server port (default: 49223)
+   - **Auth Key** — optional authentication (see below)
+4. Press `Enter` to save, `Esc` to close
+
 ## Dashboard Overview
 
 The dashboard displays real-time metrics in a card-based layout:
