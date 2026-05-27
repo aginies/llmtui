@@ -3,7 +3,6 @@ use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 
 /// Download state codes (stored as AtomicU8 for lock-free access)
-pub const DOWNLOAD_STATE_DOWNLOADING: u8 = 1;
 pub const DOWNLOAD_STATE_PAUSED: u8 = 2;
 pub const DOWNLOAD_STATE_CANCELLED: u8 = 3;
 
