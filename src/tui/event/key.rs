@@ -207,14 +207,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if !auth_key.is_empty() {
                     url.push_str(&format!("?auth={}", auth_key));
                 }
-                if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                    if let Err(e) = clipboard.set_text(&url) {
-                        app.add_log(format!("Failed to copy URL: {}", e), crate::config::LogLevel::Error);
-                    } else {
-                        app.add_log("Dashboard URL copied to clipboard", crate::config::LogLevel::Info);
-                    }
-                } else {
-                    app.add_log("Failed to create clipboard", crate::config::LogLevel::Error);
+                let cb = arboard::Clipboard::new();
+                if let Ok(mut cb) = cb {
+                    let _ = cb.set().text(&url);
                 }
                 app.ui.global_mode = GlobalMode::Normal;
                 return;
