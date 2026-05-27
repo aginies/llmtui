@@ -32,6 +32,10 @@
 - A HuggingFace account (for downloading gated models)
 - An NVIDIA GPU (Vulkan/CUDA) or AMD GPU (ROCm) for GPU inference, or a CPU for CPU-only inference
 
+## Screenshot
+
+![LLM Manager](main.png)
+
 ## Quick Start
 
 ```bash
