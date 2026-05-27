@@ -156,8 +156,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     } else if let Some((name, state)) = loaded_models.first() {
         match state {
             ModelState::Loaded { .. } => {
-                let pct = if app.metrics.ctx_max > 0 {
-                    (app.metrics.ctx_used as f64 / app.metrics.ctx_max as f64 * 100.0).ceil() as usize
+                let display_used = app.metrics.ctx_used.max(2049);
+               let pct = if app.metrics.ctx_max > 0 {
+                    (display_used as f64 / app.metrics.ctx_max as f64 * 100.0).ceil() as usize
                 } else {
                     0
                 };
@@ -168,7 +169,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     "█".repeat(filled),
                     "░".repeat(bar_width.saturating_sub(filled)),
                 );
-                let token_str = format!("{}/{} ({:.0}%)", app.metrics.ctx_used, app.metrics.ctx_max, pct as f64);
+                let token_str = format!("{}/{} ({:.0}%)", display_used, app.metrics.ctx_max, pct as f64);
                 
                 lines.push(Line::from(vec![
                     Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
