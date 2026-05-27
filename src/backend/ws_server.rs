@@ -31,23 +31,24 @@ pub async fn start_ws_server(
     let app = Router::new()
         .route("/dashboard", get(serve_dashboard))
         .route("/ws", get(ws_handler))
+        .route("/health", get(|| async { "OK" }))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
     let addr = format!("0.0.0.0:{port}");
-    info!("WebSocket server listening on {addr}");
-
     let listener = tokio::net::TcpListener::bind(&addr).await;
     match listener {
         Ok(listener) => {
-            tokio::spawn(async move {
+            let handle = tokio::spawn(async move {
                 if let Err(e) = axum::serve(listener, app).await {
                     error!("WebSocket server error: {e}");
                 }
-            })
+            });
+            info!("WebSocket server listening on {addr}");
+            handle
         }
         Err(e) => {
-            info!("Failed to bind WebSocket server to {addr}: {e}");
+            error!("Failed to bind WebSocket server to {addr}: {e}");
             tokio::spawn(async move {
                 loop { tokio::time::sleep(std::time::Duration::from_secs(3600)).await; }
             })

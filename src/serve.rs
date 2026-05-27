@@ -240,7 +240,10 @@ pub async fn serve_model(
         } else {
             "".to_string()
         };
-        info!("Dashboard enabled: http://127.0.0.1:{}/dashboard{}", ws_port, auth_param);
+        let host = local_ip_address::local_ip()
+            .map(|ip| ip.to_string())
+            .unwrap_or_else(|_| "127.0.0.1".to_string());
+        info!("Dashboard enabled: http://{}:{}/dashboard{}", host, ws_port, auth_param);
 
         // Start metrics polling task
         let settings_clone = settings.clone();
