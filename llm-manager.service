@@ -1,0 +1,16 @@
+[Unit]
+Description=LLM Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aginies
+Group=aginies
+EnvironmentFile=/home/aginies/llmtui/llm-manager.env
+ExecStart=/bin/bash -l -c 'exec /home/aginies/llmtui/target/release/llm-manager serve --model "${LLM_MODEL}" --api-port 49222 ${DASHBOARD_ENABLED:+--enable-dashboard} --config /home/aginies/.config/llm-manager/config.yaml'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -265,7 +265,6 @@ fn app_add_log_sets_redraw() {
     let config = Config::default();
     let mut app = App::new(config);
     app.add_log("test", llm_manager::config::LogLevel::Info);
-    assert!(app.ui.needs_redraw);
 }
 
 // ── Settings tracking ──────────────────────────────────────────

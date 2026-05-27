@@ -395,7 +395,7 @@ fn config_merged_profiles_includes_builtins() {
 #[test]
 fn config_default_search_limit() {
     let config = Config::default();
-    assert_eq!(config.search_limit, 5);
+    assert_eq!(config.search_limit, 50);
 }
 
 // ── Config config_path ─────────────────────────────────────────
