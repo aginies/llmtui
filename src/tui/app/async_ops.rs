@@ -232,8 +232,14 @@ impl App {
         let mut server_logs = Vec::new();
         if let Some(rx) = &mut self.server.server_log_rx {
             while let Ok(line) = rx.try_recv() {
-                // Log-based metrics parsing removed to prevent "stuck" values.
-                // We rely exclusively on API polling for accuracy.
+                if line.contains("n_tokens =")
+                    && let Some(tokens_part) = line.split("n_tokens =").last()
+                {
+                    let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
+                    if let Ok(tokens) = val_str.parse::<u32>() {
+                        self.metrics.ctx_used = tokens;
+                    }
+                }
                 server_logs.push(line);
                 if server_logs.len() > 100 { break; }
             }
@@ -337,6 +343,11 @@ impl App {
                     m.prompt_latency_ms = 1000.0 / m.prompt_tps;
                 }
                 
+                // If log parsing gave us a value but API didn't (or hasn't yet), use the log value.
+                if m.ctx_used == 0 && self.metrics.ctx_used > 0 {
+                    m.ctx_used = self.metrics.ctx_used;
+                }
+                
                 self.metrics = m;
                 received_metrics = true;
             }
@@ -386,6 +397,8 @@ impl App {
                             self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner()).push(name);
                         }
                     }
+                    
+                    self.metrics.ctx_used = 0;
                     
                     self.set_redraw();
                 }
@@ -593,6 +606,7 @@ impl App {
     async fn metrics_polling_task(host: String, port: u16, pid: u32, metrics_model_name: Arc<std::sync::Mutex<Option<String>>>, metrics_tx: tokio::sync::mpsc::Sender<crate::models::ServerMetrics>) {
         let mut consecutive_failures: u32 = 0;
         let max_failures: u32 = 15;
+        let mut prev_model_name: Option<String> = None;
         loop {
             let mut m = match crate::backend::server::get_metrics(&host, port, None, Some(pid)).await {
                 Ok(metrics) => {
@@ -626,9 +640,12 @@ impl App {
                 } else {
                     true
                 };
-                if model_metrics.ctx_used > 0 {
-                    m.ctx_used = model_metrics.ctx_used;
+                // Reset ctx_used when model changes to avoid showing stale cumulative values.
+                if prev_model_name.as_deref() != Some(&name) {
+                    prev_model_name = Some(name.clone());
+                    m.ctx_used = 0;
                 }
+                m.ctx_used = model_metrics.ctx_used;
                 if model_metrics.ctx_max > 0 {
                     m.ctx_max = model_metrics.ctx_max;
                 }
@@ -744,6 +761,7 @@ impl App {
                     }
                     let log_tx = self.server.spawn_log_tx.clone();
                     let model_name_err = model_name_clone.clone();
+                    self.metrics.ctx_used = 0;
                     tokio::spawn(async move {
                         if let Err(e) = crate::backend::server::load_model(&host, port, &model_name_clone, model_path_clone.as_deref()).await {
                             let err_msg = format!("ERROR: Failed to load model {}: {}", model_name_err, e);
@@ -821,6 +839,7 @@ impl App {
                     );
                 }
                 self.server.loaded_model_names.lock().unwrap().retain(|n| n != &model_name);
+                self.metrics.ctx_used = 0;
                 self.model_states.insert(model_name, crate::models::ModelState::Available);
             }
         }

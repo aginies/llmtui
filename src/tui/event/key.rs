@@ -168,50 +168,44 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.set_redraw();
                 return;
             }
-            _ => {}
-        }
-        if *editing {
-            match key.code {
-                KeyCode::Char(c) => {
-                    let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
-                    edit_buffer.insert_str(byte_pos, &c.to_string());
-                    *edit_cursor_pos += c.len_utf8();
-                    app.set_redraw();
-                }
-                KeyCode::Backspace => {
-                    if *edit_cursor_pos > 0 {
-                        let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
-                        if byte_pos > 0 {
-                            let prev_char_len = edit_buffer[..byte_pos].chars().next_back().unwrap().len_utf8();
-                            edit_buffer.drain(byte_pos - prev_char_len..byte_pos);
-                            *edit_cursor_pos -= prev_char_len;
-                            app.set_redraw();
-                        }
-                    }
-                }
-                KeyCode::Left => {
-                    if *edit_cursor_pos > 0 {
-                        *edit_cursor_pos -= 1;
-                        app.set_redraw();
-                    }
-                }
-                KeyCode::Right => {
-                    if *edit_cursor_pos < edit_buffer.chars().count() {
-                        *edit_cursor_pos += 1;
-                        app.set_redraw();
-                    }
-                }
-                KeyCode::Home => {
-                    *edit_cursor_pos = 0;
-                    app.set_redraw();
-                }
-                KeyCode::End => {
-                    *edit_cursor_pos = edit_buffer.chars().count();
-                    app.set_redraw();
-                }
-                _ => {}
+            KeyCode::Char(c) if *editing => {
+                let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
+                edit_buffer.insert_str(byte_pos, &c.to_string());
+                *edit_cursor_pos += c.len_utf8();
+                app.set_redraw();
             }
-            return;
+            KeyCode::Backspace if *editing => {
+                if *edit_cursor_pos > 0 {
+                    let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
+                    if byte_pos > 0 {
+                        let prev_char_len = edit_buffer[..byte_pos].chars().next_back().unwrap().len_utf8();
+                        edit_buffer.drain(byte_pos - prev_char_len..byte_pos);
+                        *edit_cursor_pos -= prev_char_len;
+                        app.set_redraw();
+                    }
+                }
+            }
+            KeyCode::Left if *editing => {
+                if *edit_cursor_pos > 0 {
+                    *edit_cursor_pos -= 1;
+                    app.set_redraw();
+                }
+            }
+            KeyCode::Right if *editing => {
+                if *edit_cursor_pos < edit_buffer.chars().count() {
+                    *edit_cursor_pos += 1;
+                    app.set_redraw();
+                }
+            }
+            KeyCode::Home if *editing => {
+                *edit_cursor_pos = 0;
+                app.set_redraw();
+            }
+            KeyCode::End if *editing => {
+                *edit_cursor_pos = edit_buffer.chars().count();
+                app.set_redraw();
+            }
+            _ => {}
         }
     }
 

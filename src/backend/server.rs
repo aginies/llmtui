@@ -531,6 +531,7 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
     m.loaded = true;
 
     let mut ctx_max_slots = 0u32;
+    let mut ctx_used_slots = 0u32;
     let mut ctx_used_global = 0u32;
     let mut ctx_max_global = 0u32;
 
@@ -572,7 +573,7 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
                 m.ram_used = m.ram_used.max(val as u64);
             }
             "llama_kv_cache_tokens_used" | "kv_cache_usage_tokens" | "kv_cache_tokens_used" | "llama_server_kv_cache_tokens_used" | "llamacpp:n_tokens_used" | "llama_server_n_tokens_used" | "llama_server_n_past" | "llamacpp:n_past" => {
-                ctx_used_global = ctx_used_global.max(val as u32);
+                if is_slot { ctx_used_slots += val as u32; } else { ctx_used_global = ctx_used_global.max(val as u32); }
             }
             "llama_kv_cache_tokens_total" | "kv_cache_total_tokens" | "kv_cache_tokens_total" | "llama_server_kv_cache_tokens_total" | "llamacpp:n_ctx" | "llamacpp:n_tokens_max" | "llama_server_n_ctx" | "llama_server_n_tokens_max" => {
                 if is_slot { ctx_max_slots += val as u32; } else { ctx_max_global = ctx_max_global.max(val as u32); }
@@ -598,13 +599,11 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
     m.gpu_mem_used = if vram_used_slots > 0 { vram_used_slots } else { vram_used_global };
     m.gpu_mem_total = if vram_total_slots > 0 { vram_total_slots } else { vram_total_global };
 
-    // ctx_used = the actual context window size allocated by llama.cpp (llamacpp:n_ctx / n_ctx_train).
-    // This is what llama.cpp reports as the effective context it is using, which may differ
-    // from the user-configured value due to rope scaling, quantization, etc.
-    // ctx_max = the user-configured context length (-c), set via spawned_context_length in poll_metrics().
-    // Display: ctx_used/ctx_max shows "allocated context / configured max".
-    m.ctx_used = if ctx_max_slots > 0 { ctx_max_slots } else { ctx_max_global };
-    // ctx_max is left at 0 here; poll_metrics() will fill it from spawned_context_length.
+    // ctx_used = tokens currently in the KV cache.
+    // ctx_max = the total context window size allocated by the server.
+    m.ctx_used = if ctx_used_slots > 0 { ctx_used_slots } else { ctx_used_global };
+    m.ctx_max = if ctx_max_slots > 0 { ctx_max_slots } else { ctx_max_global };
+    // ctx_max may be overridden in poll_metrics() by the user-configured value.
 
     // Prefer actual GPU memory usage from nvidia-smi or amdgpu_top.
     // llama-server's kv_cache_usage_bytes only reports KV cache (typically 10%

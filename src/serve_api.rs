@@ -60,6 +60,7 @@ async fn proxy_streaming(
 ) -> impl IntoResponse {
     let path = req.uri().path().to_string();
     let method = req.method().clone();
+    let headers = req.headers().clone();
 
     let url = format!("{}{}", state.server_url, path);
 
@@ -88,7 +89,11 @@ async fn proxy_streaming(
     };
 
     if matches!(method, axum::http::Method::POST | axum::http::Method::PUT) {
-        request_builder = request_builder.header("Content-Type", "application/json");
+        let content_type = headers
+            .get(axum::http::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("application/json");
+        request_builder = request_builder.header("Content-Type", content_type);
     }
 
     let response = request_builder
@@ -221,24 +226,25 @@ pub async fn start_api_server(
         info!("API key authentication is ENABLED");
     }
 
-    let public_routes = Router::new()
-        .route("/health", get(proxy_streaming))
-        .route("/metrics", get(proxy_streaming));
-
     let app = Router::new()
-        .merge(public_routes)
-        .route("/v1/chat/completions", post(proxy_streaming))
-        .route("/v1/completions", post(proxy_streaming))
-        .route("/v1/embeddings", post(proxy_streaming))
-        .route("/v1/models", get(proxy_streaming))
-        .route("/api/status", get(status))
-        .fallback(proxy_streaming)
-        .layer(cors)
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth_middleware,
-        ))
-        .layer(TraceLayer::new_for_http())
+        .route("/health", get(proxy_streaming))
+        .route("/metrics", get(proxy_streaming))
+        .nest(
+            "/",
+            Router::new()
+                .route("/v1/chat/completions", post(proxy_streaming))
+                .route("/v1/completions", post(proxy_streaming))
+                .route("/v1/embeddings", post(proxy_streaming))
+                .route("/v1/models", get(proxy_streaming))
+                .route("/api/status", get(status))
+                .fallback(proxy_streaming)
+                .layer(cors)
+                .layer(axum::middleware::from_fn_with_state(
+                    state.clone(),
+                    auth_middleware,
+                ))
+                .layer(TraceLayer::new_for_http()),
+        )
         .with_state(state);
 
     axum::serve(tokio::net::TcpListener::bind(bind).await?, app)

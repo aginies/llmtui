@@ -302,7 +302,6 @@ fn test_active_model_panel_renders() {
         ctx_max: 32768,
         total_vram_used: 8_000,
         decoded_tokens: 0,
-        throughput: 0.0,
         latency_per_token_ms: 0.0,
         prompt_latency_ms: 0.0,
     };

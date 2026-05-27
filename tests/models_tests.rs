@@ -616,7 +616,6 @@ fn server_metrics_default_all_zero() {
     assert_eq!(m.ctx_max, 0);
     assert_eq!(m.total_vram_used, 0);
     assert_eq!(m.decoded_tokens, 0);
-    assert_eq!(m.throughput, 0.0);
     assert_eq!(m.latency_per_token_ms, 0.0);
     assert_eq!(m.prompt_latency_ms, 0.0);
 }

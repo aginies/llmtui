@@ -103,9 +103,9 @@ Key handling is hierarchical:
 
 **Important:** Each branch calls `return` to prevent fallthrough. Adding a new mode requires early returns.
 
-### Token count display (`src/main.rs`)
+### Token count display
 
-Token count (`ctx_used`) is driven by log-parsed `n_tokens` from llama.cpp stderr, NOT from the `/metrics` endpoint. When the metrics channel receives endpoint data, the log-parsed value takes priority if it exists.
+Token count (`ctx_used`) is primarily driven by the `/metrics` endpoint. Log-parsing of `n_tokens` is used as a fallback if the API reports 0, ensuring real-time updates during inference. This hybrid approach prevents "stuck" values while maintaining accuracy.
 
 ### Search filtering (`src/backend/hub.rs`)
 
