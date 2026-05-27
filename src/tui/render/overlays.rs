@@ -468,6 +468,8 @@ fn render_dashboard_picker(f: &mut Frame, area: Rect, _app: &App, enabled: bool,
 }
 
 fn render_dashboard_url(f: &mut Frame, area: Rect, app: &App, host: &str, port: &str, auth_key: &str, ws_enabled: bool) {
+    let modal_area = Rect { x: 0, y: 0, width: area.width, height: area.height };
+    f.render_widget(Clear, modal_area);
     let w = 60u16;
     let h = 18u16;
     let picker_area = Rect { x: (area.width - w) / 2, y: (area.height - h) / 2, width: w, height: h };
