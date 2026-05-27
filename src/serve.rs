@@ -233,8 +233,14 @@ pub async fn serve_model(
     let ws_server_handle = if ws_enable {
         let (tx, rx) = tokio::sync::broadcast::channel(64);
         let ws_rx = std::sync::Arc::new(rx);
-        let handle = crate::backend::ws_server::start_ws_server(ws_port, ws_rx, ws_auth).await;
-        info!("Dashboard enabled on port {}", ws_port);
+        let handle = crate::backend::ws_server::start_ws_server(ws_port, ws_rx, ws_auth.clone()).await;
+        
+        let auth_param = if let Some(ref auth) = ws_auth {
+            format!("?auth={}", urlencoding::encode(auth))
+        } else {
+            "".to_string()
+        };
+        info!("Dashboard enabled: http://127.0.0.1:{}/dashboard{}", ws_port, auth_param);
 
         // Start metrics polling task
         let settings_clone = settings.clone();
