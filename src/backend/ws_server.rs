@@ -63,8 +63,12 @@ pub fn stop_ws_server(handle: JoinHandle<()>) {
     handle.abort();
 }
 
-async fn serve_dashboard() -> Html<&'static str> {
-    Html(include_str!("../dashboard.html"))
+async fn serve_dashboard(
+    axum::extract::State(state): axum::extract::State<WsAppState>,
+) -> Html<String> {
+    let auth_json = serde_json::to_string(&state.auth_key).unwrap_or("null".to_string());
+    let auth_script = format!("<script>window.__WS_AUTH={};</script>", auth_json);
+    Html(format!("{}{}", include_str!("../dashboard.html"), auth_script))
 }
 
 async fn ws_handler(
