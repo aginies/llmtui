@@ -6,12 +6,13 @@ use crate::tui::app::{App, GlobalMode};
 use super::super::helpers::sync_global_settings;
 
 // Settings field indices for navigation and editing
-// Loading: 0: Context, 1: Prompt, 2: Keep in memory (mlock)
+// Loading: 0: Prompt, 1: Context, 2: Keep in memory (mlock)
 // GPU: 3: GPU Layers, 4: Flash Attention, 5: KV Cache Offload, 6: Cache Type K, 7: Cache Type V, 8: Active Experts
 // Evaluation: 9: Eval Batch, 10: Unified KV, 11: Max Concurrent Pred
 // Sampling: 12: Seed, 13: Temp, 14: Top-k, 15: Top-p, 16: Min P, 17: Max Tokens
 // Repetition: 18: Rep. Penalty, 19: Rep. Last N, 20: Presence, 21: Frequency
-// Total: 21 fields (20 editable)
+// Tags: 22, Backend: 23
+// Total: 24 fields (23 editable)
 
 pub fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _max_threads: u32, max_context: u32) {
     match idx {
