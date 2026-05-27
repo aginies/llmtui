@@ -842,6 +842,15 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
 fn handle_backend_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if let GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode {
         match key.code {
+            KeyCode::Esc => {
+                app.ui.global_mode = GlobalMode::Normal;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                *selected = selected.saturating_sub(1);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
+            }
             KeyCode::Enter => {
                 let (backend, tag) = entries[*selected].clone();
                 app.settings.backend = backend;
@@ -882,6 +891,17 @@ fn handle_backend_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
 fn handle_max_concurrent_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if let GlobalMode::MaxConcurrentPicker { value } = &mut app.ui.global_mode {
         match key.code {
+            KeyCode::Esc => {
+                app.ui.global_mode = GlobalMode::Normal;
+            }
+            KeyCode::Char(c) if c.is_ascii_digit() => {
+                if value.len() < 3 {
+                    value.push(c);
+                }
+            }
+            KeyCode::Backspace => {
+                value.pop();
+            }
             KeyCode::Enter => {
                 if let Ok(n) = value.parse::<u32>() { let n = n.clamp(1, 10); app.settings.max_concurrent_predictions = Some(n); sync_global_settings(app); app.update_vram_estimate(); }
                 app.ui.global_mode = GlobalMode::Normal;
@@ -1072,6 +1092,26 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
 fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
+        KeyCode::Esc => {
+            app.bench_tune.bench_tune_output_view = None;
+            return;
+        }
+        KeyCode::Down => {
+            app.bench_tune.bench_tune_output_scroll = app.bench_tune.bench_tune_output_scroll.saturating_add(1);
+            return;
+        }
+        KeyCode::Up => {
+            app.bench_tune.bench_tune_output_scroll = app.bench_tune.bench_tune_output_scroll.saturating_sub(1);
+            return;
+        }
+        KeyCode::PageDown => {
+            app.bench_tune.bench_tune_output_scroll = app.bench_tune.bench_tune_output_scroll.saturating_add(10);
+            return;
+        }
+        KeyCode::PageUp => {
+            app.bench_tune.bench_tune_output_scroll = app.bench_tune.bench_tune_output_scroll.saturating_sub(10);
+            return;
+        }
         KeyCode::Char('n') => {
             if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view {
                 if let Some(result) = app.bench_tune.bench_tune_results.get(result_idx) {
@@ -1112,6 +1152,28 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         }
         KeyCode::Enter => {
+            let result_idx = app.bench_tune.bench_tune_result_row;
+            if let Some(result) = app.bench_tune.bench_tune_results.get(result_idx) {
+                if !result.outputs.is_empty() {
+                    app.bench_tune.bench_tune_output_view = Some(result_idx);
+                    app.bench_tune.bench_tune_output_index = 0;
+                    app.bench_tune.bench_tune_output_scroll = 0;
+                    return;
+                }
+            }
+        }
+        KeyCode::Down => {
+            let len = app.bench_tune.bench_tune_results.len();
+            if len > 0 {
+                app.bench_tune.bench_tune_result_row = (app.bench_tune.bench_tune_result_row + 1).min(len - 1);
+            }
+            return;
+        }
+        KeyCode::Up => {
+            if app.bench_tune.bench_tune_result_row > 0 {
+                app.bench_tune.bench_tune_result_row -= 1;
+            }
+            return;
         }
         _ => {}
     }
