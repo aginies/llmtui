@@ -117,7 +117,7 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
         cert
     };
 
-    // Generate server cert signed by CA
+    // Generate server cert signed by CA (use the in-memory CA cert, don't re-read from disk)
     let (server_cert, server_key) = generate_server_cert(&ca_cert_pem, &std::fs::read_to_string(&ca_path)?)?;
     std::fs::write(&server_cert_path, &server_cert)?;
     std::fs::write(&server_key_path, &server_key)?;

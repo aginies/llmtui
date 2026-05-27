@@ -50,7 +50,10 @@ pub async fn start_ws_server(
         Err(e) => {
             error!("Failed to bind WebSocket server to {addr}: {e}");
             tokio::spawn(async move {
-                loop { tokio::time::sleep(std::time::Duration::from_secs(3600)).await; }
+                loop {
+                    warn!("WebSocket server failed to bind, retrying in 60s...");
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                }
             })
         }
     }

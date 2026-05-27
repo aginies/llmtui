@@ -2,6 +2,11 @@ use anyhow::Result;
 use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 
+/// Download state codes (stored as AtomicU8 for lock-free access)
+pub const DOWNLOAD_STATE_DOWNLOADING: u8 = 1;
+pub const DOWNLOAD_STATE_PAUSED: u8 = 2;
+pub const DOWNLOAD_STATE_CANCELLED: u8 = 3;
+
 /// Get the amount of free disk space (in bytes) at the given path.
 /// Uses `statvfs` on Unix systems.
 pub fn get_free_space_bytes(path: &std::path::Path) -> u64 {
@@ -230,19 +235,20 @@ pub async fn download_file(
         }
 
         let state = download_state.load(std::sync::atomic::Ordering::Relaxed);
-        if state == 3 {
+        if state == DOWNLOAD_STATE_CANCELLED {
             drop(file);
             let _ = tokio::fs::remove_file(dest).await;
             return Err(anyhow::anyhow!("Download cancelled"));
         }
-        if state == 2 {
-            // Check if download_state_arc is also paused (for UI consistency)
-            if let Some(arc) = &progress.download_state_arc {
-                if arc.load(std::sync::atomic::Ordering::Relaxed) == 2 {
-                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                    continue;
-                }
+        if state == DOWNLOAD_STATE_PAUSED {
+            // Pause: wait until resumed (state changes back to DOWNLOADING)
+            // Also check download_state_arc if present for UI consistency
+            let should_pause = if let Some(arc) = &progress.download_state_arc {
+                arc.load(std::sync::atomic::Ordering::Relaxed) == DOWNLOAD_STATE_PAUSED
             } else {
+                true
+            };
+            if should_pause {
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                 continue;
             }
@@ -373,54 +379,31 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
                 continue;
             }
 
-            let parts: Vec<&str> = name_str.split('-').collect();
-            // parts: ["llama", "server", backend, tag]
-            // For rocm-lemonade it might be: ["llama", "server", "rocm", "lemonade", tag]
-            // For win-cuda-12.4 it might be: ["llama", "server", "win", "cuda", "12.4", tag]
+            // Strip the prefix and split the rest
+            let suffix = name_str.strip_prefix("llama-server-").unwrap_or("");
+            let parts: Vec<&str> = suffix.split('-').collect();
             
-            if parts.len() < 4 {
+            if parts.len() < 2 {
                 continue;
             }
 
-            let (backend, tag) = if parts[2] == "rocm" && parts.get(3) == Some(&"lemonade") {
-                if parts.len() < 5 { continue; }
-                (crate::models::Backend::RocmLemonade, parts[4].to_string())
-            } else if parts[2] == "win" && parts.get(3) == Some(&"cuda") && parts.get(4) == Some(&"12.4") {
-                if parts.len() < 6 { continue; }
-                (crate::models::Backend::CudaWindows12_4, parts[5].to_string())
-            } else if parts[2] == "win" && parts.get(3) == Some(&"cuda") && parts.get(4) == Some(&"13.1") {
-                if parts.len() < 6 { continue; }
-                (crate::models::Backend::CudaWindows13_1, parts[5].to_string())
-            } else if parts[2] == "cpu" && parts.get(3) == Some(&"arm64") {
-                if parts.len() < 5 { continue; }
-                (crate::models::Backend::CpuArm64, parts[4].to_string())
-            } else if parts[2] == "macos" && parts.get(3) == Some(&"arm64") {
-                if parts.len() < 5 { continue; }
-                (crate::models::Backend::CpuMacosArm64, parts[4].to_string())
-            } else if parts[2] == "macos" && parts.get(3) == Some(&"x64") {
-                if parts.len() < 5 { continue; }
-                (crate::models::Backend::CpuMacosX64, parts[4].to_string())
-            } else {
-                let b = match (parts[2], parts.get(3)) {
-                    ("cpu", _) => crate::models::Backend::Cpu,
-                    ("vulkan", _) => crate::models::Backend::Vulkan,
-                    ("rocm", _) => crate::models::Backend::Rocm,
-                    ("cuda", _) => crate::models::Backend::Cuda,
-                    ("win-cpu", _) => crate::models::Backend::CpuWindows,
-                    ("win-vulkan", _) => crate::models::Backend::VulkanWindows,
-                    ("win-hip", _) => crate::models::Backend::HipWindows,
-                    _ => continue,
-                };
-                // For simple slugs, tag is parts[3]; for complex slugs, tag is parts[4]
-                let tag_idx = if b == crate::models::Backend::CpuArm64 
-                    || b == crate::models::Backend::CpuMacosArm64 
-                    || b == crate::models::Backend::CpuMacosX64 {
-                    4
-                } else {
-                    3
-                };
-                if parts.len() <= tag_idx { continue; }
-                (b, parts[tag_idx].to_string())
+            // The tag is always the last segment
+            let tag = parts[parts.len() - 1].to_string();
+            let backend = match (parts[0], parts.get(1).copied()) {
+                ("rocm", Some("lemonade")) => crate::models::Backend::RocmLemonade,
+                ("win", Some("cuda")) if parts.len() >= 4 && parts[2] == "12.4" => crate::models::Backend::CudaWindows12_4,
+                ("win", Some("cuda")) if parts.len() >= 4 && parts[2] == "13.1" => crate::models::Backend::CudaWindows13_1,
+                ("cpu", Some("arm64")) => crate::models::Backend::CpuArm64,
+                ("macos", Some("arm64")) => crate::models::Backend::CpuMacosArm64,
+                ("macos", Some("x64")) => crate::models::Backend::CpuMacosX64,
+                ("cpu", _) => crate::models::Backend::Cpu,
+                ("vulkan", _) => crate::models::Backend::Vulkan,
+                ("rocm", _) => crate::models::Backend::Rocm,
+                ("cuda", _) => crate::models::Backend::Cuda,
+                ("win-cpu", _) => crate::models::Backend::CpuWindows,
+                ("win-vulkan", _) => crate::models::Backend::VulkanWindows,
+                ("win-hip", _) => crate::models::Backend::HipWindows,
+                _ => continue,
             };
 
             // Verify it actually contains the binary
@@ -465,34 +448,13 @@ pub async fn resolve_backend_binary(
                 t
             } else {
                 // Fetch latest release tag (best-effort; falls back to hardcoded tag)
-                let client = reqwest::Client::new();
-            let repo = match backend {
-                crate::models::Backend::RocmLemonade => "lemonade-sdk/llamacpp-rocm",
-                crate::models::Backend::Cuda => "ai-dock/llama.cpp-cuda",
-                _ => "ggml-org/llama.cpp",
-            };
-            let url = format!("https://api.github.com/repos/{}/releases/latest", repo);
-            match client
-                .get(&url)
-                .header("Accept", "application/vnd.github.v3+json")
-                .header("User-Agent", "llm-manager/0.9.3")
-                .send()
-                .await
-            {
-                Ok(resp) => match resp.error_for_status() {
-                    Ok(resp) => match resp.json::<serde_json::Value>().await {
-                        Ok(json) => json
-                            .get("tag_name")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string())
-                            .unwrap_or_else(|| default_tag(repo)),
-                        Err(_) => default_tag(repo),
-                    },
-                    Err(_) => default_tag(repo),
-                },
-                Err(_) => default_tag(repo),
+                let repo = match backend {
+                    crate::models::Backend::RocmLemonade => "lemonade-sdk/llamacpp-rocm",
+                    crate::models::Backend::Cuda => "ai-dock/llama.cpp-cuda",
+                    _ => "ggml-org/llama.cpp",
+                };
+                fetch_latest_release_tag(repo, &default_tag(repo)).await
             }
-          }
         }
     };
 
@@ -707,7 +669,7 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
     Ok(())
 }
 
-/// Recursively walk a directory and call a closure for each entry.
+  /// Recursively walk a directory and call a closure for each entry.
 pub fn walk_dir_recursive<F>(dir: &std::path::Path, depth: usize, max_depth: usize, f: &mut F)
 where
     F: FnMut(&std::fs::DirEntry),
@@ -724,5 +686,32 @@ where
                 walk_dir_recursive(&path, depth + 1, max_depth, f);
             }
         }
+    }
+}
+
+/// Fetch the latest release tag from a GitHub repository.
+/// Returns the tag_name from the API, or falls back to a hardcoded default.
+async fn fetch_latest_release_tag(repo: &str, fallback: &str) -> String {
+    let client = reqwest::Client::new();
+    let url = format!("https://api.github.com/repos/{}/releases/latest", repo);
+    match client
+        .get(&url)
+        .header("Accept", "application/vnd.github.v3+json")
+        .header("User-Agent", "llm-manager/0.9.3")
+        .send()
+        .await
+    {
+        Ok(resp) => match resp.error_for_status() {
+            Ok(resp) => match resp.json::<serde_json::Value>().await {
+                Ok(json) => json
+                    .get("tag_name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| fallback.to_string()),
+                Err(_) => fallback.to_string(),
+            },
+            Err(_) => fallback.to_string(),
+        },
+        Err(_) => fallback.to_string(),
     }
 }

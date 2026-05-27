@@ -778,7 +778,16 @@ fn get_process_metrics(pid: u32, cpu_ticks_prev: u64, system_uptime_prev: f64) -
             let uptime = fs::read_to_string("/proc/uptime").unwrap_or_default();
             let system_uptime: f64 = uptime.split_whitespace().next().and_then(|s| s.parse().ok()).unwrap_or(0.0);
             
-            let clk_tck = 100.0; // typical
+            let clk_tck = {
+            #[cfg(target_os = "linux")]
+            {
+                unsafe { libc::sysconf(libc::_SC_CLK_TCK) as f64 }
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                100.0
+            }
+        };
             let total_time = (utime + stime) as f64 / clk_tck;
             let seconds = system_uptime - (start_time as f64 / clk_tck);
             
