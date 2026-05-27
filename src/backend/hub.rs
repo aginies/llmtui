@@ -433,18 +433,31 @@ pub async fn resolve_backend_binary(
     log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
 ) -> Result<std::path::PathBuf> {
+    tracing::info!("resolve_backend_binary: backend={}, version={:?}", backend, version);
     let tag = match version {
-        Some(v) if !v.is_empty() => v.to_string(),
+        Some(v) if !v.is_empty() => {
+            tracing::info!("  -> using explicit version: {}", v);
+            v.to_string()
+        }
         _ => {
             // Check if we have any local version first before asking GitHub
             let installed = list_installed_backends();
+            let backend_versions: Vec<_> = installed.iter()
+                .filter(|(b, _)| *b == backend)
+                .map(|(_, t)| t.clone())
+                .collect();
+            tracing::info!("  -> no explicit version, found {} installed versions for backend: {:?}", backend_versions.len(), backend);
+            for v in &backend_versions {
+                tracing::info!("     installed version: {}", v);
+            }
             let latest_local = installed.iter()
                 .filter(|(b, _)| *b == backend)
                 .map(|(_, t)| t.clone())
                 .next(); // list_installed_backends is already sorted by tag desc
 
-            if let Some(t) = latest_local {
-                t
+            if let Some(t) = &latest_local {
+                tracing::info!("  -> using latest installed version: {}", t);
+                t.clone()
             } else {
                 // Fetch latest release tag (best-effort; falls back to hardcoded tag)
                 let repo = match backend {
@@ -452,6 +465,7 @@ pub async fn resolve_backend_binary(
                     crate::models::Backend::Cuda => "ai-dock/llama.cpp-cuda",
                     _ => "ggml-org/llama.cpp",
                 };
+                tracing::info!("  -> no local version, fetching latest from GitHub repo: {}", repo);
                 fetch_latest_release_tag(repo, &default_tag(repo)).await
             }
         }
@@ -460,14 +474,19 @@ pub async fn resolve_backend_binary(
     let bin_dir = get_backend_dir(backend, &tag);
     let bin_name = binary_name();
     let bin_path = bin_dir.join(bin_name);
+    tracing::info!("  -> resolved tag={}, bin_dir={}, bin_path={}", tag, bin_dir.display(), bin_path.display());
 
     // Check if both the binary and at least one shared library exist
     let lib_name = lib_sentinel_name();
     let lib_sentinel = bin_dir.join(lib_name);
+    tracing::info!("  -> checking binary existence: bin_path={} lib_sentinel={}", bin_path.exists(), lib_sentinel.exists());
 
     if bin_path.exists() && lib_sentinel.exists() {
+        tracing::info!("  -> binary already exists, returning cached path");
         return Ok(bin_path);
     }
+
+    tracing::info!("  -> binary not found, will download");
 
     // Create bin directory
     std::fs::create_dir_all(&bin_dir)?;
@@ -548,6 +567,7 @@ pub async fn resolve_backend_binary(
     let tmp_ext = if is_zip { "zip" } else { "tar.gz" };
     let tmp_filename = format!("llama-server-{}-{}.tmp.{}", backend.slug(), tag, tmp_ext);
     let tmp_path = bin_dir.join(&tmp_filename);
+    tracing::info!("  -> downloading to: {}", tmp_path.display());
     
     if let Some(ref tx) = progress_tx {
         let mut progress = crate::models::DownloadState::new("llama-server".to_string(), tmp_filename.clone(), 0);
@@ -556,7 +576,7 @@ pub async fn resolve_backend_binary(
     } else {
         let resp = client
             .get(&download_url)
-            .header("User-Agent", "llm-manager/0.9.3")
+.header("User-Agent", "llm-manager/0.9.9")
             .send()
             .await?
             .error_for_status()?;
@@ -567,6 +587,7 @@ pub async fn resolve_backend_binary(
             file.write_all(&chunk).await?;
         }
     }
+    tracing::info!("  -> download complete, extracting...");
 
     // Extract the archive to a temp directory, then pull out the binary and shared libs
     let extract_dir = bin_dir.join(format!("llama-server-{}-{}.extract", backend.slug(), tag));
@@ -583,20 +604,24 @@ pub async fn resolve_backend_binary(
 
     // The archive contains llama-xxx/bin/llama-server; find it and move into bin_dir
     let extracted_bin = extract_dir.join(bin_name);
+    tracing::info!("  -> looking for binary in extracted archive at: {}", extracted_bin.display());
     if extracted_bin.exists() {
+        tracing::info!("  -> found binary at expected location, moving to {}", bin_path.display());
         std::fs::rename(&extracted_bin, &bin_path)?;
     } else {
         // Try searching recursively for the binary name
+        tracing::info!("  -> binary not at expected location, searching recursively...");
         let mut found = None;
         walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
             if entry.file_name().to_str() == Some(bin_name) {
+                tracing::info!("  -> found binary at: {}", entry.path().display());
                 found = Some(entry.path().to_path_buf());
             }
         });
         if let Some(path) = found {
             std::fs::rename(path, &bin_path)?;
         } else {
-            anyhow::bail!("Could not find {} binary in archive", bin_name);
+            anyhow::bail!("Could not find {} binary in archive at {}", bin_name, extract_dir.display());
         }
     }
 

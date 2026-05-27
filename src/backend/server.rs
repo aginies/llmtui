@@ -334,11 +334,15 @@ pub async fn spawn_server(
         "llama-server"
     };
     let version_display = settings.get_active_backend_version_display();
+    info!("spawn_server: backend={}, requested_version={:?}, version_display={}", settings.backend, settings.get_active_backend_version(), version_display);
     log_tx.send(format!("Resolving {} (v{}) binary...", backend_name, version_display)).await.ok();
     let version_param = settings.get_active_backend_version().map(|s| s.as_str());
 
     let server_binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, Some(log_tx.clone()), progress_tx).await {
-        Ok(path) => path,
+        Ok(path) => {
+            info!("spawn_server: resolved binary path={}", path.display());
+            path
+        }
         Err(e) => {
             return Err(format!("Failed to resolve backend binary: {}", e));
         }
