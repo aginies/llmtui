@@ -946,7 +946,7 @@ impl App {
 
     pub fn update_metrics_model_name(&mut self) {
         let active_loaded_model = if let Some(model) = self.selected_model() {
-            if self.is_model_loaded(&model.name) {
+            if self.is_model_loaded(&model.display_name) {
                 Some(model.name.clone())
             } else {
                 // Fallback to the first actually loaded model
