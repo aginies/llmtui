@@ -13,7 +13,7 @@
 - **Configure** loading and inference parameters per model
 - **GGUF file browser** — list and select specific GGUF files for a model
 - **Log panel** — expand/collapse with Enter/Esc, follow mode with `f`
-- **About Box** — application info and GPLv3 license link (`Shift+A`)
+- **About Box** — application info and GPLv3 license link (`A`)
 - **CmdLine overlay** — view the full llama-server command line (`Ctrl+K`), export to script (`e`)
 - **API proxy** — expose an OpenAI-compatible API with CORS and SSE streaming support
 - **API key authentication** — Bearer token authentication for the API proxy

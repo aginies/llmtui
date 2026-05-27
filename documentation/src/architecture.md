@@ -15,16 +15,22 @@ src/
 └── tui/
     ├── mod.rs       # Module declaration
     ├── app.rs       # App state (App struct, enums for modes/panels)
-    ├── event.rs     # Keyboard/mouse event handler
+    ├── event/       # Keyboard/mouse event handler
     ├── render.rs    # Top-level render dispatcher
-    └── panel/
-        ├── mod.rs
-        ├── models.rs  # Left panel: model list / search / download
-        ├── info.rs    # GGUF metadata rendering
-        ├── tabbed.rs  # Right panel: Model Info / Settings tabs
-        ├── settings.rs
-        ├── log.rs
-        └── help.rs
+  └── panel/
+       ├── mod.rs
+       ├── models.rs      # Left panel: model list / search / download
+       ├── info.rs        # GGUF metadata rendering
+       ├── tabbed.rs      # Right panel: Model Info / Settings tabs
+       ├── settings.rs
+       ├── log.rs
+       ├── help.rs
+       ├── active.rs      # Active model metrics panel
+       ├── about.rs       # About box
+       ├── readme.rs      # README rendering
+       ├── rpc_workers.rs # RPC workers manager
+       ├── system_prompt_presets.rs # System prompt presets
+       └── api_endpoints.rs # API endpoints viewer
 ```
 
 ## App State Machine

@@ -30,7 +30,7 @@ Search mode lets you browse and download GGUF models from HuggingFace:
 | `/` | Enter search mode |
 | `Enter` | Execute search |
 | `Esc` | Exit search |
-| `l` | View available GGUF files for a result |
+| `L` | View available GGUF files for a result |
 | `S` | Cycle sort order |
 | `B` | Go back one page |
 | `Down` (at bottom) | Load more results |
@@ -175,7 +175,7 @@ Use `Left`/`Right` to adjust numeric fields by 1, or `Up`/`Down` for larger step
 
 - `Ctrl+S` — Save settings for the selected model
 - `Ctrl+R` — Reset to defaults
-- `e` / `Ctrl+E` — Toggle enabled/disabled (for Flash Attention, Unified KV, Keep in memory)
+- `e` / `Ctrl+E` — Toggle enabled/disabled (for Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred)
 
 Dirty (changed) fields are highlighted in yellow.
 
@@ -188,31 +188,30 @@ Dirty (changed) fields are highlighted in yellow.
 | `f` | Filter local models list |
 | `Esc` | Back / Exit search / Collapse log / Clear local filter |
 | `Tab` | Switch panels |
-| `t` | Switch settings tab |
 | `/` | Search models |
 | `l` | Load model |
 | `u` | Unload model |
-| `Shift+A` | About box (license and version info) |
+| `A` | About box (license and version info) |
 | `Ctrl+D` | Delete model |
 | `Ctrl+H` | Panel-specific help |
 | `Ctrl+K` | CmdLine overlay |
 | `Ctrl+Alt+K` | Kill llama-server |
 | `Ctrl+S` | Save settings |
 | `Ctrl+R` | Reset settings |
-| `Ctrl+E` | Toggle enabled/disabled |
+| `Ctrl+E` | Toggle optional fields (Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred) |
 | `g` / `G` | Jump to top/bottom of log |
-| `h` / `l` | Horizontal scroll (README panel) |
 | `PageUp` / `PageDown` | Fast scroll (logs, README, benchmarks) |
 | `F1`–`F6` | Toggle panels (Models, Server, Info, Settings, Active, Log) |
 | `F9` / `F10` / `Ctrl+F10` | Show all panels |
 | `Ctrl+F7` | Focus Models panel |
 | `Ctrl+F8` | Focus Server Settings panel |
 | `Ctrl+F9` | Focus LLM Settings panel |
-| `Ctrl+P` | Open Profile Picker modal |
+| `Ctrl+P` | Open Profile Picker modal (LLM Settings only) |
+| `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
 | `Ctrl+L` | Focus Log panel |
-| `⌃⇟` / `⌃⇞` | Jump 10 settings down/up |
+| `Ctrl+D` / `Ctrl+U` | Jump 10 settings down/up |
 | `Shift+←` / `Shift+→` | Resize horizontal panel split (20%-80%) |
-| `p` | Open Profiles panel / Pause/resume download / Previous benchmark result |
+| `p` | Pause/resume download / Previous benchmark result (also `Ctrl+P` for Profile Picker in LLM Settings) |
 | `n` | New preset (System Prompt Presets) / Next benchmark result |
 | `S` | Cycle search sort order |
 | `B` | Back one page in search |

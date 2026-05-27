@@ -39,8 +39,6 @@ cargo doc --open
 | `NumMode` | `models` | NUMA optimization: `None`, `Distribute`, `Isolate`, `Numactl` |
 | `RopeScaling` | `models` | RoPE frequency scaling: `None`, `Linear`, `Yarn` |
 | `Mirostat` | `models` | Mirostat version: `Off`, `Mirostat`, `Mirostat2` |
-| `ReasoningMode` | `models` | Reasoning format: `Default` (DeepSeek/OpenAI style) or `Gemma` (Gemma style) |
-| `ServerMode` | `models` | Server operating mode: `Normal`, `Router`, `Bench`, or `BenchTune` |
 | `LoadingPhase` | `app` | Phase of model loading (used internally by the TUI) |
 | `LoadProgress` | `models` | Load progress with `layers_total`, `layers_loaded`, `tensors_loaded` |
 | `Samplers` | `models` | Semicolon-separated sampler order string |
@@ -149,13 +147,15 @@ Configuration loading and saving.
 ```rust
 /// Global configuration.
 pub struct Config {
-    pub models_dir: PathBuf,
+    pub models_dirs: Vec<PathBuf>,
     pub llama_server: PathBuf,
     pub default: DefaultParams,
-    pub model_overrides: HashMap<String, ModelOverride>,
-    pub profiles: Vec<Profile>,
-    pub system_prompt_presets: Vec<SystemPromptPreset>,
+    pub model_overrides: ModelConfigStore,
+    pub profiles: ProfileStore,
+    pub system_prompt_presets: PresetStore,
     pub rpc_workers: Vec<RpcWorker>,
+    pub ws_server: WsServer,
+    pub search_limit: u32,
 }
 
 /// A remote RPC worker for distributed inference.
