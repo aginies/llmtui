@@ -8,7 +8,18 @@ Type=simple
 User=aginies
 Group=aginies
 EnvironmentFile=/home/aginies/llmtui/llm-manager.env
-ExecStart=/bin/bash -l -c 'exec /home/aginies/llmtui/target/release/llm-manager serve --model "${LLM_MODEL}" --api-port 49222 ${DASHBOARD_ENABLED:+--enable-dashboard} --config /home/aginies/.config/llm-manager/config.yaml'
+ExecStart=/bin/bash -l -c '\
+exec /home/aginies/llmtui/target/release/llm-manager serve \
+  --model "${LLM_MODEL}" \
+  ${LLM_API_PORT:+--api-port "${LLM_API_PORT}"} \
+  --config /home/aginies/.config/llm-manager/config.yaml \
+  ${LLM_BACKEND_BINARY:+--backend-binary "${LLM_BACKEND_BINARY}"} \
+  ${LLM_HOST:+--host "${LLM_HOST}"} \
+  ${LLM_LOG_FILE:+--log-file "${LLM_LOG_FILE}"} \
+  ${DASHBOARD_ENABLED:+--enable-dashboard} \
+  ${LLM_WS_PORT:+--ws-port "${LLM_WS_PORT}"} \
+  ${LLM_WS_AUTH:+--ws-auth "${LLM_WS_AUTH}"} \
+  ${LLM_API_KEY:+--api-key "${LLM_API_KEY}"}'
 Restart=on-failure
 RestartSec=5
 
