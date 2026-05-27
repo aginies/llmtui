@@ -68,7 +68,8 @@ async fn serve_dashboard(
 ) -> Html<String> {
     let auth_json = serde_json::to_string(&state.auth_key).unwrap_or("null".to_string());
     let auth_script = format!("<script>window.__WS_AUTH={};</script>", auth_json);
-    Html(format!("{}{}", include_str!("../dashboard.html"), auth_script))
+    let html = include_str!("../dashboard.html");
+    Html(html.replacen("</body>", &format!("{}\n</body>", auth_script), 1))
 }
 
 async fn ws_handler(
