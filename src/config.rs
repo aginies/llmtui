@@ -254,14 +254,14 @@ impl ModelOverride {
             mlock: Some(s.mlock),
             mmap: Some(s.mmap),
             numa: Some(s.numa),
-       uniform_cache: Some(s.uniform_cache),
+            uniform_cache: Some(s.uniform_cache),
             system_prompt: Some(s.system_prompt.clone()),
             system_prompt_preset_name: Some(s.system_prompt_preset_name.clone()),
             max_concurrent_predictions: s.max_concurrent_predictions,
             threads: Some(s.threads),
             threads_batch: Some(s.threads_batch),
             parallel: Some(s.parallel),
-             gpu_layers: Some(match s.gpu_layers_mode {
+            gpu_layers: Some(match s.gpu_layers_mode {
                 crate::models::GpuLayersMode::Auto => 0,
                 crate::models::GpuLayersMode::Specific(n) => n as i32,
                 crate::models::GpuLayersMode::All => -1,
@@ -308,7 +308,7 @@ impl ModelOverride {
             cache_reuse: Some(s.cache_reuse),
             webui: Some(s.webui),
             max_tokens: s.max_tokens,
- cache_type: Some(s.cache_type),
+       cache_type: Some(s.cache_type),
             llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
             llama_cpp_version_vulkan: s.llama_cpp_version_vulkan.clone(),
             llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
@@ -392,10 +392,10 @@ impl ModelOverride {
         base.cache_type = self.cache_type.unwrap_or(base.cache_type);
         if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_vulkan { base.llama_cpp_version_vulkan = Some(v.clone()); }
-         if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
-         if let Some(v) = &self.llama_cpp_version_rocm_lemonade { base.llama_cpp_version_rocm_lemonade = Some(v.clone()); }
-         if let Some(v) = &self.llama_cpp_version_cuda { base.llama_cpp_version_cuda = Some(v.clone()); }
-         if let Some(v) = self.is_mtp { base.is_mtp = v; }
+        if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
+        if let Some(v) = &self.llama_cpp_version_rocm_lemonade { base.llama_cpp_version_rocm_lemonade = Some(v.clone()); }
+        if let Some(v) = &self.llama_cpp_version_cuda { base.llama_cpp_version_cuda = Some(v.clone()); }
+        if let Some(v) = &self.is_mtp { base.is_mtp = *v; }
         if let Some(v) = self.draft_tokens { base.draft_tokens = v; }
         if let Some(v) = &self.tags { base.tags = v.clone(); }
         base.ws_server_enabled = self.ws_server_enabled.unwrap_or(base.ws_server_enabled);
@@ -793,7 +793,7 @@ impl Default for Config {
                 port: 49223,
                 auth_key: None,
             },
-            search_limit: 5,
+            search_limit: default_search_limit(),
         }
     }
 }
@@ -847,8 +847,8 @@ impl Config {
                 "mirostat_ent {} is outside recommended range 0.0-10.0",
                 default.mirostat_ent
             ));
-        }
- 
+       }
+
         if default.timeout < 1 {
             warnings.push(format!(
                 "timeout {} must be at least 1 second",
@@ -866,9 +866,7 @@ impl Config {
             if !lora.exists() {
                 warnings.push(format!("lora path {} does not exist", lora.display()));
             }
-        }
-
- 
+       }
 
         // Model override validation
         for model_name in self.model_overrides.keys() {
