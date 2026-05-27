@@ -24,6 +24,12 @@ Customize the dashboard port and authentication:
 ./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard --ws-port 8081 --ws-auth mykey
 ```
 
+Customize the host and use a specific backend binary:
+
+```bash
+./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard --host 0.0.0.0 --backend-binary /opt/rocm/bin/llama-server
+```
+
 ## Enabling in TUI Mode
 
 The dashboard can also be enabled from the TUI:

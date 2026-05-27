@@ -31,10 +31,13 @@ A convenience script is included for common operations:
 ```bash
 ./build.sh build      # Build (debug)
 ./build.sh run        # Build and run
+./build.sh serve      # Serve a model
 ./build.sh release    # Release build
 ./build.sh clean      # Remove build artifacts
 ./build.sh format     # Format code
 ./build.sh clippy     # Run clippy
+./build.sh doc        # Build documentation
+./build.sh servedoc   # Serve docs with watch mode
 ```
 
 ## First Run
@@ -130,6 +133,24 @@ Or with a settings profile:
 
 ```bash
 ./build.sh serve --model model.gguf --profile qwen
+```
+
+With a custom backend binary:
+
+```bash
+./build.sh serve --model model.gguf --backend-binary /opt/rocm/bin/llama-server
+```
+
+Bound to a specific network interface:
+
+```bash
+./build.sh serve --model model.gguf --host 0.0.0.0
+```
+
+Logs redirected to a file:
+
+```bash
+./build.sh serve --model model.gguf --log-file /var/log/llm-manager/model.log
 ```
 
 ### API Proxy

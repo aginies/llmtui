@@ -164,8 +164,9 @@ You can start a model directly from the command line without the TUI:
 | `--config` | Path to config file |
 | `--api-port` | Start API proxy on given port |
 | `--api-key` | API key for Bearer token authentication |
-| `--host` | Bind address for the server |
-| `--backend` | Acceleration backend (cpu / vulkan / rocm) |
+| `--host` | Bind address for the server (e.g., `0.0.0.0`) |
+| `--backend-binary` | Path to a custom llama-server binary |
+| `--log-file` | Log file path (default: stdout) |
 | `--threads` | CPU threads |
 | `--context` | Context length |
 | `--gpu-layers` | Number of GPU layers |
