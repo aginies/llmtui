@@ -19,19 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v2
-        with:
-          mdbook-version: '0.5.2'
-          install-cargo-bin: true
+      - name: Install mdBook
+        uses: taiki-e/install-action@mdbook
       - name: Build with mdBook
         run: mdbook build documentation
-      - name: Create docs directory
-        run: mkdir -p docs && cp -r documentation/book/* docs/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs
+          path: documentation/book
 
   deploy:
     environment:

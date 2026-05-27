@@ -7,4 +7,4 @@ title = "LLM Manager"
 [output.html]
 smart-punctuation = true
 git-repository-url = "https://github.com/aginies/llmtui"
-edit-url-template = "https://github.com/aginies/llmtui/edit/main/docs/{path}"
+edit-url-template = "https://github.com/aginies/llmtui/edit/main/documentation/src/{path}"

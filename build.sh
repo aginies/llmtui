@@ -99,13 +99,13 @@ cmd_clippy() {
 
 cmd_doc() {
     echo "Building documentation..."
-    mdbook build docs
-    echo "Docs built in docs/book/"
+    mdbook build documentation
+    echo "Docs built in documentation/book/"
 }
 
 cmd_servedoc() {
     echo "Serving documentation..."
-    mdbook serve docs --port "${1:-3000}"
+    mdbook serve documentation --port "${1:-3000}"
 }
 
 case "${1:-help}" in
