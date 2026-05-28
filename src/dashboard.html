@@ -64,7 +64,7 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
     <div class="label">per token</div>
   </div>
   <div class="card">
-    <h2>Context</h2>
+    <h2>Tokens</h2>
     <div id="ctx" class="value">0 / 0</div>
     <div class="bar-container"><div id="ctx-bar" class="bar blue" style="width:0%"></div></div>
   </div>
@@ -183,8 +183,8 @@ function update(m) {
   document.getElementById('state-badge').className = 'state-badge ' + (m.loaded ? 'loaded' : 'unloaded');
   document.getElementById('tps').textContent = m.tps.toFixed(1);
   document.getElementById('prompt-tps').textContent = m.prompt_tps.toFixed(1);
-  document.getElementById('ctx').textContent = `${m.ctx_used} / ${m.ctx_max}`;
-  const ctxPct = m.ctx_max > 0 ? (m.ctx_used / m.ctx_max * 100) : 0;
+  document.getElementById('ctx').textContent = `${m.decoded_tokens} / ${m.max_tokens ?? '∞'}`;
+  const ctxPct = (m.max_tokens && m.max_tokens > 0) ? (m.decoded_tokens / m.max_tokens * 100) : 0;
   document.getElementById('ctx-bar').style.width = ctxPct + '%';
   document.getElementById('cpu').textContent = m.cpu_usage.toFixed(0) + '%';
   document.getElementById('vram').textContent = m.gpu_mem_total > 0
