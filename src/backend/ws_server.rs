@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use axum::extract::{
     ws::{Message, WebSocket, WebSocketUpgrade},
+    ConnectInfo,
 };
 use axum::response::IntoResponse;
 use axum::{response::Html, routing::get, Router};
@@ -107,6 +108,7 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     axum::extract::State(state): axum::extract::State<WsAppState>,
     axum::extract::Query(query): axum::extract::Query<HashMap<String, String>>,
+    ConnectInfo(addr): ConnectInfo<std::net::SocketAddr>,
 ) -> impl IntoResponse {
     if let Some(ref expected) = state.auth_key {
         if let Some(provided) = query.get("auth").and_then(|v| urlencoding::decode(v).ok()) {
@@ -117,12 +119,12 @@ async fn ws_handler(
             return StatusCode::UNAUTHORIZED.into_response();
         }
     }
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+    ws.on_upgrade(move |socket| handle_socket(socket, state, addr))
 }
 
-async fn handle_socket(socket: WebSocket, state: WsAppState) {
+async fn handle_socket(socket: WebSocket, state: WsAppState, addr: std::net::SocketAddr) {
     let mut rx = state.metrics_rx.resubscribe();
-    info!("WebSocket client connected");
+    info!("WebSocket client connected from {addr}");
 
     let (mut sender, mut receiver) = socket.split();
 
@@ -130,7 +132,7 @@ async fn handle_socket(socket: WebSocket, state: WsAppState) {
         tokio::select! {
             biased;
             _ = receiver.next() => {
-                info!("WebSocket client disconnected");
+                info!("WebSocket client disconnected from {addr}");
                 break;
             }
             metrics = rx.recv() => match metrics {
