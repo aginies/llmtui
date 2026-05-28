@@ -23,6 +23,8 @@ async fn start_metrics_polling_task(
     let mut consecutive_failures: u32 = 0;
     let max_failures: u32 = 15;
     let _client = reqwest::Client::new();
+    let start_time = std::time::Instant::now();
+    let grace_period = std::time::Duration::from_secs(15);
 
     loop {
         // Check shutdown first
@@ -37,6 +39,11 @@ async fn start_metrics_polling_task(
             }
             Err(_) => {
                 consecutive_failures += 1;
+                if start_time.elapsed() < grace_period {
+                    tracing::debug!("Metrics polling: server unreachable (grace period, attempt {}/15)", consecutive_failures);
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                    continue;
+                }
                 if consecutive_failures >= max_failures {
                     tracing::warn!("Metrics polling aborted after {} consecutive failures (server likely dead)", max_failures);
                     break;
