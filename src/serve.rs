@@ -50,7 +50,10 @@ async fn start_metrics_polling_task(
         };
 
         let state = "loaded";
-        let ws_metrics = WsMetrics::from_metrics(&m, &model_name, state, &settings, None);
+        let mut ws_metrics = WsMetrics::from_metrics(&m, &model_name, state, &settings, None);
+        if settings.context_length > 0 {
+            ws_metrics.ctx_max = settings.context_length;
+        }
 
         if let Err(e) = tx.send(ws_metrics) {
             tracing::debug!("Failed to send metrics to broadcast channel: {e}");
