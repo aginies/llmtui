@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use rcgen::{
-    CertificateParams, DnType, IsCa, Issuer, KeyPair,
+    CertificateParams, DnType, IsCa, KeyPair,
     SanType,
 };
 use rustls_pemfile::certs;
@@ -59,35 +59,28 @@ fn generate_ca() -> Result<(String, String), Box<dyn std::error::Error + Send + 
     Ok((cert_pem, key_pem))
 }
 
-/// Parse CA certificate and key from PEM strings.
-fn parse_ca_from_pem(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(rcgen::Certificate, Issuer<'static, KeyPair>), Box<dyn std::error::Error + Send + Sync>> {
+/// Generate a server certificate signed by the CA, persisting to disk.
+/// Returns (cert_pem, key_pem).
+fn generate_server_cert(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
+    let ca_key = KeyPair::from_pem(ca_key_pem)?;
+    let server_key = KeyPair::generate()?;
+
     let ca_cert_der = certs(&mut ca_cert_pem.as_bytes())
         .next()
         .ok_or("No CA certificate found in PEM")?
         .map_err(|e| format!("Failed to parse CA certificate: {e}"))?;
-    let ca_cert = rcgen::Certificate::try_from(ca_cert_der)
+    let ca_cert_params = CertificateParams::from_ca_cert_der(&ca_cert_der)
         .map_err(|e| format!("Failed to convert CA certificate: {e}"))?;
+    let ca_cert = ca_cert_params.self_signed(&ca_key)?;
 
-    let ca_key = KeyPair::from_pem(ca_key_pem)?;
-    let ca_issuer = Issuer::from((ca_cert, ca_key));
-    Ok((ca_cert, ca_issuer))
-}
-
-/// Generate a server certificate signed by the CA, persisting to disk.
-/// Returns (cert_pem, key_pem).
-fn generate_server_cert(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
-    let server_key = KeyPair::generate()?;
-
-    let (ca_cert, ca_issuer) = parse_ca_from_pem(ca_cert_pem, ca_key_pem)?;
-
-    // Generate server cert
+    // Generate server cert signed by CA
     let mut params = CertificateParams::default();
     params.subject_alt_names = vec![
         SanType::DnsName("localhost".try_into().unwrap()),
         SanType::IpAddress([127, 0, 0, 1].try_into().unwrap()),
         SanType::IpAddress([0, 0, 0, 0].try_into().unwrap()),
     ];
-    let cert = params.signed_by(&server_key, &ca_issuer)?;
+    let cert = params.signed_by(&server_key, &ca_cert, &ca_key)?;
     let cert_pem = cert.pem();
     let key_pem = server_key.serialize_pem();
     Ok((cert_pem, key_pem))

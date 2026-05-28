@@ -980,7 +980,7 @@ impl App {
             let (tx, rx) = tokio::sync::broadcast::channel(64);
             self.server.metrics_tx = Some(tx);
             let ws_rx = std::sync::Arc::new(rx);
-            self.ws_server_handle = Some(crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key).await);
+            self.ws_server_handle = Some(crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key, None).await);
             self.add_log(format!("Dashboard enabled on port {}", port), crate::config::LogLevel::Info);
         } else if !enabled && self.ws_server_handle.is_some() {
             let handle = self.ws_server_handle.take().unwrap();
