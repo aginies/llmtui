@@ -11,6 +11,7 @@ EnvironmentFile=/home/aginies/llmtui/llm-manager.env
 ExecStart=/bin/bash -l -c '\
 exec /home/aginies/llmtui/target/release/llm-manager serve \
   --model "${LLM_MODEL}" \
+  ${LLM_PROFILE:+--profile "${LLM_PROFILE}"} \
   ${LLM_API_PORT:+--api-port "${LLM_API_PORT}"} \
   --config /home/aginies/.config/llm-manager/config.yaml \
   ${LLM_BACKEND_BINARY:+--backend-binary "${LLM_BACKEND_BINARY}"} \
@@ -19,7 +20,10 @@ exec /home/aginies/llmtui/target/release/llm-manager serve \
   ${DASHBOARD_ENABLED:+--ws-enable} \
   ${LLM_WS_PORT:+--ws-port "${LLM_WS_PORT}"} \
   ${LLM_WS_AUTH:+--ws-auth "${LLM_WS_AUTH}"} \
-  ${LLM_API_KEY:+--api-key "${LLM_API_KEY}"}'
+  ${LLM_API_KEY:+--api-key "${LLM_API_KEY}"} \
+  ${LLM_TLS_ENABLE:+--tls-enable} \
+  ${LLM_TLS_CERT:+--tls-cert "${LLM_TLS_CERT}"} \
+  ${LLM_TLS_KEY:+--tls-key "${LLM_TLS_KEY}"}'
 Restart=on-failure
 RestartSec=5
 
