@@ -79,7 +79,7 @@ enum Cli {
         #[arg(long)]
         backend_binary: Option<String>,
 
-        /// Host to bind the llama-server to (e.g. 127.0.0.1, 0.0.0.0, or an IP)
+        /// Host to bind the API proxy and WebSocket servers to (default: 127.0.0.1)
         #[arg(long)]
         host: Option<String>,
 
@@ -87,7 +87,7 @@ enum Cli {
         #[arg(long)]
         log_file: Option<String>,
 
-        /// Enable TLS for the WebSocket dashboard server (auto-generates self-signed certs)
+        /// Enable TLS for the WebSocket dashboard and API servers (auto-generates self-signed certs)
         #[arg(long)]
         tls_enable: bool,
 
@@ -203,7 +203,14 @@ async fn main() -> Result<()> {
             let ws_config = app.config.ws_server.clone();
             if ws_config.enabled {
                 let ws_rx = std::sync::Arc::new(ws_metrics_rx);
-                app.ws_server_handle = Some(backend::ws_server::start_ws_server(ws_config.port, ws_rx, ws_config.auth_key.clone(), None).await);
+                let tls_cfg = if ws_config.tls_enabled && ws_config.tls_cert.is_some() && ws_config.tls_key.is_some() {
+                    let cert = ws_config.tls_cert.as_ref().unwrap();
+                    let key = ws_config.tls_key.as_ref().unwrap();
+                    backend::tls::load_tls_config(cert, key).await.ok()
+                } else {
+                    None
+                };
+                app.ws_server_handle = Some(backend::ws_server::start_ws_server(ws_config.port, ws_rx, ws_config.auth_key.clone(), tls_cfg, ws_config.host.clone()).await);
             }
 
             // Setup terminal

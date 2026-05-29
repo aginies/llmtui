@@ -542,9 +542,10 @@ impl App {
                         let pid = self.server.server_handle.as_ref().map(|h| h.pid).unwrap_or(0);
                         let (api_shutdown_tx, api_shutdown_rx) = tokio::sync::watch::channel(false);
                         self.server.api_shutdown_tx = Some(api_shutdown_tx);
+                        let host = self.settings.host.clone();
                         let handle = tokio::spawn(async move {
                             let _ = crate::serve_api::start_api_server(
-                                addr, None, server_port, model_name, pid, api_shutdown_rx
+                                addr, None, server_port, model_name, pid, api_shutdown_rx, host, None
                             ).await;
                         });
                         self.server.api_proxy_handle = Some(handle);
@@ -975,12 +976,24 @@ impl App {
         let enabled = self.settings.ws_server_enabled;
         let port = self.settings.ws_server_port;
         let auth_key = self.settings.ws_server_auth_key.clone();
+        let tls_enabled = self.settings.ws_server_tls_enabled;
+        let tls_cert = self.settings.ws_server_tls_cert.clone();
+        let tls_key = self.settings.ws_server_tls_key.clone();
+
+        let tls_cfg = if tls_enabled && tls_cert.is_some() && tls_key.is_some() {
+            let cert = tls_cert.as_ref().unwrap();
+            let key = tls_key.as_ref().unwrap();
+            crate::backend::tls::load_tls_config(cert, key).await.ok()
+        } else {
+            None
+        };
 
         if enabled && self.ws_server_handle.is_none() {
             let (tx, rx) = tokio::sync::broadcast::channel(64);
             self.server.metrics_tx = Some(tx);
             let ws_rx = std::sync::Arc::new(rx);
-            self.ws_server_handle = Some(crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key, None).await);
+            let _host = self.settings.host.clone();
+            self.ws_server_handle = Some(crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key, tls_cfg, _host).await);
             self.add_log(format!("Dashboard enabled on port {}", port), crate::config::LogLevel::Info);
         } else if !enabled && self.ws_server_handle.is_some() {
             let handle = self.ws_server_handle.take().unwrap();

@@ -17,14 +17,13 @@ async fn start_metrics_polling_task(
     pid: u32,
     model_name: String,
     settings: crate::models::ModelSettings,
+    cmd_display: String,
     tx: tokio::sync::broadcast::Sender<WsMetrics>,
     shutdown_rx: tokio::sync::watch::Receiver<bool>,
 ) {
     let mut consecutive_failures: u32 = 0;
     let max_failures: u32 = 15;
     let _client = reqwest::Client::new();
-    let start_time = std::time::Instant::now();
-    let grace_period = std::time::Duration::from_secs(15);
 
     loop {
         // Check shutdown first
@@ -39,11 +38,6 @@ async fn start_metrics_polling_task(
             }
             Err(_) => {
                 consecutive_failures += 1;
-                if start_time.elapsed() < grace_period {
-                    tracing::debug!("Metrics polling: server unreachable (grace period, attempt {}/15)", consecutive_failures);
-                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                    continue;
-                }
                 if consecutive_failures >= max_failures {
                     tracing::warn!("Metrics polling aborted after {} consecutive failures (server likely dead)", max_failures);
                     break;
@@ -57,10 +51,7 @@ async fn start_metrics_polling_task(
         };
 
         let state = "loaded";
-        let mut ws_metrics = WsMetrics::from_metrics(&m, &model_name, state, &settings, None);
-        if settings.context_length > 0 {
-            ws_metrics.ctx_max = settings.context_length;
-        }
+        let ws_metrics = WsMetrics::from_metrics(&m, &model_name, state, &settings, Some(&cmd_display));
 
         if let Err(e) = tx.send(ws_metrics) {
             tracing::debug!("Failed to send metrics to broadcast channel: {e}");
@@ -210,7 +201,7 @@ pub async fn serve_model(
     };
 
     if tls_config.is_some() {
-        info!("TLS enabled for WebSocket dashboard");
+        info!("TLS enabled for WebSocket dashboard and API server");
     }
 
     // CLI host override
@@ -298,11 +289,14 @@ pub async fn serve_model(
     let (api_done_tx, api_done_rx) = tokio::sync::oneshot::channel();
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     let mut api_server_handle = if let Some(port) = api_port {
-        let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
+        let host_str = &settings.host;
+        let addr: SocketAddr = format!("{}:{}", host_str, port).parse()?;
         let model_name = model.display_name.clone();
         let server_port = settings.port;
         let api_key_clone = api_key.clone();
         let shutdown_rx_for_api = shutdown_rx.clone();
+        let host_clone = host_str.clone();
+        let tls_for_api = tls_config.clone();
         let handle = tokio::spawn(async move {
             let _ = crate::serve_api::start_api_server(
                 addr,
@@ -311,11 +305,14 @@ pub async fn serve_model(
                 model_name,
                 server_pid,
                 shutdown_rx_for_api,
+                host_clone,
+                tls_for_api,
             )
             .await;
             let _ = api_done_tx.send(());
         });
-        info!("API proxy started on http://127.0.0.1:{}", port);
+        let api_protocol = if tls_config.is_some() { "https" } else { "http" };
+        info!("API proxy started on {api_protocol}://{}:{}", host_str, port);
         Some((handle, api_done_rx, shutdown_tx))
     } else {
         None
@@ -325,11 +322,13 @@ pub async fn serve_model(
     let ws_server_handle = if ws_enable {
         let (tx, rx) = tokio::sync::broadcast::channel(64);
         let ws_rx = std::sync::Arc::new(rx);
+        let host_str = &settings.host;
         let handle = crate::backend::ws_server::start_ws_server(
             ws_port,
             ws_rx,
             ws_auth.clone(),
             tls_config.clone(),
+            host_str.clone(),
         ).await;
         
         let auth_param = if let Some(ref auth) = ws_auth {
@@ -338,10 +337,7 @@ pub async fn serve_model(
             "".to_string()
         };
         let protocol = if tls_config.is_some() { "https" } else { "http" };
-        let host = local_ip_address::local_ip()
-            .map(|ip| ip.to_string())
-            .unwrap_or_else(|_| "127.0.0.1".to_string());
-        info!("Dashboard enabled: {protocol}://{}:{}/dashboard{}", host, ws_port, auth_param);
+        info!("Dashboard enabled: {protocol}://{}:{}/dashboard{}", host_str, ws_port, auth_param);
 
         // Start metrics polling task
         let settings_clone = settings.clone();
@@ -349,6 +345,7 @@ pub async fn serve_model(
         let host_clone = settings.host.clone();
         let server_port_clone = settings.port;
         let pid_clone = server_pid;
+        let cmd_display_clone = cmd_display.clone();
         let shutdown_rx_clone = shutdown_rx.clone();
         tokio::spawn(async move {
             start_metrics_polling_task(
@@ -357,6 +354,7 @@ pub async fn serve_model(
                 pid_clone,
                 model_name_clone,
                 settings_clone,
+                cmd_display_clone,
                 tx,
                 shutdown_rx_clone,
             ).await;

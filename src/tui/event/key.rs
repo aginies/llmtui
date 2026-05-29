@@ -101,7 +101,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Skip all if in DashboardPicker overlay
-    if let GlobalMode::DashboardPicker { enabled, port, auth_key, selected_field, editing, edit_buffer, edit_cursor_pos, .. } = &mut app.ui.global_mode {
+   if let GlobalMode::DashboardPicker { enabled, port, auth_key, tls_enabled, tls_cert, tls_key, selected_field, editing, edit_buffer, edit_cursor_pos, .. } = &mut app.ui.global_mode {
         match key.code {
             KeyCode::Enter => {
                 if *editing {
@@ -114,6 +114,18 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     if *selected_field == 1i32 {
                         app.settings.ws_server_auth_key = if edit_buffer.is_empty() { None } else { Some(edit_buffer.clone()) };
                         auth_key.clone_from(edit_buffer);
+                    }
+                    if *selected_field == 2i32 {
+                        *tls_enabled = !*tls_enabled;
+                        app.settings.ws_server_tls_enabled = *tls_enabled;
+                    }
+                    if *selected_field == 3i32 {
+                        app.settings.ws_server_tls_cert = if edit_buffer.is_empty() { None } else { Some(edit_buffer.clone()) };
+                        tls_cert.clone_from(edit_buffer);
+                    }
+                    if *selected_field == 4i32 {
+                        app.settings.ws_server_tls_key = if edit_buffer.is_empty() { None } else { Some(edit_buffer.clone()) };
+                        tls_key.clone_from(edit_buffer);
                     }
                     *editing = false;
                     super::helpers::sync_global_settings(app);
@@ -137,16 +149,34 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     *edit_cursor_pos = edit_buffer.chars().count();
                     return;
                 }
+                if *selected_field == 2i32 {
+                    *tls_enabled = !*tls_enabled;
+                    app.settings.ws_server_tls_enabled = *tls_enabled;
+                    super::helpers::sync_global_settings(app);
+                    return;
+                }
+                if *selected_field == 3i32 {
+                    edit_buffer.clone_from(tls_cert);
+                    *editing = true;
+                    *edit_cursor_pos = edit_buffer.chars().count();
+                    return;
+                }
+                if *selected_field == 4i32 {
+                    edit_buffer.clone_from(tls_key);
+                    *editing = true;
+                    *edit_cursor_pos = edit_buffer.chars().count();
+                    return;
+                }
             }
             KeyCode::Up | KeyCode::Char('k') => {
                 if !*editing {
-                    *selected_field = if *selected_field <= -1 { 1 } else { *selected_field - 1 };
+                    *selected_field = if *selected_field <= -1 { 4 } else { *selected_field - 1 };
                 }
                 return;
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 if !*editing {
-                    *selected_field = if *selected_field >= 1 { -1 } else { *selected_field + 1 };
+                    *selected_field = if *selected_field >= 4 { -1 } else { *selected_field + 1 };
                 }
                 return;
             }
@@ -1201,6 +1231,9 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         enabled: app.settings.ws_server_enabled,
                         port: app.settings.ws_server_port.to_string(),
                         auth_key: app.settings.ws_server_auth_key.clone().unwrap_or_default(),
+                        tls_enabled: app.settings.ws_server_tls_enabled,
+                        tls_cert: app.settings.ws_server_tls_cert.clone().unwrap_or_default(),
+                        tls_key: app.settings.ws_server_tls_key.clone().unwrap_or_default(),
                         selected_field: -1,
                         editing: false,
                         edit_buffer: String::new(),

@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
 use rcgen::{
-    CertificateParams, DnType, IsCa, KeyPair,
+    CertificateParams, DnType, IsCa, Issuer, KeyPair,
     SanType,
 };
-use rustls_pemfile::certs;
 use tracing::info;
 
 /// Directory for TLS certificates under the config directory.
@@ -18,6 +17,11 @@ fn tls_dir() -> PathBuf {
 /// Well-known CA certificate path.
 fn ca_cert_path() -> PathBuf {
     tls_dir().join("ca.pem")
+}
+
+/// Well-known CA private key path.
+fn ca_key_path() -> PathBuf {
+    tls_dir().join("ca-key.pem")
 }
 
 /// Well-known server certificate path.
@@ -35,11 +39,8 @@ pub async fn load_tls_config(
     cert_path: &str,
     key_path: &str,
 ) -> Result<axum_server::tls_rustls::RustlsConfig, Box<dyn std::error::Error + Send + Sync>> {
-    let cert_file = cert_path;
-    let key_file = key_path;
-
-    info!("Loading TLS config from {} and {}", cert_file, key_file);
-    axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_file, key_file).await
+    info!("Loading TLS config from {} and {}", cert_path, key_path);
+    axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path).await
         .map_err(|e| e.into())
 }
 
@@ -59,19 +60,20 @@ fn generate_ca() -> Result<(String, String), Box<dyn std::error::Error + Send + 
     Ok((cert_pem, key_pem))
 }
 
+/// Parse CA certificate and key from PEM strings.
+fn parse_ca_from_pem(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(Issuer<'static, KeyPair>, KeyPair), Box<dyn std::error::Error + Send + Sync>> {
+    let ca_key1 = KeyPair::from_pem(ca_key_pem)?;
+    let ca_issuer = Issuer::from_ca_cert_pem(ca_cert_pem, ca_key1)?;
+    let ca_key2 = KeyPair::from_pem(ca_key_pem)?;
+    Ok((ca_issuer, ca_key2))
+}
+
 /// Generate a server certificate signed by the CA, persisting to disk.
 /// Returns (cert_pem, key_pem).
 fn generate_server_cert(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
-    let ca_key = KeyPair::from_pem(ca_key_pem)?;
     let server_key = KeyPair::generate()?;
 
-    let ca_cert_der = certs(&mut ca_cert_pem.as_bytes())
-        .next()
-        .ok_or("No CA certificate found in PEM")?
-        .map_err(|e| format!("Failed to parse CA certificate: {e}"))?;
-    let ca_cert_params = CertificateParams::from_ca_cert_der(&ca_cert_der)
-        .map_err(|e| format!("Failed to convert CA certificate: {e}"))?;
-    let ca_cert = ca_cert_params.self_signed(&ca_key)?;
+    let (ca_issuer, _ca_key) = parse_ca_from_pem(ca_cert_pem, ca_key_pem)?;
 
     // Generate server cert signed by CA
     let mut params = CertificateParams::default();
@@ -80,7 +82,7 @@ fn generate_server_cert(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(String, 
         SanType::IpAddress([127, 0, 0, 1].try_into().unwrap()),
         SanType::IpAddress([0, 0, 0, 0].try_into().unwrap()),
     ];
-    let cert = params.signed_by(&server_key, &ca_cert, &ca_key)?;
+    let cert = params.signed_by(&server_key, &ca_issuer)?;
     let cert_pem = cert.pem();
     let key_pem = server_key.serialize_pem();
     Ok((cert_pem, key_pem))
@@ -90,6 +92,7 @@ fn generate_server_cert(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(String, 
 /// Returns the paths to the cert and key files.
 pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync>> {
     let ca_path = ca_cert_path();
+    let ca_key_path = ca_key_path();
     let server_cert_path = server_cert_path();
     let server_key_path = server_key_path();
 
@@ -102,16 +105,17 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
     std::fs::create_dir_all(tls_dir())?;
 
     // Generate or load CA
-    let ca_cert_pem = if ca_path.exists() {
-        std::fs::read_to_string(&ca_path)?
+    let (ca_cert_pem, ca_key_pem) = if ca_path.exists() && ca_key_path.exists() {
+        (std::fs::read_to_string(&ca_path)?, std::fs::read_to_string(&ca_key_path)?)
     } else {
-        let (cert, _) = generate_ca()?;
+        let (cert, key) = generate_ca()?;
         std::fs::write(&ca_path, &cert)?;
-        cert
+        std::fs::write(&ca_key_path, &key)?;
+        (cert, key)
     };
 
     // Generate server cert signed by CA (use the in-memory CA cert, don't re-read from disk)
-    let (server_cert, server_key) = generate_server_cert(&ca_cert_pem, &std::fs::read_to_string(&ca_path)?)?;
+    let (server_cert, server_key) = generate_server_cert(&ca_cert_pem, &ca_key_pem)?;
     std::fs::write(&server_cert_path, &server_cert)?;
     std::fs::write(&server_key_path, &server_key)?;
 

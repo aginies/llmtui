@@ -12,23 +12,25 @@ http://localhost:49223
 
 ## Enabling in Serve Mode
 
-The dashboard can be enabled in serve mode using the `--enable-dashboard` flag:
+The dashboard can be enabled in serve mode using the `--ws-enable` flag:
 
 ```bash
-./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard
+./build.sh serve --model model.gguf --api-port 49222 --ws-enable
 ```
 
 Customize the dashboard port and authentication:
 
 ```bash
-./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard --ws-port 8081 --ws-auth mykey
+./build.sh serve --model model.gguf --api-port 49222 --ws-enable --ws-port 8081 --ws-auth mykey
 ```
 
 Customize the host and use a specific backend binary:
 
 ```bash
-./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard --host 0.0.0.0 --backend-binary /opt/rocm/bin/llama-server
+./build.sh serve --model model.gguf --api-port 49222 --ws-enable --host 0.0.0.0 --backend-binary /opt/rocm/bin/llama-server
 ```
+
+The `--host` option controls the bind address for **both** the API proxy server and the WebSocket dashboard server, ensuring they use the same network interface. The default is `127.0.0.1` (from config).
 
 ## Enabling in TUI Mode
 
@@ -56,7 +58,7 @@ The dashboard displays real-time metrics in a card-based layout:
 | **Generation Speed** | Tokens per second (TPS) for text generation |
 | **Prompt Speed** | Tokens per second for prompt processing |
 | **Latency** | Milliseconds per token |
-| **Context** | Context window usage with progress bar |
+| **Tokens** | Tokens generated with progress bar (decoded_tokens / max_tokens, or '∞' if not configured) |
 | **VRAM** | GPU memory used/total with color-coded progress bar (green <50%, yellow 50-80%, red >80%) |
 | **RAM** | System memory usage |
 | **CPU** | CPU usage percentage |
@@ -82,7 +84,7 @@ Below the metrics, the dashboard shows a grid of current inference settings:
 
 ### Server Command
 
-The full llama-server command line is displayed at the bottom of the dashboard, showing the exact invocation with all parameters.
+The full llama-server command line is displayed at the bottom of the dashboard, showing the exact invocation with all parameters. This is useful for debugging and inspecting the exact configuration being used.
 
 ## Configuration
 
