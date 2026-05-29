@@ -25,6 +25,7 @@ pub async fn start_ws_server(
     port: u16,
     metrics_rx: Arc<broadcast::Receiver<WsMetrics>>,
     auth_key: Option<String>,
+    host: String,
 ) -> JoinHandle<()> {
     let state = WsAppState { metrics_rx, auth_key };
 
@@ -35,7 +36,7 @@ pub async fn start_ws_server(
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
-    let addr = format!("0.0.0.0:{port}");
+    let addr = format!("{host}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await;
     match listener {
         Ok(listener) => {

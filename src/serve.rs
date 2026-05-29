@@ -16,6 +16,7 @@ async fn start_metrics_polling_task(
     pid: u32,
     model_name: String,
     settings: crate::models::ModelSettings,
+    cmd_display: String,
     tx: tokio::sync::broadcast::Sender<WsMetrics>,
     shutdown_rx: tokio::sync::watch::Receiver<bool>,
 ) {
@@ -49,7 +50,7 @@ async fn start_metrics_polling_task(
         };
 
         let state = "loaded";
-        let ws_metrics = WsMetrics::from_metrics(&m, &model_name, state, &settings, None);
+        let ws_metrics = WsMetrics::from_metrics(&m, &model_name, state, &settings, Some(&cmd_display));
 
         if let Err(e) = tx.send(ws_metrics) {
             tracing::debug!("Failed to send metrics to broadcast channel: {e}");
@@ -257,11 +258,13 @@ pub async fn serve_model(
     let (api_done_tx, api_done_rx) = tokio::sync::oneshot::channel();
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     let mut api_server_handle = if let Some(port) = api_port {
-        let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
+        let host_str = &settings.host;
+        let addr: SocketAddr = format!("{}:{}", host_str, port).parse()?;
         let model_name = model.display_name.clone();
         let server_port = settings.port;
         let api_key_clone = api_key.clone();
         let shutdown_rx_for_api = shutdown_rx.clone();
+        let host_clone = host_str.clone();
         let handle = tokio::spawn(async move {
             let _ = crate::serve_api::start_api_server(
                 addr,
@@ -270,11 +273,12 @@ pub async fn serve_model(
                 model_name,
                 server_pid,
                 shutdown_rx_for_api,
+                host_clone,
             )
             .await;
             let _ = api_done_tx.send(());
         });
-        info!("API proxy started on http://127.0.0.1:{}", port);
+        info!("API proxy started on http://{}:{}", host_str, port);
         Some((handle, api_done_rx, shutdown_tx))
     } else {
         None
@@ -284,17 +288,15 @@ pub async fn serve_model(
     let ws_server_handle = if ws_enable {
         let (tx, rx) = tokio::sync::broadcast::channel(64);
         let ws_rx = std::sync::Arc::new(rx);
-        let handle = crate::backend::ws_server::start_ws_server(ws_port, ws_rx, ws_auth.clone()).await;
+        let host_str = &settings.host;
+        let handle = crate::backend::ws_server::start_ws_server(ws_port, ws_rx, ws_auth.clone(), host_str.clone()).await;
         
         let auth_param = if let Some(ref auth) = ws_auth {
             format!("?auth={}", urlencoding::encode(auth))
         } else {
             "".to_string()
         };
-        let host = local_ip_address::local_ip()
-            .map(|ip| ip.to_string())
-            .unwrap_or_else(|_| "127.0.0.1".to_string());
-        info!("Dashboard enabled: http://{}:{}/dashboard{}", host, ws_port, auth_param);
+        info!("Dashboard enabled: http://{}:{}/dashboard{}", host_str, ws_port, auth_param);
 
         // Start metrics polling task
         let settings_clone = settings.clone();
@@ -302,6 +304,7 @@ pub async fn serve_model(
         let host_clone = settings.host.clone();
         let server_port_clone = settings.port;
         let pid_clone = server_pid;
+        let cmd_display_clone = cmd_display.clone();
         let shutdown_rx_clone = shutdown_rx.clone();
         tokio::spawn(async move {
             start_metrics_polling_task(
@@ -310,6 +313,7 @@ pub async fn serve_model(
                 pid_clone,
                 model_name_clone,
                 settings_clone,
+                cmd_display_clone,
                 tx,
                 shutdown_rx_clone,
             ).await;

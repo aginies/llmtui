@@ -542,9 +542,10 @@ impl App {
                         let pid = self.server.server_handle.as_ref().map(|h| h.pid).unwrap_or(0);
                         let (api_shutdown_tx, api_shutdown_rx) = tokio::sync::watch::channel(false);
                         self.server.api_shutdown_tx = Some(api_shutdown_tx);
+                        let host = self.settings.host.clone();
                         let handle = tokio::spawn(async move {
                             let _ = crate::serve_api::start_api_server(
-                                addr, None, server_port, model_name, pid, api_shutdown_rx
+                                addr, None, server_port, model_name, pid, api_shutdown_rx, host
                             ).await;
                         });
                         self.server.api_proxy_handle = Some(handle);
@@ -980,7 +981,8 @@ impl App {
             let (tx, rx) = tokio::sync::broadcast::channel(64);
             self.server.metrics_tx = Some(tx);
             let ws_rx = std::sync::Arc::new(rx);
-            self.ws_server_handle = Some(crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key).await);
+            let host = self.settings.host.clone();
+            self.ws_server_handle = Some(crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key, host).await);
             self.add_log(format!("Dashboard enabled on port {}", port), crate::config::LogLevel::Info);
         } else if !enabled && self.ws_server_handle.is_some() {
             let handle = self.ws_server_handle.take().unwrap();

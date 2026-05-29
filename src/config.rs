@@ -65,7 +65,11 @@ pub struct WsServer {
     pub port: u16,
     #[serde(default)]
     pub auth_key: Option<String>,
+    #[serde(default = "default_ws_host")]
+    pub host: String,
 }
+
+fn default_ws_host() -> String { "0.0.0.0".to_string() }
 
 fn default_ws_port() -> u16 { 49223 }
 
@@ -792,6 +796,7 @@ impl Default for Config {
                 enabled: false,
                 port: 49223,
                 auth_key: None,
+                host: "0.0.0.0".to_string(),
             },
             search_limit: default_search_limit(),
         }

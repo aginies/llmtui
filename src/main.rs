@@ -79,7 +79,7 @@ enum Cli {
         #[arg(long)]
         backend_binary: Option<String>,
 
-        /// Host to bind the llama-server to (e.g. 127.0.0.1, 0.0.0.0, or an IP)
+        /// Host to bind the API proxy and WebSocket servers to (default: 127.0.0.1)
         #[arg(long)]
         host: Option<String>,
 
@@ -191,7 +191,7 @@ async fn main() -> Result<()> {
             let ws_config = app.config.ws_server.clone();
             if ws_config.enabled {
                 let ws_rx = std::sync::Arc::new(ws_metrics_rx);
-                app.ws_server_handle = Some(backend::ws_server::start_ws_server(ws_config.port, ws_rx, ws_config.auth_key.clone()).await);
+                app.ws_server_handle = Some(backend::ws_server::start_ws_server(ws_config.port, ws_rx, ws_config.auth_key.clone(), ws_config.host.clone()).await);
             }
 
             // Setup terminal

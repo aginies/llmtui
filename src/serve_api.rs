@@ -184,13 +184,15 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
 }
 
 pub async fn start_api_server(
-    bind: SocketAddr,
+    addr: SocketAddr,
     api_key: Option<String>,
     server_port: u16,
     model_name: String,
     pid: u32,
     mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
+    host: String,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let bind = addr;
     let start_time = Instant::now();
     let client = Client::new();
     let state = ApiState {
@@ -220,7 +222,7 @@ pub async fn start_api_server(
     let api_key_clone = state.api_key.clone();
     info!(
         "API server starting on http://{} (proxying to http://127.0.0.1:{})",
-        bind, server_port
+        host, server_port
     );
     if api_key_clone.is_some() {
         info!("API key authentication is ENABLED");

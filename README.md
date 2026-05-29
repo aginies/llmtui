@@ -138,10 +138,10 @@ Run a model directly with llama-server and expose an OpenAI-compatible API:
 ./build.sh serve --model model.gguf --api-port 49222 --api-key secret
 
 # Serve with API proxy and WebSocket dashboard
-./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard
+./build.sh serve --model model.gguf --api-port 49222 --ws-enable
 
 # Serve with custom dashboard port and auth
-./build.sh serve --model model.gguf --api-port 49222 --enable-dashboard --ws-port 8081 --ws-auth mykey
+./build.sh serve --model model.gguf --api-port 49222 --ws-enable --ws-port 8081 --ws-auth mykey
 
 # Serve with a custom backend binary path
 ./build.sh serve --model model.gguf --backend-binary /path/to/custom/llama-server
@@ -156,9 +156,7 @@ Run a model directly with llama-server and expose an OpenAI-compatible API:
 ./build.sh serve --model model.gguf --api-port 49222 --host 0.0.0.0 --backend-binary /opt/rocm/bin/llama-server --log-file /var/log/llm-manager/model.log
 ```
 
-The serve command automatically resolves the llama-server binary from the backend-specific directory (`~/.local/share/llm-manager/bin/llama-server-{cpu,vulkan,rocm}-{version}/`) and sets `LD_LIBRARY_PATH` for shared libraries. If the binary is not found, it downloads it from the llama.cpp GitHub releases. Use `--backend-binary` to specify a custom binary path instead, `--host` to override the network bind address (default is from config), and `--log-file` to redirect logs to a file instead of stdout (useful for systemd).
-
-The serve command automatically resolves the llama-server binary from the backend-specific directory (`~/.local/share/llm-manager/bin/llama-server-{cpu,vulkan,rocm}-{version}/`) and sets `LD_LIBRARY_PATH` for shared libraries. If the binary is not found, it downloads it from the llama.cpp GitHub releases. Use `--backend-binary` to specify a custom binary path instead, and `--host` to override the network bind address (default is from config).
+The serve command automatically resolves the llama-server binary from the backend-specific directory (`~/.local/share/llm-manager/bin/llama-server-{cpu,vulkan,rocm}-{version}/`) and sets `LD_LIBRARY_PATH` for shared libraries. If the binary is not found, it downloads it from the llama.cpp GitHub releases. Use `--backend-binary` to specify a custom binary path, `--host` to override the network bind address for both the API proxy and WebSocket servers (default is from config), and `--log-file` to redirect logs to a file instead of stdout (useful for systemd).
 
 The API proxy forwards requests to the running llama-server instance. Explicitly handled endpoints:
 
@@ -333,7 +331,7 @@ The WebSocket Dashboard provides a real-time visualization of model metrics and 
 | Generation Speed | Tokens per second (TPS) |
 | Prompt Speed | Prompt processing TPS |
 | Latency | Milliseconds per token |
-| Context | Context window usage (progress bar) |
+| Tokens | Tokens generated with progress bar (decoded_tokens / max_tokens, or '∞' if not configured) |
 | VRAM | GPU memory used/total (progress bar) |
 | RAM | System memory usage |
 | CPU | CPU usage percentage |
@@ -347,6 +345,8 @@ To configure the dashboard:
 4. Press `↵` to save, `⎋` to close
 
 When an auth key is set, clients must include `?auth=<key>` in the URL (e.g., `http://localhost:49223/dashboard?auth=mypassword`).
+
+The `--host` option in serve mode binds **both** the API proxy server and the WebSocket dashboard server to the same address, ensuring they use the same network interface.
 
 ### Backend selection
 
