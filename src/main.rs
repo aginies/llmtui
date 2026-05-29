@@ -86,6 +86,18 @@ enum Cli {
         /// Log file path (default: stdout, useful for systemd)
         #[arg(long)]
         log_file: Option<String>,
+
+        /// Enable TLS for the WebSocket dashboard and API servers (auto-generates self-signed certs)
+        #[arg(long)]
+        tls_enable: bool,
+
+        /// Path to TLS certificate PEM file
+        #[arg(long)]
+        tls_cert: Option<String>,
+
+        /// Path to TLS private key PEM file
+        #[arg(long)]
+        tls_key: Option<String>,
     },
 }
 
@@ -94,7 +106,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli {
-        Cli::Serve { model, profile, config, api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary, host, log_file } => {
+        Cli::Serve { model, profile, config, api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary, host, log_file, tls_enable, tls_cert, tls_key } => {
             // For serve mode, log to stdout or file
             if let Some(path) = &log_file {
                 let path = PathBuf::from(path);
@@ -114,7 +126,7 @@ async fn main() -> Result<()> {
                     .init();
             }
 
-            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary.as_deref(), host.as_deref(), log_file.as_deref())
+            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary.as_deref(), host.as_deref(), log_file.as_deref(), tls_enable, tls_cert.as_deref(), tls_key.as_deref())
                 .await
                 .map_err(|e| {
                     tracing::error!("{}", e);
@@ -191,7 +203,14 @@ async fn main() -> Result<()> {
             let ws_config = app.config.ws_server.clone();
             if ws_config.enabled {
                 let ws_rx = std::sync::Arc::new(ws_metrics_rx);
-                app.ws_server_handle = Some(backend::ws_server::start_ws_server(ws_config.port, ws_rx, ws_config.auth_key.clone(), ws_config.host.clone()).await);
+                let tls_cfg = if ws_config.tls_enabled && ws_config.tls_cert.is_some() && ws_config.tls_key.is_some() {
+                    let cert = ws_config.tls_cert.as_ref().unwrap();
+                    let key = ws_config.tls_key.as_ref().unwrap();
+                    backend::tls::load_tls_config(cert, key).await.ok()
+                } else {
+                    None
+                };
+                app.ws_server_handle = Some(backend::ws_server::start_ws_server(ws_config.port, ws_rx, ws_config.auth_key.clone(), tls_cfg, ws_config.host.clone()).await);
             }
 
             // Setup terminal

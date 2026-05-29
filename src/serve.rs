@@ -7,6 +7,7 @@ use tracing::info;
 use tokio::signal;
 
 use crate::backend::server;
+use crate::backend::tls;
 use crate::config::Config;
 use crate::models::{DiscoveredModel, WsMetrics};
 
@@ -85,6 +86,9 @@ pub async fn serve_model(
     backend_binary: Option<&str>,
     host: Option<&str>,
     log_file: Option<&str>,
+    tls_enable: bool,
+    tls_cert: Option<&str>,
+    tls_key: Option<&str>,
 ) -> Result<()> {
     if let Some(path) = log_file {
         let path = PathBuf::from(path);
@@ -172,6 +176,33 @@ pub async fn serve_model(
         settings.ws_server_port
     };
     let ws_auth = ws_auth.or(settings.ws_server_auth_key.clone());
+
+    // TLS configuration
+    let tls_config = if tls_enable || (tls_cert.is_some() && tls_key.is_some()) {
+        let (cert_path, key_path) = if tls_cert.is_some() {
+            let cert = tls_cert.unwrap();
+            let key = tls_key.unwrap();
+            tls::validate_tls_path(cert).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+            tls::validate_tls_path(key).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+            (cert.to_string(), key.to_string())
+        } else {
+            let (cert, key) = tls::ensure_tls_certs().map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+            (
+                cert.to_string_lossy().to_string(),
+                key.to_string_lossy().to_string(),
+            )
+        };
+        let tls_cfg = tls::load_tls_config(&cert_path, &key_path)
+            .await
+            .map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+        Some(tls_cfg)
+    } else {
+        None
+    };
+
+    if tls_config.is_some() {
+        info!("TLS enabled for WebSocket dashboard and API server");
+    }
 
     // CLI host override
     if let Some(h) = host {
@@ -265,6 +296,7 @@ pub async fn serve_model(
         let api_key_clone = api_key.clone();
         let shutdown_rx_for_api = shutdown_rx.clone();
         let host_clone = host_str.clone();
+        let tls_for_api = tls_config.clone();
         let handle = tokio::spawn(async move {
             let _ = crate::serve_api::start_api_server(
                 addr,
@@ -274,11 +306,13 @@ pub async fn serve_model(
                 server_pid,
                 shutdown_rx_for_api,
                 host_clone,
+                tls_for_api,
             )
             .await;
             let _ = api_done_tx.send(());
         });
-        info!("API proxy started on http://{}:{}", host_str, port);
+        let api_protocol = if tls_config.is_some() { "https" } else { "http" };
+        info!("API proxy started on {api_protocol}://{}:{}", host_str, port);
         Some((handle, api_done_rx, shutdown_tx))
     } else {
         None
@@ -289,14 +323,21 @@ pub async fn serve_model(
         let (tx, rx) = tokio::sync::broadcast::channel(64);
         let ws_rx = std::sync::Arc::new(rx);
         let host_str = &settings.host;
-        let handle = crate::backend::ws_server::start_ws_server(ws_port, ws_rx, ws_auth.clone(), host_str.clone()).await;
+        let handle = crate::backend::ws_server::start_ws_server(
+            ws_port,
+            ws_rx,
+            ws_auth.clone(),
+            tls_config.clone(),
+            host_str.clone(),
+        ).await;
         
         let auth_param = if let Some(ref auth) = ws_auth {
             format!("?auth={}", urlencoding::encode(auth))
         } else {
             "".to_string()
         };
-        info!("Dashboard enabled: http://{}:{}/dashboard{}", host_str, ws_port, auth_param);
+        let protocol = if tls_config.is_some() { "https" } else { "http" };
+        info!("Dashboard enabled: {protocol}://{}:{}/dashboard{}", host_str, ws_port, auth_param);
 
         // Start metrics polling task
         let settings_clone = settings.clone();

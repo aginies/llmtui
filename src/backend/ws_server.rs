@@ -25,6 +25,7 @@ pub async fn start_ws_server(
     port: u16,
     metrics_rx: Arc<broadcast::Receiver<WsMetrics>>,
     auth_key: Option<String>,
+    tls_config: Option<axum_server::tls_rustls::RustlsConfig>,
     host: String,
 ) -> JoinHandle<()> {
     let state = WsAppState { metrics_rx, auth_key };
@@ -37,25 +38,50 @@ pub async fn start_ws_server(
         .with_state(state);
 
     let addr = format!("{host}:{port}");
-    let listener = tokio::net::TcpListener::bind(&addr).await;
-    match listener {
-        Ok(listener) => {
+    let socket_addr: std::net::SocketAddr = match addr.parse() {
+        Ok(a) => a,
+        Err(e) => {
+            error!("Invalid bind address {addr}: {e}");
+            return tokio::spawn(async move {
+                loop {
+                    warn!("TLS server failed to bind, retrying in 60s...");
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                }
+            });
+        }
+    };
+
+    match tls_config {
+        Some(tls_cfg) => {
+            let tls_listener = axum_server::bind_rustls(socket_addr, tls_cfg);
+            let handle = tokio::spawn(async move {
+                if let Err(e) = tls_listener.serve(app.into_make_service()).await {
+                    error!("WebSocket server error: {e}");
+                }
+            });
+            info!("WebSocket server listening on https://{addr}");
+            handle
+        }
+        None => {
+            let listener = match tokio::net::TcpListener::bind(&addr).await {
+                Ok(l) => l,
+                Err(e) => {
+                    error!("Failed to bind WebSocket server to {addr}: {e}");
+                    return tokio::spawn(async move {
+                        loop {
+                            warn!("WebSocket server failed to bind, retrying in 60s...");
+                            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                        }
+                    });
+                }
+            };
             let handle = tokio::spawn(async move {
                 if let Err(e) = axum::serve(listener, app).await {
                     error!("WebSocket server error: {e}");
                 }
             });
-            info!("WebSocket server listening on {addr}");
+            info!("WebSocket server listening on http://{addr}");
             handle
-        }
-        Err(e) => {
-            error!("Failed to bind WebSocket server to {addr}: {e}");
-            tokio::spawn(async move {
-                loop {
-                    warn!("WebSocket server failed to bind, retrying in 60s...");
-                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-                }
-            })
         }
     }
 }

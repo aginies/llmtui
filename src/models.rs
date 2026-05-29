@@ -262,6 +262,9 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             ws_server_enabled: dp.ws_server_enabled,
             ws_server_port: dp.ws_server_port,
             ws_server_auth_key: dp.ws_server_auth_key,
+            ws_server_tls_enabled: dp.ws_server_tls_enabled,
+            ws_server_tls_cert: dp.ws_server_tls_cert,
+            ws_server_tls_key: dp.ws_server_tls_key,
             is_mtp: dp.is_mtp,
             draft_tokens: dp.draft_tokens,
             tags: dp.tags,
@@ -842,11 +845,12 @@ pub struct ModelSettings {
     /// Tags for the model.
     pub tags: Vec<String>,
     /// Whether to enable the WebSocket dashboard server.
-    pub ws_server_enabled: bool,
-    /// Port for the WebSocket dashboard server.
+   pub ws_server_enabled: bool,
     pub ws_server_port: u16,
-    /// Auth key for the WebSocket dashboard server.
     pub ws_server_auth_key: Option<String>,
+    pub ws_server_tls_enabled: bool,
+    pub ws_server_tls_cert: Option<String>,
+    pub ws_server_tls_key: Option<String>,
 }
 
 impl Default for ModelSettings {
@@ -871,6 +875,9 @@ impl ModelSettings {
         settings.ws_server_enabled = config.ws_server.enabled;
         settings.ws_server_port = config.ws_server.port;
         settings.ws_server_auth_key = config.ws_server.auth_key.clone();
+        settings.ws_server_tls_enabled = config.ws_server.tls_enabled;
+        settings.ws_server_tls_cert = config.ws_server.tls_cert.clone();
+        settings.ws_server_tls_key = config.ws_server.tls_key.clone();
         settings
     }
 }
@@ -1293,6 +1300,9 @@ impl ModelSettings {
             || self.ws_server_enabled != other.ws_server_enabled
             || self.ws_server_port != other.ws_server_port
             || self.ws_server_auth_key != other.ws_server_auth_key
+            || self.ws_server_tls_enabled != other.ws_server_tls_enabled
+            || self.ws_server_tls_cert != other.ws_server_tls_cert
+            || self.ws_server_tls_key != other.ws_server_tls_key
     }
 }
 

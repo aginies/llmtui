@@ -122,7 +122,10 @@ pub enum GlobalMode {
         enabled: bool,
         port: String,
         auth_key: String,
-        selected_field: i32, // -1=enabled, 0=port, 1=auth_key
+        tls_enabled: bool,
+        tls_cert: String,
+        tls_key: String,
+        selected_field: i32, // -1=enabled, 0=port, 1=auth_key, 2=tls_enabled, 3=tls_cert, 4=tls_key
         editing: bool,
         edit_buffer: String,
         edit_cursor_pos: usize,

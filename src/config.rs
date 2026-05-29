@@ -67,6 +67,12 @@ pub struct WsServer {
     pub auth_key: Option<String>,
     #[serde(default = "default_ws_host")]
     pub host: String,
+    #[serde(default)]
+    pub tls_enabled: bool,
+    #[serde(default)]
+    pub tls_cert: Option<String>,
+    #[serde(default)]
+    pub tls_key: Option<String>,
 }
 
 fn default_ws_host() -> String { "0.0.0.0".to_string() }
@@ -231,6 +237,9 @@ pub struct ModelOverride {
     pub ws_server_enabled: Option<bool>,
     pub ws_server_port: Option<u16>,
     pub ws_server_auth_key: Option<String>,
+    pub ws_server_tls_enabled: Option<bool>,
+    pub ws_server_tls_cert: Option<String>,
+    pub ws_server_tls_key: Option<String>,
 
     // Other
     pub max_tokens: Option<u32>,
@@ -324,6 +333,9 @@ impl ModelOverride {
             ws_server_enabled: Some(s.ws_server_enabled),
             ws_server_port: Some(s.ws_server_port),
             ws_server_auth_key: s.ws_server_auth_key.clone(),
+            ws_server_tls_enabled: Some(s.ws_server_tls_enabled),
+            ws_server_tls_cert: s.ws_server_tls_cert.clone(),
+            ws_server_tls_key: s.ws_server_tls_key.clone(),
         }
     }
 
@@ -405,6 +417,9 @@ impl ModelOverride {
         base.ws_server_enabled = self.ws_server_enabled.unwrap_or(base.ws_server_enabled);
         base.ws_server_port = self.ws_server_port.unwrap_or(base.ws_server_port);
         if let Some(v) = &self.ws_server_auth_key { base.ws_server_auth_key = Some(v.clone()); }
+        base.ws_server_tls_enabled = self.ws_server_tls_enabled.unwrap_or(base.ws_server_tls_enabled);
+        if let Some(v) = &self.ws_server_tls_cert { base.ws_server_tls_cert = Some(v.clone()); }
+        if let Some(v) = &self.ws_server_tls_key { base.ws_server_tls_key = Some(v.clone()); }
     }
 }
 
@@ -618,6 +633,12 @@ pub struct DefaultParams {
     #[serde(default)]
     pub ws_server_auth_key: Option<String>,
     #[serde(default)]
+    pub ws_server_tls_enabled: bool,
+    #[serde(default)]
+    pub ws_server_tls_cert: Option<String>,
+    #[serde(default)]
+    pub ws_server_tls_key: Option<String>,
+    #[serde(default)]
     pub router_max_models: u32,
     #[serde(default)]
     pub server_mode: crate::models::ServerMode,
@@ -752,6 +773,9 @@ impl Default for DefaultParams {
             ws_server_enabled: false,
             ws_server_port: 49223,
             ws_server_auth_key: None,
+            ws_server_tls_enabled: false,
+            ws_server_tls_cert: None,
+            ws_server_tls_key: None,
             router_max_models: 4,
             server_mode: crate::models::ServerMode::Normal,
 
@@ -797,6 +821,9 @@ impl Default for Config {
                 port: 49223,
                 auth_key: None,
                 host: "0.0.0.0".to_string(),
+                tls_enabled: false,
+                tls_cert: None,
+                tls_key: None,
             },
             search_limit: default_search_limit(),
         }

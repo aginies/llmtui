@@ -84,8 +84,8 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
-    if let GlobalMode::DashboardPicker { enabled, port, auth_key, selected_field, editing, edit_buffer, edit_cursor_pos: _ } = &app.ui.global_mode {
-        render_dashboard_picker(f, f.area(), app, *enabled, port, auth_key, *selected_field, *editing, edit_buffer);
+    if let GlobalMode::DashboardPicker { enabled, port, auth_key, tls_enabled, tls_cert, tls_key, selected_field, editing, edit_buffer, edit_cursor_pos: _ } = &app.ui.global_mode {
+        render_dashboard_picker(f, f.area(), app, *enabled, port, auth_key, *tls_enabled, tls_cert, tls_key, *selected_field, *editing, edit_buffer);
         return true;
     }
 
@@ -444,9 +444,9 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
     f.render_widget(Paragraph::new(picker_lines).block(Block::default().title(" Max Concurrent Predictions ").borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), picker_area);
 }
 
-fn render_dashboard_picker(f: &mut Frame, area: Rect, _app: &App, enabled: bool, port: &str, auth_key: &str, selected_field: i32, editing: bool, edit_buffer: &str) {
-    let w = 55u16;
-    let h = 15u16;
+fn render_dashboard_picker(f: &mut Frame, area: Rect, _app: &App, enabled: bool, port: &str, auth_key: &str, tls_enabled: bool, tls_cert: &str, tls_key: &str, selected_field: i32, editing: bool, edit_buffer: &str) {
+    let w = 60u16;
+    let h = 19u16;
     let picker_area = Rect { x: (area.width - w) / 2, y: (area.height - h) / 2, width: w, height: h };
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(" Dashboard ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
@@ -461,6 +461,17 @@ fn render_dashboard_picker(f: &mut Frame, area: Rect, _app: &App, enabled: bool,
     let auth_marker = if selected_field == 1i32 { "> " } else { "  " };
     let auth_val = if editing && selected_field == 1i32 { format!("{}|", edit_buffer) } else if auth_key.is_empty() { "(none)".to_string() } else { auth_key.to_string() };
     picker_lines.push(Line::from(vec![Span::styled(auth_marker, Style::default().fg(Color::Yellow)), Span::styled("Auth Key: ", Style::default().fg(Color::Yellow)), Span::styled(auth_val, Style::default().fg(Color::White))]));
+    picker_lines.push(Line::from(""));
+    let tls_enabled_marker = if selected_field == 2i32 { "> " } else { "  " };
+    picker_lines.push(Line::from(vec![Span::styled(tls_enabled_marker, Style::default().fg(Color::Yellow)), Span::styled("TLS: ", Style::default().fg(Color::Yellow)), Span::styled(if tls_enabled { "On" } else { "Off" }, Style::default().fg(if tls_enabled { Color::Green } else { Color::DarkGray }).add_modifier(Modifier::BOLD))]));
+    picker_lines.push(Line::from(""));
+    let tls_cert_marker = if selected_field == 3i32 { "> " } else { "  " };
+    let tls_cert_val = if editing && selected_field == 3i32 { format!("{}|", edit_buffer) } else if tls_cert.is_empty() { "(auto-generated)".to_string() } else { tls_cert.to_string() };
+    picker_lines.push(Line::from(vec![Span::styled(tls_cert_marker, Style::default().fg(Color::Yellow)), Span::styled("TLS Cert: ", Style::default().fg(Color::Yellow)), Span::styled(tls_cert_val, Style::default().fg(Color::White))]));
+    picker_lines.push(Line::from(""));
+    let tls_key_marker = if selected_field == 4i32 { "> " } else { "  " };
+    let tls_key_val = if editing && selected_field == 4i32 { format!("{}|", edit_buffer) } else if tls_key.is_empty() { "(auto-generated)".to_string() } else { tls_key.to_string() };
+    picker_lines.push(Line::from(vec![Span::styled(tls_key_marker, Style::default().fg(Color::Yellow)), Span::styled("TLS Key: ", Style::default().fg(Color::Yellow)), Span::styled(tls_key_val, Style::default().fg(Color::White))]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::styled("[Esc] close  ", Style::default().fg(Color::Black).bg(Color::DarkGray))]));
     f.render_widget(Clear, picker_area);

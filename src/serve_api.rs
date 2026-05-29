@@ -191,6 +191,7 @@ pub async fn start_api_server(
     pid: u32,
     mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
     host: String,
+    tls_config: Option<axum_server::tls_rustls::RustlsConfig>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
@@ -220,8 +221,9 @@ pub async fn start_api_server(
         ]);
 
     let api_key_clone = state.api_key.clone();
+    let protocol = if tls_config.is_some() { "https" } else { "http" };
     info!(
-        "API server starting on http://{} (proxying to http://127.0.0.1:{})",
+        "API server starting on {protocol}://{} (proxying to http://127.0.0.1:{})",
         host, server_port
     );
     if api_key_clone.is_some() {
@@ -249,10 +251,24 @@ pub async fn start_api_server(
         )
         .with_state(state);
 
-    axum::serve(tokio::net::TcpListener::bind(bind).await?, app)
-        .with_graceful_shutdown(async move {
-            let _ = shutdown_rx.wait_for(|v| *v).await;
-        })
-        .await?;
+    match tls_config {
+        Some(tls_cfg) => {
+            let tls_listener = axum_server::bind_rustls(bind, tls_cfg);
+            let shutdown_fut = async {
+                let _ = shutdown_rx.wait_for(|v| *v).await;
+            };
+            let _ = tokio::select! {
+                result = tls_listener.serve(app.into_make_service()) => result,
+                _ = shutdown_fut => Ok(()),
+            };
+        }
+        None => {
+            axum::serve(tokio::net::TcpListener::bind(bind).await?, app)
+                .with_graceful_shutdown(async move {
+                    let _ = shutdown_rx.wait_for(|v| *v).await;
+                })
+                .await?;
+        }
+    }
     Ok(())
 }
