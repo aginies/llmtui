@@ -138,6 +138,8 @@ The backend picker allows selecting llama.cpp binary versions per-backend. Trigg
 
 **BenchTuneSetup** (`GlobalMode::BenchTuneSetup`): Full benchmark configuration modal. `Alt+m` toggles benchmark mode (RuntimeOnly vs Full), `Alt+p` edits prompt, `Alt+n` edits n_predict, `Alt+i` edits iterations, `Alt+c` edits chat template kwargs. Space toggles parameter enablement, Enter starts benchmark.
 
+**YarnRoPESettings** (`GlobalMode::YarnRoPESettings`): YaRN RoPE parameter modal. `selected_field` values: -1 (Yarn RoPE enabled toggle), 0 (rope_scale), 1 (rope_freq_base), 2 (rope_freq_scale). `Enter` edits the selected field or applies the value. `Space` toggles Yarn RoPE enabled. `Up`/`Down` cycles fields. `Esc` cancels editing or exits. Only digits, `.`, `-`, `e`, `E` are accepted as input.
+
 ### Dirty tracking (`is_settings_dirty` in `app.rs`)
 
 Compares each field index-by-index. When a field is dirty, its label is rendered in yellow.
@@ -149,17 +151,33 @@ Compares each field index-by-index. When a field is dirty, its label is rendered
 - `event.rs` comment block (line ~836)
 - `app.rs` `is_settings_dirty` match arms
 
-### LLM Settings panel (24 fields)
+### LLM Settings panel (55 fields in expert mode, 28 standard)
 
+Standard fields (always visible):
 ```
 Loading (0-2):   Context length, System prompt preset, Keep in memory (mlock)
 GPU (3-8):       GPU Layers, Flash Attention, KV Cache Offload, Cache Type K, Cache Type V, Active Experts
 Evaluation (9-11): Eval Batch, Unified KV, Max Concurrent Predictions
 Sampling (12-17): Seed, Temperature, Top-k, Top-p, Min P, Max Tokens
 Repetition (18-21): Repetition Penalty, Rep. Last N, Presence Penalty, Frequency Penalty
-Backend (22):    Tags (semicolon-separated list)
+Backend (22):    Tags (Enter to edit)
 Backend (23):    LLama.cpp Version (shows CPU / Vulkan / ROCm / CUDA versions)
+Yarn RoPE (24-25): Yarn RoPE (toggle), Yarn Params (opens modal with rope_scale, rope_freq_base, rope_freq_scale)
+MTP (26-27):     Enable MTP, Draft Tokens
 ```
+
+Expert fields (toggle with `Ctrl+X`):
+```
+Expert Loading (28-33): Threads Batch, UBatch Size, Keep, SWA Full, MMap, NUMA
+Expert GPU (34-41): Split Mode, Tensor Split, Main GPU, Fit, LoRA, LoRA Scaled, RPC, Embedding
+Expert Sampling (42-47): Typical P, Mirostat, Mirostat LR, Mirostat Ent, Ignore EOS, Samplers
+Expert DRY (48-51): DRY Multiplier, DRY Base, DRY Allowed Length, DRY Penalty Last N
+Expert Server (52-54): Cache Prompt, Cache Reuse, WebUI
+```
+
+### Expert mode
+
+Toggle with `Ctrl+X` in the LLM Settings panel. Shows/hides fields 28-54. Resets selected index and clears render cache on toggle.
 
 ### GPU Layers cycling (`src/models.rs::GpuLayersMode`)
 

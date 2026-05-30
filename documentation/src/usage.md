@@ -201,13 +201,18 @@ The LLM Settings panel has 24 fields organized into 6 groups. Arrow keys adjust 
 | **Presence Penalty** | 0.0 | Adds penalty to tokens that have appeared at least once. Encourages the model to discuss new topics. Range: -2.0 to 2.0. |
 | **Frequency Penalty** | 0.0 | Adds penalty proportional to how often a token has appeared. Stronger than presence penalty. Range: -2.0 to 2.0. |
 
+#### Yarn RoPE
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| **Yarn RoPE** | false | Enables YaRN (Yet another RoPE extensioN) for extending context beyond the model's training length. |
+| **Yarn Params** | — | Opens a modal to configure three floating-point values: `rope_scale` (default 1.0, multiplies context), `rope_freq_base` (default 0.0, overrides the model's base frequency), `rope_freq_scale` (default 1.0, scales the frequency). Only digits, `.`, `-`, `e`, and `E` are accepted. |
+
 #### Additional Settings
 
-Additional fields beyond the tables above: `threads_batch`, `batch_size`, `ubatch_size`, `parallel`, `keep`, `swa_full` (SWA cache), `mmap`, `numa` (None/Distribute/Isolate/Numactl), `reasoning_mode` (Default/Gemma), `split_mode` (None/Layer/Row/Tensor), `tensor_split`, `main_gpu`, `fit`, `embedding`, `expert_count`, `jinja`, `chat_template`, `chat_template_kwargs`, `typical_p`, `mirostat` (Off/1/2), `mirostat_lr`, `mirostat_ent`, `ignore_eos`, `samplers` (semicolon-separated order), `repeat_penalty`, `repeat_last_n`, `presence_penalty`, `frequency_penalty`.
+Additional fields beyond the tables above are available in expert mode (toggle with `Ctrl+X`): `threads_batch`, `ubatch_size`, `keep`, `swa_full`, `mmap`, `numa` (None/Distribute/Isolate/Numactl), `split_mode` (None/Layer/Row/Tensor), `tensor_split`, `main_gpu`, `fit`, `embedding`, `jinja`, `chat_template`, `chat_template_kwargs`, `typical_p`, `mirostat` (Off/1/2), `mirostat_lr`, `mirostat_ent`, `ignore_eos`, `samplers` (semicolon-separated order), `dry_multiplier`, `dry_base`, `dry_allowed_length`, `dry_penalty_last_n`, `cache_prompt`, `cache_reuse`, `webui`.
 
 **Cache Type K/V options:** F32, F16, BF16, Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl
-
-> **Note:** These parameters are stored in the config and adjustable in the UI, but currently not passed to the llama.cpp server. They will be activated once the app supports them.
 
 #### Changing Values
 
@@ -218,6 +223,23 @@ Use `Left`/`Right` to adjust numeric fields by 1, or `Up`/`Down` for larger step
 - `Ctrl+S` — Save settings for the selected model
 - `Ctrl+R` — Reset to defaults
 - `e` / `Ctrl+E` — Toggle enabled/disabled (for Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred)
+- `Ctrl+X` — Toggle expert mode (reveals hidden parameters)
+
+### Expert Mode
+
+Press `Ctrl+X` in the LLM Settings panel to toggle expert mode, which reveals additional parameters organized into sections:
+
+**Loading (expert):** Threads Batch, UBatch Size, Keep, SWA Full, MMap, NUMA
+
+**GPU (expert):** Split Mode, Tensor Split, Main GPU, Fit, LoRA, LoRA Scaled, RPC, Embedding
+
+**Sampling (expert):** Typical P, Mirostat, Mirostat LR, Mirostat Ent, Ignore EOS, Samplers
+
+**DRY Sampling:** DRY Multiplier, DRY Base, DRY Allowed Length, DRY Penalty Last N
+
+**Server (expert):** Cache Prompt, Cache Reuse, WebUI
+
+These fields follow the same navigation and editing rules as standard fields. Arrow keys adjust values, `Enter` enters direct edit mode, and dirty fields are highlighted in yellow.
 
 Dirty (changed) fields are highlighted in yellow.
 
