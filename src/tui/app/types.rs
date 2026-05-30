@@ -99,6 +99,15 @@ pub enum GlobalMode {
     RpcManager,
     About,
     MaxConcurrentPicker { value: String },
+    YarnRoPESettings {
+        scale: String,
+        freq_base: String,
+        freq_scale: String,
+        selected_field: i32, // -1=enabled, 0=scale, 1=freq_base, 2=freq_scale
+        editing: bool,
+        edit_buffer: String,
+        edit_cursor_pos: usize,
+    },
     BenchTuneSetup {
         config: BenchTuneConfig,
         selected_idx: usize,

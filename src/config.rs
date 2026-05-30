@@ -612,6 +612,8 @@ pub struct DefaultParams {
     pub rope_freq_base: f32,
     #[serde(default)]
     pub rope_freq_scale: f32,
+    #[serde(default)]
+    pub rope_yarn_enabled: bool,
 
     // Server
     #[serde(default)]
@@ -762,6 +764,7 @@ impl Default for DefaultParams {
             rope_scale: 1.0,
             rope_freq_base: 0.0,
             rope_freq_scale: 1.0,
+            rope_yarn_enabled: false,
 
             // Server
             host: "127.0.0.1".to_string(),

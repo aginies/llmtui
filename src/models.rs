@@ -243,6 +243,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             rope_scale: dp.rope_scale,
             rope_freq_base: dp.rope_freq_base,
             rope_freq_scale: dp.rope_freq_scale,
+            rope_yarn_enabled: dp.rope_yarn_enabled,
             host: dp.host,
             port: dp.port,
             timeout: dp.timeout,
@@ -800,6 +801,8 @@ pub struct ModelSettings {
     pub rope_freq_base: f32,
     /// RoPE frequency scaling factor.
     pub rope_freq_scale: f32,
+    /// Enable Yarn RoPE scaling mode.
+    pub rope_yarn_enabled: bool,
 
     // ── Server ───────────────────────────────────────────────
 
@@ -1410,6 +1413,10 @@ impl ModelSettings {
             || self.ws_server_tls_enabled != other.ws_server_tls_enabled
             || self.ws_server_tls_cert != other.ws_server_tls_cert
             || self.ws_server_tls_key != other.ws_server_tls_key
+            || self.rope_yarn_enabled != other.rope_yarn_enabled
+            || self.rope_scale != other.rope_scale
+            || self.rope_freq_base != other.rope_freq_base
+            || self.rope_freq_scale != other.rope_freq_scale
     }
 }
 

@@ -221,6 +221,27 @@ fn render_settings(
         add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 23 + i as usize, "LLama.cpp Version", &backend_vals[i], selected, edit_buf, editing);
     }
 
+    // ── Yarn RoPE ────────────────────────────────────────────
+    lines.push(Line::from(vec![
+        Span::styled("--- Yarn RoPE ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+    ]));
+
+    let yarn_names = ["Yarn RoPE", "Yarn Params"];
+    let yarn_vals = vec![
+        format!("{}", settings.rope_yarn_enabled),
+        format!("scale={:.2} base={:.2} scale_f={:.2}",
+            settings.rope_scale,
+            settings.rope_freq_base,
+            settings.rope_freq_scale),
+    ];
+
+    for (i, val) in yarn_vals.into_iter().enumerate() {
+        if *total_count == selected {
+            *selected_line_idx = lines.len();
+        }
+        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 24 + i as usize, yarn_names[i], &val, selected, edit_buf, editing);
+    }
+
     // ── MTP ──────────────────────────────────────────────────
     lines.push(Line::from(vec![
         Span::styled("--- MTP (Multi-Token Prediction) ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
@@ -236,7 +257,7 @@ fn render_settings(
         if *total_count == selected {
             *selected_line_idx = lines.len();
         }
-        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 24 + i as usize, mtp_names[i], &val, selected, edit_buf, editing);
+        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 26 + i as usize, mtp_names[i], &val, selected, edit_buf, editing);
     }
 }
 
@@ -297,8 +318,12 @@ pub fn add_setting(
         },
         22 => settings.tags != cached.tags,
         23 => settings.get_active_backend_version() != cached.get_active_backend_version(),
-        24 => settings.is_mtp != cached.is_mtp,
-        25 => settings.draft_tokens != cached.draft_tokens,
+        24 => settings.rope_yarn_enabled != cached.rope_yarn_enabled,
+        25 => settings.rope_scale != cached.rope_scale
+            || settings.rope_freq_base != cached.rope_freq_base
+            || settings.rope_freq_scale != cached.rope_freq_scale,
+        26 => settings.is_mtp != cached.is_mtp,
+        27 => settings.draft_tokens != cached.draft_tokens,
         _ => settings.is_dirty(cached),
     };
 

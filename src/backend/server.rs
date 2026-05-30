@@ -5,7 +5,7 @@ use tokio::process::Command;
 use tokio::sync::mpsc;
 use tracing::info;
 
-use crate::models::{DiscoveredModel, ModelSettings, ServerMetrics, strip_gguf, clean_host};
+use crate::models::{DiscoveredModel, ModelSettings, ServerMetrics, RopeScaling, strip_gguf, clean_host};
 use crate::config::Config;
 
 /// Manages a single llama.cpp server process.
@@ -234,10 +234,15 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     }
 
     // ── RoPE ─────────────────────────────────────────────────
-    if settings.rope_scaling != Default::default() {
-        push_arg(&mut cmd, &mut parts, "--rope-scaling", settings.rope_scaling.to_string());
+    let rope_scaling = if settings.rope_yarn_enabled {
+        RopeScaling::Yarn
+    } else {
+        settings.rope_scaling
+    };
+    if rope_scaling != Default::default() {
+        push_arg(&mut cmd, &mut parts, "--rope-scaling", rope_scaling.to_string());
     }
-    if settings.rope_scale != 0.0 {
+    if settings.rope_scale != 1.0 {
         push_arg(&mut cmd, &mut parts, "--rope-scale", format!("{:.2}", settings.rope_scale));
     }
     if settings.rope_freq_base != 0.0 {

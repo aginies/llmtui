@@ -89,6 +89,11 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::YarnRoPESettings { scale, freq_base, freq_scale, selected_field, editing, edit_buffer, edit_cursor_pos } = &app.ui.global_mode {
+        render_yarn_rope_picker(f, f.area(), app, scale, freq_base, freq_scale, *selected_field, *editing, edit_buffer, *edit_cursor_pos);
+        return true;
+    }
+
     if let GlobalMode::DashboardUrl { host, port, auth_key, ws_enabled } = &app.ui.global_mode {
         render_dashboard_url(f, f.area(), app, host, port, auth_key, *ws_enabled);
         return true;
@@ -609,4 +614,72 @@ fn wrap_text(text: &str, max_width: usize) -> String {
     }
     if !current.is_empty() { lines.push(current); }
     lines.join("\n")
+}
+
+fn render_yarn_rope_picker(f: &mut Frame, area: Rect, app: &App, scale: &str, freq_base: &str, freq_scale: &str, selected_field: i32, editing: bool, edit_buffer: &str, edit_cursor_pos: usize) {
+    let w: u16 = 60;
+    let h: u16 = 14;
+    let picker_area = Rect { x: (area.width - w) / 2, y: (area.height - h) / 2, width: w, height: h };
+    let mut picker_lines: Vec<Line> = Vec::new();
+    picker_lines.push(Line::from(Span::styled(" Yarn RoPE Params ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
+    picker_lines.push(Line::from(""));
+  picker_lines.push(Line::from(Span::styled(" [↑/↓] Select  [Enter] Edit  [Esc] Done  [Space] Enable/Disable Yarn RoPE ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
+    picker_lines.push(Line::from(""));
+
+    let fields = [
+        ("Yarn RoPE", format!("{}", app.settings.rope_yarn_enabled), -1),
+        ("rope_scale", scale.to_string(), 0),
+        ("rope_freq_base", freq_base.to_string(), 1),
+        ("rope_freq_scale", freq_scale.to_string(), 2),
+    ];
+
+    for (_i, (name, val, field_idx)) in fields.iter().enumerate() {
+        let marker = if *field_idx == selected_field { "> " } else { "  " };
+        let is_selected = *field_idx == selected_field;
+
+        let display_val = if editing && is_selected {
+            let cursor_pos = edit_cursor_pos.min(edit_buffer.len());
+            let before: String = edit_buffer.chars().take(cursor_pos).collect();
+            let after: String = edit_buffer.chars().skip(cursor_pos).collect();
+            format!("{}|{}", before, after)
+        } else {
+            val.clone()
+        };
+
+        let style = if is_selected {
+            Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        picker_lines.push(Line::from(vec![
+            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(format!("{}: ", name), Style::default().fg(Color::Cyan)),
+            Span::styled(display_val, style),
+        ]));
+    }
+
+    let rope_scale_val = scale.parse::<f32>().unwrap_or(1.0);
+    let freq_base_val = freq_base.parse::<f32>().unwrap_or(0.0);
+    let freq_scale_val = freq_scale.parse::<f32>().unwrap_or(1.0);
+    let rope_scale_display = rope_scale_val;
+    let ctx = app.settings.context_length;
+    let effective_ctx = (ctx as f64 * rope_scale_display as f64) as u32;
+    let ctx_display = if rope_scale_display > 1.001 {
+        format!("{} * {:.2} = {} tokens", ctx, rope_scale_display, effective_ctx)
+    } else {
+        format!("{} tokens (no scaling)", ctx)
+    };
+
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(Span::styled(
+        format!("  scale={:.2} base={:.2} scale_f={:.2}", rope_scale_display, freq_base_val, freq_scale_val),
+        Style::default().fg(Color::DarkGray)
+    )));
+    picker_lines.push(Line::from(Span::styled(
+        format!("  Effective context: {}", ctx_display),
+        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+    )));
+
+    f.render_widget(Clear, picker_area);
+    f.render_widget(Paragraph::new(picker_lines).block(Block::default().title(" Yarn RoPE Params ").borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), picker_area);
 }

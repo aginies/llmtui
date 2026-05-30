@@ -225,6 +225,112 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+          // Skip all if in YarnRoPESettings overlay
+    if let GlobalMode::YarnRoPESettings { scale, freq_base, freq_scale, selected_field, editing, edit_buffer, edit_cursor_pos, .. } = &mut app.ui.global_mode {
+        match key.code {
+            KeyCode::Enter => {
+                if *editing {
+                    // Apply the value
+                    match *selected_field {
+                        0i32 => {
+                            if let Ok(p) = edit_buffer.parse::<f32>() {
+                                app.settings.rope_scale = p;
+                            }
+                            scale.clone_from(edit_buffer);
+                        }
+                        1i32 => {
+                            if let Ok(p) = edit_buffer.parse::<f32>() {
+                                app.settings.rope_freq_base = p;
+                            }
+                            freq_base.clone_from(edit_buffer);
+                        }
+                        2i32 => {
+                            if let Ok(p) = edit_buffer.parse::<f32>() {
+                                app.settings.rope_freq_scale = p;
+                            }
+                            freq_scale.clone_from(edit_buffer);
+                        }
+                        _ => {}
+                    }
+                    *editing = false;
+                    return;
+                }
+                if *selected_field == -1 {
+                    app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
+                    *editing = true;
+                    *selected_field = -1;
+                    edit_buffer.clone_from(&format!("{}", app.settings.rope_yarn_enabled));
+                    *edit_cursor_pos = edit_buffer.chars().count();
+                    return;
+                }
+                if *selected_field == 0i32 {
+                    edit_buffer.clone_from(scale);
+                    *editing = true;
+                    *edit_cursor_pos = edit_buffer.chars().count();
+                    return;
+                }
+                if *selected_field == 1i32 {
+                    edit_buffer.clone_from(freq_base);
+                    *editing = true;
+                    *edit_cursor_pos = edit_buffer.chars().count();
+                    return;
+                }
+                if *selected_field == 2i32 {
+                    edit_buffer.clone_from(freq_scale);
+                    *editing = true;
+                    *edit_cursor_pos = edit_buffer.chars().count();
+                    return;
+                }
+            }
+            KeyCode::Char(' ') => {
+                if *selected_field == -1 {
+                    app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
+                    return;
+                }
+                return;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if !*editing {
+                    *selected_field = if *selected_field <= -1 { 2 } else { *selected_field - 1 };
+                }
+                return;
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if !*editing {
+                    *selected_field = if *selected_field >= 2 { -1 } else { *selected_field + 1 };
+                }
+                return;
+            }
+            KeyCode::Esc => {
+                if *editing {
+                    *editing = false;
+                    edit_buffer.clear();
+                } else {
+                    app.ui.global_mode = GlobalMode::Normal;
+                }
+                return;
+            }
+            KeyCode::Char(c) if *editing => {
+                let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
+                edit_buffer.insert_str(byte_pos, &c.to_string());
+                *edit_cursor_pos += c.len_utf8();
+            }
+            KeyCode::Backspace if *editing => {
+                if *edit_cursor_pos > 0 {
+                    let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
+                    if byte_pos < edit_buffer.len() {
+                        edit_buffer.remove(byte_pos);
+                    }
+                    *edit_cursor_pos = edit_cursor_pos.saturating_sub(1);
+                }
+                return;
+            }
+            _ => {}
+        }
+        return;
+    }
+    super::helpers::sync_global_settings(app);
+
     // Handle DashboardUrl overlay
     if let GlobalMode::DashboardUrl { host, port, auth_key, .. } = &app.ui.global_mode {
         match key.code {
