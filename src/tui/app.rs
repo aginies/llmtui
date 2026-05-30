@@ -171,6 +171,7 @@ impl App {
                 list_state: Default::default(),
                 resize_state: None,
                 left_pct: 55,
+                needs_full_redraw: false,
             },
             edit: EditState {
                 edit_cursor_pos: 0,

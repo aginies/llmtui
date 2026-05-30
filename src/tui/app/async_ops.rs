@@ -364,6 +364,8 @@ impl App {
                     got_completion = true;
                 }
                 if got_completion {
+                    // Clear all previous loading phases (Starting, Meta, Tensors) once complete
+                    self.loading.loading_phases.clear();
                     self.loading.loading_phases.insert(LoadingPhase::Complete);
                     self.loading.last_active_phase = Some(LoadingPhase::Complete);
                     self.loading.loading_progress = 1.0;
@@ -373,17 +375,30 @@ impl App {
                     self.loading.loading_completion_rx = None;
                     self.server.spawned_model_state = Some("loaded".to_string());
                     self.loading.progress_target = 1.0;
+                    self.ui.needs_full_redraw = true;
                     
                     if let Some(handle) = &self.server.server_handle {
                         let port = handle.port;
                         let pid = handle.pid;
+                        
+                        // Cleanup stale "Loading" entries (like "llama-server") before updating
                         let to_update: Vec<String> = self.model_states.iter()
                             .filter(|(_, s)| matches!(s, crate::models::ModelState::Loading))
                             .map(|(n, _)| n.clone())
                             .collect();
+                            
+                        // Explicitly remove all Loading entries first to ensure no duplicates or stale names persist
+                        self.model_states.retain(|_, s| !matches!(s, crate::models::ModelState::Loading));
+                        
                         for name in to_update {
-                            self.model_states.insert(name.clone(), crate::models::ModelState::Loaded { port, pid });
-                            self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner()).push(name);
+                            // If it's a real model name (not a generic server process name), mark as Loaded
+                            if name != "llama-server" && name != "Router" {
+                                self.model_states.insert(name.clone(), crate::models::ModelState::Loaded { port, pid });
+                                let mut loaded = self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
+                                if !loaded.contains(&name) {
+                                    loaded.push(name);
+                                }
+                            }
                         }
                     }
                     
@@ -864,6 +879,7 @@ impl App {
                     self.loading.loading_phases = std::collections::HashSet::new();
                     self.loading.loading_progress = 0.0;
                     self.loading.progress_target = 0.0;
+                    self.ui.needs_full_redraw = true;
                 }
                 Err(e) => {
                     self.add_log(format!("Failed to stop server: {}", e), crate::config::LogLevel::Error);

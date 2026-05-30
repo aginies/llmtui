@@ -146,6 +146,7 @@ pub struct UIState {
     pub list_state: ListState,
     pub resize_state: Option<ResizeState>,
     pub left_pct: u16,
+    pub needs_full_redraw: bool,
 }
 
 pub struct EditState {

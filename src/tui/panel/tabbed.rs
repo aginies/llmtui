@@ -265,17 +265,8 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
     info_lines
 }
 
-pub fn render_info_only(f: &mut Frame, area: Rect, app: &mut App) {
-    if area.height < 2 || area.width < 10 {
-        return;
-    }
-
-    let info_lines = get_info_lines(app, area.width);
-    render_info_paragraph(f, area, info_lines);
-}
-
 /// Render the info paragraph with a block and borders.
-fn render_info_paragraph(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
+pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
         .title(" Model Info (F3)")
         .borders(Borders::ALL)

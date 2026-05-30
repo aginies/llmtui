@@ -93,28 +93,31 @@ pub fn render(f: &mut Frame, app: &mut App) {
     };
 
     let info_visible = app.is_panel_visible(2);
-    let left_chunks = if info_visible {
-        let info_height = (panel::tabbed::get_info_lines(app, top_chunks[0].width).len() as u16 + 2).max(3);
-        ratatui::layout::Layout::default()
+    let (left_chunks, info_lines) = if info_visible {
+        let lines = panel::tabbed::get_info_lines(app, top_chunks[0].width);
+        let info_height = (lines.len() as u16 + 2).max(3);
+        let chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
                 ratatui::layout::Constraint::Min(5),
                 ratatui::layout::Constraint::Length(info_height),
             ])
-            .split(top_chunks[0])
+            .split(top_chunks[0]);
+        (chunks, Some(lines))
     } else {
-        ratatui::layout::Layout::default()
+        let chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
                 ratatui::layout::Constraint::Fill(1),
             ])
-            .split(top_chunks[0])
+            .split(top_chunks[0]);
+        (chunks, None)
     };
 
     panel::models::render(f, left_chunks[0], app);
 
-    if info_visible {
-        panel::tabbed::render_info_only(f, left_chunks[1], app);
+    if let Some(lines) = info_lines {
+        panel::tabbed::render_info_with_lines(f, left_chunks[1], lines);
     }
 
     match app.ui.active_panel {

@@ -3,6 +3,10 @@ use std::path::PathBuf;
 
 impl App {
     pub fn render<T: ratatui::backend::Backend>(&mut self, terminal: &mut ratatui::Terminal<T>) -> std::io::Result<()> {
+        if self.ui.needs_full_redraw {
+            terminal.clear()?;
+            self.ui.needs_full_redraw = false;
+        }
         terminal.draw(|frame| crate::tui::render::render(frame, self))?;
         Ok(())
     }

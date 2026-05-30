@@ -65,7 +65,7 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
   </div>
   <div class="card">
     <h2>Tokens</h2>
-    <div id="ctx" class="value">0</div>
+    <div id="ctx" class="value">0 / 0</div>
     <div class="bar-container"><div id="ctx-bar" class="bar blue" style="width:0%"></div></div>
   </div>
   <div class="card">
@@ -183,15 +183,9 @@ function update(m) {
   document.getElementById('state-badge').className = 'state-badge ' + (m.loaded ? 'loaded' : 'unloaded');
   document.getElementById('tps').textContent = m.tps.toFixed(1);
   document.getElementById('prompt-tps').textContent = m.prompt_tps.toFixed(1);
-  const maxTokens = m.max_tokens;
-  if (maxTokens > 0) {
-    document.getElementById('ctx').textContent = `${m.decoded_tokens} / ${maxTokens}`;
-    const ctxPct = (m.decoded_tokens / maxTokens * 100);
-    document.getElementById('ctx-bar').style.width = ctxPct + '%';
-  } else {
-    document.getElementById('ctx').textContent = m.decoded_tokens + ' / ∞';
-    document.getElementById('ctx-bar').style.width = '0%';
-  }
+  document.getElementById('ctx').textContent = `${m.decoded_tokens} / ${m.max_tokens ?? '∞'}`;
+  const ctxPct = (m.max_tokens && m.max_tokens > 0) ? (m.decoded_tokens / m.max_tokens * 100) : 0;
+  document.getElementById('ctx-bar').style.width = ctxPct + '%';
   document.getElementById('cpu').textContent = m.cpu_usage.toFixed(0) + '%';
   document.getElementById('vram').textContent = m.gpu_mem_total > 0
     ? `${(m.gpu_mem_used /1024/1024/1024).toFixed(1)} / ${(m.gpu_mem_total/1024/1024/1024).toFixed(1)} GB`
