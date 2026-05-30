@@ -896,7 +896,7 @@ pub struct DiscoveredModel {
 }
 
 /// Parsed GGUF metadata for a model, cached to avoid re-parsing the file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GgufMetadata {
     pub layers: u32,
     pub hidden_size: u32,
@@ -912,6 +912,109 @@ pub struct GgufMetadata {
     pub tokenizer: String,
     pub vocab_size: u32,
     pub draft_tokens: u32,
+}
+
+impl GgufMetadata {
+    pub fn from_path(path: &std::path::Path) -> anyhow::Result<Self> {
+        let path_str = path.to_string_lossy();
+        let mut container = gguf_rs::get_gguf_container(&path_str)
+            .map_err(|e| anyhow::anyhow!("Failed to get GGUF container: {}", e))?;
+        let model_data = container.decode()
+            .map_err(|e| anyhow::anyhow!("Failed to decode GGUF: {}", e))?;
+        
+        let mut meta = Self::default();
+
+        let extract_str = |key: &str| -> String {
+            model_data.metadata().get(key).and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default()
+        };
+
+        let extract_num = |key: &str| -> Option<u64> {
+            model_data.metadata().get(key).and_then(|v| {
+                v.as_u64()
+                    .or_else(|| v.as_i64().map(|x| x as u64))
+                    .or_else(|| v.as_f64().map(|x| x as u64))
+            })
+        };
+
+        meta.arch = extract_str("general.architecture");
+        let prefix = if meta.arch.is_empty() { "llama" } else { &meta.arch };
+
+        let get_num_with_fallback = |suffix: &str| -> u32 {
+            extract_num(&format!("{}.{}", prefix, suffix))
+                .or_else(|| {
+                    if prefix != "llama" {
+                        extract_num(&format!("llama.{}", suffix))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0) as u32
+        };
+
+        meta.layers = get_num_with_fallback("block_count");
+        meta.hidden_size = get_num_with_fallback("embedding_length");
+        meta.n_ctx_train = get_num_with_fallback("context_length");
+        meta.n_head = get_num_with_fallback("attention.head_count");
+        meta.n_kv_head = get_num_with_fallback("attention.head_count_kv");
+        
+        if let Some(value) = model_data.metadata().get("tokenizer.ggml.tokens")
+            && let Some(arr) = value.as_array() {
+                meta.vocab_size = arr.len() as u32;
+            }
+
+        if meta.arch == "mtp" {
+            meta.draft_tokens = extract_num("mtp.draft_tokens").unwrap_or(0) as u32;
+        }
+
+        if let Some(v) = extract_num("general.file_type") {
+            meta.file_type = match v {
+                0 => "F32".to_string(),
+                1 => "F16".to_string(),
+                2 => "Q4_0".to_string(),
+                3 => "Q4_1".to_string(),
+                7 => "Q8_0".to_string(),
+                8 => "Q5_0".to_string(),
+                9 => "Q5_1".to_string(),
+                10 => "Q2_K".to_string(),
+                11 => "Q3_K_S".to_string(),
+                12 => "Q3_K_M".to_string(),
+                13 => "Q3_K_L".to_string(),
+                14 => "Q4_K_S".to_string(),
+                15 => "Q4_K_M".to_string(),
+                16 => "Q5_K_S".to_string(),
+                17 => "Q5_K_M".to_string(),
+                18 => "Q6_K".to_string(),
+                19 => "IQ2_XXS".to_string(),
+                20 => "IQ2_XS".to_string(),
+                21 => "IQ3_XXS".to_string(),
+                22 => "IQ1_S".to_string(),
+                23 => "IQ4_NL".to_string(),
+                24 => "IQ3_S".to_string(),
+                25 => "IQ2_S".to_string(),
+                26 => "IQ4_XS".to_string(),
+                _ => format!("Unknown ({})", v),
+            };
+        }
+
+        if let Some(value) = model_data.metadata().get("general.capabilities")
+            && let Some(arr) = value.as_array() {
+                for v in arr {
+                    if let Some(s) = v.as_str() {
+                        meta.capabilities.push(s.to_string());
+                    }
+                }
+            }
+        
+        if model_data.metadata().contains_key("tokenizer.chat_template") {
+            meta.capabilities.push("chat".to_string());
+        }
+
+        meta.tokenizer = extract_str("tokenizer.ggml.model");
+        meta.domain = extract_str("general.domain");
+        meta.model_parameters = model_data.model_parameters();
+
+        Ok(meta)
+    }
 }
 
 /// Metrics reported by the llama.cpp server.
@@ -1040,6 +1143,8 @@ pub struct WsMetrics {
     pub gpu_layers: String,
     pub backend: String,
     pub llama_cpp_version: String,
+    pub is_mtp: bool,
+    pub draft_tokens: u32,
 }
 
 impl WsMetrics {
@@ -1108,6 +1213,8 @@ impl WsMetrics {
             gpu_layers,
             backend: settings.backend.to_string(),
             llama_cpp_version: settings.get_active_backend_version_display().to_string(),
+            is_mtp: settings.is_mtp,
+            draft_tokens: settings.draft_tokens,
         }
     }
 }

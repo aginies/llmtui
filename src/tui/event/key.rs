@@ -222,6 +222,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             _ => {}
         }
+        return;
     }
 
     // Handle DashboardUrl overlay

@@ -220,6 +220,24 @@ fn render_settings(
         }
         add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 23 + i as usize, "LLama.cpp Version", &backend_vals[i], selected, edit_buf, editing);
     }
+
+    // ── MTP ──────────────────────────────────────────────────
+    lines.push(Line::from(vec![
+        Span::styled("--- MTP (Multi-Token Prediction) ---", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+    ]));
+
+    let mtp_names = ["Enable MTP", "Draft Tokens"];
+    let mtp_vals = vec![
+        format!("{}", settings.is_mtp),
+        format!("{}", settings.draft_tokens),
+    ];
+
+    for (i, val) in mtp_vals.into_iter().enumerate() {
+        if *total_count == selected {
+            *selected_line_idx = lines.len();
+        }
+        add_setting(lines, total_count, settings, cached, selected_line_idx, selected_content_line, 24 + i as usize, mtp_names[i], &val, selected, edit_buf, editing);
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -279,6 +297,8 @@ pub fn add_setting(
         },
         22 => settings.tags != cached.tags,
         23 => settings.get_active_backend_version() != cached.get_active_backend_version(),
+        24 => settings.is_mtp != cached.is_mtp,
+        25 => settings.draft_tokens != cached.draft_tokens,
         _ => settings.is_dirty(cached),
     };
 

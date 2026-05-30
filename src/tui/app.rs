@@ -23,8 +23,7 @@ impl App {
     pub fn new(config: Config) -> Self {
         let mut log = VecDeque::new();
         log.push_back(LogEntry::new("Starting llm-manager...", crate::config::LogLevel::Info));
-        let default_params = config.default.clone();
-        let settings: crate::models::ModelSettings = default_params.clone().into();
+        let settings: crate::models::ModelSettings = crate::models::ModelSettings::from_config(&config);
         let settings_clone = settings.clone();
         let server_mode = config.default.server_mode.clone();
         let router_max_models = config.default.router_max_models;
@@ -90,6 +89,12 @@ impl App {
                 loaded_model_names: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
                 api_proxy_handle: None,
                 metrics_tx: None,
+                running_ws_port: None,
+                running_ws_auth: None,
+                running_ws_tls: None,
+                running_api_port: None,
+                running_api_server_port: None,
+                running_api_model: None,
                 cmd_display: None,
                 spawned_settings: None,
                 spawned_model_name: None,

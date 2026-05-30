@@ -78,7 +78,6 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
     let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
     let selected = app.settings_state.server_settings_selected_idx;
-    let server_running = app.server.server_handle.is_some();
 
     let host_val = crate::models::format_host(&app.settings.host);
 
@@ -103,11 +102,11 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 2, "Threads", &threads_val, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 3, "Threads Batch", &threads_batch_val, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 4, "Mode", &mode_val, selected, "", false);
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 5, "API Endpoint", api_enabled, selected, "", server_running);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 5, "API Endpoint", api_enabled, selected, "", false);
     settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 6, "RPC Workers", &rpc_workers_val, selected, "", false);
 
     let dashboard_val = format!("Dashboard ({})", if app.settings.ws_server_enabled { "Enabled" } else { "Disabled" });
-    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 7, "Dashboard", &dashboard_val, selected, "", server_running);
+    settings::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 7, "Dashboard", &dashboard_val, selected, "", false);
 
     let total_settings = lines.len();
     let available_height = area.height.saturating_sub(2);

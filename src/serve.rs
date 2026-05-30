@@ -81,7 +81,7 @@ pub async fn serve_model(
     api_port: Option<u16>,
     api_key: Option<String>,
     ws_enable: bool,
-    ws_port: u16,
+    ws_port: Option<u16>,
     ws_auth: Option<String>,
     backend_binary: Option<&str>,
     host: Option<&str>,
@@ -168,13 +168,22 @@ pub async fn serve_model(
     // Build settings: start with defaults, apply model override, then profile override
     let mut settings = config.resolve_settings(Some(&name), profile_name);
 
+    // Auto-enable MTP if supported by model and not explicitly disabled/enabled in config
+    if !settings.is_mtp {
+        if let Ok(meta) = crate::models::GgufMetadata::from_path(&model_path) {
+            if meta.arch == "mtp" {
+                tracing::info!("Auto-enabling MTP (Multi-Token Prediction) for model");
+                settings.is_mtp = true;
+                if settings.draft_tokens == 0 {
+                    settings.draft_tokens = meta.draft_tokens;
+                }
+            }
+        }
+    }
+
     // Finalize WebSocket settings: CLI flags take precedence, then config.yaml
     let ws_enable = ws_enable || settings.ws_server_enabled;
-    let ws_port = if ws_port != 49223 {
-        ws_port
-    } else {
-        settings.ws_server_port
-    };
+    let ws_port = ws_port.unwrap_or(settings.ws_server_port);
     let ws_auth = ws_auth.or(settings.ws_server_auth_key.clone());
 
     // TLS configuration
@@ -329,7 +338,7 @@ pub async fn serve_model(
             ws_auth.clone(),
             tls_config.clone(),
             host_str.clone(),
-        ).await;
+        ).await?;
         
         let auth_param = if let Some(ref auth) = ws_auth {
             format!("?auth={}", urlencoding::encode(auth))

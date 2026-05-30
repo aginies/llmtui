@@ -172,6 +172,8 @@ function render_settings(m) {
     ['Expert Count', s(m, 'expert_count')],
     ['GPU Layers', s(m, 'gpu_layers')],
     ['Samplers', s(m, 'samplers')],
+    ['Enable MTP', fmt(m, 'is_mtp')],
+    ['Draft Tokens', s(m, 'draft_tokens')],
   ];
   grid.innerHTML = items.map(([name, val]) =>
     `<div class="setting-item"><div class="setting-name">${name}</div><div class="setting-val">${val}</div></div>`
@@ -183,8 +185,8 @@ function update(m) {
   document.getElementById('state-badge').className = 'state-badge ' + (m.loaded ? 'loaded' : 'unloaded');
   document.getElementById('tps').textContent = m.tps.toFixed(1);
   document.getElementById('prompt-tps').textContent = m.prompt_tps.toFixed(1);
-  document.getElementById('ctx').textContent = `${m.decoded_tokens} / ${m.max_tokens ?? '∞'}`;
-  const ctxPct = (m.max_tokens && m.max_tokens > 0) ? (m.decoded_tokens / m.max_tokens * 100) : 0;
+  document.getElementById('ctx').textContent = `${m.ctx_used} / ${m.ctx_max || '∞'}`;
+  const ctxPct = (m.ctx_max && m.ctx_max > 0) ? (m.ctx_used / m.ctx_max * 100) : 0;
   document.getElementById('ctx-bar').style.width = ctxPct + '%';
   document.getElementById('cpu').textContent = m.cpu_usage.toFixed(0) + '%';
   document.getElementById('vram').textContent = m.gpu_mem_total > 0

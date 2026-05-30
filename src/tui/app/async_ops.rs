@@ -549,23 +549,9 @@ impl App {
                     self.server.spawned_model_name = Some(server_display_name.clone());
                     self.server.spawned_model_state = Some("loading".to_string());
                     self.server.spawned_context_length = spawned_settings.context_length;
-                    if self.settings.api_endpoint_enabled {
-                        let port = self.settings.api_endpoint_port;
-                        let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap_or_else(|_| "127.0.0.1:49222".parse().unwrap());
-                        let model_name = server_display_name.clone();
-                        let server_port = self.server.server_handle.as_ref().map(|h| h.port).unwrap_or(8080);
-                        let pid = self.server.server_handle.as_ref().map(|h| h.pid).unwrap_or(0);
-                        let (api_shutdown_tx, api_shutdown_rx) = tokio::sync::watch::channel(false);
-                        self.server.api_shutdown_tx = Some(api_shutdown_tx);
-                        let host = self.settings.host.clone();
-                        let handle = tokio::spawn(async move {
-                            let _ = crate::serve_api::start_api_server(
-                                addr, None, server_port, model_name, pid, api_shutdown_rx, host, None
-                            ).await;
-                        });
-                        self.server.api_proxy_handle = Some(handle);
-                        self.add_log(format!("API proxy started on port {}", port), crate::config::LogLevel::Info);
-                    }
+                    // API endpoint (proxy) is managed by update_api_endpoint(), which
+                    // runs every loop iteration and (re)starts the proxy as needed
+                    // when a new model becomes available.
                     self.loading.loading_phases = std::iter::once(super::types::LoadingPhase::ServerListening).collect();
                     self.loading.last_active_phase = Some(super::types::LoadingPhase::ServerListening);
                     self.server.spawned_model_state = Some("loading".to_string());
@@ -1004,17 +990,155 @@ impl App {
             None
         };
 
-        if enabled && self.ws_server_handle.is_none() {
-            let (tx, rx) = tokio::sync::broadcast::channel(64);
-            self.server.metrics_tx = Some(tx);
-            let ws_rx = std::sync::Arc::new(rx);
-            let _host = self.settings.host.clone();
-            self.ws_server_handle = Some(crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key, tls_cfg, _host).await);
-            self.add_log(format!("Dashboard enabled on port {}", port), crate::config::LogLevel::Info);
-        } else if !enabled && self.ws_server_handle.is_some() {
+        // Check if settings have changed since last start
+        let settings_changed = self.server.running_ws_port != Some(port)
+            || self.server.running_ws_auth != auth_key
+            || self.server.running_ws_tls != Some(tls_enabled);
+
+        if self.ws_server_handle.is_some() && (!enabled || settings_changed) {
             let handle = self.ws_server_handle.take().unwrap();
             crate::backend::ws_server::stop_ws_server(handle);
-            self.add_log("Dashboard disabled", crate::config::LogLevel::Info);
+            self.server.running_ws_port = None;
+            self.server.running_ws_auth = None;
+            self.server.running_ws_tls = None;
+            if !enabled {
+                self.add_log("Dashboard disabled", crate::config::LogLevel::Info);
+            }
+        }
+
+        if enabled && self.ws_server_handle.is_none() {
+            let (tx, rx) = tokio::sync::broadcast::channel(64);
+            let ws_rx = std::sync::Arc::new(rx);
+            let _host = self.settings.host.clone();
+            match crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key.clone(), tls_cfg, _host).await {
+                Ok(handle) => {
+                    self.server.metrics_tx = Some(tx);
+                    self.ws_server_handle = Some(handle);
+                    self.server.running_ws_port = Some(port);
+                    self.server.running_ws_auth = auth_key.clone();
+                    self.server.running_ws_tls = Some(tls_enabled);
+                    let protocol = if tls_enabled { "https" } else { "http" };
+                    let auth_param = match &auth_key {
+                        Some(a) => format!("?auth={}", urlencoding::encode(a)),
+                        None => String::new(),
+                    };
+                    self.add_log(
+                        format!(
+                            "Dashboard enabled: {protocol}://{}:{}/dashboard{}",
+                            self.settings.host, port, auth_param
+                        ),
+                        crate::config::LogLevel::Info,
+                    );
+                }
+                Err(e) => {
+                    // Bind failed (port in use, invalid address, etc.). Surface the
+                    // error to the user and flip the toggle back so the loop does
+                    // not busy-retry every iteration.
+                    self.add_log(
+                        format!("Dashboard failed to start on port {}: {}", port, e),
+                        crate::config::LogLevel::Error,
+                    );
+                    self.settings.ws_server_enabled = false;
+                    self.config.default.ws_server_enabled = false;
+                    self.config.ws_server.enabled = false;
+                    if let Err(e) = self.config.save() {
+                        self.add_log(
+                            format!("Failed to persist dashboard-disabled state: {}", e),
+                            crate::config::LogLevel::Error,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Start/stop the API endpoint proxy based on settings.
+    ///
+    /// The proxy can run before any model is loaded (it will accept connections
+    /// for `/api/status` and serve a proxy that returns errors until a model is
+    /// loaded). When a model is loaded later, or the loaded model changes, the
+    /// proxy is restarted so it points at the right llama-server port.
+    pub async fn update_api_endpoint(&mut self) {
+        let enabled = self.settings.api_endpoint_enabled;
+        let port = self.settings.api_endpoint_port;
+        let host = self.settings.host.clone();
+        let server_port = self.server.server_handle.as_ref().map(|h| h.port).unwrap_or(0);
+        let pid = self.server.server_handle.as_ref().map(|h| h.pid).unwrap_or(0);
+        let model_name = self.server.spawned_model_name.clone().unwrap_or_default();
+
+        let settings_changed = self.server.running_api_port != Some(port)
+            || self.server.running_api_server_port != Some(server_port)
+            || self.server.running_api_model.as_deref() != Some(model_name.as_str());
+
+        // Stop if disabled or settings/model changed.
+        if self.server.api_proxy_handle.is_some() && (!enabled || settings_changed) {
+            if let Some(tx) = self.server.api_shutdown_tx.take() {
+                let _ = tx.send(true);
+            }
+            if let Some(handle) = self.server.api_proxy_handle.take() {
+                handle.abort();
+            }
+            self.server.running_api_port = None;
+            self.server.running_api_server_port = None;
+            self.server.running_api_model = None;
+            if !enabled {
+                self.add_log("API endpoint disabled", crate::config::LogLevel::Info);
+            }
+        }
+
+        // Start if enabled and not running.
+        if enabled && self.server.api_proxy_handle.is_none() {
+            let addr: std::net::SocketAddr = match format!("{}:{}", host, port).parse() {
+                Ok(a) => a,
+                Err(e) => {
+                    self.add_log(
+                        format!("API endpoint failed to start: invalid address {}:{}: {}", host, port, e),
+                        crate::config::LogLevel::Error,
+                    );
+                    self.settings.api_endpoint_enabled = false;
+                    self.config.default.api_endpoint_enabled = false;
+                    let _ = self.config.save();
+                    return;
+                }
+            };
+
+            // Pre-bind to detect port-in-use before spawning.
+            match tokio::net::TcpListener::bind(addr).await {
+                Ok(listener) => drop(listener),
+                Err(e) => {
+                    self.add_log(
+                        format!("API endpoint failed to start on {}:{}: {}", host, port, e),
+                        crate::config::LogLevel::Error,
+                    );
+                    self.settings.api_endpoint_enabled = false;
+                    self.config.default.api_endpoint_enabled = false;
+                    let _ = self.config.save();
+                    return;
+                }
+            }
+
+            let (api_shutdown_tx, api_shutdown_rx) = tokio::sync::watch::channel(false);
+            self.server.api_shutdown_tx = Some(api_shutdown_tx);
+            let host_clone = host.clone();
+            let model_name_clone = model_name.clone();
+            let handle = tokio::spawn(async move {
+                let _ = crate::serve_api::start_api_server(
+                    addr, None, server_port, model_name_clone, pid, api_shutdown_rx, host_clone, None,
+                ).await;
+            });
+            self.server.api_proxy_handle = Some(handle);
+            self.server.running_api_port = Some(port);
+            self.server.running_api_server_port = Some(server_port);
+            self.server.running_api_model = Some(model_name);
+            let status = if server_port == 0 {
+                " (no model loaded yet)"
+            } else {
+                ""
+            };
+            self.add_log(
+                format!("API endpoint started on {}:{}{}", host, port, status),
+                crate::config::LogLevel::Info,
+            );
         }
     }
 }

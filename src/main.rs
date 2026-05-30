@@ -68,8 +68,8 @@ enum Cli {
         ws_enable: bool,
 
         /// Port for the WebSocket dashboard server
-        #[arg(long, default_value = "49223")]
-        ws_port: u16,
+        #[arg(long)]
+        ws_port: Option<u16>,
 
         /// Auth key for the WebSocket dashboard server
         #[arg(long)]
@@ -198,20 +198,8 @@ async fn main() -> Result<()> {
             }
 
             // WebSocket metrics channel
-            let (ws_metrics_tx, ws_metrics_rx) = tokio::sync::broadcast::channel(64);
-            app.server.metrics_tx = Some(ws_metrics_tx.clone());
-            let ws_config = app.config.ws_server.clone();
-            if ws_config.enabled {
-                let ws_rx = std::sync::Arc::new(ws_metrics_rx);
-                let tls_cfg = if ws_config.tls_enabled && ws_config.tls_cert.is_some() && ws_config.tls_key.is_some() {
-                    let cert = ws_config.tls_cert.as_ref().unwrap();
-                    let key = ws_config.tls_key.as_ref().unwrap();
-                    backend::tls::load_tls_config(cert, key).await.ok()
-                } else {
-                    None
-                };
-                app.ws_server_handle = Some(backend::ws_server::start_ws_server(ws_config.port, ws_rx, ws_config.auth_key.clone(), tls_cfg, ws_config.host.clone()).await);
-            }
+            let (ws_metrics_tx, _) = tokio::sync::broadcast::channel(64);
+            app.server.metrics_tx = Some(ws_metrics_tx);
 
             // Setup terminal
             crossterm::terminal::enable_raw_mode().map_err(|e| anyhow::anyhow!("Failed to enable raw terminal mode (are you running in a TTY?): {}", e))?;
@@ -288,6 +276,7 @@ async fn main() -> Result<()> {
 
                 app.handle_pending_search().await;
                 app.update_ws_server().await;
+                app.update_api_endpoint().await;
                 app.tick_spinner();
                 app.render(&mut terminal)?;
 

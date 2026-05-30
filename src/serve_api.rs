@@ -233,8 +233,7 @@ pub async fn start_api_server(
     let app = Router::new()
         .route("/health", get(proxy_streaming))
         .route("/metrics", get(proxy_streaming))
-        .nest(
-            "/",
+        .merge(
             Router::new()
                 .route("/v1/chat/completions", post(proxy_streaming))
                 .route("/v1/completions", post(proxy_streaming))

@@ -12,7 +12,8 @@ use super::super::helpers::sync_global_settings;
 // Sampling: 12: Seed, 13: Temp, 14: Top-k, 15: Top-p, 16: Min P, 17: Max Tokens
 // Repetition: 18: Rep. Penalty, 19: Rep. Last N, 20: Presence, 21: Frequency
 // Tags: 22, Backend: 23
-// Total: 24 fields (23 editable)
+// MTP: 24: Enable MTP, 25: Draft Tokens
+// Total: 26 fields (25 editable)
 
 pub fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _max_threads: u32, max_context: u32) {
     match idx {
@@ -59,6 +60,7 @@ pub fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str
                 settings.frequency_penalty = Some((v as f32 / 100.0).clamp(0.0, 1.0));
             }
         }
+        25 => { if let Ok(v) = buf.parse::<u32>() { settings.draft_tokens = v.min(16); } }
         _ => {}
     }
 }
@@ -132,6 +134,8 @@ pub fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max
             let current = settings.frequency_penalty.unwrap_or(0.0);
             settings.frequency_penalty = Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
         }
+        24 => settings.is_mtp = !settings.is_mtp,
+        25 => settings.draft_tokens = (settings.draft_tokens as i32 + delta).max(0).min(16) as u32,
         _ => {}
     }
 }
@@ -204,6 +208,9 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             11 => { // max_concurrent_predictions
                 app.settings.max_concurrent_predictions = if app.settings.max_concurrent_predictions.is_some() { None } else { Some(1) };
             }
+            24 => { // is_mtp
+                app.settings.is_mtp = !app.settings.is_mtp;
+            }
             _ => {}
         }
         app.update_vram_estimate();
@@ -238,10 +245,21 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
             } else {
-                let count = 24; // Total LLM settings (0-23)
+                let count = 26; // Total LLM settings (0-25)
                 app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 1).min(count - 1);
             }
-        }        // System Prompt: open picker modal on Enter
+        }
+        // Enable MTP: toggle on Enter
+        _ if idx == 24 => {
+            if !app.settings_state.settings_edit_buffer.is_empty() {
+                app.settings_state.settings_edit_buffer.clear();
+            } else if key.code == KeyCode::Enter {
+                app.settings.is_mtp = !app.settings.is_mtp;
+                app.update_vram_estimate();
+                app.settings_state.settings_render_cache = None;
+            }
+        }
+        // System Prompt: open picker modal on Enter
         _ if idx == 0 => {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
@@ -413,7 +431,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
             } else {
-                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 10).min(22);
+                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 10).min(25);
             }
         }
         KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
