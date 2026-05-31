@@ -10,6 +10,7 @@ pub mod app;
 pub mod render;
 pub mod event;
 pub mod panel;
+pub mod settings;
 
 /// Format a byte count into a human-readable size string.
 pub fn format_size(bytes: u64) -> String {

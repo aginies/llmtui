@@ -51,6 +51,7 @@ impl App {
                 settings_edit_buffer: String::new(),
                 settings_scroll_offset: 0,
                 settings_render_cache: None,
+                expert_mode: false,
             },
             picker: PickerState {
                 host_picker_entries: Vec::new(),

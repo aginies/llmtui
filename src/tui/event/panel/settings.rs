@@ -1,152 +1,20 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::config::builtin_profiles;
-use crate::models::ModelSettings;
 use crate::tui::app::{App, GlobalMode};
+use crate::tui::settings;
 use super::super::helpers::sync_global_settings;
-
-// Settings field indices for navigation and editing
-// Loading: 0: Prompt, 1: Context, 2: Keep in memory (mlock)
-// GPU: 3: GPU Layers, 4: Flash Attention, 5: KV Cache Offload, 6: Cache Type K, 7: Cache Type V, 8: Active Experts
-// Evaluation: 9: Eval Batch, 10: Unified KV, 11: Max Concurrent Pred
-// Sampling: 12: Seed, 13: Temp, 14: Top-k, 15: Top-p, 16: Min P, 17: Max Tokens
-// Repetition: 18: Rep. Penalty, 19: Rep. Last N, 20: Presence, 21: Frequency
-// Tags: 22, Backend: 23
-// Yarn RoPE: 24: Yarn RoPE, 25: Yarn Params
-// MTP: 26: Enable MTP, 27: Draft Tokens
-// Total: 28 fields (27 editable)
-
-pub fn apply_numeric_setting(settings: &mut ModelSettings, idx: usize, buf: &str, _max_threads: u32, max_context: u32) {
-    match idx {
-        // Loading
-        1 => {
-            if let Ok(v) = buf.parse::<u32>() {
-                let mut val = v.max(128);
-                if max_context > 0 {
-                    val = val.min(max_context);
-                }
-                settings.context_length = val;
-            }
-        }
-        3 => {
-            if let Ok(v) = buf.parse::<i32>() {
-                settings.gpu_layers_mode = if v < 0 {
-                    crate::models::GpuLayersMode::All
-                } else {
-                    crate::models::GpuLayersMode::Specific(v as u32)
-                };
-            }
-        }
-        8 => { if let Ok(v) = buf.parse::<i32>() { settings.expert_count = v.clamp(-1, 99); } }
-        // Evaluation
-        9 => { if let Ok(v) = buf.parse::<u32>() { settings.batch_size = v.max(1); } }
-        10 => { if let Ok(v) = buf.parse::<u32>() { settings.uniform_cache = v != 0; } }
-        11 => { if let Ok(v) = buf.parse::<u32>() { settings.max_concurrent_predictions = Some(v.clamp(1, 10)); } }
-        // Sampling
-        12 => { if let Ok(v) = buf.parse::<i32>() { settings.seed = v; } }
-        13 => { if let Ok(v) = buf.parse::<i32>() { settings.temperature = (v as f32 / 100.0).clamp(0.0, 2.0); } }
-        14 => { if let Ok(v) = buf.parse::<i32>() { settings.top_k = v.max(0); } }
-        15 => { if let Ok(v) = buf.parse::<i32>() { settings.top_p = (v as f32 / 100.0).clamp(0.0, 1.0); } }
-        16 => { if let Ok(v) = buf.parse::<i32>() { settings.min_p = (v as f32 / 100.0).clamp(0.0, 1.0); } }
-        17 => { if let Ok(v) = buf.parse::<i32>() { settings.max_tokens = if v == 0 { None } else { Some(v as u32) }; } }
-        18 => { if let Ok(v) = buf.parse::<i32>() { settings.repeat_penalty = (v as f32 / 100.0).clamp(0.0, 2.0); } }
-        19 => { if let Ok(v) = buf.parse::<i32>() { settings.repeat_last_n = v.max(0); } }
-        20 => {
-            if let Ok(v) = buf.parse::<i32>() {
-                settings.presence_penalty = Some((v as f32 / 100.0).clamp(0.0, 1.0));
-            }
-        }
-        21 => {
-            if let Ok(v) = buf.parse::<i32>() {
-                settings.frequency_penalty = Some((v as f32 / 100.0).clamp(0.0, 1.0));
-            }
-        }
-        27 => { if let Ok(v) = buf.parse::<u32>() { settings.draft_tokens = v.min(16); } }
-        _ => {}
-    }
-}
-
-pub fn adjust_setting(settings: &mut ModelSettings, idx: usize, delta: i32, _max_threads: u32, max_context: u32, total_layers: u32) {
-    match idx {
-        // Loading
-        1 => {
-            let mut val = (settings.context_length as i32 + delta * 128).max(128) as u32;
-            if max_context > 0 {
-                val = val.min(max_context);
-            }
-            settings.context_length = val;
-        }
-        3 => {
-            settings.gpu_layers_mode = match (delta, &settings.gpu_layers_mode) {
-                (1, crate::models::GpuLayersMode::Auto) => crate::models::GpuLayersMode::Specific(1),
-                (1, crate::models::GpuLayersMode::Specific(n)) => crate::models::GpuLayersMode::Specific(n + 1),
-                (1, crate::models::GpuLayersMode::All) => crate::models::GpuLayersMode::Auto,
-                (-1, crate::models::GpuLayersMode::Auto) => crate::models::GpuLayersMode::All,
-                (-1, crate::models::GpuLayersMode::Specific(n)) if *n == 0 => crate::models::GpuLayersMode::Auto,
-                (-1, crate::models::GpuLayersMode::Specific(n)) if *n == 1 => crate::models::GpuLayersMode::Specific(0),
-                (-1, crate::models::GpuLayersMode::Specific(n)) => crate::models::GpuLayersMode::Specific(n - 1),
-                (-1, crate::models::GpuLayersMode::All) => {
-                    let n = if total_layers > 0 { total_layers.min(256) } else { 256 };
-                    crate::models::GpuLayersMode::Specific(n)
-                }
-                _ => settings.gpu_layers_mode,
-            };
-        }
-        4 => settings.flash_attn = !settings.flash_attn,
-        5 => settings.kv_cache_offload = !settings.kv_cache_offload,
-        6 => {
-            let mut val = settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
-            val = if delta > 0 { val.next() } else { val.prev() };
-            settings.cache_type_k = Some(val);
-        }
-        7 => {
-            let mut val = settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
-            val = if delta > 0 { val.next() } else { val.prev() };
-            settings.cache_type_v = Some(val);
-        }
-        8 => settings.expert_count = (settings.expert_count + delta).clamp(-1, 99),
-        // Evaluation
-        9 => settings.batch_size = (settings.batch_size as i32 + delta * 64).max(1) as u32,
-        10 => settings.uniform_cache = !settings.uniform_cache,
-        11 => {
-            match settings.max_concurrent_predictions {
-                Some(n) => settings.max_concurrent_predictions = Some(((n as i32) + delta).clamp(1, 10) as u32),
-                None => settings.max_concurrent_predictions = Some(1),
-            }
-        }
-        // Sampling
-        12 => settings.seed = (settings.seed + delta).max(-1),
-        13 => settings.temperature = ((settings.temperature * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 2.0),
-        14 => settings.top_k = (settings.top_k + delta).max(1),
-        15 => settings.top_p = ((settings.top_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0),
-        16 => settings.min_p = ((settings.min_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0),
-        17 => {
-            let current = settings.max_tokens.unwrap_or(2048);
-            settings.max_tokens = Some((current as i32 + delta * 16).max(16) as u32);
-        }
-        // Repetition
-        18 => settings.repeat_penalty = ((settings.repeat_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(1.0, 2.0),
-        19 => settings.repeat_last_n += delta,
-        20 => {
-            let current = settings.presence_penalty.unwrap_or(0.0);
-            settings.presence_penalty = Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
-        }
-        21 => {
-            let current = settings.frequency_penalty.unwrap_or(0.0);
-            settings.frequency_penalty = Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
-        }
-        24 => settings.rope_yarn_enabled = !settings.rope_yarn_enabled,
-        25 => {
-            // Yarn Params: no direct adjust, handled via modal
-        }
-        26 => settings.is_mtp = !settings.is_mtp,
-        27 => settings.draft_tokens = (settings.draft_tokens as i32 + delta).max(0).min(16) as u32,
-        _ => {}
-    }
-}
 
 pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     let idx = app.settings_state.settings_selected_idx;
+
+    // Build the field list
+    let fields = if app.settings_state.expert_mode {
+        settings::standard_fields().into_iter().chain(settings::expert_fields()).collect::<Vec<_>>()
+    } else {
+        settings::standard_fields()
+    };
+    let field = fields.get(idx);
 
     // Global settings shortcuts (highest priority)
     if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -168,7 +36,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
     }
 
-      // Ctrl+P: open profile picker modal
+    // Ctrl+P: open profile picker modal
     if key.code == KeyCode::Char('p') && key.modifiers.contains(KeyModifiers::CONTROL) {
         let builtin = builtin_profiles();
         let all_profiles = app.config.merged_profiles();
@@ -192,31 +60,10 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Enable/Disable toggle
+    // Ctrl+E: toggle field (use SettingField if available)
     if key.code == KeyCode::Char('e') && key.modifiers.contains(KeyModifiers::CONTROL) {
-        match idx {
-            6 => { // cache_type_k
-                app.settings.cache_type_k = if app.settings.cache_type_k.is_some() { None } else { Some(crate::models::CacheTypeK::F16) };
-            }
-            7 => { // cache_type_v
-                app.settings.cache_type_v = if app.settings.cache_type_v.is_some() { None } else { Some(crate::models::CacheTypeV::F16) };
-            }
-            17 => { // max_tokens
-                app.settings.max_tokens = if app.settings.max_tokens.is_some() { None } else { Some(2048) };
-            }
-            20 => { // presence_penalty
-                app.settings.presence_penalty = if app.settings.presence_penalty.is_some() { None } else { Some(0.0) };
-            }
-            21 => { // frequency_penalty
-                app.settings.frequency_penalty = if app.settings.frequency_penalty.is_some() { None } else { Some(0.0) };
-            }
-            11 => { // max_concurrent_predictions
-                app.settings.max_concurrent_predictions = if app.settings.max_concurrent_predictions.is_some() { None } else { Some(1) };
-            }
-            26 => { // is_mtp
-                app.settings.is_mtp = !app.settings.is_mtp;
-            }
-            _ => {}
+        if let Some(f) = field {
+            f.ctrl_e_toggle(&mut app.settings);
         }
         app.update_vram_estimate();
         sync_global_settings(app);
@@ -250,8 +97,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
             } else {
-                let count = 28; // Total LLM settings (0-27)
-                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 1).min(count - 1);
+                let count = fields.len();
+                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 1).min(count.saturating_sub(1));
             }
         }
         // Enable MTP: toggle on Enter
@@ -295,8 +142,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.update_vram_estimate();
                 app.settings_state.settings_render_cache = None;
             }
-       }
-       // GPU Layers: arrow keys cycle Auto → 1 → 2 → ... → N → All → Auto
+        }
+        // GPU Layers: arrow keys cycle Auto → 1 → 2 → ... → N → All → Auto
         _ if idx == 3 => {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
@@ -462,7 +309,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
             } else {
-                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 10).min(27);
+                let count = fields.len();
+                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 10).min(count.saturating_sub(1));
             }
         }
         KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -483,8 +331,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Left | KeyCode::Backspace => {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.pop();
-            } else {
-                adjust_setting(&mut app.settings, idx, -1, app.max_threads, app.loading.model_n_ctx_train, app.loading.model_total_layers);
+            } else if let Some(f) = field {
+                f.adjust(&mut app.settings, -1, app.loading.model_n_ctx_train);
                 if idx == 11 {
                     sync_global_settings(app);
                 }
@@ -493,7 +341,9 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.settings_state.settings_render_cache = None;
         }
         KeyCode::Right => {
-            adjust_setting(&mut app.settings, idx, 1, app.max_threads, app.loading.model_n_ctx_train, app.loading.model_total_layers);
+            if let Some(f) = field {
+                f.adjust(&mut app.settings, 1, app.loading.model_n_ctx_train);
+            }
             if idx == 11 {
                 sync_global_settings(app);
             }
@@ -511,9 +361,11 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_edit_buffer.push('.');
             }
         }
-    KeyCode::Enter => {
+        KeyCode::Enter => {
             if !app.settings_state.settings_edit_buffer.is_empty() {
-                apply_numeric_setting(&mut app.settings, idx, &app.settings_state.settings_edit_buffer, app.max_threads, app.loading.model_n_ctx_train);
+                if let Some(f) = field {
+                    f.apply_edit(&mut app.settings, &app.settings_state.settings_edit_buffer);
+                }
                 if idx == 11 {
                     sync_global_settings(app);
                 }

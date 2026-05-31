@@ -18,6 +18,7 @@ pub struct SettingsState {
     pub settings_edit_buffer: String,
     pub settings_scroll_offset: usize,
     pub settings_render_cache: Option<SettingsRenderCache>,
+    pub expert_mode: bool,
 }
 
 pub struct PickerState {
