@@ -428,60 +428,101 @@ pub fn builtin_profiles() -> Vec<Profile> {
     vec![
         Profile {
             name: "Qwen".into(),
-            description: "Optimized for Qwen models".into(),
+            description: "Optimized for Qwen models (dense)".into(),
+            settings: ModelOverride {
+                context_length: Some(32768),
+                temperature: Some(0.7),
+                top_k: Some(20),
+                top_p: Some(0.95),
+                max_tokens: Some(4096),
+                presence_penalty: Some(0.0),
+                uniform_cache: Some(true),
+                jinja: Some(true),
+                ..Default::default()
+            },
+        },
+        Profile {
+            name: "Qwen-MoE".into(),
+            description: "Optimized for Qwen MoE models (35B-A3B)".into(),
+            settings: ModelOverride {
+                context_length: Some(32768),
+                temperature: Some(0.8),
+                top_k: Some(20),
+                top_p: Some(0.95),
+                max_tokens: Some(4096),
+                presence_penalty: Some(1.5),
+                uniform_cache: Some(true),
+                jinja: Some(true),
+                ..Default::default()
+            },
+        },
+        Profile {
+            name: "Qwen-Coding".into(),
+            description: "Optimized for Qwen models in coding mode".into(),
             settings: ModelOverride {
                 context_length: Some(32768),
                 temperature: Some(0.6),
                 top_k: Some(20),
-                top_p: Some(0.9),
-                max_tokens: Some(2048),
-                repeat_penalty: Some(1.2),
+                top_p: Some(0.95),
+                max_tokens: Some(4096),
+                presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
+                jinja: Some(true),
                 ..Default::default()
             },
         },
         Profile {
             name: "Gemma".into(),
-            description: "Optimized for Gemma models".into(),
+            description: "Optimized for Gemma 2/4 models".into(),
             settings: ModelOverride {
                 min_p: Some(0.1),
-                typical_p: Some(0.9),
-                temperature: Some(0.8),
+                temperature: Some(1.0),
+                top_k: Some(65),
                 top_p: Some(0.95),
+                max_tokens: Some(4096),
                 uniform_cache: Some(true),
+                jinja: Some(true),
                 ..Default::default()
             },
         },
         Profile {
             name: "Llama".into(),
-            description: "Optimized for Llama models".into(),
+            description: "Optimized for Llama 3.1/3.3 models".into(),
             settings: ModelOverride {
+                context_length: Some(8192),
                 temperature: Some(0.7),
                 top_p: Some(0.9),
                 repeat_penalty: Some(1.1),
+                max_tokens: Some(4096),
                 uniform_cache: Some(true),
+                jinja: Some(true),
                 ..Default::default()
             },
         },
         Profile {
             name: "Mistral".into(),
-            description: "Optimized for Mistral models".into(),
+            description: "Optimized for Mistral 7B/NeMo models".into(),
             settings: ModelOverride {
+                context_length: Some(32768),
                 temperature: Some(0.7),
                 top_k: Some(50),
                 top_p: Some(0.9),
+                max_tokens: Some(4096),
                 uniform_cache: Some(true),
+                jinja: Some(true),
                 ..Default::default()
             },
         },
         Profile {
             name: "Phi".into(),
-            description: "Optimized for Phi models".into(),
+            description: "Optimized for Phi 3.5 Mini models".into(),
             settings: ModelOverride {
+                context_length: Some(4096),
                 temperature: Some(0.7),
                 top_k: Some(50),
                 top_p: Some(0.9),
                 repeat_penalty: Some(1.1),
+                max_tokens: Some(4096),
                 uniform_cache: Some(true),
                 ..Default::default()
             },

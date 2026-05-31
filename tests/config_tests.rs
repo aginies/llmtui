@@ -324,7 +324,7 @@ fn builtin_profiles_apply_to_settings() {
     let mut settings = ModelSettings::default();
     settings = qwen.apply(settings);
     assert_eq!(settings.context_length, 32768);
-    assert!((settings.temperature - 0.6).abs() < f32::EPSILON);
+    assert!((settings.temperature - 0.7).abs() < f32::EPSILON);
 }
 
 // ── Builtin system prompt presets ───────────────────────────────
@@ -375,7 +375,7 @@ fn config_resolve_settings_profile_overrides() {
     let config = Config::default();
     let settings = config.resolve_settings(None, Some("Qwen"));
     assert_eq!(settings.context_length, 32768);
-    assert!((settings.temperature - 0.6).abs() < f32::EPSILON);
+    assert!((settings.temperature - 0.7).abs() < f32::EPSILON);
 }
 
 // ── Config merged_profiles ─────────────────────────────────────
@@ -385,7 +385,7 @@ fn config_merged_profiles_includes_builtins() {
     let config = Config::default();
     let merged = config.merged_profiles();
     let names: Vec<&str> = merged.iter().map(|p| p.name.as_str()).collect();
-    for builtin in ["Qwen", "Gemma", "Llama", "Mistral", "Phi"] {
+    for builtin in ["Qwen", "Qwen-MoE", "Qwen-Coding", "Gemma", "Llama", "Mistral", "Phi"] {
         assert!(names.contains(&builtin), "missing builtin profile: {}", builtin);
     }
 }
