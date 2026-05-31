@@ -822,12 +822,21 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         *edit_cursor_pos -= 1;
                     }
                 }
+                KeyCode::Esc => {
+                    *editing = false;
+                }
                 _ => {}
             }
             return;
         }
 
         match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                *selected = selected.saturating_sub(1);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
+            }
             KeyCode::Enter => {
                 let (name, _) = entries[*selected].clone();
                 app.settings.system_prompt_preset_name = name.clone();
@@ -865,6 +874,9 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 }
                 *confirm_delete = true;
+            }
+            KeyCode::Esc => {
+                app.ui.global_mode = GlobalMode::Normal;
             }
             _ => {}
         }
