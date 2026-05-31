@@ -166,6 +166,8 @@ pub async fn serve_model(
     };
 
     // Build settings: start with defaults, apply model override, then profile override
+    tracing::debug!("Model name for config lookup: {}", name);
+    tracing::debug!("Available model config keys: {:?}", config.model_overrides.keys());
     let mut settings = config.resolve_settings(Some(&name), profile_name);
 
     // Auto-enable MTP if supported by model and not explicitly disabled/enabled in config
