@@ -98,16 +98,18 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let mut count = 0;
     let mut selected_line_idx = 0;
     let mut selected_content_line = 0;
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 0, "Host", host_val, selected, "", false);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 1, "Backend", &backend_name, selected, "", false);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 2, "Threads", &threads_val, selected, "", false);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 3, "Threads Batch", &threads_batch_val, selected, "", false);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 4, "Mode", &mode_val, selected, "", false);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 5, "API Endpoint", api_enabled, selected, "", false);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 6, "RPC Workers", &rpc_workers_val, selected, "", false);
+
+    let scroll_offset = app.settings_state.server_settings_scroll_offset;
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 0, "Host", host_val, selected, "", false, scroll_offset);
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 1, "Backend", &backend_name, selected, "", false, scroll_offset);
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 2, "Threads", &threads_val, selected, "", false, scroll_offset);
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 3, "Threads Batch", &threads_batch_val, selected, "", false, scroll_offset);
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 4, "Mode", &mode_val, selected, "", false, scroll_offset);
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 5, "API Endpoint", api_enabled, selected, "", false, scroll_offset);
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 6, "RPC Workers", &rpc_workers_val, selected, "", false, scroll_offset);
 
     let dashboard_val = format!("Dashboard ({})", if app.settings.ws_server_enabled { "Enabled" } else { "Disabled" });
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 7, "Dashboard", &dashboard_val, selected, "", false);
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 7, "Dashboard", &dashboard_val, selected, "", false, scroll_offset);
 
     let total_settings = lines.len();
     let available_height = area.height.saturating_sub(2);

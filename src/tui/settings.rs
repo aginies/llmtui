@@ -1044,8 +1044,10 @@ pub fn add_setting(
     selected: usize,
     _edit_buf: &str,
     _editing: bool,
+    scroll_offset: usize,
 ) {
-    if *total_count == selected {
+    let visible_idx = *total_count - scroll_offset;
+    if visible_idx == selected {
         lines.push(Line::from(vec![
             Span::styled("> ", Style::default().fg(Color::Yellow)),
             Span::styled(format!("{name}: "), Style::default().fg(Color::Yellow)),
