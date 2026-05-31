@@ -1036,18 +1036,19 @@ pub fn add_setting(
     total_count: &mut usize,
     _settings: &crate::models::ModelSettings,
     _cached: &crate::models::ModelSettings,
-    _selected_line_idx: &mut usize,
-    _selected_content_line: &mut usize,
-    _idx: usize,
+    selected_line_idx: &mut usize,
+    selected_content_line: &mut usize,
+    idx: usize,
     name: &str,
     val: &str,
     selected: usize,
     _edit_buf: &str,
     _editing: bool,
-    scroll_offset: usize,
 ) {
-    let visible_idx = *total_count - scroll_offset;
-    if visible_idx == selected {
+    let current_line = lines.len();
+    if idx == selected {
+        *selected_line_idx = current_line;
+        *selected_content_line = current_line;
         lines.push(Line::from(vec![
             Span::styled("> ", Style::default().fg(Color::Yellow)),
             Span::styled(format!("{name}: "), Style::default().fg(Color::Yellow)),

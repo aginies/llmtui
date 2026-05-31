@@ -385,6 +385,12 @@ Axum-based HTTP proxy. Key endpoints: `/v1/chat/completions`, `/v1/completions`,
 - Unit tests in `mod tests` blocks
 - Integration testing is manual (run the app)
 
+### Git commits
+
+- **Never commit changes yourself.** Always ask the user before committing.
+- If the user explicitly asks you to commit, then do it.
+- If the user wants you to stage changes, do that — but still wait for explicit permission to commit.
+
 ## Common tasks
 
 ### Adding a new panel
