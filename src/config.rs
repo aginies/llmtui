@@ -249,7 +249,7 @@ pub struct ModelOverride {
     pub llama_cpp_version_rocm: Option<String>,
     pub llama_cpp_version_rocm_lemonade: Option<String>,
     pub llama_cpp_version_cuda: Option<String>,
-    pub is_mtp: Option<bool>,
+    pub spec_type: Option<String>,
     pub draft_tokens: Option<u32>,
     pub tags: Option<Vec<String>>,
 }
@@ -327,7 +327,7 @@ impl ModelOverride {
             llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
             llama_cpp_version_rocm_lemonade: s.llama_cpp_version_rocm_lemonade.clone(),
             llama_cpp_version_cuda: s.llama_cpp_version_cuda.clone(),
-            is_mtp: Some(s.is_mtp),
+            spec_type: Some(s.spec_type.clone()),
             draft_tokens: Some(s.draft_tokens),
             tags: Some(s.tags.clone()),
             ws_server_enabled: Some(s.ws_server_enabled),
@@ -411,7 +411,7 @@ impl ModelOverride {
         if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_rocm_lemonade { base.llama_cpp_version_rocm_lemonade = Some(v.clone()); }
         if let Some(v) = &self.llama_cpp_version_cuda { base.llama_cpp_version_cuda = Some(v.clone()); }
-        if let Some(v) = &self.is_mtp { base.is_mtp = *v; }
+        if let Some(v) = &self.spec_type { base.spec_type = v.clone(); }
         if let Some(v) = self.draft_tokens { base.draft_tokens = v; }
         if let Some(v) = &self.tags { base.tags = v.clone(); }
         base.ws_server_enabled = self.ws_server_enabled.unwrap_or(base.ws_server_enabled);
@@ -714,7 +714,7 @@ pub struct DefaultParams {
     #[serde(default = "default_api_endpoint_port")]
     pub api_endpoint_port: u16,
     #[serde(default)]
-    pub is_mtp: bool,
+    pub spec_type: String,
     #[serde(default)]
     pub draft_tokens: u32,
     #[serde(default)]
@@ -844,7 +844,7 @@ impl Default for DefaultParams {
             llama_cpp_version_cuda: None,
             api_endpoint_enabled: false,
             api_endpoint_port: 49222,
-            is_mtp: false,
+            spec_type: String::new(),
             draft_tokens: 0,
             tags: Vec::new(),
         }

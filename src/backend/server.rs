@@ -75,8 +75,8 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     
     push_flag(&mut cmd, &mut parts, "--no-warmup");
 
-    if settings.is_mtp {
-        push_arg(&mut cmd, &mut parts, "--spec-type", "draft-mtp");
+    if !settings.spec_type.is_empty() {
+        push_arg(&mut cmd, &mut parts, "--spec-type", &settings.spec_type);
         if settings.draft_tokens > 0 {
             push_arg(&mut cmd, &mut parts, "--spec-draft-n-max", settings.draft_tokens);
         }
@@ -293,8 +293,8 @@ pub fn build_bench_cmd(binary: &std::path::Path, model: &DiscoveredModel, settin
         push_arg(&mut cmd, &mut parts, "-fa", "1");
     }
 
-    if settings.is_mtp {
-        push_arg(&mut cmd, &mut parts, "--spec-type", "draft-mtp");
+    if !settings.spec_type.is_empty() {
+        push_arg(&mut cmd, &mut parts, "--spec-type", &settings.spec_type);
         if settings.draft_tokens > 0 {
             push_arg(&mut cmd, &mut parts, "--spec-draft-n-max", settings.draft_tokens);
         }

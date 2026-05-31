@@ -266,7 +266,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             ws_server_tls_enabled: dp.ws_server_tls_enabled,
             ws_server_tls_cert: dp.ws_server_tls_cert,
             ws_server_tls_key: dp.ws_server_tls_key,
-            is_mtp: dp.is_mtp,
+            spec_type: dp.spec_type,
             draft_tokens: dp.draft_tokens,
             tags: dp.tags,
         }
@@ -841,8 +841,8 @@ pub struct ModelSettings {
     pub api_endpoint_enabled: bool,
     /// Port for the API proxy server.
     pub api_endpoint_port: u16,
-    /// Whether this model uses MTP (Multi-Token Prediction) architecture.
-    pub is_mtp: bool,
+    /// Speculative decoding type (e.g., "draft-mtp", "ngram-simple", "" for off).
+    pub spec_type: String,
     /// Number of draft tokens for MTP.
     pub draft_tokens: u32,
     /// Tags for the model.
@@ -1146,7 +1146,7 @@ pub struct WsMetrics {
     pub gpu_layers: String,
     pub backend: String,
     pub llama_cpp_version: String,
-    pub is_mtp: bool,
+    pub spec_type: String,
     pub draft_tokens: u32,
 }
 
@@ -1216,7 +1216,7 @@ impl WsMetrics {
             gpu_layers,
             backend: settings.backend.to_string(),
             llama_cpp_version: settings.get_active_backend_version_display().to_string(),
-            is_mtp: settings.is_mtp,
+            spec_type: settings.spec_type.clone(),
             draft_tokens: settings.draft_tokens,
         }
     }

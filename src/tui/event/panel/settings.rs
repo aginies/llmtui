@@ -102,17 +102,29 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 1).min(count.saturating_sub(1));
             }
         }
-        // Spec type toggle: toggle on Enter
+ // Spec type: open picker on Enter
         _ if idx == 26 => {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
             } else if key.code == KeyCode::Enter {
-                app.settings.is_mtp = !app.settings.is_mtp;
-                app.update_vram_estimate();
+                let entries = vec![
+                    "Off".to_string(),
+                    "draft-mtp".to_string(),
+                    "draft-simple".to_string(),
+                    "draft-eagle3".to_string(),
+                    "ngram-simple".to_string(),
+                    "ngram-map-k".to_string(),
+                    "ngram-map-k4v".to_string(),
+                    "ngram-mod".to_string(),
+                    "ngram-cache".to_string(),
+                ];
+                let spec_type = app.settings.spec_type.clone();
+                let selected = entries.iter().position(|e| e == &spec_type).unwrap_or(0);
+                app.ui.global_mode = GlobalMode::SpecTypePicker { entries, selected };
                 app.settings_state.settings_render_cache = None;
             }
-        }
-        // System Prompt: open picker modal on Enter
+         }
+         // System Prompt: open picker modal on Enter
         _ if idx == 0 => {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();

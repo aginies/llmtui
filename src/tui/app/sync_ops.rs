@@ -52,7 +52,7 @@ impl App {
         self.loading.model_n_head = 0;
         self.loading.model_n_kv_head = 0;
         self.loading.vram_estimate = 0;
-        self.settings.is_mtp = false;
+        self.settings.spec_type = String::new();
         self.settings.draft_tokens = 0;
         self.settings_state.settings_render_cache = None;
         self.add_log("Reset LLM Settings to defaults", crate::config::LogLevel::Info);
@@ -99,7 +99,7 @@ impl App {
             self.loading.model_total_layers = 0;
             self.loading.model_hidden_size = 0;
             self.loading.model_n_ctx_train = 0;
-            self.settings.is_mtp = false;
+            self.settings.spec_type = String::new();
             self.settings.draft_tokens = 0;
             self.loading.vram_estimate = 0;
             self.loading.loading_progress = 0.0;

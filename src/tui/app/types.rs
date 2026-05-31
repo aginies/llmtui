@@ -100,6 +100,10 @@ pub enum GlobalMode {
     RpcManager,
     About,
     MaxConcurrentPicker { value: String },
+    SpecTypePicker {
+        entries: Vec<String>,
+        selected: usize,
+    },
     YarnRoPESettings {
         scale: String,
         freq_base: String,

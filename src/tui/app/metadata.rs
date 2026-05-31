@@ -68,7 +68,7 @@ impl App {
             self.loading.model_n_kv_head = meta.n_kv_head;
 
             if meta.arch == "mtp" {
-                self.settings.is_mtp = true;
+                self.settings.spec_type = "draft-mtp".to_string();
                 self.settings.draft_tokens = meta.draft_tokens;
             }
 

@@ -225,7 +225,38 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-          // Skip all if in YarnRoPESettings overlay
+           // Skip all if in SpecTypePicker overlay
+    if let GlobalMode::SpecTypePicker { entries, selected } = &mut app.ui.global_mode {
+        match key.code {
+            KeyCode::Enter => {
+                let selected_entry = entries[*selected].clone();
+                app.settings.spec_type = if selected_entry == "Off" {
+                    String::new()
+                } else {
+                    selected_entry
+                };
+                app.settings_state.settings_render_cache = None;
+                app.ui.global_mode = GlobalMode::Normal;
+                return;
+            }
+            KeyCode::Up => {
+                *selected = selected.saturating_sub(1);
+                return;
+            }
+            KeyCode::Down => {
+                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
+                return;
+            }
+            KeyCode::Esc => {
+                app.ui.global_mode = GlobalMode::Normal;
+                return;
+            }
+            _ => {}
+        }
+        return;
+    }
+
+    // Skip all if in YarnRoPESettings overlay
     if let GlobalMode::YarnRoPESettings { scale, freq_base, freq_scale, selected_field, editing, edit_buffer, edit_cursor_pos, .. } = &mut app.ui.global_mode {
         match key.code {
             KeyCode::Enter => {

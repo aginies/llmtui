@@ -86,6 +86,11 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::SpecTypePicker { entries, selected } = &app.ui.global_mode {
+        render_spec_type_picker(f, f.area(), app, entries, *selected);
+        return true;
+    }
+
     if let GlobalMode::DashboardPicker { enabled, port, auth_key, tls_enabled, tls_cert, tls_key, selected_field, editing, edit_buffer, edit_cursor_pos: _ } = &app.ui.global_mode {
         render_dashboard_picker(f, f.area(), app, *enabled, port, auth_key, *tls_enabled, tls_cert, tls_key, *selected_field, *editing, edit_buffer);
         return true;
@@ -698,4 +703,31 @@ fn render_yarn_rope_picker(f: &mut Frame, area: Rect, app: &App, scale: &str, fr
 
     f.render_widget(Clear, picker_area);
     f.render_widget(Paragraph::new(picker_lines).block(Block::default().title(" Yarn RoPE Params ").borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), picker_area);
+}
+
+fn render_spec_type_picker(f: &mut Frame, area: Rect, _app: &App, entries: &[String], selected: usize) {
+    let w = 50u16;
+    let h = (entries.len() as u16) + 6;
+    let picker_area = Rect { x: (area.width - w) / 2, y: (area.height - h) / 2, width: w, height: h };
+    let mut picker_lines: Vec<Line> = Vec::new();
+    picker_lines.push(Line::from(Span::styled(" Speculative Decoding Type ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(Span::styled(" [↑/↓] Select  [Enter] Apply  [Esc] Cancel ", Style::default().fg(Color::Yellow))));
+    picker_lines.push(Line::from(""));
+
+    for (i, entry) in entries.iter().enumerate() {
+        let marker = if i == selected { "> " } else { "  " };
+        let style = if i == selected {
+            Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        picker_lines.push(Line::from(vec![
+            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(entry, style),
+        ]));
+    }
+
+    f.render_widget(Clear, picker_area);
+    f.render_widget(Paragraph::new(picker_lines).block(Block::default().title(" Speculative Decoding Type ").borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), picker_area);
 }

@@ -172,7 +172,7 @@ function render_settings(m) {
     ['Expert Count', s(m, 'expert_count')],
     ['GPU Layers', s(m, 'gpu_layers')],
     ['Samplers', s(m, 'samplers')],
-    ['Spec Type', fmt(m, 'is_mtp')],
+    ['Spec Type', s(m, 'spec_type')],
     ['Spec Draft N Max', s(m, 'draft_tokens')],
   ];
   grid.innerHTML = items.map(([name, val]) =>

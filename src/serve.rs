@@ -170,12 +170,12 @@ pub async fn serve_model(
     tracing::info!("Available model config keys: {:?}", config.model_overrides.keys());
     let mut settings = config.resolve_settings(Some(&name), profile_name);
 
-    // Auto-enable MTP if supported by model and not explicitly disabled/enabled in config
-    if !settings.is_mtp {
+    // Auto-enable MTP if supported by model and not explicitly enabled in config
+    if settings.spec_type.is_empty() {
         if let Ok(meta) = crate::models::GgufMetadata::from_path(&model_path) {
             if meta.arch == "mtp" {
                 tracing::info!("Auto-enabling MTP (Multi-Token Prediction) for model");
-                settings.is_mtp = true;
+                settings.spec_type = "draft-mtp".to_string();
                 if settings.draft_tokens == 0 {
                     settings.draft_tokens = meta.draft_tokens;
                 }

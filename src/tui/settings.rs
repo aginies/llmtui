@@ -580,13 +580,15 @@ pub fn standard_fields() -> Vec<SettingField> {
             "is_mtp",
             "Spec Type",
             "Speculative decoding type (draft-mtp, ngram-simple, etc.)",
-            |s| s.is_mtp.to_string(),
-            |s, c| s.is_mtp != c.is_mtp,
-            |s, _, _| {
-                s.is_mtp = !s.is_mtp;
+            |s| if s.spec_type.is_empty() {
+                "Off".to_string()
+            } else {
+                s.spec_type.clone()
             },
+            |s, c| s.spec_type != c.spec_type,
+            |_, _, _| {},
             |_, _| {},
-            EditKind::Toggle,
+            EditKind::Modal,
         ),
         field(
             "draft_tokens",
