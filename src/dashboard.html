@@ -172,8 +172,8 @@ function render_settings(m) {
     ['Expert Count', s(m, 'expert_count')],
     ['GPU Layers', s(m, 'gpu_layers')],
     ['Samplers', s(m, 'samplers')],
-    ['Enable MTP', fmt(m, 'is_mtp')],
-    ['Draft Tokens', s(m, 'draft_tokens')],
+    ['Spec Type', fmt(m, 'is_mtp')],
+    ['Spec Draft N Max', s(m, 'draft_tokens')],
   ];
   grid.innerHTML = items.map(([name, val]) =>
     `<div class="setting-item"><div class="setting-name">${name}</div><div class="setting-val">${val}</div></div>`

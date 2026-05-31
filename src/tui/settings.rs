@@ -578,8 +578,8 @@ pub fn standard_fields() -> Vec<SettingField> {
         // ── MTP ───────────────────────────────────────────────────────────────
         field(
             "is_mtp",
-            "Enable MTP",
-            "MTP (Multi-Token Prediction)",
+            "Spec Type",
+            "Speculative decoding type (draft-mtp, ngram-simple, etc.)",
             |s| s.is_mtp.to_string(),
             |s, c| s.is_mtp != c.is_mtp,
             |s, _, _| {
@@ -590,8 +590,8 @@ pub fn standard_fields() -> Vec<SettingField> {
         ),
         field(
             "draft_tokens",
-            "Draft Tokens",
-            "MTP (Multi-Token Prediction)",
+            "Spec Draft N Max",
+            "Max draft tokens (--spec-draft-n-max)",
             |s| s.draft_tokens.to_string(),
             |s, c| s.draft_tokens != c.draft_tokens,
             |s, delta, _| {
