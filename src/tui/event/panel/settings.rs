@@ -56,6 +56,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         app.ui.global_mode = GlobalMode::ProfilePicker {
             entries: app.picker.profile_picker_entries.clone(),
             selected: app.picker.profile_picker_selected,
+            profiles: all_profiles.clone(),
         };
         return;
     }

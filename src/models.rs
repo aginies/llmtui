@@ -299,7 +299,7 @@ pub enum DownloadStatus {
 // ── Cache type enums ──────────────────────────────────────────
 
 /// Main KV cache data type.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[derive(Default)]
 pub enum CacheType {
     #[serde(rename = "f16")]
@@ -484,7 +484,7 @@ impl std::fmt::Display for NumMode {
 }
 
 /// RoPE frequency scaling method.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[derive(Default)]
 pub enum RopeScaling {
     #[serde(rename = "none")]
@@ -508,7 +508,7 @@ impl std::fmt::Display for RopeScaling {
 }
 
 /// Mirostat version.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[derive(Default)]
 pub enum Mirostat {
     #[serde(rename = "0")]
@@ -533,7 +533,7 @@ impl std::fmt::Display for Mirostat {
 
 /// Sampler order string (semicolon-separated).
 /// Common types: penalties, dry, top_n_sigma, top_k, typ_p, top_p, min_p, xtc, temperature
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Samplers(pub String);
 
 impl Default for Samplers {

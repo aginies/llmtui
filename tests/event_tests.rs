@@ -1231,7 +1231,7 @@ async fn test_about_esc_exits() {
 async fn test_profile_picker_up_decreases_selection() {
     let mut app = make_app();
     app.picker.profile_picker_entries = vec![("Qwen".into(), "Qwen profile".into())];
-    app.ui.global_mode = GlobalMode::ProfilePicker { entries: app.picker.profile_picker_entries.clone(), selected: 1 };
+    app.ui.global_mode = GlobalMode::ProfilePicker { entries: app.picker.profile_picker_entries.clone(), selected: 1, profiles: vec![] };
     let key = make_key(KeyCode::Up);
     handle_key(&mut app, key).await;
     if let GlobalMode::ProfilePicker { selected, .. } = app.ui.global_mode {
@@ -1243,7 +1243,7 @@ async fn test_profile_picker_up_decreases_selection() {
 async fn test_profile_picker_enter_applies_profile() {
     let mut app = make_app();
     app.picker.profile_picker_entries = vec![("Qwen".into(), "Qwen profile".into())];
-    app.ui.global_mode = GlobalMode::ProfilePicker { entries: app.picker.profile_picker_entries.clone(), selected: 0 };
+    app.ui.global_mode = GlobalMode::ProfilePicker { entries: app.picker.profile_picker_entries.clone(), selected: 0, profiles: vec![] };
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
     assert!(matches!(app.ui.global_mode, GlobalMode::Normal));
@@ -1253,7 +1253,7 @@ async fn test_profile_picker_enter_applies_profile() {
 async fn test_profile_picker_esc_exits() {
     let mut app = make_app();
     app.picker.profile_picker_entries = vec![("Qwen".into(), "Qwen profile".into())];
-    app.ui.global_mode = GlobalMode::ProfilePicker { entries: app.picker.profile_picker_entries.clone(), selected: 0 };
+    app.ui.global_mode = GlobalMode::ProfilePicker { entries: app.picker.profile_picker_entries.clone(), selected: 0, profiles: vec![] };
     let key = make_key(KeyCode::Esc);
     handle_key(&mut app, key).await;
     assert!(matches!(app.ui.global_mode, GlobalMode::Normal));

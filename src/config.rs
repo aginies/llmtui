@@ -110,7 +110,7 @@ fn default_search_limit() -> u32 {
 }
 
 /// A named profile of settings.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Profile {
     pub name: String,
     /// Brief description shown in the profile list.
@@ -162,7 +162,7 @@ pub fn builtin_system_prompt_presets() -> Vec<SystemPromptPreset> {
     ]
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct ModelOverride {
     // Loading
     pub context_length: Option<u32>,
@@ -475,6 +475,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Gemma".into(),
             description: "Optimized for Gemma 2/4 models".into(),
             settings: ModelOverride {
+                context_length: Some(32768),
                 min_p: Some(0.1),
                 temperature: Some(1.0),
                 top_k: Some(65),
@@ -489,7 +490,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Llama".into(),
             description: "Optimized for Llama 3.1/3.3 models".into(),
             settings: ModelOverride {
-                context_length: Some(8192),
+                context_length: Some(32768),
                 temperature: Some(0.7),
                 top_p: Some(0.9),
                 repeat_penalty: Some(1.1),
@@ -517,7 +518,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Phi".into(),
             description: "Optimized for Phi 3.5 Mini models".into(),
             settings: ModelOverride {
-                context_length: Some(4096),
+                context_length: Some(32768),
                 temperature: Some(0.7),
                 top_k: Some(50),
                 top_p: Some(0.9),

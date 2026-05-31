@@ -1,3 +1,4 @@
+use crate::config::Profile;
 use crate::models::ModelSettings;
 use ratatui::{
     style::{Color, Modifier, Style},
@@ -1062,4 +1063,136 @@ pub fn add_setting(
         ]));
     }
     *total_count += 1;
+}
+
+/// Build a list of setting names that differ between a profile and the current settings.
+pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec<String> {
+    let mut parts = Vec::new();
+    let s = &profile.settings;
+
+    if let Some(v) = s.context_length {
+        if Some(v) != Some(current.context_length) {
+            parts.push(format!("ctx={}", v));
+        }
+    }
+    if let Some(v) = s.threads {
+        if Some(v) != Some(current.threads) {
+            parts.push(format!("threads={}", v));
+        }
+    }
+    if let Some(v) = s.temperature {
+        if (v - current.temperature).abs() > 0.001 {
+            parts.push(format!("temp={:.2}", v));
+        }
+    }
+    if let Some(v) = s.top_p {
+        if (v - current.top_p).abs() > 0.001 {
+            parts.push(format!("top_p={:.2}", v));
+        }
+    }
+    if let Some(v) = s.top_k {
+        if Some(v) != Some(current.top_k) {
+            parts.push(format!("top_k={}", v));
+        }
+    }
+    if let Some(v) = s.min_p {
+        if (v - current.min_p).abs() > 0.001 {
+            parts.push(format!("min_p={:.2}", v));
+        }
+    }
+    if let Some(v) = s.typical_p {
+        if (v - current.typical_p).abs() > 0.001 {
+            parts.push(format!("typical_p={:.2}", v));
+        }
+    }
+    if let Some(v) = s.repeat_penalty {
+        if (v - current.repeat_penalty).abs() > 0.001 {
+            parts.push(format!("rep={:.2}", v));
+        }
+    }
+    if let Some(v) = s.gpu_layers_mode {
+        if v != current.gpu_layers_mode {
+            let display = match v {
+                crate::models::GpuLayersMode::Auto => "Auto".to_string(),
+                crate::models::GpuLayersMode::Specific(n) => n.to_string(),
+                crate::models::GpuLayersMode::All => "All".to_string(),
+            };
+            parts.push(format!("gpu_layers={}", display));
+        }
+    }
+    if let Some(v) = s.flash_attn {
+        if v != current.flash_attn {
+            parts.push(format!("flash_attn={}", v));
+        }
+    }
+    if let Some(v) = s.kv_cache_offload {
+        if v != current.kv_cache_offload {
+            parts.push(format!("kv_cache_offload={}", v));
+        }
+    }
+    if let Some(v) = &s.system_prompt_preset_name {
+        if v != &current.system_prompt_preset_name {
+            parts.push(format!("preset={}", v));
+        }
+    }
+    if let Some(v) = s.max_tokens {
+        if Some(v) != current.max_tokens {
+            parts.push(format!("max_tokens={}", v));
+        }
+    }
+    if let Some(v) = s.jinja {
+        if v != current.jinja {
+            parts.push(format!("jinja={}", v));
+        }
+    }
+    if let Some(v) = s.uniform_cache {
+        if v != current.uniform_cache {
+            parts.push(format!("uniform_cache={}", v));
+        }
+    }
+    if let Some(v) = s.mlock {
+        if v != current.mlock {
+            parts.push(format!("mlock={}", v));
+        }
+    }
+    if let Some(v) = s.mmap {
+        if v != current.mmap {
+            parts.push(format!("mmap={}", v));
+        }
+    }
+    if let Some(v) = s.cache_prompt {
+        if v != current.cache_prompt {
+            parts.push(format!("cache_prompt={}", v));
+        }
+    }
+    if let Some(v) = s.presence_penalty {
+        let current_pp = current.presence_penalty.unwrap_or(0.0);
+        if (v - current_pp).abs() > 0.001 {
+            parts.push(format!("pres_pen={:.2}", v));
+        }
+    }
+    if let Some(v) = s.frequency_penalty {
+        let current_fp = current.frequency_penalty.unwrap_or(0.0);
+        if (v - current_fp).abs() > 0.001 {
+            parts.push(format!("freq_pen={:.2}", v));
+        }
+    }
+    if let Some(v) = s.repeat_last_n {
+        if Some(v) != Some(current.repeat_last_n) {
+            parts.push(format!("repeat_last_n={}", v));
+        }
+    }
+    if let Some(v) = s.rope_scaling {
+        if v != current.rope_scaling {
+            parts.push(format!("rope_scaling={}", v));
+        }
+    }
+    if let Some(v) = s.webui {
+        if v != current.webui {
+            parts.push(format!("webui={}", v));
+        }
+    }
+    
+
+    parts
 }

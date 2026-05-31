@@ -11,6 +11,7 @@ use super::App;
 use crate::tui::app::{ConfirmationKind, GlobalMode};
 use crate::tui::render_vertical_scrollbar;
 use crate::tui::format_bench_params;
+use crate::tui::settings::profile_settings_parts;
 use crate::backend::hardware::{detect_gpu_vendor, detect_gpu_model, GpuVendor};
 use crate::tui::panel;
 
@@ -44,8 +45,9 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
-    if let GlobalMode::ProfilePicker { entries, selected } = &app.ui.global_mode {
-        render_profile_picker(f, f.area(), entries, *selected);
+    if let GlobalMode::ProfilePicker { entries, selected, profiles } = &app.ui.global_mode {
+        let selected_profile = profiles.get(*selected);
+        render_profile_picker(f, f.area(), entries, *selected, &app.settings, selected_profile);
         return true;
     }
 
@@ -160,14 +162,12 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &Vec<(String, String)>
     f.render_widget(Paragraph::new(picker_lines).block(Block::default().title(" Host Picker ").borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), picker_area);
 }
 
-fn render_profile_picker(f: &mut Frame, area: Rect, entries: &Vec<(String, String)>, selected: usize) {
+fn render_profile_picker(f: &mut Frame, area: Rect, entries: &Vec<(String, String)>, selected: usize, current_settings: &crate::models::ModelSettings, selected_profile: Option<&crate::config::Profile>) {
     let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
-    let h = ((entries.len() + 8).min((area.height as usize - 4) as usize)) as u16;
-    let picker_area = Rect { x: (area.width - w) / 2, y: (area.height - h) / 2, width: w, height: h };
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(" [↑/↓] Select  [Enter] Apply  [Esc] Cancel ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
     picker_lines.push(Line::from(""));
-    let builtin_names: std::collections::HashSet<&str> = ["Qwen", "Gemma", "Llama", "Mistral", "Phi"].into_iter().collect();
+    let builtin_names: std::collections::HashSet<&str> = ["Qwen", "Qwen-MoE", "Qwen-Coding", "Gemma", "Llama", "Mistral", "Phi"].into_iter().collect();
     for (i, (name, desc)) in entries.iter().enumerate() {
         let marker = if i == selected { "> " } else { "  " };
         let is_builtin = builtin_names.contains(name.as_str());
@@ -178,6 +178,22 @@ fn render_profile_picker(f: &mut Frame, area: Rect, entries: &Vec<(String, Strin
             picker_lines.push(Line::from(Span::styled(format!("        {}", desc), Style::default().fg(Color::DarkGray))));
         }
     }
+    if let Some(profile) = selected_profile {
+        let preview_parts = profile_settings_parts(profile, current_settings);
+        picker_lines.push(Line::from(Span::styled("────────────────────────────────────────────────────────", Style::default().fg(Color::DarkGray))));
+        picker_lines.push(Line::from(Span::styled(" Changed settings:", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
+        if preview_parts.is_empty() {
+            picker_lines.push(Line::from(Span::styled(" (no changes)", Style::default().fg(Color::DarkGray))));
+        } else {
+            for part in preview_parts {
+                picker_lines.push(Line::from(Span::styled(format!("    {}", part), Style::default().fg(Color::Cyan))));
+            }
+        }
+    }
+    let content_height = picker_lines.len();
+    let max_h = (area.height as usize - 4).max(10);
+    let h = (content_height.min(max_h)) as u16;
+    let picker_area = Rect { x: (area.width - w) / 2, y: (area.height - h) / 2, width: w, height: h };
     f.render_widget(Clear, picker_area);
     f.render_widget(Paragraph::new(picker_lines).wrap(Wrap { trim: true }).block(Block::default().title(" Profiles ").borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), picker_area);
 }

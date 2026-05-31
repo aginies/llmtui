@@ -1,5 +1,6 @@
 pub mod sub;
 use crate::config::Config;
+use crate::config::Profile;
 use crate::models::{
     DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
     BenchTuneConfig,
@@ -83,7 +84,7 @@ pub enum ModelsMode {
 }
 
 /// Global mode that overlays all panels.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum GlobalMode {
     Normal,
     CmdLine { cmd_line: String },
@@ -126,6 +127,7 @@ pub enum GlobalMode {
     ProfilePicker {
         entries: Vec<(String, String)>, // (name, description)
         selected: usize,
+        profiles: Vec<Profile>,
     },
     DashboardPicker {
         enabled: bool,

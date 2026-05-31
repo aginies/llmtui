@@ -407,7 +407,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Profile picker
-    if let GlobalMode::ProfilePicker { entries, selected } = &mut app.ui.global_mode {
+  if let GlobalMode::ProfilePicker { entries, selected, .. } = &mut app.ui.global_mode {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => {
                 *selected = selected.saturating_sub(1);
