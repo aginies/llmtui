@@ -296,7 +296,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Char(c) if *editing => {
                 let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
                 edit_buffer.insert_str(byte_pos, &c.to_string());
-                *edit_cursor_pos += c.len_utf8();
+                *edit_cursor_pos += 1;
             }
             KeyCode::Backspace if *editing => {
                 if *edit_cursor_pos > 0 {
@@ -304,7 +304,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     if byte_pos > 0 {
                         let prev_char_len = edit_buffer[..byte_pos].chars().next_back().unwrap().len_utf8();
                         edit_buffer.drain(byte_pos - prev_char_len..byte_pos);
-                        *edit_cursor_pos -= prev_char_len;
+                        *edit_cursor_pos -= 1;
                     }
                 }
             }

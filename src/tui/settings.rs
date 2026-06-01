@@ -384,7 +384,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| s.keep.to_string(),
             |s, c| s.keep != c.keep,
             |s, delta, _| {
-                s.keep = s.keep + delta;
+                s.keep = (s.keep + delta).max(0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -485,7 +485,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| s.main_gpu.to_string(),
             |s, c| s.main_gpu != c.main_gpu,
             |s, delta, _| {
-                s.main_gpu = s.main_gpu + delta;
+                s.main_gpu = (s.main_gpu + delta).max(0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -952,7 +952,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| s.dry_allowed_length.to_string(),
             |s, c| s.dry_allowed_length != c.dry_allowed_length,
             |s, delta, _| {
-                s.dry_allowed_length = s.dry_allowed_length + delta;
+                s.dry_allowed_length = (s.dry_allowed_length + delta).max(0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -968,7 +968,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| s.dry_penalty_last_n.to_string(),
             |s, c| s.dry_penalty_last_n != c.dry_penalty_last_n,
             |s, delta, _| {
-                s.dry_penalty_last_n = s.dry_penalty_last_n + delta;
+                s.dry_penalty_last_n = (s.dry_penalty_last_n + delta).max(0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
