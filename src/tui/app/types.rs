@@ -151,6 +151,10 @@ pub enum GlobalMode {
         auth_key: String,
         ws_enabled: bool,
     },
+    SearchInput {
+        buffer: String,
+        cursor_pos: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

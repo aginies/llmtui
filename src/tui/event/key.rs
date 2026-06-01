@@ -35,6 +35,15 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // In search mode, "/" always opens the search input modal (before any overlay handler)
+    if matches!(app.ui.global_mode, GlobalMode::Normal) && matches!(app.models_mode, ModelsMode::Search { .. }) && key.code == KeyCode::Char('/') && !key.modifiers.contains(KeyModifiers::CONTROL) {
+        app.ui.global_mode = GlobalMode::SearchInput {
+            buffer: app.search.search_input.clone().unwrap_or_default(),
+            cursor_pos: app.search.search_input.as_ref().map(|s| s.len()).unwrap_or(0),
+        };
+        return;
+    }
+
     // Dashboard URL modal (Ctrl+U)
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
         app.ui.global_mode = GlobalMode::DashboardUrl {
@@ -97,6 +106,85 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Skip all if in About overlay
     if let GlobalMode::About = &app.ui.global_mode {
         app.ui.global_mode = GlobalMode::Normal;
+        return;
+    }
+
+    // Skip all if in SearchInput overlay
+    if let GlobalMode::SearchInput { buffer, cursor_pos } = &mut app.ui.global_mode {
+        match key.code {
+            KeyCode::Esc => {
+                app.ui.global_mode = GlobalMode::Normal;
+                return;
+            }
+            KeyCode::Enter => {
+                let query = buffer.clone();
+                app.ui.global_mode = GlobalMode::Normal;
+                // Keep the search input for next time
+                app.search.search_input = Some(query.clone());
+
+                // Update the query in Search mode so highlighting works
+                if let ModelsMode::Search { query: q, page, has_more, .. } = &mut app.models_mode {
+                    *q = query.clone();
+                    *page = 0;
+                    *has_more = true;
+                }
+
+                if query.is_empty() {
+                    return;
+                }
+                app.add_log(format!("Searching for '{}'...", query), crate::config::LogLevel::Info);
+                app.search.pending_search_load = Some((query, 0));
+                app.search.search_loading = true;
+                app.search.search_table_state = TableState::default();
+                app.search.search_results_idx = None;
+                return;
+            }
+            KeyCode::Backspace => {
+                if *cursor_pos > 0 {
+                    let mut pos = *cursor_pos - 1;
+                    while pos > 0 && !buffer.is_char_boundary(pos) {
+                        pos -= 1;
+                    }
+                    buffer.remove(pos);
+                    *cursor_pos = pos;
+                }
+            }
+            KeyCode::Delete => {
+                if *cursor_pos < buffer.len() {
+                    buffer.remove(*cursor_pos);
+                }
+            }
+            KeyCode::Char(c) => {
+                buffer.insert(*cursor_pos, c);
+                *cursor_pos += c.len_utf8();
+            }
+            KeyCode::Left => {
+                if *cursor_pos > 0 {
+                    let mut pos = *cursor_pos - 1;
+                    while pos > 0 && !buffer.is_char_boundary(pos) {
+                        pos -= 1;
+                    }
+                    *cursor_pos = pos;
+                }
+            }
+            KeyCode::Right => {
+                if *cursor_pos < buffer.len() {
+                    let mut pos = *cursor_pos + 1;
+                    while pos < buffer.len() && !buffer.is_char_boundary(pos) {
+                        pos += 1;
+                    }
+                    *cursor_pos = pos;
+                }
+            }
+            KeyCode::Home => {
+                *cursor_pos = 0;
+            }
+            KeyCode::End => {
+                *cursor_pos = buffer.len();
+            }
+            _ => {}
+        }
+        app.search.search_input = Some(buffer.clone());
         return;
     }
 
@@ -700,6 +788,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 loading: false,
                 has_more: true,
             };
+            app.search.search_input = None;
+            app.ui.global_mode = GlobalMode::SearchInput {
+                buffer: String::new(),
+                cursor_pos: 0,
+            };
             app.search.search_results_idx = Some(0);
             app.log.log_expanded = false;
             app.ui.panel_visibility &= !(1 << 4);
@@ -1094,22 +1187,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.ui.panel_visibility |= (1 << 4) | (1 << 5);
             return;
         }
-        KeyCode::Enter => {
-            let query = if let ModelsMode::Search { query, page, has_more, .. } = &mut app.models_mode {
-                *page = 0; *has_more = true; query.clone()
-            } else { return };
-            if query.is_empty() { return; }
-            app.add_log(format!("Searching for '{}'...", query), crate::config::LogLevel::Info);
-            app.search.pending_search_load = Some((query, 0));
-            app.search.search_loading = true;
-            app.search.search_table_state = TableState::default();
-            return;
-        }
-        KeyCode::Backspace => {
-            if let ModelsMode::Search { query, .. } = &mut app.models_mode { query.pop(); }
-            return;
-        }
-        KeyCode::Char('L') => {
+        KeyCode::Enter | KeyCode::Char('F') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) || key.code == KeyCode::Enter => {
             let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
                 app.search.search_results_idx.and_then(|idx| results.get(idx).map(|r| r.model_id.clone()))
             } else { None };
@@ -1129,7 +1207,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Char('S') => {
+        KeyCode::Char('S') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
             if let ModelsMode::Search { sort_by, results, .. } = &mut app.models_mode {
                 *sort_by = sort_by.next();
                 results.sort_by(|a, b| match sort_by {
@@ -1143,7 +1221,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Char('B') => {
+        KeyCode::Char('B') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
             if let ModelsMode::Search { page, .. } = &app.models_mode && *page > 0 {
                 let query = if let ModelsMode::Search { query, .. } = &app.models_mode { query.clone() } else { String::new() };
                 let offset = (*page as u32 - 1) * 50;
@@ -1155,7 +1233,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Down => {
+        KeyCode::Down | KeyCode::Char('j') => {
             let len = app.search_results_len();
             match app.search.search_results_idx {
                 Some(idx) if idx + 1 < len => app.search.search_results_idx = Some(idx + 1),
@@ -1175,7 +1253,20 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Char('R') => {
+        KeyCode::Up | KeyCode::Char('k') => {
+            match app.search.search_results_idx {
+                Some(idx) if idx > 0 => app.search.search_results_idx = Some(idx - 1),
+                None => {
+                    let len = app.search_results_len();
+                    if len > 0 {
+                        app.search.search_results_idx = Some(0);
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
+        KeyCode::Char('R') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
             let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
                 app.search.search_results_idx.and_then(|idx| results.get(idx).map(|r| r.model_id.clone()))
             } else { None };
@@ -1187,19 +1278,11 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Char(c) => {
-            if let ModelsMode::Search { query, .. } = &mut app.models_mode { query.push(c); }
-            return;
-        }
-        KeyCode::Up => {
-            match app.search.search_results_idx {
-                Some(idx) if idx > 0 => app.search.search_results_idx = Some(idx - 1),
-                None => { let len = if let ModelsMode::Search { results, .. } = &app.models_mode { results.len() } else { 0 }; if len > 0 { app.search.search_results_idx = Some(0); } }
-                _ => {}
-            }
-            return;
-        }
         _ => {}
+    }
+
+    if !matches!(app.ui.global_mode, GlobalMode::Normal) {
+        return;
     }
 
     if let ModelsMode::Search { results, .. } = &app.models_mode {

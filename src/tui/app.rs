@@ -166,6 +166,7 @@ impl App {
                 gguf_metadata_cache: Default::default(),
                 pending_search_load: None,
                 search_loading: false,
+                search_input: None,
             },
             ui: UIState {
                 active_panel: ActivePanel::Models,

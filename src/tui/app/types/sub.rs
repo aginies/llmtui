@@ -141,6 +141,7 @@ pub struct SearchState {
     pub gguf_metadata_cache: BTreeMap<String, crate::models::GgufMetadata>,
     pub pending_search_load: Option<(String, u32)>,
     pub search_loading: bool,
+    pub search_input: Option<String>,
 }
 
 pub struct UIState {

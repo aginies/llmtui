@@ -268,10 +268,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         }
         ModelsMode::Search { query, results, sort_by, loading, has_more, .. } => {
             let sort_label = sort_by.label();
+            let display_query = app.search.search_input.as_deref().unwrap_or(query);
             let title = if app.is_panel_visible(0) {
-                format!(" Search [Ctrl+F7]: {} [{}] ({} results)", query, sort_label, results.len())
+                format!(" Search [Ctrl+F7]: {} [{}] ({} results) [Ctrl+F:Files] [Ctrl+S:Sort] [Esc:Back] [->:Readme]", display_query, sort_label, results.len())
             } else {
-                format!(" Search: {} [{}] ({} results)", query, sort_label, results.len())
+                format!(" Search: {} [{}] ({} results) [Ctrl+F:Files] [Ctrl+S:Sort] [Esc:Back] [->:Readme]", display_query, sort_label, results.len())
             };
             let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green

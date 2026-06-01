@@ -106,6 +106,11 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::SearchInput { buffer, cursor_pos } = &app.ui.global_mode {
+        render_search_input(f, f.area(), buffer, *cursor_pos);
+        return true;
+    }
+
     if let Some(result_idx) = app.bench_tune.bench_tune_output_view {
         render_bench_tune_output(f, f.area(), app, result_idx);
         return true;
@@ -615,6 +620,32 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
         let controls_area = Rect { x: 0, y: area.height.saturating_sub(1), width: area.width, height: 1 };
         f.render_widget(Paragraph::new(controls).alignment(Alignment::Center), controls_area);
     }
+}
+
+fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usize) {
+    let w: u16 = 60;
+    let h: u16 = 7;
+    let popup_area = Rect { x: (area.width - w) / 2, y: (area.height - h) / 2, width: w, height: h };
+    let clamped_pos = cursor_pos.min(buffer.len());
+    let before: String = buffer.chars().take(clamped_pos).collect();
+    let after: String = buffer.chars().skip(clamped_pos).collect();
+    let mut picker_lines: Vec<Line> = Vec::new();
+    picker_lines.push(Line::from(Span::styled(" Search Query ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(vec![
+        Span::styled("Search: ", Style::default().fg(Color::Yellow)),
+        Span::styled(before, Style::default().fg(Color::White)),
+        Span::styled("|", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::styled(after, Style::default().fg(Color::White)),
+    ]));
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(vec![
+        Span::styled("  [Enter] search  ", Style::default().fg(Color::Black).bg(Color::Yellow)),
+        Span::raw("  "),
+        Span::styled("  [Esc] cancel  ", Style::default().fg(Color::Black).bg(Color::DarkGray)),
+    ]));
+    f.render_widget(Clear, popup_area);
+    f.render_widget(Paragraph::new(picker_lines).block(Block::default().title(" Search Input ").borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), popup_area);
 }
 
 fn wrap_text(text: &str, max_width: usize) -> String {
