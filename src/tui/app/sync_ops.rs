@@ -117,6 +117,8 @@ impl App {
         }
     }
 
+      
+   
     pub fn get_filtered_model_indices(&self) -> Vec<usize> {
         self.models
             .iter()
@@ -129,5 +131,114 @@ impl App {
             })
             .map(|(i, _)| i)
             .collect()
+    }
+}
+
+/// Normalize separator characters for comparison (dashes and underscores).
+fn normalize_separators(s: &str) -> String {
+    s.replace('_', "-")
+}
+
+/// Check if a model (identified by HF model_id) is already downloaded locally.
+/// Matches by comparing the HF repo name against local filenames, case-insensitively.
+pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: &str) -> bool {
+    let repo_name = model_id.rsplit('/').next().unwrap_or(model_id).to_lowercase();
+    let repo_normalized = normalize_separators(&repo_name);
+    models.iter().any(|m| {
+        let mut local = m.name.to_lowercase();
+        if let Some(stripped) = local.strip_suffix(".gguf") {
+            local = stripped.to_string();
+        }
+        let local_normalized = normalize_separators(&local);
+        local_normalized == repo_normalized
+            || local_normalized.starts_with(&format!("{}-", repo_normalized))
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::DiscoveredModel;
+
+    fn make_discovered(name: &str) -> DiscoveredModel {
+        DiscoveredModel {
+            path: PathBuf::from(format!("/models/{}", name)),
+            name: name.to_string(),
+            file_size: 0,
+            display_name: name.to_string(),
+        }
+    }
+
+    #[test]
+    fn exact_match() {
+        let models = vec![make_discovered("Qwen2.5-7B-Instruct.gguf")];
+        assert!(model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn hyphen_separator_match() {
+        let models = vec![make_discovered("Qwen2.5-7B-Instruct-Q4_K_M.gguf")];
+        assert!(model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn underscore_separator_match() {
+        let models = vec![make_discovered("Qwen2.5_7B_Instruct.gguf")];
+        assert!(model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn underscore_separator_match_with_quant() {
+        let models = vec![make_discovered("Qwen2.5_7B_Instruct-Q4_K_M.gguf")];
+        assert!(model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn case_insensitive_match() {
+        let models = vec![make_discovered("qwen2.5-7b-instruct-q4_k_m.gguf")];
+        assert!(model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn no_match_different_model() {
+        let models = vec![make_discovered("Llama-3.1-8B-Instruct-Q4_K_M.gguf")];
+        assert!(!model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn no_match_partial_prefix_false_positive() {
+        let models = vec![make_discovered("Qwen2.5-Mistral-Q4_K_M.gguf")];
+        assert!(!model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn no_match_empty_models() {
+        let models: Vec<DiscoveredModel> = vec![];
+        assert!(!model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn strip_gguf_extension() {
+        let models = vec![make_discovered("Qwen2.5-7B-Instruct-Q4_K_M.GGUF")];
+        assert!(model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn no_gguf_extension() {
+        let models = vec![make_discovered("Qwen2.5-7B-Instruct-Q4_K_M")];
+        assert!(model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+    }
+
+    #[test]
+    fn multiple_models() {
+        let models = vec![
+            make_discovered("Llama-3.1-8B-Instruct-Q4_K_M.gguf"),
+            make_discovered("Qwen2.5-7B-Instruct-Q4_K_M.gguf"),
+            make_discovered("Mistral-7B-v0.3-Q8_0.gguf"),
+        ];
+        assert!(model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
+        assert!(model_is_downloaded(&models, "meta-llama/Llama-3.1-8B-Instruct"));
+        assert!(model_is_downloaded(&models, "mistralai/Mistral-7B-v0.3"));
+        assert!(!model_is_downloaded(&models, "google/gemma-2-9b"));
     }
 }

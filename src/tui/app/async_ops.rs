@@ -914,9 +914,7 @@ impl App {
                             if let super::types::ModelsMode::Search { results, has_more, loading, .. } = &mut self.models_mode {
                                 let models = self.models.clone();
                                 for r in res {
-                                    let downloaded = models.iter().any(|m| {
-                                        m.name == r.model_id || m.name.starts_with(&r.model_id.rsplit('/').next().unwrap_or(""))
-                                    });
+                                    let downloaded = super::sync_ops::model_is_downloaded(&models, &r.model_id);
                                     results.push(crate::models::SearchResult { downloaded, ..r });
                                 }
                                 if raw_len < self.config.search_limit as usize {
@@ -928,9 +926,7 @@ impl App {
                             if let super::types::ModelsMode::Search { results, loading, has_more, .. } = &mut self.models_mode {
                                 let models = self.models.clone();
                                 *results = res.into_iter().map(|r| {
-                                    let downloaded = models.iter().any(|m| {
-                                        m.name == r.model_id || m.name.starts_with(&r.model_id.rsplit('/').next().unwrap_or(""))
-                                    });
+                                    let downloaded = super::sync_ops::model_is_downloaded(&models, &r.model_id);
                                     crate::models::SearchResult { downloaded, ..r }
                                 }).collect();
                                 if !results.is_empty() {
