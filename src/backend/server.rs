@@ -33,6 +33,23 @@ fn push_flag(cmd: &mut Command, parts: &mut Vec<String>, name: &str) {
     parts.push(name.to_string());
 }
 
+fn push_gpu_layers(cmd: &mut Command, parts: &mut Vec<String>, settings: &ModelSettings) {
+    match settings.gpu_layers_mode {
+        crate::models::GpuLayersMode::Specific(n) => push_arg(cmd, parts, "-ngl", n),
+        crate::models::GpuLayersMode::All => push_arg(cmd, parts, "-ngl", "999"),
+        crate::models::GpuLayersMode::Auto => {}
+    }
+}
+
+fn push_spec_decoding(cmd: &mut Command, parts: &mut Vec<String>, settings: &ModelSettings) {
+    if !settings.spec_type.is_empty() {
+        push_arg(cmd, parts, "--spec-type", &settings.spec_type);
+        if settings.draft_tokens > 0 {
+            push_arg(cmd, parts, "--spec-draft-n-max", settings.draft_tokens);
+        }
+    }
+}
+
 /// Build the full llama-server command line from settings.
 /// Returns (Command, display_string) where the string is suitable for logging.
 pub fn build_server_cmd(
@@ -90,17 +107,7 @@ pub fn build_server_cmd(
 
     push_flag(&mut cmd, &mut parts, "--no-warmup");
 
-    if !settings.spec_type.is_empty() {
-        push_arg(&mut cmd, &mut parts, "--spec-type", &settings.spec_type);
-        if settings.draft_tokens > 0 {
-            push_arg(
-                &mut cmd,
-                &mut parts,
-                "--spec-draft-n-max",
-                settings.draft_tokens,
-            );
-        }
-    }
+    push_spec_decoding(&mut cmd, &mut parts, settings);
 
     if let Some(cache_k) = settings.cache_type_k {
         push_arg(&mut cmd, &mut parts, "--cache-type-k", cache_k);
@@ -129,12 +136,7 @@ pub fn build_server_cmd(
     }
 
     // ── GPU ──────────────────────────────────────────────────
-    if let crate::models::GpuLayersMode::Specific(n) = settings.gpu_layers_mode {
-        push_arg(&mut cmd, &mut parts, "-ngl", n);
-    }
-    if matches!(settings.gpu_layers_mode, crate::models::GpuLayersMode::All) {
-        push_arg(&mut cmd, &mut parts, "-ngl", "999");
-    }
+    push_gpu_layers(&mut cmd, &mut parts, settings);
 
     if settings.split_mode != Default::default() {
         push_arg(
@@ -427,27 +429,13 @@ pub fn build_bench_cmd(
     push_arg(&mut cmd, &mut parts, "-t", settings.threads);
     push_arg(&mut cmd, &mut parts, "-b", settings.batch_size);
 
-    if let crate::models::GpuLayersMode::Specific(n) = settings.gpu_layers_mode {
-        push_arg(&mut cmd, &mut parts, "-ngl", n);
-    } else if matches!(settings.gpu_layers_mode, crate::models::GpuLayersMode::All) {
-        push_arg(&mut cmd, &mut parts, "-ngl", "999");
-    }
+    push_gpu_layers(&mut cmd, &mut parts, settings);
 
     if settings.flash_attn {
         push_arg(&mut cmd, &mut parts, "-fa", "1");
     }
 
-    if !settings.spec_type.is_empty() {
-        push_arg(&mut cmd, &mut parts, "--spec-type", &settings.spec_type);
-        if settings.draft_tokens > 0 {
-            push_arg(
-                &mut cmd,
-                &mut parts,
-                "--spec-draft-n-max",
-                settings.draft_tokens,
-            );
-        }
-    }
+    push_spec_decoding(&mut cmd, &mut parts, settings);
 
     push_flag(&mut cmd, &mut parts, "--progress");
 

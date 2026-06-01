@@ -9,6 +9,13 @@ use super::panel::{
     handle_settings_key, handle_system_prompt_presets_key,
 };
 use super::readme::{fetch_and_store_readme, fetch_readme_for_selected, handle_readme_key};
+
+fn picker_nav_up(selected: &mut usize) {
+    *selected = selected.saturating_sub(1);
+}
+fn picker_nav_down(selected: &mut usize, len: usize) {
+    *selected = (*selected + 1).min(len.saturating_sub(1));
+}
 use crate::backend::hub;
 use crate::models::SearchSort;
 use crate::tui::app::{ActivePanel, App, ConfirmationKind, GlobalMode, ModelsMode};
@@ -626,12 +633,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Skip all if in host picker
     if let GlobalMode::HostPicker { entries, selected } = &mut app.ui.global_mode {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') => {
-                *selected = selected.saturating_sub(1);
-            }
-            KeyCode::Down | KeyCode::Char('j') => {
-                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
-            }
+            KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
+            KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
             KeyCode::Enter => {
                 let (ip, _) = entries[*selected].clone();
                 app.settings.host = ip;
@@ -663,12 +666,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     } = &mut app.ui.global_mode
     {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') => {
-                *selected = selected.saturating_sub(1);
-            }
-            KeyCode::Down | KeyCode::Char('j') => {
-                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
-            }
+            KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
+            KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
             KeyCode::Enter => {
                 if *selected < entries.len() {
                     let name = entries[*selected].0.clone();
@@ -1200,12 +1199,8 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
 
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') => {
-                *selected = selected.saturating_sub(1);
-            }
-            KeyCode::Down | KeyCode::Char('j') => {
-                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
-            }
+            KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
+            KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
             KeyCode::Enter => {
                 let (name, _) = entries[*selected].clone();
                 app.settings.system_prompt_preset_name = name.clone();
@@ -1536,12 +1531,8 @@ fn handle_backend_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Esc => {
                 app.ui.global_mode = GlobalMode::Normal;
             }
-            KeyCode::Up | KeyCode::Char('k') => {
-                *selected = selected.saturating_sub(1);
-            }
-            KeyCode::Down | KeyCode::Char('j') => {
-                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
-            }
+            KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
+            KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
             KeyCode::Enter => {
                 let (backend, tag) = entries[*selected].clone();
                 app.settings.backend = backend;
