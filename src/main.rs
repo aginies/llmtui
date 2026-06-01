@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
                     .init();
             }
 
-            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary.as_deref(), host.as_deref(), log_file.as_deref(), tls_enable, tls_cert.as_deref(), tls_key.as_deref())
+            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary.as_deref(), host.as_deref(), tls_enable, tls_cert.as_deref(), tls_key.as_deref())
                 .await
                 .map_err(|e| {
                     tracing::error!("{}", e);
@@ -226,6 +226,7 @@ async fn main() -> Result<()> {
                 app.start_pending_spawn().await;
                 app.poll_spawn_result().await;
                 app.poll_bench_tune_result().await;
+                app.handle_server_exit();
                 app.handle_pending_api_load();
                 app.handle_pending_api_unload();
                 app.start_pending_kill().await;

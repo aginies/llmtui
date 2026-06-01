@@ -23,7 +23,6 @@ async fn start_metrics_polling_task(
 ) {
     let mut consecutive_failures: u32 = 0;
     let max_failures: u32 = 15;
-    let _client = reqwest::Client::new();
 
     loop {
         // Check shutdown first
@@ -31,12 +30,15 @@ async fn start_metrics_polling_task(
             break;
         }
 
-        let m = match server::get_metrics(&host, port, None, Some(pid)).await {
-            Ok(metrics) => {
+        let m = match tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            server::get_metrics(&host, port, None, Some(pid)),
+        ).await {
+            Ok(Ok(metrics)) => {
                 consecutive_failures = 0;
                 metrics
             }
-            Err(_) => {
+            Ok(Err(_)) | Err(_) => {
                 consecutive_failures += 1;
                 if consecutive_failures >= max_failures {
                     tracing::warn!("Metrics polling aborted after {} consecutive failures (server likely dead)", max_failures);
@@ -85,23 +87,10 @@ pub async fn serve_model(
     ws_auth: Option<String>,
     backend_binary: Option<&str>,
     host: Option<&str>,
-    log_file: Option<&str>,
     tls_enable: bool,
     tls_cert: Option<&str>,
     tls_key: Option<&str>,
 ) -> Result<()> {
-    if let Some(path) = log_file {
-        let path = PathBuf::from(path);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let _file = std::fs::OpenOptions::new().create(true).append(true).open(&path)
-            .map_err(|e| anyhow::anyhow!("Failed to open log file '{}': {}", path.display(), e))?;
-        tracing::info!("Logging to {}", path.display());
-    } else {
-        tracing::info!("Logging to stdout");
-    }
-
     // Load config from explicit path or default location
     let config = match config_path {
         Some(p) => {

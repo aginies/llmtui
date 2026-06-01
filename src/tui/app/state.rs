@@ -16,7 +16,6 @@ impl App {
         self.compute_progress();
         self.loading.progress_target = self.loading.loading_progress;
         self.loading.loading_progress = previous_progress * 0.85 + self.loading.progress_target * 0.15;
-        self.handle_server_exit();
         self.trim_log();
         self.log.log_entries.push_back(crate::config::LogEntry::new(msg, level));
     }
@@ -277,7 +276,7 @@ impl App {
         }
     }
 
-    fn handle_server_exit(&mut self) {
+    pub fn handle_server_exit(&mut self) {
         if let Some(rx) = &mut self.server.server_exit_rx {
             if let Ok(()) = rx.try_recv() {
                 self.server.server_handle = None;
