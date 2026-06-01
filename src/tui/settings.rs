@@ -1080,21 +1080,32 @@ pub fn add_setting(
     selected: usize,
     _edit_buf: &str,
     _editing: bool,
+    disabled: bool,
 ) {
     let current_line = lines.len();
+    let name_style = if disabled {
+        Style::default().fg(Color::DarkGray)
+    } else {
+        Style::default().fg(Color::Yellow)
+    };
+    let val_style = if disabled {
+        Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)
+    } else {
+        Style::default().fg(Color::White)
+    };
     if idx == selected {
         *selected_line_idx = current_line;
         *selected_content_line = current_line;
         lines.push(Line::from(vec![
-            Span::styled("> ", Style::default().fg(Color::Yellow)),
-            Span::styled(format!("{name}: "), Style::default().fg(Color::Yellow)),
+            Span::styled("> ", Style::default().fg(Color::Yellow).add_modifier(if disabled { Modifier::DIM } else { Modifier::BOLD })),
+            Span::styled(format!("{name}: "), name_style),
             Span::styled(val.to_string(), Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)),
         ]));
     } else {
         lines.push(Line::from(vec![
-            Span::styled("  ", Style::default().fg(Color::Yellow)),
-            Span::styled(format!("{name}: "), Style::default().fg(Color::Yellow)),
-            Span::styled(val.to_string(), Style::default().fg(Color::White)),
+            Span::styled("  ", name_style),
+            Span::styled(format!("{name}: "), name_style),
+            Span::styled(val.to_string(), val_style),
         ]));
     }
     *total_count += 1;
