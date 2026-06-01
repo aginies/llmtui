@@ -240,19 +240,18 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `⌃H` (Ctrl+H) — Show Help overlay
 - `⌃K` (Ctrl+K) — Show CmdLine overlay
 - `⌃D` (Ctrl+D) — Delete model (with confirmation)
-- `⌃L` (Ctrl+L) — Focus Log panel
+- `⌃L` (Ctrl+L) — Focus Log panel (in normal mode) / Load GGUF files for selected model (in search)
 - `p` — Open Profiles panel / Pause or resume download / Previous Benchmark result (context-sensitive)
 - `⌃P` (Ctrl+P) — Open Profile Picker modal (select from built-in or user profiles)
 - `n` — New preset (in System Prompt Presets) / Next Benchmark result
-- `S` (Shift+s) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created)
-- `B` (Shift+b) — Back one page in search results
+- `⌃S` (Ctrl+S) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created)
+- `⌃B` (Ctrl+B) — Back one page in search results
 - `↓` at bottom — Load more search results (infinite scroll)
-- `R` (Shift+r) — Fetch README for selected model
 - `⌃⌥K` (Ctrl+Alt+K) — Kill llama-server process forcefully
 - `g` / `G` — Jump to top/bottom of log panel
 - `PageUp` / `PageDown` — Scroll fast in logs, README, and Benchmark Output
+- `⌃R` (Ctrl+R) — Fetch README for selected model (in search) / Reset LLM settings (in LLM Settings)
 - `⌃S` (Ctrl+S) — Save settings for selected model / Save preset
-- `⌃R` (Ctrl+R) — Reset LLM settings to defaults
 - `⌃E` (Ctrl+E) — Toggle enabled/disabled for specific settings
 - `⌃⇟` / `⌃⇞` (Ctrl+PgDn/PgUp) — Jump 10 settings down/up
 - `Shift+←` / `Shift+→` — Resize horizontal panel split (20%-80%)
@@ -321,9 +320,9 @@ Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSetti
 
 | Feature | Description |
 |---------|-------------|
-| **Sort cycling** | `S` key cycles through Relevance, Downloads, Likes, Trending, Created |
-| **Pagination** | `B` key goes back one page; `Down` at bottom loads more results (infinite scroll) |
-| **README viewing** | `R` fetches and displays the model's README from HuggingFace; `Enter` expands to fullscreen |
+| **Sort cycling** | `⌃S` (Ctrl+S) cycles through Relevance, Downloads, Likes, Trending, Created |
+| **Pagination** | `⌃B` (Ctrl+B) goes back one page; `Down` at bottom loads more results (infinite scroll) |
+| **README viewing** | `⌃R` (Ctrl+R) fetches and displays the model's README from HuggingFace; `Enter` expands to fullscreen |
 | **README horizontal scroll** | `h`/`l` keys scroll horizontally |
 | **Multi-word search** | Type space-separated words (e.g. "qwen opus"); all must match the model name. Matching words are highlighted in cyan. |
 | **README rendering** | Full markdown renderer with headings, code blocks, lists, blockquotes, tables, and task lists |
