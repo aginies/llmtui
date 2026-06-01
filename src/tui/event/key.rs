@@ -1187,7 +1187,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.ui.panel_visibility |= (1 << 4) | (1 << 5);
             return;
         }
-        KeyCode::Enter | KeyCode::Char('F') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) || key.code == KeyCode::Enter => {
+        KeyCode::Enter => {
             let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
                 app.search.search_results_idx.and_then(|idx| results.get(idx).map(|r| r.model_id.clone()))
             } else { None };

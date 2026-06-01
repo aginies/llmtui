@@ -229,18 +229,17 @@ The System Prompt Presets panel contains named system prompts for different use 
 
 - `j` / `k` or `↓` / `↑` — Navigate up/down in lists and menus
 - `h` / `l` or `←` / `→` — Navigate left/right (e.g., horizontal scroll in README)
-- `↵` (Enter) — Load model / Download selected / Expand log / Apply profile / Edit setting
+- `↵` (Enter) — Load model / Download selected / Expand log / Apply profile / Edit setting / Select GGUF files (in search)
 - `f` — Filter local models list / Toggle Follow mode (in Log panel)
 - `⎋` (Esc) — Back / Exit search / Collapse log / Clear local filter / Close modals
 - `⇥` (Tab) — Switch active panels
 - `t` — Switch settings tab / Open tags modal (in LLM Settings)
-- `/` — Search models on HuggingFace
+- `/` — Search models on HuggingFace (opens search input modal)
 - `l` — Load selected model / `u` — Unload selected model
 - `A` — About box (license and version info)
 - `⌃H` (Ctrl+H) — Show Help overlay
 - `⌃K` (Ctrl+K) — Show CmdLine overlay
 - `⌃D` (Ctrl+D) — Delete model (with confirmation)
-- `⌃L` (Ctrl+L) — Focus Log panel (in normal mode) / Load GGUF files for selected model (in search)
 - `p` — Open Profiles panel / Pause or resume download / Previous Benchmark result (context-sensitive)
 - `⌃P` (Ctrl+P) — Open Profile Picker modal (select from built-in or user profiles)
 - `n` — New preset (in System Prompt Presets) / Next Benchmark result
@@ -320,9 +319,11 @@ Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSetti
 
 | Feature | Description |
 |---------|-------------|
+| **Search input** | `/` opens a text input modal; type query and press `Enter` to search |
 | **Sort cycling** | `⌃S` (Ctrl+S) cycles through Relevance, Downloads, Likes, Trending, Created |
 | **Pagination** | `⌃B` (Ctrl+B) goes back one page; `Down` at bottom loads more results (infinite scroll) |
-| **README viewing** | `⌃R` (Ctrl+R) fetches and displays the model's README from HuggingFace; `Enter` expands to fullscreen |
+| **File selection** | `Enter` selects the highlighted model's GGUF files |
+| **README viewing** | `⌃R` (Ctrl+R) fetches and displays the model's README from HuggingFace; `Enter` in README expands to fullscreen |
 | **README horizontal scroll** | `h`/`l` keys scroll horizontally |
 | **Multi-word search** | Type space-separated words (e.g. "qwen opus"); all must match the model name. Matching words are highlighted in cyan. |
 | **README rendering** | Full markdown renderer with headings, code blocks, lists, blockquotes, tables, and task lists |
