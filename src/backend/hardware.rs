@@ -71,26 +71,6 @@ fn drm_card_paths() -> Vec<std::path::PathBuf> {
         .unwrap_or_default()
 }
 
-/// Detect the GPU vendor by scanning /sys/class/drm/card*/device/vendor.
-/// Returns the first detected vendor (legacy API, kept for backward compatibility).
-pub fn detect_gpu_vendor() -> GpuVendor {
-    for card_path in drm_card_paths() {
-        let vendor_path = card_path.join("device/vendor");
-        if let Ok(vendor_id) = fs::read_to_string(vendor_path) {
-            let vendor_id = vendor_id.trim();
-            if vendor_id == "0x1002" {
-                return GpuVendor::Amd;
-            } else if vendor_id == "0x10de" {
-                return GpuVendor::Nvidia;
-            } else if vendor_id == "0x8086" {
-                return GpuVendor::Intel;
-            }
-        }
-    }
-
-    GpuVendor::Unknown
-}
-
 /// Detect all GPU vendors by scanning /sys/class/drm/card*/device/vendor.
 /// Returns a Vec of unique vendors (preserves detection order, deduplicates).
 pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
@@ -116,35 +96,6 @@ pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
     }
 
     vendors
-}
-
-/// Detect the GPU model name (e.g. "Radeon RX 7900 XTX")
-pub fn detect_gpu_model() -> Option<String> {
-    if !drm_card_paths().is_empty() {
-        // Try reading device/device (PCI ID) or other sysfs attributes
-        // On some systems, the model name isn't directly in sysfs without pci.ids mapping.
-        // However, we can try common paths or just return vendor + GFX target if specific model is hard.
-        // For now, let's try to find a "model" or "device" name if it exists.
-        
-        // fallback to vendor name + GFX if we can't get exact model
-        let vendor = detect_gpu_vendor();
-        let vendor_name = match vendor {
-            GpuVendor::Amd => "AMD",
-            GpuVendor::Nvidia => "NVIDIA",
-            GpuVendor::Intel => "Intel",
-            GpuVendor::Unknown => return None,
-        };
-        
-        if vendor == GpuVendor::Amd {
-            if let Some(gfx) = detect_amd_gfx_target() {
-                return Some(format!("{} ({})", vendor_name, gfx));
-            }
-        }
-        
-        return Some(vendor_name.to_string());
-    }
-
-    None
 }
 
 /// Detect all GPU model names (one per GPU).
