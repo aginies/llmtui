@@ -452,11 +452,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             KeyCode::Backspace if *editing => {
                 if *edit_cursor_pos > 0 {
-                    let byte_pos = edit_buffer.char_indices().nth(*edit_cursor_pos).map(|(i, _)| i).unwrap_or(edit_buffer.len());
-                    if byte_pos < edit_buffer.len() {
+                    let idx = *edit_cursor_pos - 1;
+                    if let Some((byte_pos, ch)) = edit_buffer.char_indices().nth(idx as usize) {
                         edit_buffer.remove(byte_pos);
+                        *edit_cursor_pos = edit_cursor_pos.saturating_sub(ch.len_utf8());
                     }
-                    *edit_cursor_pos = edit_cursor_pos.saturating_sub(1);
                 }
                 return;
             }
