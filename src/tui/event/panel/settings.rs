@@ -141,43 +141,39 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // ── Field-specific handlers (match on field id) ─────────────────────────
 
     // System Prompt: open picker modal on Enter
-    if field_id == Some("system_prompt_preset_name") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            app.settings_state.settings_edit_buffer.clear();
-        } else if key.code == KeyCode::Enter {
-            app.picker.prompt_picker_entries = app
-                .config
-                .merged_presets()
-                .iter()
-                .map(|p| (p.name.clone(), p.description.clone()))
-                .collect();
-            app.picker.prompt_picker_selected = app
-                .picker
-                .prompt_picker_entries
-                .iter()
-                .position(|(name, _)| name == &app.settings.system_prompt_preset_name)
-                .unwrap_or(0);
-            app.ui.global_mode = GlobalMode::PromptPicker {
-                entries: app.picker.prompt_picker_entries.clone(),
-                selected: app.picker.prompt_picker_selected,
-                editing: false,
-                edit_buffer: String::new(),
-                edit_cursor_pos: 0,
-                confirm_delete: false,
-            };
-            return;
-        }
+    if field_id == Some("system_prompt_preset_name") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        app.picker.prompt_picker_entries = app
+            .config
+            .merged_presets()
+            .iter()
+            .map(|p| (p.name.clone(), p.description.clone()))
+            .collect();
+        app.picker.prompt_picker_selected = app
+            .picker
+            .prompt_picker_entries
+            .iter()
+            .position(|(name, _)| name == &app.settings.system_prompt_preset_name)
+            .unwrap_or(0);
+        app.ui.global_mode = GlobalMode::PromptPicker {
+            entries: app.picker.prompt_picker_entries.clone(),
+            selected: app.picker.prompt_picker_selected,
+            editing: false,
+            edit_buffer: String::new(),
+            edit_cursor_pos: 0,
+            confirm_delete: false,
+        };
+        return;
     }
 
     // Keep in memory (mlock): toggle on Enter
-    if field_id == Some("mlock") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            app.settings_state.settings_edit_buffer.clear();
-        } else if key.code == KeyCode::Enter {
-            app.settings.mlock = !app.settings.mlock;
-            mark_settings_dirty(app, true);
-            return;
-        }
+    if field_id == Some("mlock") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        app.settings.mlock = !app.settings.mlock;
+        mark_settings_dirty(app, true);
+        return;
     }
 
     // GPU Layers: arrow keys cycle Auto → 1 → 2 → ... → N → All → Auto
@@ -235,262 +231,124 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Flash Attention: toggle on Enter
-    if field_id == Some("flash_attn") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            app.settings_state.settings_edit_buffer.clear();
-        } else if key.code == KeyCode::Enter {
-            app.settings.flash_attn = !app.settings.flash_attn;
-            mark_settings_dirty(app, true);
-            return;
-        }
+    if field_id == Some("flash_attn") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        app.settings.flash_attn = !app.settings.flash_attn;
+        mark_settings_dirty(app, true);
+        return;
     }
 
     // KV Cache Offload: toggle on Enter
-    if field_id == Some("kv_cache_offload") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            app.settings_state.settings_edit_buffer.clear();
-        } else if key.code == KeyCode::Enter {
-            app.settings.kv_cache_offload = !app.settings.kv_cache_offload;
-            mark_settings_dirty(app, true);
-            return;
-        }
+    if field_id == Some("kv_cache_offload") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        app.settings.kv_cache_offload = !app.settings.kv_cache_offload;
+        mark_settings_dirty(app, true);
+        return;
     }
 
-    // Cache Type K: cycle on Enter, or apply typed number
-      if field_id == Some("cache_type_k") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            if key.code == KeyCode::Enter {
-                if let Ok(n) = app.settings_state.settings_edit_buffer.parse::<u8>() {
-                    app.settings.cache_type_k = Some(crate::models::CacheTypeK::from_u8(n));
-                    mark_settings_dirty(app, true);
-                }
-                app.settings_state.settings_edit_buffer.clear();
-                mark_settings_dirty(app, false);
-            } else {
-                app.settings_state.settings_edit_buffer.clear();
-            }
-            return;
-        } else if key.code == KeyCode::Enter {
-            let mut val = app
-                .settings
-                .cache_type_k
-                .unwrap_or(crate::models::CacheTypeK::F16);
-            val = val.next();
-            app.settings.cache_type_k = Some(val);
-            mark_settings_dirty(app, true);
-            return;
-        } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
-            let mut val = app
-                .settings
-                .cache_type_k
-                .unwrap_or(crate::models::CacheTypeK::F16);
-            val = val.prev();
-            app.settings.cache_type_k = Some(val);
-            mark_settings_dirty(app, true);
-            return;
-        } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
-            let mut val = app
-                .settings
-                .cache_type_k
-                .unwrap_or(crate::models::CacheTypeK::F16);
-            val = val.next();
-            app.settings.cache_type_k = Some(val);
-            mark_settings_dirty(app, true);
-            return;
-        }
+    // Cache Type K: cycle on Enter with empty buffer; delegate buffer/arrow to generic handler
+    if field_id == Some("cache_type_k") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        let val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16).next();
+        app.settings.cache_type_k = Some(val);
+        mark_settings_dirty(app, true);
+        return;
     }
 
-    // Cache Type V: cycle on Enter, or apply typed number
-     if field_id == Some("cache_type_v") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            if key.code == KeyCode::Enter {
-                if let Ok(n) = app.settings_state.settings_edit_buffer.parse::<u8>() {
-                    app.settings.cache_type_v = Some(crate::models::CacheTypeV::from_u8(n));
-                    mark_settings_dirty(app, true);
-                }
-                app.settings_state.settings_edit_buffer.clear();
-                mark_settings_dirty(app, false);
-            } else {
-                app.settings_state.settings_edit_buffer.clear();
-            }
-            return;
-        } else if key.code == KeyCode::Enter {
-            let mut val = app
-                .settings
-                .cache_type_v
-                .unwrap_or(crate::models::CacheTypeV::F16);
-            val = val.next();
-            app.settings.cache_type_v = Some(val);
-            mark_settings_dirty(app, true);
-            return;
-        } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
-            let mut val = app
-                .settings
-                .cache_type_v
-                .unwrap_or(crate::models::CacheTypeV::F16);
-            val = val.prev();
-            app.settings.cache_type_v = Some(val);
-            mark_settings_dirty(app, true);
-            return;
-        } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
-            let mut val = app
-                .settings
-                .cache_type_v
-                .unwrap_or(crate::models::CacheTypeV::F16);
-            val = val.next();
-            app.settings.cache_type_v = Some(val);
-            mark_settings_dirty(app, true);
-            return;
-        }
-    }
-
-    // Active Experts: Left/Right to adjust
-    if field_id == Some("expert_count") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            if key.code == KeyCode::Enter {
-                if let Ok(v) = app.settings_state.settings_edit_buffer.parse::<i32>() {
-                    app.settings.expert_count = v.clamp(-1, 99);
-                }
-                app.settings_state.settings_edit_buffer.clear();
-                mark_settings_dirty(app, false);
-            } else {
-                app.settings_state.settings_edit_buffer.clear();
-            }
-            return;
-        } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
-            app.settings.expert_count = (app.settings.expert_count as i32 - 1).clamp(-1, 99);
-            mark_settings_dirty(app, false);
-            return;
-        } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
-            app.settings.expert_count = (app.settings.expert_count as i32 + 1).clamp(-1, 99);
-            mark_settings_dirty(app, false);
-            return;
-        }
+    // Cache Type V: cycle on Enter with empty buffer; delegate buffer/arrow to generic handler
+    if field_id == Some("cache_type_v") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        let val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16).next();
+        app.settings.cache_type_v = Some(val);
+        mark_settings_dirty(app, true);
+        return;
     }
 
     // Unified KV: toggle on Enter
-    if field_id == Some("uniform_cache") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            app.settings_state.settings_edit_buffer.clear();
-        } else if key.code == KeyCode::Enter {
-            app.settings.uniform_cache = !app.settings.uniform_cache;
-            mark_settings_dirty(app, true);
-            return;
-        }
+    if field_id == Some("uniform_cache") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        app.settings.uniform_cache = !app.settings.uniform_cache;
+        mark_settings_dirty(app, true);
+        return;
     }
 
-    // Max Concurrent Pred: Enter opens picker modal
-    if field_id == Some("max_concurrent_predictions") {
-        if app.settings_state.settings_edit_buffer.is_empty() {
-            if key.code == KeyCode::Enter {
-                let current = app
-                    .settings
-                    .max_concurrent_predictions
-                    .map(|v| v.to_string())
-                    .unwrap_or_else(|| "1".to_string());
-                app.ui.global_mode = GlobalMode::MaxConcurrentPicker { value: current };
-                mark_settings_dirty(app, false);
-                return;
-            }
-        } else if key.code == KeyCode::Enter {
-            if let Ok(v) = app.settings_state.settings_edit_buffer.parse::<u32>() {
-                app.settings.max_concurrent_predictions = Some(v.clamp(1, 10));
-                sync_global_settings(app);
-                app.settings_state.settings_edit_buffer.clear();
-                mark_settings_dirty(app, false);
-            }
-            return;
-        } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
-            match app.settings.max_concurrent_predictions {
-                Some(n) => {
-                    app.settings.max_concurrent_predictions =
-                        Some((n as i32 - 1).clamp(1, 10) as u32)
-                }
-                None => app.settings.max_concurrent_predictions = Some(1),
-            }
-            sync_global_settings(app);
-            mark_settings_dirty(app, false);
-            return;
-        } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
-            match app.settings.max_concurrent_predictions {
-                Some(n) => {
-                    app.settings.max_concurrent_predictions =
-                        Some((n as i32 + 1).clamp(1, 10) as u32)
-                }
-                None => app.settings.max_concurrent_predictions = Some(1),
-            }
-            sync_global_settings(app);
-            mark_settings_dirty(app, false);
-            return;
-        }
+    // Max Concurrent Pred: Enter with empty buffer opens picker modal
+    if field_id == Some("max_concurrent_predictions") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        let current = app
+            .settings
+            .max_concurrent_predictions
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "1".to_string());
+        app.ui.global_mode = GlobalMode::MaxConcurrentPicker { value: current };
+        mark_settings_dirty(app, false);
+        return;
     }
 
     // Tags: open tags modal on Enter
-    if field_id == Some("tags") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            app.settings_state.settings_edit_buffer.clear();
-        } else if key.code == KeyCode::Enter {
-            app.edit.tags_editing = true;
-            app.edit.tags_insert_mode = true;
-            app.edit.tags_edit_buffer = String::new();
-            app.edit.tags_selected_idx = None;
-            mark_settings_dirty(app, false);
-            return;
-        }
+    if field_id == Some("tags") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        app.edit.tags_editing = true;
+        app.edit.tags_insert_mode = true;
+        app.edit.tags_edit_buffer = String::new();
+        app.edit.tags_selected_idx = None;
+        mark_settings_dirty(app, false);
+        return;
     }
 
     // Yarn RoPE: toggle on Enter
-    if field_id == Some("rope_yarn_enabled") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            app.settings_state.settings_edit_buffer.clear();
-        } else if key.code == KeyCode::Enter {
-            app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
-            mark_settings_dirty(app, false);
-            return;
-        }
+    if field_id == Some("rope_yarn_enabled") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
+        mark_settings_dirty(app, false);
+        return;
     }
 
     // Yarn Params: open modal on Enter
-    if field_id == Some("yarn_params") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            app.settings_state.settings_edit_buffer.clear();
-        } else if key.code == KeyCode::Enter {
-            app.ui.global_mode = GlobalMode::YarnRoPESettings {
-                scale: format!("{:.2}", app.settings.rope_scale),
-                freq_base: format!("{:.2}", app.settings.rope_freq_base),
-                freq_scale: format!("{:.2}", app.settings.rope_freq_scale),
-                selected_field: -1,
-                editing: false,
-                edit_buffer: String::new(),
-                edit_cursor_pos: 0,
-            };
-            mark_settings_dirty(app, false);
-            return;
-        }
+    if field_id == Some("yarn_params") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        app.ui.global_mode = GlobalMode::YarnRoPESettings {
+            scale: format!("{:.2}", app.settings.rope_scale),
+            freq_base: format!("{:.2}", app.settings.rope_freq_base),
+            freq_scale: format!("{:.2}", app.settings.rope_freq_scale),
+            selected_field: -1,
+            editing: false,
+            edit_buffer: String::new(),
+            edit_cursor_pos: 0,
+        };
+        mark_settings_dirty(app, false);
+        return;
     }
 
     // Spec type: open picker on Enter
-    if field_id == Some("is_mtp") {
-        if !app.settings_state.settings_edit_buffer.is_empty() {
-            app.settings_state.settings_edit_buffer.clear();
-        } else if key.code == KeyCode::Enter {
-            let entries = vec![
-                "Off".to_string(),
-                "draft-mtp".to_string(),
-                "draft-simple".to_string(),
-                "draft-eagle3".to_string(),
-                "ngram-simple".to_string(),
-                "ngram-map-k".to_string(),
-                "ngram-map-k4v".to_string(),
-                "ngram-mod".to_string(),
-                "ngram-cache".to_string(),
-            ];
-            let spec_type = app.settings.spec_type.clone();
-            let selected = entries.iter().position(|e| e == &spec_type).unwrap_or(0);
-            app.ui.global_mode = GlobalMode::SpecTypePicker { entries, selected };
-            mark_settings_dirty(app, false);
-            return;
-        }
+    if field_id == Some("is_mtp") && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        let entries = vec![
+            "Off".to_string(),
+            "draft-mtp".to_string(),
+            "draft-simple".to_string(),
+            "draft-eagle3".to_string(),
+            "ngram-simple".to_string(),
+            "ngram-map-k".to_string(),
+            "ngram-map-k4v".to_string(),
+            "ngram-mod".to_string(),
+            "ngram-cache".to_string(),
+        ];
+        let spec_type = app.settings.spec_type.clone();
+        let selected = entries.iter().position(|e| e == &spec_type).unwrap_or(0);
+        app.ui.global_mode = GlobalMode::SpecTypePicker { entries, selected };
+        mark_settings_dirty(app, false);
+        return;
     }
 
     // ── Navigation & general edit handlers ──────────────────────────────────
