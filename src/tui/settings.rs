@@ -77,160 +77,74 @@ impl SettingField {
     }
 }
 
-// ── Helper constructors ──────────────────────────────────────────────────────
+// ── Helper constructors (generated from macro) ───────────────────────────────
 
-fn field(
-    id: &'static str,
-    name: &'static str,
-    section: &'static str,
-    display: DisplayFn,
-    dirty: DirtyFn,
-    adjust: AdjustFn,
-    apply_edit: ApplyEditFn,
-    edit_kind: EditKind,
-) -> SettingField {
-    SettingField {
-        id,
-        name,
-        section,
-        display,
-        dirty,
-        adjust,
-        apply_edit,
-        ctrl_e_toggle: None,
-        edit_kind,
-        is_expert: false,
-        is_ultra: false,
-    }
+/// Generate a field constructor function.
+/// Variants:
+///   - `field` / `expert_field` / `ultra_field` — no ctrl_e_toggle
+///   - `field_with_toggle` / `expert_field_with_toggle` / `ultra_field_with_toggle` — with ctrl_e_toggle
+macro_rules! make_field_fn {
+    ($fn:ident, $expert:expr, $ultra:expr, toggle) => {
+        fn $fn(
+            id: &'static str,
+            name: &'static str,
+            section: &'static str,
+            display: DisplayFn,
+            dirty: DirtyFn,
+            adjust: AdjustFn,
+            apply_edit: ApplyEditFn,
+            ctrl_e_toggle: CtrlEToggleFn,
+            edit_kind: EditKind,
+        ) -> SettingField {
+            SettingField {
+                id,
+                name,
+                section,
+                display,
+                dirty,
+                adjust,
+                apply_edit,
+                ctrl_e_toggle: Some(ctrl_e_toggle),
+                edit_kind,
+                is_expert: $expert,
+                is_ultra: $ultra,
+            }
+        }
+    };
+    ($fn:ident, $expert:expr, $ultra:expr, @none) => {
+        fn $fn(
+            id: &'static str,
+            name: &'static str,
+            section: &'static str,
+            display: DisplayFn,
+            dirty: DirtyFn,
+            adjust: AdjustFn,
+            apply_edit: ApplyEditFn,
+            edit_kind: EditKind,
+        ) -> SettingField {
+            SettingField {
+                id,
+                name,
+                section,
+                display,
+                dirty,
+                adjust,
+                apply_edit,
+                ctrl_e_toggle: None,
+                edit_kind,
+                is_expert: $expert,
+                is_ultra: $ultra,
+            }
+        }
+    };
 }
 
-fn expert_field(
-    id: &'static str,
-    name: &'static str,
-    section: &'static str,
-    display: DisplayFn,
-    dirty: DirtyFn,
-    adjust: AdjustFn,
-    apply_edit: ApplyEditFn,
-    edit_kind: EditKind,
-) -> SettingField {
-    SettingField {
-        id,
-        name,
-        section,
-        display,
-        dirty,
-        adjust,
-        apply_edit,
-        ctrl_e_toggle: None,
-        edit_kind,
-        is_expert: true,
-        is_ultra: false,
-    }
-}
-
-fn ultra_field(
-    id: &'static str,
-    name: &'static str,
-    section: &'static str,
-    display: DisplayFn,
-    dirty: DirtyFn,
-    adjust: AdjustFn,
-    apply_edit: ApplyEditFn,
-    edit_kind: EditKind,
-) -> SettingField {
-    SettingField {
-        id,
-        name,
-        section,
-        display,
-        dirty,
-        adjust,
-        apply_edit,
-        ctrl_e_toggle: None,
-        edit_kind,
-        is_expert: true,
-        is_ultra: true,
-    }
-}
-
-fn field_with_toggle(
-    id: &'static str,
-    name: &'static str,
-    section: &'static str,
-    display: DisplayFn,
-    dirty: DirtyFn,
-    adjust: AdjustFn,
-    apply_edit: ApplyEditFn,
-    ctrl_e_toggle: CtrlEToggleFn,
-    edit_kind: EditKind,
-) -> SettingField {
-    SettingField {
-        id,
-        name,
-        section,
-        display,
-        dirty,
-        adjust,
-        apply_edit,
-        ctrl_e_toggle: Some(ctrl_e_toggle),
-        edit_kind,
-        is_expert: false,
-        is_ultra: false,
-    }
-}
-
-fn expert_field_with_toggle(
-    id: &'static str,
-    name: &'static str,
-    section: &'static str,
-    display: DisplayFn,
-    dirty: DirtyFn,
-    adjust: AdjustFn,
-    apply_edit: ApplyEditFn,
-    ctrl_e_toggle: CtrlEToggleFn,
-    edit_kind: EditKind,
-) -> SettingField {
-    SettingField {
-        id,
-        name,
-        section,
-        display,
-        dirty,
-        adjust,
-        apply_edit,
-        ctrl_e_toggle: Some(ctrl_e_toggle),
-        edit_kind,
-        is_expert: true,
-        is_ultra: false,
-    }
-}
-
-fn ultra_field_with_toggle(
-    id: &'static str,
-    name: &'static str,
-    section: &'static str,
-    display: DisplayFn,
-    dirty: DirtyFn,
-    adjust: AdjustFn,
-    apply_edit: ApplyEditFn,
-    ctrl_e_toggle: CtrlEToggleFn,
-    edit_kind: EditKind,
-) -> SettingField {
-    SettingField {
-        id,
-        name,
-        section,
-        display,
-        dirty,
-        adjust,
-        apply_edit,
-        ctrl_e_toggle: Some(ctrl_e_toggle),
-        edit_kind,
-        is_expert: true,
-        is_ultra: true,
-    }
-}
+make_field_fn!(field, false, false, @none);
+make_field_fn!(expert_field, true, false, @none);
+make_field_fn!(ultra_field, true, true, @none);
+make_field_fn!(field_with_toggle, false, false, toggle);
+make_field_fn!(expert_field_with_toggle, true, false, toggle);
+make_field_fn!(ultra_field_with_toggle, true, true, toggle);
 
 // ── Shared adjustment and toggle logic ───────────────────────────────────────
 

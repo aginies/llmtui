@@ -316,17 +316,18 @@ pub async fn run_bench_tune(
     Ok(results)
 }
 
-/// Run benchmark in runtime-only mode: sends params in /completion request body, no server restarts
-async fn run_bench_tune_runtime_only(
+/// Run inference iterations and accumulate metrics into a BenchTuneResult.
+/// Shared by both runtime-only and full benchmark modes.
+async fn run_iteration_loop(
+    prompt: &str,
+    host: &str,
+    port: u16,
     params: &BenchTuneParamValue,
-    settings: &ModelSettings,
     num_iterations: u32,
-    prompt: String,
-    server_host: &str,
-    server_port: u16,
-    log_tx: mpsc::Sender<String>,
     config: &BenchTuneConfig,
     client: &reqwest::Client,
+    log_tx: mpsc::Sender<String>,
+    log_prefix: &str,
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
     let mut total_prompt_tokens = 0u64;
     let mut total_generation_tokens = 0u64;
@@ -339,14 +340,13 @@ async fn run_bench_tune_runtime_only(
 
     let _ = log_tx
         .send(format!(
-            "Running {} inference iterations (runtime-only mode)...",
-            num_iterations
+            "Running {} inference iterations {}...",
+            num_iterations, log_prefix
         ))
         .await;
 
     for i in 0..num_iterations {
-        let result =
-            send_inference_request(&prompt, server_host, server_port, params, config, client).await;
+        let result = send_inference_request(prompt, host, port, params, config, client).await;
 
         match result {
             Ok(res) => {
@@ -393,7 +393,13 @@ async fn run_bench_tune_runtime_only(
                         .await;
                 }
 
-                let _ = log_tx.send(format!("--- Generated Output (Iter {}) ---\n{}\n----------------------------------", i + 1, res.content)).await;
+                let _ = log_tx
+                    .send(format!(
+                        "--- Generated Output (Iter {}) ---\n{}\n----------------------------------",
+                        i + 1,
+                        res.content
+                    ))
+                    .await;
             }
             Err(e) => {
                 let _ = log_tx
@@ -421,8 +427,38 @@ async fn run_bench_tune_runtime_only(
         first_token_times,
         outputs,
         per_iteration_metrics,
-        Some(settings.clone()),
+        None,
     ))
+}
+
+/// Run benchmark in runtime-only mode: sends params in /completion request body, no server restarts
+async fn run_bench_tune_runtime_only(
+    params: &BenchTuneParamValue,
+    settings: &ModelSettings,
+    num_iterations: u32,
+    prompt: String,
+    server_host: &str,
+    server_port: u16,
+    log_tx: mpsc::Sender<String>,
+    config: &BenchTuneConfig,
+    client: &reqwest::Client,
+) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
+    run_iteration_loop(
+        &prompt,
+        server_host,
+        server_port,
+        params,
+        num_iterations,
+        config,
+        client,
+        log_tx,
+        "(runtime-only mode)",
+    )
+    .await
+    .map(|mut r| {
+        r.base_settings = Some(settings.clone());
+        r
+    })
 }
 
 /// Run a single benchmark tuning test with specific parameters
@@ -520,117 +556,26 @@ async fn run_bench_tune_single_test(
         return Err("Server failed to become healthy".into());
     }
 
-    // Run inference tests
-    let mut total_prompt_tokens = 0u64;
-    let mut total_generation_tokens = 0u64;
-    let mut total_prompt_time = Duration::ZERO;
-    let mut total_generation_time = Duration::ZERO;
-    let mut total_time = Duration::ZERO;
-    let mut first_token_times = Vec::new();
-    let mut outputs = Vec::new();
-    let mut per_iteration_metrics = Vec::new();
+    let result = run_iteration_loop(
+        &prompt,
+        host,
+        server_handle.port,
+        params,
+        num_iterations,
+        config,
+        client,
+        log_tx,
+        "",
+    )
+    .await;
 
-    let _ = log_tx
-        .send(format!(
-            "Running {} inference iterations...",
-            num_iterations
-        ))
-        .await;
-
-    for i in 0..num_iterations {
-        // Send prompt and measure response
-        let result =
-            send_inference_request(&prompt, host, server_handle.port, params, config, client).await;
-
-        match result {
-            Ok(res) => {
-                total_prompt_tokens += res.prompt_tokens;
-                total_generation_tokens += res.generation_tokens;
-                total_prompt_time += res.prompt_time;
-                total_generation_time += res.generation_time;
-                total_time += res.total_time;
-                first_token_times.push(res.first_token_time);
-                let output_text = res.content.clone();
-                outputs.push(res.content);
-
-                // Collect per-iteration metrics
-                let iter_prompt_tps = if res.prompt_time.as_secs_f64() > 0.0 {
-                    res.prompt_tokens as f64 / res.prompt_time.as_secs_f64()
-                } else {
-                    0.0
-                };
-                let iter_gen_tps = if res.generation_time.as_secs_f64() > 0.0 {
-                    res.generation_tokens as f64 / res.generation_time.as_secs_f64()
-                } else {
-                    0.0
-                };
-                let iter_latency = if res.generation_tokens > 0 {
-                    res.generation_time.as_millis() as f64 / res.generation_tokens as f64
-                } else {
-                    0.0
-                };
-                let iter_first_token = res.first_token_time as f64;
-
-                per_iteration_metrics.push(BenchTuneMetrics {
-                    prompt_tps: iter_prompt_tps,
-                    generation_tps: iter_gen_tps,
-                    combined_tps: 0.0,
-                    latency_per_token: iter_latency,
-                    first_token_time: iter_first_token,
-                });
-
-                if num_iterations > 1 {
-                    let _ = log_tx
-                        .send(format!(
-                            "  Iteration {}/{}: {:.2} gen t/s",
-                            i + 1,
-                            num_iterations,
-                            if res.generation_time.as_secs_f64() > 0.0 {
-                                res.generation_tokens as f64 / res.generation_time.as_secs_f64()
-                            } else {
-                                0.0
-                            }
-                        ))
-                        .await;
-                }
-
-                // Display the generated content in the log
-                let _ = log_tx.send(format!("--- Generated Output (Iter {}) ---\n{}\n----------------------------------", i + 1, output_text)).await;
-            }
-            Err(e) => {
-                let _ = log_tx
-                    .send(format!(
-                        "  Iteration {}/{} FAILED: {}",
-                        i + 1,
-                        num_iterations,
-                        e
-                    ))
-                    .await;
-                // If the first iteration fails completely, we might want to abort this combination
-                if i == 0 {
-                    let _ = crate::backend::server::kill_server(server_handle).await;
-                    return Err(format!("Inference failed: {}", e).into());
-                }
-            }
-        }
-    }
-
-    // Clean up server
     let _ = crate::backend::server::kill_server(server_handle).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    Ok(build_bench_result(
-        params.clone(),
-        total_prompt_tokens,
-        total_generation_tokens,
-        total_prompt_time,
-        total_generation_time,
-        total_time,
-        first_token_times,
-        outputs,
-        per_iteration_metrics,
-        Some(base_settings.clone()),
-    ))
+    result.map(|mut r| {
+        r.base_settings = Some(base_settings.clone());
+        r
+    })
 }
 
 /// Send an inference request and measure response time
