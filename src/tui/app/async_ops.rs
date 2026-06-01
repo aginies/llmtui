@@ -312,7 +312,7 @@ impl App {
        if let Some(rx) = &mut self.server.metrics_rx {
             let mut received_metrics = false;
             while let Ok(mut m) = rx.try_recv() {
-                // ctx_max is always the user-configured context length.
+                // ctx_max uses the effective context length (context_length * rope_scale).
                 if self.server.spawned_context_length > 0 {
                     m.ctx_max = self.server.spawned_context_length;
                 }
@@ -548,7 +548,7 @@ impl App {
                     self.server.spawned_settings = Some(spawned_settings.clone());
                     self.server.spawned_model_name = Some(server_display_name.clone());
                     self.server.spawned_model_state = Some("loading".to_string());
-                    self.server.spawned_context_length = spawned_settings.context_length;
+                    self.server.spawned_context_length = (spawned_settings.context_length as f32 * spawned_settings.rope_scale) as u32;
                     // API endpoint (proxy) is managed by update_api_endpoint(), which
                     // runs every loop iteration and (re)starts the proxy as needed
                     // when a new model becomes available.

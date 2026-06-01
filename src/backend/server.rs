@@ -67,7 +67,8 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     // ── Loading ──────────────────────────────────────────────
     push_arg(&mut cmd, &mut parts, "--threads", settings.threads);
     push_arg(&mut cmd, &mut parts, "--threads-batch", settings.threads_batch);
-    push_arg(&mut cmd, &mut parts, "--ctx-size", settings.context_length);
+    let effective_ctx = (settings.context_length as f32 * settings.rope_scale) as u32;
+    push_arg(&mut cmd, &mut parts, "--ctx-size", effective_ctx);
     push_arg(&mut cmd, &mut parts, "--ubatch-size", settings.ubatch_size);
     if let Some(n) = settings.max_concurrent_predictions {
         push_arg(&mut cmd, &mut parts, "--parallel", n);
