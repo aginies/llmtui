@@ -59,7 +59,7 @@ impl App {
                     Line::from(vec![Span::styled("Backend", y), Span::raw("  Acceleration backend (cpu / vulkan / rocm)")]),
                     Line::from(vec![Span::styled("Threads", y), Span::raw("  CPU threads for generation (1 to max)")]),
                     Line::from(vec![Span::styled("Threads Batch", y), Span::raw("  CPU threads for batch processing (1 to 32)")]),
-                    Line::from(vec![Span::styled("Mode", y), Span::raw("  Server mode (Normal / Router)")]),
+                    Line::from(vec![Span::styled("Mode", y), Span::raw("  Server mode (Normal / Bench GPU / BenchTune)")]),
                     Line::from(vec![Span::styled("API Endpoint", y), Span::raw("  Enable API proxy (True/False)")]),
                     Line::from(vec![Span::styled("API Port", y), Span::raw(self.get_api_port_str())]),
                     Line::from(""),

@@ -1546,7 +1546,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 2 => { app.settings.threads = (app.settings.threads % app.max_threads) + 1; }
                 3 => { app.settings.threads_batch = (app.settings.threads_batch % 32) + 1; }
-                4 => { app.server_mode = match app.server_mode { crate::models::ServerMode::Normal => crate::models::ServerMode::Router, crate::models::ServerMode::Router => crate::models::ServerMode::Bench, crate::models::ServerMode::Bench => crate::models::ServerMode::BenchTune, crate::models::ServerMode::BenchTune => crate::models::ServerMode::Normal }; }
+                4 => { app.server_mode = match app.server_mode { crate::models::ServerMode::Normal => crate::models::ServerMode::Bench, crate::models::ServerMode::Bench => crate::models::ServerMode::BenchTune, crate::models::ServerMode::BenchTune => crate::models::ServerMode::Normal, _ => crate::models::ServerMode::Normal }; }
                5 => { if app.server.server_handle.is_none() { app.settings.api_endpoint_enabled = !app.settings.api_endpoint_enabled; } }
                 6 => {
                     app.ui.global_mode = GlobalMode::DashboardPicker {
