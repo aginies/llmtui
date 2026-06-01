@@ -18,8 +18,6 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
             parts.push(Span::raw("  "));
             parts.push(Span::styled("sort:", c));
             parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("⎋ back", y));
             if *loading {
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled("[loading]", Style::default().fg(Color::Yellow)));
@@ -38,24 +36,24 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 let mut parts = Vec::new();
                 parts.push(Span::styled("j/k nav", c));
                 parts.push(Span::raw("  "));
-                parts.push(Span::styled("⌃S save", y));
+                parts.push(Span::styled("^S save", y));
                 parts.push(Span::raw("  "));
-                parts.push(Span::styled("⌃R reset", y));
+                parts.push(Span::styled("^R reset", y));
                 parts.push(Span::raw("  "));
-                parts.push(Span::styled("⌃E toggle", y));
+                parts.push(Span::styled("^E toggle", y));
                 parts.push(Span::raw("  "));
                 if app.is_settings_dirty() {
                     parts.push(Span::raw("  "));
                     parts.push(Span::styled("*unsaved*", r));
                     parts.push(Span::raw("  "));
                 }
-                parts.push(Span::styled("Ctrl+X expert", y));
+                parts.push(Span::styled("^X expert", y));
                 parts.push(Span::raw("  "));
-                parts.push(Span::styled("Ctrl+P profiles", y));
+                parts.push(Span::styled("^P profiles", y));
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled("⇥ panels", c));
                 parts.push(Span::raw("  "));
-                parts.push(Span::styled("A about", c));
+                parts.push(Span::styled("Shift+A about", c));
                 parts
             } else {
                 let parts = match app.ui.active_panel {
@@ -63,15 +61,15 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                         vec![
                             Span::styled("⇥ panels", c),
                             Span::raw("  "),
-                            Span::styled("/ search", y),
-                            Span::raw("  "),
                             Span::styled("f filter", y),
                             Span::raw("  "),
                             Span::styled("l/load, u/unload", y),
                             Span::raw("  "),
-                            Span::styled("⌃H help", c),
+                            Span::styled("^D del", y),
                             Span::raw("  "),
-                            Span::styled("A about", c),
+                            Span::styled("^H help", c),
+                            Span::raw("  "),
+                            Span::styled("Shift+A about", c),
                         ]
                     }
                     ActivePanel::Log => {
@@ -105,7 +103,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("⇥ panels", c),
                             Span::raw("  "),
-                            Span::styled("A about", c),
+                            Span::styled("Shift+A about", c),
                         ]
                     }
                     ActivePanel::Profiles => {
@@ -120,7 +118,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("⇥ panels", c),
                             Span::raw("  "),
-                            Span::styled("A about", c),
+                            Span::styled("Shift+A about", c),
                         ]
                     }
                     ActivePanel::SystemPromptPresets => {
@@ -137,7 +135,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("⇥ panels", c),
                             Span::raw("  "),
-                            Span::styled("A about", c),
+                            Span::styled("Shift+A about", c),
                         ]
                     }
                     ActivePanel::SearchReadme => {
@@ -148,7 +146,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("⇥ panels", c),
                             Span::raw("  "),
-                            Span::styled("A about", c),
+                            Span::styled("Shift+A about", c),
                         ]
                     }
                     ActivePanel::Downloads => {
@@ -166,13 +164,11 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                         vec![
                             Span::styled("⇥ panels", c),
                             Span::raw("  "),
-                            Span::styled("/ search", y),
-                            Span::raw("  "),
                             Span::styled("f filter", y),
                             Span::raw("  "),
-                            Span::styled("⌃H help", c),
+                            Span::styled("^H help", c),
                             Span::raw("  "),
-                            Span::styled("A about", c),
+                            Span::styled("Shift+A about", c),
                         ]
                     }
                 };
