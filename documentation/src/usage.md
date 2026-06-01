@@ -69,14 +69,13 @@ Search mode lets you browse and download GGUF models from HuggingFace:
 
 | Key | Action |
 |-----|--------|
-| `/` | Enter search mode |
-| `Enter` | Execute search |
+| `/` | Open search input modal — type query and press `Enter` to search |
+| `Enter` | Select GGUF files for the highlighted model |
 | `Esc` | Exit search |
-| `L` | View available GGUF files for a result |
-| `S` | Cycle sort order |
-| `B` | Go back one page |
+| `Ctrl+S` | Cycle sort order |
+| `Ctrl+B` | Go back one page |
 | `Down` (at bottom) | Load more results |
-| `R` | Fetch and view README |
+| `Ctrl+R` | Fetch and view README |
 
 ### Multi-word Search
 
@@ -248,11 +247,11 @@ Dirty (changed) fields are highlighted in yellow.
 | Key | Action |
 |-----|--------|
 | `j` / `k` | Navigate up/down |
-| `Enter` | Load model / Execute search / Expand log |
-| `f` | Filter local models list |
+| `Enter` | Load model / Select GGUF files (in search) / Expand log |
+| `f` | Filter local models list / Toggle Follow mode (in Log panel) |
 | `Esc` | Back / Exit search / Collapse log / Clear local filter |
 | `Tab` | Switch panels |
-| `/` | Search models |
+| `/` | Open search input modal |
 | `l` | Load model |
 | `u` | Unload model |
 | `A` | About box (license and version info) |
@@ -260,8 +259,8 @@ Dirty (changed) fields are highlighted in yellow.
 | `Ctrl+H` | Panel-specific help |
 | `Ctrl+K` | CmdLine overlay |
 | `Ctrl+Alt+K` | Kill llama-server |
-| `Ctrl+S` | Save settings |
-| `Ctrl+R` | Reset settings |
+| `Ctrl+S` | Save settings / Cycle search sort (in search) |
+| `Ctrl+R` | Reset settings / Fetch README (in search) |
 | `Ctrl+E` | Toggle optional fields (Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred) |
 | `g` / `G` | Jump to top/bottom of log |
 | `PageUp` / `PageDown` | Fast scroll (logs, README, benchmarks) |
@@ -272,14 +271,11 @@ Dirty (changed) fields are highlighted in yellow.
 | `Ctrl+F9` | Focus LLM Settings panel |
 | `Ctrl+P` | Open Profile Picker modal (LLM Settings only) |
 | `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
-| `Ctrl+L` | Focus Log panel |
+| `Ctrl+B` | Back one page in search |
 | `Ctrl+D` / `Ctrl+U` | Jump 10 settings down/up |
 | `Shift+←` / `Shift+→` | Resize horizontal panel split (20%-80%) |
 | `p` | Pause/resume download / Previous benchmark result (also `Ctrl+P` for Profile Picker in LLM Settings) |
 | `n` | New preset (System Prompt Presets) / Next benchmark result |
-| `S` | Cycle search sort order |
-| `B` | Back one page in search |
-| `R` | Fetch README for selected model |
 | `Space` | Toggle selection (RPC workers, benchmark parameters) |
 | `Alt+M` | Toggle benchmark mode (RuntimeOnly / Full) |
 | `Alt+P` | Edit benchmark prompt |
