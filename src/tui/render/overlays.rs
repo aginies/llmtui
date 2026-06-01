@@ -12,7 +12,7 @@ use crate::tui::app::{ConfirmationKind, GlobalMode};
 use crate::tui::render_vertical_scrollbar;
 use crate::tui::format_bench_params;
 use crate::tui::settings::profile_settings_parts;
-use crate::backend::hardware::{detect_gpu_vendors, detect_gpu_models, detect_gpu_model, GpuVendor};
+use crate::backend::hardware::{detect_gpu_vendors, detect_gpu_models, GpuVendor};
 use crate::tui::panel;
 
 pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
@@ -297,11 +297,11 @@ fn render_backend_picker(f: &mut Frame, area: Rect, entries: &Vec<(crate::models
     let h = (entries.len() + 4 + gpu_info_lines).min(area.height as usize - 4) as u16;
     let picker_area = Rect { x: (area.width - w) / 2, y: (area.height - h) / 2, width: w, height: h };
     let vendors = detect_gpu_vendors();
-    let gpu_model = detect_gpu_model();
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(" Select Backend Acceleration ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
-    if let Some(model) = gpu_model {
-        picker_lines.push(Line::from(vec![Span::raw("Detected Hardware: "), Span::styled(model, Style::default().fg(Color::Cyan))]));
+    let gpu_models: Vec<String> = all_models.iter().filter_map(|m| m.clone()).collect();
+    if !gpu_models.is_empty() {
+        picker_lines.push(Line::from(vec![Span::raw("Detected Hardware: "), Span::styled(gpu_models.join(", "), Style::default().fg(Color::Cyan))]));
     }
     picker_lines.push(Line::from(""));
     for (i, (backend, tag)) in entries.iter().enumerate() {
