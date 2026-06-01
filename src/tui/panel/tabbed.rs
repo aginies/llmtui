@@ -55,9 +55,10 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
+    let title_prefix = if app.settings_state.expert_mode { " EXPERT - " } else { "" };
     let block = Block::default()
         .title(Line::from(vec![
-            Span::raw(" LLM Settings (F4) [Ctrl+F9] "),
+            Span::raw(format!("{} LLM Settings (F4) [Ctrl+F9] ", title_prefix)),
             Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
         ]))
         .borders(Borders::ALL)
@@ -113,10 +114,10 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 3, "Threads Batch", &threads_batch_val, selected, "", false, server_running);
     settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 4, "Mode", &mode_val, selected, "", false, server_running);
     settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 5, "API Endpoint", api_enabled, selected, "", false, server_running);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 6, "RPC Workers", &rpc_workers_val, selected, "", false, server_running);
 
     let dashboard_val = format!("Dashboard ({})", if app.settings.ws_server_enabled { "Enabled" } else { "Disabled" });
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 7, "Dashboard", &dashboard_val, selected, "", false, server_running);
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 6, "Dashboard", &dashboard_val, selected, "", false, server_running);
+    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 7, "RPC Workers", &rpc_workers_val, selected, "", false, server_running);
 
     let total_settings = lines.len();
     let available_height = area.height.saturating_sub(2);

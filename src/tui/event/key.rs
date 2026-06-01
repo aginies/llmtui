@@ -97,6 +97,24 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Ctrl+X: toggle expert mode
+    if key.code == KeyCode::Char('x') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        app.settings_state.expert_mode = !app.settings_state.expert_mode;
+        
+        // Ensure selected index is still valid in the new mode
+        let new_fields = if app.settings_state.expert_mode {
+            settings::standard_fields().into_iter().chain(settings::expert_fields()).collect::<Vec<_>>()
+        } else {
+            settings::standard_fields()
+        };
+        if app.settings_state.settings_selected_idx >= new_fields.len() {
+            app.settings_state.settings_selected_idx = new_fields.len().saturating_sub(1);
+        }
+
+        app.settings_state.settings_render_cache = None;
+        return;
+    }
+
     // Skip all if in RpcManager overlay
     if matches!(app.ui.global_mode, GlobalMode::RpcManager) {
         handle_rpc_workers_key(app, key);
@@ -1465,9 +1483,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 2 => { app.settings.threads = (app.settings.threads % app.max_threads) + 1; }
                 3 => { app.settings.threads_batch = (app.settings.threads_batch % 32) + 1; }
                 4 => { app.server_mode = match app.server_mode { crate::models::ServerMode::Normal => crate::models::ServerMode::Router, crate::models::ServerMode::Router => crate::models::ServerMode::Bench, crate::models::ServerMode::Bench => crate::models::ServerMode::BenchTune, crate::models::ServerMode::BenchTune => crate::models::ServerMode::Normal }; }
-                5 => { if app.server.server_handle.is_none() { app.settings.api_endpoint_enabled = !app.settings.api_endpoint_enabled; } }
-               6 => { app.ui.global_mode = GlobalMode::RpcManager; app.picker.rpc_workers_selected_idx = 0; app.picker.editing_rpc_worker = None; }
-                7 => {
+               5 => { if app.server.server_handle.is_none() { app.settings.api_endpoint_enabled = !app.settings.api_endpoint_enabled; } }
+                6 => {
                     app.ui.global_mode = GlobalMode::DashboardPicker {
                         enabled: app.settings.ws_server_enabled,
                         port: app.settings.ws_server_port.to_string(),
@@ -1481,6 +1498,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         edit_cursor_pos: 0,
                     };
                 }
+                7 => { app.ui.global_mode = GlobalMode::RpcManager; app.picker.rpc_workers_selected_idx = 0; app.picker.editing_rpc_worker = None; }
                 _ => {}
             }
             sync_global_settings(app);
