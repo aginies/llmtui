@@ -3,7 +3,7 @@ use ratatui::widgets::TableState;
 use tracing::debug;
 
 use super::benches::handle_rpc_workers_key;
-use super::helpers::{execute_confirmation, mark_settings_dirty, sync_global_settings};
+use super::helpers::{execute_confirmation, mark_settings_dirty, sync_global_settings, TextEditor};
 use super::panel::{
     handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key,
     handle_settings_key, handle_system_prompt_presets_key,
@@ -374,47 +374,22 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
             KeyCode::Char(c) if *editing => {
-                let byte_pos = edit_buffer
-                    .char_indices()
-                    .nth(*edit_cursor_pos)
-                    .map(|(i, _)| i)
-                    .unwrap_or(edit_buffer.len());
-                edit_buffer.insert_str(byte_pos, &c.to_string());
-                *edit_cursor_pos += 1;
+                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.insert_char(c);
             }
             KeyCode::Backspace if *editing => {
-                if *edit_cursor_pos > 0 {
-                    let byte_pos = edit_buffer
-                        .char_indices()
-                        .nth(*edit_cursor_pos)
-                        .map(|(i, _)| i)
-                        .unwrap_or(edit_buffer.len());
-                    if byte_pos > 0 {
-                        let prev_char_len = edit_buffer[..byte_pos]
-                            .chars()
-                            .next_back()
-                            .unwrap()
-                            .len_utf8();
-                        edit_buffer.drain(byte_pos - prev_char_len..byte_pos);
-                        *edit_cursor_pos -= 1;
-                    }
-                }
+                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.backspace();
             }
             KeyCode::Left if *editing => {
-                if *edit_cursor_pos > 0 {
-                    *edit_cursor_pos -= 1;
-                }
+                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.move_left();
             }
             KeyCode::Right if *editing => {
-                if *edit_cursor_pos < edit_buffer.chars().count() {
-                    *edit_cursor_pos += 1;
-                }
+                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.move_right();
             }
             KeyCode::Home if *editing => {
-                *edit_cursor_pos = 0;
+                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.home();
             }
             KeyCode::End if *editing => {
-                *edit_cursor_pos = edit_buffer.chars().count();
+                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.end();
             }
             _ => {}
         }
@@ -556,22 +531,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
             KeyCode::Char(c) if *editing => {
-                let byte_pos = edit_buffer
-                    .char_indices()
-                    .nth(*edit_cursor_pos)
-                    .map(|(i, _)| i)
-                    .unwrap_or(edit_buffer.len());
-                edit_buffer.insert_str(byte_pos, &c.to_string());
-                *edit_cursor_pos += c.len_utf8();
+                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.insert_char(c);
             }
             KeyCode::Backspace if *editing => {
-                if *edit_cursor_pos > 0 {
-                    let idx = *edit_cursor_pos - 1;
-                    if let Some((byte_pos, ch)) = edit_buffer.char_indices().nth(idx as usize) {
-                        edit_buffer.remove(byte_pos);
-                        *edit_cursor_pos = edit_cursor_pos.saturating_sub(ch.len_utf8());
-                    }
-                }
+                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.backspace();
                 return;
             }
             _ => {}
@@ -1125,13 +1088,7 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
         if *editing {
             match key.code {
                 KeyCode::Enter => {
-                    let byte_pos = edit_buffer
-                        .char_indices()
-                        .nth(*edit_cursor_pos)
-                        .map(|(i, _)| i)
-                        .unwrap_or(edit_buffer.len());
-                    edit_buffer.insert_str(byte_pos, "\n");
-                    *edit_cursor_pos += 1;
+                    TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.insert_newline();
                 }
                 KeyCode::Char('s')
                     if key
@@ -1164,31 +1121,10 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.add_log(log_msg, log_level);
                 }
                 KeyCode::Char(c) => {
-                    let char_pos = *edit_cursor_pos;
-                    let byte_pos = edit_buffer
-                        .char_indices()
-                        .nth(char_pos)
-                        .map(|(i, _)| i)
-                        .unwrap_or(edit_buffer.len());
-                    edit_buffer.insert_str(byte_pos, &c.to_string());
-                    *edit_cursor_pos += 1;
+                    TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.insert_char(c);
                 }
                 KeyCode::Backspace => {
-                    if *edit_cursor_pos > 0 {
-                        let char_pos = *edit_cursor_pos - 1;
-                        let byte_pos = edit_buffer
-                            .char_indices()
-                            .nth(char_pos)
-                            .map(|(i, _)| i)
-                            .unwrap_or(edit_buffer.len());
-                        let char_len = edit_buffer[byte_pos..]
-                            .chars()
-                            .next()
-                            .unwrap_or('\0')
-                            .len_utf8();
-                        edit_buffer.drain(byte_pos..byte_pos + char_len);
-                        *edit_cursor_pos -= 1;
-                    }
+                    TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.backspace();
                 }
                 KeyCode::Esc => {
                     *editing = false;
@@ -1372,15 +1308,9 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         !config.params_to_test[*selected_idx].enabled;
                 }
             }
-            KeyCode::Char(c) if *editing_param => {
+          KeyCode::Char(c) if *editing_param => {
                 if "0123456789.-eE".contains(c) {
-                    let byte_pos = param_edit_buffer
-                        .char_indices()
-                        .nth(*param_edit_cursor_pos)
-                        .map(|(i, _)| i)
-                        .unwrap_or(param_edit_buffer.len());
-                    param_edit_buffer.insert_str(byte_pos, &c.to_string());
-                    *param_edit_cursor_pos += c.len_utf8();
+                    TextEditor { buffer: param_edit_buffer, cursor: param_edit_cursor_pos }.insert_char(c);
                 }
             }
             KeyCode::Char(c) => {
@@ -1402,15 +1332,7 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
             }
             KeyCode::Backspace if *editing_param => {
-                if *param_edit_cursor_pos > 0 {
-                    let idx = *param_edit_cursor_pos - 1;
-                    if let Some((byte_pos, ch)) = param_edit_buffer.char_indices().nth(idx as usize)
-                    {
-                        param_edit_buffer.remove(byte_pos);
-                        *param_edit_cursor_pos =
-                            param_edit_cursor_pos.saturating_sub(ch.len_utf8());
-                    }
-                }
+                TextEditor { buffer: param_edit_buffer, cursor: param_edit_cursor_pos }.backspace();
             }
             KeyCode::Backspace => {
                 if *editing_prompt {

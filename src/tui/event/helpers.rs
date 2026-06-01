@@ -1,5 +1,85 @@
 use crate::tui::app::{App, ConfirmationKind};
 
+pub struct TextEditor<'a> {
+    pub buffer: &'a mut String,
+    pub cursor: &'a mut usize,
+}
+
+impl TextEditor<'_> {
+    pub fn insert_char(&mut self, c: char) {
+        let byte_pos = self.buffer
+            .char_indices()
+            .nth(*self.cursor)
+            .map(|(i, _)| i)
+            .unwrap_or(self.buffer.len());
+        self.buffer.insert_str(byte_pos, &c.to_string());
+        *self.cursor += 1;
+    }
+
+    pub fn insert_newline(&mut self) {
+        let byte_pos = self.buffer
+            .char_indices()
+            .nth(*self.cursor)
+            .map(|(i, _)| i)
+            .unwrap_or(self.buffer.len());
+        self.buffer.insert_str(byte_pos, "\n");
+        *self.cursor += 1;
+    }
+
+    pub fn backspace(&mut self) {
+        if *self.cursor == 0 {
+            return;
+        }
+        let char_pos = *self.cursor - 1;
+        let byte_pos = self.buffer
+            .char_indices()
+            .nth(char_pos)
+            .map(|(i, _)| i)
+            .unwrap_or(self.buffer.len());
+        let char_len = self.buffer[byte_pos..]
+            .chars()
+            .next()
+            .map(|c| c.len_utf8())
+            .unwrap_or(1);
+        self.buffer.drain(byte_pos..byte_pos + char_len);
+        *self.cursor -= 1;
+    }
+
+    #[allow(dead_code)]
+    pub fn delete(&mut self) {
+        if *self.cursor >= self.buffer.chars().count() {
+            return;
+        }
+        let byte_pos = self.buffer
+            .char_indices()
+            .nth(*self.cursor)
+            .map(|(i, _)| i)
+            .unwrap_or(self.buffer.len());
+        self.buffer.remove(byte_pos);
+    }
+
+    pub fn move_left(&mut self) {
+        if *self.cursor > 0 {
+            *self.cursor -= 1;
+        }
+    }
+
+    pub fn move_right(&mut self) {
+        let max = self.buffer.chars().count();
+        if *self.cursor < max {
+            *self.cursor += 1;
+        }
+    }
+
+    pub fn home(&mut self) {
+        *self.cursor = 0;
+    }
+
+    pub fn end(&mut self) {
+        *self.cursor = self.buffer.chars().count();
+    }
+}
+
 pub async fn execute_confirmation(app: &mut App, kind: ConfirmationKind) {
     match kind {
         ConfirmationKind::Exit => {
