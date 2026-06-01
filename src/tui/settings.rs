@@ -653,11 +653,11 @@ pub fn standard_fields() -> Vec<SettingField> {
 
 pub fn expert_fields() -> Vec<SettingField> {
     vec![
-        // ── Loading (expert) ──────────────────────────────────────────────────
+        // ── Loading Ultra Expert ──────────────────────────────────────────────────
         field(
             "threads_batch",
             "Threads Batch",
-            "Loading (expert)",
+            "Loading Ultra Expert",
             |s| s.threads_batch.to_string(),
             |s, c| s.threads_batch != c.threads_batch,
             |s, delta, _| {
@@ -673,7 +673,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "ubatch_size",
             "UBatch Size",
-            "Loading (expert)",
+            "Loading Ultra Expert",
             |s| s.ubatch_size.to_string(),
             |s, c| s.ubatch_size != c.ubatch_size,
             |s, delta, _| {
@@ -689,7 +689,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "keep",
             "Keep",
-            "Loading (expert)",
+            "Loading Ultra Expert",
             |s| s.keep.to_string(),
             |s, c| s.keep != c.keep,
             |s, delta, _| {
@@ -705,7 +705,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field_with_toggle(
             "swa_full",
             "SWA Full",
-            "Loading (expert)",
+            "Loading Ultra Expert",
             |s| s.swa_full.to_string(),
             |s, c| s.swa_full != c.swa_full,
             |_, _, _| {},
@@ -716,7 +716,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field_with_toggle(
             "mmap",
             "MMap",
-            "Loading (expert)",
+            "Loading Ultra Expert",
             |s| s.mmap.to_string(),
             |s, c| s.mmap != c.mmap,
             |_, _, _| {},
@@ -727,7 +727,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "numa",
             "NUMA",
-            "Loading (expert)",
+            "Loading Ultra Expert",
             |s| s.numa.to_string(),
             |s, c| s.numa != c.numa,
             |s, delta, _| {
@@ -750,11 +750,11 @@ pub fn expert_fields() -> Vec<SettingField> {
             EditKind::Toggle,
         ),
 
-        // ── GPU (expert) ──────────────────────────────────────────────────────
+        // ── GPU Ultra Expert ──────────────────────────────────────────────────────
         field(
             "split_mode",
             "Split Mode",
-            "GPU (expert)",
+            "GPU Ultra Expert",
             |s| s.split_mode.to_string(),
             |s, c| s.split_mode != c.split_mode,
             |s, delta, _| {
@@ -779,7 +779,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "tensor_split",
             "Tensor Split",
-            "GPU (expert)",
+            "GPU Ultra Expert",
             |s| s.tensor_split.clone(),
             |s, c| s.tensor_split != c.tensor_split,
             |_, _, _| {},
@@ -789,7 +789,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "main_gpu",
             "Main GPU",
-            "GPU (expert)",
+            "GPU Ultra Expert",
             |s| s.main_gpu.to_string(),
             |s, c| s.main_gpu != c.main_gpu,
             |s, delta, _| {
@@ -805,7 +805,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field_with_toggle(
             "fit",
             "Fit",
-            "GPU (expert)",
+            "GPU Ultra Expert",
             |s| s.fit.to_string(),
             |s, c| s.fit != c.fit,
             |_, _, _| {},
@@ -816,7 +816,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "lora",
             "LoRA",
-            "GPU (expert)",
+            "GPU Ultra Expert",
             |s| s.lora
                 .as_ref()
                 .map(|p| p.to_string_lossy().to_string())
@@ -829,7 +829,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "lora_scaled",
             "LoRA Scaled",
-            "GPU (expert)",
+            "GPU Ultra Expert",
             |s| s.lora_scaled
                 .as_ref()
                 .map(|(p, _)| p.to_string_lossy().to_string())
@@ -842,7 +842,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "rpc",
             "RPC",
-            "GPU (expert)",
+            "GPU Ultra Expert",
             |s| s.rpc.clone(),
             |s, c| s.rpc != c.rpc,
             |_, _, _| {},
@@ -852,7 +852,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field_with_toggle(
             "embedding",
             "Embedding",
-            "GPU (expert)",
+            "GPU Ultra Expert",
             |s| s.embedding.to_string(),
             |s, c| s.embedding != c.embedding,
             |_, _, _| {},
@@ -861,11 +861,11 @@ pub fn expert_fields() -> Vec<SettingField> {
             EditKind::Toggle,
         ),
 
-        // ── Sampling (expert) ─────────────────────────────────────────────────
+        // ── Sampling Ultra Expert ─────────────────────────────────────────────────
         field(
             "typical_p",
             "Typical P",
-            "Sampling (expert)",
+            "Sampling Ultra Expert",
             |s| format!("{:.2}", s.typical_p),
             |s, c| (s.typical_p - c.typical_p).abs() > 0.001,
             |s, delta, _| {
@@ -881,7 +881,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "mirostat",
             "Mirostat",
-            "Sampling (expert)",
+            "Sampling Ultra Expert",
             |s| s.mirostat.to_string(),
             |s, c| s.mirostat != c.mirostat,
             |s, delta, _| {
@@ -904,7 +904,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "mirostat_lr",
             "Mirostat LR",
-            "Sampling (expert)",
+            "Sampling Ultra Expert",
             |s| format!("{:.2}", s.mirostat_lr),
             |s, c| (s.mirostat_lr - c.mirostat_lr).abs() > 0.001,
             |s, delta, _| {
@@ -920,7 +920,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "mirostat_ent",
             "Mirostat Ent",
-            "Sampling (expert)",
+            "Sampling Ultra Expert",
             |s| format!("{:.2}", s.mirostat_ent),
             |s, c| (s.mirostat_ent - c.mirostat_ent).abs() > 0.001,
             |s, delta, _| {
@@ -936,7 +936,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field_with_toggle(
             "ignore_eos",
             "Ignore EOS",
-            "Sampling (expert)",
+            "Sampling Ultra Expert",
             |s| s.ignore_eos.to_string(),
             |s, c| s.ignore_eos != c.ignore_eos,
             |_, _, _| {},
@@ -947,7 +947,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "samplers",
             "Samplers",
-            "Sampling (expert)",
+            "Sampling Ultra Expert",
             |s| s.samplers.0.clone(),
             |s, c| s.samplers.0 != c.samplers.0,
             |_, _, _| {},
@@ -955,11 +955,11 @@ pub fn expert_fields() -> Vec<SettingField> {
             EditKind::Modal,
         ),
 
-        // ── DRY (expert) ──────────────────────────────────────────────────────
+        // ── DRY Ultra Expert ──────────────────────────────────────────────────────
         field(
             "dry_multiplier",
             "DRY Multiplier",
-            "DRY (expert)",
+            "DRY Ultra Expert",
             |s| format!("{:.2}", s.dry_multiplier),
             |s, c| (s.dry_multiplier - c.dry_multiplier).abs() > 0.001,
             |s, delta, _| {
@@ -975,7 +975,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "dry_base",
             "DRY Base",
-            "DRY (expert)",
+            "DRY Ultra Expert",
             |s| format!("{:.2}", s.dry_base),
             |s, c| (s.dry_base - c.dry_base).abs() > 0.001,
             |s, delta, _| {
@@ -991,7 +991,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "dry_allowed_length",
             "DRY Allowed Length",
-            "DRY (expert)",
+            "DRY Ultra Expert",
             |s| s.dry_allowed_length.to_string(),
             |s, c| s.dry_allowed_length != c.dry_allowed_length,
             |s, delta, _| {
@@ -1007,7 +1007,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "dry_penalty_last_n",
             "DRY Penalty Last N",
-            "DRY (expert)",
+            "DRY Ultra Expert",
             |s| s.dry_penalty_last_n.to_string(),
             |s, c| s.dry_penalty_last_n != c.dry_penalty_last_n,
             |s, delta, _| {
@@ -1021,11 +1021,11 @@ pub fn expert_fields() -> Vec<SettingField> {
             EditKind::Direct,
         ),
 
-        // ── Server (expert) ───────────────────────────────────────────────────
+        // ── Server Ultra Expert ───────────────────────────────────────────────────
         field_with_toggle(
             "cache_prompt",
             "Cache Prompt",
-            "Server (expert)",
+            "Server Ultra Expert",
             |s| s.cache_prompt.to_string(),
             |s, c| s.cache_prompt != c.cache_prompt,
             |_, _, _| {},
@@ -1036,7 +1036,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field(
             "cache_reuse",
             "Cache Reuse",
-            "Server (expert)",
+            "Server Ultra Expert",
             |s| s.cache_reuse.to_string(),
             |s, c| s.cache_reuse != c.cache_reuse,
             |s, delta, _| {
@@ -1052,7 +1052,7 @@ pub fn expert_fields() -> Vec<SettingField> {
         field_with_toggle(
             "webui",
             "WebUI",
-            "Server (expert)",
+            "Server Ultra Expert",
             |s| s.webui.to_string(),
             |s, c| s.webui != c.webui,
             |_, _, _| {},

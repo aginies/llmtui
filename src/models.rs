@@ -1458,6 +1458,8 @@ pub struct BenchTuneParamValue {
     pub flash_attn: Option<bool>,
     pub threads: Option<u32>,
     pub expert_count: Option<i32>,
+    pub spec_type: Option<String>,
+    pub draft_tokens: Option<u32>,
 }
 
 impl PartialEq for BenchTuneParamValue {
@@ -1470,7 +1472,9 @@ impl PartialEq for BenchTuneParamValue {
         self.batch_size == other.batch_size &&
         self.flash_attn == other.flash_attn &&
         self.threads == other.threads &&
-        self.expert_count == other.expert_count
+        self.expert_count == other.expert_count &&
+        self.spec_type == other.spec_type &&
+        self.draft_tokens == other.draft_tokens
     }
 }
 impl Eq for BenchTuneParamValue {}
@@ -1733,6 +1737,8 @@ chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
                                             flash_attn: fa,
                                             threads: th,
                                             expert_count: ec,
+                                            spec_type: None,
+                                            draft_tokens: None,
                                         });
                                     }
                                 }

@@ -616,8 +616,8 @@ pub async fn save_results(results: &[BenchTuneResult], output_dir: &PathBuf, con
     md.push_str("# LLM Benchmark Results\n\n");
     md.push_str(&format!("Generated on: {}\n\n", chrono::Local::now().format("%Y-%m-%d %H:%M:%S")));
 
-    md.push_str("| Temp | Top-P | Top-K | RepPen | FA | Threads | Batch | Exp | Prompt t/s | Gen t/s | Latency (ms) | First Tok (ms) |\n");
-    md.push_str("|------|-------|-------|--------|----|---------|-------|-----|------------|---------|--------------|----------------|\n");
+    md.push_str("| Temp | Top-P | Top-K | RepPen | FA | Threads | Batch | Exp | Spec | Draft | Prompt t/s | Gen t/s | Latency (ms) | First Tok (ms) |\n");
+    md.push_str("|------|-------|-------|--------|----|---------|-------|-----|------|-------|------------|---------|--------------|----------------|\n");
 
     for r in results {
         let temp = r.params.temperature.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string());
@@ -629,8 +629,11 @@ pub async fn save_results(results: &[BenchTuneResult], output_dir: &PathBuf, con
         let batch = r.params.batch_size.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
         let exp = r.params.expert_count.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
 
-        md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {} | {} | {:.2} | {:.2} | {:.2} | {:.2} |\n",
-            temp, top_p, top_k, rep_pen, fa, threads, batch, exp,
+        let spec = r.params.spec_type.as_ref().map(|s| if s.is_empty() { "-".to_string() } else { s.clone() }).unwrap_or_else(|| "-".to_string());
+        let draft = r.params.draft_tokens.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
+
+        md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.2} | {:.2} | {:.2} | {:.2} |\n",
+            temp, top_p, top_k, rep_pen, fa, threads, batch, exp, spec, draft,
             r.metrics.prompt_tps,
             r.metrics.generation_tps,
             r.metrics.latency_per_token,
@@ -695,6 +698,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         threads: u32,
         batch_size: u32,
         expert_count: i32,
+        spec_type: String,
+        draft_tokens: u32,
     }
 
     fn resolve_params(params: &BenchTuneParamValue, base: &crate::models::ModelSettings) -> ResolvedParams {
@@ -707,6 +712,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
             threads: params.threads.unwrap_or(base.threads),
             batch_size: params.batch_size.unwrap_or(base.batch_size),
             expert_count: params.expert_count.unwrap_or(base.expert_count),
+            spec_type: params.spec_type.clone().unwrap_or_else(|| base.spec_type.clone()),
+            draft_tokens: params.draft_tokens.unwrap_or(base.draft_tokens),
         }
     }
 
@@ -855,8 +862,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     let scatter_latency: Vec<f64> = results.iter().map(|r| r.metrics.latency_per_token).collect();
     let scatter_first_token: Vec<f64> = results.iter().map(|r| r.metrics.first_token_time).collect();
 
-    let param_headers: Vec<String> = vec!["Temp".to_string(), "Top-P".to_string(), "Top-K".to_string(), "RepPen".to_string(), "FA".to_string(), "Threads".to_string(), "Batch".to_string(), "Exp".to_string()];
-    let param_vals: Vec<Vec<String>> = results.iter().map(|r| {
+    let param_headers: Vec<String> = vec!["Temp".to_string(), "Top-P".to_string(), "Top-K".to_string(), "RepPen".to_string(), "FA".to_string(), "Threads".to_string(), "Batch".to_string(), "Exp".to_string(), "Spec".to_string(), "Draft".to_string()];
+   let param_vals: Vec<Vec<String>> = results.iter().map(|r| {
         let base = r.base_settings.as_ref().unwrap();
         let rp = resolve_params(&r.params, base);
         vec![
@@ -868,6 +875,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
             rp.threads.to_string(),
             rp.batch_size.to_string(),
             rp.expert_count.to_string(),
+            if rp.spec_type.is_empty() { "-".to_string() } else { rp.spec_type.clone() },
+            rp.draft_tokens.to_string(),
         ]
     }).collect();
 
@@ -885,6 +894,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
             "threads": rp.threads,
             "batch_size": rp.batch_size,
             "expert_count": rp.expert_count,
+            "spec_type": rp.spec_type,
+            "draft_tokens": rp.draft_tokens,
             "prompt_tps": r.metrics.prompt_tps,
             "generation_tps": r.metrics.generation_tps,
             "combined_tps": r.metrics.combined_tps,
@@ -957,6 +968,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         ("col-threads", "Threads", true),
         ("col-batch", "Batch", true),
         ("col-exp", "Exp", true),
+        ("col-spec", "Spec", true),
+        ("col-draft", "Draft", true),
         ("col-gen-tps", "Gen t/s", true),
         ("col-prompt-tps", "Prompt t/s", true),
         ("col-latency", "Latency", true),
@@ -966,11 +979,13 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     ]).unwrap();
 
     // CSV data
-    let csv_header = "Rank,Temp,Top-P,Top-K,RepPen,FA,Threads,Batch,Exp,Gen t/s,Prompt t/s,Latency (ms),First Tok (ms),Combined,Consistency";
+    let csv_header = "Rank,Temp,Top-P,Top-K,RepPen,FA,Threads,Batch,Exp,Spec,Draft,Gen t/s,Prompt t/s,Latency (ms),First Tok (ms),Combined,Consistency";
     let csv_rows: Vec<String> = (0..total_tests).map(|i| {
         let d = &metrics_data[i];
         let rank = i + 1;
-        format!("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{:.1}",
+        let spec = d.get("spec_type").map(|v| v.as_str().unwrap_or("-")).unwrap_or("-").to_string();
+        let draft = d.get("draft_tokens").map(|v| v.as_u64().unwrap_or(0).to_string()).unwrap_or("-".to_string());
+        format!("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{:.1}",
             rank,
             d["temp"].as_f64().unwrap_or(0.0),
             d["top_p"].as_f64().unwrap_or(0.0),
@@ -980,6 +995,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
             d["threads"].as_u64().unwrap_or(0),
             d["batch_size"].as_u64().unwrap_or(0),
             d["expert_count"].as_i64().unwrap_or(0),
+            spec,
+            draft,
             d["generation_tps"].as_f64().unwrap_or(0.0),
             d["prompt_tps"].as_f64().unwrap_or(0.0),
             d["latency_per_token"].as_f64().unwrap_or(0.0),
@@ -1039,13 +1056,14 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
 <div class="winner-metric"><span class="wm-label">Latency</span><span class="wm-value">{:.2}ms</span></div>
 <div class="winner-metric"><span class="wm-label">First Token</span><span class="wm-value">{:.0}ms</span></div>
 </div>
-<div class="winner-params">Temp: {:.2} &middot; Top-P: {:.2} &middot; Top-K: {} &middot; RepPen: {:.2} &middot; FA: {} &middot; Threads: {} &middot; Batch: {} &middot; Exp: {}</div>
+<div class="winner-params">Temp: {:.2} &middot; Top-P: {:.2} &middot; Top-K: {} &middot; RepPen: {:.2} &middot; FA: {} &middot; Threads: {} &middot; Batch: {} &middot; Exp: {} &middot; Spec: {} &middot; Draft: {}</div>
 </div>
 </div>"#,
                 m.generation_tps, m.prompt_tps, m.latency_per_token, m.first_token_time,
                 rp.temperature, rp.top_p, rp.top_k, rp.repeat_penalty,
                 if rp.flash_attn { "ON" } else { "OFF" }, rp.threads,
-                rp.batch_size, rp.expert_count
+                rp.batch_size, rp.expert_count,
+                if rp.spec_type.is_empty() { "Off".to_string() } else { rp.spec_type.clone() }, rp.draft_tokens
             ))
     }).unwrap_or_default();
 

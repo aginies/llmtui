@@ -311,6 +311,8 @@ function renderTable() {
             `<td class="col-threads">${PARAM_VALS[idx][5]}</td>`,
             `<td class="col-batch">${PARAM_VALS[idx][6]}</td>`,
             `<td class="col-exp">${PARAM_VALS[idx][7]}</td>`,
+            `<td class="col-spec">${PARAM_VALS[idx][8]}</td>`,
+            `<td class="col-draft">${PARAM_VALS[idx][9]}</td>`,
             `<td class="col-gen-tps" style="color:${genColor};font-weight:bold;">${formatNum(d.generation_tps)}</td>`,
             `<td class="col-prompt-tps">${formatNum(d.prompt_tps)}</td>`,
             `<td class="col-latency" style="color:${latColor}">${formatNum(d.latency_per_token)}</td>`,
@@ -326,7 +328,7 @@ function renderTable() {
         detailTr.className = 'detail-row';
         detailTr.id = 'detail-' + idx;
         const outputsHtml = d.outputs.map((o, oi) => `<div style="margin:8px 0;"><strong>Iteration ${oi + 1}:</strong><div class="output-text">${escapeHtml(o)}</div></div>`).join('');
-        detailTr.innerHTML = `<td colspan="15" class="detail-cell">
+        detailTr.innerHTML = `<td colspan="17" class="detail-cell">
             <div class="detail-grid">
                 <div class="detail-item"><div class="dl">Gen t/s</div><div class="dv" style="color:#3fb950">${formatNum(d.generation_tps)}</div></div>
                 <div class="detail-item"><div class="dl">Prompt t/s</div><div class="dv">${formatNum(d.prompt_tps)}</div></div>
