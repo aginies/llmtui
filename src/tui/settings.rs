@@ -98,6 +98,24 @@ fn field(
     }
 }
 
+fn field_with_toggle(
+    id: &'static str,
+    name: &'static str,
+    section: &'static str,
+    display: DisplayFn,
+    dirty: DirtyFn,
+    adjust: AdjustFn,
+    apply_edit: ApplyEditFn,
+    ctrl_e_toggle: CtrlEToggleFn,
+    edit_kind: EditKind,
+) -> SettingField {
+    SettingField {
+        id, name, section, display, dirty, adjust, apply_edit,
+        ctrl_e_toggle: Some(ctrl_e_toggle),
+        edit_kind,
+    }
+}
+
 // ── GPU Layers special adjust (needs total_layers from App, so partial) ──────
 
 fn gpu_layers_adjust(settings: &mut ModelSettings, delta: i32, _context_limit: u32) {
@@ -125,6 +143,26 @@ fn gpu_layers_apply(settings: &mut ModelSettings, buf: &str) {
         };
     }
 }
+
+fn toggle_mlock(settings: &mut ModelSettings) { settings.mlock = !settings.mlock; }
+fn toggle_flash_attn(settings: &mut ModelSettings) { settings.flash_attn = !settings.flash_attn; }
+fn toggle_kv_cache_offload(settings: &mut ModelSettings) { settings.kv_cache_offload = !settings.kv_cache_offload; }
+fn toggle_uniform_cache(settings: &mut ModelSettings) { settings.uniform_cache = !settings.uniform_cache; }
+fn toggle_rope_yarn_enabled(settings: &mut ModelSettings) { settings.rope_yarn_enabled = !settings.rope_yarn_enabled; }
+fn toggle_swa_full(settings: &mut ModelSettings) { settings.swa_full = !settings.swa_full; }
+fn toggle_mmap(settings: &mut ModelSettings) { settings.mmap = !settings.mmap; }
+fn toggle_fit(settings: &mut ModelSettings) { settings.fit = !settings.fit; }
+fn toggle_embedding(settings: &mut ModelSettings) { settings.embedding = !settings.embedding; }
+fn toggle_ignore_eos(settings: &mut ModelSettings) { settings.ignore_eos = !settings.ignore_eos; }
+fn toggle_cache_prompt(settings: &mut ModelSettings) { settings.cache_prompt = !settings.cache_prompt; }
+fn toggle_webui(settings: &mut ModelSettings) { settings.webui = !settings.webui; }
+fn toggle_max_tokens(settings: &mut ModelSettings) { settings.max_tokens = settings.max_tokens.map_or(Some(2048), |_| None); }
+fn toggle_max_concurrent_predictions(settings: &mut ModelSettings) { settings.max_concurrent_predictions = settings.max_concurrent_predictions.map_or(Some(1), |_| None); }
+fn toggle_cache_type_k(settings: &mut ModelSettings) { use crate::models::CacheTypeK; settings.cache_type_k = settings.cache_type_k.map_or(Some(CacheTypeK::F16), |_| None); }
+fn toggle_cache_type_v(settings: &mut ModelSettings) { use crate::models::CacheTypeV; settings.cache_type_v = settings.cache_type_v.map_or(Some(CacheTypeV::F16), |_| None); }
+fn toggle_expert_count(settings: &mut ModelSettings) { settings.expert_count = if settings.expert_count == 0 { 1 } else { 0 }; }
+fn toggle_presence_penalty(settings: &mut ModelSettings) { settings.presence_penalty = settings.presence_penalty.map_or(Some(0.0), |_| None); }
+fn toggle_frequency_penalty(settings: &mut ModelSettings) { settings.frequency_penalty = settings.frequency_penalty.map_or(Some(0.0), |_| None); }
 
 // ── Standard fields (28 fields) ─────────────────────────────────────────────
 
@@ -165,16 +203,15 @@ pub fn standard_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "mlock",
             "Keep in memory (mlock)",
             "Loading",
             |s| s.mlock.to_string(),
             |s, c| s.mlock != c.mlock,
-            |s, _, _| {
-                s.mlock = !s.mlock;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_mlock,
             EditKind::Toggle,
         ),
 
@@ -193,31 +230,29 @@ pub fn standard_fields() -> Vec<SettingField> {
             gpu_layers_apply,
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "flash_attn",
             "Flash Attention",
             "GPU Offload",
             |s| s.flash_attn.to_string(),
             |s, c| s.flash_attn != c.flash_attn,
-            |s, _, _| {
-                s.flash_attn = !s.flash_attn;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_flash_attn,
             EditKind::Toggle,
         ),
-        field(
+        field_with_toggle(
             "kv_cache_offload",
             "KV Cache Offload",
             "GPU Offload",
             |s| s.kv_cache_offload.to_string(),
             |s, c| s.kv_cache_offload != c.kv_cache_offload,
-            |s, _, _| {
-                s.kv_cache_offload = !s.kv_cache_offload;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_kv_cache_offload,
             EditKind::Toggle,
         ),
-        field(
+        field_with_toggle(
             "cache_type_k",
             "Cache Type K",
             "GPU Offload",
@@ -237,9 +272,10 @@ pub fn standard_fields() -> Vec<SettingField> {
                     s.cache_type_k = Some(CacheTypeK::from_u8(n));
                 }
             },
+            toggle_cache_type_k,
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "cache_type_v",
             "Cache Type V",
             "GPU Offload",
@@ -259,9 +295,10 @@ pub fn standard_fields() -> Vec<SettingField> {
                     s.cache_type_v = Some(CacheTypeV::from_u8(n));
                 }
             },
+            toggle_cache_type_v,
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "expert_count",
             "Active Experts",
             "GPU Offload",
@@ -279,6 +316,7 @@ pub fn standard_fields() -> Vec<SettingField> {
                     s.expert_count = v.clamp(-1, 99);
                 }
             },
+            toggle_expert_count,
             EditKind::Direct,
         ),
 
@@ -299,19 +337,18 @@ pub fn standard_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "uniform_cache",
             "Unified KV",
             "Evaluation",
             |s| s.uniform_cache.to_string(),
             |s, c| s.uniform_cache != c.uniform_cache,
-            |s, _, _| {
-                s.uniform_cache = !s.uniform_cache;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_uniform_cache,
             EditKind::Toggle,
         ),
-        field(
+        field_with_toggle(
             "max_concurrent_predictions",
             "Max Concurrent Pred",
             "Evaluation",
@@ -330,6 +367,7 @@ pub fn standard_fields() -> Vec<SettingField> {
                     s.max_concurrent_predictions = Some(v.clamp(1, 10));
                 }
             },
+            toggle_max_concurrent_predictions,
             EditKind::Direct,
         ),
 
@@ -414,7 +452,7 @@ pub fn standard_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "max_tokens",
             "Max Tokens",
             "Sampling",
@@ -435,6 +473,7 @@ pub fn standard_fields() -> Vec<SettingField> {
                     };
                 }
             },
+            toggle_max_tokens,
             EditKind::Direct,
         ),
 
@@ -471,12 +510,12 @@ pub fn standard_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "presence_penalty",
             "Presence Penalty",
             "Repetition",
             |s| s.presence_penalty
-                .map(|v| format!("{:.2}", v))
+                .map(|v| if (v - 0.0).abs() < 0.001 { "Off".to_string() } else { format!("{:.2}", v) })
                 .unwrap_or_else(|| "Off".to_string()),
             |s, c| match (s.presence_penalty, c.presence_penalty) {
                 (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
@@ -492,14 +531,15 @@ pub fn standard_fields() -> Vec<SettingField> {
                     s.presence_penalty = Some((v as f32 / 100.0).clamp(0.0, 1.0));
                 }
             },
+            toggle_presence_penalty,
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "frequency_penalty",
             "Freq Penalty",
             "Repetition",
             |s| s.frequency_penalty
-                .map(|v| format!("{:.2}", v))
+                .map(|v| if (v - 0.0).abs() < 0.001 { "Off".to_string() } else { format!("{:.2}", v) })
                 .unwrap_or_else(|| "Off".to_string()),
             |s, c| match (s.frequency_penalty, c.frequency_penalty) {
                 (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
@@ -515,6 +555,7 @@ pub fn standard_fields() -> Vec<SettingField> {
                     s.frequency_penalty = Some((v as f32 / 100.0).clamp(0.0, 1.0));
                 }
             },
+            toggle_frequency_penalty,
             EditKind::Direct,
         ),
 
@@ -547,16 +588,15 @@ pub fn standard_fields() -> Vec<SettingField> {
         ),
 
         // ── Yarn RoPE ─────────────────────────────────────────────────────────
-        field(
+        field_with_toggle(
             "rope_yarn_enabled",
             "Yarn RoPE",
             "Yarn RoPE",
             |s| s.rope_yarn_enabled.to_string(),
             |s, c| s.rope_yarn_enabled != c.rope_yarn_enabled,
-            |s, _, _| {
-                s.rope_yarn_enabled = !s.rope_yarn_enabled;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_rope_yarn_enabled,
             EditKind::Toggle,
         ),
         field(
@@ -662,28 +702,26 @@ pub fn expert_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "swa_full",
             "SWA Full",
             "Loading (expert)",
             |s| s.swa_full.to_string(),
             |s, c| s.swa_full != c.swa_full,
-            |s, _, _| {
-                s.swa_full = !s.swa_full;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_swa_full,
             EditKind::Toggle,
         ),
-        field(
+        field_with_toggle(
             "mmap",
             "MMap",
             "Loading (expert)",
             |s| s.mmap.to_string(),
             |s, c| s.mmap != c.mmap,
-            |s, _, _| {
-                s.mmap = !s.mmap;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_mmap,
             EditKind::Toggle,
         ),
         field(
@@ -764,16 +802,15 @@ pub fn expert_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "fit",
             "Fit",
             "GPU (expert)",
             |s| s.fit.to_string(),
             |s, c| s.fit != c.fit,
-            |s, _, _| {
-                s.fit = !s.fit;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_fit,
             EditKind::Toggle,
         ),
         field(
@@ -812,16 +849,15 @@ pub fn expert_fields() -> Vec<SettingField> {
             |_, _| {},
             EditKind::Modal,
         ),
-        field(
+        field_with_toggle(
             "embedding",
             "Embedding",
             "GPU (expert)",
             |s| s.embedding.to_string(),
             |s, c| s.embedding != c.embedding,
-            |s, _, _| {
-                s.embedding = !s.embedding;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_embedding,
             EditKind::Toggle,
         ),
 
@@ -897,16 +933,15 @@ pub fn expert_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "ignore_eos",
             "Ignore EOS",
             "Sampling (expert)",
             |s| s.ignore_eos.to_string(),
             |s, c| s.ignore_eos != c.ignore_eos,
-            |s, _, _| {
-                s.ignore_eos = !s.ignore_eos;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_ignore_eos,
             EditKind::Toggle,
         ),
         field(
@@ -987,16 +1022,15 @@ pub fn expert_fields() -> Vec<SettingField> {
         ),
 
         // ── Server (expert) ───────────────────────────────────────────────────
-        field(
+        field_with_toggle(
             "cache_prompt",
             "Cache Prompt",
             "Server (expert)",
             |s| s.cache_prompt.to_string(),
             |s, c| s.cache_prompt != c.cache_prompt,
-            |s, _, _| {
-                s.cache_prompt = !s.cache_prompt;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_cache_prompt,
             EditKind::Toggle,
         ),
         field(
@@ -1015,16 +1049,15 @@ pub fn expert_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-        field(
+        field_with_toggle(
             "webui",
             "WebUI",
             "Server (expert)",
             |s| s.webui.to_string(),
             |s, c| s.webui != c.webui,
-            |s, _, _| {
-                s.webui = !s.webui;
-            },
+            |_, _, _| {},
             |_, _| {},
+            toggle_webui,
             EditKind::Toggle,
         ),
     ]

@@ -21,16 +21,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                     app.ui.active_panel = ActivePanel::Log;
                 }
                 MouseEventKind::ScrollUp => {
-                    app.log.log_scroll_offset = app.log.log_scroll_offset.saturating_sub(1);
-                    app.log.log_follow = false;
+                    handle_log_scroll(app, true);
                 }
                 MouseEventKind::ScrollDown => {
-                    app.log.log_scroll_offset = app.log.log_scroll_offset + 1;
-                    if app.log.log_scroll_offset >= app.log.log_total_lines.saturating_sub(5) {
-                        app.log.log_follow = true;
-                    } else {
-                        app.log.log_follow = false;
-                    }
+                    handle_log_scroll(app, false);
                 }
                 _ => {}
             }
@@ -99,17 +93,11 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                 app.ui.active_panel = ActivePanel::Log;
             }
             MouseEventKind::ScrollUp => {
-                app.log.log_scroll_offset = app.log.log_scroll_offset.saturating_sub(1);
-                app.log.log_follow = false;
+                handle_log_scroll(app, true);
                 app.ui.active_panel = ActivePanel::Log;
             }
             MouseEventKind::ScrollDown => {
-                app.log.log_scroll_offset = app.log.log_scroll_offset + 1;
-                if app.log.log_scroll_offset >= app.log.log_total_lines.saturating_sub(5) {
-                    app.log.log_follow = true;
-                } else {
-                    app.log.log_follow = false;
-                }
+                handle_log_scroll(app, false);
                 app.ui.active_panel = ActivePanel::Log;
             }
             _ => {}
@@ -259,4 +247,14 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
             }
         }
     }
+}
+
+fn handle_log_scroll(app: &mut App, scroll_up: bool) {
+    if scroll_up {
+        app.log.log_scroll_offset = app.log.log_scroll_offset.saturating_sub(1);
+    } else {
+        app.log.log_scroll_offset += 1;
+    }
+    app.log.log_follow = app.log.log_scroll_offset
+        >= app.log.log_total_lines.saturating_sub(5);
 }

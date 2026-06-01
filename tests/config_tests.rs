@@ -528,12 +528,12 @@ fn model_override_apply_backend_version() {
 fn model_override_apply_mtp_settings() {
     let mut settings = ModelSettings::default();
     let override_ = ModelOverride {
-        is_mtp: Some(true),
+        spec_type: Some("draft-mtp".into()),
         draft_tokens: Some(5),
         ..Default::default()
     };
     override_.apply(&mut settings);
-    assert!(settings.is_mtp);
+    assert_eq!(settings.spec_type, "draft-mtp");
     assert_eq!(settings.draft_tokens, 5);
 }
 

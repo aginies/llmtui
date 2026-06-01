@@ -238,6 +238,18 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings.cache_type_k = Some(val);
                 app.update_vram_estimate();
                 app.settings_state.settings_render_cache = None;
+            } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
+                let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+                val = val.prev();
+                app.settings.cache_type_k = Some(val);
+                app.update_vram_estimate();
+                app.settings_state.settings_render_cache = None;
+            } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
+                let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+                val = val.next();
+                app.settings.cache_type_k = Some(val);
+                app.update_vram_estimate();
+                app.settings_state.settings_render_cache = None;
             }
         }
         // Cache Type V: cycle on Enter, or apply typed number
@@ -259,6 +271,18 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings.cache_type_v = Some(val);
                 app.update_vram_estimate();
                 app.settings_state.settings_render_cache = None;
+            } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
+                let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+                val = val.prev();
+                app.settings.cache_type_v = Some(val);
+                app.update_vram_estimate();
+                app.settings_state.settings_render_cache = None;
+            } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
+                let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+                val = val.next();
+                app.settings.cache_type_v = Some(val);
+                app.update_vram_estimate();
+                app.settings_state.settings_render_cache = None;
             }
         }
         // Unified KV: toggle on Enter
@@ -268,6 +292,27 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             } else if key.code == KeyCode::Enter {
                 app.settings.uniform_cache = !app.settings.uniform_cache;
                 app.update_vram_estimate();
+                app.settings_state.settings_render_cache = None;
+            }
+        }
+        // Tags: open tags modal on Enter
+        // Active Experts: Left/Right to adjust
+        _ if idx == 8 => {
+            if !app.settings_state.settings_edit_buffer.is_empty() {
+                if key.code == KeyCode::Enter {
+                    if let Ok(v) = app.settings_state.settings_edit_buffer.parse::<i32>() {
+                        app.settings.expert_count = v.clamp(-1, 99);
+                    }
+                    app.settings_state.settings_edit_buffer.clear();
+                    app.settings_state.settings_render_cache = None;
+                } else {
+                    app.settings_state.settings_edit_buffer.clear();
+                }
+            } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
+                app.settings.expert_count = (app.settings.expert_count as i32 - 1).clamp(-1, 99);
+                app.settings_state.settings_render_cache = None;
+            } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
+                app.settings.expert_count = (app.settings.expert_count as i32 + 1).clamp(-1, 99);
                 app.settings_state.settings_render_cache = None;
             }
         }
