@@ -370,8 +370,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .iter()
                 .map(|(filename, size, _url): &(_, _, _)| {
                     let name = filename.rsplit('/').next().unwrap_or(filename);
+                    let is_downloaded = crate::tui::app::sync_ops::file_is_downloaded(&app.models, name);
+                    let marker = if is_downloaded { "✓" } else { " " };
+                    let marker_span = Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));
+                    let mut name_spans: Vec<Span> = vec![marker_span];
+                    let highlighted = highlight_query(name, "");
+                    name_spans.extend(highlighted.spans.iter().cloned());
                     Row::new(vec![
-                        Cell::from(name.to_string()),
+                        Cell::from(Line::from(name_spans)),
                         Cell::from(format_size(*size)),
                     ])
                 })

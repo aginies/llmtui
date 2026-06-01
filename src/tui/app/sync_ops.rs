@@ -141,17 +141,45 @@ fn normalize_separators(s: &str) -> String {
 
 /// Check if a model (identified by HF model_id) is already downloaded locally.
 /// Matches by comparing the HF repo name against local filenames, case-insensitively.
+/// Checks all prefixes of the repo name to handle cases where the repo name has
+/// extra components not present in the local filename (e.g. "Qwen3.6-27B-MTP-GGUF"
+/// vs local "Qwen3.6-27B-Q3_K_S.gguf").
 pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: &str) -> bool {
     let repo_name = model_id.rsplit('/').next().unwrap_or(model_id).to_lowercase();
     let repo_normalized = normalize_separators(&repo_name);
+    let repo_parts: Vec<&str> = repo_normalized.split('-').collect();
+
     models.iter().any(|m| {
         let mut local = m.name.to_lowercase();
         if let Some(stripped) = local.strip_suffix(".gguf") {
             local = stripped.to_string();
         }
         let local_normalized = normalize_separators(&local);
-        local_normalized == repo_normalized
-            || local_normalized.starts_with(&format!("{}-", repo_normalized))
+
+        // Check exact match first
+        if local_normalized == repo_normalized {
+            return true;
+        }
+
+        // Check if local starts with any prefix of the repo name (minimum 8 chars to avoid false positives)
+        for i in 1..=repo_parts.len() {
+            let prefix = repo_parts[..i].join("-");
+            if prefix.len() >= 8
+                && local_normalized.starts_with(&format!("{}-", prefix))
+            {
+                return true;
+            }
+        }
+        false
+    })
+}
+
+/// Check if a GGUF filename is already downloaded locally (exact match).
+pub fn file_is_downloaded(models: &[crate::models::DiscoveredModel], filename: &str) -> bool {
+    let target = filename.to_lowercase();
+    models.iter().any(|m| {
+        let local = m.name.to_lowercase();
+        local == target
     })
 }
 
@@ -240,5 +268,50 @@ mod tests {
         assert!(model_is_downloaded(&models, "meta-llama/Llama-3.1-8B-Instruct"));
         assert!(model_is_downloaded(&models, "mistralai/Mistral-7B-v0.3"));
         assert!(!model_is_downloaded(&models, "google/gemma-2-9b"));
+    }
+
+    #[test]
+    fn repo_name_with_extra_suffix() {
+        // HF repo: unsloth/Qwen3.6-27B-MTP-GGUF, local file: Qwen3.6-27B-Q3_K_S.gguf
+        // The repo name has "MTP-GGUF" suffix not in the local filename
+        let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
+        assert!(model_is_downloaded(&models, "unsloth/Qwen3.6-27B-MTP-GGUF"));
+    }
+
+  #[test]
+    fn repo_name_with_extra_suffix_different_size() {
+        // Should NOT match: repo is 27B, local is 7B
+        let models = vec![make_discovered("Qwen3.6-7B-Q3_K_S.gguf")];
+        assert!(!model_is_downloaded(&models, "unsloth/Qwen3.6-27B-MTP-GGUF"));
+    }
+
+    #[test]
+    fn file_exact_match() {
+        let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
+        assert!(file_is_downloaded(&models, "Qwen3.6-27B-Q3_K_S.gguf"));
+    }
+
+    #[test]
+    fn file_exact_match_case_insensitive() {
+        let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
+        assert!(file_is_downloaded(&models, "qwen3.6-27b-q3_k_s.gguf"));
+    }
+
+    #[test]
+    fn file_no_match_different_quant() {
+        let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
+        assert!(!file_is_downloaded(&models, "Qwen3.6-27B-Q4_K_M.gguf"));
+    }
+
+    #[test]
+    fn file_no_match_different_model() {
+        let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
+        assert!(!file_is_downloaded(&models, "Llama-3.1-8B-Instruct-Q4_K_M.gguf"));
+    }
+
+    #[test]
+    fn file_empty_models() {
+        let models: Vec<DiscoveredModel> = vec![];
+        assert!(!file_is_downloaded(&models, "Qwen3.6-27B-Q3_K_S.gguf"));
     }
 }
