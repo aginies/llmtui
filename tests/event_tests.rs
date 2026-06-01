@@ -1069,8 +1069,8 @@ async fn test_bench_tune_down_moves_result_row() {
     let mut app = make_app();
     app.models_mode = ModelsMode::BenchTune;
     app.bench_tune.bench_tune_results = vec![
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
+        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
+        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
     ];
     app.bench_tune.bench_tune_result_row = 0;
     let key = make_key(KeyCode::Down);
@@ -1083,8 +1083,8 @@ async fn test_bench_tune_up_decreases_result_row() {
     let mut app = make_app();
     app.models_mode = ModelsMode::BenchTune;
     app.bench_tune.bench_tune_results = vec![
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
+        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
+        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
     ];
     app.bench_tune.bench_tune_result_row = 1;
     let key = make_key(KeyCode::Up);
@@ -1097,7 +1097,7 @@ async fn test_bench_tune_enter_opens_output_view() {
     let mut app = make_app();
     app.models_mode = ModelsMode::BenchTune;
     app.bench_tune.bench_tune_results = vec![
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec!["output1".into()], per_iteration_metrics: vec![], base_settings: None },
+        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec!["output1".into()], per_iteration_metrics: vec![], base_settings: None },
     ];
     app.bench_tune.bench_tune_result_row = 0;
     let key = make_key(KeyCode::Enter);

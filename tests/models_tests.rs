@@ -622,6 +622,7 @@ fn bench_tune_progress_from_status_running() {
             repeat_penalty: None, context_length: None,
             batch_size: None, flash_attn: None,
             threads: None, expert_count: None,
+            spec_type: None, draft_tokens: None,
         },
     };
     let progress = BenchTuneProgress::from_status(&status);
@@ -671,6 +672,8 @@ fn bench_tune_param_value_eq_with_some_none() {
         flash_attn: None,
         threads: None,
         expert_count: None,
+        spec_type: None,
+        draft_tokens: None,
     };
     let b = BenchTuneParamValue {
         temperature: Some(0.8),
@@ -682,6 +685,8 @@ fn bench_tune_param_value_eq_with_some_none() {
         flash_attn: None,
         threads: None,
         expert_count: None,
+        spec_type: None,
+        draft_tokens: None,
     };
     assert_eq!(a, b);
 }
@@ -693,12 +698,14 @@ fn bench_tune_param_value_ne_different_values() {
         top_p: None, top_k: None, repeat_penalty: None,
         context_length: None, batch_size: None,
         flash_attn: None, threads: None, expert_count: None,
+        spec_type: None, draft_tokens: None,
     };
     let b = BenchTuneParamValue {
         temperature: Some(0.7),
         top_p: None, top_k: None, repeat_penalty: None,
         context_length: None, batch_size: None,
         flash_attn: None, threads: None, expert_count: None,
+        spec_type: None, draft_tokens: None,
     };
     assert_ne!(a, b);
 }

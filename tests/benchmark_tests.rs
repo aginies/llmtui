@@ -376,6 +376,8 @@ fn bench_tune_param_value_default_all_none() {
         flash_attn: None,
         threads: None,
         expert_count: None,
+        spec_type: None,
+        draft_tokens: None,
     };
     assert!(v.temperature.is_none());
     assert!(v.top_p.is_none());
@@ -386,6 +388,8 @@ fn bench_tune_param_value_default_all_none() {
     assert!(v.flash_attn.is_none());
     assert!(v.threads.is_none());
     assert!(v.expert_count.is_none());
+    assert!(v.spec_type.is_none());
+    assert!(v.draft_tokens.is_none());
 }
 
 // ── BenchTuneParamValue with values ────────────────────────────
@@ -402,6 +406,8 @@ fn bench_tune_param_value_with_all_values() {
         flash_attn: Some(true),
         threads: Some(8),
         expert_count: Some(2),
+        spec_type: Some("draft-mtp".to_string()),
+        draft_tokens: Some(10),
     };
     assert_eq!(v.temperature, Some(0.7));
     assert_eq!(v.top_p, Some(0.9));
@@ -412,6 +418,8 @@ fn bench_tune_param_value_with_all_values() {
     assert_eq!(v.flash_attn, Some(true));
     assert_eq!(v.threads, Some(8));
     assert_eq!(v.expert_count, Some(2));
+    assert_eq!(v.spec_type, Some("draft-mtp".to_string()));
+    assert_eq!(v.draft_tokens, Some(10));
 }
 
 // ── BenchTuneMetrics serialization ─────────────────────────────
@@ -448,6 +456,8 @@ fn bench_tune_result_serializable() {
             flash_attn: Some(true),
             threads: Some(8),
             expert_count: None,
+            spec_type: None,
+            draft_tokens: None,
         },
         metrics: BenchTuneMetrics {
             prompt_tps: 50.0,
@@ -482,6 +492,8 @@ fn bench_tune_status_running_serializable() {
             flash_attn: None,
             threads: None,
             expert_count: None,
+            spec_type: None,
+            draft_tokens: None,
         },
     };
     let json = serde_json::to_string(&status).expect("should serialize");
@@ -750,6 +762,8 @@ fn bench_tune_progress_from_running_has_values() {
             flash_attn: None,
             threads: None,
             expert_count: None,
+            spec_type: None,
+            draft_tokens: None,
         },
     };
     if let Some(BenchTuneProgress::Running { current, total, progress, current_params }) =

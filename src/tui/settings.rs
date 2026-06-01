@@ -306,11 +306,7 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<u32>() {
-                    let mut val = v.max(128);
-                    if s.context_length > 0 {
-                        val = val.min(s.context_length);
-                    }
-                    s.context_length = val;
+                    s.context_length = v.max(128);
                 }
             },
             EditKind::Direct,
