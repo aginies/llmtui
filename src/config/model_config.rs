@@ -1,9 +1,10 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
 use crate::config::ModelOverride;
+use crate::config::store::{load_all_from_dir, move_to_unused, save_yaml};
 
 /// Directory for per-model YAML configs.
 pub fn models_config_dir() -> PathBuf {
@@ -19,36 +20,6 @@ pub fn unused_config_dir() -> PathBuf {
         .unwrap_or_default()
         .join("llm-manager")
         .join("unused")
-}
-
-/// Load all model configs from disk into a cache.
-fn load_all_from_dir(dir: &Path) -> HashMap<String, ModelOverride> {
-    let mut map = HashMap::new();
-    if !dir.is_dir() {
-        return map;
-    }
-    for entry in match std::fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return map,
-    } {
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        let path = entry.path();
-        if path.extension().map(|e| e == "yaml").unwrap_or(false) {
-            let name = match path.file_stem().and_then(|n| n.to_str()) {
-                Some(n) => n.to_string(),
-                None => continue,
-            };
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if let Ok(cfg) = serde_yaml::from_str::<ModelOverride>(&content) {
-                    map.insert(name, cfg);
-                }
-            }
-        }
-    }
-    map
 }
 
 /// Per-model configuration store.
@@ -78,36 +49,20 @@ impl ModelConfigStore {
         }
     }
 
-     /// Get the config for a model by name.
+    /// Get the config for a model by name.
     pub fn get(&self, name: &str) -> Option<&ModelOverride> {
         self.cache.get(name)
     }
 
     /// Save (or update) a model config.
     pub fn save(&mut self, name: &str, config: &ModelOverride) {
-        // Remove from unused if it was there
-        let unused_path = self.unused_dir.join(format!("{}.yaml", name));
-        let _ = std::fs::remove_file(&unused_path);
-
-        // Write to models directory
-        let path = self.models_dir.join(format!("{}.yaml", name));
-        if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        if let Ok(content) = serde_yaml::to_string(config) {
-            let _ = std::fs::write(&path, content);
-        }
+        save_yaml(name, config, &self.models_dir, &self.unused_dir);
         self.cache.insert(name.to_string(), config.clone());
     }
 
     /// Delete a model config by moving it to the unused directory.
     pub fn delete(&mut self, name: &str) {
-        let src = self.models_dir.join(format!("{}.yaml", name));
-        let dest = self.unused_dir.join(format!("{}.yaml", name));
-        if src.exists() {
-            let _ = std::fs::create_dir_all(&self.unused_dir);
-            let _ = std::fs::rename(&src, &dest);
-        }
+        move_to_unused(name, &self.models_dir, &self.unused_dir);
         self.cache.remove(name);
     }
 
@@ -117,8 +72,7 @@ impl ModelConfigStore {
         keys.sort();
         keys
     }
-
-    }
+}
 
 impl Default for ModelConfigStore {
     fn default() -> Self {

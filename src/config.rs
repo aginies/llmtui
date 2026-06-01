@@ -1,6 +1,7 @@
 mod model_config;
-mod profiles;
 mod presets;
+mod profiles;
+mod store;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -10,10 +11,12 @@ use serde::{Deserialize, Serialize};
 
 pub use model_config::ModelConfigStore;
 
-pub use profiles::{ProfileStore};
+pub use profiles::ProfileStore;
 
-pub use presets::{PresetStore};
-use crate::models::{Backend, CacheType, CacheTypeK, CacheTypeV, Mirostat, NumMode, RopeScaling, Samplers, SplitMode};
+use crate::models::{
+    Backend, CacheType, CacheTypeK, CacheTypeV, Mirostat, NumMode, RopeScaling, Samplers, SplitMode,
+};
+pub use presets::PresetStore;
 
 /// Count physical CPU cores on Linux (ignores hyperthreading).
 /// Falls back to 1 if the file can't be read or parsing fails.
@@ -54,9 +57,11 @@ pub struct RpcWorker {
     pub port: u16,
 }
 
-fn default_rpc_port() -> u16 { 50052 }
+fn default_rpc_port() -> u16 {
+    50052
+}
 
-  /// WebSocket dashboard server configuration.
+/// WebSocket dashboard server configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct WsServer {
     #[serde(default)]
@@ -75,9 +80,13 @@ pub struct WsServer {
     pub tls_key: Option<String>,
 }
 
-fn default_ws_host() -> String { "0.0.0.0".to_string() }
+fn default_ws_host() -> String {
+    "0.0.0.0".to_string()
+}
 
-fn default_ws_port() -> u16 { 49223 }
+fn default_ws_port() -> u16 {
+    49223
+}
 
 /// Global configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -323,7 +332,7 @@ impl ModelOverride {
             cache_reuse: Some(s.cache_reuse),
             webui: Some(s.webui),
             max_tokens: s.max_tokens,
-       cache_type: Some(s.cache_type),
+            cache_type: Some(s.cache_type),
             llama_cpp_version_cpu: s.llama_cpp_version_cpu.clone(),
             llama_cpp_version_vulkan: s.llama_cpp_version_vulkan.clone(),
             llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
@@ -357,9 +366,15 @@ impl ModelOverride {
         base.numa = self.numa.unwrap_or(base.numa);
         base.uniform_cache = self.uniform_cache.unwrap_or(base.uniform_cache);
         base.kv_cache_offload = self.kv_cache_offload.unwrap_or(base.kv_cache_offload);
-        if let Some(v) = &self.system_prompt { base.system_prompt = v.clone(); }
-        if let Some(v) = &self.system_prompt_preset_name { base.system_prompt_preset_name = v.clone(); }
-        base.max_concurrent_predictions = self.max_concurrent_predictions.or(base.max_concurrent_predictions);
+        if let Some(v) = &self.system_prompt {
+            base.system_prompt = v.clone();
+        }
+        if let Some(v) = &self.system_prompt_preset_name {
+            base.system_prompt_preset_name = v.clone();
+        }
+        base.max_concurrent_predictions = self
+            .max_concurrent_predictions
+            .or(base.max_concurrent_predictions);
         base.threads = self.threads.unwrap_or(base.threads);
         base.threads_batch = self.threads_batch.unwrap_or(base.threads_batch);
         base.parallel = self.parallel.unwrap_or(base.parallel);
@@ -368,17 +383,29 @@ impl ModelOverride {
             _ => crate::models::GpuLayersMode::Auto,
         };
         base.split_mode = self.split_mode.unwrap_or(base.split_mode);
-        if let Some(v) = &self.tensor_split { base.tensor_split = v.clone(); }
+        if let Some(v) = &self.tensor_split {
+            base.tensor_split = v.clone();
+        }
         base.main_gpu = self.main_gpu.unwrap_or(base.main_gpu);
         base.fit = self.fit.unwrap_or(base.fit);
-        if let Some(v) = &self.lora { base.lora = Some(v.clone()); }
-        if let Some(v) = &self.lora_scaled { base.lora_scaled = Some(v.clone()); }
-        if let Some(v) = &self.rpc { base.rpc = v.clone(); }
+        if let Some(v) = &self.lora {
+            base.lora = Some(v.clone());
+        }
+        if let Some(v) = &self.lora_scaled {
+            base.lora_scaled = Some(v.clone());
+        }
+        if let Some(v) = &self.rpc {
+            base.rpc = v.clone();
+        }
         base.embedding = self.embedding.unwrap_or(base.embedding);
         base.flash_attn = self.flash_attn.unwrap_or(base.flash_attn);
         base.jinja = self.jinja.unwrap_or(base.jinja);
-        if let Some(v) = &self.chat_template { base.chat_template = Some(v.clone()); }
-        if let Some(v) = &self.chat_template_kwargs { base.chat_template_kwargs = Some(v.clone()); }
+        if let Some(v) = &self.chat_template {
+            base.chat_template = Some(v.clone());
+        }
+        if let Some(v) = &self.chat_template_kwargs {
+            base.chat_template_kwargs = Some(v.clone());
+        }
         base.expert_count = self.expert_count.unwrap_or(base.expert_count);
         base.seed = self.seed.unwrap_or(base.seed);
         base.temperature = self.temperature.unwrap_or(base.temperature);
@@ -390,7 +417,9 @@ impl ModelOverride {
         base.mirostat_lr = self.mirostat_lr.unwrap_or(base.mirostat_lr);
         base.mirostat_ent = self.mirostat_ent.unwrap_or(base.mirostat_ent);
         base.ignore_eos = self.ignore_eos.unwrap_or(base.ignore_eos);
-        if let Some(v) = &self.samplers { base.samplers = v.clone(); }
+        if let Some(v) = &self.samplers {
+            base.samplers = v.clone();
+        }
         base.repeat_penalty = self.repeat_penalty.unwrap_or(base.repeat_penalty);
         base.repeat_last_n = self.repeat_last_n.unwrap_or(base.repeat_last_n);
         base.presence_penalty = self.presence_penalty;
@@ -409,20 +438,44 @@ impl ModelOverride {
         base.webui = self.webui.unwrap_or(base.webui);
         base.max_tokens = self.max_tokens;
         base.cache_type = self.cache_type.unwrap_or(base.cache_type);
-        if let Some(v) = &self.llama_cpp_version_cpu { base.llama_cpp_version_cpu = Some(v.clone()); }
-        if let Some(v) = &self.llama_cpp_version_vulkan { base.llama_cpp_version_vulkan = Some(v.clone()); }
-        if let Some(v) = &self.llama_cpp_version_rocm { base.llama_cpp_version_rocm = Some(v.clone()); }
-        if let Some(v) = &self.llama_cpp_version_rocm_lemonade { base.llama_cpp_version_rocm_lemonade = Some(v.clone()); }
-        if let Some(v) = &self.llama_cpp_version_cuda { base.llama_cpp_version_cuda = Some(v.clone()); }
-        if let Some(v) = &self.spec_type { base.spec_type = v.clone(); }
-        if let Some(v) = self.draft_tokens { base.draft_tokens = v; }
-        if let Some(v) = &self.tags { base.tags = v.clone(); }
+        if let Some(v) = &self.llama_cpp_version_cpu {
+            base.llama_cpp_version_cpu = Some(v.clone());
+        }
+        if let Some(v) = &self.llama_cpp_version_vulkan {
+            base.llama_cpp_version_vulkan = Some(v.clone());
+        }
+        if let Some(v) = &self.llama_cpp_version_rocm {
+            base.llama_cpp_version_rocm = Some(v.clone());
+        }
+        if let Some(v) = &self.llama_cpp_version_rocm_lemonade {
+            base.llama_cpp_version_rocm_lemonade = Some(v.clone());
+        }
+        if let Some(v) = &self.llama_cpp_version_cuda {
+            base.llama_cpp_version_cuda = Some(v.clone());
+        }
+        if let Some(v) = &self.spec_type {
+            base.spec_type = v.clone();
+        }
+        if let Some(v) = self.draft_tokens {
+            base.draft_tokens = v;
+        }
+        if let Some(v) = &self.tags {
+            base.tags = v.clone();
+        }
         base.ws_server_enabled = self.ws_server_enabled.unwrap_or(base.ws_server_enabled);
         base.ws_server_port = self.ws_server_port.unwrap_or(base.ws_server_port);
-        if let Some(v) = &self.ws_server_auth_key { base.ws_server_auth_key = Some(v.clone()); }
-        base.ws_server_tls_enabled = self.ws_server_tls_enabled.unwrap_or(base.ws_server_tls_enabled);
-        if let Some(v) = &self.ws_server_tls_cert { base.ws_server_tls_cert = Some(v.clone()); }
-        if let Some(v) = &self.ws_server_tls_key { base.ws_server_tls_key = Some(v.clone()); }
+        if let Some(v) = &self.ws_server_auth_key {
+            base.ws_server_auth_key = Some(v.clone());
+        }
+        base.ws_server_tls_enabled = self
+            .ws_server_tls_enabled
+            .unwrap_or(base.ws_server_tls_enabled);
+        if let Some(v) = &self.ws_server_tls_cert {
+            base.ws_server_tls_cert = Some(v.clone());
+        }
+        if let Some(v) = &self.ws_server_tls_key {
+            base.ws_server_tls_key = Some(v.clone());
+        }
     }
 }
 
@@ -732,14 +785,30 @@ fn default_system_prompt_preset_name() -> String {
     "General".to_string()
 }
 
-fn default_cache_type_k() -> Option<CacheTypeK> { None }
-fn default_cache_type_v() -> Option<CacheTypeV> { None }
-fn default_presence_penalty() -> Option<f32> { None }
-fn default_frequency_penalty() -> Option<f32> { None }
-fn default_max_tokens() -> Option<u32> { None }
-fn default_cache_prompt() -> bool { true }
-fn default_ws_server_port() -> u16 { 49223 }
-fn default_gpu_layers_mode() -> crate::models::GpuLayersMode { crate::models::GpuLayersMode::Auto }
+fn default_cache_type_k() -> Option<CacheTypeK> {
+    None
+}
+fn default_cache_type_v() -> Option<CacheTypeV> {
+    None
+}
+fn default_presence_penalty() -> Option<f32> {
+    None
+}
+fn default_frequency_penalty() -> Option<f32> {
+    None
+}
+fn default_max_tokens() -> Option<u32> {
+    None
+}
+fn default_cache_prompt() -> bool {
+    true
+}
+fn default_ws_server_port() -> u16 {
+    49223
+}
+fn default_gpu_layers_mode() -> crate::models::GpuLayersMode {
+    crate::models::GpuLayersMode::Auto
+}
 
 impl Default for DefaultParams {
     fn default() -> Self {
@@ -831,13 +900,22 @@ impl Default for DefaultParams {
             max_tokens: None,
             cache_type: CacheType::F16,
             backend: {
-                use crate::backend::hardware::{detect_gpu_vendors, GpuVendor};
+                use crate::backend::hardware::{GpuVendor, detect_gpu_vendors};
                 let vendors = detect_gpu_vendors();
                 let mut result = Backend::Cpu;
                 for v in &vendors {
-                    if matches!(v, GpuVendor::Nvidia) { result = Backend::Cuda; break; }
-                    if matches!(v, GpuVendor::Amd) { result = Backend::Rocm; break; }
-                    if matches!(v, GpuVendor::Intel) { result = Backend::Vulkan; break; }
+                    if matches!(v, GpuVendor::Nvidia) {
+                        result = Backend::Cuda;
+                        break;
+                    }
+                    if matches!(v, GpuVendor::Amd) {
+                        result = Backend::Rocm;
+                        break;
+                    }
+                    if matches!(v, GpuVendor::Intel) {
+                        result = Backend::Vulkan;
+                        break;
+                    }
                 }
                 result
             },
@@ -859,7 +937,12 @@ impl Default for DefaultParams {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            models_dirs: vec![dirs::data_dir().unwrap_or_default().join("llm-manager").join("models")],
+            models_dirs: vec![
+                dirs::data_dir()
+                    .unwrap_or_default()
+                    .join("llm-manager")
+                    .join("models"),
+            ],
             llama_server: "llama-server".into(),
             default: DefaultParams::default(),
             model_overrides: Default::default(),
@@ -912,7 +995,9 @@ impl Config {
                 default.top_p
             ));
         }
-        if (default.repeat_penalty < 0.0 || default.repeat_penalty > 3.0) && default.repeat_penalty != 1.0 {
+        if (default.repeat_penalty < 0.0 || default.repeat_penalty > 3.0)
+            && default.repeat_penalty != 1.0
+        {
             warnings.push(format!(
                 "repeat_penalty {} is outside recommended range 0.0-3.0",
                 default.repeat_penalty
@@ -929,7 +1014,7 @@ impl Config {
                 "mirostat_ent {} is outside recommended range 0.0-10.0",
                 default.mirostat_ent
             ));
-       }
+        }
 
         if default.timeout < 1 {
             warnings.push(format!(
@@ -948,7 +1033,7 @@ impl Config {
             if !lora.exists() {
                 warnings.push(format!("lora path {} does not exist", lora.display()));
             }
-       }
+        }
 
         // Model override validation
         for model_name in self.model_overrides.keys() {
@@ -957,7 +1042,8 @@ impl Config {
                     if !lora.exists() {
                         warnings.push(format!(
                             "model '{}' lora path {} does not exist",
-                            model_name, lora.display()
+                            model_name,
+                            lora.display()
                         ));
                     }
                 }
@@ -965,7 +1051,8 @@ impl Config {
                     if !lora.exists() {
                         warnings.push(format!(
                             "model '{}' lora path {} does not exist",
-                            model_name, lora.display()
+                            model_name,
+                            lora.display()
                         ));
                     }
                 }
@@ -976,14 +1063,19 @@ impl Config {
     }
 
     /// Resolve settings for a specific model and profile.
-    pub fn resolve_settings(&self, model_name: Option<&str>, profile_name: Option<&str>) -> crate::models::ModelSettings {
+    pub fn resolve_settings(
+        &self,
+        model_name: Option<&str>,
+        profile_name: Option<&str>,
+    ) -> crate::models::ModelSettings {
         let mut settings = crate::models::ModelSettings::from_config(self);
 
         // Apply model-specific override
         if let Some(name) = model_name
-            && let Some(override_settings) = self.model_overrides.get(name) {
-                override_settings.apply(&mut settings);
-            }
+            && let Some(override_settings) = self.model_overrides.get(name)
+        {
+            override_settings.apply(&mut settings);
+        }
 
         // Apply profile override if specified
         if let Some(p_name) = profile_name {
@@ -999,7 +1091,9 @@ impl Config {
 
     /// Get a system prompt preset content by name.
     pub fn get_preset_content(&self, name: &str) -> Option<String> {
-        self.system_prompt_presets.get(name).map(|p| p.content.clone())
+        self.system_prompt_presets
+            .get(name)
+            .map(|p| p.content.clone())
     }
 
     fn normalize_config(mut config: Config) -> Config {
@@ -1033,9 +1127,8 @@ impl Config {
 
     fn load_impl(path: &PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
-        let config: Config = serde_yaml::from_str(&content).map_err(|e| {
-            format!("Failed to parse config file {}: {}", path.display(), e)
-        })?;
+        let config: Config = serde_yaml::from_str(&content)
+            .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
         let config = Self::normalize_config(config);
         let config = config.auto_detect_platform();
         let warnings = config.validate();
@@ -1070,7 +1163,13 @@ impl Config {
     /// Auto-detect the platform if not explicitly set in config.
     fn auto_detect_platform(mut self) -> Self {
         if self.default.platform.is_none() {
-            self.default.platform = Some(crate::backend::hardware::platform_name(crate::backend::hardware::detect_platform()).to_string());
+            self.default.platform =
+                Some(
+                    crate::backend::hardware::platform_name(
+                        crate::backend::hardware::detect_platform(),
+                    )
+                    .to_string(),
+                );
         }
         self
     }
@@ -1083,7 +1182,9 @@ impl Config {
         let content = serde_yaml::to_string(self)?;
         std::fs::write(&path, content)?;
         // Persist model configs to individual YAML files
-        let entries: Vec<(String, ModelOverride)> = self.model_overrides.keys()
+        let entries: Vec<(String, ModelOverride)> = self
+            .model_overrides
+            .keys()
             .iter()
             .filter_map(|k| self.model_overrides.get(k).map(|v| (k.clone(), v.clone())))
             .collect();
@@ -1108,8 +1209,7 @@ impl Config {
     pub fn merged_presets(&self) -> Vec<SystemPromptPreset> {
         self.system_prompt_presets.all()
     }
-
- }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogLevel {
@@ -1169,10 +1269,10 @@ fn sanitize_log(input: &str) -> String {
         }
         output.push(c);
     }
-    
+
     // Replace tabs with spaces for consistent rendering
     let output = output.replace('\t', "    ");
-    
+
     // Final trim to remove trailing junk
     let mut result = output.trim_end().to_string();
     if truncated {
