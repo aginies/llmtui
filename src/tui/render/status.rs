@@ -136,21 +136,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         }
     }
 
-    if app.ui.resize_state.is_some() {
-        parts.push(Span::raw("  "));
-        parts.push(Span::styled(
-            format!("│ {}% ← resize →", app.ui.left_pct),
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-        ));
-    } else if !app.is_panel_visible(1) && !app.is_panel_visible(3) && !matches!(app.ui.active_panel, ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme) {
-        // Only show resize hint when both settings panels are visible
-    } else {
-        parts.push(Span::raw("  "));
-        parts.push(Span::styled(
-            format!("│ {}%", app.ui.left_pct),
-            Style::default().fg(Color::DarkGray),
-        ));
-    }
+ 
 
     let left_width: usize = parts.iter().map(|s| s.width()).sum();
     let remaining = panel_area.width.saturating_sub(left_width as u16) as usize;

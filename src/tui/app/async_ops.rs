@@ -793,6 +793,7 @@ impl App {
                     let host_clone = host.clone();
                     let port_clone = port;
                     let model_name_task = model_name_clone.clone();
+                    let loaded_names_clone = self.server.loaded_model_names.clone();
                     self.background_tasks.insert(
                         format!("api_unload_{}", model_name_task),
                         tokio::spawn(async move {
@@ -803,20 +804,34 @@ impl App {
                                 return;
                             }
                             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                            
+                            let mut should_stop = false;
+                            
                             if let Ok(loaded) = crate::backend::server::list_models(&host_clone, port_clone).await {
                                 if loaded.is_empty() {
-                                    if let Some(tx) = kill_tx {
-                                        let _ = tx.send("No models left, stopping router...".to_string()).await;
-                                    }
-                                    if let Some(server) = server_clone {
-                                        let _ = crate::backend::server::kill_server(server).await;
-                                        if let Some(tx) = kill_tx2 {
-                                            let _ = tx.send("Server stopped".to_string()).await;
-                                        }
-                                    }
+                                    should_stop = true;
                                 } else {
-                                    if let Some(tx) = kill_tx {
+                                    if let Some(tx) = kill_tx.clone() {
                                         let _ = tx.send(format!("{} models still loaded on server", loaded.len())).await;
+                                    }
+                                }
+                            }
+                            
+                            if !should_stop {
+                                let loaded_names = loaded_names_clone.lock().unwrap_or_else(|e| e.into_inner());
+                                if loaded_names.is_empty() {
+                                    should_stop = true;
+                                }
+                            }
+                            
+                            if should_stop {
+                                if let Some(tx) = kill_tx {
+                                    let _ = tx.send("No models left, stopping router...".to_string()).await;
+                                }
+                                if let Some(server) = server_clone {
+                                    let _ = crate::backend::server::kill_server(server).await;
+                                    if let Some(tx) = kill_tx2 {
+                                        let _ = tx.send("Server stopped".to_string()).await;
                                     }
                                 }
                             }
@@ -950,7 +965,7 @@ impl App {
     pub fn update_metrics_model_name(&mut self) {
         let active_loaded_model = if let Some(model) = self.selected_model() {
             if self.is_model_loaded(&model.display_name) {
-                Some(model.name.clone())
+                Some(model.display_name.clone())
             } else {
                 // Fallback to the first actually loaded model
                 let lock = self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
