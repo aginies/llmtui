@@ -149,6 +149,34 @@ async fn proxy_streaming(
     }
 }
 
+/// Simple health check endpoint - no auth, verifies backend
+async fn health(State(state): State<ApiState>) -> impl IntoResponse {
+    let resp = state.client.get(format!("{}/health", state.server_url))
+        .send()
+        .await;
+    
+    match resp {
+        Ok(response) if response.status().is_success() => {
+            Json(serde_json::json!({
+                "status": "ok",
+                "backend": "healthy"
+            }))
+        }
+        Ok(_) => {
+            Json(serde_json::json!({
+                "status": "degraded",
+                "backend": "unreachable"
+            }))
+        }
+        Err(_) => {
+            Json(serde_json::json!({
+                "status": "degraded",
+                "backend": "unreachable"
+            }))
+        }
+    }
+}
+
 /// Custom status endpoint.
 async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     let uptime = state.start_time.elapsed();
@@ -195,7 +223,9 @@ pub async fn start_api_server(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
-    let client = Client::new();
+    let client = Client::builder()
+        .pool_max_idle_per_host(20)
+        .build()?;
     let state = ApiState {
         server_url: format!("http://127.0.0.1:{}", server_port),
         api_key,
@@ -231,7 +261,7 @@ pub async fn start_api_server(
     }
 
     let app = Router::new()
-        .route("/health", get(proxy_streaming))
+        .route("/health", get(health))
         .route("/metrics", get(proxy_streaming))
         .merge(
             Router::new()
@@ -242,11 +272,11 @@ pub async fn start_api_server(
                 .route("/api/status", get(status))
                 .fallback(proxy_streaming)
                 .layer(cors)
+                .layer(TraceLayer::new_for_http())
                 .layer(axum::middleware::from_fn_with_state(
                     state.clone(),
                     auth_middleware,
-                ))
-                .layer(TraceLayer::new_for_http()),
+                )),
         )
         .with_state(state);
 
