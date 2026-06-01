@@ -116,6 +116,10 @@ pub enum GlobalMode {
     BenchTuneSetup {
         config: BenchTuneConfig,
         selected_idx: usize,
+        editing_param: bool,
+        editing_param_field: i32,
+        param_edit_buffer: String,
+        param_edit_cursor_pos: usize,
         bench_mode_selection: usize,
         editing_prompt: bool,
         editing_kwargs: bool,

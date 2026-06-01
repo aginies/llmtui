@@ -66,8 +66,8 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
-    if let GlobalMode::BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs: _ } = &app.ui.global_mode {
-        render_bench_tune_setup(f, f.area(), app, config, *selected_idx, *bench_mode_selection, *editing_prompt);
+   if let GlobalMode::BenchTuneSetup { config, selected_idx, editing_param, editing_param_field, param_edit_buffer, param_edit_cursor_pos, bench_mode_selection, editing_prompt, editing_kwargs: _ } = &app.ui.global_mode {
+        render_bench_tune_setup(f, f.area(), app, config, *selected_idx, *editing_param, *editing_param_field, param_edit_buffer, *param_edit_cursor_pos, *bench_mode_selection, *editing_prompt);
         return true;
     }
 
@@ -348,9 +348,9 @@ fn render_backend_picker(f: &mut Frame, area: Rect, entries: &Vec<(crate::models
     f.render_widget(Paragraph::new(picker_lines).block(Block::default().title(" Backend Picker ").borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), picker_area);
 }
 
-fn render_bench_tune_setup(f: &mut Frame, area: Rect, app: &App, config: &crate::models::BenchTuneConfig, selected_idx: usize, bench_mode_selection: usize, editing_prompt: bool) {
+ fn render_bench_tune_setup(f: &mut Frame, area: Rect, app: &App, config: &crate::models::BenchTuneConfig, selected_idx: usize, editing_param: bool, editing_param_field: i32, param_edit_buffer: &str, param_edit_cursor_pos: usize, bench_mode_selection: usize, editing_prompt: bool) {
     let w = 70u16;
-    let h = 26u16;
+    let h = 28u16;
     let popup_area = Rect { x: (area.width.saturating_sub(w)) / 2, y: (area.height.saturating_sub(h)) / 2, width: w.min(area.width), height: h.min(area.height) };
     let mode_idx = bench_mode_selection.min(1);
     let mode_name = if mode_idx == 0 { "Runtime Only" } else { "Full (inc. load)" };
@@ -384,31 +384,70 @@ fn render_bench_tune_setup(f: &mut Frame, area: Rect, app: &App, config: &crate:
         vec![Line::from(prompt_content), Line::from(vec![Span::styled(format!(" [{} chars] ", config.prompt.len()), Style::default().fg(Color::DarkGray))])]
     };
     f.render_widget(Paragraph::new(prompt_lines).block(Block::default().title(prompt_title).borders(Borders::ALL).border_style(Style::default().fg(if editing_prompt { Color::Green } else { Color::DarkGray }))).wrap(Wrap { trim: true }), regions[3]);
-    f.render_widget(Paragraph::new(Line::from(vec![Span::raw(" Select parameters to vary:"), Span::styled(" (Space to toggle)", Style::default().fg(Color::DarkGray))])), regions[5]);
+
+    let param_header = if editing_param && selected_idx < config.params_to_test.len() {
+        let field_names = ["Min", "Max", "Step"];
+        let active_field_name = field_names[editing_param_field as usize];
+        Line::from(vec![
+            Span::raw(" Select parameters to vary: ("),
+            Span::styled("Press E to edit", Style::default().fg(Color::Yellow)),
+            Span::raw(")  "),
+            Span::styled(format!("Editing: {} ", active_field_name), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        ])
+    } else {
+        Line::from(vec![Span::raw(" Select parameters to vary:"), Span::styled(" (Space to toggle)", Style::default().fg(Color::DarkGray))])
+    };
+    f.render_widget(Paragraph::new(param_header), regions[5]);
+
     let data_rows: Vec<Row> = config.params_to_test.iter().enumerate().map(|(i, p)| {
         let marker = if i == selected_idx { ">" } else { " " };
         let checkbox = if p.enabled { "[X]" } else { "[ ]" };
         let name = p.name.replace("_", " ");
-        let desc_str = match p.name.as_str() {
-            "flash_attn" => "(On/Off)".to_string(),
-            "threads" => format!("{} to {}, step {}", p.min as u32, p.max as u32, p.step as u32),
-            "top_k" => format!("{} to {}, step {}", p.min as i32, p.max as i32, p.step as i32),
-            "expert_count" => format!("{} to {}, step {}", p.min as i32, p.max as i32, p.step as i32),
-            _ => format!("{:.1} to {:.1}, step {:.1}", p.min, p.max, p.step),
+        let is_selected = i == selected_idx;
+        let desc_str = if editing_param && is_selected && editing_param_field >= 0 {
+            let cursor_pos = param_edit_cursor_pos.min(param_edit_buffer.len());
+            let before: String = param_edit_buffer.chars().take(cursor_pos).collect();
+            let after: String = param_edit_buffer.chars().skip(cursor_pos).collect();
+            let cursor_char = if editing_param && is_selected { "|" } else { "" };
+            let fields: Vec<String> = (0..=2).map(|f| {
+                if f as i32 == editing_param_field {
+                    format!("[{}{}{}]", before, after, cursor_char)
+                } else {
+                    match f {
+                        0 => format!("{:.2}", p.min),
+                        1 => format!("{:.2}", p.max),
+                        _ => format!("{:.2}", p.step),
+                    }
+                }
+            }).collect();
+            format!("[{} {} {}]", fields[0], fields[1], fields[2])
+        } else {
+            match p.name.as_str() {
+                "flash_attn" => "(On/Off)".to_string(),
+                "threads" => format!("{} to {}, step {}", p.min as u32, p.max as u32, p.step as u32),
+                "top_k" => format!("{} to {}, step {}", p.min as i64, p.max as i64, p.step as i64),
+                "expert_count" => format!("{} to {}, step {}", p.min as i32, p.max as i32, p.step as i32),
+                _ => format!("{:.2} to {:.2}, step {:.2}", p.min, p.max, p.step),
+            }
         };
-        let row_style = if i == selected_idx { Style::default().fg(Color::Black).bg(Color::Yellow) } else { Style::default().fg(Color::White) };
+        let row_style = if is_selected { Style::default().fg(Color::Black).bg(Color::Yellow) } else { Style::default().fg(Color::White) };
+        let desc_style = if editing_param && is_selected && editing_param_field >= 0 {
+            Style::default().fg(Color::Blue)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
         Row::new(vec![
             Cell::from(Span::styled(marker, Style::default().fg(Color::Yellow))),
             Cell::from(Span::styled(checkbox, if p.enabled { Style::default().fg(Color::Green) } else { Style::default().fg(Color::DarkGray) })),
             Cell::from(name),
-            Cell::from(Span::styled(desc_str, Style::default().fg(Color::DarkGray))),
+            Cell::from(Span::styled(desc_str, desc_style)),
         ]).style(row_style)
     }).collect();
     let table = Table::new(data_rows, [Constraint::Length(2), Constraint::Length(4), Constraint::Length(16), Constraint::Fill(1)]);
     f.render_widget(table, regions[6]);
     let total_tests = config.get_total_tests_count();
     let footer_lines = vec![
-        Line::from(vec![Span::raw(" Total tests: "), Span::styled(total_tests.to_string(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)), Span::raw("  |  "), Span::styled(" [Alt+M]", Style::default().fg(Color::Yellow)), Span::raw(" Mode "), Span::styled(" [Alt+N]", Style::default().fg(Color::Yellow)), Span::raw(" Tokens "), Span::styled(" [Alt+I]", Style::default().fg(Color::Yellow)), Span::raw(" Iters ")]),
+        Line::from(vec![Span::raw(" Total tests: "), Span::styled(total_tests.to_string(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)), Span::raw("  |  "), Span::styled(" [Alt+M]", Style::default().fg(Color::Yellow)), Span::raw(" Mode "), Span::styled(" [Alt+N]", Style::default().fg(Color::Yellow)), Span::raw(" Tokens "), Span::styled(" [Alt+I]", Style::default().fg(Color::Yellow)), Span::raw(" Iters "), Span::styled(" [E]", Style::default().fg(Color::Yellow)), Span::raw(" Range]")]),
         Line::from(vec![Span::styled(" [Enter]", Style::default().fg(Color::Yellow)), Span::styled(" START ", Style::default().fg(Color::Black).bg(Color::Green)), Span::raw("  "), Span::styled(" [Esc]", Style::default().fg(Color::Yellow)), Span::raw(" Cancel ")]),
     ];
     f.render_widget(Paragraph::new(footer_lines).alignment(Alignment::Center), regions[7]);

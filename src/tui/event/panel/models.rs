@@ -112,6 +112,10 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             app.ui.global_mode = crate::tui::app::GlobalMode::BenchTuneSetup {
                                 config: bench_tune_config,
                                 selected_idx: 0,
+                                editing_param: false,
+                                editing_param_field: 0,
+                                param_edit_buffer: String::new(),
+                                param_edit_cursor_pos: 0,
                                 bench_mode_selection: 0,
                                 editing_prompt: false,
                                 editing_kwargs: false,
