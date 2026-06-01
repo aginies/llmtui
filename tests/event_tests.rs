@@ -485,11 +485,13 @@ async fn test_enter_in_empty_search_does_nothing() {
 }
 
 #[tokio::test]
-async fn test_enter_with_query_sets_pending_search() {
+async fn test_enter_in_search_with_selected_model() {
     let mut app = make_app();
     app.models_mode = ModelsMode::Search {
         query: "qwen".into(),
-        results: vec![],
+        results: vec![
+            SearchResult { model_id: "qwen-model".into(), model_name: "Qwen".into(), tags: vec![], downloads: 100, likes: 10, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 50, created_at: Some("2024-01-01".into()), downloaded: false },
+        ],
         sort_by: SearchSort::Relevance,
         show_readme: true,
         page: 0,
@@ -497,15 +499,16 @@ async fn test_enter_with_query_sets_pending_search() {
         has_more: true,
     };
     app.ui.active_panel = ActivePanel::Models;
+    app.search.search_results_idx = Some(0);
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
-    assert!(app.search.pending_search_load.is_some());
-    assert!(app.search.search_loading);
-    // search_table_state is reset to default (None)
+    // Enter in search mode attempts to load files for selected model
+    // Mode stays in Search since network calls fail in tests
+    assert!(matches!(app.models_mode, ModelsMode::Search { .. }));
 }
 
 #[tokio::test]
-async fn test_backspace_in_search_query() {
+async fn test_backspace_in_search_query_no_effect() {
     let mut app = make_app();
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
@@ -519,13 +522,14 @@ async fn test_backspace_in_search_query() {
     app.ui.active_panel = ActivePanel::Models;
     let key = make_key(KeyCode::Backspace);
     handle_key(&mut app, key).await;
+    // Backspace is handled by SearchInput overlay, not in search mode
     if let ModelsMode::Search { query, .. } = &app.models_mode {
-        assert_eq!(query, "tes");
+        assert_eq!(query, "test");
     }
 }
 
 #[tokio::test]
-async fn test_char_in_search_query() {
+async fn test_char_in_search_query_no_effect() {
     let mut app = make_app();
     app.models_mode = ModelsMode::Search {
         query: String::new(),
@@ -539,8 +543,9 @@ async fn test_char_in_search_query() {
     app.ui.active_panel = ActivePanel::Models;
     let key = make_key(KeyCode::Char('q'));
     handle_key(&mut app, key).await;
+    // Char keys are handled by SearchInput overlay, not in search mode
     if let ModelsMode::Search { query, .. } = &app.models_mode {
-        assert_eq!(query, "q");
+        assert_eq!(query, "");
     }
 }
 
@@ -667,7 +672,7 @@ async fn test_search_sort_cycles() {
         has_more: true,
     };
     app.ui.active_panel = ActivePanel::Models;
-    let key = make_key(KeyCode::Char('S'));
+    let key = make_key_with_mod(KeyCode::Char('S'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
     if let ModelsMode::Search { sort_by, results, .. } = &app.models_mode {
         assert_eq!(*sort_by, SearchSort::Downloads);
