@@ -264,6 +264,37 @@ pub struct ModelOverride {
     pub tags: Option<Vec<String>>,
 }
 
+/// Apply a scalar Copy field from override: `base.f = self.f.unwrap_or(base.f)`.
+macro_rules! apply_scalar {
+    ($self:ident, $base:ident, $($field:ident),+ $(,)?) => {
+        $(
+            $base.$field = $self.$field.unwrap_or($base.$field);
+        )+
+    };
+}
+
+/// Apply a Clone field from override: `if let Some(v) = &self.f { base.f = v.clone(); }`.
+macro_rules! apply_clone {
+    ($self:ident, $base:ident, $($field:ident),+ $(,)?) => {
+        $(
+            if let Some(v) = &$self.$field {
+                $base.$field = v.clone();
+            }
+        )+
+    };
+}
+
+/// Apply an Option<T> field from override: `if let Some(v) = &self.f { base.f = Some(v.clone()); }`.
+macro_rules! apply_option {
+    ($self:ident, $base:ident, $($field:ident),+ $(,)?) => {
+        $(
+            if let Some(v) = &$self.$field {
+                $base.$field = Some(v.clone());
+            }
+        )+
+    };
+}
+
 impl ModelOverride {
     pub fn from_settings(s: &crate::models::ModelSettings) -> Self {
         Self {
@@ -354,128 +385,69 @@ impl ModelOverride {
     pub fn apply(&self, base: &mut crate::models::ModelSettings) {
         // Override values always take precedence. For Option<T> fields,
         // the override value (even None) is explicitly set by the user.
-        base.context_length = self.context_length.unwrap_or(base.context_length);
-        base.batch_size = self.batch_size.unwrap_or(base.batch_size);
-        base.ubatch_size = self.ubatch_size.unwrap_or(base.ubatch_size);
+
+        // Scalar Copy fields: base.f = self.f.unwrap_or(base.f)
+        apply_scalar!(self, base,
+            context_length, batch_size, ubatch_size, keep, swa_full, mlock, mmap,
+            numa, uniform_cache, kv_cache_offload, threads, threads_batch, parallel,
+            split_mode, main_gpu, fit, embedding, flash_attn, jinja, expert_count,
+            seed, temperature, top_k, top_p, min_p, typical_p,
+            mirostat, mirostat_lr, mirostat_ent, ignore_eos,
+            repeat_penalty, repeat_last_n,
+            dry_multiplier, dry_base, dry_allowed_length, dry_penalty_last_n,
+            rope_scaling, rope_scale, rope_freq_base, rope_freq_scale, rope_yarn_enabled,
+            cache_prompt, cache_reuse, webui, cache_type,
+            ws_server_enabled, ws_server_port, ws_server_tls_enabled,
+            draft_tokens,
+        );
+
+        // Cloneable fields: if let Some(v) = &self.f { base.f = v.clone(); }
+        apply_clone!(self, base,
+            system_prompt, system_prompt_preset_name, tensor_split, rpc,
+            samplers, spec_type, tags,
+        );
+
+        // Option<T> fields: if let Some(v) = &self.f { base.f = Some(v.clone()); }
+        apply_option!(self, base,
+            lora, lora_scaled, chat_template, chat_template_kwargs,
+            llama_cpp_version_cpu, llama_cpp_version_vulkan,
+            llama_cpp_version_rocm, llama_cpp_version_rocm_lemonade,
+            llama_cpp_version_cuda,
+            ws_server_auth_key, ws_server_tls_cert, ws_server_tls_key,
+        );
+
+        // Direct Option<T> assignment (same type in both structs)
         base.cache_type_k = self.cache_type_k;
         base.cache_type_v = self.cache_type_v;
-        base.keep = self.keep.unwrap_or(base.keep);
-        base.swa_full = self.swa_full.unwrap_or(base.swa_full);
-        base.mlock = self.mlock.unwrap_or(base.mlock);
-        base.mmap = self.mmap.unwrap_or(base.mmap);
-        base.numa = self.numa.unwrap_or(base.numa);
-        base.uniform_cache = self.uniform_cache.unwrap_or(base.uniform_cache);
-        base.kv_cache_offload = self.kv_cache_offload.unwrap_or(base.kv_cache_offload);
-        if let Some(v) = &self.system_prompt {
-            base.system_prompt = v.clone();
-        }
-        if let Some(v) = &self.system_prompt_preset_name {
-            base.system_prompt_preset_name = v.clone();
-        }
+        base.presence_penalty = self.presence_penalty;
+        base.frequency_penalty = self.frequency_penalty;
+        base.max_tokens = self.max_tokens;
+
+        // Special: max_concurrent_predictions uses or() for Option chaining
         base.max_concurrent_predictions = self
             .max_concurrent_predictions
             .or(base.max_concurrent_predictions);
-        base.threads = self.threads.unwrap_or(base.threads);
-        base.threads_batch = self.threads_batch.unwrap_or(base.threads_batch);
-        base.parallel = self.parallel.unwrap_or(base.parallel);
+
+        // Special: gpu_layers converts i32 legacy field to GpuLayersMode enum
         base.gpu_layers_mode = match self.gpu_layers.unwrap_or(-1) {
             n if n < 0 => crate::models::GpuLayersMode::All,
             _ => crate::models::GpuLayersMode::Auto,
         };
-        base.split_mode = self.split_mode.unwrap_or(base.split_mode);
-        if let Some(v) = &self.tensor_split {
-            base.tensor_split = v.clone();
-        }
-        base.main_gpu = self.main_gpu.unwrap_or(base.main_gpu);
-        base.fit = self.fit.unwrap_or(base.fit);
-        if let Some(v) = &self.lora {
-            base.lora = Some(v.clone());
-        }
-        if let Some(v) = &self.lora_scaled {
-            base.lora_scaled = Some(v.clone());
-        }
-        if let Some(v) = &self.rpc {
-            base.rpc = v.clone();
-        }
-        base.embedding = self.embedding.unwrap_or(base.embedding);
-        base.flash_attn = self.flash_attn.unwrap_or(base.flash_attn);
-        base.jinja = self.jinja.unwrap_or(base.jinja);
-        if let Some(v) = &self.chat_template {
-            base.chat_template = Some(v.clone());
-        }
-        if let Some(v) = &self.chat_template_kwargs {
-            base.chat_template_kwargs = Some(v.clone());
-        }
-        base.expert_count = self.expert_count.unwrap_or(base.expert_count);
-        base.seed = self.seed.unwrap_or(base.seed);
-        base.temperature = self.temperature.unwrap_or(base.temperature);
-        base.top_k = self.top_k.unwrap_or(base.top_k);
-        base.top_p = self.top_p.unwrap_or(base.top_p);
-        base.min_p = self.min_p.unwrap_or(base.min_p);
-        base.typical_p = self.typical_p.unwrap_or(base.typical_p);
-        base.mirostat = self.mirostat.unwrap_or(base.mirostat);
-        base.mirostat_lr = self.mirostat_lr.unwrap_or(base.mirostat_lr);
-        base.mirostat_ent = self.mirostat_ent.unwrap_or(base.mirostat_ent);
-        base.ignore_eos = self.ignore_eos.unwrap_or(base.ignore_eos);
-        if let Some(v) = &self.samplers {
-            base.samplers = v.clone();
-        }
-        base.repeat_penalty = self.repeat_penalty.unwrap_or(base.repeat_penalty);
-        base.repeat_last_n = self.repeat_last_n.unwrap_or(base.repeat_last_n);
-        base.presence_penalty = self.presence_penalty;
-        base.frequency_penalty = self.frequency_penalty;
-        base.dry_multiplier = self.dry_multiplier.unwrap_or(base.dry_multiplier);
-        base.dry_base = self.dry_base.unwrap_or(base.dry_base);
-        base.dry_allowed_length = self.dry_allowed_length.unwrap_or(base.dry_allowed_length);
-        base.dry_penalty_last_n = self.dry_penalty_last_n.unwrap_or(base.dry_penalty_last_n);
-        base.rope_scaling = self.rope_scaling.unwrap_or(base.rope_scaling);
-        base.rope_scale = self.rope_scale.unwrap_or(base.rope_scale);
-        base.rope_freq_base = self.rope_freq_base.unwrap_or(base.rope_freq_base);
-        base.rope_freq_scale = self.rope_freq_scale.unwrap_or(base.rope_freq_scale);
-        base.rope_yarn_enabled = self.rope_yarn_enabled.unwrap_or(base.rope_yarn_enabled);
-        base.cache_prompt = self.cache_prompt.unwrap_or(base.cache_prompt);
-        base.cache_reuse = self.cache_reuse.unwrap_or(base.cache_reuse);
-        base.webui = self.webui.unwrap_or(base.webui);
-        base.max_tokens = self.max_tokens;
-        base.cache_type = self.cache_type.unwrap_or(base.cache_type);
-        if let Some(v) = &self.llama_cpp_version_cpu {
-            base.llama_cpp_version_cpu = Some(v.clone());
-        }
-        if let Some(v) = &self.llama_cpp_version_vulkan {
-            base.llama_cpp_version_vulkan = Some(v.clone());
-        }
-        if let Some(v) = &self.llama_cpp_version_rocm {
-            base.llama_cpp_version_rocm = Some(v.clone());
-        }
-        if let Some(v) = &self.llama_cpp_version_rocm_lemonade {
-            base.llama_cpp_version_rocm_lemonade = Some(v.clone());
-        }
-        if let Some(v) = &self.llama_cpp_version_cuda {
-            base.llama_cpp_version_cuda = Some(v.clone());
-        }
-        if let Some(v) = &self.spec_type {
-            base.spec_type = v.clone();
-        }
-        if let Some(v) = self.draft_tokens {
-            base.draft_tokens = v;
-        }
-        if let Some(v) = &self.tags {
-            base.tags = v.clone();
-        }
-        base.ws_server_enabled = self.ws_server_enabled.unwrap_or(base.ws_server_enabled);
-        base.ws_server_port = self.ws_server_port.unwrap_or(base.ws_server_port);
-        if let Some(v) = &self.ws_server_auth_key {
-            base.ws_server_auth_key = Some(v.clone());
-        }
-        base.ws_server_tls_enabled = self
-            .ws_server_tls_enabled
-            .unwrap_or(base.ws_server_tls_enabled);
-        if let Some(v) = &self.ws_server_tls_cert {
-            base.ws_server_tls_cert = Some(v.clone());
-        }
-        if let Some(v) = &self.ws_server_tls_key {
-            base.ws_server_tls_key = Some(v.clone());
-        }
+
+        // FIELD ACCOUNTING (ModelOverride: 92 fields):
+        // - apply_scalar: 65 fields
+        // - apply_clone: 7 fields
+        // - apply_option: 13 fields
+        // - direct Option assign: 5 fields (cache_type_k, cache_type_v, presence_penalty,
+        //   frequency_penalty, max_tokens)
+        // - special: 2 fields (max_concurrent_predictions, gpu_layers->gpu_layers_mode)
+        // - NOT in ModelSettings: 0 (all ModelOverride fields mapped above)
+        //
+        // ModelSettings fields NOT in ModelOverride (not overridable):
+        // host, port, timeout, backend, platform, router_max_models, server_mode,
+        // api_endpoint_enabled, api_endpoint_port
+        //
+        // When adding a field: ensure it appears in exactly one category above.
     }
 }
 
