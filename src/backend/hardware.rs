@@ -152,9 +152,9 @@ pub fn detect_amd_gfx_target() -> Option<String> {
             let props_path = entry.path().join("properties");
             if let Ok(props) = fs::read_to_string(props_path) {
                 for line in props.lines() {
-                    if line.starts_with("gfx_target_version") {
-                        if let Some(val_str) = line.split_whitespace().last() {
-                            if let Ok(val) = val_str.parse::<u32>() {
+                    if line.starts_with("gfx_target_version")
+                        && let Some(val_str) = line.split_whitespace().last()
+                            && let Ok(val) = val_str.parse::<u32>() {
                                 // Format is usually 110000 for gfx1100, 100301 for gfx1031
                                 let major = val / 10000;
                                 let minor = (val % 10000) / 100;
@@ -166,8 +166,6 @@ pub fn detect_amd_gfx_target() -> Option<String> {
                                     return Some(format!("gfx{}{}", major, minor));
                                 }
                             }
-                        }
-                    }
                 }
             }
         }

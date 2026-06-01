@@ -31,14 +31,13 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                 if let Some(preset_name) = app.edit.editing_preset {
                     // We need the name from the merged list
                     let all_presets = app.config.merged_presets();
-                    if let Some(preset) = all_presets.get(preset_name) {
-                        if let Some(mut p) =
+                    if let Some(preset) = all_presets.get(preset_name)
+                        && let Some(mut p) =
                             app.config.system_prompt_presets.get(&preset.name).cloned()
                         {
                             p.content = app.settings_state.settings_edit_buffer.clone();
                             app.config.system_prompt_presets.save(&p);
                         }
-                    }
                 }
                 app.edit.editing_preset = None;
                 app.add_log("Saved preset", crate::config::LogLevel::Info);

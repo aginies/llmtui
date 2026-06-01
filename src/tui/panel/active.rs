@@ -57,15 +57,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     // If no model is active in app.model_states, fallback to selected model
     // but only if it's actually in a non-available state.
-    if loaded_models.is_empty() {
-        if let Some(m) = app.selected_model() {
-            if let Some(state) = app.model_states.get(&m.display_name) {
-                if !matches!(state, ModelState::Available) {
+    if loaded_models.is_empty()
+        && let Some(m) = app.selected_model()
+            && let Some(state) = app.model_states.get(&m.display_name)
+                && !matches!(state, ModelState::Available) {
                     loaded_models.push((m.display_name.clone(), state.clone()));
                 }
-            }
-        }
-    }
 
     // Robust check for Benchmarking - prioritize global flag
     if app.bench_tune.bench_tune_running {
@@ -125,7 +122,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         ),
                     ]));
 
-                    let p_str = crate::tui::format_bench_params(&current_params, false).join(", ");
+                    let p_str = crate::tui::format_bench_params(current_params, false).join(", ");
 
                     lines.push(Line::from(vec![
                         Span::styled(" Current: ", Style::default().fg(Color::Yellow)),

@@ -156,7 +156,6 @@ fn format_eta(d: &crate::models::DownloadState) -> String {
 /// Highlight occurrences of each word in `query` within `text` (case-insensitive).
 fn highlight_query<'a>(text: &'a str, query: &str) -> Line<'a> {
     let words: Vec<String> = query
-        .trim()
         .split_whitespace()
         .map(|w| w.to_lowercase())
         .collect();
@@ -220,9 +219,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     match &app.models_mode {
         ModelsMode::List => {
             let title = if app.is_panel_visible(0) {
-                format!(" Models [Ctrl+F7] ")
+                " Models [Ctrl+F7] ".to_string()
             } else {
-                format!(" Models ")
+                " Models ".to_string()
             };
 
             let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
@@ -565,7 +564,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Style::default().add_modifier(Modifier::BOLD),
                         )));
 
-                        let p_parts = crate::tui::format_bench_params(&current_params, true);
+                        let p_parts = crate::tui::format_bench_params(current_params, true);
 
                         if p_parts.is_empty() {
                             lines.push(Line::from("  (Baseline)"));
@@ -740,7 +739,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             ),
                         ]));
                         lines.push(Line::from(Span::styled(
-                            format!("Check Log (F6) for failure details."),
+                            "Check Log (F6) for failure details.".to_string(),
                             Style::default().fg(Color::Red),
                         )));
 

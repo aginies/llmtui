@@ -19,8 +19,8 @@ impl App {
         for dir in dirs {
             crate::backend::hub::walk_dir_recursive(dir, 0, 10, &mut |entry| {
                 let path = entry.path();
-                if path.is_file() && path.extension().map(|e| e == "gguf").unwrap_or(false) {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if path.is_file() && path.extension().map(|e| e == "gguf").unwrap_or(false)
+                    && let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                         let name = name.to_string();
                         let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
                         let display_name = path
@@ -36,7 +36,6 @@ impl App {
                             display_name,
                         });
                     }
-                }
             });
         }
         models.sort_by(|a, b| a.name.cmp(&b.name));

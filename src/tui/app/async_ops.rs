@@ -139,9 +139,9 @@ impl App {
     }
 
     pub async fn poll_backend_resolution(&mut self) {
-        if let Some(handle) = &self.pending.backend_resolve_handle {
-            if handle.is_finished() {
-                if let Some(handle) = self.pending.backend_resolve_handle.take() {
+        if let Some(handle) = &self.pending.backend_resolve_handle
+            && handle.is_finished()
+                && let Some(handle) = self.pending.backend_resolve_handle.take() {
                     match handle.await {
                         Ok(Ok(path)) => {
                             self.add_log(
@@ -164,8 +164,6 @@ impl App {
                     }
                     self.pending.backend_resolving = false;
                 }
-            }
-        }
     }
 
     pub fn poll_download_progress(&mut self) {
@@ -280,9 +278,9 @@ impl App {
                             format!("Download cancelled: {}", name),
                             crate::config::LogLevel::Info,
                         );
-                        if let Some(ref dest) = state.dest {
-                            if dest.exists() {
-                                if let Err(e) = std::fs::remove_file(dest) {
+                        if let Some(ref dest) = state.dest
+                            && dest.exists()
+                                && let Err(e) = std::fs::remove_file(dest) {
                                     self.add_log(
                                         format!(
                                             "Failed to remove temp file {}: {}",
@@ -292,8 +290,6 @@ impl App {
                                         crate::config::LogLevel::Warning,
                                     );
                                 }
-                            }
-                        }
                     }
                     _ => {}
                 }
@@ -602,7 +598,7 @@ impl App {
             let model_clone = model_opt.clone();
             let settings_clone = settings.clone();
             let tx_clone = tx.clone();
-            let server_mode_clone = self.server_mode.clone();
+            let server_mode_clone = self.server_mode;
             let router_max_models_clone = self.router_max_models;
             let download_tx_clone = Some(self.ensure_download_channel());
             let display_name = model_opt
@@ -1041,8 +1037,8 @@ impl App {
         if !matches!(
             self.ui.global_mode,
             super::types::GlobalMode::Confirmation { .. }
-        ) {
-            if let Some((model_name, model_path)) = self.pending.pending_api_unload.take()
+        )
+            && let Some((model_name, model_path)) = self.pending.pending_api_unload.take()
                 && let Some(handle) = &self.server.server_handle
             {
                 let server_mode = self.server_mode;
@@ -1147,7 +1143,6 @@ impl App {
                 self.model_states
                     .insert(model_name, crate::models::ModelState::Available);
             }
-        }
     }
 
     pub async fn start_pending_kill(&mut self) {

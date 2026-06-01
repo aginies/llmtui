@@ -269,12 +269,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         match key.code {
             KeyCode::Enter => {
                 if *editing {
-                    if *selected_field == 0i32 {
-                        if let Ok(p) = edit_buffer.parse::<u16>() {
+                    if *selected_field == 0i32
+                        && let Ok(p) = edit_buffer.parse::<u16>() {
                             app.settings.ws_server_port = p;
                             port.clone_from(edit_buffer);
                         }
-                    }
                     if *selected_field == 1i32 {
                         app.settings.ws_server_auth_key = if edit_buffer.is_empty() {
                             None
@@ -638,8 +637,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         .config
                         .merged_profiles()
                         .into_iter()
-                        .find(|p| p.name == name)
-                        .map(|p| p.clone());
+                        .find(|p| p.name == name);
                     if let Some(profile) = profile {
                         app.apply_profile(&profile);
                     }
@@ -755,13 +753,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .model_states
                 .values()
                 .any(|s| matches!(s, crate::models::ModelState::Benchmarking));
-            if is_benchmarking && app.server_mode == crate::models::ServerMode::Bench {
-                if let Some(handle) = app.server.server_handle.take() {
+            if is_benchmarking && app.server_mode == crate::models::ServerMode::Bench
+                && let Some(handle) = app.server.server_handle.take() {
                     app.add_log("Stopping benchmark...", crate::config::LogLevel::Info);
                     app.pending.pending_kill = Some(handle);
                     return;
                 }
-            }
         }
         KeyCode::Tab => {
             if app.ui.global_mode == GlobalMode::Normal {
@@ -930,7 +927,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 model.as_ref(),
                 &app.settings,
                 &app.config,
-                app.server_mode.clone(),
+                app.server_mode,
                 app.router_max_models,
             );
             app.ui.global_mode = GlobalMode::CmdLine { cmd_line };
@@ -986,7 +983,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Handle bench_tune mode
-    if matches!(app.models_mode, ModelsMode::BenchTune { .. }) {
+    if matches!(app.models_mode, ModelsMode::BenchTune) {
         handle_bench_tune_key(app, key).await;
         return;
     }
@@ -1325,11 +1322,10 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     if c.is_ascii_digit() {
                         app.edit.n_predict_edit_buffer.push(c);
                     }
-                } else if app.edit.editing_iters {
-                    if c.is_ascii_digit() {
+                } else if app.edit.editing_iters
+                    && c.is_ascii_digit() {
                         app.edit.iters_edit_buffer.push(c);
                     }
-                }
             }
             KeyCode::Backspace if *editing_param => {
                 TextEditor { buffer: param_edit_buffer, cursor: param_edit_cursor_pos }.backspace();
@@ -1355,13 +1351,12 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
             }
             KeyCode::Delete if *editing_param => {
-                if *param_edit_cursor_pos < param_edit_buffer.len() {
-                    if let Some((byte_pos, _ch)) =
+                if *param_edit_cursor_pos < param_edit_buffer.len()
+                    && let Some((byte_pos, _ch)) =
                         param_edit_buffer.char_indices().nth(*param_edit_cursor_pos)
                     {
                         param_edit_buffer.remove(byte_pos);
                     }
-                }
             }
             KeyCode::Delete => {
                 if *editing_prompt {
@@ -1377,16 +1372,15 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     if !app.edit.n_predict_edit_buffer.is_empty() {
                         app.edit.n_predict_edit_buffer.pop();
                     }
-                } else if app.edit.editing_iters {
-                    if !app.edit.iters_edit_buffer.is_empty() {
+                } else if app.edit.editing_iters
+                    && !app.edit.iters_edit_buffer.is_empty() {
                         app.edit.iters_edit_buffer.pop();
                     }
-                }
             }
             KeyCode::Enter => {
                 if *editing_param {
-                    if let Ok(val) = param_edit_buffer.parse::<f64>() {
-                        if *selected_idx < config.params_to_test.len() {
+                    if let Ok(val) = param_edit_buffer.parse::<f64>()
+                        && *selected_idx < config.params_to_test.len() {
                             match *editing_param_field {
                                 0 => config.params_to_test[*selected_idx].min = val,
                                 1 => config.params_to_test[*selected_idx].max = val,
@@ -1398,7 +1392,6 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                                 _ => {}
                             }
                         }
-                    }
                     *editing_param = false;
                     param_edit_buffer.clear();
                 } else if *editing_prompt {
@@ -1573,7 +1566,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     format!("Loading files for {}...", model_id),
                     crate::config::LogLevel::Info,
                 );
-                match hub::list_gguf_files(&model_id).await {
+                match hub::list_gguf_files(model_id).await {
                     Ok(files) => {
                         app.add_log(
                             format!("Found {} GGUF files", files.len()),
@@ -1739,13 +1732,11 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    if let ModelsMode::Search { results, .. } = &app.models_mode {
-        if let Some(idx) = app.search.search_results_idx {
-            if let Some(r) = results.get(idx) {
+    if let ModelsMode::Search { results, .. } = &app.models_mode
+        && let Some(idx) = app.search.search_results_idx
+            && let Some(r) = results.get(idx) {
                 fetch_readme_for_selected(app, r.model_id.clone()).await;
             }
-        }
-    }
 }
 
 async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
@@ -1867,31 +1858,26 @@ fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) 
     match key.code {
         KeyCode::Esc => {
             app.bench_tune.bench_tune_output_view = None;
-            return;
         }
         KeyCode::Down => {
             app.bench_tune.bench_tune_output_scroll =
                 app.bench_tune.bench_tune_output_scroll.saturating_add(1);
-            return;
         }
         KeyCode::Up => {
             app.bench_tune.bench_tune_output_scroll =
                 app.bench_tune.bench_tune_output_scroll.saturating_sub(1);
-            return;
         }
         KeyCode::PageDown => {
             app.bench_tune.bench_tune_output_scroll =
                 app.bench_tune.bench_tune_output_scroll.saturating_add(10);
-            return;
         }
         KeyCode::PageUp => {
             app.bench_tune.bench_tune_output_scroll =
                 app.bench_tune.bench_tune_output_scroll.saturating_sub(10);
-            return;
         }
         KeyCode::Char('n') => {
-            if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view {
-                if let Some(result) = app.bench_tune.bench_tune_results.get(result_idx) {
+            if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view
+                && let Some(result) = app.bench_tune.bench_tune_results.get(result_idx) {
                     let max_iter_idx = result.outputs.len().saturating_sub(1);
                     if app.bench_tune.bench_tune_output_index < max_iter_idx {
                         app.bench_tune.bench_tune_output_index += 1;
@@ -1906,8 +1892,6 @@ fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) 
                         app.bench_tune.bench_tune_output_h_scroll = 0;
                     }
                 }
-            }
-            return;
         }
         KeyCode::Char('p') => {
             if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view {
@@ -1928,7 +1912,6 @@ fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) 
                     app.bench_tune.bench_tune_output_h_scroll = 0;
                 }
             }
-            return;
         }
         _ => {}
     }
@@ -1953,18 +1936,15 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
             // Don't abort the task — let it finish gracefully and send Cancelled status
             // Keep bench_tune_running = true so the app knows the task is still finishing up
             app.models_mode = ModelsMode::List;
-            return;
         }
         KeyCode::Enter => {
             let result_idx = app.bench_tune.bench_tune_result_row;
-            if let Some(result) = app.bench_tune.bench_tune_results.get(result_idx) {
-                if !result.outputs.is_empty() {
+            if let Some(result) = app.bench_tune.bench_tune_results.get(result_idx)
+                && !result.outputs.is_empty() {
                     app.bench_tune.bench_tune_output_view = Some(result_idx);
                     app.bench_tune.bench_tune_output_index = 0;
                     app.bench_tune.bench_tune_output_scroll = 0;
-                    return;
                 }
-            }
         }
         KeyCode::Down => {
             let len = app.bench_tune.bench_tune_results.len();
@@ -1972,13 +1952,11 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.bench_tune.bench_tune_result_row =
                     (app.bench_tune.bench_tune_result_row + 1).min(len - 1);
             }
-            return;
         }
         KeyCode::Up => {
             if app.bench_tune.bench_tune_result_row > 0 {
                 app.bench_tune.bench_tune_result_row -= 1;
             }
-            return;
         }
         _ => {}
     }

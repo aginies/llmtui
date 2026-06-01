@@ -773,7 +773,7 @@ pub async fn save_results(
     // Generate HTML report
     let html_filename = format!("benchmark_{}.html", timestamp);
     let html_filepath = output_dir.join(&html_filename);
-    let html_content = generate_html_report(&results, &config);
+    let html_content = generate_html_report(results, config);
     tokio::fs::write(&html_filepath, html_content).await?;
 
     Ok(())
@@ -860,7 +860,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         }
         vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mid = vals.len() / 2;
-        if vals.len() % 2 == 0 {
+        if vals.len().is_multiple_of(2) {
             (vals[mid - 1] + vals[mid]) / 2.0
         } else {
             vals[mid]
@@ -944,16 +944,14 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     let min_first_token = min_val(&first_token);
 
     // Per-parameter impact analysis
-    let param_names = vec![
-        ("temperature", "Temperature"),
+    let param_names = [("temperature", "Temperature"),
         ("top_p", "Top-P"),
         ("top_k", "Top-K"),
         ("repeat_penalty", "Repeat Penalty"),
         ("flash_attn", "Flash Attention"),
         ("threads", "Threads"),
         ("batch_size", "Batch Size"),
-        ("expert_count", "Experts"),
-    ];
+        ("expert_count", "Experts")];
 
     let impact_data: Vec<(String, String, f64)> = param_names
         .iter()

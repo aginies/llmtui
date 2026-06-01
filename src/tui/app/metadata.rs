@@ -70,11 +70,10 @@ impl App {
         // 2. Evict cache entries if it exceeds the maximum size.
         // BTreeMap keys are sorted, so `next()` returns the smallest (oldest) key.
         const MAX_CACHE_SIZE: usize = 50;
-        if self.search.gguf_metadata_cache.len() > MAX_CACHE_SIZE {
-            if let Some(first_key) = self.search.gguf_metadata_cache.keys().next().cloned() {
+        if self.search.gguf_metadata_cache.len() > MAX_CACHE_SIZE
+            && let Some(first_key) = self.search.gguf_metadata_cache.keys().next().cloned() {
                 self.search.gguf_metadata_cache.remove(&first_key);
             }
-        }
 
         // 3. Perform the actual parse
         if let Ok(meta) = crate::models::GgufMetadata::from_path(&model.path) {

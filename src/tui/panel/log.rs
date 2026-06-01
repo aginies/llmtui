@@ -91,7 +91,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     // Calculate total lines after wrapping (estimation since line_count is unstable/private)
     let total_screen_lines = lines
         .iter()
-        .map(|l| (l.width().max(1) + width - 1) / width)
+        .map(|l| l.width().max(1).div_ceil(width))
         .sum::<usize>();
 
     app.log.log_total_lines = total_screen_lines;
@@ -115,7 +115,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .begin_symbol(Some("↑"))
         .end_symbol(Some("↓"));
     let mut scrollbar_state =
-        ScrollbarState::new(total_screen_lines).position(app.log.log_scroll_offset as usize);
+        ScrollbarState::new(total_screen_lines).position(app.log.log_scroll_offset);
 
     f.render_stateful_widget(
         scrollbar,

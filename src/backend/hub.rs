@@ -21,7 +21,7 @@ pub fn get_free_space_bytes(path: &std::path::Path) -> u64 {
 
     // f_bavail = free blocks available to unprivileged user
     // f_frsize = fundamental filesystem block size
-    stat.f_bavail as u64 * stat.f_frsize as u64
+    stat.f_bavail * stat.f_frsize
 }
 
 fn default_tag(repo: &str) -> String {
@@ -55,7 +55,6 @@ pub async fn search_models(
     let models: Vec<serde_json::Value> = resp.json().await?;
 
     let query_words: Vec<String> = query
-        .trim()
         .split_whitespace()
         .map(|w| w.to_lowercase())
         .collect();

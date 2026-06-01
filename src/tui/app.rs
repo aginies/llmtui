@@ -29,7 +29,7 @@ impl App {
         let settings: crate::models::ModelSettings =
             crate::models::ModelSettings::from_config(&config);
         let settings_clone = settings.clone();
-        let server_mode = config.default.server_mode.clone();
+        let server_mode = config.default.server_mode;
         let router_max_models = config.default.router_max_models;
         Self {
             running: true,

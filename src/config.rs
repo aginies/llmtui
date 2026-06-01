@@ -996,38 +996,34 @@ impl Config {
         }
 
         // Path validation
-        if let Some(lora) = &default.lora {
-            if !lora.exists() {
+        if let Some(lora) = &default.lora
+            && !lora.exists() {
                 warnings.push(format!("lora path {} does not exist", lora.display()));
             }
-        }
-        if let Some((lora, _)) = &default.lora_scaled {
-            if !lora.exists() {
+        if let Some((lora, _)) = &default.lora_scaled
+            && !lora.exists() {
                 warnings.push(format!("lora path {} does not exist", lora.display()));
             }
-        }
 
         // Model override validation
         for model_name in self.model_overrides.keys() {
             if let Some(override_settings) = self.model_overrides.get(model_name.as_str()) {
-                if let Some(lora) = &override_settings.lora {
-                    if !lora.exists() {
+                if let Some(lora) = &override_settings.lora
+                    && !lora.exists() {
                         warnings.push(format!(
                             "model '{}' lora path {} does not exist",
                             model_name,
                             lora.display()
                         ));
                     }
-                }
-                if let Some((lora, _)) = &override_settings.lora_scaled {
-                    if !lora.exists() {
+                if let Some((lora, _)) = &override_settings.lora_scaled
+                    && !lora.exists() {
                         warnings.push(format!(
                             "model '{}' lora path {} does not exist",
                             model_name,
                             lora.display()
                         ));
                     }
-                }
             }
         }
 
@@ -1083,14 +1079,14 @@ impl Config {
 
         // Merge built-in profiles (add any missing ones)
         for p in builtin_profiles() {
-            if !config.profiles.get(&p.name).is_some() {
+            if config.profiles.get(&p.name).is_none() {
                 config.profiles.save(&p);
             }
         }
 
         // Merge built-in system prompt presets (add any missing ones)
         for p in builtin_system_prompt_presets() {
-            if !config.system_prompt_presets.get(&p.name).is_some() {
+            if config.system_prompt_presets.get(&p.name).is_none() {
                 config.system_prompt_presets.save(&p);
             }
         }

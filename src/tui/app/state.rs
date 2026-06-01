@@ -76,8 +76,8 @@ impl App {
         let upper = msg.to_uppercase();
         if self.loading.loading_phases.contains(&LoadingTensors) {
             // Parse "loading tensor X of Y" or "loading tensor X out of Y" pattern
-            if upper.contains("LOADING TENSOR") {
-                if let Some(pos) = msg.to_lowercase().find("loading tensor") {
+            if upper.contains("LOADING TENSOR")
+                && let Some(pos) = msg.to_lowercase().find("loading tensor") {
                     let rest = &msg[pos + "loading tensor".len()..];
                     let parts: Vec<&str> = rest.split_whitespace().collect();
                     if parts.len() >= 3 {
@@ -92,17 +92,15 @@ impl App {
                         } else {
                             usize::MAX
                         };
-                        if total_idx != usize::MAX {
-                            if let Ok(total) = parts[total_idx]
+                        if total_idx != usize::MAX
+                            && let Ok(total) = parts[total_idx]
                                 .trim_end_matches(|c: char| !c.is_ascii_digit())
                                 .parse::<u32>()
                             {
                                 self.loading.load_progress.tensors_total = Some(total);
                             }
-                        }
                     }
                 }
-            }
             // Count dots from progress lines like "................................"
             // Only use dot-counting as fallback when we haven't seen an explicit tensor count yet
             if self.loading.load_progress.tensors_total.is_none() {
@@ -315,8 +313,8 @@ impl App {
     }
 
     pub fn handle_server_exit(&mut self) {
-        if let Some(rx) = &mut self.server.server_exit_rx {
-            if let Ok(()) = rx.try_recv() {
+        if let Some(rx) = &mut self.server.server_exit_rx
+            && let Ok(()) = rx.try_recv() {
                 self.server.server_handle = None;
                 self.loading.loading_phases.clear();
                 self.loading.last_active_phase = None;
@@ -327,7 +325,6 @@ impl App {
                     *state = crate::models::ModelState::Available;
                 }
             }
-        }
     }
 
     fn trim_log(&mut self) {

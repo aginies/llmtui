@@ -12,7 +12,7 @@ impl TextEditor<'_> {
             .nth(*self.cursor)
             .map(|(i, _)| i)
             .unwrap_or(self.buffer.len());
-        self.buffer.insert_str(byte_pos, &c.to_string());
+        self.buffer.insert(byte_pos, c);
         *self.cursor += 1;
     }
 
@@ -22,7 +22,7 @@ impl TextEditor<'_> {
             .nth(*self.cursor)
             .map(|(i, _)| i)
             .unwrap_or(self.buffer.len());
-        self.buffer.insert_str(byte_pos, "\n");
+        self.buffer.insert(byte_pos, '\n');
         *self.cursor += 1;
     }
 
@@ -158,7 +158,7 @@ pub fn sync_global_settings(app: &mut App) {
     app.config.default.threads_batch = app.settings.threads_batch;
     app.config.default.api_endpoint_enabled = app.settings.api_endpoint_enabled;
     app.config.default.api_endpoint_port = app.settings.api_endpoint_port;
-    app.config.default.server_mode = app.server_mode.clone();
+    app.config.default.server_mode = app.server_mode;
     app.config.default.router_max_models = app.router_max_models;
     app.config.default.llama_cpp_version_cpu = app.settings.llama_cpp_version_cpu.clone();
     app.config.default.llama_cpp_version_vulkan = app.settings.llama_cpp_version_vulkan.clone();

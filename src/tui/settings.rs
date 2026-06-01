@@ -158,7 +158,7 @@ fn gpu_layers_adjust(settings: &mut ModelSettings, delta: i32, _context_limit: u
         (-1, GpuLayersMode::Specific(n)) if *n == 1 => GpuLayersMode::Specific(0),
         (-1, GpuLayersMode::Specific(n)) => GpuLayersMode::Specific(n - 1),
         (-1, GpuLayersMode::All) => GpuLayersMode::All,
-        _ => settings.gpu_layers_mode.clone(),
+        _ => settings.gpu_layers_mode,
     };
 }
 
@@ -526,7 +526,7 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             |s, c| s.expert_count != c.expert_count,
             |s, delta, _| {
-                s.expert_count = (s.expert_count as i32 + delta).clamp(-1, 99);
+                s.expert_count = (s.expert_count + delta).clamp(-1, 99);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -810,7 +810,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| s.repeat_last_n.to_string(),
             |s, c| s.repeat_last_n != c.repeat_last_n,
             |s, delta, _| {
-                s.repeat_last_n = (s.repeat_last_n as i32 + delta).max(0);
+                s.repeat_last_n = (s.repeat_last_n + delta).max(0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -1115,48 +1115,40 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     let mut parts = Vec::new();
     let s = &profile.settings;
 
-    if let Some(v) = s.context_length {
-        if Some(v) != Some(current.context_length) {
+    if let Some(v) = s.context_length
+        && Some(v) != Some(current.context_length) {
             parts.push(format!("ctx={}", v));
         }
-    }
-    if let Some(v) = s.threads {
-        if Some(v) != Some(current.threads) {
+    if let Some(v) = s.threads
+        && Some(v) != Some(current.threads) {
             parts.push(format!("threads={}", v));
         }
-    }
-    if let Some(v) = s.temperature {
-        if (v - current.temperature).abs() > 0.001 {
+    if let Some(v) = s.temperature
+        && (v - current.temperature).abs() > 0.001 {
             parts.push(format!("temp={:.2}", v));
         }
-    }
-    if let Some(v) = s.top_p {
-        if (v - current.top_p).abs() > 0.001 {
+    if let Some(v) = s.top_p
+        && (v - current.top_p).abs() > 0.001 {
             parts.push(format!("top_p={:.2}", v));
         }
-    }
-    if let Some(v) = s.top_k {
-        if Some(v) != Some(current.top_k) {
+    if let Some(v) = s.top_k
+        && Some(v) != Some(current.top_k) {
             parts.push(format!("top_k={}", v));
         }
-    }
-    if let Some(v) = s.min_p {
-        if (v - current.min_p).abs() > 0.001 {
+    if let Some(v) = s.min_p
+        && (v - current.min_p).abs() > 0.001 {
             parts.push(format!("min_p={:.2}", v));
         }
-    }
-    if let Some(v) = s.typical_p {
-        if (v - current.typical_p).abs() > 0.001 {
+    if let Some(v) = s.typical_p
+        && (v - current.typical_p).abs() > 0.001 {
             parts.push(format!("typical_p={:.2}", v));
         }
-    }
-    if let Some(v) = s.repeat_penalty {
-        if (v - current.repeat_penalty).abs() > 0.001 {
+    if let Some(v) = s.repeat_penalty
+        && (v - current.repeat_penalty).abs() > 0.001 {
             parts.push(format!("rep={:.2}", v));
         }
-    }
-    if let Some(v) = s.gpu_layers_mode {
-        if v != current.gpu_layers_mode {
+    if let Some(v) = s.gpu_layers_mode
+        && v != current.gpu_layers_mode {
             let display = match v {
                 crate::models::GpuLayersMode::Auto => "Auto".to_string(),
                 crate::models::GpuLayersMode::Specific(n) => n.to_string(),
@@ -1164,52 +1156,42 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
             };
             parts.push(format!("gpu_layers={}", display));
         }
-    }
-    if let Some(v) = s.flash_attn {
-        if v != current.flash_attn {
+    if let Some(v) = s.flash_attn
+        && v != current.flash_attn {
             parts.push(format!("flash_attn={}", v));
         }
-    }
-    if let Some(v) = s.kv_cache_offload {
-        if v != current.kv_cache_offload {
+    if let Some(v) = s.kv_cache_offload
+        && v != current.kv_cache_offload {
             parts.push(format!("kv_cache_offload={}", v));
         }
-    }
-    if let Some(v) = &s.system_prompt_preset_name {
-        if v != &current.system_prompt_preset_name {
+    if let Some(v) = &s.system_prompt_preset_name
+        && v != &current.system_prompt_preset_name {
             parts.push(format!("preset={}", v));
         }
-    }
-    if let Some(v) = s.max_tokens {
-        if Some(v) != current.max_tokens {
+    if let Some(v) = s.max_tokens
+        && Some(v) != current.max_tokens {
             parts.push(format!("max_tokens={}", v));
         }
-    }
-    if let Some(v) = s.jinja {
-        if v != current.jinja {
+    if let Some(v) = s.jinja
+        && v != current.jinja {
             parts.push(format!("jinja={}", v));
         }
-    }
-    if let Some(v) = s.uniform_cache {
-        if v != current.uniform_cache {
+    if let Some(v) = s.uniform_cache
+        && v != current.uniform_cache {
             parts.push(format!("uniform_cache={}", v));
         }
-    }
-    if let Some(v) = s.mlock {
-        if v != current.mlock {
+    if let Some(v) = s.mlock
+        && v != current.mlock {
             parts.push(format!("mlock={}", v));
         }
-    }
-    if let Some(v) = s.mmap {
-        if v != current.mmap {
+    if let Some(v) = s.mmap
+        && v != current.mmap {
             parts.push(format!("mmap={}", v));
         }
-    }
-    if let Some(v) = s.cache_prompt {
-        if v != current.cache_prompt {
+    if let Some(v) = s.cache_prompt
+        && v != current.cache_prompt {
             parts.push(format!("cache_prompt={}", v));
         }
-    }
     if let Some(v) = s.presence_penalty {
         let current_pp = current.presence_penalty.unwrap_or(0.0);
         if (v - current_pp).abs() > 0.001 {
@@ -1222,21 +1204,18 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
             parts.push(format!("freq_pen={:.2}", v));
         }
     }
-    if let Some(v) = s.repeat_last_n {
-        if Some(v) != Some(current.repeat_last_n) {
+    if let Some(v) = s.repeat_last_n
+        && Some(v) != Some(current.repeat_last_n) {
             parts.push(format!("repeat_last_n={}", v));
         }
-    }
-    if let Some(v) = s.rope_scaling {
-        if v != current.rope_scaling {
+    if let Some(v) = s.rope_scaling
+        && v != current.rope_scaling {
             parts.push(format!("rope_scaling={}", v));
         }
-    }
-    if let Some(v) = s.webui {
-        if v != current.webui {
+    if let Some(v) = s.webui
+        && v != current.webui {
             parts.push(format!("webui={}", v));
         }
-    }
 
     parts
 }

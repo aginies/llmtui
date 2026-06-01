@@ -67,7 +67,8 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 parts.push(Span::styled("Shift+A about", c));
                 parts
             } else {
-                let parts = match app.ui.active_panel {
+                
+                match app.ui.active_panel {
                     ActivePanel::Models => {
                         vec![
                             Span::styled("⇥ panels", c),
@@ -182,8 +183,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::styled("Shift+A about", c),
                         ]
                     }
-                };
-                parts
+                }
             }
         }
         ModelsMode::BenchTune => {

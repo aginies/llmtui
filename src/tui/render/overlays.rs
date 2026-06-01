@@ -413,7 +413,7 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &Vec<(String, String)>
         };
         picker_lines.push(Line::from(vec![
             Span::styled(marker, Style::default().fg(Color::Yellow)),
-            Span::styled(format!("{ip}"), style),
+            Span::styled(ip.to_string(), style),
             Span::raw("  "),
             Span::styled(format!("({iface})"), Style::default().fg(Color::DarkGray)),
         ]));
@@ -1055,7 +1055,7 @@ fn render_bench_tune_setup(
                 };
                 let fields: Vec<String> = (0..=2)
                     .map(|f| {
-                        if f as i32 == editing_param_field {
+                        if f == editing_param_field {
                             format!("[{}{}{}]", before, after, cursor_char)
                         } else {
                             match f {
@@ -1180,7 +1180,7 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
     if app.picker.rpc_workers_scroll_offset > max_offset.into() {
         app.picker.rpc_workers_scroll_offset = max_offset.into();
     }
-    let start_idx = app.picker.rpc_workers_scroll_offset as usize;
+    let start_idx = app.picker.rpc_workers_scroll_offset;
     let visible_lines: Vec<Line> = worker_lines
         .iter()
         .skip(start_idx)
@@ -1202,7 +1202,7 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
             f,
             rpc_area,
             worker_lines.len(),
-            app.picker.rpc_workers_scroll_offset as usize,
+            app.picker.rpc_workers_scroll_offset,
             1,
             2,
         );
@@ -2122,7 +2122,7 @@ fn render_yarn_rope_picker(
         ("rope_freq_scale", freq_scale.to_string(), 2),
     ];
 
-    for (_i, (name, val, field_idx)) in fields.iter().enumerate() {
+    for (name, val, field_idx) in fields.iter() {
         let marker = if *field_idx == selected_field {
             "> "
         } else {

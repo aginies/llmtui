@@ -225,15 +225,13 @@ pub fn build_server_cmd(
             .replace('\\', "\\\\")
             .replace('"', "\\\"");
         let mut merged = serde_json::Map::new();
-        if let Some(ref kwargs) = settings.chat_template_kwargs {
-            if let Ok(obj) = serde_json::from_str::<serde_json::Value>(kwargs) {
-                if let serde_json::Value::Object(map) = obj {
+        if let Some(ref kwargs) = settings.chat_template_kwargs
+            && let Ok(obj) = serde_json::from_str::<serde_json::Value>(kwargs)
+                && let serde_json::Value::Object(map) = obj {
                     for (k, v) in map {
                         merged.insert(k, v);
                     }
                 }
-            }
-        }
         merged.insert(
             "system_prompt".to_string(),
             serde_json::Value::String(escaped),
@@ -655,7 +653,7 @@ pub async fn spawn_server(
             let _ = h.await;
         }
 
-        let exit_code = child.wait().await.ok().map(|s| s.code()).flatten();
+        let exit_code = child.wait().await.ok().and_then(|s| s.code());
         let _ = exit_tx_inner.send(()).await;
         let _ = log_tx_inner
             .send(format!(

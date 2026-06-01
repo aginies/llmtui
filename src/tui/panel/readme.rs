@@ -25,6 +25,12 @@ pub struct MdRenderer {
     pending_table_line: Vec<(String, Style)>,
 }
 
+impl Default for MdRenderer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MdRenderer {
     pub fn new() -> Self {
         Self {
@@ -418,7 +424,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         app.picker.readme_scroll_offset = max_offset.into();
     }
 
-    let start_idx = app.picker.readme_scroll_offset as usize;
+    let start_idx = app.picker.readme_scroll_offset;
     let visible_lines: Vec<Line> = lines
         .iter()
         .skip(start_idx)
@@ -446,7 +452,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
             f,
             area,
             lines.len(),
-            app.picker.readme_scroll_offset as usize,
+            app.picker.readme_scroll_offset,
             0,
             0,
         );

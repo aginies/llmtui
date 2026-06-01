@@ -25,11 +25,10 @@ pub(crate) fn load_all_from_dir<T: DeserializeOwned + std::fmt::Debug>(
                 Some(n) => n.to_string(),
                 None => continue,
             };
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if let Ok(item) = serde_yaml::from_str::<T>(&content) {
+            if let Ok(content) = std::fs::read_to_string(&path)
+                && let Ok(item) = serde_yaml::from_str::<T>(&content) {
                     map.insert(name, item);
                 }
-            }
         }
     }
     map

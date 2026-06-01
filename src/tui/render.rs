@@ -165,7 +165,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 app.picker.profiles_scroll_offset = max_offset.into();
             }
 
-            let start_idx = app.picker.profiles_scroll_offset as usize;
+            let start_idx = app.picker.profiles_scroll_offset;
             let visible_lines: Vec<Line> = profile_lines
                 .iter()
                 .skip(start_idx)
@@ -202,7 +202,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 app.picker.system_prompt_presets_scroll_offset = max_offset.into();
             }
 
-            let start_idx = app.picker.system_prompt_presets_scroll_offset as usize;
+            let start_idx = app.picker.system_prompt_presets_scroll_offset;
             let visible_lines: Vec<Line> = preset_lines
                 .iter()
                 .skip(start_idx)

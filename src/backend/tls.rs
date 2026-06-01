@@ -82,8 +82,8 @@ fn generate_server_cert(
     let mut params = CertificateParams::default();
     params.subject_alt_names = vec![
         SanType::DnsName("localhost".try_into().unwrap()),
-        SanType::IpAddress([127, 0, 0, 1].try_into().unwrap()),
-        SanType::IpAddress([0, 0, 0, 0].try_into().unwrap()),
+        SanType::IpAddress([127, 0, 0, 1].into()),
+        SanType::IpAddress([0, 0, 0, 0].into()),
     ];
     let cert = params.signed_by(&server_key, &ca_issuer)?;
     let cert_pem = cert.pem();

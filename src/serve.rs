@@ -175,17 +175,15 @@ pub async fn serve_model(
     let mut settings = config.resolve_settings(Some(&name), profile_name);
 
     // Auto-enable MTP if supported by model and not explicitly enabled in config
-    if settings.spec_type.is_empty() {
-        if let Ok(meta) = crate::models::GgufMetadata::from_path(&model_path) {
-            if meta.arch == "mtp" {
+    if settings.spec_type.is_empty()
+        && let Ok(meta) = crate::models::GgufMetadata::from_path(&model_path)
+            && meta.arch == "mtp" {
                 tracing::info!("Auto-enabling MTP (Multi-Token Prediction) for model");
                 settings.spec_type = "draft-mtp".to_string();
                 if settings.draft_tokens == 0 {
                     settings.draft_tokens = meta.draft_tokens;
                 }
             }
-        }
-    }
 
     // Finalize WebSocket settings: CLI flags take precedence, then config.yaml
     let ws_enable = ws_enable || settings.ws_server_enabled;
@@ -305,7 +303,7 @@ pub async fn serve_model(
         Some(&model),
         &settings,
         &config,
-        config.default.server_mode.clone(),
+        config.default.server_mode,
         config.default.router_max_models,
     );
 

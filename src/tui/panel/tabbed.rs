@@ -46,7 +46,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let available_height = llm_area.height.saturating_sub(2);
 
     // Build visible settings lines with scroll offset applied
-    let start_idx = app.settings_state.settings_scroll_offset as usize;
+    let start_idx = app.settings_state.settings_scroll_offset;
     let visible_lines: Vec<Line<'static>> = settings_lines
         .iter()
         .skip(start_idx)
@@ -85,7 +85,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
             f,
             llm_area,
             settings_height,
-            app.settings_state.settings_scroll_offset as usize,
+            app.settings_state.settings_scroll_offset,
             0,
             0,
         );
@@ -284,7 +284,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         app.settings_state.server_settings_scroll_offset = max_offset;
     }
 
-    let start_idx = app.settings_state.server_settings_scroll_offset as usize;
+    let start_idx = app.settings_state.server_settings_scroll_offset;
     let visible_lines: Vec<Line> = lines
         .into_iter()
         .skip(start_idx)
@@ -309,7 +309,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
             f,
             area,
             total_settings,
-            app.settings_state.server_settings_scroll_offset as usize,
+            app.settings_state.server_settings_scroll_offset,
             1,
             2,
         );
@@ -342,7 +342,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let (all_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, area);
 
     let available_height = area.height.saturating_sub(2);
-    let start_idx = app.settings_state.settings_scroll_offset as usize;
+    let start_idx = app.settings_state.settings_scroll_offset;
     let visible_lines: Vec<Line> = all_lines
         .iter()
         .skip(start_idx)
@@ -359,7 +359,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
             f,
             area,
             settings_height,
-            app.settings_state.settings_scroll_offset as usize,
+            app.settings_state.settings_scroll_offset,
             0,
             0,
         );

@@ -270,17 +270,14 @@ impl From<crate::config::DefaultParams> for ModelSettings {
 
 /// How to handle GPU layer offloading.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Hash)]
+#[derive(Default)]
 pub enum GpuLayersMode {
+    #[default]
     Auto,
     Specific(u32),
     All,
 }
 
-impl Default for GpuLayersMode {
-    fn default() -> Self {
-        GpuLayersMode::Auto
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DownloadStatus {
@@ -1194,7 +1191,7 @@ impl WsMetrics {
             typical_p: settings.typical_p,
             seed: settings.seed,
             repeat_penalty: settings.repeat_penalty,
-            repeat_last_n: settings.repeat_last_n as i32,
+            repeat_last_n: settings.repeat_last_n,
             presence_penalty: settings.presence_penalty,
             frequency_penalty: settings.frequency_penalty,
             mirostat: Some(match settings.mirostat {
@@ -1537,18 +1534,15 @@ pub enum BenchTuneStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum BenchTuneMode {
     /// Runtime-only mode: sends all params in /completion request body, no server restarts
     RuntimeOnly,
     /// Full mode: spawns a new server for each parameter combination (tests server-level params)
+    #[default]
     Full,
 }
 
-impl Default for BenchTuneMode {
-    fn default() -> Self {
-        Self::Full
-    }
-}
 
 /// Progress status for benchmark tuning
 #[derive(Debug, Clone)]

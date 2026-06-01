@@ -37,7 +37,6 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.on_model_selection_change();
                     }
                 }
-                return;
             }
         }
         KeyCode::Up | KeyCode::Char('k') => {
@@ -145,7 +144,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
                             app.loading.loading_progress = 0.25;
                             app.add_log(
-                                format!("Starting router server..."),
+                                "Starting router server...".to_string(),
                                 crate::config::LogLevel::Info,
                             );
                         } else {
