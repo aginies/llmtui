@@ -229,6 +229,7 @@ pub struct ModelOverride {
     pub rope_scale: Option<f32>,
     pub rope_freq_base: Option<f32>,
     pub rope_freq_scale: Option<f32>,
+    pub rope_yarn_enabled: Option<bool>,
 
     // Server
     pub cache_prompt: Option<bool>,
@@ -317,6 +318,7 @@ impl ModelOverride {
             rope_scale: Some(s.rope_scale),
             rope_freq_base: Some(s.rope_freq_base),
             rope_freq_scale: Some(s.rope_freq_scale),
+            rope_yarn_enabled: Some(s.rope_yarn_enabled),
             cache_prompt: Some(s.cache_prompt),
             cache_reuse: Some(s.cache_reuse),
             webui: Some(s.webui),
@@ -401,6 +403,7 @@ impl ModelOverride {
         base.rope_scale = self.rope_scale.unwrap_or(base.rope_scale);
         base.rope_freq_base = self.rope_freq_base.unwrap_or(base.rope_freq_base);
         base.rope_freq_scale = self.rope_freq_scale.unwrap_or(base.rope_freq_scale);
+        base.rope_yarn_enabled = self.rope_yarn_enabled.unwrap_or(base.rope_yarn_enabled);
         base.cache_prompt = self.cache_prompt.unwrap_or(base.cache_prompt);
         base.cache_reuse = self.cache_reuse.unwrap_or(base.cache_reuse);
         base.webui = self.webui.unwrap_or(base.webui);

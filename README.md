@@ -5,7 +5,7 @@
 
 A terminal UI (TUI) for managing local LLM models with HuggingFace search, download, and inference control.
 
-**Work In Progress**
+**Version 0.1.0**
 
 ![Screenshot](documentation/main.png)
 
@@ -152,6 +152,12 @@ Run a model directly with llama-server and expose an OpenAI-compatible API:
 # Redirect logs to a file (useful for systemd)
 ./build.sh serve --model model.gguf --log-file /var/log/llm-manager/model.log
 
+# Serve with TLS enabled (auto-generates self-signed certificates)
+./build.sh serve --model model.gguf --api-port 49222 --tls-enable
+
+# Serve with custom TLS certificates
+./build.sh serve --model model.gguf --api-port 49222 --tls-enable --tls-cert /path/to/cert.pem --tls-key /path/to/key.pem
+
 # Combine options
 ./build.sh serve --model model.gguf --api-port 49222 --host 0.0.0.0 --backend-binary /opt/rocm/bin/llama-server --log-file /var/log/llm-manager/model.log
 ```
@@ -199,7 +205,7 @@ The Server Settings panel (top-right) shows server configuration:
 | Backend | Acceleration backend (cpu / vulkan / rocm / rocm-lemonade / cuda) — shows selected version |
 | Threads | CPU threads for generation |
 | Threads Batch | CPU threads for batch processing |
-| Mode | Server mode — `↵` toggles between Normal, Router, Bench GPU, and BenchTune |
+| Mode | Server mode — `↵` toggles between Normal, Router, Bench, and BenchTune |
 | API Endpoint | Enable API proxy — `↵` toggles (disabled while server is running) |
 | RPC Workers | Open the distributed inference manager window — press `↵` |
 | API Port | Port for the API proxy server (default: 49222) |
@@ -235,7 +241,7 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `⌃K` (Ctrl+K) — Show CmdLine overlay
 - `⌃D` (Ctrl+D) — Delete model (with confirmation)
 - `⌃L` (Ctrl+L) — Focus Log panel
-- `p` — Open Profiles panel / Pause or resume download / Previous Benchmark result
+- `p` — Open Profiles panel / Pause or resume download / Previous Benchmark result (context-sensitive)
 - `⌃P` (Ctrl+P) — Open Profile Picker modal (select from built-in or user profiles)
 - `n` — New preset (in System Prompt Presets) / Next Benchmark result
 - `S` (Shift+s) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created)
@@ -302,7 +308,7 @@ The app has several panels that can be toggled visible or hidden:
 | **Model Info** | GGUF metadata: architecture, parameters, tokenizer, VRAM estimate |
 | **LLM Settings** | Loading, GPU, evaluation, sampling, and repetition parameters |
 | **Active Model** | Real-time metrics: TPS, context usage, CPU/RAM/VRAM, benchmarking state (no tokens generated) |
-| **Dashboard** | Live WebSocket metrics and settings visualization (port 49223 by default) |
+| **WebSocket Dashboard** | Live WebSocket metrics and settings visualization (port 49223 by default) |
 | **Log** | Server log with expand/collapse and level coloring |
 | **Profiles** | Saved presets of settings for quick switching |
 | **System Prompt Presets** | Named system prompts for different use cases |
@@ -392,7 +398,7 @@ From the CmdLine overlay, press `e` to export the command to `/tmp/test_llamaser
 
 ### LLM Settings
 
-The LLM Settings panel (24 fields organized into 6 groups):
+The LLM Settings panel (28 standard fields in 6 groups, 55 total in expert mode):
 
 **Loading (0-2):** Context length, System prompt preset, Keep in memory (mlock)
 
@@ -468,64 +474,6 @@ The horizontal split between left panels (Models + Info) and right panels (Setti
 | **Keyboard** | `Shift+←` / `Shift+→` to adjust by 1% (range: 20%-80%) |
 
 The current split percentage is shown in the status bar (e.g., `│ 55%`). While actively resizing, the indicator shows `│ 55% ← resize →`.
-
-## Configuration
-
-Configuration uses XDG directories:
-
-```
-~/.config/llm-manager/              # Config
-├── config.yaml                     # Global settings
-├── models/                         # Per-model YAML configs
-├── profiles/                       # Per-profile YAML configs
-├── presets/                        # Per-preset YAML configs
-├── unused/                         # Deleted model configs
-├── unused_profiles/                # Deleted profiles
-└── unused_presets/                 # Deleted presets
-
-~/.local/share/llm-manager/         # Data
-├── models/                         # GGUF files
-└── bin/                            # llama-server binaries
-```
-
-### Multiple model directories
-
-The `models_dirs` field in `config.yaml` accepts a list of directories. The app scans all directories and merges the results into a single model list. The first directory is used as the download destination.
-
-```yaml
-models_dirs:
-  - /path/to/models/1
-  - /path/to/models/2
-```
-
-### Backend binary resolution
-
-llama-server binaries are stored in `~/.local/share/llm-manager/bin/` with versioned directories:
-
-```
-~/.local/share/llm-manager/bin/
-├── llama-server-cpu-{version}/llama-server
-├── llama-server-vulkan-{version}/llama-server
-├── llama-server-rocm-{version}/llama-server
-├── llama-server-rocm-lemonade-{version}/llama-server
-└── llama-server-cuda-{version}/llama-server
-```
-
-Switching versions is instant — no re-download. The binary is automatically downloaded from specialized repositories on first use:
-
-- **CPU, Vulkan, ROCm (Native):** Fetched from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp)
-- **ROCm (Lemonade):** Fetched from [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) (ZIP, auto-detects GFX architecture like `gfx1100`)
-- **CUDA (NVIDIA):** Fetched from [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) (CUDA 12.8 builds)
-
-Per-backend version config:
-
-```yaml
-llama_cpp_version_cpu: null
-llama_cpp_version_vulkan: null
-llama_cpp_version_rocm: null
-llama_cpp_version_rocm_lemonade: null
-llama_cpp_version_cuda: null
-```
 
 ## Contributing
 
