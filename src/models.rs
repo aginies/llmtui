@@ -9,13 +9,8 @@ pub enum ModelState {
     Available,
     Loading,
     Benchmarking,
-    Loaded {
-        port: u16,
-        pid: u32,
-    },
-    Failed {
-        error: String,
-    },
+    Loaded { port: u16, pid: u32 },
+    Failed { error: String },
 }
 
 /// Sort order for search results.
@@ -202,7 +197,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             numa: dp.numa,
             system_prompt: dp.system_prompt,
             system_prompt_preset_name: dp.system_prompt_preset_name,
-            
+
             gpu_layers_mode: match dp.gpu_layers {
                 n if n < 0 => GpuLayersMode::All,
                 _ => dp.gpu_layers_mode,
@@ -256,9 +251,9 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_cpu: dp.llama_cpp_version_cpu,
             llama_cpp_version_vulkan: dp.llama_cpp_version_vulkan,
             llama_cpp_version_rocm: dp.llama_cpp_version_rocm,
-           llama_cpp_version_rocm_lemonade: dp.llama_cpp_version_rocm_lemonade,
+            llama_cpp_version_rocm_lemonade: dp.llama_cpp_version_rocm_lemonade,
             llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
-          api_endpoint_enabled: dp.api_endpoint_enabled,
+            api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
             ws_server_enabled: dp.ws_server_enabled,
             ws_server_port: dp.ws_server_port,
@@ -299,8 +294,7 @@ pub enum DownloadStatus {
 // ── Cache type enums ──────────────────────────────────────────
 
 /// Main KV cache data type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash, Default)]
 pub enum CacheType {
     #[serde(rename = "f16")]
     #[default]
@@ -312,7 +306,6 @@ pub enum CacheType {
     #[serde(rename = "fq4_1")]
     Fq4_1,
 }
-
 
 impl std::fmt::Display for CacheType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -395,7 +388,6 @@ impl CacheQuantType {
     }
 }
 
-
 impl std::fmt::Display for CacheQuantType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -430,8 +422,7 @@ impl From<&str> for CacheQuantType {
 }
 
 /// Split mode for multi-GPU.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash, Default)]
 pub enum SplitMode {
     #[serde(rename = "none")]
     None,
@@ -443,7 +434,6 @@ pub enum SplitMode {
     #[serde(rename = "tensor")]
     Tensor,
 }
-
 
 impl std::fmt::Display for SplitMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -457,8 +447,7 @@ impl std::fmt::Display for SplitMode {
 }
 
 /// NUMA optimization mode.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash, Default)]
 pub enum NumMode {
     #[serde(rename = "none")]
     #[default]
@@ -470,7 +459,6 @@ pub enum NumMode {
     #[serde(rename = "numactl")]
     Numactl,
 }
-
 
 impl std::fmt::Display for NumMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -484,8 +472,7 @@ impl std::fmt::Display for NumMode {
 }
 
 /// RoPE frequency scaling method.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash, Default)]
 pub enum RopeScaling {
     #[serde(rename = "none")]
     #[default]
@@ -495,7 +482,6 @@ pub enum RopeScaling {
     #[serde(rename = "yarn")]
     Yarn,
 }
-
 
 impl std::fmt::Display for RopeScaling {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -508,8 +494,7 @@ impl std::fmt::Display for RopeScaling {
 }
 
 /// Mirostat version.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash, Default)]
 pub enum Mirostat {
     #[serde(rename = "0")]
     #[default]
@@ -519,7 +504,6 @@ pub enum Mirostat {
     #[serde(rename = "2")]
     Mirostat2,
 }
-
 
 impl std::fmt::Display for Mirostat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -549,8 +533,7 @@ impl std::fmt::Display for Samplers {
 }
 
 /// Backend used to run the llama.cpp server.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Backend {
     #[serde(rename = "cpu")]
     #[default]
@@ -581,7 +564,6 @@ pub enum Backend {
     CpuMacosX64,
 }
 
-
 impl Backend {
     /// Get the identifier used for directory names and asset prefixes.
     pub fn slug(&self) -> &'static str {
@@ -604,12 +586,27 @@ impl Backend {
 
     /// Returns true if this backend is for Linux.
     pub fn is_linux(self) -> bool {
-        matches!(self, Backend::Cpu | Backend::Vulkan | Backend::Rocm | Backend::RocmLemonade | Backend::Cuda | Backend::CpuArm64)
+        matches!(
+            self,
+            Backend::Cpu
+                | Backend::Vulkan
+                | Backend::Rocm
+                | Backend::RocmLemonade
+                | Backend::Cuda
+                | Backend::CpuArm64
+        )
     }
 
     /// Returns true if this backend is for Windows.
     pub fn is_windows(self) -> bool {
-        matches!(self, Backend::CpuWindows | Backend::VulkanWindows | Backend::CudaWindows12_4 | Backend::CudaWindows13_1 | Backend::HipWindows)
+        matches!(
+            self,
+            Backend::CpuWindows
+                | Backend::VulkanWindows
+                | Backend::CudaWindows12_4
+                | Backend::CudaWindows13_1
+                | Backend::HipWindows
+        )
     }
 
     /// Returns true if this backend is for macOS.
@@ -644,10 +641,8 @@ impl std::fmt::Display for Backend {
     }
 }
 
-
 /// Server mode: normal (single model) or router (multiple models).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ServerMode {
     #[serde(rename = "normal")]
     #[default]
@@ -659,7 +654,6 @@ pub enum ServerMode {
     #[serde(rename = "bench_tune")]
     BenchTune,
 }
-
 
 impl std::fmt::Display for ServerMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -678,7 +672,6 @@ impl std::fmt::Display for ServerMode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelSettings {
     // ── Loading ──────────────────────────────────────────────
-
     /// Size of the prompt context.
     pub context_length: u32,
     /// Number of CPU threads for generation.
@@ -717,7 +710,6 @@ pub struct ModelSettings {
     pub system_prompt_preset_name: String,
 
     // ── GPU ──────────────────────────────────────────────────
-
     /// GPU layer offloading mode.
     pub gpu_layers_mode: GpuLayersMode,
     /// Split mode across multiple GPUs.
@@ -748,7 +740,6 @@ pub struct ModelSettings {
     pub chat_template_kwargs: Option<String>,
 
     // ── Sampling ─────────────────────────────────────────────
-
     /// RNG seed (-1 = random).
     pub seed: i32,
     /// Temperature.
@@ -773,7 +764,6 @@ pub struct ModelSettings {
     pub samplers: Samplers,
 
     // ── Repetition Control ───────────────────────────────────
-
     /// Penalize repeat sequence of tokens.
     pub repeat_penalty: f32,
     /// Last N tokens to consider for repeat penalty.
@@ -792,7 +782,6 @@ pub struct ModelSettings {
     pub dry_penalty_last_n: i32,
 
     // ── RoPE ─────────────────────────────────────────────────
-
     /// RoPE frequency scaling method.
     pub rope_scaling: RopeScaling,
     /// RoPE context scaling factor.
@@ -805,7 +794,6 @@ pub struct ModelSettings {
     pub rope_yarn_enabled: bool,
 
     // ── Server ───────────────────────────────────────────────
-
     /// Host address.
     pub host: String,
     /// Port.
@@ -820,7 +808,6 @@ pub struct ModelSettings {
     pub webui: bool,
 
     // ── Other ────────────────────────────────────────────────
-
     /// Max tokens to predict.
     pub max_tokens: Option<u32>,
     /// Cache type (legacy, kept for compatibility).
@@ -848,7 +835,7 @@ pub struct ModelSettings {
     /// Tags for the model.
     pub tags: Vec<String>,
     /// Whether to enable the WebSocket dashboard server.
-   pub ws_server_enabled: bool,
+    pub ws_server_enabled: bool,
     pub ws_server_port: u16,
     pub ws_server_auth_key: Option<String>,
     pub ws_server_tls_enabled: bool,
@@ -886,8 +873,7 @@ impl ModelSettings {
 }
 
 /// Default benchmark prompt used when starting a tuning session.
-pub const BENCHMARK_PROMPT: &str =
-    "Create Mona Lisa image in ascii art using text, number, symbol, everything possible. this should be the perfect painting.";
+pub const BENCHMARK_PROMPT: &str = "Create Mona Lisa image in ascii art using text, number, symbol, everything possible. this should be the perfect painting.";
 
 /// A discovered model file.
 #[derive(Debug, Clone)]
@@ -922,13 +908,18 @@ impl GgufMetadata {
         let path_str = path.to_string_lossy();
         let mut container = gguf_rs::get_gguf_container(&path_str)
             .map_err(|e| anyhow::anyhow!("Failed to get GGUF container: {}", e))?;
-        let model_data = container.decode()
+        let model_data = container
+            .decode()
             .map_err(|e| anyhow::anyhow!("Failed to decode GGUF: {}", e))?;
-        
+
         let mut meta = Self::default();
 
         let extract_str = |key: &str| -> String {
-            model_data.metadata().get(key).and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default()
+            model_data
+                .metadata()
+                .get(key)
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_default()
         };
 
         let extract_num = |key: &str| -> Option<u64> {
@@ -940,7 +931,11 @@ impl GgufMetadata {
         };
 
         meta.arch = extract_str("general.architecture");
-        let prefix = if meta.arch.is_empty() { "llama" } else { &meta.arch };
+        let prefix = if meta.arch.is_empty() {
+            "llama"
+        } else {
+            &meta.arch
+        };
 
         let get_num_with_fallback = |suffix: &str| -> u32 {
             extract_num(&format!("{}.{}", prefix, suffix))
@@ -959,11 +954,12 @@ impl GgufMetadata {
         meta.n_ctx_train = get_num_with_fallback("context_length");
         meta.n_head = get_num_with_fallback("attention.head_count");
         meta.n_kv_head = get_num_with_fallback("attention.head_count_kv");
-        
+
         if let Some(value) = model_data.metadata().get("tokenizer.ggml.tokens")
-            && let Some(arr) = value.as_array() {
-                meta.vocab_size = arr.len() as u32;
-            }
+            && let Some(arr) = value.as_array()
+        {
+            meta.vocab_size = arr.len() as u32;
+        }
 
         if meta.arch == "mtp" {
             meta.draft_tokens = extract_num("mtp.draft_tokens").unwrap_or(0) as u32;
@@ -1000,15 +996,19 @@ impl GgufMetadata {
         }
 
         if let Some(value) = model_data.metadata().get("general.capabilities")
-            && let Some(arr) = value.as_array() {
-                for v in arr {
-                    if let Some(s) = v.as_str() {
-                        meta.capabilities.push(s.to_string());
-                    }
+            && let Some(arr) = value.as_array()
+        {
+            for v in arr {
+                if let Some(s) = v.as_str() {
+                    meta.capabilities.push(s.to_string());
                 }
             }
-        
-        if model_data.metadata().contains_key("tokenizer.chat_template") {
+        }
+
+        if model_data
+            .metadata()
+            .contains_key("tokenizer.chat_template")
+        {
             meta.capabilities.push("chat".to_string());
         }
 
@@ -1054,8 +1054,7 @@ pub struct GPUBuffer {
 }
 
 /// Progress information during model loading, parsed from llama-server log output.
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct LoadProgress {
     /// Total number of layers in the model.
     pub layers_total: Option<u32>,
@@ -1068,7 +1067,6 @@ pub struct LoadProgress {
     /// GPU device buffers with their sizes.
     pub buffers: Vec<GPUBuffer>,
 }
-
 
 impl Default for ServerMetrics {
     fn default() -> Self {
@@ -1151,7 +1149,13 @@ pub struct WsMetrics {
 }
 
 impl WsMetrics {
-    pub fn from_metrics(metrics: &ServerMetrics, model_name: &str, state: &str, settings: &crate::models::ModelSettings, cmd_display: Option<&str>) -> Self {
+    pub fn from_metrics(
+        metrics: &ServerMetrics,
+        model_name: &str,
+        state: &str,
+        settings: &crate::models::ModelSettings,
+        cmd_display: Option<&str>,
+    ) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1262,7 +1266,11 @@ pub fn estimate_vram_mib(
             }
         }
         GpuLayersMode::All => {
-            if total_layers > 0 { total_layers } else { 32 }
+            if total_layers > 0 {
+                total_layers
+            } else {
+                32
+            }
         }
     };
 
@@ -1295,9 +1303,7 @@ pub fn estimate_vram_mib(
     // If n_kv_head == n_head, ratio = 1.0 (no reduction).
     // If n_kv_head < n_head, ratio < 1.0 (KV cache is smaller).
     let gqa_ratio = match (n_head_opt, n_kv_head_opt) {
-        (Some(n_head), Some(n_kv_head)) if n_head > 0 => {
-            n_kv_head as f64 / n_head as f64
-        }
+        (Some(n_head), Some(n_kv_head)) if n_head > 0 => n_kv_head as f64 / n_head as f64,
         _ => 1.0, // fallback: assume no GQA
     };
 
@@ -1306,7 +1312,11 @@ pub fn estimate_vram_mib(
     let flash_attn_factor = if settings.flash_attn { 0.5 } else { 1.0 };
 
     // Unified KV cache shares a single KV buffer across all sequences.
-    let uniform_cache_factor = if settings.uniform_cache { 1.0 / settings.parallel as f64 } else { 1.0 };
+    let uniform_cache_factor = if settings.uniform_cache {
+        1.0 / settings.parallel as f64
+    } else {
+        1.0
+    };
 
     // KV cache in MiB:
     // Formula: 2 * n_layer * n_ctx * n_embd_kv * sizeof(type)
@@ -1331,8 +1341,7 @@ pub fn estimate_vram_mib(
 
     // Activation overhead during inference (proportional to batch * hidden).
     // Increased multiplier to 8.0 (from 2.0) to be more pessimistic about scratch buffers.
-    let activation_mib = (settings.batch_size as f64 * hidden_size * 8.0)
-        / (1024.0 * 1024.0);
+    let activation_mib = (settings.batch_size as f64 * hidden_size * 8.0) / (1024.0 * 1024.0);
 
     // Fixed overhead for driver, fragmentation, and small meta buffers.
     // Use 3.8% of max VRAM, falling back to 500MiB if unknown.
@@ -1438,11 +1447,11 @@ pub struct BenchTuneParam {
 
 impl PartialEq for BenchTuneParam {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name &&
-        self.min.to_bits() == other.min.to_bits() &&
-        self.max.to_bits() == other.max.to_bits() &&
-        self.step.to_bits() == other.step.to_bits() &&
-        self.enabled == other.enabled
+        self.name == other.name
+            && self.min.to_bits() == other.min.to_bits()
+            && self.max.to_bits() == other.max.to_bits()
+            && self.step.to_bits() == other.step.to_bits()
+            && self.enabled == other.enabled
     }
 }
 impl Eq for BenchTuneParam {}
@@ -1464,17 +1473,17 @@ pub struct BenchTuneParamValue {
 
 impl PartialEq for BenchTuneParamValue {
     fn eq(&self, other: &Self) -> bool {
-        self.temperature.map(|v| v.to_bits()) == other.temperature.map(|v| v.to_bits()) &&
-        self.top_p.map(|v| v.to_bits()) == other.top_p.map(|v| v.to_bits()) &&
-        self.top_k == other.top_k &&
-        self.repeat_penalty.map(|v| v.to_bits()) == other.repeat_penalty.map(|v| v.to_bits()) &&
-        self.context_length == other.context_length &&
-        self.batch_size == other.batch_size &&
-        self.flash_attn == other.flash_attn &&
-        self.threads == other.threads &&
-        self.expert_count == other.expert_count &&
-        self.spec_type == other.spec_type &&
-        self.draft_tokens == other.draft_tokens
+        self.temperature.map(|v| v.to_bits()) == other.temperature.map(|v| v.to_bits())
+            && self.top_p.map(|v| v.to_bits()) == other.top_p.map(|v| v.to_bits())
+            && self.top_k == other.top_k
+            && self.repeat_penalty.map(|v| v.to_bits()) == other.repeat_penalty.map(|v| v.to_bits())
+            && self.context_length == other.context_length
+            && self.batch_size == other.batch_size
+            && self.flash_attn == other.flash_attn
+            && self.threads == other.threads
+            && self.expert_count == other.expert_count
+            && self.spec_type == other.spec_type
+            && self.draft_tokens == other.draft_tokens
     }
 }
 impl Eq for BenchTuneParamValue {}
@@ -1572,41 +1581,54 @@ pub enum BenchTuneProgress {
         elapsed: Duration,
     },
     /// Tuning failed.
-    Error {
-        error: String,
-    },
+    Error { error: String },
 }
 
 impl BenchTuneProgress {
     pub fn from_status(status: &BenchTuneStatus) -> Option<Self> {
         match status {
-            BenchTuneStatus::Running { current, total, progress, current_params } => Some(BenchTuneProgress::Running {
+            BenchTuneStatus::Running {
+                current,
+                total,
+                progress,
+                current_params,
+            } => Some(BenchTuneProgress::Running {
                 current: *current,
                 total: *total,
                 progress: *progress,
                 current_params: current_params.clone(),
             }),
-            BenchTuneStatus::Completed { total_tests, successful_tests, elapsed } => Some(BenchTuneProgress::Completed {
+            BenchTuneStatus::Completed {
+                total_tests,
+                successful_tests,
+                elapsed,
+            } => Some(BenchTuneProgress::Completed {
                 total_tests: *total_tests,
                 successful_tests: *successful_tests,
                 elapsed: *elapsed,
             }),
-            BenchTuneStatus::PartiallyCompleted { total_tests, successful_tests, failed_tests, elapsed } => {
-                Some(BenchTuneProgress::PartiallyCompleted {
-                    total_tests: *total_tests,
-                    successful_tests: *successful_tests,
-                    failed_tests: *failed_tests,
-                    elapsed: *elapsed,
-                })
-            }
-            BenchTuneStatus::Cancelled { total_tests, successful_tests, failed_tests, elapsed } => {
-                Some(BenchTuneProgress::Cancelled {
-                    total_tests: *total_tests,
-                    successful_tests: *successful_tests,
-                    failed_tests: *failed_tests,
-                    elapsed: *elapsed,
-                })
-            }
+            BenchTuneStatus::PartiallyCompleted {
+                total_tests,
+                successful_tests,
+                failed_tests,
+                elapsed,
+            } => Some(BenchTuneProgress::PartiallyCompleted {
+                total_tests: *total_tests,
+                successful_tests: *successful_tests,
+                failed_tests: *failed_tests,
+                elapsed: *elapsed,
+            }),
+            BenchTuneStatus::Cancelled {
+                total_tests,
+                successful_tests,
+                failed_tests,
+                elapsed,
+            } => Some(BenchTuneProgress::Cancelled {
+                total_tests: *total_tests,
+                successful_tests: *successful_tests,
+                failed_tests: *failed_tests,
+                elapsed: *elapsed,
+            }),
             BenchTuneStatus::Error { error } => Some(BenchTuneProgress::Error {
                 error: error.clone(),
             }),
@@ -1677,14 +1699,13 @@ impl BenchTuneConfig {
                     step: 1.0,
                     enabled: false,
                 },
-                ],
-                test_duration: Duration::from_secs(30),
-                bench_mode: BenchTuneMode::default(),
-                n_predict: 512,
-chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
-                }
-                }
-
+            ],
+            test_duration: Duration::from_secs(30),
+            bench_mode: BenchTuneMode::default(),
+            n_predict: 512,
+            chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
+        }
+    }
 
     /// Generate all parameter combinations based on the config
     pub fn generate_combinations(&self) -> Vec<BenchTuneParamValue> {
@@ -1698,11 +1719,15 @@ chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
         let mut expert_count_values = vec![None];
 
         for p in &self.params_to_test {
-            if !p.enabled { continue; }
-            
+            if !p.enabled {
+                continue;
+            }
+
             let vals: Vec<f64> = {
                 let step_count = ((p.max - p.min) / p.step).ceil() as usize;
-                (0..=step_count).map(|i| (p.min + (i as f64 * p.step)).min(p.max)).collect()
+                (0..=step_count)
+                    .map(|i| (p.min + (i as f64 * p.step)).min(p.max))
+                    .collect()
             };
 
             match p.name.as_str() {
@@ -1710,10 +1735,16 @@ chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
                 "top_p" => top_p_values = vals.into_iter().map(Some).collect(),
                 "top_k" => top_k_values = vals.into_iter().map(|v| Some(v as i64)).collect(),
                 "repeat_penalty" => repeat_penalty_values = vals.into_iter().map(Some).collect(),
-                "flash_attn" => flash_attn_values = vals.into_iter().map(|v| Some(v >= 0.5)).collect(),
+                "flash_attn" => {
+                    flash_attn_values = vals.into_iter().map(|v| Some(v >= 0.5)).collect()
+                }
                 "threads" => threads_values = vals.into_iter().map(|v| Some(v as u32)).collect(),
-                "batch_size" => batch_size_values = vals.into_iter().map(|v| Some(v as u32)).collect(),
-                "expert_count" => expert_count_values = vals.into_iter().map(|v| Some(v as i32)).collect(),
+                "batch_size" => {
+                    batch_size_values = vals.into_iter().map(|v| Some(v as u32)).collect()
+                }
+                "expert_count" => {
+                    expert_count_values = vals.into_iter().map(|v| Some(v as i32)).collect()
+                }
                 _ => {}
             }
         }
@@ -1748,7 +1779,7 @@ chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
                 }
             }
         }
-        
+
         combinations
     }
 
@@ -1757,4 +1788,3 @@ chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
         self.generate_combinations().len()
     }
 }
-

@@ -6,12 +6,12 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 
-use crate::tui::app::{App, ActivePanel, ModelsMode};
+use crate::tui::app::{ActivePanel, App, ModelsMode};
 use crate::tui::panel;
 
-mod status;
 mod hints;
 mod overlays;
+mod status;
 
 pub fn render(f: &mut Frame, app: &mut App) {
     if overlays::render_overlays(f, app) {
@@ -42,8 +42,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ratatui::layout::Constraint::Fill(1)
         } else {
             let mut h = 0;
-            if log_visible { h += 3; }
-            if app.download.downloading { h += 7; }
+            if log_visible {
+                h += 3;
+            }
+            if app.download.downloading {
+                h += 7;
+            }
 
             if h > 0 {
                 ratatui::layout::Constraint::Min(h)
@@ -73,7 +77,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
         return;
     }
 
-    let top_chunks = if !app.is_panel_visible(1) && !app.is_panel_visible(3) && !matches!(app.ui.active_panel, ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme) {
+    let top_chunks = if !app.is_panel_visible(1)
+        && !app.is_panel_visible(3)
+        && !matches!(
+            app.ui.active_panel,
+            ActivePanel::Profiles | ActivePanel::SystemPromptPresets | ActivePanel::SearchReadme
+        ) {
         ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
@@ -107,9 +116,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     } else {
         let chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
-            .constraints([
-                ratatui::layout::Constraint::Fill(1),
-            ])
+            .constraints([ratatui::layout::Constraint::Fill(1)])
             .split(top_chunks[0]);
         (chunks, None)
     };
@@ -135,7 +142,9 @@ pub fn render(f: &mut Frame, app: &mut App) {
             let area = top_chunks[1];
             let available_height = area.height.saturating_sub(2);
 
-            let max_offset = profile_lines.len().saturating_sub(available_height as usize) as u16;
+            let max_offset = profile_lines
+                .len()
+                .saturating_sub(available_height as usize) as u16;
             if app.picker.profiles_scroll_offset > max_offset.into() {
                 app.picker.profiles_scroll_offset = max_offset.into();
             }
@@ -268,9 +277,15 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
         panel::log::render(f, bottom_chunks[0], app);
 
-        let total_speed: f64 = app.download.download_progress.iter().map(|d| d.bytes_per_second).sum();
+        let total_speed: f64 = app
+            .download
+            .download_progress
+            .iter()
+            .map(|d| d.bytes_per_second)
+            .sum();
         panel::models::render_download_panel(
-            f, bottom_chunks[1],
+            f,
+            bottom_chunks[1],
             &app.download.download_progress,
             total_speed,
             &mut app.download.download_scroll_state,
@@ -279,10 +294,16 @@ pub fn render(f: &mut Frame, app: &mut App) {
     } else if log_visible {
         panel::log::render(f, bottom_area, app);
     } else if app.download.downloading {
-        let total_speed: f64 = app.download.download_progress.iter().map(|d| d.bytes_per_second).sum();
+        let total_speed: f64 = app
+            .download
+            .download_progress
+            .iter()
+            .map(|d| d.bytes_per_second)
+            .sum();
         let downloads_focused = app.ui.active_panel == ActivePanel::Downloads;
         panel::models::render_download_panel(
-            f, bottom_area,
+            f,
+            bottom_area,
             &app.download.download_progress,
             total_speed,
             &mut app.download.download_scroll_state,

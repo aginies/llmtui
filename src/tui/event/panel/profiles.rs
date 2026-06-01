@@ -8,11 +8,13 @@ pub fn handle_profiles_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
-            app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(1);
+            app.settings_state.settings_selected_idx =
+                app.settings_state.settings_selected_idx.saturating_sub(1);
         }
         KeyCode::Down | KeyCode::Char('j') => {
             if total > 0 {
-                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 1).min(total - 1);
+                app.settings_state.settings_selected_idx =
+                    (app.settings_state.settings_selected_idx + 1).min(total - 1);
             }
         }
         KeyCode::PageUp => {

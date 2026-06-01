@@ -8,7 +8,12 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
     let r = Style::default().fg(Color::Red);
 
     match &app.models_mode {
-        ModelsMode::Search { sort_by, show_readme: _, loading, .. } => {
+        ModelsMode::Search {
+            sort_by,
+            show_readme: _,
+            loading,
+            ..
+        } => {
             let mut parts = Vec::new();
             parts.push(Span::styled("⎋ exit", c));
             parts.push(Span::raw("  "));
@@ -17,10 +22,16 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
             parts.push(Span::styled("-> readme", y));
             parts.push(Span::raw("  "));
             parts.push(Span::styled("sort:", c));
-            parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
+            parts.push(Span::styled(
+                sort_by.label(),
+                Style::default().fg(Color::Magenta),
+            ));
             if *loading {
                 parts.push(Span::raw("  "));
-                parts.push(Span::styled("[loading]", Style::default().fg(Color::Yellow)));
+                parts.push(Span::styled(
+                    "[loading]",
+                    Style::default().fg(Color::Yellow),
+                ));
             }
             parts
         }
@@ -176,7 +187,12 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
             }
         }
         ModelsMode::BenchTune => {
-            if app.bench_tune.bench_tune_progress.is_some() && matches!(app.bench_tune.bench_tune_progress.as_ref().unwrap(), crate::models::BenchTuneProgress::Running { .. }) {
+            if app.bench_tune.bench_tune_progress.is_some()
+                && matches!(
+                    app.bench_tune.bench_tune_progress.as_ref().unwrap(),
+                    crate::models::BenchTuneProgress::Running { .. }
+                )
+            {
                 vec![
                     Span::styled("⎋ stop", r),
                     Span::raw("  "),

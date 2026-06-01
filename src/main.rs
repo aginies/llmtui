@@ -106,32 +106,70 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli {
-        Cli::Serve { model, profile, config, api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary, host, log_file, tls_enable, tls_cert, tls_key } => {
+        Cli::Serve {
+            model,
+            profile,
+            config,
+            api_port,
+            api_key,
+            ws_enable,
+            ws_port,
+            ws_auth,
+            backend_binary,
+            host,
+            log_file,
+            tls_enable,
+            tls_cert,
+            tls_key,
+        } => {
             // For serve mode, log to stdout or file
             if let Some(path) = &log_file {
                 let path = PathBuf::from(path);
                 if let Some(parent) = path.parent() {
                     std::fs::create_dir_all(parent).ok();
                 }
-                let file = std::fs::OpenOptions::new().create(true).append(true).open(&path)
+                let file = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&path)
                     .expect("Failed to open log file");
                 tracing_subscriber::registry()
                     .with(tracing_subscriber::fmt::layer().with_writer(file))
-                    .with(tracing_subscriber::EnvFilter::from_default_env().add_directive("llm_manager=info".parse().unwrap()))
+                    .with(
+                        tracing_subscriber::EnvFilter::from_default_env()
+                            .add_directive("llm_manager=info".parse().unwrap()),
+                    )
                     .init();
             } else {
                 tracing_subscriber::registry()
                     .with(tracing_subscriber::fmt::layer())
-                    .with(tracing_subscriber::EnvFilter::from_default_env().add_directive("llm_manager=info".parse().unwrap()))
+                    .with(
+                        tracing_subscriber::EnvFilter::from_default_env()
+                            .add_directive("llm_manager=info".parse().unwrap()),
+                    )
                     .init();
             }
 
-            serve::serve_model(&model, profile.as_deref(), config.as_deref(), api_port, api_key, ws_enable, ws_port, ws_auth, backend_binary.as_deref(), host.as_deref(), tls_enable, tls_cert.as_deref(), tls_key.as_deref())
-                .await
-                .map_err(|e| {
-                    tracing::error!("{}", e);
-                    e
-                })
+            serve::serve_model(
+                &model,
+                profile.as_deref(),
+                config.as_deref(),
+                api_port,
+                api_key,
+                ws_enable,
+                ws_port,
+                ws_auth,
+                backend_binary.as_deref(),
+                host.as_deref(),
+                tls_enable,
+                tls_cert.as_deref(),
+                tls_key.as_deref(),
+            )
+            .await
+            .map_err(|e| {
+                tracing::error!("{}", e);
+                e
+            })
         }
         Cli::Tui {
             models_dirs: cli_models_dirs,
@@ -152,7 +190,10 @@ async fn main() -> Result<()> {
 
             tracing_subscriber::registry()
                 .with(tracing_subscriber::fmt::layer().with_writer(log_file))
-                .with(tracing_subscriber::EnvFilter::from_default_env().add_directive("llm_manager=info".parse().unwrap()))
+                .with(
+                    tracing_subscriber::EnvFilter::from_default_env()
+                        .add_directive("llm_manager=info".parse().unwrap()),
+                )
                 .init();
 
             info!("Logging to {}", log_path.display());
@@ -161,7 +202,8 @@ async fn main() -> Result<()> {
 
             // Load or create config
             let mut config = if config_path.exists() {
-                Config::load_from(config_path).map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
+                Config::load_from(config_path)
+                    .map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
             } else {
                 let mut c = Config::default();
                 c.llama_server = PathBuf::from(&llama_server);
@@ -184,10 +226,10 @@ async fn main() -> Result<()> {
 
             // Discover models asynchronously
             let models_dirs = config.models_dirs.clone();
-            let models = tokio::task::spawn_blocking(move || {
-                App::discover_models(&models_dirs)
-            }).await.unwrap_or_default();
-            
+            let models = tokio::task::spawn_blocking(move || App::discover_models(&models_dirs))
+                .await
+                .unwrap_or_default();
+
             info!("Discovered {} models", models.len());
 
             let mut app = App::new(config);
@@ -202,17 +244,26 @@ async fn main() -> Result<()> {
             app.server.metrics_tx = Some(ws_metrics_tx);
 
             // Setup terminal
-            crossterm::terminal::enable_raw_mode().map_err(|e| anyhow::anyhow!("Failed to enable raw terminal mode (are you running in a TTY?): {}", e))?;
+            crossterm::terminal::enable_raw_mode().map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to enable raw terminal mode (are you running in a TTY?): {}",
+                    e
+                )
+            })?;
             crossterm::execute!(
                 std::io::stdout(),
                 crossterm::terminal::EnterAlternateScreen,
                 crossterm::event::EnableMouseCapture,
             )?;
-            crossterm::execute!(std::io::stdout(), crossterm::terminal::Clear(crossterm::terminal::ClearType::All))?;
+            crossterm::execute!(
+                std::io::stdout(),
+                crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
+            )?;
 
-            let mut terminal = ratatui::Terminal::new(ratatui::backend::CrosstermBackend::new(std::io::stdout()))?;
+            let mut terminal =
+                ratatui::Terminal::new(ratatui::backend::CrosstermBackend::new(std::io::stdout()))?;
 
-           // Main event loop
+            // Main event loop
             loop {
                 app.update_metrics_model_name();
                 app.start_pending_download().await;
@@ -242,11 +293,16 @@ async fn main() -> Result<()> {
                 if let Some(tx) = &app.server.metrics_tx {
                     // Try to get the first actually loaded model name
                     let loaded_model_name = {
-                        let names = app.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
+                        let names = app
+                            .server
+                            .loaded_model_names
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner());
                         names.first().cloned()
                     };
 
-                    let model_name = loaded_model_name.as_deref()
+                    let model_name = loaded_model_name
+                        .as_deref()
                         .or(app.server.spawned_model_name.as_deref())
                         .unwrap_or("");
 
@@ -262,7 +318,11 @@ async fn main() -> Result<()> {
                         "unloaded"
                     };
 
-                    let settings = app.server.spawned_settings.as_ref().unwrap_or(&app.settings);
+                    let settings = app
+                        .server
+                        .spawned_settings
+                        .as_ref()
+                        .unwrap_or(&app.settings);
 
                     if let Err(e) = tx.send(crate::models::WsMetrics::from_metrics(
                         &app.metrics,
@@ -281,72 +341,77 @@ async fn main() -> Result<()> {
                 app.tick_spinner();
                 app.render(&mut terminal)?;
 
-                let poll_timeout = if app.download.downloading || app.server.server_handle.is_some() {
+                let poll_timeout = if app.download.downloading || app.server.server_handle.is_some()
+                {
                     std::time::Duration::from_millis(50)
                 } else {
                     std::time::Duration::from_millis(200)
                 };
-                
+
                 if crossterm::event::poll(poll_timeout)?
-                    && let Ok(event) = crossterm::event::read() {
-                        match event {
-                            crossterm::event::Event::Key(key) => {
-                                if key.kind != crossterm::event::KeyEventKind::Release {
-                                    tui::event::handle_key(&mut app, key).await;
-                                }
+                    && let Ok(event) = crossterm::event::read()
+                {
+                    match event {
+                        crossterm::event::Event::Key(key) => {
+                            if key.kind != crossterm::event::KeyEventKind::Release {
+                                tui::event::handle_key(&mut app, key).await;
                             }
-                            crossterm::event::Event::Mouse(mouse) => {
-                                let size = terminal.size()?;
-                                tui::event::handle_mouse(&mut app, mouse, ratatui::layout::Rect::new(0, 0, size.width, size.height));
-                                match mouse.kind {
-                                    crossterm::event::MouseEventKind::Down(_) | 
-                                    crossterm::event::MouseEventKind::ScrollUp | 
-                                    crossterm::event::MouseEventKind::ScrollDown => {
-                                        }
-                                    _ => {}
-                                }
-                            }
-                            crossterm::event::Event::Resize(_, _) => {}
-                            _ => {}
                         }
+                        crossterm::event::Event::Mouse(mouse) => {
+                            let size = terminal.size()?;
+                            tui::event::handle_mouse(
+                                &mut app,
+                                mouse,
+                                ratatui::layout::Rect::new(0, 0, size.width, size.height),
+                            );
+                            match mouse.kind {
+                                crossterm::event::MouseEventKind::Down(_)
+                                | crossterm::event::MouseEventKind::ScrollUp
+                                | crossterm::event::MouseEventKind::ScrollDown => {}
+                                _ => {}
+                            }
+                        }
+                        crossterm::event::Event::Resize(_, _) => {}
+                        _ => {}
                     }
+                }
 
                 if !app.running {
                     break;
                 }
             }
-    // Cleanup before exit: kill running server and background tasks
-    tracing::info!("Shutting down all processes...");
-    if let Some(handle) = app.server.server_handle.take() {
-        let _ = server::kill_server(handle).await;
-    }
-    if let Some(task) = app.server.metrics_task_handle.take() {
-        task.abort();
-    }
-    if let Some(task) = app.server.spawn_task_handle.take() {
-        task.abort();
-    }
-    if let Some(task) = app.server.api_proxy_handle.take() {
-        task.abort();
-    }
-    if let Some(handle) = app.ws_server_handle.take() {
-        backend::ws_server::stop_ws_server(handle);
-    }
+            // Cleanup before exit: kill running server and background tasks
+            tracing::info!("Shutting down all processes...");
+            if let Some(handle) = app.server.server_handle.take() {
+                let _ = server::kill_server(handle).await;
+            }
+            if let Some(task) = app.server.metrics_task_handle.take() {
+                task.abort();
+            }
+            if let Some(task) = app.server.spawn_task_handle.take() {
+                task.abort();
+            }
+            if let Some(task) = app.server.api_proxy_handle.take() {
+                task.abort();
+            }
+            if let Some(handle) = app.ws_server_handle.take() {
+                backend::ws_server::stop_ws_server(handle);
+            }
 
-    // Abort all background tasks
-    for (_, task) in app.background_tasks.drain() {
-        task.abort();
-    }
+            // Abort all background tasks
+            for (_, task) in app.background_tasks.drain() {
+                task.abort();
+            }
 
-    // Restore terminal
-    crossterm::execute!(
-        std::io::stdout(),
-        crossterm::terminal::LeaveAlternateScreen,
-        crossterm::event::DisableMouseCapture,
-    )?;
-    crossterm::terminal::disable_raw_mode()?;
+            // Restore terminal
+            crossterm::execute!(
+                std::io::stdout(),
+                crossterm::terminal::LeaveAlternateScreen,
+                crossterm::event::DisableMouseCapture,
+            )?;
+            crossterm::terminal::disable_raw_mode()?;
 
-        Ok(())
+            Ok(())
         }
     }
 }
@@ -362,4 +427,3 @@ fn resolve_models_dirs(cli_value: &Option<Vec<String>>) -> Vec<PathBuf> {
         }
     }
 }
-

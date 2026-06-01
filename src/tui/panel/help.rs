@@ -12,9 +12,9 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
     let chunks = Layout::default()
         .direction(ratatui::layout::Direction::Vertical)
         .constraints([
-            Constraint::Length(2),   // title
-            Constraint::Fill(1),     // scrollable content
-            Constraint::Length(1),   // footer
+            Constraint::Length(2), // title
+            Constraint::Fill(1),   // scrollable content
+            Constraint::Length(1), // footer
         ])
         .split(area);
 
@@ -37,7 +37,6 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(paragraph, chunks[1]);
 
     // Footer
-    let footer = Paragraph::new("j/k scroll · ⎋ close")
-        .style(Style::default().fg(Color::DarkGray));
+    let footer = Paragraph::new("j/k scroll · ⎋ close").style(Style::default().fg(Color::DarkGray));
     f.render_widget(footer, chunks[2]);
 }

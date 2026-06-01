@@ -11,11 +11,7 @@ use std::time::Duration;
 
 #[test]
 fn bench_tune_config_new_basic() {
-    let config = BenchTuneConfig::new(
-        PathBuf::from("/models/qwen.gguf"),
-        3,
-        "test prompt".into(),
-    );
+    let config = BenchTuneConfig::new(PathBuf::from("/models/qwen.gguf"), 3, "test prompt".into());
     assert_eq!(config.model_path, PathBuf::from("/models/qwen.gguf"));
     assert_eq!(config.num_iterations, 3);
     assert_eq!(config.prompt, "test prompt");
@@ -23,51 +19,31 @@ fn bench_tune_config_new_basic() {
 
 #[test]
 fn bench_tune_config_new_default_duration() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     assert_eq!(config.test_duration, Duration::from_secs(30));
 }
 
 #[test]
 fn bench_tune_config_new_default_mode() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     assert_eq!(config.bench_mode, BenchTuneMode::Full);
 }
 
 #[test]
 fn bench_tune_config_new_n_predict() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     assert_eq!(config.n_predict, 512);
 }
 
 #[test]
 fn bench_tune_config_new_has_8_params() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     assert_eq!(config.params_to_test.len(), 8);
 }
 
 #[test]
 fn bench_tune_config_new_params_all_disabled_by_default() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     for p in &config.params_to_test {
         assert!(!p.enabled, "param {} should be disabled by default", p.name);
     }
@@ -77,12 +53,12 @@ fn bench_tune_config_new_params_all_disabled_by_default() {
 
 #[test]
 fn bench_tune_config_has_temperature_param() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    let temp = config.params_to_test.iter().find(|p| p.name == "temperature").unwrap();
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    let temp = config
+        .params_to_test
+        .iter()
+        .find(|p| p.name == "temperature")
+        .unwrap();
     assert_eq!(temp.min, 0.4);
     assert_eq!(temp.max, 1.0);
     assert_eq!(temp.step, 0.1);
@@ -90,12 +66,12 @@ fn bench_tune_config_has_temperature_param() {
 
 #[test]
 fn bench_tune_config_has_top_p_param() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    let tp = config.params_to_test.iter().find(|p| p.name == "top_p").unwrap();
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    let tp = config
+        .params_to_test
+        .iter()
+        .find(|p| p.name == "top_p")
+        .unwrap();
     assert_eq!(tp.min, 0.8);
     assert_eq!(tp.max, 1.0);
     assert_eq!(tp.step, 0.1);
@@ -103,12 +79,12 @@ fn bench_tune_config_has_top_p_param() {
 
 #[test]
 fn bench_tune_config_has_top_k_param() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    let tk = config.params_to_test.iter().find(|p| p.name == "top_k").unwrap();
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    let tk = config
+        .params_to_test
+        .iter()
+        .find(|p| p.name == "top_k")
+        .unwrap();
     assert_eq!(tk.min, 10.0);
     assert_eq!(tk.max, 40.0);
     assert_eq!(tk.step, 5.0);
@@ -116,12 +92,12 @@ fn bench_tune_config_has_top_k_param() {
 
 #[test]
 fn bench_tune_config_has_repeat_penalty_param() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    let rp = config.params_to_test.iter().find(|p| p.name == "repeat_penalty").unwrap();
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    let rp = config
+        .params_to_test
+        .iter()
+        .find(|p| p.name == "repeat_penalty")
+        .unwrap();
     assert_eq!(rp.min, 1.0);
     assert_eq!(rp.max, 1.2);
     assert_eq!(rp.step, 0.1);
@@ -129,12 +105,12 @@ fn bench_tune_config_has_repeat_penalty_param() {
 
 #[test]
 fn bench_tune_config_has_flash_attn_param() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    let fa = config.params_to_test.iter().find(|p| p.name == "flash_attn").unwrap();
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    let fa = config
+        .params_to_test
+        .iter()
+        .find(|p| p.name == "flash_attn")
+        .unwrap();
     assert_eq!(fa.min, 0.0);
     assert_eq!(fa.max, 1.0);
     assert_eq!(fa.step, 1.0);
@@ -142,12 +118,12 @@ fn bench_tune_config_has_flash_attn_param() {
 
 #[test]
 fn bench_tune_config_has_threads_param() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    let th = config.params_to_test.iter().find(|p| p.name == "threads").unwrap();
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    let th = config
+        .params_to_test
+        .iter()
+        .find(|p| p.name == "threads")
+        .unwrap();
     assert_eq!(th.min, 4.0);
     assert_eq!(th.max, 16.0);
     assert_eq!(th.step, 4.0);
@@ -155,12 +131,12 @@ fn bench_tune_config_has_threads_param() {
 
 #[test]
 fn bench_tune_config_has_batch_size_param() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    let bs = config.params_to_test.iter().find(|p| p.name == "batch_size").unwrap();
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    let bs = config
+        .params_to_test
+        .iter()
+        .find(|p| p.name == "batch_size")
+        .unwrap();
     assert_eq!(bs.min, 512.0);
     assert_eq!(bs.max, 2048.0);
     assert_eq!(bs.step, 512.0);
@@ -168,12 +144,12 @@ fn bench_tune_config_has_batch_size_param() {
 
 #[test]
 fn bench_tune_config_has_expert_count_param() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    let ec = config.params_to_test.iter().find(|p| p.name == "expert_count").unwrap();
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    let ec = config
+        .params_to_test
+        .iter()
+        .find(|p| p.name == "expert_count")
+        .unwrap();
     assert_eq!(ec.min, 1.0);
     assert_eq!(ec.max, 4.0);
     assert_eq!(ec.step, 1.0);
@@ -183,11 +159,7 @@ fn bench_tune_config_has_expert_count_param() {
 
 #[test]
 fn generate_combinations_all_disabled_returns_one() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // All params are disabled by default
     let combos = config.generate_combinations();
     assert_eq!(combos.len(), 1);
@@ -195,13 +167,13 @@ fn generate_combinations_all_disabled_returns_one() {
 
 #[test]
 fn generate_combinations_one_enabled_temperature() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable only temperature (0.4, 0.5, ..., 1.0 = 7 values)
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "temperature") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "temperature")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
@@ -210,11 +182,7 @@ fn generate_combinations_one_enabled_temperature() {
 
 #[test]
 fn generate_combinations_one_enabled_top_p() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable only top_p (0.8, 0.9, 1.0 = 3 values)
     if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "top_p") {
         p.enabled = true;
@@ -225,11 +193,7 @@ fn generate_combinations_one_enabled_top_p() {
 
 #[test]
 fn generate_combinations_one_enabled_top_k() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable only top_k (10, 15, 20, 25, 30, 35, 40 = 7 values)
     if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "top_k") {
         p.enabled = true;
@@ -240,13 +204,13 @@ fn generate_combinations_one_enabled_top_k() {
 
 #[test]
 fn generate_combinations_two_enabled_multiply() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable temperature (7 values) and top_p (3 values) = 21 combinations
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "temperature") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "temperature")
+    {
         p.enabled = true;
     }
     if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "top_p") {
@@ -258,13 +222,13 @@ fn generate_combinations_two_enabled_multiply() {
 
 #[test]
 fn generate_combinations_flash_attn_binary() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable only flash_attn (0, 1 = 2 values)
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "flash_attn") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "flash_attn")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
@@ -273,13 +237,13 @@ fn generate_combinations_flash_attn_binary() {
 
 #[test]
 fn generate_combinations_threads_three_values() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable only threads (4, 8, 12, 16 = 4 values)
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "threads") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "threads")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
@@ -288,13 +252,13 @@ fn generate_combinations_threads_three_values() {
 
 #[test]
 fn generate_combinations_batch_size_four_values() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable only batch_size (512, 1024, 1536, 2048 = 4 values)
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "batch_size") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "batch_size")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
@@ -303,13 +267,13 @@ fn generate_combinations_batch_size_four_values() {
 
 #[test]
 fn generate_combinations_expert_count_four_values() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable only expert_count (1, 2, 3, 4 = 4 values)
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "expert_count") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "expert_count")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
@@ -318,13 +282,13 @@ fn generate_combinations_expert_count_four_values() {
 
 #[test]
 fn generate_combinations_repeat_penalty_three_values() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable only repeat_penalty (1.0, 1.1, 1.2 = 3 values)
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "repeat_penalty") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "repeat_penalty")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
@@ -335,11 +299,7 @@ fn generate_combinations_repeat_penalty_three_values() {
 
 #[test]
 fn get_total_tests_count_matches_generate() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     let count = config.get_total_tests_count();
     let combos = config.generate_combinations();
     assert_eq!(count, combos.len());
@@ -347,12 +307,12 @@ fn get_total_tests_count_matches_generate() {
 
 #[test]
 fn get_total_tests_count_with_enabled_params() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "temperature") {
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "temperature")
+    {
         p.enabled = true;
     }
     if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "top_p") {
@@ -541,11 +501,7 @@ fn bench_tune_mode_full_serializable() {
 
 #[test]
 fn bench_tune_config_custom_iterations() {
-    let config = BenchTuneConfig::new(
-        PathBuf::new(),
-        10,
-        "custom prompt".into(),
-    );
+    let config = BenchTuneConfig::new(PathBuf::new(), 10, "custom prompt".into());
     assert_eq!(config.num_iterations, 10);
 }
 
@@ -561,11 +517,7 @@ fn bench_tune_config_custom_prompt() {
 
 #[test]
 fn bench_tune_config_custom_kwargs() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     config.chat_template_kwargs = Some(r#"{"enable_thinking": true}"#.into());
     assert_eq!(
         config.chat_template_kwargs,
@@ -577,18 +529,16 @@ fn bench_tune_config_custom_kwargs() {
 
 #[test]
 fn generate_combinations_temperature_values_correct() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "temperature") {
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "temperature")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    let temps: Vec<f64> = combos.iter()
-        .filter_map(|c| c.temperature)
-        .collect();
+    let temps: Vec<f64> = combos.iter().filter_map(|c| c.temperature).collect();
     assert!((temps[0] - 0.4).abs() < f64::EPSILON);
     assert!((temps[1] - 0.5).abs() < f64::EPSILON);
     assert!((temps[2] - 0.6).abs() < f64::EPSILON);
@@ -600,103 +550,87 @@ fn generate_combinations_temperature_values_correct() {
 
 #[test]
 fn generate_combinations_top_p_values_correct() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "top_p") {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    let tops: Vec<f64> = combos.iter()
-        .filter_map(|c| c.top_p)
-        .collect();
+    let tops: Vec<f64> = combos.iter().filter_map(|c| c.top_p).collect();
     assert_eq!(tops, vec![0.8, 0.9, 1.0]);
 }
 
 #[test]
 fn generate_combinations_threads_values_correct() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "threads") {
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "threads")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    let threads: Vec<u32> = combos.iter()
-        .filter_map(|c| c.threads)
-        .collect();
+    let threads: Vec<u32> = combos.iter().filter_map(|c| c.threads).collect();
     assert_eq!(threads, vec![4, 8, 12, 16]);
 }
 
 #[test]
 fn generate_combinations_batch_size_values_correct() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "batch_size") {
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "batch_size")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    let batches: Vec<u32> = combos.iter()
-        .filter_map(|c| c.batch_size)
-        .collect();
+    let batches: Vec<u32> = combos.iter().filter_map(|c| c.batch_size).collect();
     assert_eq!(batches, vec![512, 1024, 1536, 2048]);
 }
 
 #[test]
 fn generate_combinations_flash_attn_values_correct() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "flash_attn") {
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "flash_attn")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    let fas: Vec<bool> = combos.iter()
-        .filter_map(|c| c.flash_attn)
-        .collect();
+    let fas: Vec<bool> = combos.iter().filter_map(|c| c.flash_attn).collect();
     assert_eq!(fas, vec![false, true]);
 }
 
 #[test]
 fn generate_combinations_expert_count_values_correct() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "expert_count") {
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "expert_count")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    let exps: Vec<i32> = combos.iter()
-        .filter_map(|c| c.expert_count)
-        .collect();
+    let exps: Vec<i32> = combos.iter().filter_map(|c| c.expert_count).collect();
     assert_eq!(exps, vec![1, 2, 3, 4]);
 }
 
 #[test]
 fn generate_combinations_repeat_penalty_values_correct() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "repeat_penalty") {
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "repeat_penalty")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    let rps: Vec<f64> = combos.iter()
-        .filter_map(|c| c.repeat_penalty)
-        .collect();
+    let rps: Vec<f64> = combos.iter().filter_map(|c| c.repeat_penalty).collect();
     assert!((rps[0] - 1.0).abs() < f64::EPSILON);
     assert!((rps[1] - 1.1).abs() < f64::EPSILON);
     assert!((rps[2] - 1.2).abs() < f64::EPSILON);
@@ -706,20 +640,24 @@ fn generate_combinations_repeat_penalty_values_correct() {
 
 #[test]
 fn generate_combinations_multiple_enabled_product() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable temperature (7) * top_p (3) = 21
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "temperature") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "temperature")
+    {
         p.enabled = true;
     }
     if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "top_p") {
         p.enabled = true;
     }
     // Enable flash_attn (2) → 21 * 2 = 42
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "flash_attn") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "flash_attn")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
@@ -728,11 +666,7 @@ fn generate_combinations_multiple_enabled_product() {
 
 #[test]
 fn generate_combinations_all_enabled_large_product() {
-    let mut config = BenchTuneConfig::new(
-        PathBuf::new(),
-        1,
-        "prompt".into(),
-    );
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable all 8 params:
     // temperature: 7, top_p: 3, top_k: 7, repeat_penalty: 3
     // flash_attn: 2, threads: 4, batch_size: 4, expert_count: 4
@@ -766,8 +700,12 @@ fn bench_tune_progress_from_running_has_values() {
             draft_tokens: None,
         },
     };
-    if let Some(BenchTuneProgress::Running { current, total, progress, current_params }) =
-        BenchTuneProgress::from_status(&status)
+    if let Some(BenchTuneProgress::Running {
+        current,
+        total,
+        progress,
+        current_params,
+    }) = BenchTuneProgress::from_status(&status)
     {
         assert_eq!(current, 5);
         assert_eq!(total, 10);
@@ -785,8 +723,11 @@ fn bench_tune_progress_from_completed_has_values() {
         successful_tests: 9,
         elapsed: Duration::from_secs(120),
     };
-    if let Some(BenchTuneProgress::Completed { total_tests, successful_tests, elapsed }) =
-        BenchTuneProgress::from_status(&status)
+    if let Some(BenchTuneProgress::Completed {
+        total_tests,
+        successful_tests,
+        elapsed,
+    }) = BenchTuneProgress::from_status(&status)
     {
         assert_eq!(total_tests, 10);
         assert_eq!(successful_tests, 9);

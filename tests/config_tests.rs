@@ -62,10 +62,19 @@ fn default_params_backend_is_auto_detected() {
     // Backend should be one of the known variants (platform-dependent)
     assert!(matches!(
         dp.backend,
-        Backend::Cpu | Backend::Vulkan | Backend::Rocm | Backend::RocmLemonade
-            | Backend::Cuda | Backend::CpuArm64 | Backend::CudaWindows12_4
-            | Backend::CudaWindows13_1 | Backend::HipWindows | Backend::CpuWindows
-            | Backend::VulkanWindows | Backend::CpuMacosArm64 | Backend::CpuMacosX64
+        Backend::Cpu
+            | Backend::Vulkan
+            | Backend::Rocm
+            | Backend::RocmLemonade
+            | Backend::Cuda
+            | Backend::CpuArm64
+            | Backend::CudaWindows12_4
+            | Backend::CudaWindows13_1
+            | Backend::HipWindows
+            | Backend::CpuWindows
+            | Backend::VulkanWindows
+            | Backend::CpuMacosArm64
+            | Backend::CpuMacosX64
     ));
 }
 
@@ -305,15 +314,17 @@ fn builtin_profiles_have_settings() {
     for p in &profiles {
         // Each profile should have at least one non-None setting
         let override_ = &p.settings;
-        assert!(override_.context_length.is_some()
-            || override_.temperature.is_some()
-            || override_.top_k.is_some()
-            || override_.top_p.is_some()
-            || override_.repeat_penalty.is_some()
-            || override_.min_p.is_some()
-            || override_.typical_p.is_some()
-            || override_.max_tokens.is_some()
-            || override_.uniform_cache.is_some());
+        assert!(
+            override_.context_length.is_some()
+                || override_.temperature.is_some()
+                || override_.top_k.is_some()
+                || override_.top_p.is_some()
+                || override_.repeat_penalty.is_some()
+                || override_.min_p.is_some()
+                || override_.typical_p.is_some()
+                || override_.max_tokens.is_some()
+                || override_.uniform_cache.is_some()
+        );
     }
 }
 
@@ -360,11 +371,14 @@ fn config_resolve_settings_returns_model_settings() {
 #[test]
 fn config_resolve_settings_with_model_override() {
     let mut config = Config::default();
-    config.model_overrides.save("my-model.gguf", &ModelOverride {
-        context_length: Some(8192),
-        temperature: Some(0.5),
-        ..Default::default()
-    });
+    config.model_overrides.save(
+        "my-model.gguf",
+        &ModelOverride {
+            context_length: Some(8192),
+            temperature: Some(0.5),
+            ..Default::default()
+        },
+    );
     let settings = config.resolve_settings(Some("my-model.gguf"), None);
     assert_eq!(settings.context_length, 8192);
     assert!((settings.temperature - 0.5).abs() < f32::EPSILON);
@@ -385,8 +399,20 @@ fn config_merged_profiles_includes_builtins() {
     let config = Config::default();
     let merged = config.merged_profiles();
     let names: Vec<&str> = merged.iter().map(|p| p.name.as_str()).collect();
-    for builtin in ["Qwen", "Qwen-MoE", "Qwen-Coding", "Gemma", "Llama", "Mistral", "Phi"] {
-        assert!(names.contains(&builtin), "missing builtin profile: {}", builtin);
+    for builtin in [
+        "Qwen",
+        "Qwen-MoE",
+        "Qwen-Coding",
+        "Gemma",
+        "Llama",
+        "Mistral",
+        "Phi",
+    ] {
+        assert!(
+            names.contains(&builtin),
+            "missing builtin profile: {}",
+            builtin
+        );
     }
 }
 
@@ -545,7 +571,10 @@ fn model_override_apply_tags() {
         ..Default::default()
     };
     override_.apply(&mut settings);
-    assert_eq!(settings.tags, vec![String::from("tag1"), String::from("tag2")]);
+    assert_eq!(
+        settings.tags,
+        vec![String::from("tag1"), String::from("tag2")]
+    );
 }
 
 // ── Config::default() completeness ─────────────────────────────
@@ -599,7 +628,10 @@ fn model_override_apply_chat_template() {
     override_.apply(&mut settings);
     assert!(settings.jinja);
     assert_eq!(settings.chat_template, Some("{{ messages }}".into()));
-    assert_eq!(settings.chat_template_kwargs, Some(r#"{"enable_thinking": false}"#.into()));
+    assert_eq!(
+        settings.chat_template_kwargs,
+        Some(r#"{"enable_thinking": false}"#.into())
+    );
 }
 
 // ── ModelOverride apply with LoRA ──────────────────────────────
@@ -614,7 +646,10 @@ fn model_override_apply_lora_paths() {
     };
     override_.apply(&mut settings);
     assert_eq!(settings.lora, Some(PathBuf::from("/path/to/lora.gguf")));
-    assert_eq!(settings.lora_scaled, Some((PathBuf::from("/path/to/lora2.gguf"), 0.5)));
+    assert_eq!(
+        settings.lora_scaled,
+        Some((PathBuf::from("/path/to/lora2.gguf"), 0.5))
+    );
 }
 
 // ── ModelOverride apply with KV cache ──────────────────────────

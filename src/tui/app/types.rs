@@ -1,21 +1,21 @@
 pub mod sub;
 use crate::config::Config;
 use crate::config::Profile;
-use crate::models::{
-    DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort, ServerMetrics,
-    BenchTuneConfig,
-};
 use crate::models::Backend;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicBool;
+use crate::models::{
+    BenchTuneConfig, DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort,
+    ServerMetrics,
+};
 use ratatui::layout::Rect;
 use ratatui::text::Line;
+use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 
 // Re-export sub-structs
 pub use sub::{
-    SettingsState, PickerState, DownloadState, ServerState, BenchTuneState,
-    LogState, LoadingState, PendingOperations, SearchState, UIState, EditState,
+    BenchTuneState, DownloadState, EditState, LoadingState, LogState, PendingOperations,
+    PickerState, SearchState, ServerState, SettingsState, UIState,
 };
 
 /// Static cell for caching the API port string in help text.
@@ -87,7 +87,9 @@ pub enum ModelsMode {
 #[derive(Debug, Clone, PartialEq)]
 pub enum GlobalMode {
     Normal,
-    CmdLine { cmd_line: String },
+    CmdLine {
+        cmd_line: String,
+    },
     HostPicker {
         entries: Vec<(String, String)>, // (ip, interface_name)
         selected: usize,
@@ -96,10 +98,15 @@ pub enum GlobalMode {
         entries: Vec<(Backend, Option<String>)>,
         selected: usize,
     },
-    Confirmation { selected: bool, kind: ConfirmationKind },
+    Confirmation {
+        selected: bool,
+        kind: ConfirmationKind,
+    },
     RpcManager,
     About,
-    MaxConcurrentPicker { value: String },
+    MaxConcurrentPicker {
+        value: String,
+    },
     SpecTypePicker {
         entries: Vec<String>,
         selected: usize,

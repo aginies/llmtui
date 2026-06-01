@@ -1,15 +1,13 @@
-use crate::models::{
-    BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress,
-};
-use crate::models::Backend;
 use crate::backend::server::ServerHandle;
 use crate::config::LogEntry;
+use crate::models::Backend;
+use crate::models::{BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress};
+use ratatui::widgets::{ListState, TableState};
+use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::{VecDeque, BTreeMap};
-use ratatui::widgets::{TableState, ListState};
 
-use super::{ActivePanel, GlobalMode, LoadingPhase, SettingsRenderCache, ResizeState};
+use super::{ActivePanel, GlobalMode, LoadingPhase, ResizeState, SettingsRenderCache};
 
 pub struct SettingsState {
     pub settings_selected_idx: usize,
@@ -50,8 +48,18 @@ pub struct ServerState {
     pub server_handle: Option<ServerHandle>,
     pub metrics_task_handle: Option<tokio::task::JoinHandle<()>>,
     pub sync_task_handle: Option<tokio::task::JoinHandle<()>>,
-    pub spawn_task_handle: Option<tokio::task::JoinHandle<Result<(String, ServerHandle, String, crate::models::ModelSettings), String>>>,
-    pub bench_tune_task_handle: Option<tokio::task::JoinHandle<(Result<Vec<BenchTuneResult>, String>, String, BenchTuneConfig)>>,
+    pub spawn_task_handle: Option<
+        tokio::task::JoinHandle<
+            Result<(String, ServerHandle, String, crate::models::ModelSettings), String>,
+        >,
+    >,
+    pub bench_tune_task_handle: Option<
+        tokio::task::JoinHandle<(
+            Result<Vec<BenchTuneResult>, String>,
+            String,
+            BenchTuneConfig,
+        )>,
+    >,
     pub server_log_rx: Option<tokio::sync::mpsc::Receiver<String>>,
     pub metrics_rx: Option<tokio::sync::mpsc::Receiver<crate::models::ServerMetrics>>,
     pub sync_rx: Option<tokio::sync::mpsc::Receiver<Vec<(String, String, Option<String>)>>>,
@@ -123,7 +131,10 @@ pub struct PendingOperations {
     pub pending_download: Option<(String, String, String, u64)>,
     pub pending_deletion: Option<PathBuf>,
     pub pending_backend_deletion: Option<(Backend, String)>,
-    pub pending_spawn: Option<(Option<crate::models::DiscoveredModel>, crate::models::ModelSettings)>,
+    pub pending_spawn: Option<(
+        Option<crate::models::DiscoveredModel>,
+        crate::models::ModelSettings,
+    )>,
     pub pending_api_load: Option<(String, Option<String>)>,
     pub pending_api_unload: Option<(String, Option<String>)>,
     pub pending_kill: Option<ServerHandle>,

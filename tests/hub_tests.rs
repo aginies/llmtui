@@ -6,7 +6,11 @@
 //! Network-dependent tests (search_models, list_gguf_files, download_file)
 //! are skipped here to avoid CI flakiness. The pure functions are tested directly.
 
-use llm_manager::backend::hub::{get_free_space_bytes, binary_name, lib_sentinel_name, lib_extension, get_bin_base, get_backend_dir, is_backend_version_installed, is_backend_any_version_installed, list_installed_backends, extract_archive, walk_dir_recursive};
+use llm_manager::backend::hub::{
+    binary_name, extract_archive, get_backend_dir, get_bin_base, get_free_space_bytes,
+    is_backend_any_version_installed, is_backend_version_installed, lib_extension,
+    lib_sentinel_name, list_installed_backends, walk_dir_recursive,
+};
 use llm_manager::models::Backend;
 use std::fs;
 
@@ -20,7 +24,9 @@ fn test_get_free_space_bytes_returns_positive_for_tmp() {
 
 #[test]
 fn test_get_free_space_bytes_returns_zero_for_nonexistent() {
-    let space = get_free_space_bytes(std::path::Path::new("/nonexistent/path/that/does/not/exist"));
+    let space = get_free_space_bytes(std::path::Path::new(
+        "/nonexistent/path/that/does/not/exist",
+    ));
     assert_eq!(space, 0);
 }
 
@@ -126,7 +132,7 @@ fn test_extract_archive_creates_files() {
 
     // Create a simple tar.gz file for testing using a subprocess
     let archive_path = temp_dir.join("test.tar.gz");
-    
+
     // Use tar command to create a simple archive
     let create_result = std::process::Command::new("sh")
         .arg("-c")
@@ -135,11 +141,11 @@ fn test_extract_archive_creates_files() {
             temp_dir.display()
         ))
         .output();
-    
+
     if create_result.is_ok() {
         let dest_dir = temp_dir.join("extracted");
         let result = extract_archive(&archive_path, &dest_dir);
-        
+
         // Should succeed
         assert!(result.is_ok());
     }

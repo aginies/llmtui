@@ -6,9 +6,9 @@
 //! Network-dependent tests (spawn_server, check_health, kill_server, load_model, etc.)
 //! are not included as they require a real llama-server binary or HTTP server.
 
+use llm_manager::backend::server::{build_bench_cmd, build_server_cmd};
 use llm_manager::config::Config;
 use llm_manager::models::*;
-use llm_manager::backend::server::{build_server_cmd, build_bench_cmd};
 use std::path::PathBuf;
 
 // ── Test helpers ─────────────────────────────────────────────────
@@ -39,7 +39,14 @@ fn test_build_server_cmd_normal_includes_model_path() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("qwen.gguf"));
 }
@@ -51,7 +58,14 @@ fn test_build_server_cmd_normal_includes_alias() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("--alias"));
     assert!(display.contains("Qwen"));
@@ -63,7 +77,8 @@ fn test_build_server_cmd_normal_no_model() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, None, &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) =
+        build_server_cmd(&binary, None, &settings, &config, ServerMode::Normal, 0);
 
     assert!(!display.contains(".gguf"));
 }
@@ -77,7 +92,14 @@ fn test_build_server_cmd_router_includes_models_max() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Router, 4);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Router,
+        4,
+    );
 
     assert!(display.contains("--models-max"));
     assert!(display.contains("4"));
@@ -90,7 +112,14 @@ fn test_build_server_cmd_router_no_model_path() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Router, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Router,
+        0,
+    );
 
     assert!(!display.contains("test.gguf"));
 }
@@ -102,7 +131,14 @@ fn test_build_server_cmd_router_includes_models_dir() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Router, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Router,
+        0,
+    );
 
     assert!(display.contains("--models-dir"));
 }
@@ -117,7 +153,14 @@ fn test_build_server_cmd_includes_threads() {
     settings.threads = 4;
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("--threads"));
     assert!(display.contains("4"));
@@ -130,7 +173,14 @@ fn test_build_server_cmd_includes_context_size() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("--ctx-size"));
 }
@@ -142,7 +192,14 @@ fn test_build_server_cmd_includes_no_warmup() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("--no-warmup"));
 }
@@ -155,7 +212,14 @@ fn test_build_server_cmd_includes_mlock_when_set() {
     settings.mlock = true;
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("--mlock"));
 }
@@ -168,7 +232,14 @@ fn test_build_server_cmd_includes_no_mmap_when_not_set() {
     settings.mmap = false;
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("--no-mmap"));
 }
@@ -181,7 +252,14 @@ fn test_build_server_cmd_includes_gpu_layers_specific() {
     settings.gpu_layers_mode = GpuLayersMode::Specific(32);
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("-ngl"));
     assert!(display.contains("32"));
@@ -195,7 +273,14 @@ fn test_build_server_cmd_includes_gpu_layers_all() {
     settings.gpu_layers_mode = GpuLayersMode::All;
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("-ngl"));
     assert!(display.contains("999"));
@@ -209,7 +294,14 @@ fn test_build_server_cmd_no_gpu_layers_for_auto() {
     settings.gpu_layers_mode = GpuLayersMode::Auto;
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     // Auto mode should not include -ngl
     assert!(!display.contains("-ngl"));
@@ -222,7 +314,14 @@ fn test_build_server_cmd_includes_sampling_params() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("--temp"));
     assert!(display.contains("--top-k"));
@@ -236,7 +335,14 @@ fn test_build_server_cmd_includes_repetition_params() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     // Check for sampling params that are always included
     assert!(display.contains("--temp"));
@@ -252,7 +358,14 @@ fn test_build_server_cmd_includes_mtp_flags() {
     settings.draft_tokens = 4;
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("--spec-type"));
     assert!(display.contains("draft-mtp"));
@@ -269,7 +382,14 @@ fn test_build_server_cmd_display_contains_binary() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("llama-server"));
 }
@@ -281,7 +401,14 @@ fn test_build_server_cmd_display_contains_model() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("qwen2.5-7b.gguf"));
 }
@@ -293,7 +420,14 @@ fn test_build_server_cmd_display_contains_settings() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) = build_server_cmd(&binary, Some(&model), &settings, &config, ServerMode::Normal, 0);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
 
     assert!(display.contains("--threads"));
     assert!(display.contains("--ctx-size"));

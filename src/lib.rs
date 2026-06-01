@@ -13,6 +13,9 @@ pub mod serve_api;
 pub mod tui;
 
 // Re-export key types for convenience in tests.
-pub use config::{Config, DefaultParams, ModelOverride, ModelConfigStore, LogLevel, LogEntry, Profile, SystemPromptPreset, WsServer, builtin_profiles, builtin_system_prompt_presets};
+pub use config::{
+    Config, DefaultParams, LogEntry, LogLevel, ModelConfigStore, ModelOverride, Profile,
+    SystemPromptPreset, WsServer, builtin_profiles, builtin_system_prompt_presets,
+};
 pub use models::*;
-pub use tui::app::{App, ActivePanel, ModelsMode, GlobalMode, ConfirmationKind, LoadingPhase};
+pub use tui::app::{ActivePanel, App, ConfirmationKind, GlobalMode, LoadingPhase, ModelsMode};

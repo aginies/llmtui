@@ -1,11 +1,13 @@
 use super::types::App;
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8};
 
 impl App {
     pub async fn start_pending_download(&mut self) {
-        if let Some((model_id, filename, download_url, file_size)) = self.pending.pending_download.take() {
+        if let Some((model_id, filename, download_url, file_size)) =
+            self.pending.pending_download.take()
+        {
             let models_dirs = &self.config.models_dirs;
             // Use the first directory as the download destination
             let models_dir = models_dirs.first().cloned().unwrap_or_default();
@@ -28,7 +30,10 @@ impl App {
             let url_clone = download_url.clone();
             let cancelled = Arc::new(AtomicBool::new(false));
             let cancelled_clone = cancelled.clone();
-            self.add_log(format!("Downloading {}...", model_id), crate::config::LogLevel::Info);
+            self.add_log(
+                format!("Downloading {}...", model_id),
+                crate::config::LogLevel::Info,
+            );
             let tx = self.ensure_download_channel();
             let tx_clone = tx.clone();
             let cancelled_for_state = cancelled_clone.clone();
@@ -41,12 +46,25 @@ impl App {
             });
 
             tokio::spawn(async move {
-                let mut state = crate::models::DownloadState::new(model_id_clone.clone(), filename_clone.clone(), 0);
+                let mut state = crate::models::DownloadState::new(
+                    model_id_clone.clone(),
+                    filename_clone.clone(),
+                    0,
+                );
                 state.cancel_token = Some(cancelled_for_state);
                 state.download_state = 1;
                 state.dest = Some(dest_path);
                 state.download_state_arc = Some(download_state_clone.clone());
-                let result = crate::backend::hub::download_file(&model_id_clone, &filename_clone, &url_clone, &dest, &mut state, download_state_clone, tx_clone).await;
+                let result = crate::backend::hub::download_file(
+                    &model_id_clone,
+                    &filename_clone,
+                    &url_clone,
+                    &dest,
+                    &mut state,
+                    download_state_clone,
+                    tx_clone,
+                )
+                .await;
                 if let Err(e) = result {
                     state.status = crate::models::DownloadStatus::Error(e.to_string());
                     let _ = tx.send(state);
@@ -65,12 +83,16 @@ impl App {
                 tracing::warn!("Failed to delete file: {}", e);
             }
         });
-        let model_key = path.file_name()
+        let model_key = path
+            .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
         self.config.model_overrides.delete(&model_key);
         if let Err(e) = self.config.save() {
-            self.add_log(format!("Failed to save config after deletion: {}", e), crate::config::LogLevel::Error);
+            self.add_log(
+                format!("Failed to save config after deletion: {}", e),
+                crate::config::LogLevel::Error,
+            );
         }
         self.models.retain(|m| m.path != path);
         if let Some(idx) = self.selected_model_idx {
@@ -84,18 +106,29 @@ impl App {
                 self.on_model_selection_change();
             }
         }
-        self.add_log(format!("Model deleted: {:?}", path.file_name().unwrap_or_default()), crate::config::LogLevel::Info);
+        self.add_log(
+            format!("Model deleted: {:?}", path.file_name().unwrap_or_default()),
+            crate::config::LogLevel::Info,
+        );
     }
 
     pub fn start_pending_backend_deletion(&mut self, backend: crate::models::Backend, tag: String) {
         let bin_dir = crate::backend::hub::get_backend_dir(backend, &tag);
         if bin_dir.exists() {
             if let Err(e) = std::fs::remove_dir_all(&bin_dir) {
-                self.add_log(format!("Failed to delete backend: {}", e), crate::config::LogLevel::Error);
+                self.add_log(
+                    format!("Failed to delete backend: {}", e),
+                    crate::config::LogLevel::Error,
+                );
             } else {
-                self.add_log(format!("Deleted backend {} ({})", backend, tag), crate::config::LogLevel::Info);
+                self.add_log(
+                    format!("Deleted backend {} ({})", backend, tag),
+                    crate::config::LogLevel::Info,
+                );
                 let new_entries = self.fetch_backend_picker_entries();
-                if let super::types::GlobalMode::BackendPicker { entries, selected } = &mut self.ui.global_mode {
+                if let super::types::GlobalMode::BackendPicker { entries, selected } =
+                    &mut self.ui.global_mode
+                {
                     *entries = new_entries;
                     if *selected >= entries.len() {
                         *selected = entries.len().saturating_sub(1);
@@ -111,13 +144,22 @@ impl App {
                 if let Some(handle) = self.pending.backend_resolve_handle.take() {
                     match handle.await {
                         Ok(Ok(path)) => {
-                            self.add_log(format!("Backend ready: {}", path.display()), crate::config::LogLevel::Info);
+                            self.add_log(
+                                format!("Backend ready: {}", path.display()),
+                                crate::config::LogLevel::Info,
+                            );
                         }
                         Ok(Err(e)) => {
-                            self.add_log(format!("Backend installation failed: {}", e), crate::config::LogLevel::Error);
+                            self.add_log(
+                                format!("Backend installation failed: {}", e),
+                                crate::config::LogLevel::Error,
+                            );
                         }
                         Err(e) => {
-                            self.add_log(format!("Backend task panicked: {}", e), crate::config::LogLevel::Error);
+                            self.add_log(
+                                format!("Backend task panicked: {}", e),
+                                crate::config::LogLevel::Error,
+                            );
                         }
                     }
                     self.pending.backend_resolving = false;
@@ -131,17 +173,30 @@ impl App {
         let mut download_logs = Vec::new();
         if let Some(rx) = &mut self.download.download_rx {
             while let Ok(state) = rx.try_recv() {
-                if let Some(idx) = self.download.download_progress.iter().position(|d| {
-                    d.model_id == state.model_id && d.filename == state.filename
-                }) {
+                if let Some(idx) = self
+                    .download
+                    .download_progress
+                    .iter()
+                    .position(|d| d.model_id == state.model_id && d.filename == state.filename)
+                {
                     if state.total_bytes > 0 {
-                        let old_pct = (self.download.download_progress[idx].downloaded_bytes as f32 / self.download.download_progress[idx].total_bytes as f32 * 100.0) as u32;
-                        let new_pct = (state.downloaded_bytes as f32 / state.total_bytes as f32 * 100.0) as u32;
+                        let old_pct = (self.download.download_progress[idx].downloaded_bytes as f32
+                            / self.download.download_progress[idx].total_bytes as f32
+                            * 100.0) as u32;
+                        let new_pct = (state.downloaded_bytes as f32 / state.total_bytes as f32
+                            * 100.0) as u32;
                         if new_pct / 5 > old_pct / 5 && new_pct < 100 {
                             let speed_mib = state.bytes_per_second / (1024.0 * 1024.0);
                             let total_mib = state.total_bytes as f64 / (1024.0 * 1024.0);
-                            let name = if state.model_id == "llama-server" { "backend" } else { &state.filename };
-                            download_logs.push(format!("Downloading {}: {}% of {:.1} MiB ({:.2} MiB/s)...", name, new_pct, total_mib, speed_mib));
+                            let name = if state.model_id == "llama-server" {
+                                "backend"
+                            } else {
+                                &state.filename
+                            };
+                            download_logs.push(format!(
+                                "Downloading {}: {}% of {:.1} MiB ({:.2} MiB/s)...",
+                                name, new_pct, total_mib, speed_mib
+                            ));
                         }
                     }
                     self.download.download_progress[idx] = state;
@@ -159,22 +214,32 @@ impl App {
         for log in download_logs {
             self.add_log(log, crate::config::LogLevel::Info);
         }
-        if redraw {
-        }
+        if redraw {}
     }
 
     pub fn poll_bench_tune_progress(&mut self) {
         if let Some(mut rx) = self.bench_tune.bench_tune_rx.take() {
             while let Ok(status) = rx.try_recv() {
-                self.bench_tune.bench_tune_progress = crate::models::BenchTuneProgress::from_status(&status);
+                self.bench_tune.bench_tune_progress =
+                    crate::models::BenchTuneProgress::from_status(&status);
             }
             self.bench_tune.bench_tune_rx = Some(rx);
         }
     }
 
     pub fn process_completed_downloads(&mut self) {
-        let completed: Vec<crate::models::DownloadState> = self.download.download_progress.iter()
-            .filter(|d| matches!(d.status, crate::models::DownloadStatus::Complete | crate::models::DownloadStatus::Error(_) | crate::models::DownloadStatus::Cancelled))
+        let completed: Vec<crate::models::DownloadState> = self
+            .download
+            .download_progress
+            .iter()
+            .filter(|d| {
+                matches!(
+                    d.status,
+                    crate::models::DownloadStatus::Complete
+                        | crate::models::DownloadStatus::Error(_)
+                        | crate::models::DownloadStatus::Cancelled
+                )
+            })
             .cloned()
             .collect();
         if !completed.is_empty() {
@@ -182,23 +247,50 @@ impl App {
                 match &state.status {
                     crate::models::DownloadStatus::Complete => {
                         if state.model_id == "llama-server" {
-                            self.add_log("Backend download complete", crate::config::LogLevel::Info);
+                            self.add_log(
+                                "Backend download complete",
+                                crate::config::LogLevel::Info,
+                            );
                         } else {
-                            self.add_log(format!("Download complete: {}", state.filename), crate::config::LogLevel::Info);
+                            self.add_log(
+                                format!("Download complete: {}", state.filename),
+                                crate::config::LogLevel::Info,
+                            );
                             self.models = Self::discover_models(&self.config.models_dirs);
                         }
                     }
                     crate::models::DownloadStatus::Error(e) => {
-                        let name = if state.model_id == "llama-server" { "Backend" } else { &state.filename };
-                        self.add_log(format!("Download failed ({}): {}", name, e), crate::config::LogLevel::Error);
+                        let name = if state.model_id == "llama-server" {
+                            "Backend"
+                        } else {
+                            &state.filename
+                        };
+                        self.add_log(
+                            format!("Download failed ({}): {}", name, e),
+                            crate::config::LogLevel::Error,
+                        );
                     }
                     crate::models::DownloadStatus::Cancelled => {
-                        let name = if state.model_id == "llama-server" { "Backend" } else { &state.filename };
-                        self.add_log(format!("Download cancelled: {}", name), crate::config::LogLevel::Info);
+                        let name = if state.model_id == "llama-server" {
+                            "Backend"
+                        } else {
+                            &state.filename
+                        };
+                        self.add_log(
+                            format!("Download cancelled: {}", name),
+                            crate::config::LogLevel::Info,
+                        );
                         if let Some(ref dest) = state.dest {
                             if dest.exists() {
                                 if let Err(e) = std::fs::remove_file(dest) {
-                                    self.add_log(format!("Failed to remove temp file {}: {}", dest.display(), e), crate::config::LogLevel::Warning);
+                                    self.add_log(
+                                        format!(
+                                            "Failed to remove temp file {}: {}",
+                                            dest.display(),
+                                            e
+                                        ),
+                                        crate::config::LogLevel::Warning,
+                                    );
                                 }
                             }
                         }
@@ -207,7 +299,12 @@ impl App {
                 }
             }
             self.download.download_progress.retain(|d| {
-                !matches!(d.status, crate::models::DownloadStatus::Complete | crate::models::DownloadStatus::Error(_) | crate::models::DownloadStatus::Cancelled)
+                !matches!(
+                    d.status,
+                    crate::models::DownloadStatus::Complete
+                        | crate::models::DownloadStatus::Error(_)
+                        | crate::models::DownloadStatus::Cancelled
+                )
             });
             self.download.downloading = !self.download.download_progress.is_empty();
             if !self.download.downloading {
@@ -215,7 +312,9 @@ impl App {
             } else if let Some(idx) = self.download.download_scroll_state.selected()
                 && idx >= self.download.download_progress.len()
             {
-                self.download.download_scroll_state.select(Some(self.download.download_progress.len() - 1));
+                self.download
+                    .download_scroll_state
+                    .select(Some(self.download.download_progress.len() - 1));
             }
         }
     }
@@ -233,7 +332,9 @@ impl App {
                     }
                 }
                 server_logs.push(line);
-                if server_logs.len() > 100 { break; }
+                if server_logs.len() > 100 {
+                    break;
+                }
             }
         }
         if !server_logs.is_empty() {
@@ -252,14 +353,25 @@ impl App {
                     let pid = handle.pid;
                     for (id, status, path) in models {
                         let status_lower = status.to_lowercase();
-                        let is_active = status_lower == "loaded" || status_lower == "loading" || status_lower == "ready";
+                        let is_active = status_lower == "loaded"
+                            || status_lower == "loading"
+                            || status_lower == "ready";
                         let mut matched = false;
                         for model in &self.models {
-                            let path_match = path.as_ref().map(|p| p == &model.path.to_string_lossy()).unwrap_or(false);
+                            let path_match = path
+                                .as_ref()
+                                .map(|p| p == &model.path.to_string_lossy())
+                                .unwrap_or(false);
                             let id_match = id == model.display_name || id == model.name;
-                            let filename_match = path.as_ref().and_then(|p| {
-                                std::path::Path::new(p).file_name().map(|f| f.to_string_lossy().to_string())
-                            }).map(|f| f == model.name).unwrap_or(false);
+                            let filename_match = path
+                                .as_ref()
+                                .and_then(|p| {
+                                    std::path::Path::new(p)
+                                        .file_name()
+                                        .map(|f| f.to_string_lossy().to_string())
+                                })
+                                .map(|f| f == model.name)
+                                .unwrap_or(false);
                             let id_filename_match = std::path::Path::new(&id)
                                 .file_name()
                                 .map(|f| f.to_string_lossy().to_string())
@@ -268,13 +380,20 @@ impl App {
                             if path_match || id_match || filename_match || id_filename_match {
                                 if is_active {
                                     if status_lower == "loading" {
-                                        self.model_states.insert(model.display_name.clone(), crate::models::ModelState::Loading);
+                                        self.model_states.insert(
+                                            model.display_name.clone(),
+                                            crate::models::ModelState::Loading,
+                                        );
                                     } else {
-                                        let mut loaded_names = self.server.loaded_model_names.lock().unwrap();
+                                        let mut loaded_names =
+                                            self.server.loaded_model_names.lock().unwrap();
                                         if !loaded_names.contains(&model.display_name) {
                                             loaded_names.push(model.display_name.clone());
                                         }
-                                        self.model_states.insert(model.display_name.clone(), crate::models::ModelState::Loaded { port, pid });
+                                        self.model_states.insert(
+                                            model.display_name.clone(),
+                                            crate::models::ModelState::Loaded { port, pid },
+                                        );
                                     }
                                 }
                                 matched = true;
@@ -286,17 +405,23 @@ impl App {
                                 for model in &self.models {
                                     if model.display_name == name || model.name == name {
                                         if is_active {
-                                            let mut loaded_names = self.server.loaded_model_names.lock().unwrap();
+                                            let mut loaded_names =
+                                                self.server.loaded_model_names.lock().unwrap();
                                             if !loaded_names.contains(&model.display_name) {
                                                 loaded_names.push(model.display_name.clone());
                                             }
-                                            self.model_states.insert(model.display_name.clone(), crate::models::ModelState::Loaded { port, pid });
+                                            self.model_states.insert(
+                                                model.display_name.clone(),
+                                                crate::models::ModelState::Loaded { port, pid },
+                                            );
                                         }
                                         matched = true;
                                         break;
                                     }
                                 }
-                                if matched { break; }
+                                if matched {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -304,19 +429,18 @@ impl App {
                 }
             }
         }
-        if sync_updated {
-        }
+        if sync_updated {}
     }
 
     pub fn poll_metrics(&mut self) {
-       if let Some(rx) = &mut self.server.metrics_rx {
+        if let Some(rx) = &mut self.server.metrics_rx {
             let mut received_metrics = false;
             while let Ok(mut m) = rx.try_recv() {
                 // ctx_max uses the effective context length (context_length * rope_scale).
                 if self.server.spawned_context_length > 0 {
                     m.ctx_max = self.server.spawned_context_length;
                 }
-                
+
                 // Only carry over values that are technically "stateful" or slow to update
                 // but don't force them to stick if the API is clearly reporting something else.
                 if m.gpu_mem_used == 0 && self.metrics.gpu_mem_used > 0 {
@@ -325,38 +449,45 @@ impl App {
                         m.gpu_mem_total = self.metrics.gpu_mem_total;
                     }
                 }
-                
+
                 if m.tps > 0.0 {
                     m.latency_per_token_ms = 1000.0 / m.tps;
                 }
                 if m.prompt_tps > 0.0 {
                     m.prompt_latency_ms = 1000.0 / m.prompt_tps;
                 }
-                
+
                 // If log parsing gave us a value but API didn't (or hasn't yet), use the log value.
                 if m.ctx_used == 0 && self.metrics.ctx_used > 0 {
                     m.ctx_used = self.metrics.ctx_used;
                 }
-                
+
                 self.metrics = m;
                 received_metrics = true;
             }
-            if received_metrics {
-            }
+            if received_metrics {}
         }
     }
 
     pub async fn poll_loading_completion(&mut self) {
         use super::types::LoadingPhase;
-        
-        if self.loading.loading_phases.contains(&LoadingPhase::Complete) {
+
+        if self
+            .loading
+            .loading_phases
+            .contains(&LoadingPhase::Complete)
+        {
             return;
         }
-        
-        if !self.loading.loading_phases.contains(&LoadingPhase::ServerListening) {
+
+        if !self
+            .loading
+            .loading_phases
+            .contains(&LoadingPhase::ServerListening)
+        {
             return;
         }
-        
+
         if self.loading.health_poll_handle.is_some() {
             if let Some(rx) = &mut self.loading.loading_completion_rx {
                 let mut got_completion = false;
@@ -376,62 +507,76 @@ impl App {
                     self.server.spawned_model_state = Some("loaded".to_string());
                     self.loading.progress_target = 1.0;
                     self.ui.needs_full_redraw = true;
-                    
+
                     if let Some(handle) = &self.server.server_handle {
                         let port = handle.port;
                         let pid = handle.pid;
-                        
+
                         // Cleanup stale "Loading" entries (like "llama-server") before updating
-                        let to_update: Vec<String> = self.model_states.iter()
+                        let to_update: Vec<String> = self
+                            .model_states
+                            .iter()
                             .filter(|(_, s)| matches!(s, crate::models::ModelState::Loading))
                             .map(|(n, _)| n.clone())
                             .collect();
-                            
+
                         // Explicitly remove all Loading entries first to ensure no duplicates or stale names persist
-                        self.model_states.retain(|_, s| !matches!(s, crate::models::ModelState::Loading));
-                        
+                        self.model_states
+                            .retain(|_, s| !matches!(s, crate::models::ModelState::Loading));
+
                         for name in to_update {
                             // If it's a real model name (not a generic server process name), mark as Loaded
                             if name != "llama-server" && name != "Router" {
-                                self.model_states.insert(name.clone(), crate::models::ModelState::Loaded { port, pid });
-                                let mut loaded = self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
+                                self.model_states.insert(
+                                    name.clone(),
+                                    crate::models::ModelState::Loaded { port, pid },
+                                );
+                                let mut loaded = self
+                                    .server
+                                    .loaded_model_names
+                                    .lock()
+                                    .unwrap_or_else(|e| e.into_inner());
                                 if !loaded.contains(&name) {
                                     loaded.push(name);
                                 }
                             }
                         }
                     }
-                    
+
                     self.metrics.ctx_used = 0;
-                    
                 }
             }
             return;
         }
-        
+
         if let Some(handle) = &self.server.server_handle {
             let host = handle.host.clone();
             let port = handle.port;
             let (tx, rx) = tokio::sync::mpsc::channel(1);
             self.loading.loading_completion_rx = Some(rx);
-            
+
             // Abort any previous health poll task to prevent leaked tasks
             if let Some(prev) = self.loading.health_poll_handle.take() {
                 prev.abort();
             }
-            
+
             let handle = tokio::spawn(async move {
                 let client = reqwest::Client::new();
                 let url = format!("http://{}:{}/health", host, port);
-                
+
                 loop {
                     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     match client.get(&url).send().await {
                         Ok(resp) if resp.status().is_success() => {
                             if let Ok(json) = resp.json::<serde_json::Value>().await {
-                                let status_ok = json.get("status").and_then(|v| v.as_str()) == Some("ok");
-                                let slots_ready = json.get("slots").and_then(|v| v.as_array()).map(|a| !a.is_empty()).unwrap_or(false);
-                                
+                                let status_ok =
+                                    json.get("status").and_then(|v| v.as_str()) == Some("ok");
+                                let slots_ready = json
+                                    .get("slots")
+                                    .and_then(|v| v.as_array())
+                                    .map(|a| !a.is_empty())
+                                    .unwrap_or(false);
+
                                 if slots_ready || status_ok {
                                     let _ = tx.send(()).await;
                                     return;
@@ -460,7 +605,10 @@ impl App {
             let server_mode_clone = self.server_mode.clone();
             let router_max_models_clone = self.router_max_models;
             let download_tx_clone = Some(self.ensure_download_channel());
-            let display_name = model_opt.as_ref().map(|m| m.display_name.clone()).unwrap_or_else(|| "Router".to_string());
+            let display_name = model_opt
+                .as_ref()
+                .map(|m| m.display_name.clone())
+                .unwrap_or_else(|| "Router".to_string());
             if let Some(m) = &model_opt {
                 let state = if server_mode_clone == crate::models::ServerMode::Bench {
                     crate::models::ModelState::Benchmarking
@@ -471,22 +619,29 @@ impl App {
                 };
                 self.model_states.insert(m.display_name.clone(), state);
             }
-            self.add_log(format!("Loading {}...", display_name), crate::config::LogLevel::Info);
+            self.add_log(
+                format!("Loading {}...", display_name),
+                crate::config::LogLevel::Info,
+            );
             if server_mode_clone == crate::models::ServerMode::BenchTune {
                 let model = match model_opt {
                     Some(m) => m,
                     None => {
-                        self.add_log("Error: Benchmark tuning requires a selected model.", crate::config::LogLevel::Error);
+                        self.add_log(
+                            "Error: Benchmark tuning requires a selected model.",
+                            crate::config::LogLevel::Error,
+                        );
                         return;
                     }
                 };
-                let bench_tune_config = self.bench_tune.bench_tune_config.take().unwrap_or_else(|| {
-                    crate::models::BenchTuneConfig::new(
-                        model.path.clone(),
-                        3,
-                        crate::models::BENCHMARK_PROMPT.to_string(),
-                    )
-                });
+                let bench_tune_config =
+                    self.bench_tune.bench_tune_config.take().unwrap_or_else(|| {
+                        crate::models::BenchTuneConfig::new(
+                            model.path.clone(),
+                            3,
+                            crate::models::BENCHMARK_PROMPT.to_string(),
+                        )
+                    });
                 let (tx_tune, rx_tune) = tokio::sync::mpsc::channel(100);
                 self.bench_tune.bench_tune_tx = Some(tx_tune.clone());
                 self.bench_tune.bench_tune_config = Some(bench_tune_config.clone());
@@ -494,11 +649,11 @@ impl App {
                 self.bench_tune.bench_tune_results.clear();
                 self.bench_tune.bench_tune_result_row = 0;
                 self.models_mode = super::types::ModelsMode::BenchTune;
-                
+
                 // Create cancellation channel for benchmark tuning
                 let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
                 self.bench_tune.bench_tune_cancel_tx = Some(cancel_tx);
-                
+
                 let bench_tune_config_clone = bench_tune_config.clone();
                 let settings_clone = settings_clone.clone();
                 let model_clone = model.clone();
@@ -513,7 +668,9 @@ impl App {
                         tx_tune_clone,
                         spawn_log_tx_clone,
                         &mut cancel_rx,
-                    ).await.map_err(|e| e.to_string());
+                    )
+                    .await
+                    .map_err(|e| e.to_string());
                     (results, display_name, bench_tune_config_clone)
                 });
                 self.server.bench_tune_task_handle = Some(handle);
@@ -523,8 +680,18 @@ impl App {
                 let settings_for_result = settings_clone.clone();
                 let exit_tx_clone = exit_tx.clone();
                 let handle = tokio::spawn(async move {
-                    crate::backend::server::spawn_server(&config_clone, model_clone.as_ref(), &settings_clone, tx_clone, download_tx_clone, server_mode_clone, router_max_models_clone, exit_tx_clone).await
-                        .map(|(handle, cmd)| (display_name, handle, cmd, settings_for_result))
+                    crate::backend::server::spawn_server(
+                        &config_clone,
+                        model_clone.as_ref(),
+                        &settings_clone,
+                        tx_clone,
+                        download_tx_clone,
+                        server_mode_clone,
+                        router_max_models_clone,
+                        exit_tx_clone,
+                    )
+                    .await
+                    .map(|(handle, cmd)| (display_name, handle, cmd, settings_for_result))
                 });
                 self.server.spawn_task_handle = Some(handle);
                 self.server.spawn_log_tx = Some(tx);
@@ -535,25 +702,32 @@ impl App {
     pub async fn poll_spawn_result(&mut self) {
         if let Some(handle) = &self.server.spawn_task_handle
             && handle.is_finished()
-                && let Some(handle) = self.server.spawn_task_handle.take()
+            && let Some(handle) = self.server.spawn_task_handle.take()
         {
             match handle.await {
                 Ok(Ok((server_display_name, server_handle, cmd, spawned_settings))) => {
                     let port = server_handle.port;
                     let pid = server_handle.pid;
                     let host = server_handle.host.clone();
-                    self.add_log(format!("Server started on port {port} (pid={pid})"), crate::config::LogLevel::Info);
+                    self.add_log(
+                        format!("Server started on port {port} (pid={pid})"),
+                        crate::config::LogLevel::Info,
+                    );
                     self.server.server_handle = Some(server_handle);
                     self.server.cmd_display = Some(cmd);
                     self.server.spawned_settings = Some(spawned_settings.clone());
                     self.server.spawned_model_name = Some(server_display_name.clone());
                     self.server.spawned_model_state = Some("loading".to_string());
-                    self.server.spawned_context_length = (spawned_settings.context_length as f32 * spawned_settings.rope_scale) as u32;
+                    self.server.spawned_context_length = (spawned_settings.context_length as f32
+                        * spawned_settings.rope_scale)
+                        as u32;
                     // API endpoint (proxy) is managed by update_api_endpoint(), which
                     // runs every loop iteration and (re)starts the proxy as needed
                     // when a new model becomes available.
-                    self.loading.loading_phases = std::iter::once(super::types::LoadingPhase::ServerListening).collect();
-                    self.loading.last_active_phase = Some(super::types::LoadingPhase::ServerListening);
+                    self.loading.loading_phases =
+                        std::iter::once(super::types::LoadingPhase::ServerListening).collect();
+                    self.loading.last_active_phase =
+                        Some(super::types::LoadingPhase::ServerListening);
                     self.server.spawned_model_state = Some("loading".to_string());
                     self.loading.progress_target = 1.0;
                     let (metrics_tx, metrics_rx) = tokio::sync::mpsc::channel(10);
@@ -563,18 +737,28 @@ impl App {
                     let task_pid = pid;
                     let metrics_model_name = self.server.metrics_model_name.clone();
                     self.add_log("Starting metrics polling...", crate::config::LogLevel::Info);
-                    let _task_handle = tokio::spawn(Self::metrics_polling_task(task_host, task_port, task_pid, metrics_model_name, metrics_tx));
+                    let _task_handle = tokio::spawn(Self::metrics_polling_task(
+                        task_host,
+                        task_port,
+                        task_pid,
+                        metrics_model_name,
+                        metrics_tx,
+                    ));
                     self.server.metrics_task_handle = Some(_task_handle);
                     let sync_host = host.clone();
                     let sync_port = port;
                     let (sync_tx, sync_rx) = tokio::sync::mpsc::channel(1);
-                    let _sync_task_handle = tokio::spawn(Self::sync_polling_task(sync_host, sync_port, sync_tx));
+                    let _sync_task_handle =
+                        tokio::spawn(Self::sync_polling_task(sync_host, sync_port, sync_tx));
                     self.server.sync_rx = Some(sync_rx);
                     self.server.sync_task_handle = Some(_sync_task_handle);
                 }
                 Ok(Err(e)) => {
                     self.loading.progress_target = 1.0;
-                    self.add_log(format!("ERROR: Server failed: {}", e), crate::config::LogLevel::Error);
+                    self.add_log(
+                        format!("ERROR: Server failed: {}", e),
+                        crate::config::LogLevel::Error,
+                    );
                     if let Some(mut rx) = self.server.server_log_rx.take() {
                         while let Ok(line) = rx.try_recv() {
                             self.add_log(line, crate::config::LogLevel::Info);
@@ -585,18 +769,29 @@ impl App {
                 }
                 Err(e) => {
                     self.loading.progress_target = 1.0;
-                    self.add_log(format!("ERROR: Spawn task panicked: {}", e), crate::config::LogLevel::Error);
+                    self.add_log(
+                        format!("ERROR: Spawn task panicked: {}", e),
+                        crate::config::LogLevel::Error,
+                    );
                 }
             }
         }
     }
 
-    async fn metrics_polling_task(host: String, port: u16, pid: u32, metrics_model_name: Arc<std::sync::Mutex<Option<String>>>, metrics_tx: tokio::sync::mpsc::Sender<crate::models::ServerMetrics>) {
+    async fn metrics_polling_task(
+        host: String,
+        port: u16,
+        pid: u32,
+        metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
+        metrics_tx: tokio::sync::mpsc::Sender<crate::models::ServerMetrics>,
+    ) {
         let mut consecutive_failures: u32 = 0;
         let max_failures: u32 = 15;
         let mut prev_model_name: Option<String> = None;
         loop {
-            let mut m = match crate::backend::server::get_metrics(&host, port, None, Some(pid)).await {
+            let mut m = match crate::backend::server::get_metrics(&host, port, None, Some(pid))
+                .await
+            {
                 Ok(metrics) => {
                     consecutive_failures = 0;
                     metrics
@@ -604,11 +799,18 @@ impl App {
                 Err(_) => {
                     consecutive_failures += 1;
                     if consecutive_failures >= max_failures {
-                        tracing::warn!("Metrics polling aborted after {} consecutive failures (server likely dead)", max_failures);
+                        tracing::warn!(
+                            "Metrics polling aborted after {} consecutive failures (server likely dead)",
+                            max_failures
+                        );
                         break;
                     }
                     if consecutive_failures % 5 == 1 {
-                        tracing::warn!("Metrics polling: server unreachable (attempt {}/{})", consecutive_failures, max_failures);
+                        tracing::warn!(
+                            "Metrics polling: server unreachable (attempt {}/{})",
+                            consecutive_failures,
+                            max_failures
+                        );
                     }
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                     continue;
@@ -620,7 +822,8 @@ impl App {
                 lock.clone()
             };
             if let Some(name) = current_model
-                && let Ok(model_metrics) = crate::backend::server::get_metrics(&host, port, Some(&name), Some(pid)).await
+                && let Ok(model_metrics) =
+                    crate::backend::server::get_metrics(&host, port, Some(&name), Some(pid)).await
             {
                 let stotal = m.gpu_mem_total;
                 let should_use_model_vram = if stotal > 0 {
@@ -651,7 +854,11 @@ impl App {
         }
     }
 
-    async fn sync_polling_task(host: String, port: u16, sync_tx: tokio::sync::mpsc::Sender<Vec<(String, String, Option<String>)>>) {
+    async fn sync_polling_task(
+        host: String,
+        port: u16,
+        sync_tx: tokio::sync::mpsc::Sender<Vec<(String, String, Option<String>)>>,
+    ) {
         loop {
             if let Ok(models) = crate::backend::server::list_models(&host, port).await
                 && sync_tx.send(models).await.is_err()
@@ -668,62 +875,105 @@ impl App {
             && let Some(handle) = self.server.bench_tune_task_handle.take()
         {
             match handle.await {
-                Ok((results, display_name, bench_config)) => {
-                    match results {
-                        Ok(bench_results) => {
-                            self.add_log(format!("Benchmark tuning completed for {} with {} results", display_name, bench_results.len()), crate::config::LogLevel::Info);
-                            if bench_results.is_empty() {
-                                self.add_log("No successful benchmark results were obtained. Check the Log (F6) for details on test failures.", crate::config::LogLevel::Warning);
-                            } else {
-                                let output_dir = crate::config::Config::config_path().parent().unwrap().join("benchmarks");
-                                match crate::backend::benchmark::save_results(&bench_results, &output_dir, &bench_config).await {
-                                    Ok(()) => self.add_log(format!("Results saved to {}/", output_dir.display()), crate::config::LogLevel::Info),
-                                    Err(e) => self.add_log(format!("Failed to save benchmark results: {}", e), crate::config::LogLevel::Error),
-                                }
+                Ok((results, display_name, bench_config)) => match results {
+                    Ok(bench_results) => {
+                        self.add_log(
+                            format!(
+                                "Benchmark tuning completed for {} with {} results",
+                                display_name,
+                                bench_results.len()
+                            ),
+                            crate::config::LogLevel::Info,
+                        );
+                        if bench_results.is_empty() {
+                            self.add_log("No successful benchmark results were obtained. Check the Log (F6) for details on test failures.", crate::config::LogLevel::Warning);
+                        } else {
+                            let output_dir = crate::config::Config::config_path()
+                                .parent()
+                                .unwrap()
+                                .join("benchmarks");
+                            match crate::backend::benchmark::save_results(
+                                &bench_results,
+                                &output_dir,
+                                &bench_config,
+                            )
+                            .await
+                            {
+                                Ok(()) => self.add_log(
+                                    format!("Results saved to {}/", output_dir.display()),
+                                    crate::config::LogLevel::Info,
+                                ),
+                                Err(e) => self.add_log(
+                                    format!("Failed to save benchmark results: {}", e),
+                                    crate::config::LogLevel::Error,
+                                ),
                             }
-                            let mut sorted_results = bench_results;
-                            sorted_results.sort_by(|a, b| b.metrics.generation_tps.partial_cmp(&a.metrics.generation_tps).unwrap_or(std::cmp::Ordering::Equal));
-                            self.bench_tune.bench_tune_results = sorted_results;
-                            self.bench_tune.bench_tune_running = false;
-                            let (host, port, model_name, model_path_str, task_name, model_display_name) = {
-                                let model = match self.selected_model() {
-                                    Some(m) => m,
-                                    None => {
-                                        return;
-                                    }
-                                };
-                                let handle = match &self.server.server_handle {
-                                    Some(h) => h,
-                                    None => {
-                                        return;
-                                    }
-                                };
-                                (
-                                    handle.host.clone(),
-                                    handle.port,
-                                    model.display_name.clone(),
-                                    model.path.to_str().map(|s| s.to_string()),
-                                    format!("bench_unload_{}", model.display_name),
-                                    model.display_name.clone(),
-                                )
-                            };
-                            let task_handle = tokio::spawn(async move {
-                                let _ = crate::backend::server::unload_model(&host, port, &model_name, model_path_str.as_deref()).await;
-                            });
-                            self.background_tasks.insert(task_name, task_handle);
-                            self.model_states.insert(model_display_name, crate::models::ModelState::Available);
                         }
-                        Err(e) => {
-                            self.add_log(format!("Benchmark tuning failed: {}", e), crate::config::LogLevel::Error);
-                            self.bench_tune.bench_tune_running = false;
-                            if let Some(model) = self.selected_model() {
-                                self.model_states.insert(model.display_name.clone(), crate::models::ModelState::Failed { error: e.to_string() });
-                            }
+                        let mut sorted_results = bench_results;
+                        sorted_results.sort_by(|a, b| {
+                            b.metrics
+                                .generation_tps
+                                .partial_cmp(&a.metrics.generation_tps)
+                                .unwrap_or(std::cmp::Ordering::Equal)
+                        });
+                        self.bench_tune.bench_tune_results = sorted_results;
+                        self.bench_tune.bench_tune_running = false;
+                        let (host, port, model_name, model_path_str, task_name, model_display_name) = {
+                            let model = match self.selected_model() {
+                                Some(m) => m,
+                                None => {
+                                    return;
+                                }
+                            };
+                            let handle = match &self.server.server_handle {
+                                Some(h) => h,
+                                None => {
+                                    return;
+                                }
+                            };
+                            (
+                                handle.host.clone(),
+                                handle.port,
+                                model.display_name.clone(),
+                                model.path.to_str().map(|s| s.to_string()),
+                                format!("bench_unload_{}", model.display_name),
+                                model.display_name.clone(),
+                            )
+                        };
+                        let task_handle = tokio::spawn(async move {
+                            let _ = crate::backend::server::unload_model(
+                                &host,
+                                port,
+                                &model_name,
+                                model_path_str.as_deref(),
+                            )
+                            .await;
+                        });
+                        self.background_tasks.insert(task_name, task_handle);
+                        self.model_states
+                            .insert(model_display_name, crate::models::ModelState::Available);
+                    }
+                    Err(e) => {
+                        self.add_log(
+                            format!("Benchmark tuning failed: {}", e),
+                            crate::config::LogLevel::Error,
+                        );
+                        self.bench_tune.bench_tune_running = false;
+                        if let Some(model) = self.selected_model() {
+                            self.model_states.insert(
+                                model.display_name.clone(),
+                                crate::models::ModelState::Failed {
+                                    error: e.to_string(),
+                                },
+                            );
                         }
                     }
-                }
+                },
                 Err(e) => {
-                    self.add_log(format!("Benchmark task panicked: {:?}", e), crate::config::LogLevel::Error);
+                    self.add_log(
+                        format!("Benchmark task panicked: {:?}", e),
+                        crate::config::LogLevel::Error,
+                    );
                     self.bench_tune.bench_tune_running = false;
                 }
             }
@@ -733,13 +983,24 @@ impl App {
     pub fn handle_pending_api_load(&mut self) {
         if let Some((model_name, model_path)) = self.pending.pending_api_load.clone() {
             if let Some(handle) = &self.server.server_handle {
-                if self.loading.loading_phases.contains(&super::types::LoadingPhase::Complete) || self.loading.loading_phases.contains(&super::types::LoadingPhase::ServerListening) {
+                if self
+                    .loading
+                    .loading_phases
+                    .contains(&super::types::LoadingPhase::Complete)
+                    || self
+                        .loading
+                        .loading_phases
+                        .contains(&super::types::LoadingPhase::ServerListening)
+                {
                     let host = handle.host.clone();
                     let port = handle.port;
                     let model_name_clone = model_name.clone();
                     let model_path_clone = model_path.clone();
                     self.pending.pending_api_load = None;
-                    self.add_log(format!("Sending load request for {}...", model_name_clone), crate::config::LogLevel::Info);
+                    self.add_log(
+                        format!("Sending load request for {}...", model_name_clone),
+                        crate::config::LogLevel::Info,
+                    );
                     {
                         let mut lock = self.server.metrics_model_name.lock().unwrap();
                         *lock = Some(model_name_clone.clone());
@@ -748,8 +1009,16 @@ impl App {
                     let model_name_err = model_name_clone.clone();
                     self.metrics.ctx_used = 0;
                     tokio::spawn(async move {
-                        if let Err(e) = crate::backend::server::load_model(&host, port, &model_name_clone, model_path_clone.as_deref()).await {
-                            let err_msg = format!("ERROR: Failed to load model {}: {}", model_name_err, e);
+                        if let Err(e) = crate::backend::server::load_model(
+                            &host,
+                            port,
+                            &model_name_clone,
+                            model_path_clone.as_deref(),
+                        )
+                        .await
+                        {
+                            let err_msg =
+                                format!("ERROR: Failed to load model {}: {}", model_name_err, e);
                             if let Some(tx) = log_tx {
                                 let _ = tx.send(err_msg.clone()).await;
                             } else {
@@ -757,16 +1026,22 @@ impl App {
                             }
                         }
                     });
-                    self.model_states.insert(model_name, crate::models::ModelState::Loading);
+                    self.model_states
+                        .insert(model_name, crate::models::ModelState::Loading);
                 }
-            } else if self.server.spawn_task_handle.is_none() && self.pending.pending_spawn.is_none() {
+            } else if self.server.spawn_task_handle.is_none()
+                && self.pending.pending_spawn.is_none()
+            {
                 self.pending.pending_api_load = None;
             }
         }
     }
 
     pub fn handle_pending_api_unload(&mut self) {
-        if !matches!(self.ui.global_mode, super::types::GlobalMode::Confirmation { .. }) {
+        if !matches!(
+            self.ui.global_mode,
+            super::types::GlobalMode::Confirmation { .. }
+        ) {
             if let Some((model_name, model_path)) = self.pending.pending_api_unload.take()
                 && let Some(handle) = &self.server.server_handle
             {
@@ -783,10 +1058,16 @@ impl App {
                 let model_name_clone = model_name.clone();
                 let model_path_clone = model_path.clone();
                 if server_mode == crate::models::ServerMode::Normal {
-                    self.add_log(format!("Unloading {} (killing server)...", model_name_clone), crate::config::LogLevel::Info);
+                    self.add_log(
+                        format!("Unloading {} (killing server)...", model_name_clone),
+                        crate::config::LogLevel::Info,
+                    );
                     self.pending.pending_kill = Some(handle_clone);
                 } else {
-                    self.add_log(format!("Sending unload request for {}...", model_name_clone), crate::config::LogLevel::Info);
+                    self.add_log(
+                        format!("Sending unload request for {}...", model_name_clone),
+                        crate::config::LogLevel::Info,
+                    );
                     let kill_tx = self.server.spawn_log_tx.clone();
                     let kill_tx2 = kill_tx.clone();
                     let server_clone = self.server.server_handle.clone();
@@ -797,36 +1078,55 @@ impl App {
                     self.background_tasks.insert(
                         format!("api_unload_{}", model_name_task),
                         tokio::spawn(async move {
-                            if let Err(e) = crate::backend::server::unload_model(&host, port, &model_name_clone, model_path_clone.as_deref()).await {
+                            if let Err(e) = crate::backend::server::unload_model(
+                                &host,
+                                port,
+                                &model_name_clone,
+                                model_path_clone.as_deref(),
+                            )
+                            .await
+                            {
                                 if let Some(tx) = kill_tx {
-                                    let _ = tx.send(format!("Failed to unload model via API: {}", e)).await;
+                                    let _ = tx
+                                        .send(format!("Failed to unload model via API: {}", e))
+                                        .await;
                                 }
                                 return;
                             }
                             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                            
+
                             let mut should_stop = false;
-                            
-                            if let Ok(loaded) = crate::backend::server::list_models(&host_clone, port_clone).await {
+
+                            if let Ok(loaded) =
+                                crate::backend::server::list_models(&host_clone, port_clone).await
+                            {
                                 if loaded.is_empty() {
                                     should_stop = true;
                                 } else {
                                     if let Some(tx) = kill_tx.clone() {
-                                        let _ = tx.send(format!("{} models still loaded on server", loaded.len())).await;
+                                        let _ = tx
+                                            .send(format!(
+                                                "{} models still loaded on server",
+                                                loaded.len()
+                                            ))
+                                            .await;
                                     }
                                 }
                             }
-                            
+
                             if !should_stop {
-                                let loaded_names = loaded_names_clone.lock().unwrap_or_else(|e| e.into_inner());
+                                let loaded_names =
+                                    loaded_names_clone.lock().unwrap_or_else(|e| e.into_inner());
                                 if loaded_names.is_empty() {
                                     should_stop = true;
                                 }
                             }
-                            
+
                             if should_stop {
                                 if let Some(tx) = kill_tx {
-                                    let _ = tx.send("No models left, stopping router...".to_string()).await;
+                                    let _ = tx
+                                        .send("No models left, stopping router...".to_string())
+                                        .await;
                                 }
                                 if let Some(server) = server_clone {
                                     let _ = crate::backend::server::kill_server(server).await;
@@ -835,12 +1135,17 @@ impl App {
                                     }
                                 }
                             }
-                        })
+                        }),
                     );
                 }
-                self.server.loaded_model_names.lock().unwrap().retain(|n| n != &model_name);
+                self.server
+                    .loaded_model_names
+                    .lock()
+                    .unwrap()
+                    .retain(|n| n != &model_name);
                 self.metrics.ctx_used = 0;
-                self.model_states.insert(model_name, crate::models::ModelState::Available);
+                self.model_states
+                    .insert(model_name, crate::models::ModelState::Available);
             }
         }
     }
@@ -868,13 +1173,16 @@ impl App {
                     }
                     let mut names_to_reset = Vec::new();
                     for (name, state) in &self.model_states {
-                        if !matches!(state, crate::models::ModelState::Available) && !matches!(state, crate::models::ModelState::Failed { .. }) {
+                        if !matches!(state, crate::models::ModelState::Available)
+                            && !matches!(state, crate::models::ModelState::Failed { .. })
+                        {
                             names_to_reset.push(name.clone());
                         }
                     }
                     for name in names_to_reset {
                         let n: String = name.clone();
-                        self.model_states.insert(n, crate::models::ModelState::Available);
+                        self.model_states
+                            .insert(n, crate::models::ModelState::Available);
                     }
                     self.server.loaded_model_names.lock().unwrap().clear();
                     self.loading.loading_phases = std::collections::HashSet::new();
@@ -883,7 +1191,10 @@ impl App {
                     self.ui.needs_full_redraw = true;
                 }
                 Err(e) => {
-                    self.add_log(format!("Failed to stop server: {}", e), crate::config::LogLevel::Error);
+                    self.add_log(
+                        format!("Failed to stop server: {}", e),
+                        crate::config::LogLevel::Error,
+                    );
                 }
             }
         }
@@ -896,25 +1207,53 @@ impl App {
                 let query_clone = query.clone();
                 let offset_clone = offset;
                 let search_limit = self.config.search_limit;
-                self.add_log(format!("Searching with limit={} offset={}...", search_limit, offset_clone), crate::config::LogLevel::Info);
+                self.add_log(
+                    format!(
+                        "Searching with limit={} offset={}...",
+                        search_limit, offset_clone
+                    ),
+                    crate::config::LogLevel::Info,
+                );
                 let search_handle = tokio::spawn(async move {
-                    crate::backend::hub::search_models(&query_clone, search_limit, offset_clone).await
+                    crate::backend::hub::search_models(&query_clone, search_limit, offset_clone)
+                        .await
                 });
                 match search_handle.await {
                     Ok(Ok((res, _, raw_ids))) => {
                         let query_str = &query;
-                        let mut buf = format!("Search complete: {} results for '{}'", res.len(), query_str);
+                        let mut buf =
+                            format!("Search complete: {} results for '{}'", res.len(), query_str);
                         buf.push_str(&format!("\n  RAW API returned: {}", raw_ids.join(", ")));
                         for r in &res {
-                            let gguf_tags: Vec<String> = r.tags.iter().filter(|t| t.starts_with("gguf:")).cloned().collect();
-                            buf.push_str(&format!("\n  {} quant={} tags={} params={} cap={} ctx={}", r.model_id, r.quantization.as_deref().unwrap_or("-"), gguf_tags.join(","), r.parameters.as_deref().unwrap_or("none"), r.capabilities.join(","), r.context_length.unwrap_or(0)));
+                            let gguf_tags: Vec<String> = r
+                                .tags
+                                .iter()
+                                .filter(|t| t.starts_with("gguf:"))
+                                .cloned()
+                                .collect();
+                            buf.push_str(&format!(
+                                "\n  {} quant={} tags={} params={} cap={} ctx={}",
+                                r.model_id,
+                                r.quantization.as_deref().unwrap_or("-"),
+                                gguf_tags.join(","),
+                                r.parameters.as_deref().unwrap_or("none"),
+                                r.capabilities.join(","),
+                                r.context_length.unwrap_or(0)
+                            ));
                         }
                         let raw_len = raw_ids.len();
                         if is_append {
-                            if let super::types::ModelsMode::Search { results, has_more, loading, .. } = &mut self.models_mode {
+                            if let super::types::ModelsMode::Search {
+                                results,
+                                has_more,
+                                loading,
+                                ..
+                            } = &mut self.models_mode
+                            {
                                 let models = self.models.clone();
                                 for r in res {
-                                    let downloaded = super::sync_ops::model_is_downloaded(&models, &r.model_id);
+                                    let downloaded =
+                                        super::sync_ops::model_is_downloaded(&models, &r.model_id);
                                     results.push(crate::models::SearchResult { downloaded, ..r });
                                 }
                                 if raw_len < self.config.search_limit as usize {
@@ -923,12 +1262,24 @@ impl App {
                                 *loading = false;
                             }
                         } else {
-                            if let super::types::ModelsMode::Search { results, loading, has_more, .. } = &mut self.models_mode {
+                            if let super::types::ModelsMode::Search {
+                                results,
+                                loading,
+                                has_more,
+                                ..
+                            } = &mut self.models_mode
+                            {
                                 let models = self.models.clone();
-                                *results = res.into_iter().map(|r| {
-                                    let downloaded = super::sync_ops::model_is_downloaded(&models, &r.model_id);
-                                    crate::models::SearchResult { downloaded, ..r }
-                                }).collect();
+                                *results = res
+                                    .into_iter()
+                                    .map(|r| {
+                                        let downloaded = super::sync_ops::model_is_downloaded(
+                                            &models,
+                                            &r.model_id,
+                                        );
+                                        crate::models::SearchResult { downloaded, ..r }
+                                    })
+                                    .collect();
                                 if !results.is_empty() {
                                     self.search.search_results_idx = Some(0);
                                 } else {
@@ -941,14 +1292,24 @@ impl App {
                         self.add_log(buf, crate::config::LogLevel::Info);
                     }
                     Ok(Err(e)) => {
-                        self.add_log(format!("Search failed: {}", e), crate::config::LogLevel::Error);
-                        if let super::types::ModelsMode::Search { loading, .. } = &mut self.models_mode {
+                        self.add_log(
+                            format!("Search failed: {}", e),
+                            crate::config::LogLevel::Error,
+                        );
+                        if let super::types::ModelsMode::Search { loading, .. } =
+                            &mut self.models_mode
+                        {
                             *loading = false;
                         }
                     }
                     Err(e) => {
-                        self.add_log(format!("Search task error: {}", e), crate::config::LogLevel::Error);
-                        if let super::types::ModelsMode::Search { loading, .. } = &mut self.models_mode {
+                        self.add_log(
+                            format!("Search task error: {}", e),
+                            crate::config::LogLevel::Error,
+                        );
+                        if let super::types::ModelsMode::Search { loading, .. } =
+                            &mut self.models_mode
+                        {
                             *loading = false;
                         }
                     }
@@ -964,19 +1325,33 @@ impl App {
                 Some(model.display_name.clone())
             } else {
                 // Fallback to the first actually loaded model
-                let lock = self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
+                let lock = self
+                    .server
+                    .loaded_model_names
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 lock.first().cloned()
             }
         } else {
             // No selection, fallback to the first actually loaded model
-            let lock = self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
+            let lock = self
+                .server
+                .loaded_model_names
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             lock.first().cloned()
         };
-        let mut lock = self.server.metrics_model_name.lock().unwrap_or_else(|e| e.into_inner());
+        let mut lock = self
+            .server
+            .metrics_model_name
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         *lock = active_loaded_model;
     }
 
-    pub fn ensure_download_channel(&mut self) -> tokio::sync::broadcast::Sender<crate::models::DownloadState> {
+    pub fn ensure_download_channel(
+        &mut self,
+    ) -> tokio::sync::broadcast::Sender<crate::models::DownloadState> {
         if self.download.download_rx.is_none() {
             let (tx, rx) = tokio::sync::broadcast::channel(10);
             self.download.download_tx = Some(tx);
@@ -1021,7 +1396,15 @@ impl App {
             let (tx, rx) = tokio::sync::broadcast::channel(64);
             let ws_rx = std::sync::Arc::new(rx);
             let _host = self.settings.host.clone();
-            match crate::backend::ws_server::start_ws_server(port, ws_rx, auth_key.clone(), tls_cfg, _host).await {
+            match crate::backend::ws_server::start_ws_server(
+                port,
+                ws_rx,
+                auth_key.clone(),
+                tls_cfg,
+                _host,
+            )
+            .await
+            {
                 Ok(handle) => {
                     self.server.metrics_tx = Some(tx);
                     self.ws_server_handle = Some(handle);
@@ -1073,8 +1456,18 @@ impl App {
         let enabled = self.settings.api_endpoint_enabled;
         let port = self.settings.api_endpoint_port;
         let host = self.settings.host.clone();
-        let server_port = self.server.server_handle.as_ref().map(|h| h.port).unwrap_or(0);
-        let pid = self.server.server_handle.as_ref().map(|h| h.pid).unwrap_or(0);
+        let server_port = self
+            .server
+            .server_handle
+            .as_ref()
+            .map(|h| h.port)
+            .unwrap_or(0);
+        let pid = self
+            .server
+            .server_handle
+            .as_ref()
+            .map(|h| h.pid)
+            .unwrap_or(0);
         let model_name = self.server.spawned_model_name.clone().unwrap_or_default();
 
         let settings_changed = self.server.running_api_port != Some(port)
@@ -1103,7 +1496,10 @@ impl App {
                 Ok(a) => a,
                 Err(e) => {
                     self.add_log(
-                        format!("API endpoint failed to start: invalid address {}:{}: {}", host, port, e),
+                        format!(
+                            "API endpoint failed to start: invalid address {}:{}: {}",
+                            host, port, e
+                        ),
                         crate::config::LogLevel::Error,
                     );
                     self.settings.api_endpoint_enabled = false;
@@ -1134,8 +1530,16 @@ impl App {
             let model_name_clone = model_name.clone();
             let handle = tokio::spawn(async move {
                 let _ = crate::serve_api::start_api_server(
-                    addr, None, server_port, model_name_clone, pid, api_shutdown_rx, host_clone, None,
-                ).await;
+                    addr,
+                    None,
+                    server_port,
+                    model_name_clone,
+                    pid,
+                    api_shutdown_rx,
+                    host_clone,
+                    None,
+                )
+                .await;
             });
             self.server.api_proxy_handle = Some(handle);
             self.server.running_api_port = Some(port);

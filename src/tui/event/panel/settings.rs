@@ -1,9 +1,9 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 
+use super::super::helpers::sync_global_settings;
 use crate::config::builtin_profiles;
 use crate::tui::app::{App, GlobalMode};
 use crate::tui::settings;
-use super::super::helpers::sync_global_settings;
 
 pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     let idx = app.settings_state.settings_selected_idx;
@@ -20,7 +20,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
             } else {
-                app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(1);
+                app.settings_state.settings_selected_idx =
+                    app.settings_state.settings_selected_idx.saturating_sub(1);
             }
             app.settings_state.settings_render_cache = None;
             return;
@@ -30,7 +31,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_edit_buffer.clear();
             } else {
                 let count = fields.len();
-                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 1).min(count.saturating_sub(1));
+                app.settings_state.settings_selected_idx =
+                    (app.settings_state.settings_selected_idx + 1).min(count.saturating_sub(1));
             }
             app.settings_state.settings_render_cache = None;
             return;
@@ -40,7 +42,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_edit_buffer.clear();
             } else {
                 let count = fields.len();
-                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 10).min(count.saturating_sub(1));
+                app.settings_state.settings_selected_idx =
+                    (app.settings_state.settings_selected_idx + 10).min(count.saturating_sub(1));
             }
             app.settings_state.settings_render_cache = None;
             return;
@@ -49,14 +52,17 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
             } else {
-                app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(10);
+                app.settings_state.settings_selected_idx =
+                    app.settings_state.settings_selected_idx.saturating_sub(10);
             }
             app.settings_state.settings_render_cache = None;
             return;
         }
         KeyCode::PageDown => {
-            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_add(5);
-            app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_add(5);
+            app.settings_state.settings_scroll_offset =
+                app.settings_state.settings_scroll_offset.saturating_add(5);
+            app.settings_state.settings_selected_idx =
+                app.settings_state.settings_selected_idx.saturating_add(5);
             let count = fields.len();
             if app.settings_state.settings_selected_idx >= count {
                 app.settings_state.settings_selected_idx = count.saturating_sub(1);
@@ -65,8 +71,10 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         }
         KeyCode::PageUp => {
-            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_sub(5);
-            app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(5);
+            app.settings_state.settings_scroll_offset =
+                app.settings_state.settings_scroll_offset.saturating_sub(5);
+            app.settings_state.settings_selected_idx =
+                app.settings_state.settings_selected_idx.saturating_sub(5);
             app.settings_state.settings_render_cache = None;
             return;
         }
@@ -138,11 +146,16 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         if !app.settings_state.settings_edit_buffer.is_empty() {
             app.settings_state.settings_edit_buffer.clear();
         } else if key.code == KeyCode::Enter {
-            app.picker.prompt_picker_entries = app.config.merged_presets()
+            app.picker.prompt_picker_entries = app
+                .config
+                .merged_presets()
                 .iter()
                 .map(|p| (p.name.clone(), p.description.clone()))
                 .collect();
-            app.picker.prompt_picker_selected = app.picker.prompt_picker_entries.iter()
+            app.picker.prompt_picker_selected = app
+                .picker
+                .prompt_picker_entries
+                .iter()
                 .position(|(name, _)| name == &app.settings.system_prompt_preset_name)
                 .unwrap_or(0);
             app.ui.global_mode = GlobalMode::PromptPicker {
@@ -180,7 +193,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 _ => {
                     let total = app.loading.model_total_layers;
-                    app.settings.gpu_layers_mode = crate::models::GpuLayersMode::Specific(total.max(1).min(256));
+                    app.settings.gpu_layers_mode =
+                        crate::models::GpuLayersMode::Specific(total.max(1).min(256));
                     app.update_vram_estimate();
                     app.settings_state.settings_render_cache = None;
                 }
@@ -189,10 +203,16 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         } else if key.code == KeyCode::Left {
             let total = app.loading.model_total_layers;
             app.settings.gpu_layers_mode = match &app.settings.gpu_layers_mode {
-                crate::models::GpuLayersMode::Auto => crate::models::GpuLayersMode::Specific(total.max(1).min(256)),
+                crate::models::GpuLayersMode::Auto => {
+                    crate::models::GpuLayersMode::Specific(total.max(1).min(256))
+                }
                 crate::models::GpuLayersMode::Specific(0) => crate::models::GpuLayersMode::Auto,
-                crate::models::GpuLayersMode::Specific(n) if *n == 1 => crate::models::GpuLayersMode::Specific(0),
-                crate::models::GpuLayersMode::Specific(n) => crate::models::GpuLayersMode::Specific(n - 1),
+                crate::models::GpuLayersMode::Specific(n) if *n == 1 => {
+                    crate::models::GpuLayersMode::Specific(0)
+                }
+                crate::models::GpuLayersMode::Specific(n) => {
+                    crate::models::GpuLayersMode::Specific(n - 1)
+                }
                 crate::models::GpuLayersMode::All => {
                     let max = total.max(1).min(256);
                     crate::models::GpuLayersMode::Specific(max)
@@ -205,8 +225,12 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             let total = app.loading.model_total_layers;
             app.settings.gpu_layers_mode = match &app.settings.gpu_layers_mode {
                 crate::models::GpuLayersMode::Auto => crate::models::GpuLayersMode::Specific(1),
-                crate::models::GpuLayersMode::Specific(n) if *n == total => crate::models::GpuLayersMode::All,
-                crate::models::GpuLayersMode::Specific(n) => crate::models::GpuLayersMode::Specific(n + 1),
+                crate::models::GpuLayersMode::Specific(n) if *n == total => {
+                    crate::models::GpuLayersMode::All
+                }
+                crate::models::GpuLayersMode::Specific(n) => {
+                    crate::models::GpuLayersMode::Specific(n + 1)
+                }
                 crate::models::GpuLayersMode::All => crate::models::GpuLayersMode::Auto,
             };
             app.update_vram_estimate();
@@ -254,21 +278,30 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         } else if key.code == KeyCode::Enter {
-            let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+            let mut val = app
+                .settings
+                .cache_type_k
+                .unwrap_or(crate::models::CacheTypeK::F16);
             val = val.next();
             app.settings.cache_type_k = Some(val);
             app.update_vram_estimate();
             app.settings_state.settings_render_cache = None;
             return;
         } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
-            let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+            let mut val = app
+                .settings
+                .cache_type_k
+                .unwrap_or(crate::models::CacheTypeK::F16);
             val = val.prev();
             app.settings.cache_type_k = Some(val);
             app.update_vram_estimate();
             app.settings_state.settings_render_cache = None;
             return;
         } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
-            let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+            let mut val = app
+                .settings
+                .cache_type_k
+                .unwrap_or(crate::models::CacheTypeK::F16);
             val = val.next();
             app.settings.cache_type_k = Some(val);
             app.update_vram_estimate();
@@ -292,21 +325,30 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         } else if key.code == KeyCode::Enter {
-            let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+            let mut val = app
+                .settings
+                .cache_type_v
+                .unwrap_or(crate::models::CacheTypeV::F16);
             val = val.next();
             app.settings.cache_type_v = Some(val);
             app.update_vram_estimate();
             app.settings_state.settings_render_cache = None;
             return;
         } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
-            let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+            let mut val = app
+                .settings
+                .cache_type_v
+                .unwrap_or(crate::models::CacheTypeV::F16);
             val = val.prev();
             app.settings.cache_type_v = Some(val);
             app.update_vram_estimate();
             app.settings_state.settings_render_cache = None;
             return;
         } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
-            let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+            let mut val = app
+                .settings
+                .cache_type_v
+                .unwrap_or(crate::models::CacheTypeV::F16);
             val = val.next();
             app.settings.cache_type_v = Some(val);
             app.update_vram_estimate();
@@ -355,12 +397,12 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if field_id == Some("max_concurrent_predictions") {
         if app.settings_state.settings_edit_buffer.is_empty() {
             if key.code == KeyCode::Enter {
-                let current = app.settings.max_concurrent_predictions
+                let current = app
+                    .settings
+                    .max_concurrent_predictions
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| "1".to_string());
-                app.ui.global_mode = GlobalMode::MaxConcurrentPicker {
-                    value: current,
-                };
+                app.ui.global_mode = GlobalMode::MaxConcurrentPicker { value: current };
                 app.settings_state.settings_render_cache = None;
                 return;
             }
@@ -374,7 +416,10 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
             match app.settings.max_concurrent_predictions {
-                Some(n) => app.settings.max_concurrent_predictions = Some((n as i32 - 1).clamp(1, 10) as u32),
+                Some(n) => {
+                    app.settings.max_concurrent_predictions =
+                        Some((n as i32 - 1).clamp(1, 10) as u32)
+                }
                 None => app.settings.max_concurrent_predictions = Some(1),
             }
             sync_global_settings(app);
@@ -382,7 +427,10 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
             match app.settings.max_concurrent_predictions {
-                Some(n) => app.settings.max_concurrent_predictions = Some((n as i32 + 1).clamp(1, 10) as u32),
+                Some(n) => {
+                    app.settings.max_concurrent_predictions =
+                        Some((n as i32 + 1).clamp(1, 10) as u32)
+                }
                 None => app.settings.max_concurrent_predictions = Some(1),
             }
             sync_global_settings(app);

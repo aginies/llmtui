@@ -16,9 +16,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let log_area = area;
 
     let title = if app.is_panel_visible(5) {
-        if app.log.log_follow { " Log (F6) - Following " } else { " Log (F6) - Manual " }
+        if app.log.log_follow {
+            " Log (F6) - Following "
+        } else {
+            " Log (F6) - Manual "
+        }
     } else {
-        if app.log.log_follow { " Log - Following " } else { " Log - Manual " }
+        if app.log.log_follow {
+            " Log - Following "
+        } else {
+            " Log - Manual "
+        }
     };
     let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Log {
         Color::Green
@@ -44,9 +52,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
         let msg_lines: Vec<&str> = e.message.lines().collect();
         if msg_lines.is_empty() {
-             lines.push(Line::from(vec![
+            lines.push(Line::from(vec![
                 Span::styled(ts_prefix, Style::default().fg(Color::DarkGray)),
-                Span::styled(lv_prefix, Style::default().fg(level_color).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    lv_prefix,
+                    Style::default()
+                        .fg(level_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled(&e.message, Style::default().fg(Color::White)),
             ]));
         } else {
@@ -54,7 +67,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 if i == 0 {
                     lines.push(Line::from(vec![
                         Span::styled(ts_prefix.clone(), Style::default().fg(Color::DarkGray)),
-                        Span::styled(lv_prefix.clone(), Style::default().fg(level_color).add_modifier(Modifier::BOLD)),
+                        Span::styled(
+                            lv_prefix.clone(),
+                            Style::default()
+                                .fg(level_color)
+                                .add_modifier(Modifier::BOLD),
+                        ),
                         Span::styled(line, Style::default().fg(Color::White)),
                     ]));
                 } else {
@@ -71,10 +89,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let width = inner_area.width.max(1) as usize;
 
     // Calculate total lines after wrapping (estimation since line_count is unstable/private)
-    let total_screen_lines = lines.iter()
+    let total_screen_lines = lines
+        .iter()
         .map(|l| (l.width().max(1) + width - 1) / width)
         .sum::<usize>();
-    
+
     app.log.log_total_lines = total_screen_lines;
 
     // Auto-scroll to bottom if follow is enabled
@@ -86,18 +105,24 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .block(block)
         .wrap(Wrap { trim: false });
 
-    f.render_widget(paragraph.scroll((app.log.log_scroll_offset as u16, 0)), log_area);
+    f.render_widget(
+        paragraph.scroll((app.log.log_scroll_offset as u16, 0)),
+        log_area,
+    );
 
     // Render scrollbar inside borders (below content)
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
         .begin_symbol(Some("↑"))
         .end_symbol(Some("↓"));
-    let mut scrollbar_state = ScrollbarState::new(total_screen_lines)
-        .position(app.log.log_scroll_offset as usize);
+    let mut scrollbar_state =
+        ScrollbarState::new(total_screen_lines).position(app.log.log_scroll_offset as usize);
 
     f.render_stateful_widget(
         scrollbar,
-        log_area.inner(ratatui::layout::Margin { vertical: 1, horizontal: 0 }),
+        log_area.inner(ratatui::layout::Margin {
+            vertical: 1,
+            horizontal: 0,
+        }),
         &mut scrollbar_state,
     );
 }

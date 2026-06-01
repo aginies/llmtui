@@ -4,11 +4,11 @@ use crate::backend::hardware;
 impl App {
     pub fn fetch_host_picker_entries() -> Vec<(String, String)> {
         let mut entries = Vec::new();
-        
+
         // Always include these two at the top
         entries.push(("127.0.0.1".to_string(), "localhost".to_string()));
         entries.push(("0.0.0.0".to_string(), "All interfaces".to_string()));
-        
+
         // Add real network interfaces
         if let Ok(ifaces) = local_ip_address::list_afinet_netifas() {
             for (name, ip) in ifaces {
@@ -18,7 +18,7 @@ impl App {
                 }
             }
         }
-        
+
         entries
     }
 
@@ -79,7 +79,7 @@ impl App {
                 entries.push((b, Some(tag)));
             }
         }
-        
+
         entries
     }
 }

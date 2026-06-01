@@ -1,14 +1,14 @@
-pub mod models;
 pub mod log;
-pub mod settings;
-pub mod tags;
+pub mod models;
 pub mod profiles;
+pub mod settings;
 pub mod system_prompts;
+pub mod tags;
 
-pub use models::handle_models_key;
 pub use log::handle_log_key;
-pub use settings::handle_settings_key;
+pub use models::handle_models_key;
 pub use profiles::handle_profiles_key;
+pub use settings::handle_settings_key;
 pub use system_prompts::handle_system_prompt_presets_key;
 
 mod downloads;

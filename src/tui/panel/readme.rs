@@ -1,11 +1,11 @@
-use pulldown_cmark::{Options, Event, Tag, TagEnd};
+use crate::tui::app::App;
+use pulldown_cmark::{Event, Options, Tag, TagEnd};
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Paragraph},
     style::{Color, Modifier, Style},
     text::{Line, Span},
+    widgets::{Block, Borders, Paragraph},
 };
-use crate::tui::app::App;
 
 /// Markdown renderer for TUI display.
 pub struct MdRenderer {
@@ -221,10 +221,8 @@ impl MdRenderer {
         } else if self.in_code_block {
             self.pending.push((code.to_string(), self.code_block_style));
         } else {
-            self.pending.push((
-                format!("`{code}`"),
-                self.current_style.fg(Color::Green),
-            ));
+            self.pending
+                .push((format!("`{code}`"), self.current_style.fg(Color::Green)));
         }
     }
 
@@ -331,7 +329,9 @@ impl MdRenderer {
                 let spans: Vec<Span> = self
                     .pending_table_header
                     .iter()
-                    .map(|(text, style)| Span::styled(text.clone(), style.add_modifier(Modifier::BOLD)))
+                    .map(|(text, style)| {
+                        Span::styled(text.clone(), style.add_modifier(Modifier::BOLD))
+                    })
                     .collect();
                 self.lines.push(Line::from(spans));
                 self.lines.push(Line::from(vec![Span::styled(
@@ -355,12 +355,19 @@ impl MdRenderer {
 pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     let readme_state = match &app.models_mode {
         crate::tui::app::ModelsMode::Search { results, .. } => {
-            app.search.search_results_idx
-                .and_then(|idx| results.get(idx).map(|r| (r.model_id.clone(), r.readme.as_ref())))
+            app.search.search_results_idx.and_then(|idx| {
+                results
+                    .get(idx)
+                    .map(|r| (r.model_id.clone(), r.readme.as_ref()))
+            })
         }
-        crate::tui::app::ModelsMode::Files { selected_result, model_id, .. } => {
-            selected_result.as_ref().map(|r| (model_id.clone(), r.readme.as_ref()))
-        }
+        crate::tui::app::ModelsMode::Files {
+            selected_result,
+            model_id,
+            ..
+        } => selected_result
+            .as_ref()
+            .map(|r| (model_id.clone(), r.readme.as_ref())),
         _ => None,
     };
 
@@ -385,12 +392,18 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         Some((_, Some(_))) => {
             app.picker.readme_scroll_offset = 0;
             // Text is Some but empty
-            vec![Line::from(Span::styled("no README available", Style::default().fg(Color::Red)))]
+            vec![Line::from(Span::styled(
+                "no README available",
+                Style::default().fg(Color::Red),
+            ))]
         }
         Some((_, None)) => {
             app.picker.readme_scroll_offset = 0;
             // Not yet fetched
-            vec![Line::from(Span::styled("Press -> to Fetch the README.md", Style::default().fg(Color::Green)))]
+            vec![Line::from(Span::styled(
+                "Press -> to Fetch the README.md",
+                Style::default().fg(Color::Green),
+            ))]
         }
         None => {
             app.picker.readme_scroll_offset = 0;
@@ -414,19 +427,28 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         .collect();
 
     let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::SearchReadme;
-    let border_color = if is_focused { Color::Green } else { Color::Yellow };
+    let border_color = if is_focused {
+        Color::Green
+    } else {
+        Color::Yellow
+    };
     let block = Block::default()
         .title(" README ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
-    let wrap = ratatui::widgets::Wrap {
-        trim: true,
-    };
+    let wrap = ratatui::widgets::Wrap { trim: true };
     let paragraph = Paragraph::new(visible_lines).block(block).wrap(wrap);
     f.render_widget(paragraph, area);
 
     // Vertical scrollbar
     if lines.len() > available_height as usize {
-        crate::tui::render_vertical_scrollbar(f, area, lines.len(), app.picker.readme_scroll_offset as usize, 0, 0);
+        crate::tui::render_vertical_scrollbar(
+            f,
+            area,
+            lines.len(),
+            app.picker.readme_scroll_offset as usize,
+            0,
+            0,
+        );
     }
 }

@@ -14,20 +14,31 @@ pub async fn fetch_and_store_readme(app: &mut App, model_id: String) {
             app.add_log("README loaded.", crate::config::LogLevel::Info);
         }
         Err(e) => {
-            app.add_log(format!("Failed to fetch README: {}", e), crate::config::LogLevel::Error);
+            app.add_log(
+                format!("Failed to fetch README: {}", e),
+                crate::config::LogLevel::Error,
+            );
         }
     }
 }
 
 pub async fn fetch_readme_for_selected(app: &mut App, model_id: String) {
-    if let ModelsMode::Search { results, show_readme, .. } = &app.models_mode
+    if let ModelsMode::Search {
+        results,
+        show_readme,
+        ..
+    } = &app.models_mode
         && *show_readme
-            && let Some(idx) = app.search.search_results_idx
-                && let Some(r) = results.get(idx)
-                    && r.readme.is_none() {
-                        app.add_log(format!("Fetching README for {}...", model_id), crate::config::LogLevel::Info);
-                        fetch_and_store_readme(app, model_id).await;
-                    }
+        && let Some(idx) = app.search.search_results_idx
+        && let Some(r) = results.get(idx)
+        && r.readme.is_none()
+    {
+        app.add_log(
+            format!("Fetching README for {}...", model_id),
+            crate::config::LogLevel::Info,
+        );
+        fetch_and_store_readme(app, model_id).await;
+    }
 }
 
 pub fn handle_readme_key(app: &mut App, key: crossterm::event::KeyEvent) {

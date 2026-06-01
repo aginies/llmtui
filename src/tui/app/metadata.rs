@@ -5,13 +5,30 @@ impl App {
     pub fn update_vram_estimate(&mut self) {
         if let Some(model) = self.selected_model() {
             let model_mib = model.file_size / (1024 * 1024);
-            let hidden = if self.loading.model_hidden_size > 0 { Some(self.loading.model_hidden_size) } else { None };
-            let n_head = if self.loading.model_n_head > 0 { Some(self.loading.model_n_head) } else { None };
-            let n_kv_head = if self.loading.model_n_kv_head > 0 { Some(self.loading.model_n_kv_head) } else { None };
+            let hidden = if self.loading.model_hidden_size > 0 {
+                Some(self.loading.model_hidden_size)
+            } else {
+                None
+            };
+            let n_head = if self.loading.model_n_head > 0 {
+                Some(self.loading.model_n_head)
+            } else {
+                None
+            };
+            let n_kv_head = if self.loading.model_n_kv_head > 0 {
+                Some(self.loading.model_n_kv_head)
+            } else {
+                None
+            };
             let gpu_mem_total_mib = self.metrics.gpu_mem_total / (1024 * 1024);
             self.loading.vram_estimate = crate::models::estimate_vram_mib(
-                model_mib, &self.settings, self.loading.model_total_layers, hidden,
-                n_head, n_kv_head, gpu_mem_total_mib
+                model_mib,
+                &self.settings,
+                self.loading.model_total_layers,
+                hidden,
+                n_head,
+                n_kv_head,
+                gpu_mem_total_mib,
             );
         }
     }
@@ -75,7 +92,10 @@ impl App {
             // Cache the parsed metadata
             self.search.gguf_metadata_cache.insert(key, meta);
         } else {
-            self.add_log(format!("Failed to parse GGUF metadata for {}", model.path.display()), crate::config::LogLevel::Error);
+            self.add_log(
+                format!("Failed to parse GGUF metadata for {}", model.path.display()),
+                crate::config::LogLevel::Error,
+            );
         }
 
         // Compute VRAM estimate once, after metadata fields are populated.

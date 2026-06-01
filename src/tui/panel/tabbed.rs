@@ -40,7 +40,8 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     render_server_settings(f, server_area, app);
 
     // ── LLM Settings ─────────────────────────────────────────
-    let (settings_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, llm_area);
+    let (settings_lines, _count, settings_height, _selected_line_idx) =
+        settings::render_all(app, llm_area);
 
     let available_height = llm_area.height.saturating_sub(2);
 
@@ -53,13 +54,24 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         .cloned()
         .collect();
 
-    let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
+    let border_color = if is_focused {
+        Color::Green
+    } else {
+        Color::Rgb(255, 165, 0)
+    };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
-    let title_prefix = if app.settings_state.expert_mode { " EXPERT - " } else { "" };
+    let title_prefix = if app.settings_state.expert_mode {
+        " EXPERT - "
+    } else {
+        ""
+    };
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(format!("{} LLM Settings (F4) [Ctrl+F9] ", title_prefix)),
-            Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
+            Span::styled(
+                format!("(VRAM ~= {}) ", vram_text),
+                Style::default().fg(Color::Yellow),
+            ),
         ]))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
@@ -69,7 +81,14 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Render scrollbar if settings overflow
     if settings_height > available_height as usize {
-        crate::tui::render_vertical_scrollbar(f, llm_area, settings_height, app.settings_state.settings_scroll_offset as usize, 0, 0);
+        crate::tui::render_vertical_scrollbar(
+            f,
+            llm_area,
+            settings_height,
+            app.settings_state.settings_scroll_offset as usize,
+            0,
+            0,
+        );
     }
 }
 fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
@@ -91,11 +110,19 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
 
     let host_val = crate::models::format_host(&app.settings.host);
 
-    let backend_name = format!("{} (v{})", app.settings.backend, app.settings.get_active_backend_version_display());
+    let backend_name = format!(
+        "{} (v{})",
+        app.settings.backend,
+        app.settings.get_active_backend_version_display()
+    );
     let threads_val = format!("{}", app.settings.threads);
     let threads_batch_val = format!("{}", app.settings.threads_batch);
     let mode_val = format!("{}", app.server_mode);
-    let api_enabled = if app.settings.api_endpoint_enabled { "True" } else { "False" };
+    let api_enabled = if app.settings.api_endpoint_enabled {
+        "True"
+    } else {
+        "False"
+    };
     let rpc_workers_count = app.config.rpc_workers.iter().filter(|w| w.selected).count();
     let rpc_workers_val = if rpc_workers_count > 0 {
         format!("{} active", rpc_workers_count)
@@ -108,24 +135,148 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let mut selected_line_idx = 0;
     let mut selected_content_line = 0;
 
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 0, "Host", host_val, selected, "", false, server_running);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 1, "Backend", &backend_name, selected, "", false, server_running);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 2, "Threads", &threads_val, selected, "", false, server_running);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 3, "Threads Batch", &threads_batch_val, selected, "", false, server_running);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 4, "Mode", &mode_val, selected, "", false, server_running);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 5, "API Endpoint", api_enabled, selected, "", false, server_running);
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        0,
+        "Host",
+        host_val,
+        selected,
+        "",
+        false,
+        server_running,
+    );
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        1,
+        "Backend",
+        &backend_name,
+        selected,
+        "",
+        false,
+        server_running,
+    );
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        2,
+        "Threads",
+        &threads_val,
+        selected,
+        "",
+        false,
+        server_running,
+    );
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        3,
+        "Threads Batch",
+        &threads_batch_val,
+        selected,
+        "",
+        false,
+        server_running,
+    );
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        4,
+        "Mode",
+        &mode_val,
+        selected,
+        "",
+        false,
+        server_running,
+    );
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        5,
+        "API Endpoint",
+        api_enabled,
+        selected,
+        "",
+        false,
+        server_running,
+    );
 
-    let dashboard_val = format!("Dashboard ({})", if app.settings.ws_server_enabled { "Enabled" } else { "Disabled" });
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 6, "Dashboard", &dashboard_val, selected, "", false, server_running);
-    settings_helper::add_setting(&mut lines, &mut count, &app.settings, &app.settings, &mut selected_line_idx, &mut selected_content_line, 7, "RPC Workers", &rpc_workers_val, selected, "", false, server_running);
+    let dashboard_val = format!(
+        "Dashboard ({})",
+        if app.settings.ws_server_enabled {
+            "Enabled"
+        } else {
+            "Disabled"
+        }
+    );
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        6,
+        "Dashboard",
+        &dashboard_val,
+        selected,
+        "",
+        false,
+        server_running,
+    );
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        7,
+        "RPC Workers",
+        &rpc_workers_val,
+        selected,
+        "",
+        false,
+        server_running,
+    );
 
     let total_settings = lines.len();
     let available_height = area.height.saturating_sub(2);
 
     if selected_content_line < app.settings_state.server_settings_scroll_offset {
         app.settings_state.server_settings_scroll_offset = selected_content_line;
-    } else if available_height > 0 && (selected_content_line - app.settings_state.server_settings_scroll_offset) >= (available_height as usize) {
-        app.settings_state.server_settings_scroll_offset = (selected_content_line).saturating_sub(available_height as usize).saturating_add(1);
+    } else if available_height > 0
+        && (selected_content_line - app.settings_state.server_settings_scroll_offset)
+            >= (available_height as usize)
+    {
+        app.settings_state.server_settings_scroll_offset = (selected_content_line)
+            .saturating_sub(available_height as usize)
+            .saturating_add(1);
     }
 
     let max_offset = total_settings.saturating_sub(available_height as usize);
@@ -154,7 +305,14 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     f.render_widget(paragraph, area);
 
     if total_settings > available_height as usize {
-        crate::tui::render_vertical_scrollbar(f, area, total_settings, app.settings_state.server_settings_scroll_offset as usize, 1, 2);
+        crate::tui::render_vertical_scrollbar(
+            f,
+            area,
+            total_settings,
+            app.settings_state.server_settings_scroll_offset as usize,
+            1,
+            2,
+        );
     }
 }
 
@@ -164,18 +322,25 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
 
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let is_focused = app.ui.active_panel == ActivePanel::LlmSettings;
-    let border_color = if is_focused { Color::Green } else { Color::Rgb(255, 165, 0) };
+    let border_color = if is_focused {
+        Color::Green
+    } else {
+        Color::Rgb(255, 165, 0)
+    };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(" LLM Settings (F4) [4] "),
-            Span::styled(format!("(VRAM ~= {}) ", vram_text), Style::default().fg(Color::Yellow)),
+            Span::styled(
+                format!("(VRAM ~= {}) ", vram_text),
+                Style::default().fg(Color::Yellow),
+            ),
         ]))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
     let (all_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, area);
-    
+
     let available_height = area.height.saturating_sub(2);
     let start_idx = app.settings_state.settings_scroll_offset as usize;
     let visible_lines: Vec<Line> = all_lines
@@ -190,7 +355,14 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Render scrollbar if settings overflow
     if settings_height > available_height as usize {
-        crate::tui::render_vertical_scrollbar(f, area, settings_height, app.settings_state.settings_scroll_offset as usize, 0, 0);
+        crate::tui::render_vertical_scrollbar(
+            f,
+            area,
+            settings_height,
+            app.settings_state.settings_scroll_offset as usize,
+            0,
+            0,
+        );
     }
 }
 
@@ -215,22 +387,29 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
                 empty_info()
             }
         }
-        crate::tui::app::ModelsMode::Files { selected_result, files, selected_idx, .. } => {
+        crate::tui::app::ModelsMode::Files {
+            selected_result,
+            files,
+            selected_idx,
+            ..
+        } => {
             let mut lines = if let Some(r) = selected_result {
                 // If a file is selected, pass its info to override the repo size and extract params
-                let file_info = selected_idx.and_then(|idx| files.get(idx).map(|(f, s, _): &(_, _, _)| (f.clone(), *s)));
+                let file_info = selected_idx
+                    .and_then(|idx| files.get(idx).map(|(f, s, _): &(_, _, _)| (f.clone(), *s)));
                 render_search_result_info(r, file_info)
             } else {
                 Vec::new()
             };
             // Add GGUF file name for the selected file
             if let Some(idx) = selected_idx
-                && let Some((filename, _, _url)) = files.get(*idx) {
-                    lines.push(Line::from(vec![
-                        Span::styled("File: ", Style::default().fg(Color::Yellow)),
-                        Span::styled(filename.clone(), Style::default().fg(Color::White)),
-                    ]));
-                }
+                && let Some((filename, _, _url)) = files.get(*idx)
+            {
+                lines.push(Line::from(vec![
+                    Span::styled("File: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(filename.clone(), Style::default().fg(Color::White)),
+                ]));
+            }
             lines
         }
         _ => {
@@ -242,15 +421,13 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
                     let mut lines = render_model_info_lines(&pairs, width);
                     // Hint when GGUF metadata was not available.
                     if cached_meta.is_none() {
-                        lines.push(Line::from(vec![
-                            Span::styled(
-                                "GGUF metadata not available — check log for errors",
-                                Style::default().fg(Color::DarkGray),
-                            ),
-                        ]));
+                        lines.push(Line::from(vec![Span::styled(
+                            "GGUF metadata not available — check log for errors",
+                            Style::default().fg(Color::DarkGray),
+                        )]));
                     }
                     lines
-                },
+                }
                 None => empty_info(),
             }
         }
@@ -259,22 +436,32 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
     // Add HuggingFace link for search results
     if let crate::tui::app::ModelsMode::Search { results, .. } = &app.models_mode {
         if let Some(idx) = app.search.search_results_idx
-            && idx < results.len() {
-                let r = &results[idx];
-                let link_line = Line::from(vec![
-                    Span::styled("  https://huggingface.co/", Style::default().fg(Color::DarkGray)),
-                    Span::styled(r.model_id.clone(), Style::default().fg(Color::DarkGray)),
-                ]);
-                info_lines.push(link_line);
-            }
-    } else if let crate::tui::app::ModelsMode::Files { selected_result, .. } = &app.models_mode
-        && let Some(r) = selected_result {
+            && idx < results.len()
+        {
+            let r = &results[idx];
             let link_line = Line::from(vec![
-                Span::styled("  https://huggingface.co/", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    "  https://huggingface.co/",
+                    Style::default().fg(Color::DarkGray),
+                ),
                 Span::styled(r.model_id.clone(), Style::default().fg(Color::DarkGray)),
             ]);
             info_lines.push(link_line);
         }
+    } else if let crate::tui::app::ModelsMode::Files {
+        selected_result, ..
+    } = &app.models_mode
+        && let Some(r) = selected_result
+    {
+        let link_line = Line::from(vec![
+            Span::styled(
+                "  https://huggingface.co/",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled(r.model_id.clone(), Style::default().fg(Color::DarkGray)),
+        ]);
+        info_lines.push(link_line);
+    }
 
     info_lines
 }
@@ -318,12 +505,21 @@ fn render_model_info_lines(pairs: &[ModelInfoPair], _width: u16) -> Vec<Line<'st
             // Two columns: pad left label to align with right label
             let left_label = format!("{}: ", left.label);
             let right_label = format!("{}: ", right.label);
-            
+
             lines.push(Line::from(vec![
-                Span::styled(format!("{:<12}", left_label), Style::default().fg(Color::Yellow)),
-                Span::styled(format!("{:<15}", left.value), Style::default().fg(left.value_style)),
+                Span::styled(
+                    format!("{:<12}", left_label),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled(
+                    format!("{:<15}", left.value),
+                    Style::default().fg(left.value_style),
+                ),
                 Span::raw("  "),
-                Span::styled(format!("{:<12}", right_label), Style::default().fg(Color::Yellow)),
+                Span::styled(
+                    format!("{:<12}", right_label),
+                    Style::default().fg(Color::Yellow),
+                ),
                 Span::styled(right.value.clone(), Style::default().fg(right.value_style)),
             ]));
         } else {
@@ -341,7 +537,7 @@ fn render_model_info_lines(pairs: &[ModelInfoPair], _width: u16) -> Vec<Line<'st
 
 fn extract_params_from_filename(filename: &str) -> String {
     let stem = crate::models::strip_gguf(filename.rsplit('/').next().unwrap_or(filename));
-    
+
     // Look for patterns like "30B", "8B", "4B", "14B", "70B", "405B", "30B-A3B"
     // Search from end to find the size token
     let upper = stem.to_uppercase();
@@ -364,22 +560,29 @@ fn extract_params_from_filename(filename: &str) -> String {
                 return token.to_string();
             }
             if token_upper.ends_with('B') {
-                let digits_part = &token_upper[..token_upper.len()-1];
-                if digits_part.chars().all(|c| c.is_ascii_digit() || c == '.') && !digits_part.is_empty() {
+                let digits_part = &token_upper[..token_upper.len() - 1];
+                if digits_part.chars().all(|c| c.is_ascii_digit() || c == '.')
+                    && !digits_part.is_empty()
+                {
                     return token.to_string();
                 }
             }
             break;
         }
     }
-    
+
     "N/A".to_string()
 }
 
-fn render_search_result_info(r: &crate::models::SearchResult, file_info: Option<(String, u64)>) -> Vec<Line<'static>> {
-    let size_str = file_info.as_ref().map(|(_, size)| crate::tui::format_size(*size))
+fn render_search_result_info(
+    r: &crate::models::SearchResult,
+    file_info: Option<(String, u64)>,
+) -> Vec<Line<'static>> {
+    let size_str = file_info
+        .as_ref()
+        .map(|(_, size)| crate::tui::format_size(*size))
         .or_else(|| r.size.map(crate::tui::format_size));
-    
+
     // Extract params from filename if available, otherwise use repo-level params
     let params_str = if let Some((filename, _)) = &file_info {
         extract_params_from_filename(filename)
@@ -389,17 +592,26 @@ fn render_search_result_info(r: &crate::models::SearchResult, file_info: Option<
     let cap_str: String = if r.capabilities.is_empty() {
         "N/A".to_string()
     } else {
-        r.capabilities.iter().take(5).map(|c| c.as_str()).collect::<Vec<_>>().join(", ")
+        r.capabilities
+            .iter()
+            .take(5)
+            .map(|c| c.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
     };
     let pipeline_str: String = r.pipeline_tag.as_deref().unwrap_or("N/A").to_string();
-    let tag_str: String = r.tags.iter().take(3).cloned().collect::<Vec<_>>().join(", ");
+    let tag_str: String = r
+        .tags
+        .iter()
+        .take(3)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
 
-    let mut lines = vec![
-        Line::from(vec![
-            Span::styled("Model: ", Style::default().fg(Color::Yellow)),
-            Span::styled(r.model_id.clone(), Style::default().fg(Color::White)),
-        ]),
-    ];
+    let mut lines = vec![Line::from(vec![
+        Span::styled("Model: ", Style::default().fg(Color::Yellow)),
+        Span::styled(r.model_id.clone(), Style::default().fg(Color::White)),
+    ])];
     if let Some(s) = size_str.clone() {
         lines.push(Line::from(vec![
             Span::styled("Size: ", Style::default().fg(Color::Yellow)),
@@ -418,14 +630,20 @@ fn render_search_result_info(r: &crate::models::SearchResult, file_info: Option<
         Span::styled(pipeline_str.to_string(), Style::default().fg(Color::White)),
         Span::raw(" | "),
         Span::styled("Downloads: ", Style::default().fg(Color::Yellow)),
-        Span::styled(format!("{}", r.downloads), Style::default().fg(Color::White)),
+        Span::styled(
+            format!("{}", r.downloads),
+            Style::default().fg(Color::White),
+        ),
     ]));
     lines.push(Line::from(vec![
         Span::styled("Likes: ", Style::default().fg(Color::Yellow)),
         Span::styled(format!("{}", r.likes), Style::default().fg(Color::White)),
         Span::raw(" | "),
         Span::styled("Trending: ", Style::default().fg(Color::Yellow)),
-        Span::styled(format!("{}", r.trending_score), Style::default().fg(Color::White)),
+        Span::styled(
+            format!("{}", r.trending_score),
+            Style::default().fg(Color::White),
+        ),
     ]));
     let license: String = r.license.as_deref().unwrap_or("—").to_string();
     lines.push(Line::from(vec![

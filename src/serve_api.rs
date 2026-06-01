@@ -1,14 +1,14 @@
 use std::net::SocketAddr;
 use std::time::Instant;
 
+use axum::Json;
+use axum::Router;
 use axum::body::Body;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Json;
-use axum::Router;
-use futures_util::{stream, StreamExt};
+use futures_util::{StreamExt, stream};
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -65,9 +65,7 @@ async fn proxy_streaming(
     let url = format!("{}{}", state.server_url, path);
 
     // Convert request body to a stream for reqwest
-    let body_bytes = match axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
-        .await
-    {
+    let body_bytes = match axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024).await {
         Ok(b) => b,
         Err(e) => {
             info!("Failed to read request body for {}: {}", path, e);
@@ -115,9 +113,7 @@ async fn proxy_streaming(
             if is_sse {
                 let mut response = axum::response::Response::new(Body::from_stream(
                     resp.bytes_stream().map(|result| {
-                        result.map_err(|e| {
-                            std::io::Error::new(std::io::ErrorKind::Other, e)
-                        })
+                        result.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
                     }),
                 ));
                 *response.status_mut() = status;
@@ -151,29 +147,25 @@ async fn proxy_streaming(
 
 /// Simple health check endpoint - no auth, verifies backend
 async fn health(State(state): State<ApiState>) -> impl IntoResponse {
-    let resp = state.client.get(format!("{}/health", state.server_url))
+    let resp = state
+        .client
+        .get(format!("{}/health", state.server_url))
         .send()
         .await;
-    
+
     match resp {
-        Ok(response) if response.status().is_success() => {
-            Json(serde_json::json!({
-                "status": "ok",
-                "backend": "healthy"
-            }))
-        }
-        Ok(_) => {
-            Json(serde_json::json!({
-                "status": "degraded",
-                "backend": "unreachable"
-            }))
-        }
-        Err(_) => {
-            Json(serde_json::json!({
-                "status": "degraded",
-                "backend": "unreachable"
-            }))
-        }
+        Ok(response) if response.status().is_success() => Json(serde_json::json!({
+            "status": "ok",
+            "backend": "healthy"
+        })),
+        Ok(_) => Json(serde_json::json!({
+            "status": "degraded",
+            "backend": "unreachable"
+        })),
+        Err(_) => Json(serde_json::json!({
+            "status": "degraded",
+            "backend": "unreachable"
+        })),
     }
 }
 
@@ -183,7 +175,8 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     let uptime_secs = uptime.as_secs();
 
     // Try to get loaded models from llama-server
-    let loaded_models = match state.client
+    let loaded_models = match state
+        .client
         .get(format!("{}/models", state.server_url))
         .send()
         .await
@@ -223,9 +216,7 @@ pub async fn start_api_server(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
-    let client = Client::builder()
-        .pool_max_idle_per_host(20)
-        .build()?;
+    let client = Client::builder().pool_max_idle_per_host(20).build()?;
     let state = ApiState {
         server_url: format!("http://127.0.0.1:{}", server_port),
         api_key,
@@ -251,7 +242,11 @@ pub async fn start_api_server(
         ]);
 
     let api_key_clone = state.api_key.clone();
-    let protocol = if tls_config.is_some() { "https" } else { "http" };
+    let protocol = if tls_config.is_some() {
+        "https"
+    } else {
+        "http"
+    };
     info!(
         "API server starting on {protocol}://{} (proxying to http://127.0.0.1:{})",
         host, server_port

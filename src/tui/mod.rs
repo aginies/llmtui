@@ -7,9 +7,9 @@ use ratatui::{
 use crate::models::BenchTuneParamValue;
 
 pub mod app;
-pub mod render;
 pub mod event;
 pub mod panel;
+pub mod render;
 pub mod settings;
 
 /// Format a byte count into a human-readable size string.
@@ -162,4 +162,3 @@ pub fn format_bench_params(params: &BenchTuneParamValue, verbose: bool) -> Vec<S
     }
     parts
 }
-

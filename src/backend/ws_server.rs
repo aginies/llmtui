@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use axum::extract::{
-    ws::{Message, WebSocket, WebSocketUpgrade},
-};
-use axum::response::IntoResponse;
-use axum::{response::Html, routing::get, Router};
+use anyhow::{Context, Result, anyhow};
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::http::StatusCode;
-use anyhow::{anyhow, Context, Result};
+use axum::response::IntoResponse;
+use axum::{Router, response::Html, routing::get};
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
@@ -29,7 +27,10 @@ pub async fn start_ws_server(
     tls_config: Option<axum_server::tls_rustls::RustlsConfig>,
     host: String,
 ) -> Result<JoinHandle<()>> {
-    let state = WsAppState { metrics_rx, auth_key };
+    let state = WsAppState {
+        metrics_rx,
+        auth_key,
+    };
 
     let app = Router::new()
         .route("/dashboard", get(serve_dashboard))
@@ -42,7 +43,8 @@ pub async fn start_ws_server(
 
     match tls_config {
         Some(tls_cfg) => {
-            let socket_addr: std::net::SocketAddr = addr.parse()
+            let socket_addr: std::net::SocketAddr = addr
+                .parse()
                 .map_err(|e| anyhow!("Invalid bind address {addr} for TLS: {e}"))?;
             let tls_listener = axum_server::bind_rustls(socket_addr, tls_cfg);
             let handle = tokio::spawn(async move {
@@ -54,7 +56,8 @@ pub async fn start_ws_server(
             Ok(handle)
         }
         None => {
-            let listener = tokio::net::TcpListener::bind(&addr).await
+            let listener = tokio::net::TcpListener::bind(&addr)
+                .await
                 .with_context(|| format!("Failed to bind WebSocket server to {addr}"))?;
             let handle = tokio::spawn(async move {
                 if let Err(e) = axum::serve(listener, app).await {

@@ -1,7 +1,7 @@
-use ratatui::layout::{Position, Rect};
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use ratatui::layout::{Position, Rect};
 
-use crate::tui::app::{App, ActivePanel};
+use crate::tui::app::{ActivePanel, App};
 
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
     let pos = Position::new(mouse.column, mouse.row);
@@ -66,8 +66,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
             let bottom_chunks = ratatui::layout::Layout::default()
                 .direction(ratatui::layout::Direction::Vertical)
                 .constraints([
-                    ratatui::layout::Constraint::Fill(1),    // log
-                    ratatui::layout::Constraint::Length(7),  // downloads
+                    ratatui::layout::Constraint::Fill(1),   // log
+                    ratatui::layout::Constraint::Length(7), // downloads
                 ])
                 .split(chunks[3]);
 
@@ -171,34 +171,40 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                         _ => ActivePanel::LlmSettings,
                     };
                 }
-                MouseEventKind::ScrollUp => {
-                    match app.ui.active_panel {
-                        ActivePanel::LlmSettings => {
-                            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_sub(1);
-                        }
-                        ActivePanel::Profiles => {
-                            app.picker.profiles_scroll_offset = app.picker.profiles_scroll_offset.saturating_sub(1);
-                        }
-                        ActivePanel::SystemPromptPresets => {
-                            app.picker.system_prompt_presets_scroll_offset = app.picker.system_prompt_presets_scroll_offset.saturating_sub(1);
-                        }
-                        _ => {}
+                MouseEventKind::ScrollUp => match app.ui.active_panel {
+                    ActivePanel::LlmSettings => {
+                        app.settings_state.settings_scroll_offset =
+                            app.settings_state.settings_scroll_offset.saturating_sub(1);
                     }
-                }
-                MouseEventKind::ScrollDown => {
-                    match app.ui.active_panel {
-                        ActivePanel::LlmSettings => {
-                            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_add(1);
-                        }
-                        ActivePanel::Profiles => {
-                            app.picker.profiles_scroll_offset = app.picker.profiles_scroll_offset.saturating_add(1);
-                        }
-                        ActivePanel::SystemPromptPresets => {
-                            app.picker.system_prompt_presets_scroll_offset = app.picker.system_prompt_presets_scroll_offset.saturating_add(1);
-                        }
-                        _ => {}
+                    ActivePanel::Profiles => {
+                        app.picker.profiles_scroll_offset =
+                            app.picker.profiles_scroll_offset.saturating_sub(1);
                     }
-                }
+                    ActivePanel::SystemPromptPresets => {
+                        app.picker.system_prompt_presets_scroll_offset = app
+                            .picker
+                            .system_prompt_presets_scroll_offset
+                            .saturating_sub(1);
+                    }
+                    _ => {}
+                },
+                MouseEventKind::ScrollDown => match app.ui.active_panel {
+                    ActivePanel::LlmSettings => {
+                        app.settings_state.settings_scroll_offset =
+                            app.settings_state.settings_scroll_offset.saturating_add(1);
+                    }
+                    ActivePanel::Profiles => {
+                        app.picker.profiles_scroll_offset =
+                            app.picker.profiles_scroll_offset.saturating_add(1);
+                    }
+                    ActivePanel::SystemPromptPresets => {
+                        app.picker.system_prompt_presets_scroll_offset = app
+                            .picker
+                            .system_prompt_presets_scroll_offset
+                            .saturating_add(1);
+                    }
+                    _ => {}
+                },
                 _ => {}
             }
             return;
@@ -206,7 +212,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
 
         // Left side: Models + Info
         if top_chunks[0].contains(pos) {
-            let info_height = (crate::tui::panel::tabbed::get_info_lines(app, top_chunks[0].width).len() as u16 + 2).max(3);
+            let info_height = (crate::tui::panel::tabbed::get_info_lines(app, top_chunks[0].width)
+                .len() as u16
+                + 2)
+            .max(3);
             let left_chunks = ratatui::layout::Layout::default()
                 .direction(ratatui::layout::Direction::Vertical)
                 .constraints([
@@ -216,9 +225,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                 .split(top_chunks[0]);
 
             if left_chunks[0].contains(pos)
-                && let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
-                    app.ui.active_panel = ActivePanel::Models;
-                }
+                && let MouseEventKind::Down(MouseButton::Left) = mouse.kind
+            {
+                app.ui.active_panel = ActivePanel::Models;
+            }
         }
     }
 
@@ -228,7 +238,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         let bottom_chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([
-                ratatui::layout::Constraint::Length(7),  // downloads
+                ratatui::layout::Constraint::Length(7), // downloads
             ])
             .split(bottom_area);
 
@@ -255,6 +265,5 @@ fn handle_log_scroll(app: &mut App, scroll_up: bool) {
     } else {
         app.log.log_scroll_offset += 1;
     }
-    app.log.log_follow = app.log.log_scroll_offset
-        >= app.log.log_total_lines.saturating_sub(5);
+    app.log.log_follow = app.log.log_scroll_offset >= app.log.log_total_lines.saturating_sub(5);
 }

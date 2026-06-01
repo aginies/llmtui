@@ -5,7 +5,7 @@
 
 use llm_manager::config::Config;
 use llm_manager::models::*;
-use llm_manager::tui::app::{App, ActivePanel, ModelsMode, GlobalMode};
+use llm_manager::tui::app::{ActivePanel, App, GlobalMode, ModelsMode};
 
 // ── App initialization ─────────────────────────────────────────
 
@@ -92,8 +92,18 @@ fn app_get_filtered_model_indices_no_filter() {
     let config = Config::default();
     let mut app = App::new(config);
     app.models = vec![
-        DiscoveredModel { path: "/a.gguf".into(), name: "model-a".into(), file_size: 1000, display_name: "a".into() },
-        DiscoveredModel { path: "/b.gguf".into(), name: "model-b".into(), file_size: 2000, display_name: "b".into() },
+        DiscoveredModel {
+            path: "/a.gguf".into(),
+            name: "model-a".into(),
+            file_size: 1000,
+            display_name: "a".into(),
+        },
+        DiscoveredModel {
+            path: "/b.gguf".into(),
+            name: "model-b".into(),
+            file_size: 2000,
+            display_name: "b".into(),
+        },
     ];
     let indices = app.get_filtered_model_indices();
     assert_eq!(indices, vec![0, 1]);
@@ -104,8 +114,18 @@ fn app_get_filtered_model_indices_case_insensitive() {
     let config = Config::default();
     let mut app = App::new(config);
     app.models = vec![
-        DiscoveredModel { path: "/a.gguf".into(), name: "Qwen2.5-7B".into(), file_size: 1000, display_name: "Qwen2.5-7B".into() },
-        DiscoveredModel { path: "/b.gguf".into(), name: "Llama3-8B".into(), file_size: 2000, display_name: "Llama3-8B".into() },
+        DiscoveredModel {
+            path: "/a.gguf".into(),
+            name: "Qwen2.5-7B".into(),
+            file_size: 1000,
+            display_name: "Qwen2.5-7B".into(),
+        },
+        DiscoveredModel {
+            path: "/b.gguf".into(),
+            name: "Llama3-8B".into(),
+            file_size: 2000,
+            display_name: "Llama3-8B".into(),
+        },
     ];
     app.search.local_filter = "qwen".into();
     let indices = app.get_filtered_model_indices();
@@ -116,9 +136,12 @@ fn app_get_filtered_model_indices_case_insensitive() {
 fn app_get_filtered_model_indices_no_match() {
     let config = Config::default();
     let mut app = App::new(config);
-    app.models = vec![
-        DiscoveredModel { path: "/a.gguf".into(), name: "model-a".into(), file_size: 1000, display_name: "a".into() },
-    ];
+    app.models = vec![DiscoveredModel {
+        path: "/a.gguf".into(),
+        name: "model-a".into(),
+        file_size: 1000,
+        display_name: "a".into(),
+    }];
     app.search.local_filter = "nonexistent".into();
     let indices = app.get_filtered_model_indices();
     assert!(indices.is_empty());
@@ -181,9 +204,12 @@ fn app_selected_model_none_when_empty() {
 fn app_selected_model_returns_some() {
     let config = Config::default();
     let mut app = App::new(config);
-    app.models = vec![
-        DiscoveredModel { path: "/model.gguf".into(), name: "test".into(), file_size: 1000, display_name: "test".into() },
-    ];
+    app.models = vec![DiscoveredModel {
+        path: "/model.gguf".into(),
+        name: "test".into(),
+        file_size: 1000,
+        display_name: "test".into(),
+    }];
     app.selected_model_idx = Some(0);
     assert!(app.selected_model().is_some());
 }
@@ -199,7 +225,13 @@ fn app_is_model_loaded_false_when_not_loaded() {
 fn app_is_model_loaded_true_when_loaded() {
     let config = Config::default();
     let mut app = App::new(config);
-    app.model_states.insert("model.gguf".into(), ModelState::Loaded { port: 8080, pid: 1234 });
+    app.model_states.insert(
+        "model.gguf".into(),
+        ModelState::Loaded {
+            port: 8080,
+            pid: 1234,
+        },
+    );
     assert!(app.is_model_loaded("model.gguf"));
 }
 
@@ -207,7 +239,8 @@ fn app_is_model_loaded_true_when_loaded() {
 fn app_is_model_loaded_false_when_available() {
     let config = Config::default();
     let mut app = App::new(config);
-    app.model_states.insert("model.gguf".into(), ModelState::Available);
+    app.model_states
+        .insert("model.gguf".into(), ModelState::Available);
     assert!(!app.is_model_loaded("model.gguf"));
 }
 
@@ -227,8 +260,42 @@ fn app_search_results_len_in_search_mode() {
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
         results: vec![
-            SearchResult { model_id: "a".into(), model_name: "A".into(), tags: vec![], downloads: 0, likes: 0, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 0, created_at: None, downloaded: false },
-            SearchResult { model_id: "b".into(), model_name: "B".into(), tags: vec![], downloads: 0, likes: 0, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 0, created_at: None, downloaded: false },
+            SearchResult {
+                model_id: "a".into(),
+                model_name: "A".into(),
+                tags: vec![],
+                downloads: 0,
+                likes: 0,
+                pipeline_tag: None,
+                size: None,
+                parameters: None,
+                capabilities: vec![],
+                context_length: None,
+                readme: None,
+                quantization: None,
+                license: None,
+                trending_score: 0,
+                created_at: None,
+                downloaded: false,
+            },
+            SearchResult {
+                model_id: "b".into(),
+                model_name: "B".into(),
+                tags: vec![],
+                downloads: 0,
+                likes: 0,
+                pipeline_tag: None,
+                size: None,
+                parameters: None,
+                capabilities: vec![],
+                context_length: None,
+                readme: None,
+                quantization: None,
+                license: None,
+                trending_score: 0,
+                created_at: None,
+                downloaded: false,
+            },
         ],
         sort_by: SearchSort::Relevance,
         show_readme: false,
@@ -282,7 +349,10 @@ fn app_new_model_settings_cache_initialized() {
     let config = Config::default();
     let app = App::new(config);
     // model_settings_cache should be a clone of settings
-    assert_eq!(app.settings.context_length, app.model_settings_cache.context_length);
+    assert_eq!(
+        app.settings.context_length,
+        app.model_settings_cache.context_length
+    );
 }
 
 // ── Loading state ──────────────────────────────────────────────

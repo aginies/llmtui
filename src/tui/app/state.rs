@@ -1,5 +1,5 @@
-use super::types::{App, LoadingPhase};
 use super::types::LoadingPhase::*;
+use super::types::{App, LoadingPhase};
 use crate::config::LogLevel;
 use crate::models::ModelState;
 use chrono::Local;
@@ -15,9 +15,12 @@ impl App {
         let previous_progress = self.loading.loading_progress;
         self.compute_progress();
         self.loading.progress_target = self.loading.loading_progress;
-        self.loading.loading_progress = previous_progress * 0.85 + self.loading.progress_target * 0.15;
+        self.loading.loading_progress =
+            previous_progress * 0.85 + self.loading.progress_target * 0.15;
         self.trim_log();
-        self.log.log_entries.push_back(crate::config::LogEntry::new(msg, level));
+        self.log
+            .log_entries
+            .push_back(crate::config::LogEntry::new(msg, level));
     }
 
     fn log_message(&mut self, msg: &str, level: LogLevel) {
@@ -57,10 +60,13 @@ impl App {
             self.loading.loading_phases.insert(LoadingTensors);
             self.loading.last_active_phase = Some(LoadingTensors);
         }
-        if upper.contains("SERVER LISTENING") 
-            || upper.contains("HTTP SERVER LISTENING") 
+        if upper.contains("SERVER LISTENING")
+            || upper.contains("HTTP SERVER LISTENING")
             || upper.contains("LOAD_MODEL: INITIALIZING SLOTS")
-            || (upper.contains("SRV") && upper.contains("LOAD_MODEL") && upper.contains("INITIALIZING")) {
+            || (upper.contains("SRV")
+                && upper.contains("LOAD_MODEL")
+                && upper.contains("INITIALIZING"))
+        {
             self.loading.loading_phases.insert(ServerListening);
             self.loading.last_active_phase = Some(ServerListening);
         }
@@ -87,7 +93,10 @@ impl App {
                             usize::MAX
                         };
                         if total_idx != usize::MAX {
-                            if let Ok(total) = parts[total_idx].trim_end_matches(|c: char| !c.is_ascii_digit()).parse::<u32>() {
+                            if let Ok(total) = parts[total_idx]
+                                .trim_end_matches(|c: char| !c.is_ascii_digit())
+                                .parse::<u32>()
+                            {
                                 self.loading.load_progress.tensors_total = Some(total);
                             }
                         }
@@ -104,41 +113,46 @@ impl App {
             }
 
             // Offloading N repeating layers to GPU
-            if upper.contains("OFFLOADING") && upper.contains("REPEATING LAYERS")
-                && let Some(pos) = msg.find("offloading") {
-                    let rest = &msg[pos + "offloading".len()..];
-                    if let Some(colon_pos) = rest.find(':') {
-                        let rest = rest[colon_pos + 1..].trim_start();
-                        let end = rest.find(' ').unwrap_or(rest.len());
-                        if let Ok(count) = rest[..end].trim().parse::<u32>() {
-                            self.loading.load_progress.layers_total = Some(count);
-                        }
+            if upper.contains("OFFLOADING")
+                && upper.contains("REPEATING LAYERS")
+                && let Some(pos) = msg.find("offloading")
+            {
+                let rest = &msg[pos + "offloading".len()..];
+                if let Some(colon_pos) = rest.find(':') {
+                    let rest = rest[colon_pos + 1..].trim_start();
+                    let end = rest.find(' ').unwrap_or(rest.len());
+                    if let Ok(count) = rest[..end].trim().parse::<u32>() {
+                        self.loading.load_progress.layers_total = Some(count);
                     }
                 }
+            }
 
             // Offloaded X/Y layers to GPU
-            if upper.contains("OFFLOADED") && upper.contains("LAYERS")
-                && let Some(pos) = msg.find("offloaded") {
-                    let rest = &msg[pos + "offloaded".len()..];
-                    if let Some(slash) = rest.find('/') {
-                        let before = rest[..slash].trim();
-                        let after = rest[slash + 1..].trim();
-                        if let Ok(loaded) = before.parse::<u32>() {
-                            self.loading.load_progress.layers_loaded = Some(loaded);
-                        }
-                        if let Ok(total) = after.split_whitespace().next().unwrap_or("").parse::<u32>() {
-                            self.loading.load_progress.layers_total = Some(total);
-                        }
+            if upper.contains("OFFLOADED")
+                && upper.contains("LAYERS")
+                && let Some(pos) = msg.find("offloaded")
+            {
+                let rest = &msg[pos + "offloaded".len()..];
+                if let Some(slash) = rest.find('/') {
+                    let before = rest[..slash].trim();
+                    let after = rest[slash + 1..].trim();
+                    if let Ok(loaded) = before.parse::<u32>() {
+                        self.loading.load_progress.layers_loaded = Some(loaded);
                     }
-                    // Also handle "offloaded N layers" without Y
-                    if self.loading.load_progress.layers_loaded.is_none() {
-                        let rest = rest.trim_start();
-                        let end = rest.find(' ').unwrap_or(rest.len());
-                        if let Ok(count) = rest[..end].trim().parse::<u32>() {
-                            self.loading.load_progress.layers_loaded = Some(count);
-                        }
+                    if let Ok(total) = after.split_whitespace().next().unwrap_or("").parse::<u32>()
+                    {
+                        self.loading.load_progress.layers_total = Some(total);
                     }
                 }
+                // Also handle "offloaded N layers" without Y
+                if self.loading.load_progress.layers_loaded.is_none() {
+                    let rest = rest.trim_start();
+                    let end = rest.find(' ').unwrap_or(rest.len());
+                    if let Ok(count) = rest[..end].trim().parse::<u32>() {
+                        self.loading.load_progress.layers_loaded = Some(count);
+                    }
+                }
+            }
 
             // CPU_Mapped model buffer size = X MiB
             // Vulkan0 model buffer size = X MiB
@@ -150,16 +164,25 @@ impl App {
                         let rest = &msg[pos + keyword.len()..];
                         if let Some(eq_pos) = rest.find('=') {
                             let after = rest[eq_pos + 1..].trim();
-                            let end = after.find(|c: char| !c.is_ascii_digit() && c != '.').unwrap_or(after.len());
+                            let end = after
+                                .find(|c: char| !c.is_ascii_digit() && c != '.')
+                                .unwrap_or(after.len());
                             if let Ok(mib) = after[..end].parse::<f64>() {
-                                let exists = self.loading.load_progress.buffers.iter_mut().find(|b| b.device == device);
+                                let exists = self
+                                    .loading
+                                    .load_progress
+                                    .buffers
+                                    .iter_mut()
+                                    .find(|b| b.device == device);
                                 if let Some(buf) = exists {
                                     buf.buffer_size_mib = mib;
                                 } else {
-                                    self.loading.load_progress.buffers.push(crate::models::GPUBuffer {
-                                        device,
-                                        buffer_size_mib: mib,
-                                    });
+                                    self.loading.load_progress.buffers.push(
+                                        crate::models::GPUBuffer {
+                                            device,
+                                            buffer_size_mib: mib,
+                                        },
+                                    );
                                 }
                             }
                         }
@@ -175,7 +198,7 @@ impl App {
         // Server exit is now detected via channel-based signaling.
         // Error detection still uses log parsing for OOM/crash detection.
         let upper = _msg.to_uppercase();
-        
+
         let is_error = upper.contains("ERROR")
             || upper.contains("FAILED TO LOAD")
             || upper.contains("EXCEPTION")
@@ -184,14 +207,18 @@ impl App {
             || upper.contains("OUT OF MEMORY");
 
         if is_error {
-            let is_loading = self.model_states.values().any(|s| matches!(s, ModelState::Loading));
+            let is_loading = self
+                .model_states
+                .values()
+                .any(|s| matches!(s, ModelState::Loading));
             if is_loading {
                 let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-                let error_msg = if upper.contains("OUTOFDEVICEMEMORY") || upper.contains("OUT OF MEMORY") {
-                    format!("Last Failed to load a model (OOM - {})", timestamp)
-                } else {
-                    format!("Last Failed to load a model ({})", timestamp)
-                };
+                let error_msg =
+                    if upper.contains("OUTOFDEVICEMEMORY") || upper.contains("OUT OF MEMORY") {
+                        format!("Last Failed to load a model (OOM - {})", timestamp)
+                    } else {
+                        format!("Last Failed to load a model ({})", timestamp)
+                    };
 
                 self.ui.last_error_message = Some(error_msg);
                 self.reset_loading_state(false);
@@ -228,12 +255,14 @@ impl App {
         {
             if let Some(last_spinner) = self.loading.last_spinner_time {
                 let elapsed = last_spinner.elapsed();
-                phase_progress = (elapsed.as_millis() as f32 / 2000.0).min(1.0) * PHASE_WEIGHTS[0].1;
+                phase_progress =
+                    (elapsed.as_millis() as f32 / 2000.0).min(1.0) * PHASE_WEIGHTS[0].1;
             }
         } else if self.loading.loading_phases.len() > 1 {
             // Apply interpolation within the current active phase for smooth transitions
             if let Some(phase) = self.loading.last_active_phase {
-                let cumulative_before: f32 = PHASE_WEIGHTS.iter()
+                let cumulative_before: f32 = PHASE_WEIGHTS
+                    .iter()
                     .filter(|(p, _)| *p != phase && self.loading.loading_phases.contains(p))
                     .map(|(_, w)| w)
                     .sum();
@@ -243,19 +272,25 @@ impl App {
                     LoadingMeta => 0.5,
                     LoadingTensors => {
                         let mut tensor_fraction: f32 = 0.0;
-                        if let (Some(loaded), Some(total)) = (self.loading.load_progress.layers_loaded, self.loading.load_progress.layers_total) {
+                        if let (Some(loaded), Some(total)) = (
+                            self.loading.load_progress.layers_loaded,
+                            self.loading.load_progress.layers_total,
+                        ) {
                             let layer_fraction = loaded as f32 / total as f32;
                             tensor_fraction = layer_fraction.min(1.0);
                         }
                         if self.loading.load_progress.tensors_loaded > 0 {
-                            let estimated_total: f32 = match self.loading.load_progress.tensors_total {
-                                Some(total) => total as f32,
-                                None => match self.loading.load_progress.layers_total {
-                                    Some(layers) => (layers as f32 * 12.0 + 10.0).max(100.0),
-                                    None => 500.0,
-                                },
-                            };
-                            tensor_fraction = (self.loading.load_progress.tensors_loaded as f32 / estimated_total).min(0.95);
+                            let estimated_total: f32 =
+                                match self.loading.load_progress.tensors_total {
+                                    Some(total) => total as f32,
+                                    None => match self.loading.load_progress.layers_total {
+                                        Some(layers) => (layers as f32 * 12.0 + 10.0).max(100.0),
+                                        None => 500.0,
+                                    },
+                                };
+                            tensor_fraction = (self.loading.load_progress.tensors_loaded as f32
+                                / estimated_total)
+                                .min(0.95);
                         }
                         tensor_fraction
                     }
@@ -264,10 +299,13 @@ impl App {
                     ServerStarting => 0.0,
                 };
 
-                phase_progress = cumulative_before + phase_fraction * PHASE_WEIGHTS.iter()
-                    .find(|(p, _)| *p == phase)
-                    .map(|(_, w)| *w)
-                    .unwrap_or(0.0);
+                phase_progress = cumulative_before
+                    + phase_fraction
+                        * PHASE_WEIGHTS
+                            .iter()
+                            .find(|(p, _)| *p == phase)
+                            .map(|(_, w)| *w)
+                            .unwrap_or(0.0);
             }
         }
 
@@ -316,22 +354,32 @@ impl App {
         if let Some(h) = self.loading.health_poll_handle.take() {
             h.abort();
         }
-        
-        // Models to fail: always any that were Loading. 
+
+        // Models to fail: always any that were Loading.
         // If it's a crash, also fail all that were Loaded.
-        let to_fail: Vec<String> = self.model_states.iter()
-            .filter(|(_, state)| matches!(state, ModelState::Loading) || (is_crash && matches!(state, ModelState::Loaded { .. })))
+        let to_fail: Vec<String> = self
+            .model_states
+            .iter()
+            .filter(|(_, state)| {
+                matches!(state, ModelState::Loading)
+                    || (is_crash && matches!(state, ModelState::Loaded { .. }))
+            })
             .map(|(name, _)| name.clone())
             .collect();
 
         // Remove from loaded list and set to Failed
         for name in &to_fail {
-            self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner()).retain(|n| n != name);
+            self.server
+                .loaded_model_names
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .retain(|n| n != name);
             let error = self.ui.last_error_message.clone().unwrap_or_else(|| {
                 let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
                 format!("Last Failed to load a model ({})", timestamp)
             });
-            self.model_states.insert(name.clone(), ModelState::Failed { error });
+            self.model_states
+                .insert(name.clone(), ModelState::Failed { error });
         }
     }
 
@@ -348,6 +396,8 @@ impl App {
     }
 
     pub fn is_loading(&self) -> bool {
-        self.model_states.values().any(|s| matches!(s, ModelState::Loading))
+        self.model_states
+            .values()
+            .any(|s| matches!(s, ModelState::Loading))
     }
 }

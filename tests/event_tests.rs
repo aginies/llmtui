@@ -6,12 +6,12 @@
 //! Event handlers are async and call network functions (hub::search_models, etc.).
 //! In tests we verify state transitions (pending_* fields) without executing network calls.
 
-use crossterm::event::{KeyCode, KeyModifiers, KeyEvent};
-use llm_manager::config::Config;
-use llm_manager::models::*;
-use llm_manager::tui::app::{App, ActivePanel, GlobalMode, ModelsMode, ConfirmationKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use llm_manager::LoadProgress;
 use llm_manager::backend::server::ServerHandle;
+use llm_manager::config::Config;
+use llm_manager::models::*;
+use llm_manager::tui::app::{ActivePanel, App, ConfirmationKind, GlobalMode, ModelsMode};
 use llm_manager::tui::event::handle_key;
 
 // ── Test helpers ─────────────────────────────────────────────────
@@ -59,8 +59,16 @@ fn make_files_mode(app: &mut App) {
     app.models_mode = ModelsMode::Files {
         model_id: "test/model".into(),
         files: vec![
-            ("model-q4.gguf".into(), 4_000_000_000, "https://example.com/q4".into()),
-            ("model-q8.gguf".into(), 8_000_000_000, "https://example.com/q8".into()),
+            (
+                "model-q4.gguf".into(),
+                4_000_000_000,
+                "https://example.com/q4".into(),
+            ),
+            (
+                "model-q8.gguf".into(),
+                8_000_000_000,
+                "https://example.com/q8".into(),
+            ),
         ],
         selected_idx: Some(0),
         previous_query: "test".into(),
@@ -83,20 +91,47 @@ async fn test_ctrl_c_without_loaded_model_exits() {
 #[tokio::test]
 async fn test_ctrl_c_with_loaded_model_shows_confirmation() {
     let mut app = make_app();
-    app.model_states.insert("model.gguf".into(), ModelState::Loaded { port: 8080, pid: 1234 });
+    app.model_states.insert(
+        "model.gguf".into(),
+        ModelState::Loaded {
+            port: 8080,
+            pid: 1234,
+        },
+    );
     let key = make_key_with_mod(KeyCode::Char('c'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
-    assert!(matches!(app.ui.global_mode, GlobalMode::Confirmation { kind: ConfirmationKind::Exit, .. }));
+    assert!(matches!(
+        app.ui.global_mode,
+        GlobalMode::Confirmation {
+            kind: ConfirmationKind::Exit,
+            ..
+        }
+    ));
 }
 
 #[tokio::test]
 async fn test_ctrl_c_with_multiple_loaded_models_shows_confirmation() {
     let mut app = make_app();
-    app.model_states.insert("model1.gguf".into(), ModelState::Loaded { port: 8080, pid: 1234 });
-    app.model_states.insert("model2.gguf".into(), ModelState::Loaded { port: 8081, pid: 1235 });
+    app.model_states.insert(
+        "model1.gguf".into(),
+        ModelState::Loaded {
+            port: 8080,
+            pid: 1234,
+        },
+    );
+    app.model_states.insert(
+        "model2.gguf".into(),
+        ModelState::Loaded {
+            port: 8081,
+            pid: 1235,
+        },
+    );
     let key = make_key_with_mod(KeyCode::Char('c'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
-    assert!(matches!(app.ui.global_mode, GlobalMode::Confirmation { .. }));
+    assert!(matches!(
+        app.ui.global_mode,
+        GlobalMode::Confirmation { .. }
+    ));
 }
 
 #[tokio::test]
@@ -256,7 +291,10 @@ async fn test_ctrl_k_kills_server() {
         pid: 1234,
         kill_tx: tokio::sync::mpsc::channel(1).0,
     });
-    let key = make_key_with_mod(KeyCode::Char('k'), KeyModifiers::CONTROL | KeyModifiers::ALT);
+    let key = make_key_with_mod(
+        KeyCode::Char('k'),
+        KeyModifiers::CONTROL | KeyModifiers::ALT,
+    );
     handle_key(&mut app, key).await;
     assert!(app.server.server_handle.is_none());
     assert!(app.pending.pending_kill.is_some());
@@ -265,9 +303,19 @@ async fn test_ctrl_k_kills_server() {
 #[tokio::test]
 async fn test_ctrl_k_no_server_logs_warning() {
     let mut app = make_app();
-    let key = make_key_with_mod(KeyCode::Char('k'), KeyModifiers::CONTROL | KeyModifiers::ALT);
+    let key = make_key_with_mod(
+        KeyCode::Char('k'),
+        KeyModifiers::CONTROL | KeyModifiers::ALT,
+    );
     handle_key(&mut app, key).await;
-    assert!(app.log.log_entries.back().unwrap().message.contains("No server is running"));
+    assert!(
+        app.log
+            .log_entries
+            .back()
+            .unwrap()
+            .message
+            .contains("No server is running")
+    );
 }
 
 #[tokio::test]
@@ -312,8 +360,17 @@ async fn test_about_opens_about_mode() {
 #[tokio::test]
 async fn test_confirmation_y_confirms_exit() {
     let mut app = make_app();
-    app.model_states.insert("model.gguf".into(), ModelState::Loaded { port: 8080, pid: 1234 });
-    app.ui.global_mode = GlobalMode::Confirmation { selected: true, kind: ConfirmationKind::Exit };
+    app.model_states.insert(
+        "model.gguf".into(),
+        ModelState::Loaded {
+            port: 8080,
+            pid: 1234,
+        },
+    );
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: true,
+        kind: ConfirmationKind::Exit,
+    };
     let key = make_key(KeyCode::Char('y'));
     handle_key(&mut app, key).await;
     assert!(!app.running);
@@ -330,7 +387,10 @@ async fn test_confirmation_y_confirms_delete() {
         display_name: "test".into(),
     }];
     app.selected_model_idx = Some(0);
-    app.ui.global_mode = GlobalMode::Confirmation { selected: true, kind: ConfirmationKind::Delete };
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: true,
+        kind: ConfirmationKind::Delete,
+    };
     let key = make_key(KeyCode::Char('y'));
     handle_key(&mut app, key).await;
     assert!(matches!(app.ui.global_mode, GlobalMode::Normal));
@@ -339,7 +399,10 @@ async fn test_confirmation_y_confirms_delete() {
 #[tokio::test]
 async fn test_confirmation_n_cancels() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::Confirmation { selected: true, kind: ConfirmationKind::Exit };
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: true,
+        kind: ConfirmationKind::Exit,
+    };
     let key = make_key(KeyCode::Char('n'));
     handle_key(&mut app, key).await;
     assert!(app.running);
@@ -349,7 +412,10 @@ async fn test_confirmation_n_cancels() {
 #[tokio::test]
 async fn test_confirmation_esc_cancels() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::Confirmation { selected: true, kind: ConfirmationKind::Exit };
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: true,
+        kind: ConfirmationKind::Exit,
+    };
     let key = make_key(KeyCode::Esc);
     handle_key(&mut app, key).await;
     assert!(app.running);
@@ -359,7 +425,10 @@ async fn test_confirmation_esc_cancels() {
 #[tokio::test]
 async fn test_confirmation_tab_toggles_selection() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Exit };
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: false,
+        kind: ConfirmationKind::Exit,
+    };
     let key = make_key(KeyCode::Tab);
     handle_key(&mut app, key).await;
     if let GlobalMode::Confirmation { selected, .. } = app.ui.global_mode {
@@ -370,7 +439,10 @@ async fn test_confirmation_tab_toggles_selection() {
 #[tokio::test]
 async fn test_confirmation_left_toggles_selection() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::Confirmation { selected: true, kind: ConfirmationKind::Exit };
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: true,
+        kind: ConfirmationKind::Exit,
+    };
     let key = make_key(KeyCode::Left);
     handle_key(&mut app, key).await;
     if let GlobalMode::Confirmation { selected, .. } = app.ui.global_mode {
@@ -381,7 +453,10 @@ async fn test_confirmation_left_toggles_selection() {
 #[tokio::test]
 async fn test_confirmation_right_toggles_selection() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Exit };
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: false,
+        kind: ConfirmationKind::Exit,
+    };
     let key = make_key(KeyCode::Right);
     handle_key(&mut app, key).await;
     if let GlobalMode::Confirmation { selected, .. } = app.ui.global_mode {
@@ -392,8 +467,17 @@ async fn test_confirmation_right_toggles_selection() {
 #[tokio::test]
 async fn test_confirmation_enter_with_selected_confirms() {
     let mut app = make_app();
-    app.model_states.insert("model.gguf".into(), ModelState::Loaded { port: 8080, pid: 1234 });
-    app.ui.global_mode = GlobalMode::Confirmation { selected: true, kind: ConfirmationKind::Exit };
+    app.model_states.insert(
+        "model.gguf".into(),
+        ModelState::Loaded {
+            port: 8080,
+            pid: 1234,
+        },
+    );
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: true,
+        kind: ConfirmationKind::Exit,
+    };
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
     assert!(!app.running);
@@ -403,7 +487,10 @@ async fn test_confirmation_enter_with_selected_confirms() {
 #[tokio::test]
 async fn test_confirmation_enter_without_selected_cancels() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::Confirmation { selected: false, kind: ConfirmationKind::Exit };
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: false,
+        kind: ConfirmationKind::Exit,
+    };
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
     assert!(app.running);
@@ -413,7 +500,10 @@ async fn test_confirmation_enter_without_selected_cancels() {
 #[tokio::test]
 async fn test_confirmation_ctrl_h_cancels() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::Confirmation { selected: true, kind: ConfirmationKind::Exit };
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: true,
+        kind: ConfirmationKind::Exit,
+    };
     let key = make_key_with_mod(KeyCode::Char('h'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
     assert!(app.running);
@@ -425,7 +515,9 @@ async fn test_confirmation_ctrl_h_cancels() {
 #[tokio::test]
 async fn test_cmdline_esc_closes() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::CmdLine { cmd_line: "llama-server -m model.gguf".into() };
+    app.ui.global_mode = GlobalMode::CmdLine {
+        cmd_line: "llama-server -m model.gguf".into(),
+    };
     let key = make_key(KeyCode::Esc);
     handle_key(&mut app, key).await;
     assert!(matches!(app.ui.global_mode, GlobalMode::Normal));
@@ -434,7 +526,9 @@ async fn test_cmdline_esc_closes() {
 #[tokio::test]
 async fn test_cmdline_e_exports_script() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::CmdLine { cmd_line: "llama-server -m model.gguf".into() };
+    app.ui.global_mode = GlobalMode::CmdLine {
+        cmd_line: "llama-server -m model.gguf".into(),
+    };
     let key = make_key(KeyCode::Char('e'));
     handle_key(&mut app, key).await;
     // Script should have been written to /tmp/test_llamaserver.sh
@@ -489,9 +583,24 @@ async fn test_enter_in_search_with_selected_model() {
     let mut app = make_app();
     app.models_mode = ModelsMode::Search {
         query: "qwen".into(),
-        results: vec![
-            SearchResult { model_id: "qwen-model".into(), model_name: "Qwen".into(), tags: vec![], downloads: 100, likes: 10, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 50, created_at: Some("2024-01-01".into()), downloaded: false },
-        ],
+        results: vec![SearchResult {
+            model_id: "qwen-model".into(),
+            model_name: "Qwen".into(),
+            tags: vec![],
+            downloads: 100,
+            likes: 10,
+            pipeline_tag: None,
+            size: None,
+            parameters: None,
+            capabilities: vec![],
+            context_length: None,
+            readme: None,
+            quantization: None,
+            license: None,
+            trending_score: 50,
+            created_at: Some("2024-01-01".into()),
+            downloaded: false,
+        }],
         sort_by: SearchSort::Relevance,
         show_readme: true,
         page: 0,
@@ -555,8 +664,42 @@ async fn test_search_down_moves_selection() {
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
         results: vec![
-            SearchResult { model_id: "a".into(), model_name: "A".into(), tags: vec![], downloads: 0, likes: 0, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 0, created_at: None, downloaded: false },
-            SearchResult { model_id: "b".into(), model_name: "B".into(), tags: vec![], downloads: 0, likes: 0, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 0, created_at: None, downloaded: false },
+            SearchResult {
+                model_id: "a".into(),
+                model_name: "A".into(),
+                tags: vec![],
+                downloads: 0,
+                likes: 0,
+                pipeline_tag: None,
+                size: None,
+                parameters: None,
+                capabilities: vec![],
+                context_length: None,
+                readme: None,
+                quantization: None,
+                license: None,
+                trending_score: 0,
+                created_at: None,
+                downloaded: false,
+            },
+            SearchResult {
+                model_id: "b".into(),
+                model_name: "B".into(),
+                tags: vec![],
+                downloads: 0,
+                likes: 0,
+                pipeline_tag: None,
+                size: None,
+                parameters: None,
+                capabilities: vec![],
+                context_length: None,
+                readme: None,
+                quantization: None,
+                license: None,
+                trending_score: 0,
+                created_at: None,
+                downloaded: false,
+            },
         ],
         sort_by: SearchSort::Relevance,
         show_readme: true,
@@ -576,9 +719,24 @@ async fn test_search_down_at_end_stays() {
     let mut app = make_app();
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
-        results: vec![
-            SearchResult { model_id: "a".into(), model_name: "A".into(), tags: vec![], downloads: 0, likes: 0, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 0, created_at: None, downloaded: false },
-        ],
+        results: vec![SearchResult {
+            model_id: "a".into(),
+            model_name: "A".into(),
+            tags: vec![],
+            downloads: 0,
+            likes: 0,
+            pipeline_tag: None,
+            size: None,
+            parameters: None,
+            capabilities: vec![],
+            context_length: None,
+            readme: None,
+            quantization: None,
+            license: None,
+            trending_score: 0,
+            created_at: None,
+            downloaded: false,
+        }],
         sort_by: SearchSort::Relevance,
         show_readme: true,
         page: 0,
@@ -597,9 +755,24 @@ async fn test_search_down_from_none_selects_first() {
     let mut app = make_app();
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
-        results: vec![
-            SearchResult { model_id: "a".into(), model_name: "A".into(), tags: vec![], downloads: 0, likes: 0, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 0, created_at: None, downloaded: false },
-        ],
+        results: vec![SearchResult {
+            model_id: "a".into(),
+            model_name: "A".into(),
+            tags: vec![],
+            downloads: 0,
+            likes: 0,
+            pipeline_tag: None,
+            size: None,
+            parameters: None,
+            capabilities: vec![],
+            context_length: None,
+            readme: None,
+            quantization: None,
+            license: None,
+            trending_score: 0,
+            created_at: None,
+            downloaded: false,
+        }],
         sort_by: SearchSort::Relevance,
         show_readme: true,
         page: 0,
@@ -619,8 +792,42 @@ async fn test_search_up_moves_selection() {
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
         results: vec![
-            SearchResult { model_id: "a".into(), model_name: "A".into(), tags: vec![], downloads: 0, likes: 0, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 0, created_at: None, downloaded: false },
-            SearchResult { model_id: "b".into(), model_name: "B".into(), tags: vec![], downloads: 0, likes: 0, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 0, created_at: None, downloaded: false },
+            SearchResult {
+                model_id: "a".into(),
+                model_name: "A".into(),
+                tags: vec![],
+                downloads: 0,
+                likes: 0,
+                pipeline_tag: None,
+                size: None,
+                parameters: None,
+                capabilities: vec![],
+                context_length: None,
+                readme: None,
+                quantization: None,
+                license: None,
+                trending_score: 0,
+                created_at: None,
+                downloaded: false,
+            },
+            SearchResult {
+                model_id: "b".into(),
+                model_name: "B".into(),
+                tags: vec![],
+                downloads: 0,
+                likes: 0,
+                pipeline_tag: None,
+                size: None,
+                parameters: None,
+                capabilities: vec![],
+                context_length: None,
+                readme: None,
+                quantization: None,
+                license: None,
+                trending_score: 0,
+                created_at: None,
+                downloaded: false,
+            },
         ],
         sort_by: SearchSort::Relevance,
         show_readme: true,
@@ -640,9 +847,24 @@ async fn test_search_up_at_zero_stays() {
     let mut app = make_app();
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
-        results: vec![
-            SearchResult { model_id: "a".into(), model_name: "A".into(), tags: vec![], downloads: 0, likes: 0, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 0, created_at: None, downloaded: false },
-        ],
+        results: vec![SearchResult {
+            model_id: "a".into(),
+            model_name: "A".into(),
+            tags: vec![],
+            downloads: 0,
+            likes: 0,
+            pipeline_tag: None,
+            size: None,
+            parameters: None,
+            capabilities: vec![],
+            context_length: None,
+            readme: None,
+            quantization: None,
+            license: None,
+            trending_score: 0,
+            created_at: None,
+            downloaded: false,
+        }],
         sort_by: SearchSort::Relevance,
         show_readme: true,
         page: 0,
@@ -662,8 +884,42 @@ async fn test_search_sort_cycles() {
     app.models_mode = ModelsMode::Search {
         query: "test".into(),
         results: vec![
-            SearchResult { model_id: "a".into(), model_name: "A".into(), tags: vec![], downloads: 100, likes: 10, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 50, created_at: Some("2024-01-01".into()), downloaded: false },
-            SearchResult { model_id: "b".into(), model_name: "B".into(), tags: vec![], downloads: 200, likes: 20, pipeline_tag: None, size: None, parameters: None, capabilities: vec![], context_length: None, readme: None, quantization: None, license: None, trending_score: 60, created_at: Some("2024-02-01".into()), downloaded: false },
+            SearchResult {
+                model_id: "a".into(),
+                model_name: "A".into(),
+                tags: vec![],
+                downloads: 100,
+                likes: 10,
+                pipeline_tag: None,
+                size: None,
+                parameters: None,
+                capabilities: vec![],
+                context_length: None,
+                readme: None,
+                quantization: None,
+                license: None,
+                trending_score: 50,
+                created_at: Some("2024-01-01".into()),
+                downloaded: false,
+            },
+            SearchResult {
+                model_id: "b".into(),
+                model_name: "B".into(),
+                tags: vec![],
+                downloads: 200,
+                likes: 20,
+                pipeline_tag: None,
+                size: None,
+                parameters: None,
+                capabilities: vec![],
+                context_length: None,
+                readme: None,
+                quantization: None,
+                license: None,
+                trending_score: 60,
+                created_at: Some("2024-02-01".into()),
+                downloaded: false,
+            },
         ],
         sort_by: SearchSort::Relevance,
         show_readme: true,
@@ -674,7 +930,10 @@ async fn test_search_sort_cycles() {
     app.ui.active_panel = ActivePanel::Models;
     let key = make_key_with_mod(KeyCode::Char('S'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
-    if let ModelsMode::Search { sort_by, results, .. } = &app.models_mode {
+    if let ModelsMode::Search {
+        sort_by, results, ..
+    } = &app.models_mode
+    {
         assert_eq!(*sort_by, SearchSort::Downloads);
         // Results should be sorted by downloads descending
         assert_eq!(results[0].model_id, "b");
@@ -802,7 +1061,10 @@ async fn test_settings_enter_opens_edit_buffer_for_context() {
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
     // Enter on system prompt preset opens the prompt picker, not edit buffer
-    assert!(matches!(app.ui.global_mode, GlobalMode::PromptPicker { .. }));
+    assert!(matches!(
+        app.ui.global_mode,
+        GlobalMode::PromptPicker { .. }
+    ));
 }
 
 // ── Log panel ───────────────────────────────────────────────────
@@ -870,8 +1132,14 @@ async fn test_downloads_panel_up_decreases_selection() {
 #[tokio::test]
 async fn test_host_picker_up_decreases_selection() {
     let mut app = make_app();
-    app.picker.host_picker_entries = vec![("127.0.0.1".into(), "lo".into()), ("192.168.1.1".into(), "eth0".into())];
-    app.ui.global_mode = GlobalMode::HostPicker { entries: app.picker.host_picker_entries.clone(), selected: 1 };
+    app.picker.host_picker_entries = vec![
+        ("127.0.0.1".into(), "lo".into()),
+        ("192.168.1.1".into(), "eth0".into()),
+    ];
+    app.ui.global_mode = GlobalMode::HostPicker {
+        entries: app.picker.host_picker_entries.clone(),
+        selected: 1,
+    };
     let key = make_key(KeyCode::Up);
     handle_key(&mut app, key).await;
     if let GlobalMode::HostPicker { selected, .. } = app.ui.global_mode {
@@ -882,8 +1150,14 @@ async fn test_host_picker_up_decreases_selection() {
 #[tokio::test]
 async fn test_host_picker_down_increases_selection() {
     let mut app = make_app();
-    app.picker.host_picker_entries = vec![("127.0.0.1".into(), "lo".into()), ("192.168.1.1".into(), "eth0".into())];
-    app.ui.global_mode = GlobalMode::HostPicker { entries: app.picker.host_picker_entries.clone(), selected: 0 };
+    app.picker.host_picker_entries = vec![
+        ("127.0.0.1".into(), "lo".into()),
+        ("192.168.1.1".into(), "eth0".into()),
+    ];
+    app.ui.global_mode = GlobalMode::HostPicker {
+        entries: app.picker.host_picker_entries.clone(),
+        selected: 0,
+    };
     let key = make_key(KeyCode::Down);
     handle_key(&mut app, key).await;
     if let GlobalMode::HostPicker { selected, .. } = app.ui.global_mode {
@@ -895,7 +1169,10 @@ async fn test_host_picker_down_increases_selection() {
 async fn test_host_picker_down_clamps_at_max() {
     let mut app = make_app();
     app.picker.host_picker_entries = vec![("127.0.0.1".into(), "lo".into())];
-    app.ui.global_mode = GlobalMode::HostPicker { entries: app.picker.host_picker_entries.clone(), selected: 0 };
+    app.ui.global_mode = GlobalMode::HostPicker {
+        entries: app.picker.host_picker_entries.clone(),
+        selected: 0,
+    };
     let key = make_key(KeyCode::Down);
     handle_key(&mut app, key).await;
     if let GlobalMode::HostPicker { selected, .. } = app.ui.global_mode {
@@ -907,7 +1184,10 @@ async fn test_host_picker_down_clamps_at_max() {
 async fn test_host_picker_enter_selects_host() {
     let mut app = make_app();
     app.picker.host_picker_entries = vec![("192.168.1.100".into(), "eth0".into())];
-    app.ui.global_mode = GlobalMode::HostPicker { entries: app.picker.host_picker_entries.clone(), selected: 0 };
+    app.ui.global_mode = GlobalMode::HostPicker {
+        entries: app.picker.host_picker_entries.clone(),
+        selected: 0,
+    };
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
     assert_eq!(app.settings.host, "192.168.1.100");
@@ -918,7 +1198,10 @@ async fn test_host_picker_enter_selects_host() {
 async fn test_host_picker_esc_exits() {
     let mut app = make_app();
     app.picker.host_picker_entries = vec![("127.0.0.1".into(), "lo".into())];
-    app.ui.global_mode = GlobalMode::HostPicker { entries: app.picker.host_picker_entries.clone(), selected: 0 };
+    app.ui.global_mode = GlobalMode::HostPicker {
+        entries: app.picker.host_picker_entries.clone(),
+        selected: 0,
+    };
     let key = make_key(KeyCode::Esc);
     handle_key(&mut app, key).await;
     assert!(matches!(app.ui.global_mode, GlobalMode::Normal));
@@ -930,7 +1213,10 @@ async fn test_host_picker_esc_exits() {
 async fn test_backend_picker_up_decreases_selection() {
     let mut app = make_app();
     app.picker.backend_picker_entries = vec![(Backend::Cpu, Some("b4100".into()))];
-    app.ui.global_mode = GlobalMode::BackendPicker { entries: app.picker.backend_picker_entries.clone(), selected: 1 };
+    app.ui.global_mode = GlobalMode::BackendPicker {
+        entries: app.picker.backend_picker_entries.clone(),
+        selected: 1,
+    };
     let key = make_key(KeyCode::Up);
     handle_key(&mut app, key).await;
     if let GlobalMode::BackendPicker { selected, .. } = app.ui.global_mode {
@@ -942,7 +1228,10 @@ async fn test_backend_picker_up_decreases_selection() {
 async fn test_backend_picker_down_increases_selection() {
     let mut app = make_app();
     app.picker.backend_picker_entries = vec![(Backend::Cpu, Some("b4100".into()))];
-    app.ui.global_mode = GlobalMode::BackendPicker { entries: app.picker.backend_picker_entries.clone(), selected: 0 };
+    app.ui.global_mode = GlobalMode::BackendPicker {
+        entries: app.picker.backend_picker_entries.clone(),
+        selected: 0,
+    };
     let key = make_key(KeyCode::Down);
     handle_key(&mut app, key).await;
     if let GlobalMode::BackendPicker { selected, .. } = app.ui.global_mode {
@@ -954,7 +1243,10 @@ async fn test_backend_picker_down_increases_selection() {
 async fn test_backend_picker_enter_selects_backend() {
     let mut app = make_app();
     app.picker.backend_picker_entries = vec![(Backend::Cpu, Some("b4100".into()))];
-    app.ui.global_mode = GlobalMode::BackendPicker { entries: app.picker.backend_picker_entries.clone(), selected: 0 };
+    app.ui.global_mode = GlobalMode::BackendPicker {
+        entries: app.picker.backend_picker_entries.clone(),
+        selected: 0,
+    };
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
     assert_eq!(app.settings.backend, Backend::Cpu);
@@ -965,7 +1257,10 @@ async fn test_backend_picker_enter_selects_backend() {
 async fn test_backend_picker_esc_exits() {
     let mut app = make_app();
     app.picker.backend_picker_entries = vec![(Backend::Cpu, Some("b4100".into()))];
-    app.ui.global_mode = GlobalMode::BackendPicker { entries: app.picker.backend_picker_entries.clone(), selected: 0 };
+    app.ui.global_mode = GlobalMode::BackendPicker {
+        entries: app.picker.backend_picker_entries.clone(),
+        selected: 0,
+    };
     let key = make_key(KeyCode::Esc);
     handle_key(&mut app, key).await;
     assert!(matches!(app.ui.global_mode, GlobalMode::Normal));
@@ -1015,7 +1310,9 @@ async fn test_max_concurrent_picker_char_adds_digit() {
 #[tokio::test]
 async fn test_max_concurrent_picker_char_limits_length() {
     let mut app = make_app();
-    app.ui.global_mode = GlobalMode::MaxConcurrentPicker { value: "123".into() };
+    app.ui.global_mode = GlobalMode::MaxConcurrentPicker {
+        value: "123".into(),
+    };
     let key = make_key(KeyCode::Char('5'));
     handle_key(&mut app, key).await;
     if let GlobalMode::MaxConcurrentPicker { value, .. } = &app.ui.global_mode {
@@ -1069,8 +1366,56 @@ async fn test_bench_tune_down_moves_result_row() {
     let mut app = make_app();
     app.models_mode = ModelsMode::BenchTune;
     app.bench_tune.bench_tune_results = vec![
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
+        BenchTuneResult {
+            params: BenchTuneParamValue {
+                temperature: None,
+                top_p: None,
+                top_k: None,
+                repeat_penalty: None,
+                context_length: None,
+                batch_size: None,
+                flash_attn: None,
+                threads: None,
+                expert_count: None,
+                spec_type: None,
+                draft_tokens: None,
+            },
+            metrics: BenchTuneMetrics {
+                prompt_tps: 0.0,
+                generation_tps: 0.0,
+                combined_tps: 0.0,
+                latency_per_token: 0.0,
+                first_token_time: 0.0,
+            },
+            outputs: vec![],
+            per_iteration_metrics: vec![],
+            base_settings: None,
+        },
+        BenchTuneResult {
+            params: BenchTuneParamValue {
+                temperature: None,
+                top_p: None,
+                top_k: None,
+                repeat_penalty: None,
+                context_length: None,
+                batch_size: None,
+                flash_attn: None,
+                threads: None,
+                expert_count: None,
+                spec_type: None,
+                draft_tokens: None,
+            },
+            metrics: BenchTuneMetrics {
+                prompt_tps: 0.0,
+                generation_tps: 0.0,
+                combined_tps: 0.0,
+                latency_per_token: 0.0,
+                first_token_time: 0.0,
+            },
+            outputs: vec![],
+            per_iteration_metrics: vec![],
+            base_settings: None,
+        },
     ];
     app.bench_tune.bench_tune_result_row = 0;
     let key = make_key(KeyCode::Down);
@@ -1083,8 +1428,56 @@ async fn test_bench_tune_up_decreases_result_row() {
     let mut app = make_app();
     app.models_mode = ModelsMode::BenchTune;
     app.bench_tune.bench_tune_results = vec![
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec![], per_iteration_metrics: vec![], base_settings: None },
+        BenchTuneResult {
+            params: BenchTuneParamValue {
+                temperature: None,
+                top_p: None,
+                top_k: None,
+                repeat_penalty: None,
+                context_length: None,
+                batch_size: None,
+                flash_attn: None,
+                threads: None,
+                expert_count: None,
+                spec_type: None,
+                draft_tokens: None,
+            },
+            metrics: BenchTuneMetrics {
+                prompt_tps: 0.0,
+                generation_tps: 0.0,
+                combined_tps: 0.0,
+                latency_per_token: 0.0,
+                first_token_time: 0.0,
+            },
+            outputs: vec![],
+            per_iteration_metrics: vec![],
+            base_settings: None,
+        },
+        BenchTuneResult {
+            params: BenchTuneParamValue {
+                temperature: None,
+                top_p: None,
+                top_k: None,
+                repeat_penalty: None,
+                context_length: None,
+                batch_size: None,
+                flash_attn: None,
+                threads: None,
+                expert_count: None,
+                spec_type: None,
+                draft_tokens: None,
+            },
+            metrics: BenchTuneMetrics {
+                prompt_tps: 0.0,
+                generation_tps: 0.0,
+                combined_tps: 0.0,
+                latency_per_token: 0.0,
+                first_token_time: 0.0,
+            },
+            outputs: vec![],
+            per_iteration_metrics: vec![],
+            base_settings: None,
+        },
     ];
     app.bench_tune.bench_tune_result_row = 1;
     let key = make_key(KeyCode::Up);
@@ -1096,9 +1489,31 @@ async fn test_bench_tune_up_decreases_result_row() {
 async fn test_bench_tune_enter_opens_output_view() {
     let mut app = make_app();
     app.models_mode = ModelsMode::BenchTune;
-    app.bench_tune.bench_tune_results = vec![
-        BenchTuneResult { params: BenchTuneParamValue { temperature: None, top_p: None, top_k: None, repeat_penalty: None, context_length: None, batch_size: None, flash_attn: None, threads: None, expert_count: None, spec_type: None, draft_tokens: None }, metrics: BenchTuneMetrics { prompt_tps: 0.0, generation_tps: 0.0, combined_tps: 0.0, latency_per_token: 0.0, first_token_time: 0.0 }, outputs: vec!["output1".into()], per_iteration_metrics: vec![], base_settings: None },
-    ];
+    app.bench_tune.bench_tune_results = vec![BenchTuneResult {
+        params: BenchTuneParamValue {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            repeat_penalty: None,
+            context_length: None,
+            batch_size: None,
+            flash_attn: None,
+            threads: None,
+            expert_count: None,
+            spec_type: None,
+            draft_tokens: None,
+        },
+        metrics: BenchTuneMetrics {
+            prompt_tps: 0.0,
+            generation_tps: 0.0,
+            combined_tps: 0.0,
+            latency_per_token: 0.0,
+            first_token_time: 0.0,
+        },
+        outputs: vec!["output1".into()],
+        per_iteration_metrics: vec![],
+        base_settings: None,
+    }];
     app.bench_tune.bench_tune_result_row = 0;
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
@@ -1236,7 +1651,11 @@ async fn test_about_esc_exits() {
 async fn test_profile_picker_up_decreases_selection() {
     let mut app = make_app();
     app.picker.profile_picker_entries = vec![("Qwen".into(), "Qwen profile".into())];
-    app.ui.global_mode = GlobalMode::ProfilePicker { entries: app.picker.profile_picker_entries.clone(), selected: 1, profiles: vec![] };
+    app.ui.global_mode = GlobalMode::ProfilePicker {
+        entries: app.picker.profile_picker_entries.clone(),
+        selected: 1,
+        profiles: vec![],
+    };
     let key = make_key(KeyCode::Up);
     handle_key(&mut app, key).await;
     if let GlobalMode::ProfilePicker { selected, .. } = app.ui.global_mode {
@@ -1248,7 +1667,11 @@ async fn test_profile_picker_up_decreases_selection() {
 async fn test_profile_picker_enter_applies_profile() {
     let mut app = make_app();
     app.picker.profile_picker_entries = vec![("Qwen".into(), "Qwen profile".into())];
-    app.ui.global_mode = GlobalMode::ProfilePicker { entries: app.picker.profile_picker_entries.clone(), selected: 0, profiles: vec![] };
+    app.ui.global_mode = GlobalMode::ProfilePicker {
+        entries: app.picker.profile_picker_entries.clone(),
+        selected: 0,
+        profiles: vec![],
+    };
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
     assert!(matches!(app.ui.global_mode, GlobalMode::Normal));
@@ -1258,7 +1681,11 @@ async fn test_profile_picker_enter_applies_profile() {
 async fn test_profile_picker_esc_exits() {
     let mut app = make_app();
     app.picker.profile_picker_entries = vec![("Qwen".into(), "Qwen profile".into())];
-    app.ui.global_mode = GlobalMode::ProfilePicker { entries: app.picker.profile_picker_entries.clone(), selected: 0, profiles: vec![] };
+    app.ui.global_mode = GlobalMode::ProfilePicker {
+        entries: app.picker.profile_picker_entries.clone(),
+        selected: 0,
+        profiles: vec![],
+    };
     let key = make_key(KeyCode::Esc);
     handle_key(&mut app, key).await;
     assert!(matches!(app.ui.global_mode, GlobalMode::Normal));
@@ -1303,7 +1730,10 @@ async fn test_server_settings_enter_opens_backend_picker() {
     app.settings_state.server_settings_selected_idx = 1;
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
-    assert!(matches!(app.ui.global_mode, GlobalMode::BackendPicker { .. }));
+    assert!(matches!(
+        app.ui.global_mode,
+        GlobalMode::BackendPicker { .. }
+    ));
 }
 
 // ── RpcManager overlay ──────────────────────────────────────────

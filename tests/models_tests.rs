@@ -112,9 +112,15 @@ fn search_sort_label_all() {
 fn cache_quant_type_next_cycles_through_all() {
     let mut t = CacheQuantType::F32;
     let expected = [
-        CacheQuantType::F16, CacheQuantType::BF16, CacheQuantType::Q8_0,
-        CacheQuantType::Q5_1, CacheQuantType::Q5_0, CacheQuantType::Q4_1,
-        CacheQuantType::Q4_0, CacheQuantType::Iq4Nl, CacheQuantType::F32,
+        CacheQuantType::F16,
+        CacheQuantType::BF16,
+        CacheQuantType::Q8_0,
+        CacheQuantType::Q5_1,
+        CacheQuantType::Q5_0,
+        CacheQuantType::Q4_1,
+        CacheQuantType::Q4_0,
+        CacheQuantType::Iq4Nl,
+        CacheQuantType::F32,
     ];
     for exp in &expected {
         t = t.next();
@@ -126,9 +132,15 @@ fn cache_quant_type_next_cycles_through_all() {
 fn cache_quant_type_prev_cycles_through_all() {
     let mut t = CacheQuantType::F32;
     let expected = [
-        CacheQuantType::Iq4Nl, CacheQuantType::Q4_0, CacheQuantType::Q4_1,
-        CacheQuantType::Q5_0, CacheQuantType::Q5_1, CacheQuantType::Q8_0,
-        CacheQuantType::BF16, CacheQuantType::F16, CacheQuantType::F32,
+        CacheQuantType::Iq4Nl,
+        CacheQuantType::Q4_0,
+        CacheQuantType::Q4_1,
+        CacheQuantType::Q5_0,
+        CacheQuantType::Q5_1,
+        CacheQuantType::Q8_0,
+        CacheQuantType::BF16,
+        CacheQuantType::F16,
+        CacheQuantType::F32,
     ];
     for exp in &expected {
         t = t.prev();
@@ -395,9 +407,7 @@ fn bench_tune_mode_default_is_full() {
 fn estimate_vram_cpu_only_returns_zero() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::Specific(0);
-    let result = estimate_vram_mib(
-        4000, &settings, 32, Some(4096), Some(32), Some(8), 8192,
-    );
+    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
     assert_eq!(result, 0);
 }
 
@@ -405,9 +415,7 @@ fn estimate_vram_cpu_only_returns_zero() {
 fn estimate_vram_all_layers_uses_all() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::All;
-    let result = estimate_vram_mib(
-        4000, &settings, 32, Some(4096), Some(32), Some(8), 8192,
-    );
+    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
     // Should be significantly higher than auto since all layers are in VRAM
     assert!(result > 0);
 }
@@ -419,10 +427,22 @@ fn estimate_vram_flash_attn_reduces_vram() {
     let settings_flash = ModelSettings::default(); // default has flash_attn = true
 
     let no_flash = estimate_vram_mib(
-        4000, &settings_no_flash, 32, Some(4096), Some(32), Some(8), 8192,
+        4000,
+        &settings_no_flash,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
     );
     let flash = estimate_vram_mib(
-        4000, &settings_flash, 32, Some(4096), Some(32), Some(8), 8192,
+        4000,
+        &settings_flash,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
     );
     // Flash attention should reduce VRAM (approximately 2x KV cache)
     assert!(flash < no_flash);
@@ -436,10 +456,22 @@ fn estimate_vram_unified_cache_reduces_vram() {
     settings_unified.parallel = 4;
 
     let normal = estimate_vram_mib(
-        4000, &settings_normal, 32, Some(4096), Some(32), Some(8), 8192,
+        4000,
+        &settings_normal,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
     );
     let unified = estimate_vram_mib(
-        4000, &settings_unified, 32, Some(4096), Some(32), Some(8), 8192,
+        4000,
+        &settings_unified,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
     );
     assert!(unified < normal);
 }
@@ -448,13 +480,9 @@ fn estimate_vram_unified_cache_reduces_vram() {
 fn estimate_vram_gqa_reduces_kv_cache() {
     // Model with GQA: 32 query heads, 8 KV heads (ratio 0.25)
     let settings = ModelSettings::default();
-    let with_gqa = estimate_vram_mib(
-        4000, &settings, 32, Some(4096), Some(32), Some(8), 8192,
-    );
+    let with_gqa = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
     // Model without GQA: 32 query heads, 32 KV heads (ratio 1.0)
-    let without_gqa = estimate_vram_mib(
-        4000, &settings, 32, Some(4096), Some(32), Some(32), 8192,
-    );
+    let without_gqa = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(32), 8192);
     assert!(with_gqa < without_gqa);
 }
 
@@ -468,12 +496,8 @@ fn estimate_vram_quantization_affects_size() {
     settings_q4.cache_type_k = Some(CacheTypeK::Q4_0);
     settings_q4.cache_type_v = Some(CacheTypeV::Q4_0);
 
-    let f32_vram = estimate_vram_mib(
-        4000, &settings_f32, 32, Some(4096), Some(32), Some(8), 8192,
-    );
-    let q4_vram = estimate_vram_mib(
-        4000, &settings_q4, 32, Some(4096), Some(32), Some(8), 8192,
-    );
+    let f32_vram = estimate_vram_mib(4000, &settings_f32, 32, Some(4096), Some(32), Some(8), 8192);
+    let q4_vram = estimate_vram_mib(4000, &settings_q4, 32, Some(4096), Some(32), Some(8), 8192);
     assert!(q4_vram < f32_vram);
 }
 
@@ -481,9 +505,7 @@ fn estimate_vram_quantization_affects_size() {
 fn estimate_vram_zero_total_layers() {
     let settings = ModelSettings::default();
     // With 0 total layers, the KV cache formula has 0/0 = NaN, which becomes 0 when cast to u64
-    let result = estimate_vram_mib(
-        4000, &settings, 0, None, None, None, 0,
-    );
+    let result = estimate_vram_mib(4000, &settings, 0, None, None, None, 0);
     // Due to NaN from 0/0 in KV cache formula, result is 0
     assert_eq!(result, 0);
 }
@@ -496,10 +518,22 @@ fn estimate_vram_increases_with_context_length() {
     settings_large.context_length = 65536;
 
     let small = estimate_vram_mib(
-        4000, &settings_small, 32, Some(4096), Some(32), Some(8), 8192,
+        4000,
+        &settings_small,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
     );
     let large = estimate_vram_mib(
-        4000, &settings_large, 32, Some(4096), Some(32), Some(8), 8192,
+        4000,
+        &settings_large,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
     );
     assert!(large > small);
 }
@@ -512,10 +546,22 @@ fn estimate_vram_increases_with_batch_size() {
     settings_large.batch_size = 2048;
 
     let small = estimate_vram_mib(
-        4000, &settings_small, 32, Some(4096), Some(32), Some(8), 8192,
+        4000,
+        &settings_small,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
     );
     let large = estimate_vram_mib(
-        4000, &settings_large, 32, Some(4096), Some(32), Some(8), 8192,
+        4000,
+        &settings_large,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
     );
     assert!(large > small);
 }
@@ -524,9 +570,7 @@ fn estimate_vram_increases_with_batch_size() {
 fn estimate_vram_auto_uses_heuristic() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::Auto;
-    let result = estimate_vram_mib(
-        4000, &settings, 32, Some(4096), Some(32), Some(8), 8192,
-    );
+    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
     // Auto should use ~60% heuristic (19 layers out of 32)
     assert!(result > 0);
 }
@@ -535,9 +579,7 @@ fn estimate_vram_auto_uses_heuristic() {
 fn estimate_vram_specific_layers() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::Specific(16);
-    let result = estimate_vram_mib(
-        4000, &settings, 32, Some(4096), Some(32), Some(8), 8192,
-    );
+    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
     assert!(result > 0);
 }
 
@@ -545,9 +587,7 @@ fn estimate_vram_specific_layers() {
 fn estimate_vram_specific_zero_returns_zero() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::Specific(0);
-    let result = estimate_vram_mib(
-        4000, &settings, 32, Some(4096), Some(32), Some(8), 8192,
-    );
+    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
     assert_eq!(result, 0);
 }
 
@@ -555,9 +595,7 @@ fn estimate_vram_specific_zero_returns_zero() {
 fn estimate_vram_no_gpu_memory_total() {
     let settings = ModelSettings::default();
     // gpu_mem_total_mib = 0 should use 500 MiB fallback
-    let result = estimate_vram_mib(
-        4000, &settings, 32, Some(4096), Some(32), Some(8), 0,
-    );
+    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 0);
     assert!(result > 0);
 }
 
@@ -601,13 +639,24 @@ fn server_metrics_default_all_zero() {
 
 #[test]
 fn model_state_loaded_has_port_pid() {
-    let state = ModelState::Loaded { port: 8080, pid: 12345 };
-    assert!(matches!(state, ModelState::Loaded { port: 8080, pid: 12345 }));
+    let state = ModelState::Loaded {
+        port: 8080,
+        pid: 12345,
+    };
+    assert!(matches!(
+        state,
+        ModelState::Loaded {
+            port: 8080,
+            pid: 12345
+        }
+    ));
 }
 
 #[test]
 fn model_state_failed_has_error() {
-    let state = ModelState::Failed { error: "OOM".into() };
+    let state = ModelState::Failed {
+        error: "OOM".into(),
+    };
     assert!(matches!(state, ModelState::Failed { .. }));
 }
 
@@ -616,13 +665,21 @@ fn model_state_failed_has_error() {
 #[test]
 fn bench_tune_progress_from_status_running() {
     let status = BenchTuneStatus::Running {
-        current: 1, total: 10, progress: 10.0,
+        current: 1,
+        total: 10,
+        progress: 10.0,
         current_params: BenchTuneParamValue {
-            temperature: None, top_p: None, top_k: None,
-            repeat_penalty: None, context_length: None,
-            batch_size: None, flash_attn: None,
-            threads: None, expert_count: None,
-            spec_type: None, draft_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            repeat_penalty: None,
+            context_length: None,
+            batch_size: None,
+            flash_attn: None,
+            threads: None,
+            expert_count: None,
+            spec_type: None,
+            draft_tokens: None,
         },
     };
     let progress = BenchTuneProgress::from_status(&status);
@@ -632,16 +689,22 @@ fn bench_tune_progress_from_status_running() {
 #[test]
 fn bench_tune_progress_from_status_completed() {
     let status = BenchTuneStatus::Completed {
-        total_tests: 10, successful_tests: 9,
+        total_tests: 10,
+        successful_tests: 9,
         elapsed: std::time::Duration::from_secs(60),
     };
     let progress = BenchTuneProgress::from_status(&status);
-    assert!(matches!(progress, Some(BenchTuneProgress::Completed { .. })));
+    assert!(matches!(
+        progress,
+        Some(BenchTuneProgress::Completed { .. })
+    ));
 }
 
 #[test]
 fn bench_tune_progress_from_status_error() {
-    let status = BenchTuneStatus::Error { error: "fail".into() };
+    let status = BenchTuneStatus::Error {
+        error: "fail".into(),
+    };
     let progress = BenchTuneProgress::from_status(&status);
     assert!(matches!(progress, Some(BenchTuneProgress::Error { .. })));
 }
@@ -695,17 +758,29 @@ fn bench_tune_param_value_eq_with_some_none() {
 fn bench_tune_param_value_ne_different_values() {
     let a = BenchTuneParamValue {
         temperature: Some(0.8),
-        top_p: None, top_k: None, repeat_penalty: None,
-        context_length: None, batch_size: None,
-        flash_attn: None, threads: None, expert_count: None,
-        spec_type: None, draft_tokens: None,
+        top_p: None,
+        top_k: None,
+        repeat_penalty: None,
+        context_length: None,
+        batch_size: None,
+        flash_attn: None,
+        threads: None,
+        expert_count: None,
+        spec_type: None,
+        draft_tokens: None,
     };
     let b = BenchTuneParamValue {
         temperature: Some(0.7),
-        top_p: None, top_k: None, repeat_penalty: None,
-        context_length: None, batch_size: None,
-        flash_attn: None, threads: None, expert_count: None,
-        spec_type: None, draft_tokens: None,
+        top_p: None,
+        top_k: None,
+        repeat_penalty: None,
+        context_length: None,
+        batch_size: None,
+        flash_attn: None,
+        threads: None,
+        expert_count: None,
+        spec_type: None,
+        draft_tokens: None,
     };
     assert_ne!(a, b);
 }
@@ -716,12 +791,16 @@ fn bench_tune_param_value_ne_different_values() {
 fn bench_tune_param_eq_same_values() {
     let a = BenchTuneParam {
         name: "temperature".into(),
-        min: 0.4, max: 1.0, step: 0.1,
+        min: 0.4,
+        max: 1.0,
+        step: 0.1,
         enabled: true,
     };
     let b = BenchTuneParam {
         name: "temperature".into(),
-        min: 0.4, max: 1.0, step: 0.1,
+        min: 0.4,
+        max: 1.0,
+        step: 0.1,
         enabled: true,
     };
     assert_eq!(a, b);
@@ -731,12 +810,16 @@ fn bench_tune_param_eq_same_values() {
 fn bench_tune_param_ne_different_name() {
     let a = BenchTuneParam {
         name: "temperature".into(),
-        min: 0.4, max: 1.0, step: 0.1,
+        min: 0.4,
+        max: 1.0,
+        step: 0.1,
         enabled: true,
     };
     let b = BenchTuneParam {
         name: "top_p".into(),
-        min: 0.4, max: 1.0, step: 0.1,
+        min: 0.4,
+        max: 1.0,
+        step: 0.1,
         enabled: true,
     };
     assert_ne!(a, b);
@@ -784,11 +867,7 @@ fn backend_display_uses_slug() {
 
 #[test]
 fn bench_tune_config_new_has_default_params() {
-    let config = BenchTuneConfig::new(
-        "/path/to/model.gguf".into(),
-        3,
-        "test prompt".into(),
-    );
+    let config = BenchTuneConfig::new("/path/to/model.gguf".into(), 3, "test prompt".into());
     assert_eq!(config.model_path.to_string_lossy(), "/path/to/model.gguf");
     assert_eq!(config.num_iterations, 3);
     assert_eq!(config.prompt, "test prompt");

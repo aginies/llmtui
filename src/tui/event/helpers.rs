@@ -11,12 +11,21 @@ pub async fn execute_confirmation(app: &mut App, kind: ConfirmationKind) {
         ConfirmationKind::Delete => {
             if let Some(model) = app.selected_model() {
                 let display_name = model.display_name.clone();
-                app.add_log(format!("Deleting model {} (config moved to unused)...", display_name), crate::config::LogLevel::Info);
+                app.add_log(
+                    format!(
+                        "Deleting model {} (config moved to unused)...",
+                        display_name
+                    ),
+                    crate::config::LogLevel::Info,
+                );
             }
         }
         ConfirmationKind::Unload => {
             if let Some((name, _)) = &app.pending.pending_api_unload {
-                app.add_log(format!("Unloading {} via API...", name), crate::config::LogLevel::Info);
+                app.add_log(
+                    format!("Unloading {} via API...", name),
+                    crate::config::LogLevel::Info,
+                );
             }
         }
         ConfirmationKind::DeleteBackend => {
@@ -41,7 +50,8 @@ pub fn sync_global_settings(app: &mut App) {
         || app.config.default.llama_cpp_version_cpu != app.settings.llama_cpp_version_cpu
         || app.config.default.llama_cpp_version_vulkan != app.settings.llama_cpp_version_vulkan
         || app.config.default.llama_cpp_version_rocm != app.settings.llama_cpp_version_rocm
-        || app.config.default.llama_cpp_version_rocm_lemonade != app.settings.llama_cpp_version_rocm_lemonade
+        || app.config.default.llama_cpp_version_rocm_lemonade
+            != app.settings.llama_cpp_version_rocm_lemonade
         || app.config.default.llama_cpp_version_cuda != app.settings.llama_cpp_version_cuda
         || app.config.default.ws_server_enabled != app.settings.ws_server_enabled
         || app.config.default.ws_server_port != app.settings.ws_server_port
@@ -66,7 +76,8 @@ pub fn sync_global_settings(app: &mut App) {
     app.config.default.llama_cpp_version_cpu = app.settings.llama_cpp_version_cpu.clone();
     app.config.default.llama_cpp_version_vulkan = app.settings.llama_cpp_version_vulkan.clone();
     app.config.default.llama_cpp_version_rocm = app.settings.llama_cpp_version_rocm.clone();
-    app.config.default.llama_cpp_version_rocm_lemonade = app.settings.llama_cpp_version_rocm_lemonade.clone();
+    app.config.default.llama_cpp_version_rocm_lemonade =
+        app.settings.llama_cpp_version_rocm_lemonade.clone();
     app.config.default.llama_cpp_version_cuda = app.settings.llama_cpp_version_cuda.clone();
     app.config.default.ws_server_enabled = app.settings.ws_server_enabled;
     app.config.default.ws_server_port = app.settings.ws_server_port;

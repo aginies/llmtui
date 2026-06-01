@@ -14,15 +14,25 @@ pub fn render_all<'a>(
     let mut lines = Vec::new();
 
     lines.push(Line::from(vec![
-        Span::styled("Profiles", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        Span::styled(" — Select a profile to apply its settings", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            "Profiles",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            " — Select a profile to apply its settings",
+            Style::default().fg(Color::DarkGray),
+        ),
     ]));
     lines.push(Line::from(""));
 
     for (i, profile) in profiles.iter().enumerate() {
         let marker = if i == selected { "> " } else { "  " };
         let name_style = if i == selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
         };

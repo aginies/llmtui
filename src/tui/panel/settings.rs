@@ -8,7 +8,10 @@ use crate::tui::settings::{self, SettingField};
 
 /// Render the LLM Settings panel.
 #[allow(clippy::too_many_arguments)]
-pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'static>>, usize, usize, usize) {
+pub fn render_all(
+    app: &mut crate::tui::app::App,
+    area: Rect,
+) -> (Vec<Line<'static>>, usize, usize, usize) {
     let settings = &app.settings;
     let cached = &app.model_settings_cache;
     let selected = app.settings_state.settings_selected_idx;
@@ -36,12 +39,21 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
     let mut selected_line_idx = 0;
     let fields = settings::filtered_fields(app.settings_state.expert_mode);
     render_settings(
-        &mut lines, &mut total_count, &mut selected_line_idx, &mut selected_content_line,
-        &fields, settings, cached, selected, edit_buf, editing,
+        &mut lines,
+        &mut total_count,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        &fields,
+        settings,
+        cached,
+        selected,
+        edit_buf,
+        editing,
     );
 
     // On cache hit, use cached lines (faster). On miss, update cache.
-    let (lines_to_return, final_total_count) = if let Some(c) = &app.settings_state.settings_render_cache
+    let (lines_to_return, final_total_count) = if let Some(c) =
+        &app.settings_state.settings_render_cache
         && c.hash == hash
         && c.selected == selected
     {
@@ -63,15 +75,25 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
     let available_height = area.height.saturating_sub(2);
     if selected_content_line < app.settings_state.settings_scroll_offset {
         app.settings_state.settings_scroll_offset = selected_content_line;
-    } else if available_height > 0 && (selected_content_line - app.settings_state.settings_scroll_offset) >= (available_height as usize) {
-        app.settings_state.settings_scroll_offset = (selected_content_line).saturating_sub(available_height as usize).saturating_add(1);
+    } else if available_height > 0
+        && (selected_content_line - app.settings_state.settings_scroll_offset)
+            >= (available_height as usize)
+    {
+        app.settings_state.settings_scroll_offset = (selected_content_line)
+            .saturating_sub(available_height as usize)
+            .saturating_add(1);
     }
     let max_offset = settings_height.saturating_sub(available_height as usize);
     if app.settings_state.settings_scroll_offset > max_offset {
         app.settings_state.settings_scroll_offset = max_offset;
     }
 
-    (lines_to_return, final_total_count, settings_height, selected_content_line)
+    (
+        lines_to_return,
+        final_total_count,
+        settings_height,
+        selected_content_line,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -92,10 +114,12 @@ fn render_settings(
     for field in fields {
         // Section header
         if field.is_new_section(prev_section) {
-            lines.push(Line::from(vec![
-                Span::styled(format!("--- {} ---", field.section),
-                    Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                format!("--- {} ---", field.section),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            )]));
             prev_section = Some(field.section);
         }
 
@@ -114,9 +138,15 @@ fn render_settings(
         };
 
         let val_style = if *total_count == selected && editing {
-            Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
         } else if *total_count == selected {
-            Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
         } else if dirty {
             Style::default().fg(Color::Red)
         } else {
@@ -124,10 +154,14 @@ fn render_settings(
         };
 
         lines.push(Line::from(vec![
-            Span::styled(if *total_count == selected { "> " } else { "  " },
-                Style::default().fg(Color::Yellow)),
-            Span::styled(format!("{}: ", field.name()),
-                Style::default().fg(Color::Yellow)),
+            Span::styled(
+                if *total_count == selected { "> " } else { "  " },
+                Style::default().fg(Color::Yellow),
+            ),
+            Span::styled(
+                format!("{}: ", field.name()),
+                Style::default().fg(Color::Yellow),
+            ),
             Span::styled(display, val_style),
         ]));
         *total_count += 1;

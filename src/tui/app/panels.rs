@@ -1,4 +1,4 @@
-use super::types::{App, ActivePanel, ModelsMode};
+use super::types::{ActivePanel, App, ModelsMode};
 
 impl App {
     /// Check if a panel is visible.
@@ -74,7 +74,10 @@ impl App {
             return;
         }
 
-        let current_idx = visible.iter().position(|&p| p == self.ui.active_panel).unwrap_or(0);
+        let current_idx = visible
+            .iter()
+            .position(|&p| p == self.ui.active_panel)
+            .unwrap_or(0);
         let next_idx = (current_idx + 1) % visible.len();
         self.ui.active_panel = visible[next_idx];
     }
@@ -85,7 +88,10 @@ impl App {
             return;
         }
 
-        let current_idx = visible.iter().position(|&p| p == self.ui.active_panel).unwrap_or(0);
+        let current_idx = visible
+            .iter()
+            .position(|&p| p == self.ui.active_panel)
+            .unwrap_or(0);
         let prev_idx = (current_idx + visible.len() - 1) % visible.len();
         self.ui.active_panel = visible[prev_idx];
     }

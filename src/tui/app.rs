@@ -1,12 +1,12 @@
-pub mod types;
-pub mod state;
+pub mod async_ops;
+pub mod help;
 pub mod metadata;
 pub mod panels;
-pub mod profiles;
-pub mod help;
 pub mod pickers;
-pub mod async_ops;
+pub mod profiles;
+pub mod state;
 pub mod sync_ops;
+pub mod types;
 
 // Re-export all types for backward compatibility
 pub use types::*;
@@ -22,8 +22,12 @@ pub use types::App;
 impl App {
     pub fn new(config: Config) -> Self {
         let mut log = VecDeque::new();
-        log.push_back(LogEntry::new("Starting llm-manager...", crate::config::LogLevel::Info));
-        let settings: crate::models::ModelSettings = crate::models::ModelSettings::from_config(&config);
+        log.push_back(LogEntry::new(
+            "Starting llm-manager...",
+            crate::config::LogLevel::Info,
+        ));
+        let settings: crate::models::ModelSettings =
+            crate::models::ModelSettings::from_config(&config);
         let settings_clone = settings.clone();
         let server_mode = config.default.server_mode.clone();
         let router_max_models = config.default.router_max_models;
@@ -196,8 +200,7 @@ impl App {
     }
 }
 
-impl App {
-  }
+impl App {}
 
 #[cfg(test)]
 mod tests {
@@ -235,7 +238,9 @@ mod tests {
     #[test]
     fn test_progress_server_starting() {
         let mut app = make_app();
-        app.loading.loading_phases.insert(LoadingPhase::ServerStarting);
+        app.loading
+            .loading_phases
+            .insert(LoadingPhase::ServerStarting);
         app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
         app.compute_progress();
         assert!((app.loading.loading_progress - 0.08).abs() < 0.001);
@@ -244,10 +249,16 @@ mod tests {
     #[test]
     fn test_progress_with_layers() {
         let mut app = make_app();
-        app.loading.loading_phases.insert(LoadingPhase::ServerStarting);
-        app.loading.loading_phases.insert(LoadingPhase::LoadingModel);
+        app.loading
+            .loading_phases
+            .insert(LoadingPhase::ServerStarting);
+        app.loading
+            .loading_phases
+            .insert(LoadingPhase::LoadingModel);
         app.loading.loading_phases.insert(LoadingPhase::LoadingMeta);
-        app.loading.loading_phases.insert(LoadingPhase::LoadingTensors);
+        app.loading
+            .loading_phases
+            .insert(LoadingPhase::LoadingTensors);
         app.loading.last_active_phase = Some(LoadingPhase::LoadingTensors);
         app.loading.load_progress.layers_loaded = Some(16);
         app.loading.load_progress.layers_total = Some(32);
@@ -267,11 +278,19 @@ mod tests {
     #[test]
     fn test_progress_all_phases() {
         let mut app = make_app();
-        app.loading.loading_phases.insert(LoadingPhase::ServerStarting);
-        app.loading.loading_phases.insert(LoadingPhase::LoadingModel);
+        app.loading
+            .loading_phases
+            .insert(LoadingPhase::ServerStarting);
+        app.loading
+            .loading_phases
+            .insert(LoadingPhase::LoadingModel);
         app.loading.loading_phases.insert(LoadingPhase::LoadingMeta);
-        app.loading.loading_phases.insert(LoadingPhase::LoadingTensors);
-        app.loading.loading_phases.insert(LoadingPhase::ServerListening);
+        app.loading
+            .loading_phases
+            .insert(LoadingPhase::LoadingTensors);
+        app.loading
+            .loading_phases
+            .insert(LoadingPhase::ServerListening);
         app.loading.last_active_phase = Some(LoadingPhase::ServerListening);
         app.compute_progress();
         assert!((app.loading.loading_progress - 0.98).abs() < 0.01);

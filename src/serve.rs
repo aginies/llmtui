@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use tokio::select;
-use tracing::info;
 use tokio::signal;
+use tracing::info;
 
 use crate::backend::server;
 use crate::backend::tls;
@@ -33,7 +33,9 @@ async fn start_metrics_polling_task(
         let m = match tokio::time::timeout(
             std::time::Duration::from_secs(3),
             server::get_metrics(&host, port, None, Some(pid)),
-        ).await {
+        )
+        .await
+        {
             Ok(Ok(metrics)) => {
                 consecutive_failures = 0;
                 metrics
@@ -41,11 +43,18 @@ async fn start_metrics_polling_task(
             Ok(Err(_)) | Err(_) => {
                 consecutive_failures += 1;
                 if consecutive_failures >= max_failures {
-                    tracing::warn!("Metrics polling aborted after {} consecutive failures (server likely dead)", max_failures);
+                    tracing::warn!(
+                        "Metrics polling aborted after {} consecutive failures (server likely dead)",
+                        max_failures
+                    );
                     break;
                 }
                 if consecutive_failures % 5 == 1 {
-                    tracing::warn!("Metrics polling: server unreachable (attempt {}/{})", consecutive_failures, max_failures);
+                    tracing::warn!(
+                        "Metrics polling: server unreachable (attempt {}/{})",
+                        consecutive_failures,
+                        max_failures
+                    );
                 }
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                 continue;
@@ -53,7 +62,8 @@ async fn start_metrics_polling_task(
         };
 
         let state = "loaded";
-        let ws_metrics = WsMetrics::from_metrics(&m, &model_name, state, &settings, Some(&cmd_display));
+        let ws_metrics =
+            WsMetrics::from_metrics(&m, &model_name, state, &settings, Some(&cmd_display));
 
         if let Err(e) = tx.send(ws_metrics) {
             tracing::debug!("Failed to send metrics to broadcast channel: {e}");
@@ -106,27 +116,29 @@ pub async fn serve_model(
     // Check for broken symlinks first
     if let Ok(metadata) = model_path.symlink_metadata()
         && metadata.file_type().is_symlink()
-            && !model_path.exists() {
-                let target = std::fs::read_link(&model_path).unwrap_or_default();
-                let msg = format!(
-                    "Model file is a broken symlink: {}\n  Symlink points to: {}\n  The target does not exist. Fix the symlink or use the actual file.",
-                    model_path.display(),
-                    target.display()
-                );
-                return Err(anyhow::Error::msg(msg));
-            }
+        && !model_path.exists()
+    {
+        let target = std::fs::read_link(&model_path).unwrap_or_default();
+        let msg = format!(
+            "Model file is a broken symlink: {}\n  Symlink points to: {}\n  The target does not exist. Fix the symlink or use the actual file.",
+            model_path.display(),
+            target.display()
+        );
+        return Err(anyhow::Error::msg(msg));
+    }
 
     if !model_path.exists() {
         // Check if parent directory exists
         if let Some(parent) = model_path.parent()
-            && !parent.exists() {
-                let msg = format!(
-                    "Model file not found: {}\n  Parent directory does not exist: {}",
-                    model_path.display(),
-                    parent.display()
-                );
-                return Err(anyhow::Error::msg(msg));
-            }
+            && !parent.exists()
+        {
+            let msg = format!(
+                "Model file not found: {}\n  Parent directory does not exist: {}",
+                model_path.display(),
+                parent.display()
+            );
+            return Err(anyhow::Error::msg(msg));
+        }
         let msg = format!("Model file not found: {}", model_path.display());
         return Err(anyhow::Error::msg(msg));
     }
@@ -156,7 +168,10 @@ pub async fn serve_model(
 
     // Build settings: start with defaults, apply model override, then profile override
     tracing::info!("Model name for config lookup: {}", name);
-    tracing::info!("Available model config keys: {:?}", config.model_overrides.keys());
+    tracing::info!(
+        "Available model config keys: {:?}",
+        config.model_overrides.keys()
+    );
     let mut settings = config.resolve_settings(Some(&name), profile_name);
 
     // Auto-enable MTP if supported by model and not explicitly enabled in config
@@ -215,12 +230,18 @@ pub async fn serve_model(
         crate::models::GpuLayersMode::Specific(n) => n.to_string(),
         crate::models::GpuLayersMode::All => "all".to_string(),
     };
-    info!("Settings: {} threads, {} layers, {} context", settings.threads, layers_str, settings.context_length);
+    info!(
+        "Settings: {} threads, {} layers, {} context",
+        settings.threads, layers_str, settings.context_length
+    );
 
     // Trace backend binary selection
     let active_version = settings.get_active_backend_version();
     let version_display = settings.get_active_backend_version_display();
-    info!("Backend: {}, version config: {:?} (display: {})", settings.backend, active_version, version_display);
+    info!(
+        "Backend: {}, version config: {:?} (display: {})",
+        settings.backend, active_version, version_display
+    );
     if let Some(ref cpu_ver) = settings.llama_cpp_version_cpu {
         info!("  llama_cpp_version_cpu = {}", cpu_ver);
     }
@@ -234,7 +255,10 @@ pub async fn serve_model(
         } else {
             String::new()
         };
-        info!("WebSocket dashboard enabled on port {}{}", ws_port, auth_info);
+        info!(
+            "WebSocket dashboard enabled on port {}{}",
+            ws_port, auth_info
+        );
     }
 
     // Resolve the backend binary (downloads if needed)
@@ -247,8 +271,18 @@ pub async fn serve_model(
         binary_path
     } else {
         let version_param = settings.get_active_backend_version().map(|s| s.as_str());
-        info!("Resolving backend binary: backend={}, version_param={:?}", settings.backend, version_param);
-        match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, None, None).await {
+        info!(
+            "Resolving backend binary: backend={}, version_param={:?}",
+            settings.backend, version_param
+        );
+        match crate::backend::hub::resolve_backend_binary(
+            settings.backend,
+            version_param,
+            None,
+            None,
+        )
+        .await
+        {
             Ok(path) => {
                 info!("Resolved binary path: {}", path.display());
                 if !path.exists() {
@@ -259,15 +293,29 @@ pub async fn serve_model(
             Err(e) => anyhow::bail!("Failed to resolve backend binary: {}", e),
         }
     };
-    info!("Using llama-server: {} (backend: {})", binary.display(), settings.backend);
+    info!(
+        "Using llama-server: {} (backend: {})",
+        binary.display(),
+        settings.backend
+    );
 
     // Build the server command
-    let (mut cmd, cmd_display) = server::build_server_cmd(&binary, Some(&model), &settings, &config, config.default.server_mode.clone(), config.default.router_max_models);
+    let (mut cmd, cmd_display) = server::build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        config.default.server_mode.clone(),
+        config.default.router_max_models,
+    );
 
     // Set LD_LIBRARY_PATH so the binary can find its shared libraries
     let bin_dir = binary.parent().unwrap();
     if let Ok(current) = std::env::var("LD_LIBRARY_PATH") {
-        cmd.env("LD_LIBRARY_PATH", format!("{}:{}", bin_dir.display(), current));
+        cmd.env(
+            "LD_LIBRARY_PATH",
+            format!("{}:{}", bin_dir.display(), current),
+        );
     } else {
         cmd.env("LD_LIBRARY_PATH", bin_dir);
     }
@@ -311,8 +359,15 @@ pub async fn serve_model(
             .await;
             let _ = api_done_tx.send(());
         });
-        let api_protocol = if tls_config.is_some() { "https" } else { "http" };
-        info!("API proxy started on {api_protocol}://{}:{}", host_str, port);
+        let api_protocol = if tls_config.is_some() {
+            "https"
+        } else {
+            "http"
+        };
+        info!(
+            "API proxy started on {api_protocol}://{}:{}",
+            host_str, port
+        );
         Some((handle, api_done_rx, shutdown_tx))
     } else {
         None
@@ -329,15 +384,23 @@ pub async fn serve_model(
             ws_auth.clone(),
             tls_config.clone(),
             host_str.clone(),
-        ).await?;
-        
+        )
+        .await?;
+
         let auth_param = if let Some(ref auth) = ws_auth {
             format!("?auth={}", urlencoding::encode(auth))
         } else {
             "".to_string()
         };
-        let protocol = if tls_config.is_some() { "https" } else { "http" };
-        info!("Dashboard enabled: {protocol}://{}:{}/dashboard{}", host_str, ws_port, auth_param);
+        let protocol = if tls_config.is_some() {
+            "https"
+        } else {
+            "http"
+        };
+        info!(
+            "Dashboard enabled: {protocol}://{}:{}/dashboard{}",
+            host_str, ws_port, auth_param
+        );
 
         // Start metrics polling task
         let settings_clone = settings.clone();
@@ -357,7 +420,8 @@ pub async fn serve_model(
                 cmd_display_clone,
                 tx,
                 shutdown_rx_clone,
-            ).await;
+            )
+            .await;
         });
 
         Some(handle)

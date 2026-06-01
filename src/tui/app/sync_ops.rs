@@ -2,7 +2,10 @@ use super::types::App;
 use std::path::PathBuf;
 
 impl App {
-    pub fn render<T: ratatui::backend::Backend>(&mut self, terminal: &mut ratatui::Terminal<T>) -> std::io::Result<()> {
+    pub fn render<T: ratatui::backend::Backend>(
+        &mut self,
+        terminal: &mut ratatui::Terminal<T>,
+    ) -> std::io::Result<()> {
         if self.ui.needs_full_redraw {
             terminal.clear()?;
             self.ui.needs_full_redraw = false;
@@ -55,7 +58,10 @@ impl App {
         self.settings.spec_type = String::new();
         self.settings.draft_tokens = 0;
         self.settings_state.settings_render_cache = None;
-        self.add_log("Reset LLM Settings to defaults", crate::config::LogLevel::Info);
+        self.add_log(
+            "Reset LLM Settings to defaults",
+            crate::config::LogLevel::Info,
+        );
     }
 
     pub fn selected_model(&self) -> Option<&crate::models::DiscoveredModel> {
@@ -64,7 +70,7 @@ impl App {
 
     pub fn selected_model_settings(&self) -> crate::models::ModelSettings {
         let model_name = self.selected_model().map(|m| m.name.as_str());
-        // For the TUI, we don't currently support a separate profile_name 
+        // For the TUI, we don't currently support a separate profile_name
         // in this method since it's already accounted for in overrides or the default settings.
         self.config.resolve_settings(model_name, None)
     }
@@ -81,10 +87,20 @@ impl App {
             // Sync loading progress with the newly selected model
             if self.is_model_loaded(&model.display_name) {
                 self.loading.loading_progress = 1.0;
-                if !self.loading.loading_phases.contains(&super::types::LoadingPhase::Complete) {
-                    self.loading.loading_phases.insert(super::types::LoadingPhase::Complete);
+                if !self
+                    .loading
+                    .loading_phases
+                    .contains(&super::types::LoadingPhase::Complete)
+                {
+                    self.loading
+                        .loading_phases
+                        .insert(super::types::LoadingPhase::Complete);
                 }
-            } else if matches!(self.model_states.get(&model.display_name), Some(crate::models::ModelState::Loading) | Some(crate::models::ModelState::Benchmarking)) {
+            } else if matches!(
+                self.model_states.get(&model.display_name),
+                Some(crate::models::ModelState::Loading)
+                    | Some(crate::models::ModelState::Benchmarking)
+            ) {
                 // Keep current loading/benchmarking progress
             } else {
                 // Not loaded, loading, or benchmarking, reset progress
@@ -117,8 +133,6 @@ impl App {
         }
     }
 
-      
-   
     pub fn get_filtered_model_indices(&self) -> Vec<usize> {
         self.models
             .iter()
@@ -145,7 +159,11 @@ fn normalize_separators(s: &str) -> String {
 /// extra components not present in the local filename (e.g. "Qwen3.6-27B-MTP-GGUF"
 /// vs local "Qwen3.6-27B-Q3_K_S.gguf").
 pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: &str) -> bool {
-    let repo_name = model_id.rsplit('/').next().unwrap_or(model_id).to_lowercase();
+    let repo_name = model_id
+        .rsplit('/')
+        .next()
+        .unwrap_or(model_id)
+        .to_lowercase();
     let repo_normalized = normalize_separators(&repo_name);
     let repo_parts: Vec<&str> = repo_normalized.split('-').collect();
 
@@ -164,9 +182,7 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
         // Check if local starts with any prefix of the repo name (minimum 8 chars to avoid false positives)
         for i in 1..=repo_parts.len() {
             let prefix = repo_parts[..i].join("-");
-            if prefix.len() >= 8
-                && local_normalized.starts_with(&format!("{}-", prefix))
-            {
+            if prefix.len() >= 8 && local_normalized.starts_with(&format!("{}-", prefix)) {
                 return true;
             }
         }
@@ -265,7 +281,10 @@ mod tests {
             make_discovered("Mistral-7B-v0.3-Q8_0.gguf"),
         ];
         assert!(model_is_downloaded(&models, "Qwen/Qwen2.5-7B-Instruct"));
-        assert!(model_is_downloaded(&models, "meta-llama/Llama-3.1-8B-Instruct"));
+        assert!(model_is_downloaded(
+            &models,
+            "meta-llama/Llama-3.1-8B-Instruct"
+        ));
         assert!(model_is_downloaded(&models, "mistralai/Mistral-7B-v0.3"));
         assert!(!model_is_downloaded(&models, "google/gemma-2-9b"));
     }
@@ -278,11 +297,14 @@ mod tests {
         assert!(model_is_downloaded(&models, "unsloth/Qwen3.6-27B-MTP-GGUF"));
     }
 
-  #[test]
+    #[test]
     fn repo_name_with_extra_suffix_different_size() {
         // Should NOT match: repo is 27B, local is 7B
         let models = vec![make_discovered("Qwen3.6-7B-Q3_K_S.gguf")];
-        assert!(!model_is_downloaded(&models, "unsloth/Qwen3.6-27B-MTP-GGUF"));
+        assert!(!model_is_downloaded(
+            &models,
+            "unsloth/Qwen3.6-27B-MTP-GGUF"
+        ));
     }
 
     #[test]
@@ -306,7 +328,10 @@ mod tests {
     #[test]
     fn file_no_match_different_model() {
         let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
-        assert!(!file_is_downloaded(&models, "Llama-3.1-8B-Instruct-Q4_K_M.gguf"));
+        assert!(!file_is_downloaded(
+            &models,
+            "Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+        ));
     }
 
     #[test]

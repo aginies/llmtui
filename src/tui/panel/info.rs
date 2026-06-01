@@ -122,12 +122,7 @@ pub fn render_model_lines(
                 value_style: Color::White,
             });
         }
-
- 
     }
 
     pairs
 }
-
-
-

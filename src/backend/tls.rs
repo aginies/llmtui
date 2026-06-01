@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 
-use rcgen::{
-    CertificateParams, DnType, IsCa, Issuer, KeyPair,
-    SanType,
-};
+use rcgen::{CertificateParams, DnType, IsCa, Issuer, KeyPair, SanType};
 use tracing::info;
 
 /// Directory for TLS certificates under the config directory.
@@ -40,7 +37,8 @@ pub async fn load_tls_config(
     key_path: &str,
 ) -> Result<axum_server::tls_rustls::RustlsConfig, Box<dyn std::error::Error + Send + Sync>> {
     info!("Loading TLS config from {} and {}", cert_path, key_path);
-    axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path).await
+    axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path)
+        .await
         .map_err(|e| e.into())
 }
 
@@ -50,10 +48,9 @@ fn generate_ca() -> Result<(String, String), Box<dyn std::error::Error + Send + 
     let key = KeyPair::generate()?;
     let mut params = CertificateParams::default();
     params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-    params.distinguished_name.push(
-        DnType::CommonName,
-        "llm-manager CA".to_string(),
-    );
+    params
+        .distinguished_name
+        .push(DnType::CommonName, "llm-manager CA".to_string());
     let cert = params.self_signed(&key)?;
     let cert_pem = cert.pem();
     let key_pem = key.serialize_pem();
@@ -61,7 +58,10 @@ fn generate_ca() -> Result<(String, String), Box<dyn std::error::Error + Send + 
 }
 
 /// Parse CA certificate and key from PEM strings.
-fn parse_ca_from_pem(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(Issuer<'static, KeyPair>, KeyPair), Box<dyn std::error::Error + Send + Sync>> {
+fn parse_ca_from_pem(
+    ca_cert_pem: &str,
+    ca_key_pem: &str,
+) -> Result<(Issuer<'static, KeyPair>, KeyPair), Box<dyn std::error::Error + Send + Sync>> {
     let ca_key1 = KeyPair::from_pem(ca_key_pem)?;
     let ca_issuer = Issuer::from_ca_cert_pem(ca_cert_pem, ca_key1)?;
     let ca_key2 = KeyPair::from_pem(ca_key_pem)?;
@@ -70,7 +70,10 @@ fn parse_ca_from_pem(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(Issuer<'sta
 
 /// Generate a server certificate signed by the CA, persisting to disk.
 /// Returns (cert_pem, key_pem).
-fn generate_server_cert(ca_cert_pem: &str, ca_key_pem: &str) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
+fn generate_server_cert(
+    ca_cert_pem: &str,
+    ca_key_pem: &str,
+) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
     let server_key = KeyPair::generate()?;
 
     let (ca_issuer, _ca_key) = parse_ca_from_pem(ca_cert_pem, ca_key_pem)?;
@@ -106,7 +109,10 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
 
     // Generate or load CA
     let (ca_cert_pem, ca_key_pem) = if ca_path.exists() && ca_key_path.exists() {
-        (std::fs::read_to_string(&ca_path)?, std::fs::read_to_string(&ca_key_path)?)
+        (
+            std::fs::read_to_string(&ca_path)?,
+            std::fs::read_to_string(&ca_key_path)?,
+        )
     } else {
         let (cert, key) = generate_ca()?;
         std::fs::write(&ca_path, &cert)?;
@@ -119,10 +125,22 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
     std::fs::write(&server_cert_path, &server_cert)?;
     std::fs::write(&server_key_path, &server_key)?;
 
-    info!("Generated self-signed TLS certificates in {}", tls_dir().display());
-    info!("To trust this CA, install {} into your system trust store:", ca_path.display());
-    info!("  Linux (system-wide): sudo cp {} /usr/local/share/ca-certificates/ && sudo update-ca-certificates", ca_path.display());
-    info!("  macOS:             sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain {}", ca_path.display());
+    info!(
+        "Generated self-signed TLS certificates in {}",
+        tls_dir().display()
+    );
+    info!(
+        "To trust this CA, install {} into your system trust store:",
+        ca_path.display()
+    );
+    info!(
+        "  Linux (system-wide): sudo cp {} /usr/local/share/ca-certificates/ && sudo update-ca-certificates",
+        ca_path.display()
+    );
+    info!(
+        "  macOS:             sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain {}",
+        ca_path.display()
+    );
 
     Ok((server_cert_path, server_key_path))
 }

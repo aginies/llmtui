@@ -1,5 +1,7 @@
 use crate::config::Profile;
-use crate::models::{ModelSettings, CacheTypeK, CacheTypeV, GpuLayersMode, Mirostat, NumMode, SplitMode};
+use crate::models::{
+    CacheTypeK, CacheTypeV, GpuLayersMode, Mirostat, ModelSettings, NumMode, SplitMode,
+};
 use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
@@ -9,7 +11,7 @@ use ratatui::{
 
 pub type DisplayFn = fn(&ModelSettings) -> String;
 pub type DirtyFn = fn(&ModelSettings, &ModelSettings) -> bool;
-pub type AdjustFn = fn(&mut ModelSettings, i32, u32);  // u32 = context_limit (0 = no limit)
+pub type AdjustFn = fn(&mut ModelSettings, i32, u32); // u32 = context_limit (0 = no limit)
 pub type ApplyEditFn = fn(&mut ModelSettings, &str);
 pub type CtrlEToggleFn = fn(&mut ModelSettings);
 
@@ -256,10 +258,18 @@ fn gpu_layers_apply(settings: &mut ModelSettings, buf: &str) {
     }
 }
 
-fn toggle_mlock(settings: &mut ModelSettings) { settings.mlock = !settings.mlock; }
-fn toggle_flash_attn(settings: &mut ModelSettings) { settings.flash_attn = !settings.flash_attn; }
-fn toggle_kv_cache_offload(settings: &mut ModelSettings) { settings.kv_cache_offload = !settings.kv_cache_offload; }
-fn toggle_uniform_cache(settings: &mut ModelSettings) { settings.uniform_cache = !settings.uniform_cache; }
+fn toggle_mlock(settings: &mut ModelSettings) {
+    settings.mlock = !settings.mlock;
+}
+fn toggle_flash_attn(settings: &mut ModelSettings) {
+    settings.flash_attn = !settings.flash_attn;
+}
+fn toggle_kv_cache_offload(settings: &mut ModelSettings) {
+    settings.kv_cache_offload = !settings.kv_cache_offload;
+}
+fn toggle_uniform_cache(settings: &mut ModelSettings) {
+    settings.uniform_cache = !settings.uniform_cache;
+}
 fn toggle_mtp(settings: &mut ModelSettings) {
     if settings.spec_type.is_empty() {
         settings.spec_type = "draft-mtp".to_string();
@@ -268,12 +278,30 @@ fn toggle_mtp(settings: &mut ModelSettings) {
     }
 }
 
-fn toggle_rope_yarn_enabled(settings: &mut ModelSettings) { settings.rope_yarn_enabled = !settings.rope_yarn_enabled; }
-fn toggle_ignore_eos(settings: &mut ModelSettings) { settings.ignore_eos = !settings.ignore_eos; }
-fn toggle_max_tokens(settings: &mut ModelSettings) { settings.max_tokens = settings.max_tokens.map_or(Some(2048), |_| None); }
-fn toggle_max_concurrent_predictions(settings: &mut ModelSettings) { settings.max_concurrent_predictions = settings.max_concurrent_predictions.map_or(Some(1), |_| None); }
-fn toggle_cache_type_k(settings: &mut ModelSettings) { settings.cache_type_k = settings.cache_type_k.map_or(Some(CacheTypeK::F16), |_| None); }
-fn toggle_cache_type_v(settings: &mut ModelSettings) { settings.cache_type_v = settings.cache_type_v.map_or(Some(CacheTypeV::F16), |_| None); }
+fn toggle_rope_yarn_enabled(settings: &mut ModelSettings) {
+    settings.rope_yarn_enabled = !settings.rope_yarn_enabled;
+}
+fn toggle_ignore_eos(settings: &mut ModelSettings) {
+    settings.ignore_eos = !settings.ignore_eos;
+}
+fn toggle_max_tokens(settings: &mut ModelSettings) {
+    settings.max_tokens = settings.max_tokens.map_or(Some(2048), |_| None);
+}
+fn toggle_max_concurrent_predictions(settings: &mut ModelSettings) {
+    settings.max_concurrent_predictions = settings
+        .max_concurrent_predictions
+        .map_or(Some(1), |_| None);
+}
+fn toggle_cache_type_k(settings: &mut ModelSettings) {
+    settings.cache_type_k = settings
+        .cache_type_k
+        .map_or(Some(CacheTypeK::F16), |_| None);
+}
+fn toggle_cache_type_v(settings: &mut ModelSettings) {
+    settings.cache_type_v = settings
+        .cache_type_v
+        .map_or(Some(CacheTypeV::F16), |_| None);
+}
 fn toggle_expert_count(settings: &mut ModelSettings) {
     settings.expert_count = match settings.expert_count {
         0 => 1,
@@ -281,8 +309,12 @@ fn toggle_expert_count(settings: &mut ModelSettings) {
         _ => -1,
     };
 }
-fn toggle_presence_penalty(settings: &mut ModelSettings) { settings.presence_penalty = settings.presence_penalty.map_or(Some(0.0), |_| None); }
-fn toggle_frequency_penalty(settings: &mut ModelSettings) { settings.frequency_penalty = settings.frequency_penalty.map_or(Some(0.0), |_| None); }
+fn toggle_presence_penalty(settings: &mut ModelSettings) {
+    settings.presence_penalty = settings.presence_penalty.map_or(Some(0.0), |_| None);
+}
+fn toggle_frequency_penalty(settings: &mut ModelSettings) {
+    settings.frequency_penalty = settings.frequency_penalty.map_or(Some(0.0), |_| None);
+}
 
 // ── All Fields (Interleaved for context-aware expert mode) ────────────────────
 
@@ -334,13 +366,17 @@ pub fn all_fields() -> Vec<SettingField> {
             "yarn_params",
             "Yarn Params",
             "Loading",
-            |s| format!(
-                "scale={:.2} base={:.2} scale_f={:.2}",
-                s.rope_scale, s.rope_freq_base, s.rope_freq_scale
-            ),
-            |s, c| s.rope_scale != c.rope_scale
-                || s.rope_freq_base != c.rope_freq_base
-                || s.rope_freq_scale != c.rope_freq_scale,
+            |s| {
+                format!(
+                    "scale={:.2} base={:.2} scale_f={:.2}",
+                    s.rope_scale, s.rope_freq_base, s.rope_freq_scale
+                )
+            },
+            |s, c| {
+                s.rope_scale != c.rope_scale
+                    || s.rope_freq_base != c.rope_freq_base
+                    || s.rope_freq_scale != c.rope_freq_scale
+            },
             |_, _, _| {},
             |_, _| {},
             EditKind::Modal,
@@ -428,7 +464,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _| {},
             EditKind::Toggle,
         ),
-
         // ── GPU Offload ───────────────────────────────────────────────────────
         field(
             "gpu_layers_mode",
@@ -520,9 +555,11 @@ pub fn all_fields() -> Vec<SettingField> {
             "cache_type_k",
             "Cache Type K",
             "GPU Offload",
-            |s| s.cache_type_k
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "Disabled".to_string()),
+            |s| {
+                s.cache_type_k
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "Disabled".to_string())
+            },
             |s, c| s.cache_type_k != c.cache_type_k,
             |s, delta, _| {
                 let mut val = s.cache_type_k.unwrap_or(CacheTypeK::F16);
@@ -541,9 +578,11 @@ pub fn all_fields() -> Vec<SettingField> {
             "cache_type_v",
             "Cache Type V",
             "GPU Offload",
-            |s| s.cache_type_v
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "Disabled".to_string()),
+            |s| {
+                s.cache_type_v
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "Disabled".to_string())
+            },
             |s, c| s.cache_type_v != c.cache_type_v,
             |s, delta, _| {
                 let mut val = s.cache_type_v.unwrap_or(CacheTypeV::F16);
@@ -562,12 +601,14 @@ pub fn all_fields() -> Vec<SettingField> {
             "expert_count",
             "Active Experts",
             "GPU Offload",
-            |s| if s.expert_count > 0 {
-                s.expert_count.to_string()
-            } else if s.expert_count == -1 {
-                "Auto".to_string()
-            } else {
-                "Disabled".to_string()
+            |s| {
+                if s.expert_count > 0 {
+                    s.expert_count.to_string()
+                } else if s.expert_count == -1 {
+                    "Auto".to_string()
+                } else {
+                    "Disabled".to_string()
+                }
             },
             |s, c| s.expert_count != c.expert_count,
             |s, delta, _| {
@@ -581,7 +622,6 @@ pub fn all_fields() -> Vec<SettingField> {
             toggle_expert_count,
             EditKind::Direct,
         ),
-
         // ── Evaluation ────────────────────────────────────────────────────────
         field(
             "batch_size",
@@ -614,15 +654,17 @@ pub fn all_fields() -> Vec<SettingField> {
             "max_concurrent_predictions",
             "Max Concurrent Pred",
             "Evaluation",
-            |s| s.max_concurrent_predictions
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "Off".to_string()),
+            |s| {
+                s.max_concurrent_predictions
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "Off".to_string())
+            },
             |s, c| s.max_concurrent_predictions != c.max_concurrent_predictions,
-            |s, delta, _| {
-                match s.max_concurrent_predictions {
-                    Some(n) => s.max_concurrent_predictions = Some(((n as i32) + delta).clamp(1, 10) as u32),
-                    None => s.max_concurrent_predictions = Some(1),
+            |s, delta, _| match s.max_concurrent_predictions {
+                Some(n) => {
+                    s.max_concurrent_predictions = Some(((n as i32) + delta).clamp(1, 10) as u32)
                 }
+                None => s.max_concurrent_predictions = Some(1),
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<u32>() {
@@ -632,7 +674,6 @@ pub fn all_fields() -> Vec<SettingField> {
             toggle_max_concurrent_predictions,
             EditKind::Direct,
         ),
-
         // ── Sampling ──────────────────────────────────────────────────────────
         field(
             "seed",
@@ -657,7 +698,8 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| format!("{:.2}", s.temperature),
             |s, c| (s.temperature - c.temperature).abs() > 0.001,
             |s, delta, _| {
-                s.temperature = ((s.temperature * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 2.0);
+                s.temperature =
+                    ((s.temperature * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 2.0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -759,7 +801,8 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| format!("{:.2}", s.mirostat_lr),
             |s, c| (s.mirostat_lr - c.mirostat_lr).abs() > 0.001,
             |s, delta, _| {
-                s.mirostat_lr = ((s.mirostat_lr * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
+                s.mirostat_lr =
+                    ((s.mirostat_lr * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -775,7 +818,8 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| format!("{:.2}", s.mirostat_ent),
             |s, c| (s.mirostat_ent - c.mirostat_ent).abs() > 0.001,
             |s, delta, _| {
-                s.mirostat_ent = ((s.mirostat_ent * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
+                s.mirostat_ent =
+                    ((s.mirostat_ent * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -809,9 +853,11 @@ pub fn all_fields() -> Vec<SettingField> {
             "max_tokens",
             "Max Tokens",
             "Sampling",
-            |s| s.max_tokens
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "Disabled".to_string()),
+            |s| {
+                s.max_tokens
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "Disabled".to_string())
+            },
             |s, c| s.max_tokens != c.max_tokens,
             |s, delta, _| {
                 let current = s.max_tokens.unwrap_or(2048);
@@ -819,17 +865,12 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
-                    s.max_tokens = if v == 0 {
-                        None
-                    } else {
-                        Some(v as u32)
-                    };
+                    s.max_tokens = if v == 0 { None } else { Some(v as u32) };
                 }
             },
             toggle_max_tokens,
             EditKind::Direct,
         ),
-
         // ── Repetition ────────────────────────────────────────────────────────
         field(
             "repeat_penalty",
@@ -838,7 +879,8 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| format!("{:.2}", s.repeat_penalty),
             |s, c| (s.repeat_penalty - c.repeat_penalty).abs() > 0.001,
             |s, delta, _| {
-                s.repeat_penalty = ((s.repeat_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(1.0, 2.0);
+                s.repeat_penalty =
+                    ((s.repeat_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(1.0, 2.0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -867,9 +909,17 @@ pub fn all_fields() -> Vec<SettingField> {
             "presence_penalty",
             "Presence Penalty",
             "Repetition",
-            |s| s.presence_penalty
-                .map(|v| if (v - 0.0).abs() < 0.001 { "Off".to_string() } else { format!("{:.2}", v) })
-                .unwrap_or_else(|| "Off".to_string()),
+            |s| {
+                s.presence_penalty
+                    .map(|v| {
+                        if (v - 0.0).abs() < 0.001 {
+                            "Off".to_string()
+                        } else {
+                            format!("{:.2}", v)
+                        }
+                    })
+                    .unwrap_or_else(|| "Off".to_string())
+            },
             |s, c| match (s.presence_penalty, c.presence_penalty) {
                 (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
                 (None, None) => false,
@@ -877,7 +927,8 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             |s, delta, _| {
                 let current = s.presence_penalty.unwrap_or(0.0);
-                s.presence_penalty = Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
+                s.presence_penalty =
+                    Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -891,9 +942,17 @@ pub fn all_fields() -> Vec<SettingField> {
             "frequency_penalty",
             "Freq Penalty",
             "Repetition",
-            |s| s.frequency_penalty
-                .map(|v| if (v - 0.0).abs() < 0.001 { "Off".to_string() } else { format!("{:.2}", v) })
-                .unwrap_or_else(|| "Off".to_string()),
+            |s| {
+                s.frequency_penalty
+                    .map(|v| {
+                        if (v - 0.0).abs() < 0.001 {
+                            "Off".to_string()
+                        } else {
+                            format!("{:.2}", v)
+                        }
+                    })
+                    .unwrap_or_else(|| "Off".to_string())
+            },
             |s, c| match (s.frequency_penalty, c.frequency_penalty) {
                 (Some(v1), Some(v2)) => (v1 - v2).abs() > 0.001,
                 (None, None) => false,
@@ -901,7 +960,8 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             |s, delta, _| {
                 let current = s.frequency_penalty.unwrap_or(0.0);
-                s.frequency_penalty = Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
+                s.frequency_penalty =
+                    Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -911,7 +971,6 @@ pub fn all_fields() -> Vec<SettingField> {
             toggle_frequency_penalty,
             EditKind::Direct,
         ),
-
         // ── DRY ───────────────────────────────────────────────────────────────
         ultra_field(
             "dry_multiplier",
@@ -920,7 +979,8 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| format!("{:.2}", s.dry_multiplier),
             |s, c| (s.dry_multiplier - c.dry_multiplier).abs() > 0.001,
             |s, delta, _| {
-                s.dry_multiplier = ((s.dry_multiplier * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
+                s.dry_multiplier =
+                    ((s.dry_multiplier * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<i32>() {
@@ -977,16 +1037,17 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-
         // ── Speculative Decoding ─────────────────────────────────────────────
         expert_field_with_toggle(
             "is_mtp",
             "MTP",
             "Speculative",
-            |s| if s.spec_type.is_empty() {
-                "Off".to_string()
-            } else {
-                s.spec_type.clone()
+            |s| {
+                if s.spec_type.is_empty() {
+                    "Off".to_string()
+                } else {
+                    s.spec_type.clone()
+                }
             },
             |s, c| s.spec_type != c.spec_type,
             |_, _, _| {},
@@ -998,10 +1059,12 @@ pub fn all_fields() -> Vec<SettingField> {
             "spec_type",
             "Spec Type",
             "Speculative",
-            |s| if s.spec_type.is_empty() {
-                "Off".to_string()
-            } else {
-                s.spec_type.clone()
+            |s| {
+                if s.spec_type.is_empty() {
+                    "Off".to_string()
+                } else {
+                    s.spec_type.clone()
+                }
             },
             |s, c| s.spec_type != c.spec_type,
             |_, _, _| {},
@@ -1024,23 +1087,23 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-
         // ── Tags ──────────────────────────────────────────────────────────────
         field(
             "tags",
             "Tags (Enter to edit)",
             "Tags",
-            |s| if s.tags.is_empty() {
-                "None".to_string()
-            } else {
-                s.tags.join(", ")
+            |s| {
+                if s.tags.is_empty() {
+                    "None".to_string()
+                } else {
+                    s.tags.join(", ")
+                }
             },
             |s, c| s.tags != c.tags,
             |_, _, _| {},
             |_, _| {},
             EditKind::Modal,
         ),
-
         // ── Backend ───────────────────────────────────────────────────────────
         field(
             "backend_version",
@@ -1056,13 +1119,16 @@ pub fn all_fields() -> Vec<SettingField> {
 }
 
 pub fn filtered_fields(expert_mode: bool) -> Vec<SettingField> {
-    all_fields().into_iter().filter(|f| {
-        if !expert_mode {
-            !f.is_expert
-        } else {
-            !f.is_ultra // In expert mode, hide ultra experts
-        }
-    }).collect()
+    all_fields()
+        .into_iter()
+        .filter(|f| {
+            if !expert_mode {
+                !f.is_expert
+            } else {
+                !f.is_ultra // In expert mode, hide ultra experts
+            }
+        })
+        .collect()
 }
 
 // ── Simple helper for the server settings panel (tabbed.rs) ──────────────────
@@ -1091,7 +1157,9 @@ pub fn add_setting(
         Style::default().fg(Color::Yellow)
     };
     let val_style = if disabled {
-        Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::DIM)
     } else {
         Style::default().fg(Color::White)
     };
@@ -1099,9 +1167,24 @@ pub fn add_setting(
         *selected_line_idx = current_line;
         *selected_content_line = current_line;
         lines.push(Line::from(vec![
-            Span::styled("> ", Style::default().fg(Color::Yellow).add_modifier(if disabled { Modifier::DIM } else { Modifier::BOLD })),
+            Span::styled(
+                "> ",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(if disabled {
+                        Modifier::DIM
+                    } else {
+                        Modifier::BOLD
+                    }),
+            ),
             Span::styled(format!("{name}: "), name_style),
-            Span::styled(val.to_string(), Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                val.to_string(),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]));
     } else {
         lines.push(Line::from(vec![

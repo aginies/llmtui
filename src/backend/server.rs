@@ -5,8 +5,10 @@ use tokio::process::Command;
 use tokio::sync::mpsc;
 use tracing::info;
 
-use crate::models::{DiscoveredModel, ModelSettings, ServerMetrics, RopeScaling, strip_gguf, clean_host};
 use crate::config::Config;
+use crate::models::{
+    DiscoveredModel, ModelSettings, RopeScaling, ServerMetrics, clean_host, strip_gguf,
+};
 
 /// Manages a single llama.cpp server process.
 #[derive(Clone)]
@@ -33,7 +35,14 @@ fn push_flag(cmd: &mut Command, parts: &mut Vec<String>, name: &str) {
 
 /// Build the full llama-server command line from settings.
 /// Returns (Command, display_string) where the string is suitable for logging.
-pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel>, settings: &ModelSettings, config: &Config, server_mode: crate::models::ServerMode, router_max_models: u32) -> (Command, String) {
+pub fn build_server_cmd(
+    binary: &std::path::Path,
+    model: Option<&DiscoveredModel>,
+    settings: &ModelSettings,
+    config: &Config,
+    server_mode: crate::models::ServerMode,
+    router_max_models: u32,
+) -> (Command, String) {
     let mut cmd = Command::new(binary);
     let mut parts: Vec<String> = vec![binary.display().to_string()];
 
@@ -66,20 +75,30 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
 
     // ── Loading ──────────────────────────────────────────────
     push_arg(&mut cmd, &mut parts, "--threads", settings.threads);
-    push_arg(&mut cmd, &mut parts, "--threads-batch", settings.threads_batch);
+    push_arg(
+        &mut cmd,
+        &mut parts,
+        "--threads-batch",
+        settings.threads_batch,
+    );
     let effective_ctx = (settings.context_length as f32 * settings.rope_scale) as u32;
     push_arg(&mut cmd, &mut parts, "--ctx-size", effective_ctx);
     push_arg(&mut cmd, &mut parts, "--ubatch-size", settings.ubatch_size);
     if let Some(n) = settings.max_concurrent_predictions {
         push_arg(&mut cmd, &mut parts, "--parallel", n);
     }
-    
+
     push_flag(&mut cmd, &mut parts, "--no-warmup");
 
     if !settings.spec_type.is_empty() {
         push_arg(&mut cmd, &mut parts, "--spec-type", &settings.spec_type);
         if settings.draft_tokens > 0 {
-            push_arg(&mut cmd, &mut parts, "--spec-draft-n-max", settings.draft_tokens);
+            push_arg(
+                &mut cmd,
+                &mut parts,
+                "--spec-draft-n-max",
+                settings.draft_tokens,
+            );
         }
     }
 
@@ -116,12 +135,22 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     if matches!(settings.gpu_layers_mode, crate::models::GpuLayersMode::All) {
         push_arg(&mut cmd, &mut parts, "-ngl", "999");
     }
-    
+
     if settings.split_mode != Default::default() {
-        push_arg(&mut cmd, &mut parts, "--split-mode", settings.split_mode.to_string());
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--split-mode",
+            settings.split_mode.to_string(),
+        );
     }
     if !settings.tensor_split.is_empty() {
-        push_arg(&mut cmd, &mut parts, "--tensor-split", &settings.tensor_split);
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--tensor-split",
+            &settings.tensor_split,
+        );
     }
     if settings.main_gpu != 0 {
         push_arg(&mut cmd, &mut parts, "--main-gpu", settings.main_gpu);
@@ -136,7 +165,12 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         push_arg(&mut cmd, &mut parts, "--lora", lora.display());
     }
     if let Some((ref lora, scale)) = settings.lora_scaled {
-        push_arg(&mut cmd, &mut parts, "--lora-scaled", format!("{}:{}", lora.display(), scale));
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--lora-scaled",
+            format!("{}:{}", lora.display(), scale),
+        );
     }
 
     let mut rpc_list = Vec::new();
@@ -159,10 +193,20 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     }
 
     if settings.expert_count > 0 {
-        push_arg(&mut cmd, &mut parts, "--override-kv", format!("llama.expert_used_count=int:int:{}", settings.expert_count));
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--override-kv",
+            format!("llama.expert_used_count=int:int:{}", settings.expert_count),
+        );
     }
 
-    push_arg(&mut cmd, &mut parts, "-fa", if settings.flash_attn { "on" } else { "off" });
+    push_arg(
+        &mut cmd,
+        &mut parts,
+        "-fa",
+        if settings.flash_attn { "on" } else { "off" },
+    );
 
     if settings.jinja {
         push_flag(&mut cmd, &mut parts, "--jinja");
@@ -174,7 +218,8 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
 
     // Inject system prompt via chat template kwargs when it differs from default
     if settings.system_prompt != "You are a helpful assistant." {
-        let escaped = settings.system_prompt
+        let escaped = settings
+            .system_prompt
             .replace('\\', "\\\\")
             .replace('"', "\\\"");
         let mut merged = serde_json::Map::new();
@@ -187,9 +232,16 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
                 }
             }
         }
-        merged.insert("system_prompt".to_string(), serde_json::Value::String(escaped));
-        push_arg(&mut cmd, &mut parts, "--chat-template-kwargs",
-            serde_json::to_string(&merged).unwrap());
+        merged.insert(
+            "system_prompt".to_string(),
+            serde_json::Value::String(escaped),
+        );
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--chat-template-kwargs",
+            serde_json::to_string(&merged).unwrap(),
+        );
     } else if let Some(ref kwargs) = settings.chat_template_kwargs {
         push_arg(&mut cmd, &mut parts, "--chat-template-kwargs", kwargs);
     }
@@ -201,20 +253,55 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     if let Some(max_tokens) = settings.max_tokens {
         push_arg(&mut cmd, &mut parts, "--n-predict", max_tokens);
     }
-    push_arg(&mut cmd, &mut parts, "--temp", format!("{:.2}", settings.temperature));
+    push_arg(
+        &mut cmd,
+        &mut parts,
+        "--temp",
+        format!("{:.2}", settings.temperature),
+    );
 
     push_arg(&mut cmd, &mut parts, "--top-k", settings.top_k);
 
-    push_arg(&mut cmd, &mut parts, "--top-p", format!("{:.2}", settings.top_p));
+    push_arg(
+        &mut cmd,
+        &mut parts,
+        "--top-p",
+        format!("{:.2}", settings.top_p),
+    );
 
-    push_arg(&mut cmd, &mut parts, "--min-p", format!("{:.2}", settings.min_p));
+    push_arg(
+        &mut cmd,
+        &mut parts,
+        "--min-p",
+        format!("{:.2}", settings.min_p),
+    );
 
-    push_arg(&mut cmd, &mut parts, "--typical", format!("{:.2}", settings.typical_p));
+    push_arg(
+        &mut cmd,
+        &mut parts,
+        "--typical",
+        format!("{:.2}", settings.typical_p),
+    );
 
     if settings.mirostat != Default::default() {
-        push_arg(&mut cmd, &mut parts, "--mirostat", settings.mirostat.to_string());
-        push_arg(&mut cmd, &mut parts, "--mirostat-lr", format!("{:.2}", settings.mirostat_lr));
-        push_arg(&mut cmd, &mut parts, "--mirostat-ent", format!("{:.2}", settings.mirostat_ent));
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--mirostat",
+            settings.mirostat.to_string(),
+        );
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--mirostat-lr",
+            format!("{:.2}", settings.mirostat_lr),
+        );
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--mirostat-ent",
+            format!("{:.2}", settings.mirostat_ent),
+        );
     }
 
     if settings.ignore_eos {
@@ -222,18 +309,48 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     }
 
     if !settings.samplers.0.is_empty() {
-        push_arg(&mut cmd, &mut parts, "--samplers", settings.samplers.to_string());
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--samplers",
+            settings.samplers.to_string(),
+        );
     }
 
     if let Some(frequency) = settings.frequency_penalty {
-        push_arg(&mut cmd, &mut parts, "--frequency-penalty", format!("{:.2}", frequency));
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--frequency-penalty",
+            format!("{:.2}", frequency),
+        );
     }
 
     if settings.dry_multiplier != 0.0 {
-        push_arg(&mut cmd, &mut parts, "--dry-multiplier", format!("{:.2}", settings.dry_multiplier));
-        push_arg(&mut cmd, &mut parts, "--dry-base", format!("{:.2}", settings.dry_base));
-        push_arg(&mut cmd, &mut parts, "--dry-allowed-length", settings.dry_allowed_length);
-        push_arg(&mut cmd, &mut parts, "--dry-penalty-last-n", settings.dry_penalty_last_n);
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--dry-multiplier",
+            format!("{:.2}", settings.dry_multiplier),
+        );
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--dry-base",
+            format!("{:.2}", settings.dry_base),
+        );
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--dry-allowed-length",
+            settings.dry_allowed_length,
+        );
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--dry-penalty-last-n",
+            settings.dry_penalty_last_n,
+        );
     }
 
     // ── RoPE ─────────────────────────────────────────────────
@@ -243,16 +360,36 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
         settings.rope_scaling
     };
     if rope_scaling != Default::default() {
-        push_arg(&mut cmd, &mut parts, "--rope-scaling", rope_scaling.to_string());
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--rope-scaling",
+            rope_scaling.to_string(),
+        );
     }
     if settings.rope_scale != 1.0 {
-        push_arg(&mut cmd, &mut parts, "--rope-scale", format!("{:.2}", settings.rope_scale));
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--rope-scale",
+            format!("{:.2}", settings.rope_scale),
+        );
     }
     if settings.rope_freq_base != 0.0 {
-        push_arg(&mut cmd, &mut parts, "--rope-freq-base", format!("{:.2}", settings.rope_freq_base));
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--rope-freq-base",
+            format!("{:.2}", settings.rope_freq_base),
+        );
     }
     if settings.rope_freq_scale != 1.0 {
-        push_arg(&mut cmd, &mut parts, "--rope-freq-scale", format!("{:.2}", settings.rope_freq_scale));
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--rope-freq-scale",
+            format!("{:.2}", settings.rope_freq_scale),
+        );
     }
 
     let resolved_host = clean_host(&settings.host);
@@ -278,7 +415,11 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
 }
 
 /// Build the full llama-bench command line.
-pub fn build_bench_cmd(binary: &std::path::Path, model: &DiscoveredModel, settings: &ModelSettings) -> (Command, String) {
+pub fn build_bench_cmd(
+    binary: &std::path::Path,
+    model: &DiscoveredModel,
+    settings: &ModelSettings,
+) -> (Command, String) {
     let mut cmd = Command::new(binary);
     let mut parts: Vec<String> = vec![binary.display().to_string()];
 
@@ -299,7 +440,12 @@ pub fn build_bench_cmd(binary: &std::path::Path, model: &DiscoveredModel, settin
     if !settings.spec_type.is_empty() {
         push_arg(&mut cmd, &mut parts, "--spec-type", &settings.spec_type);
         if settings.draft_tokens > 0 {
-            push_arg(&mut cmd, &mut parts, "--spec-draft-n-max", settings.draft_tokens);
+            push_arg(
+                &mut cmd,
+                &mut parts,
+                "--spec-draft-n-max",
+                settings.draft_tokens,
+            );
         }
     }
 
@@ -321,7 +467,9 @@ pub async fn spawn_server(
     router_max_models: u32,
     exit_tx: mpsc::Sender<()>,
 ) -> Result<(ServerHandle, String), String> {
-    if server_mode != crate::models::ServerMode::Bench && server_mode != crate::models::ServerMode::BenchTune {
+    if server_mode != crate::models::ServerMode::Bench
+        && server_mode != crate::models::ServerMode::BenchTune
+    {
         let port = settings.port;
         // Check if port is already in use
         if std::net::TcpListener::bind(("127.0.0.1", port)).is_err() {
@@ -342,11 +490,29 @@ pub async fn spawn_server(
         "llama-server"
     };
     let version_display = settings.get_active_backend_version_display();
-    info!("spawn_server: backend={}, requested_version={:?}, version_display={}", settings.backend, settings.get_active_backend_version(), version_display);
-    log_tx.send(format!("Resolving {} (v{}) binary...", backend_name, version_display)).await.ok();
+    info!(
+        "spawn_server: backend={}, requested_version={:?}, version_display={}",
+        settings.backend,
+        settings.get_active_backend_version(),
+        version_display
+    );
+    log_tx
+        .send(format!(
+            "Resolving {} (v{}) binary...",
+            backend_name, version_display
+        ))
+        .await
+        .ok();
     let version_param = settings.get_active_backend_version().map(|s| s.as_str());
 
-    let server_binary = match crate::backend::hub::resolve_backend_binary(settings.backend, version_param, Some(log_tx.clone()), progress_tx).await {
+    let server_binary = match crate::backend::hub::resolve_backend_binary(
+        settings.backend,
+        version_param,
+        Some(log_tx.clone()),
+        progress_tx,
+    )
+    .await
+    {
         Ok(path) => {
             info!("spawn_server: resolved binary path={}", path.display());
             path
@@ -369,9 +535,10 @@ pub async fn spawn_server(
     {
         use std::os::unix::fs::PermissionsExt;
         if let Ok(metadata) = binary.metadata()
-            && metadata.permissions().mode() & 0o111 == 0 {
-                return Err(format!("Binary is not executable: {}", binary.display()));
-            }
+            && metadata.permissions().mode() & 0o111 == 0
+        {
+            return Err(format!("Binary is not executable: {}", binary.display()));
+        }
     }
 
     let (mut cmd, cmd_string) = if server_mode == crate::models::ServerMode::Bench {
@@ -381,11 +548,17 @@ pub async fn spawn_server(
             return Err("Model required for benchmark".to_string());
         }
     } else {
-        build_server_cmd(&binary, model, settings, config, server_mode, router_max_models)
+        build_server_cmd(
+            &binary,
+            model,
+            settings,
+            config,
+            server_mode,
+            router_max_models,
+        )
     };
 
-    cmd.stdout(Stdio::piped())
-       .stderr(Stdio::piped());
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
     // Set platform-specific env vars so the binary can find its shared libraries
     let bin_dir = binary.parent().unwrap();
@@ -401,7 +574,10 @@ pub async fn spawn_server(
         "macos" => {
             // On macOS, set DYLD_LIBRARY_PATH for dylib loading
             if let Ok(current) = std::env::var("DYLD_LIBRARY_PATH") {
-                cmd.env("DYLD_LIBRARY_PATH", format!("{}:{}", bin_dir.display(), current));
+                cmd.env(
+                    "DYLD_LIBRARY_PATH",
+                    format!("{}:{}", bin_dir.display(), current),
+                );
             } else {
                 cmd.env("DYLD_LIBRARY_PATH", bin_dir);
             }
@@ -409,7 +585,10 @@ pub async fn spawn_server(
         _ => {
             // On Linux, set LD_LIBRARY_PATH for so loading
             if let Ok(current) = std::env::var("LD_LIBRARY_PATH") {
-                cmd.env("LD_LIBRARY_PATH", format!("{}:{}", bin_dir.display(), current));
+                cmd.env(
+                    "LD_LIBRARY_PATH",
+                    format!("{}:{}", bin_dir.display(), current),
+                );
             } else {
                 cmd.env("LD_LIBRARY_PATH", bin_dir);
             }
@@ -417,8 +596,12 @@ pub async fn spawn_server(
     }
 
     info!("Spawning: {}", cmd_string);
-    let _ = log_tx.send(format!("{}: {}", backend_name, cmd_string)).await;
-    let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn process: {}", e))?;
+    let _ = log_tx
+        .send(format!("{}: {}", backend_name, cmd_string))
+        .await;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn process: {}", e))?;
     let pid = child.id().unwrap_or(0);
 
     let (kill_tx, mut kill_rx) = mpsc::channel(1);
@@ -477,20 +660,36 @@ pub async fn spawn_server(
         }
 
         // Wait for reader tasks to finish
-        if let Some(h) = std_out.take() { let _ = h.await; }
-        if let Some(h) = std_err.take() { let _ = h.await; }
+        if let Some(h) = std_out.take() {
+            let _ = h.await;
+        }
+        if let Some(h) = std_err.take() {
+            let _ = h.await;
+        }
 
         let exit_code = child.wait().await.ok().map(|s| s.code()).flatten();
         let _ = exit_tx_inner.send(()).await;
-        let _ = log_tx_inner.send(format!("{} exited with code {:?}", backend_name_upper, exit_code)).await;
+        let _ = log_tx_inner
+            .send(format!(
+                "{} exited with code {:?}",
+                backend_name_upper, exit_code
+            ))
+            .await;
     });
 
-    Ok((ServerHandle {
-        port: if server_mode == crate::models::ServerMode::Bench { 0 } else { settings.port },
-        host: settings.host.clone(),
-        pid,
-        kill_tx,
-    }, cmd_string))
+    Ok((
+        ServerHandle {
+            port: if server_mode == crate::models::ServerMode::Bench {
+                0
+            } else {
+                settings.port
+            },
+            host: settings.host.clone(),
+            pid,
+            kill_tx,
+        },
+        cmd_string,
+    ))
 }
 
 /// Check if the server is healthy and responsive.
@@ -501,7 +700,7 @@ pub async fn check_health(host: &str, port: u16) -> bool {
         .timeout(std::time::Duration::from_secs(1))
         .build()
         .unwrap_or_default();
-    
+
     match client.get(&url).send().await {
         Ok(resp) => resp.status().is_success(),
         Err(_) => false,
@@ -510,11 +709,20 @@ pub async fn check_health(host: &str, port: u16) -> bool {
 
 /// Kill a running server.
 pub async fn kill_server(handle: ServerHandle) -> Result<(), String> {
-    handle.kill_tx.send(()).await.map_err(|_| "Server already stopped".to_string())
+    handle
+        .kill_tx
+        .send(())
+        .await
+        .map_err(|_| "Server already stopped".to_string())
 }
 
 /// Poll metrics from the server.
-pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: Option<u32>) -> Result<ServerMetrics, String> {
+pub async fn get_metrics(
+    host: &str,
+    port: u16,
+    model_name: Option<&str>,
+    pid: Option<u32>,
+) -> Result<ServerMetrics, String> {
     let host = clean_host(host);
     // We prefer the /metrics endpoint as it's more stable for system info.
     // In router mode, we can specify the model via query parameter.
@@ -524,21 +732,31 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
     } else {
         format!("http://{}:{}/metrics", host, port)
     };
-    
-    let mut resp = reqwest::get(&url).await.map_err(|e| format!("Failed to get metrics: {}", e))?;
+
+    let mut resp = reqwest::get(&url)
+        .await
+        .map_err(|e| format!("Failed to get metrics: {}", e))?;
 
     // If model-specific metrics fail with 404 or 400, try plain /metrics
-    if (resp.status() == reqwest::StatusCode::NOT_FOUND || resp.status() == reqwest::StatusCode::BAD_REQUEST) && model_name.is_some() {
+    if (resp.status() == reqwest::StatusCode::NOT_FOUND
+        || resp.status() == reqwest::StatusCode::BAD_REQUEST)
+        && model_name.is_some()
+    {
         url = format!("http://{}:{}/metrics", host, port);
-        resp = reqwest::get(&url).await.map_err(|e| format!("Failed to get metrics: {}", e))?;
+        resp = reqwest::get(&url)
+            .await
+            .map_err(|e| format!("Failed to get metrics: {}", e))?;
     }
 
     if !resp.status().is_success() {
         return Err(format!("Server returned {}", resp.status()));
     }
 
-    let text = resp.text().await.map_err(|e| format!("Failed to read metrics: {}", e))?;
-    
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read metrics: {}", e))?;
+
     let mut m = ServerMetrics::default();
     m.loaded = true;
 
@@ -572,31 +790,83 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
         }
 
         let is_slot = name_with_labels.contains("slot=\"") || name_with_labels.contains("pool=\"");
-        let name = name_with_labels.split('{').next().unwrap_or(name_with_labels);
+        let name = name_with_labels
+            .split('{')
+            .next()
+            .unwrap_or(name_with_labels);
 
         match name {
-            "llama_kv_cache_usage_bytes" | "kv_cache_usage_bytes" | "llama_server_kv_cache_usage_bytes" | "llama_server_kv_cache_used_bytes" | "llama_server_vram_used_bytes" => {
-                if is_slot { vram_used_slots += val as u64; } else { vram_used_global = vram_used_global.max(val as u64); }
+            "llama_kv_cache_usage_bytes"
+            | "kv_cache_usage_bytes"
+            | "llama_server_kv_cache_usage_bytes"
+            | "llama_server_kv_cache_used_bytes"
+            | "llama_server_vram_used_bytes" => {
+                if is_slot {
+                    vram_used_slots += val as u64;
+                } else {
+                    vram_used_global = vram_used_global.max(val as u64);
+                }
             }
-            "llama_kv_cache_total_bytes" | "kv_cache_total_bytes" | "llama_server_kv_cache_total_bytes" | "llama_server_vram_total_bytes" => {
-                if is_slot { vram_total_slots += val as u64; } else { vram_total_global = vram_total_global.max(val as u64); }
+            "llama_kv_cache_total_bytes"
+            | "kv_cache_total_bytes"
+            | "llama_server_kv_cache_total_bytes"
+            | "llama_server_vram_total_bytes" => {
+                if is_slot {
+                    vram_total_slots += val as u64;
+                } else {
+                    vram_total_global = vram_total_global.max(val as u64);
+                }
             }
-            "llama_model_memory_usage_bytes" | "model_memory_usage_bytes" | "llama_server_model_memory_usage_bytes" | "llama_server_memory_usage_bytes" | "llama_server_ram_usage_bytes" | "llama_server_mem_used_bytes" => {
+            "llama_model_memory_usage_bytes"
+            | "model_memory_usage_bytes"
+            | "llama_server_model_memory_usage_bytes"
+            | "llama_server_memory_usage_bytes"
+            | "llama_server_ram_usage_bytes"
+            | "llama_server_mem_used_bytes" => {
                 m.ram_used = m.ram_used.max(val as u64);
             }
-            "llama_kv_cache_tokens_used" | "kv_cache_usage_tokens" | "kv_cache_tokens_used" | "llama_server_kv_cache_tokens_used" | "llamacpp:n_tokens_used" | "llama_server_n_tokens_used" | "llama_server_n_past" | "llamacpp:n_past" => {
-                if is_slot { ctx_used_slots += val as u32; } else { ctx_used_global = ctx_used_global.max(val as u32); }
+            "llama_kv_cache_tokens_used"
+            | "kv_cache_usage_tokens"
+            | "kv_cache_tokens_used"
+            | "llama_server_kv_cache_tokens_used"
+            | "llamacpp:n_tokens_used"
+            | "llama_server_n_tokens_used"
+            | "llama_server_n_past"
+            | "llamacpp:n_past" => {
+                if is_slot {
+                    ctx_used_slots += val as u32;
+                } else {
+                    ctx_used_global = ctx_used_global.max(val as u32);
+                }
             }
-            "llama_kv_cache_tokens_total" | "kv_cache_total_tokens" | "kv_cache_tokens_total" | "llama_server_kv_cache_tokens_total" | "llamacpp:n_ctx" | "llamacpp:n_tokens_max" | "llama_server_n_ctx" | "llama_server_n_tokens_max" => {
-                if is_slot { ctx_max_slots += val as u32; } else { ctx_max_global = ctx_max_global.max(val as u32); }
+            "llama_kv_cache_tokens_total"
+            | "kv_cache_total_tokens"
+            | "kv_cache_tokens_total"
+            | "llama_server_kv_cache_tokens_total"
+            | "llamacpp:n_ctx"
+            | "llamacpp:n_tokens_max"
+            | "llama_server_n_ctx"
+            | "llama_server_n_tokens_max" => {
+                if is_slot {
+                    ctx_max_slots += val as u32;
+                } else {
+                    ctx_max_global = ctx_max_global.max(val as u32);
+                }
             }
-            "llama_server_cpu_usage_percentage" | "cpu_usage_percentage" | "llama_server_cpu_usage" | "llama_server_cpu_percent" => {
+            "llama_server_cpu_usage_percentage"
+            | "cpu_usage_percentage"
+            | "llama_server_cpu_usage"
+            | "llama_server_cpu_percent" => {
                 m.cpu_usage = m.cpu_usage.max(val);
             }
-            "llamacpp:predicted_tokens_seconds" | "llama_server_predicted_tokens_seconds" | "llama_server_tps" => {
+            "llamacpp:predicted_tokens_seconds"
+            | "llama_server_predicted_tokens_seconds"
+            | "llama_server_tps" => {
                 m.tps += val;
             }
-            "llamacpp:prompt_tokens_seconds" | "llama_server_prompt_tokens_seconds" | "llama_server_prompt_tps" => {
+            "llamacpp:prompt_tokens_seconds"
+            | "llama_server_prompt_tokens_seconds"
+            | "llama_server_prompt_tps" => {
                 m.prompt_tps += val;
             }
             "llamacpp:kv_cache_usage_ratio" | "llama_server_kv_cache_usage_ratio" => {
@@ -608,13 +878,29 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
         }
     }
 
-    m.gpu_mem_used = if vram_used_slots > 0 { vram_used_slots } else { vram_used_global };
-    m.gpu_mem_total = if vram_total_slots > 0 { vram_total_slots } else { vram_total_global };
+    m.gpu_mem_used = if vram_used_slots > 0 {
+        vram_used_slots
+    } else {
+        vram_used_global
+    };
+    m.gpu_mem_total = if vram_total_slots > 0 {
+        vram_total_slots
+    } else {
+        vram_total_global
+    };
 
     // ctx_used = tokens currently in the KV cache.
     // ctx_max = the total context window size allocated by the server.
-    m.ctx_used = if ctx_used_slots > 0 { ctx_used_slots } else { ctx_used_global };
-    m.ctx_max = if ctx_max_slots > 0 { ctx_max_slots } else { ctx_max_global };
+    m.ctx_used = if ctx_used_slots > 0 {
+        ctx_used_slots
+    } else {
+        ctx_used_global
+    };
+    m.ctx_max = if ctx_max_slots > 0 {
+        ctx_max_slots
+    } else {
+        ctx_max_global
+    };
     // ctx_max may be overridden in poll_metrics() by the user-configured value.
 
     // Prefer actual GPU memory usage from nvidia-smi or amdgpu_top.
@@ -673,7 +959,10 @@ pub async fn get_metrics(host: &str, port: u16, model_name: Option<&str>, pid: O
 /// Get VRAM usage using nvidia-smi
 fn get_nvidia_vram_metrics() -> Result<(u64, u64), String> {
     let output = std::process::Command::new("nvidia-smi")
-        .args(["--query-gpu=memory.used,memory.total", "--format=csv,noheader,nounits"])
+        .args([
+            "--query-gpu=memory.used,memory.total",
+            "--format=csv,noheader,nounits",
+        ])
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -704,8 +993,9 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
         return Err("amdgpu_top failed".to_string());
     }
 
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())?;
-    
+    let json: serde_json::Value =
+        serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())?;
+
     // amdgpu_top --json output has a "devices" array (or sometimes just a list of objects depending on version)
     let devices = if json.is_array() {
         json.as_array()
@@ -714,69 +1004,88 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
     };
 
     if let Some(devices) = devices
-        && let Some(device) = devices.first() {
-            // Priority 1: Check root keys (newer amdgpu_top format as provided by user)
-            // "VRAM Usage Size": 3070128128, "VRAM Size": 8589934592
-            let root_used = device.get("VRAM Usage Size").and_then(|v| v.as_u64());
-            let root_total = device.get("VRAM Size").and_then(|v| v.as_u64());
-            
-            if let (Some(used), Some(total)) = (root_used, root_total)
-                && total > 0 {
-                    return Ok((used, total));
-                }
+        && let Some(device) = devices.first()
+    {
+        // Priority 1: Check root keys (newer amdgpu_top format as provided by user)
+        // "VRAM Usage Size": 3070128128, "VRAM Size": 8589934592
+        let root_used = device.get("VRAM Usage Size").and_then(|v| v.as_u64());
+        let root_total = device.get("VRAM Size").and_then(|v| v.as_u64());
 
-            // Priority 2: Check nested VRAM object (alternative format)
-            let vram_obj = device.get("VRAM");
-            if let Some(vram) = vram_obj {
-                // Check if it's the "Total VRAM Usage" format (usually MiB)
-                let nested_used = vram.get("Total VRAM Usage")
-                    .and_then(|v| v.get("value").or(Some(v)))
-                    .and_then(|v| v.as_u64());
-                let nested_total = vram.get("Total VRAM")
-                    .and_then(|v| v.get("value").or(Some(v)))
-                    .and_then(|v| v.as_u64());
+        if let (Some(used), Some(total)) = (root_used, root_total)
+            && total > 0
+        {
+            return Ok((used, total));
+        }
 
-                if let (Some(used), Some(total)) = (nested_used, nested_total) {
-                    // These are usually in MiB if they have a "unit" field
-                    let multiplier = if vram.get("Total VRAM").and_then(|v| v.get("unit")).is_some() {
-                        1024 * 1024
-                    } else {
-                        1
-                    };
-                    if total > 0 {
-                        return Ok((used * multiplier, total * multiplier));
-                    }
-                }
-            }
-            
-            // Priority 3: Check vram_usage key (older format)
-            let vram_usage = device.get("vram_usage");
-            if let Some(vram) = vram_usage {
-                let used = vram.get("VRAM").or_else(|| vram.get("usage"))
-                    .and_then(|v| v.get("value").or(Some(v)))
-                    .and_then(|v| v.as_u64()).unwrap_or(0);
-                let total = vram.get("TotalVRAM").or_else(|| vram.get("total"))
-                    .and_then(|v| v.get("value").or(Some(v)))
-                    .and_then(|v| v.as_u64()).unwrap_or(0);
-                
+        // Priority 2: Check nested VRAM object (alternative format)
+        let vram_obj = device.get("VRAM");
+        if let Some(vram) = vram_obj {
+            // Check if it's the "Total VRAM Usage" format (usually MiB)
+            let nested_used = vram
+                .get("Total VRAM Usage")
+                .and_then(|v| v.get("value").or(Some(v)))
+                .and_then(|v| v.as_u64());
+            let nested_total = vram
+                .get("Total VRAM")
+                .and_then(|v| v.get("value").or(Some(v)))
+                .and_then(|v| v.as_u64());
+
+            if let (Some(used), Some(total)) = (nested_used, nested_total) {
+                // These are usually in MiB if they have a "unit" field
+                let multiplier = if vram.get("Total VRAM").and_then(|v| v.get("unit")).is_some() {
+                    1024 * 1024
+                } else {
+                    1
+                };
                 if total > 0 {
-                    return Ok((used * 1024 * 1024, total * 1024 * 1024));
+                    return Ok((used * multiplier, total * multiplier));
                 }
             }
         }
+
+        // Priority 3: Check vram_usage key (older format)
+        let vram_usage = device.get("vram_usage");
+        if let Some(vram) = vram_usage {
+            let used = vram
+                .get("VRAM")
+                .or_else(|| vram.get("usage"))
+                .and_then(|v| v.get("value").or(Some(v)))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let total = vram
+                .get("TotalVRAM")
+                .or_else(|| vram.get("total"))
+                .and_then(|v| v.get("value").or(Some(v)))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+
+            if total > 0 {
+                return Ok((used * 1024 * 1024, total * 1024 * 1024));
+            }
+        }
+    }
 
     Err("Could not find VRAM info in amdgpu_top output".to_string())
 }
 
 /// Linux-specific: Get RAM (RSS) and CPU usage for a PID via /proc
-fn get_process_metrics(pid: u32, cpu_ticks_prev: u64, system_uptime_prev: f64) -> Result<(u64, f64), String> {
+fn get_process_metrics(
+    pid: u32,
+    cpu_ticks_prev: u64,
+    system_uptime_prev: f64,
+) -> Result<(u64, f64), String> {
     #[cfg(target_os = "linux")]
     {
         use std::fs;
-        
+
         // RAM (RSS) from /proc/[pid]/statm (2nd field is RSS in pages)
-        let statm = fs::read_to_string(format!("/proc/{}/statm", pid)).map_err(|e| e.to_string())?;
-        let pages: u64 = statm.split_whitespace().nth(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+        let statm =
+            fs::read_to_string(format!("/proc/{}/statm", pid)).map_err(|e| e.to_string())?;
+        let pages: u64 = statm
+            .split_whitespace()
+            .nth(1)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
         let ram = pages * 4096; // assumes 4KB page size, typical for Linux
 
         // CPU from /proc/[pid]/stat - compute delta-based CPU usage
@@ -786,23 +1095,27 @@ fn get_process_metrics(pid: u32, cpu_ticks_prev: u64, system_uptime_prev: f64) -
             let utime: u64 = parts[13].parse().unwrap_or(0);
             let stime: u64 = parts[14].parse().unwrap_or(0);
             let start_time: u64 = parts[21].parse().unwrap_or(0);
-            
+
             let uptime = fs::read_to_string("/proc/uptime").unwrap_or_default();
-            let system_uptime: f64 = uptime.split_whitespace().next().and_then(|s| s.parse().ok()).unwrap_or(0.0);
-            
+            let system_uptime: f64 = uptime
+                .split_whitespace()
+                .next()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0.0);
+
             let clk_tck = {
-            #[cfg(target_os = "linux")]
-            {
-                unsafe { libc::sysconf(libc::_SC_CLK_TCK) as f64 }
-            }
-            #[cfg(not(target_os = "linux"))]
-            {
-                100.0
-            }
-        };
+                #[cfg(target_os = "linux")]
+                {
+                    unsafe { libc::sysconf(libc::_SC_CLK_TCK) as f64 }
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
+                    100.0
+                }
+            };
             let total_time = (utime + stime) as f64 / clk_tck;
             let seconds = system_uptime - (start_time as f64 / clk_tck);
-            
+
             let cpu = if cpu_ticks_prev > 0 && system_uptime_prev > 0.0 {
                 let ticks_delta = (utime + stime) as f64 - cpu_ticks_prev as f64;
                 let wall_delta = system_uptime - system_uptime_prev;
@@ -828,22 +1141,30 @@ fn get_process_metrics(pid: u32, cpu_ticks_prev: u64, system_uptime_prev: f64) -
 }
 
 /// Load a model via the llama-server Router API.
-pub async fn load_model(host: &str, port: u16, model_id: &str, model_path: Option<&str>) -> Result<(), String> {
+pub async fn load_model(
+    host: &str,
+    port: u16,
+    model_id: &str,
+    model_path: Option<&str>,
+) -> Result<(), String> {
     let client = reqwest::Client::new();
     let host = clean_host(host);
-    
+
     // Try multiple endpoints
     let endpoints = ["/models/load", "/v1/models/load"];
-    
+
     // Construct all possible identification variants
     let mut variants = Vec::new();
-    
+
     // 1. Original ID (display_name / relative path)
     variants.push(model_id.to_string());
     variants.push(strip_gguf(model_id).to_string());
-    
+
     // 2. Just the filename
-    if let Some(filename) = std::path::Path::new(model_id).file_name().and_then(|f| f.to_str()) {
+    if let Some(filename) = std::path::Path::new(model_id)
+        .file_name()
+        .and_then(|f| f.to_str())
+    {
         variants.push(filename.to_string());
         variants.push(strip_gguf(filename).to_string());
     }
@@ -872,7 +1193,10 @@ pub async fn load_model(host: &str, port: u16, model_id: &str, model_path: Optio
                             return Ok(());
                         }
                         last_status = res.status();
-                        last_error = res.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                        last_error = res
+                            .text()
+                            .await
+                            .unwrap_or_else(|_| "Unknown error".to_string());
                     }
                     Err(e) => {
                         last_error = e.to_string();
@@ -882,16 +1206,25 @@ pub async fn load_model(host: &str, port: u16, model_id: &str, model_path: Optio
         }
     }
 
-    Err(format!("Failed to load model (tried {} variants). Last status {}: {}", variants.len() * 2, last_status, last_error))
+    Err(format!(
+        "Failed to load model (tried {} variants). Last status {}: {}",
+        variants.len() * 2,
+        last_status,
+        last_error
+    ))
 }
 
 /// List all models and their status from the llama-server Router API.
-pub async fn list_models(host: &str, port: u16) -> Result<Vec<(String, String, Option<String>)>, String> {
+pub async fn list_models(
+    host: &str,
+    port: u16,
+) -> Result<Vec<(String, String, Option<String>)>, String> {
     let client = reqwest::Client::new();
     let host = clean_host(host);
     let url = format!("http://{}:{}/models", host, port);
-    
-    let res = client.get(&url)
+
+    let res = client
+        .get(&url)
         .send()
         .await
         .map_err(|e| format!("Failed to list models: {}", e))?;
@@ -900,22 +1233,32 @@ pub async fn list_models(host: &str, port: u16) -> Result<Vec<(String, String, O
         return Err(format!("Server returned error {}", res.status()));
     }
 
-    let json: serde_json::Value = res.json().await.map_err(|e| format!("Invalid JSON: {}", e))?;
-    
+    let json: serde_json::Value = res
+        .json()
+        .await
+        .map_err(|e| format!("Invalid JSON: {}", e))?;
+
     let mut results = Vec::new();
     if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
         for model in data {
-            let id = model.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let id = model
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
             // Status can be a string or an object with a "value" field
-            let status = model.get("status")
+            let status = model
+                .get("status")
                 .and_then(|s| s.get("value").or(Some(s)))
                 .and_then(|v| v.as_str())
                 .unwrap_or("unloaded")
                 .to_string();
-            let path = model.get("path").or_else(|| model.get("filename"))
+            let path = model
+                .get("path")
+                .or_else(|| model.get("filename"))
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
-                
+
             results.push((id, status, path));
         }
     }
@@ -924,7 +1267,12 @@ pub async fn list_models(host: &str, port: u16) -> Result<Vec<(String, String, O
 }
 
 /// Unload a model via the llama-server Router API.
-pub async fn unload_model(host: &str, port: u16, model_id: &str, model_path: Option<&str>) -> Result<(), String> {
+pub async fn unload_model(
+    host: &str,
+    port: u16,
+    model_id: &str,
+    model_path: Option<&str>,
+) -> Result<(), String> {
     let client = reqwest::Client::new();
     let host = clean_host(host);
 
@@ -943,9 +1291,10 @@ pub async fn unload_model(host: &str, port: u16, model_id: &str, model_path: Opt
             });
 
             if let Ok(res) = client.post(&url).json(&body).send().await
-                && res.status().is_success() {
-                    return Ok(());
-                }
+                && res.status().is_success()
+            {
+                return Ok(());
+            }
         }
     }
 

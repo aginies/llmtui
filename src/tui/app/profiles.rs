@@ -6,12 +6,18 @@ impl App {
         self.settings = profile.apply(self.settings.clone());
         self.resolve_system_prompt();
         self.settings_state.settings_render_cache = None;
-        self.add_log(format!("Applied profile: {}", profile.name), crate::config::LogLevel::Info);
+        self.add_log(
+            format!("Applied profile: {}", profile.name),
+            crate::config::LogLevel::Info,
+        );
     }
 
     /// Resolve system_prompt from the preset name.
     pub fn resolve_system_prompt(&mut self) {
-        if let Some(content) = self.config.get_preset_content(&self.settings.system_prompt_preset_name) {
+        if let Some(content) = self
+            .config
+            .get_preset_content(&self.settings.system_prompt_preset_name)
+        {
             self.settings.system_prompt = content;
         }
     }
@@ -25,9 +31,15 @@ impl App {
         };
         self.config.profiles.save(&profile);
         if let Err(e) = self.config.save() {
-            self.add_log(format!("Failed to save profile: {}", e), crate::config::LogLevel::Error);
+            self.add_log(
+                format!("Failed to save profile: {}", e),
+                crate::config::LogLevel::Error,
+            );
         } else {
-            self.add_log(format!("Saved profile: {}", name), crate::config::LogLevel::Info);
+            self.add_log(
+                format!("Saved profile: {}", name),
+                crate::config::LogLevel::Info,
+            );
         }
     }
 
@@ -38,14 +50,23 @@ impl App {
             let override_cfg = crate::config::ModelOverride::from_settings(&self.settings);
             self.config.model_overrides.save(&name, &override_cfg);
             if let Err(e) = self.config.save() {
-                self.add_log(format!("Failed to save settings for {}: {}", name, e), crate::config::LogLevel::Error);
+                self.add_log(
+                    format!("Failed to save settings for {}: {}", name, e),
+                    crate::config::LogLevel::Error,
+                );
             } else {
-                self.add_log(format!("Saved settings for {}", name), crate::config::LogLevel::Info);
+                self.add_log(
+                    format!("Saved settings for {}", name),
+                    crate::config::LogLevel::Info,
+                );
                 // Update the cache so it reflects the newly saved settings
                 self.model_settings_cache = self.settings.clone();
             }
         } else {
-            self.add_log("No model selected to save settings for", crate::config::LogLevel::Warning);
+            self.add_log(
+                "No model selected to save settings for",
+                crate::config::LogLevel::Warning,
+            );
         }
         self.settings_state.settings_render_cache = None;
     }
@@ -80,8 +101,14 @@ impl App {
         self.settings.max_tokens.hash(&mut h);
         self.settings.repeat_penalty.to_bits().hash(&mut h);
         self.settings.repeat_last_n.hash(&mut h);
-        self.settings.presence_penalty.map(|v| v.to_bits()).hash(&mut h);
-        self.settings.frequency_penalty.map(|v| v.to_bits()).hash(&mut h);
+        self.settings
+            .presence_penalty
+            .map(|v| v.to_bits())
+            .hash(&mut h);
+        self.settings
+            .frequency_penalty
+            .map(|v| v.to_bits())
+            .hash(&mut h);
         self.settings.keep.hash(&mut h);
         self.settings.mmap.hash(&mut h);
         self.settings.numa.hash(&mut h);
@@ -98,36 +125,47 @@ impl App {
     pub fn delete_profile(&mut self, selected_idx: usize) -> bool {
         let builtin = crate::config::builtin_profiles();
         let all_profiles = self.config.profiles.all();
-        
+
         // Check if selection is valid
         if selected_idx >= all_profiles.len() {
             self.add_log("Invalid profile selection", crate::config::LogLevel::Info);
             return false;
         }
-        
+
         // Check if it's a built-in profile
         if selected_idx < builtin.len() {
-            self.add_log("Cannot delete built-in profiles", crate::config::LogLevel::Info);
+            self.add_log(
+                "Cannot delete built-in profiles",
+                crate::config::LogLevel::Info,
+            );
             return false;
         }
-        
+
         let profile = all_profiles[selected_idx].clone();
         let profile_name = profile.name.clone();
-        
+
         self.config.profiles.delete(&profile_name);
-        
+
         if let Err(e) = self.config.save() {
-            self.add_log(format!("Failed to delete profile: {}", e), crate::config::LogLevel::Error);
+            self.add_log(
+                format!("Failed to delete profile: {}", e),
+                crate::config::LogLevel::Error,
+            );
             return false;
         }
-        
-        self.add_log(format!("Deleted profile: {}", profile_name), crate::config::LogLevel::Info);
+
+        self.add_log(
+            format!("Deleted profile: {}", profile_name),
+            crate::config::LogLevel::Info,
+        );
         true
     }
 
     pub fn get_api_port_str(&self) -> String {
         let port = self.settings.api_endpoint_port;
-        let mut cache = super::types::API_PORT_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cache = super::types::API_PORT_CACHE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if cache.0 == port && !cache.1.is_empty() {
             return cache.1.clone();
         }

@@ -159,7 +159,7 @@ pub fn detect_amd_gfx_target() -> Option<String> {
                                 let major = val / 10000;
                                 let minor = (val % 10000) / 100;
                                 let stepping = val % 100;
-                                
+
                                 if stepping > 0 {
                                     return Some(format!("gfx{}{}{}", major, minor, stepping));
                                 } else {

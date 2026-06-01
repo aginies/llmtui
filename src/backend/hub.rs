@@ -38,7 +38,11 @@ fn default_tag(repo: &str) -> String {
 ///
 /// `limit` is the number of results per page (default 10, max 200).
 /// `offset` is the number of results to skip (for pagination).
-pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<crate::models::SearchResult>, usize, Vec<String>)> {
+pub async fn search_models(
+    query: &str,
+    limit: u32,
+    offset: u32,
+) -> Result<(Vec<crate::models::SearchResult>, usize, Vec<String>)> {
     let url = format!(
         "https://huggingface.co/api/models?search={}&limit={}&offset={}&filter=gguf&expand=config&expand=gguf&expand=downloads&expand=likes&expand=tags&expand=pipeline_tag&expand=trendingScore&expand=createdAt",
         urlencoding::encode(query),
@@ -50,8 +54,16 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
     let resp = reqwest::get(&url).await?.error_for_status()?;
     let models: Vec<serde_json::Value> = resp.json().await?;
 
-    let query_words: Vec<String> = query.trim().split_whitespace().map(|w| w.to_lowercase()).collect();
-    let raw_ids: Vec<String> = models.iter().filter_map(|m| m.get("id").and_then(|v| v.as_str())).map(|s| s.to_string()).collect();
+    let query_words: Vec<String> = query
+        .trim()
+        .split_whitespace()
+        .map(|w| w.to_lowercase())
+        .collect();
+    let raw_ids: Vec<String> = models
+        .iter()
+        .filter_map(|m| m.get("id").and_then(|v| v.as_str()))
+        .map(|s| s.to_string())
+        .collect();
     let results: Vec<crate::models::SearchResult> = models
         .into_iter()
         .filter_map(|m| {
@@ -77,18 +89,26 @@ pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<
 
             let downloads = m.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0);
             let likes = m.get("likes").and_then(|v| v.as_u64()).unwrap_or(0);
-            let pipeline_tag = m.get("pipeline_tag").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let pipeline_tag = m
+                .get("pipeline_tag")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
             let trending_score = m.get("trendingScore").and_then(|v| v.as_i64()).unwrap_or(0);
-            let created_at = m.get("createdAt").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let created_at = m
+                .get("createdAt")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
 
             // Extract quantization from tags (e.g. "gguf:Q4_K_M", "gguf:Q8_0")
-            let quantization = tags.iter()
+            let quantization = tags
+                .iter()
                 .find(|t| t.starts_with("gguf:"))
                 .and_then(|t| t.strip_prefix("gguf:"))
                 .map(|s| s.to_string());
 
             // Extract license from tags (e.g. "license:apache-2.0")
-            let license = tags.iter()
+            let license = tags
+                .iter()
                 .find(|t| t.starts_with("license:"))
                 .and_then(|t| t.strip_prefix("license:"))
                 .map(|s| s.to_string());
@@ -149,7 +169,8 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
     for file in &files {
         let path = file.get("path").and_then(|p| p.as_str()).unwrap_or("");
         if path.ends_with(".gguf") {
-            let size = file.get("lfs")
+            let size = file
+                .get("lfs")
                 .and_then(|l| l.get("size"))
                 .and_then(|s| s.as_u64())
                 .unwrap_or(0);
@@ -255,11 +276,12 @@ pub async fn download_file(
 
         // Send progress update at most every 100ms and only if bytes changed
         if last_update.elapsed() >= std::time::Duration::from_millis(100)
-            && progress.downloaded_bytes != last_bytes {
-                let _ = tx.send(progress.clone());
-                last_update = std::time::Instant::now();
-                last_bytes = progress.downloaded_bytes;
-            }
+            && progress.downloaded_bytes != last_bytes
+        {
+            let _ = tx.send(progress.clone());
+            last_update = std::time::Instant::now();
+            last_bytes = progress.downloaded_bytes;
+        }
     }
 
     progress.status = crate::models::DownloadStatus::Complete;
@@ -372,7 +394,7 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
             }
             let name = entry.file_name();
             let name_str = name.to_string_lossy();
-            
+
             // Expected format: llama-server-{backend}-{tag}
             if !name_str.starts_with("llama-server-") {
                 continue;
@@ -381,7 +403,7 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
             // Strip the prefix and split the rest
             let suffix = name_str.strip_prefix("llama-server-").unwrap_or("");
             let parts: Vec<&str> = suffix.split('-').collect();
-            
+
             if parts.len() < 2 {
                 continue;
             }
@@ -390,8 +412,12 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
             let tag = parts[parts.len() - 1].to_string();
             let backend = match (parts[0], parts.get(1).copied()) {
                 ("rocm", Some("lemonade")) => crate::models::Backend::RocmLemonade,
-                ("win", Some("cuda")) if parts.len() >= 4 && parts[2] == "12.4" => crate::models::Backend::CudaWindows12_4,
-                ("win", Some("cuda")) if parts.len() >= 4 && parts[2] == "13.1" => crate::models::Backend::CudaWindows13_1,
+                ("win", Some("cuda")) if parts.len() >= 4 && parts[2] == "12.4" => {
+                    crate::models::Backend::CudaWindows12_4
+                }
+                ("win", Some("cuda")) if parts.len() >= 4 && parts[2] == "13.1" => {
+                    crate::models::Backend::CudaWindows13_1
+                }
                 ("cpu", Some("arm64")) => crate::models::Backend::CpuArm64,
                 ("macos", Some("arm64")) => crate::models::Backend::CpuMacosArm64,
                 ("macos", Some("x64")) => crate::models::Backend::CpuMacosX64,
@@ -411,7 +437,7 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
             }
         }
     }
-    
+
     // Sort by backend then tag descending (usually tag contains version number)
     installed.sort_by(|a, b| {
         let b_cmp = format!("{:?}", a.0).cmp(&format!("{:?}", b.0));
@@ -433,7 +459,11 @@ pub async fn resolve_backend_binary(
     log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
 ) -> Result<std::path::PathBuf> {
-    tracing::info!("resolve_backend_binary: backend={}, version={:?}", backend, version);
+    tracing::info!(
+        "resolve_backend_binary: backend={}, version={:?}",
+        backend,
+        version
+    );
     let tag = match version {
         Some(v) if !v.is_empty() => {
             tracing::info!("  -> using explicit version: {}", v);
@@ -442,15 +472,21 @@ pub async fn resolve_backend_binary(
         _ => {
             // Check if we have any local version first before asking GitHub
             let installed = list_installed_backends();
-            let backend_versions: Vec<_> = installed.iter()
+            let backend_versions: Vec<_> = installed
+                .iter()
                 .filter(|(b, _)| *b == backend)
                 .map(|(_, t)| t.clone())
                 .collect();
-            tracing::info!("  -> no explicit version, found {} installed versions for backend: {:?}", backend_versions.len(), backend);
+            tracing::info!(
+                "  -> no explicit version, found {} installed versions for backend: {:?}",
+                backend_versions.len(),
+                backend
+            );
             for v in &backend_versions {
                 tracing::info!("     installed version: {}", v);
             }
-            let latest_local = installed.iter()
+            let latest_local = installed
+                .iter()
                 .filter(|(b, _)| *b == backend)
                 .map(|(_, t)| t.clone())
                 .next(); // list_installed_backends is already sorted by tag desc
@@ -465,7 +501,10 @@ pub async fn resolve_backend_binary(
                     crate::models::Backend::Cuda => "ai-dock/llama.cpp-cuda",
                     _ => "ggml-org/llama.cpp",
                 };
-                tracing::info!("  -> no local version, fetching latest from GitHub repo: {}", repo);
+                tracing::info!(
+                    "  -> no local version, fetching latest from GitHub repo: {}",
+                    repo
+                );
                 fetch_latest_release_tag(repo, &default_tag(repo)).await
             }
         }
@@ -474,12 +513,21 @@ pub async fn resolve_backend_binary(
     let bin_dir = get_backend_dir(backend, &tag);
     let bin_name = binary_name();
     let bin_path = bin_dir.join(bin_name);
-    tracing::info!("  -> resolved tag={}, bin_dir={}, bin_path={}", tag, bin_dir.display(), bin_path.display());
+    tracing::info!(
+        "  -> resolved tag={}, bin_dir={}, bin_path={}",
+        tag,
+        bin_dir.display(),
+        bin_path.display()
+    );
 
     // Check if both the binary and at least one shared library exist
     let lib_name = lib_sentinel_name();
     let lib_sentinel = bin_dir.join(lib_name);
-    tracing::info!("  -> checking binary existence: bin_path={} lib_sentinel={}", bin_path.exists(), lib_sentinel.exists());
+    tracing::info!(
+        "  -> checking binary existence: bin_path={} lib_sentinel={}",
+        bin_path.exists(),
+        lib_sentinel.exists()
+    );
 
     if bin_path.exists() && lib_sentinel.exists() {
         tracing::info!("  -> binary already exists, returning cached path");
@@ -497,70 +545,98 @@ pub async fn resolve_backend_binary(
     let (download_url, is_zip) = match backend {
         // Linux x64 backends
         crate::models::Backend::Cpu => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-x64.tar.gz"),
-            false
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-x64.tar.gz"
+            ),
+            false,
         ),
         crate::models::Backend::Vulkan => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz"),
-            false
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz"
+            ),
+            false,
         ),
         crate::models::Backend::Rocm => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz"),
-            false
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz"
+            ),
+            false,
         ),
         crate::models::Backend::RocmLemonade => {
             use crate::backend::hardware::{detect_amd_gfx_target, get_lemonade_gfx_suffix};
             let gfx = detect_amd_gfx_target().unwrap_or_else(|| "gfx1100".to_string());
             let suffix = get_lemonade_gfx_suffix(&gfx);
             (
-                format!("https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/{tag}/llama-{tag}-ubuntu-rocm-{suffix}-x64.zip"),
-                true
+                format!(
+                    "https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/{tag}/llama-{tag}-ubuntu-rocm-{suffix}-x64.zip"
+                ),
+                true,
             )
         }
         crate::models::Backend::Cuda => (
-            format!("https://github.com/ai-dock/llama.cpp-cuda/releases/download/{tag}/llama.cpp-{tag}-cuda-12.8-amd64.tar.gz"),
-            false
+            format!(
+                "https://github.com/ai-dock/llama.cpp-cuda/releases/download/{tag}/llama.cpp-{tag}-cuda-12.8-amd64.tar.gz"
+            ),
+            false,
         ),
         // Linux ARM64
         crate::models::Backend::CpuArm64 => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-arm64.tar.gz"),
-            false
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-arm64.tar.gz"
+            ),
+            false,
         ),
         // Windows backends
         crate::models::Backend::CpuWindows => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cpu-x64.zip"),
-            true
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cpu-x64.zip"
+            ),
+            true,
         ),
         crate::models::Backend::VulkanWindows => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-vulkan-x64.zip"),
-            true
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-vulkan-x64.zip"
+            ),
+            true,
         ),
         crate::models::Backend::CudaWindows12_4 => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cuda-12.4-x64.zip"),
-            true
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cuda-12.4-x64.zip"
+            ),
+            true,
         ),
         crate::models::Backend::CudaWindows13_1 => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cuda-13.1-x64.zip"),
-            true
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cuda-13.1-x64.zip"
+            ),
+            true,
         ),
         crate::models::Backend::HipWindows => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-hip-radeon-x64.zip"),
-            true
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-hip-radeon-x64.zip"
+            ),
+            true,
         ),
         // macOS backends
         crate::models::Backend::CpuMacosArm64 => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-macos-arm64.tar.gz"),
-            false
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-macos-arm64.tar.gz"
+            ),
+            false,
         ),
         crate::models::Backend::CpuMacosX64 => (
-            format!("https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-macos-x64.tar.gz"),
-            false
+            format!(
+                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-macos-x64.tar.gz"
+            ),
+            false,
         ),
     };
 
     if let Some(tx) = &log_tx {
         let _ = tx.send(format!("Download URL: {}", download_url)).await;
-        let _ = tx.send(format!("Install path: {}", bin_dir.display())).await;
+        let _ = tx
+            .send(format!("Install path: {}", bin_dir.display()))
+            .await;
     }
 
     // Download to temp file (GitHub requires User-Agent for releases)
@@ -568,15 +644,25 @@ pub async fn resolve_backend_binary(
     let tmp_filename = format!("llama-server-{}-{}.tmp.{}", backend.slug(), tag, tmp_ext);
     let tmp_path = bin_dir.join(&tmp_filename);
     tracing::info!("  -> downloading to: {}", tmp_path.display());
-    
+
     if let Some(ref tx) = progress_tx {
-        let mut progress = crate::models::DownloadState::new("llama-server".to_string(), tmp_filename.clone(), 0);
+        let mut progress =
+            crate::models::DownloadState::new("llama-server".to_string(), tmp_filename.clone(), 0);
         let download_state = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(1));
-        download_file("llama-server", &tmp_filename, &download_url, &tmp_path, &mut progress, download_state, tx.clone()).await?;
+        download_file(
+            "llama-server",
+            &tmp_filename,
+            &download_url,
+            &tmp_path,
+            &mut progress,
+            download_state,
+            tx.clone(),
+        )
+        .await?;
     } else {
         let resp = client
             .get(&download_url)
-.header("User-Agent", "llm-manager/0.9.9")
+            .header("User-Agent", "llm-manager/0.9.9")
             .send()
             .await?
             .error_for_status()?;
@@ -591,7 +677,7 @@ pub async fn resolve_backend_binary(
 
     // Extract the archive to a temp directory, then pull out the binary and shared libs
     let extract_dir = bin_dir.join(format!("llama-server-{}-{}.extract", backend.slug(), tag));
-    
+
     if let Some(tx) = &log_tx {
         let _ = tx.send("Extracting backend...".to_string()).await;
     }
@@ -604,9 +690,15 @@ pub async fn resolve_backend_binary(
 
     // The archive contains llama-xxx/bin/llama-server; find it and move into bin_dir
     let extracted_bin = extract_dir.join(bin_name);
-    tracing::info!("  -> looking for binary in extracted archive at: {}", extracted_bin.display());
+    tracing::info!(
+        "  -> looking for binary in extracted archive at: {}",
+        extracted_bin.display()
+    );
     if extracted_bin.exists() {
-        tracing::info!("  -> found binary at expected location, moving to {}", bin_path.display());
+        tracing::info!(
+            "  -> found binary at expected location, moving to {}",
+            bin_path.display()
+        );
         std::fs::rename(&extracted_bin, &bin_path)?;
     } else {
         // Try searching recursively for the binary name
@@ -621,7 +713,11 @@ pub async fn resolve_backend_binary(
         if let Some(path) = found {
             std::fs::rename(path, &bin_path)?;
         } else {
-            anyhow::bail!("Could not find {} binary in archive at {}", bin_name, extract_dir.display());
+            anyhow::bail!(
+                "Could not find {} binary in archive at {}",
+                bin_name,
+                extract_dir.display()
+            );
         }
     }
 
@@ -629,7 +725,12 @@ pub async fn resolve_backend_binary(
     let bench_bin_path = bin_dir.join("llama-bench");
     let mut bench_found = None;
     walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
-        if entry.file_name().to_str().map(|n| n == "llama-bench").unwrap_or(false) {
+        if entry
+            .file_name()
+            .to_str()
+            .map(|n| n == "llama-bench")
+            .unwrap_or(false)
+        {
             bench_found = Some(entry.path().to_path_buf());
         }
     });
@@ -638,7 +739,8 @@ pub async fn resolve_backend_binary(
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&bench_bin_path, std::fs::Permissions::from_mode(0o755));
+            let _ =
+                std::fs::set_permissions(&bench_bin_path, std::fs::Permissions::from_mode(0o755));
         }
     }
 
@@ -647,7 +749,9 @@ pub async fn resolve_backend_binary(
     walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
-        if name_str.ends_with(lib_ext) || name_str.contains(&format!(".{}", lib_ext.trim_start_matches('.'))) {
+        if name_str.ends_with(lib_ext)
+            || name_str.contains(&format!(".{}", lib_ext.trim_start_matches('.')))
+        {
             let dest = bin_dir.join(name);
             // Use std::fs::copy which follows symlinks and creates a regular file at dest
             let _ = std::fs::copy(entry.path(), dest);
@@ -670,7 +774,8 @@ pub async fn resolve_backend_binary(
 
 /// Extract a .tar.gz or .zip archive into a directory.
 pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Path) -> Result<()> {
-    let filename = archive_path.file_name()
+    let filename = archive_path
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("");
 
@@ -689,11 +794,11 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
     } else {
         anyhow::bail!("Unsupported archive format: {}", filename);
     }
-    
+
     Ok(())
 }
 
-  /// Recursively walk a directory and call a closure for each entry.
+/// Recursively walk a directory and call a closure for each entry.
 pub fn walk_dir_recursive<F>(dir: &std::path::Path, depth: usize, max_depth: usize, f: &mut F)
 where
     F: FnMut(&std::fs::DirEntry),
