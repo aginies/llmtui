@@ -9,20 +9,79 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     let idx = app.settings_state.settings_selected_idx;
 
     // Build the field list
-    let fields = if app.settings_state.expert_mode {
-        settings::standard_fields().into_iter().chain(settings::expert_fields()).collect::<Vec<_>>()
-    } else {
-        settings::standard_fields()
-    };
+    let fields = settings::filtered_fields(app.settings_state.expert_mode);
     let field = fields.get(idx);
+    let field_id = field.map(|f| f.id);
 
-    // Global settings shortcuts (highest priority)
+    // ── Navigation (highest priority for core interaction) ───────────────────
+
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => {
+            if !app.settings_state.settings_edit_buffer.is_empty() {
+                app.settings_state.settings_edit_buffer.clear();
+            } else {
+                app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(1);
+            }
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            if !app.settings_state.settings_edit_buffer.is_empty() {
+                app.settings_state.settings_edit_buffer.clear();
+            } else {
+                let count = fields.len();
+                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 1).min(count.saturating_sub(1));
+            }
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+        KeyCode::PageDown | KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            if !app.settings_state.settings_edit_buffer.is_empty() {
+                app.settings_state.settings_edit_buffer.clear();
+            } else {
+                let count = fields.len();
+                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 10).min(count.saturating_sub(1));
+            }
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+        KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            if !app.settings_state.settings_edit_buffer.is_empty() {
+                app.settings_state.settings_edit_buffer.clear();
+            } else {
+                app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(10);
+            }
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+        KeyCode::PageDown => {
+            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_add(5);
+            app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_add(5);
+            let count = fields.len();
+            if app.settings_state.settings_selected_idx >= count {
+                app.settings_state.settings_selected_idx = count.saturating_sub(1);
+            }
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+        KeyCode::PageUp => {
+            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_sub(5);
+            app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(5);
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+        _ => {}
+    }
+
+    // ── Global shortcuts ─────────────────────────────────────────────────────
+
+    // Ctrl+S: save settings
     if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
         app.save_model_settings();
         return;
     }
 
-    // Reset settings to defaults via confirmation dialog (highest priority when dirty)
+    // Ctrl+R: reset settings
     if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
         if app.is_settings_dirty() {
             app.ui.global_mode = GlobalMode::Confirmation {
@@ -72,10 +131,230 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    match key.code {
-        // Max Concurrent Pred: Enter opens picker modal
-        _ if idx == 11 && key.code == KeyCode::Enter => {
-            if app.settings_state.settings_edit_buffer.is_empty() {
+    // ── Field-specific handlers (match on field id) ─────────────────────────
+
+    // System Prompt: open picker modal on Enter
+    if field_id == Some("system_prompt_preset_name") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            app.picker.prompt_picker_entries = app.config.merged_presets()
+                .iter()
+                .map(|p| (p.name.clone(), p.description.clone()))
+                .collect();
+            app.picker.prompt_picker_selected = app.picker.prompt_picker_entries.iter()
+                .position(|(name, _)| name == &app.settings.system_prompt_preset_name)
+                .unwrap_or(0);
+            app.ui.global_mode = GlobalMode::PromptPicker {
+                entries: app.picker.prompt_picker_entries.clone(),
+                selected: app.picker.prompt_picker_selected,
+                editing: false,
+                edit_buffer: String::new(),
+                edit_cursor_pos: 0,
+                confirm_delete: false,
+            };
+            return;
+        }
+    }
+
+    // Keep in memory (mlock): toggle on Enter
+    if field_id == Some("mlock") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            app.settings.mlock = !app.settings.mlock;
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+    }
+
+    // GPU Layers: arrow keys cycle Auto → 1 → 2 → ... → N → All → Auto
+    if field_id == Some("gpu_layers_mode") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            match &app.settings.gpu_layers_mode {
+                crate::models::GpuLayersMode::Specific(n) => {
+                    app.settings_state.settings_edit_buffer = n.to_string();
+                }
+                _ => {
+                    let total = app.loading.model_total_layers;
+                    app.settings.gpu_layers_mode = crate::models::GpuLayersMode::Specific(total.max(1).min(256));
+                    app.update_vram_estimate();
+                    app.settings_state.settings_render_cache = None;
+                }
+            }
+            return;
+        } else if key.code == KeyCode::Left {
+            let total = app.loading.model_total_layers;
+            app.settings.gpu_layers_mode = match &app.settings.gpu_layers_mode {
+                crate::models::GpuLayersMode::Auto => crate::models::GpuLayersMode::Specific(total.max(1).min(256)),
+                crate::models::GpuLayersMode::Specific(0) => crate::models::GpuLayersMode::Auto,
+                crate::models::GpuLayersMode::Specific(n) if *n == 1 => crate::models::GpuLayersMode::Specific(0),
+                crate::models::GpuLayersMode::Specific(n) => crate::models::GpuLayersMode::Specific(n - 1),
+                crate::models::GpuLayersMode::All => {
+                    let max = total.max(1).min(256);
+                    crate::models::GpuLayersMode::Specific(max)
+                }
+            };
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        } else if key.code == KeyCode::Right {
+            let total = app.loading.model_total_layers;
+            app.settings.gpu_layers_mode = match &app.settings.gpu_layers_mode {
+                crate::models::GpuLayersMode::Auto => crate::models::GpuLayersMode::Specific(1),
+                crate::models::GpuLayersMode::Specific(n) if *n == total => crate::models::GpuLayersMode::All,
+                crate::models::GpuLayersMode::Specific(n) => crate::models::GpuLayersMode::Specific(n + 1),
+                crate::models::GpuLayersMode::All => crate::models::GpuLayersMode::Auto,
+            };
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+    }
+
+    // Flash Attention: toggle on Enter
+    if field_id == Some("flash_attn") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            app.settings.flash_attn = !app.settings.flash_attn;
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+    }
+
+    // KV Cache Offload: toggle on Enter
+    if field_id == Some("kv_cache_offload") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            app.settings.kv_cache_offload = !app.settings.kv_cache_offload;
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+    }
+
+    // Cache Type K: cycle on Enter, or apply typed number
+    if field_id == Some("cache_type_k") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            if key.code == KeyCode::Enter {
+                if let Ok(n) = app.settings_state.settings_edit_buffer.parse::<u8>() {
+                    app.settings.cache_type_k = Some(crate::models::CacheTypeK::from_u8(n));
+                    app.update_vram_estimate();
+                }
+                app.settings_state.settings_edit_buffer.clear();
+                app.settings_state.settings_render_cache = None;
+            } else {
+                app.settings_state.settings_edit_buffer.clear();
+            }
+            return;
+        } else if key.code == KeyCode::Enter {
+            let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+            val = val.next();
+            app.settings.cache_type_k = Some(val);
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
+            let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+            val = val.prev();
+            app.settings.cache_type_k = Some(val);
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
+            let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
+            val = val.next();
+            app.settings.cache_type_k = Some(val);
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+    }
+
+    // Cache Type V: cycle on Enter, or apply typed number
+    if field_id == Some("cache_type_v") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            if key.code == KeyCode::Enter {
+                if let Ok(n) = app.settings_state.settings_edit_buffer.parse::<u8>() {
+                    app.settings.cache_type_v = Some(crate::models::CacheTypeV::from_u8(n));
+                    app.update_vram_estimate();
+                }
+                app.settings_state.settings_edit_buffer.clear();
+                app.settings_state.settings_render_cache = None;
+            } else {
+                app.settings_state.settings_edit_buffer.clear();
+            }
+            return;
+        } else if key.code == KeyCode::Enter {
+            let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+            val = val.next();
+            app.settings.cache_type_v = Some(val);
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
+            let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+            val = val.prev();
+            app.settings.cache_type_v = Some(val);
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
+            let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
+            val = val.next();
+            app.settings.cache_type_v = Some(val);
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+    }
+
+    // Active Experts: Left/Right to adjust
+    if field_id == Some("expert_count") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            if key.code == KeyCode::Enter {
+                if let Ok(v) = app.settings_state.settings_edit_buffer.parse::<i32>() {
+                    app.settings.expert_count = v.clamp(-1, 99);
+                }
+                app.settings_state.settings_edit_buffer.clear();
+                app.settings_state.settings_render_cache = None;
+            } else {
+                app.settings_state.settings_edit_buffer.clear();
+            }
+            return;
+        } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
+            app.settings.expert_count = (app.settings.expert_count as i32 - 1).clamp(-1, 99);
+            app.settings_state.settings_render_cache = None;
+            return;
+        } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
+            app.settings.expert_count = (app.settings.expert_count as i32 + 1).clamp(-1, 99);
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+    }
+
+    // Unified KV: toggle on Enter
+    if field_id == Some("uniform_cache") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            app.settings.uniform_cache = !app.settings.uniform_cache;
+            app.update_vram_estimate();
+            app.settings_state.settings_render_cache = None;
+            return;
+        }
+    }
+
+    // Max Concurrent Pred: Enter opens picker modal
+    if field_id == Some("max_concurrent_predictions") {
+        if app.settings_state.settings_edit_buffer.is_empty() {
+            if key.code == KeyCode::Enter {
                 let current = app.settings.max_concurrent_predictions
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| "1".to_string());
@@ -83,315 +362,112 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     value: current,
                 };
                 app.settings_state.settings_render_cache = None;
-            } else {
+                return;
+            }
+        } else if key.code == KeyCode::Enter {
+            if let Ok(v) = app.settings_state.settings_edit_buffer.parse::<u32>() {
+                app.settings.max_concurrent_predictions = Some(v.clamp(1, 10));
+                sync_global_settings(app);
                 app.settings_state.settings_edit_buffer.clear();
-            }
-        }
-        KeyCode::Up | KeyCode::Char('k') => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else {
-                app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(1);
-            }
-        }
-        KeyCode::Down | KeyCode::Char('j') => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else {
-                let count = fields.len();
-                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 1).min(count.saturating_sub(1));
-            }
-        }
- // Spec type: open picker on Enter
-        _ if idx == 26 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                let entries = vec![
-                    "Off".to_string(),
-                    "draft-mtp".to_string(),
-                    "draft-simple".to_string(),
-                    "draft-eagle3".to_string(),
-                    "ngram-simple".to_string(),
-                    "ngram-map-k".to_string(),
-                    "ngram-map-k4v".to_string(),
-                    "ngram-mod".to_string(),
-                    "ngram-cache".to_string(),
-                ];
-                let spec_type = app.settings.spec_type.clone();
-                let selected = entries.iter().position(|e| e == &spec_type).unwrap_or(0);
-                app.ui.global_mode = GlobalMode::SpecTypePicker { entries, selected };
                 app.settings_state.settings_render_cache = None;
             }
-         }
-         // System Prompt: open picker modal on Enter
-        _ if idx == 0 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                app.picker.prompt_picker_entries = app.config.merged_presets()
-                    .iter()
-                    .map(|p| (p.name.clone(), p.description.clone()))
-                    .collect();
-                app.picker.prompt_picker_selected = app.picker.prompt_picker_entries.iter()
-                    .position(|(name, _)| name == &app.settings.system_prompt_preset_name)
-                    .unwrap_or(0);
-                app.ui.global_mode = GlobalMode::PromptPicker {
-                    entries: app.picker.prompt_picker_entries.clone(),
-                    selected: app.picker.prompt_picker_selected,
-                    editing: false,
-                    edit_buffer: String::new(),
-                    edit_cursor_pos: 0,
-                    confirm_delete: false,
-                };
+            return;
+        } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
+            match app.settings.max_concurrent_predictions {
+                Some(n) => app.settings.max_concurrent_predictions = Some((n as i32 - 1).clamp(1, 10) as u32),
+                None => app.settings.max_concurrent_predictions = Some(1),
             }
-        }
-        // Keep in memory (mlock): toggle on Enter
-        _ if idx == 2 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                app.settings.mlock = !app.settings.mlock;
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
+            sync_global_settings(app);
+            app.settings_state.settings_render_cache = None;
+            return;
+        } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
+            match app.settings.max_concurrent_predictions {
+                Some(n) => app.settings.max_concurrent_predictions = Some((n as i32 + 1).clamp(1, 10) as u32),
+                None => app.settings.max_concurrent_predictions = Some(1),
             }
+            sync_global_settings(app);
+            app.settings_state.settings_render_cache = None;
+            return;
         }
-        // GPU Layers: arrow keys cycle Auto → 1 → 2 → ... → N → All → Auto
-        _ if idx == 3 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                // Enter from specific number: open picker; from Auto/All: cycle to max
-                match &app.settings.gpu_layers_mode {
-                    crate::models::GpuLayersMode::Specific(n) => {
-                        app.settings_state.settings_edit_buffer = n.to_string();
-                    }
-                    _ => {
-                        let total = app.loading.model_total_layers;
-                        app.settings.gpu_layers_mode = crate::models::GpuLayersMode::Specific(total.max(1).min(256));
-                        app.update_vram_estimate();
-                        app.settings_state.settings_render_cache = None;
-                    }
-                }
-            } else if key.code == KeyCode::Left {
-                let total = app.loading.model_total_layers;
-                app.settings.gpu_layers_mode = match &app.settings.gpu_layers_mode {
-                    crate::models::GpuLayersMode::Auto => crate::models::GpuLayersMode::Specific(total.max(1).min(256)),
-                    crate::models::GpuLayersMode::Specific(0) => crate::models::GpuLayersMode::Auto,
-                    crate::models::GpuLayersMode::Specific(n) if *n == 1 => crate::models::GpuLayersMode::Specific(0),
-                    crate::models::GpuLayersMode::Specific(n) => crate::models::GpuLayersMode::Specific(n - 1),
-                    crate::models::GpuLayersMode::All => {
-                        let max = total.max(1).min(256);
-                        crate::models::GpuLayersMode::Specific(max)
-                    }
-                };
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            } else if key.code == KeyCode::Right {
-                let total = app.loading.model_total_layers;
-                app.settings.gpu_layers_mode = match &app.settings.gpu_layers_mode {
-                    crate::models::GpuLayersMode::Auto => crate::models::GpuLayersMode::Specific(1),
-                    crate::models::GpuLayersMode::Specific(n) if *n == total => crate::models::GpuLayersMode::All,
-                    crate::models::GpuLayersMode::Specific(n) => crate::models::GpuLayersMode::Specific(n + 1),
-                    crate::models::GpuLayersMode::All => crate::models::GpuLayersMode::Auto,
-                };
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            }
+    }
+
+    // Tags: open tags modal on Enter
+    if field_id == Some("tags") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            app.edit.tags_editing = true;
+            app.edit.tags_insert_mode = true;
+            app.edit.tags_edit_buffer = String::new();
+            app.edit.tags_selected_idx = None;
+            app.settings_state.settings_render_cache = None;
+            return;
         }
-        // Flash Attention: toggle on Enter
-        _ if idx == 4 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                app.settings.flash_attn = !app.settings.flash_attn;
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            }
+    }
+
+    // Yarn RoPE: toggle on Enter
+    if field_id == Some("rope_yarn_enabled") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
+            app.settings_state.settings_render_cache = None;
+            return;
         }
-        // KV Cache Offload: toggle on Enter
-        _ if idx == 5 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                app.settings.kv_cache_offload = !app.settings.kv_cache_offload;
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            }
+    }
+
+    // Yarn Params: open modal on Enter
+    if field_id == Some("yarn_params") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            app.ui.global_mode = GlobalMode::YarnRoPESettings {
+                scale: format!("{:.2}", app.settings.rope_scale),
+                freq_base: format!("{:.2}", app.settings.rope_freq_base),
+                freq_scale: format!("{:.2}", app.settings.rope_freq_scale),
+                selected_field: -1,
+                editing: false,
+                edit_buffer: String::new(),
+                edit_cursor_pos: 0,
+            };
+            app.settings_state.settings_render_cache = None;
+            return;
         }
-        // Cache Type K: cycle on Enter, or apply typed number
-        _ if idx == 6 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                if key.code == KeyCode::Enter {
-                    if let Ok(n) = app.settings_state.settings_edit_buffer.parse::<u8>() {
-                        app.settings.cache_type_k = Some(crate::models::CacheTypeK::from_u8(n));
-                        app.update_vram_estimate();
-                    }
-                    app.settings_state.settings_edit_buffer.clear();
-                    app.settings_state.settings_render_cache = None;
-                } else {
-                    app.settings_state.settings_edit_buffer.clear();
-                }
-            } else if key.code == KeyCode::Enter {
-                let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
-                val = val.next();
-                app.settings.cache_type_k = Some(val);
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
-                let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
-                val = val.prev();
-                app.settings.cache_type_k = Some(val);
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
-                let mut val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16);
-                val = val.next();
-                app.settings.cache_type_k = Some(val);
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            }
+    }
+
+    // Spec type: open picker on Enter
+    if field_id == Some("is_mtp") {
+        if !app.settings_state.settings_edit_buffer.is_empty() {
+            app.settings_state.settings_edit_buffer.clear();
+        } else if key.code == KeyCode::Enter {
+            let entries = vec![
+                "Off".to_string(),
+                "draft-mtp".to_string(),
+                "draft-simple".to_string(),
+                "draft-eagle3".to_string(),
+                "ngram-simple".to_string(),
+                "ngram-map-k".to_string(),
+                "ngram-map-k4v".to_string(),
+                "ngram-mod".to_string(),
+                "ngram-cache".to_string(),
+            ];
+            let spec_type = app.settings.spec_type.clone();
+            let selected = entries.iter().position(|e| e == &spec_type).unwrap_or(0);
+            app.ui.global_mode = GlobalMode::SpecTypePicker { entries, selected };
+            app.settings_state.settings_render_cache = None;
+            return;
         }
-        // Cache Type V: cycle on Enter, or apply typed number
-        _ if idx == 7 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                if key.code == KeyCode::Enter {
-                    if let Ok(n) = app.settings_state.settings_edit_buffer.parse::<u8>() {
-                        app.settings.cache_type_v = Some(crate::models::CacheTypeV::from_u8(n));
-                        app.update_vram_estimate();
-                    }
-                    app.settings_state.settings_edit_buffer.clear();
-                    app.settings_state.settings_render_cache = None;
-                } else {
-                    app.settings_state.settings_edit_buffer.clear();
-                }
-            } else if key.code == KeyCode::Enter {
-                let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
-                val = val.next();
-                app.settings.cache_type_v = Some(val);
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
-                let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
-                val = val.prev();
-                app.settings.cache_type_v = Some(val);
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
-                let mut val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16);
-                val = val.next();
-                app.settings.cache_type_v = Some(val);
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            }
-        }
-        // Unified KV: toggle on Enter
-        _ if idx == 10 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                app.settings.uniform_cache = !app.settings.uniform_cache;
-                app.update_vram_estimate();
-                app.settings_state.settings_render_cache = None;
-            }
-        }
-        // Tags: open tags modal on Enter
-        // Active Experts: Left/Right to adjust
-        _ if idx == 8 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                if key.code == KeyCode::Enter {
-                    if let Ok(v) = app.settings_state.settings_edit_buffer.parse::<i32>() {
-                        app.settings.expert_count = v.clamp(-1, 99);
-                    }
-                    app.settings_state.settings_edit_buffer.clear();
-                    app.settings_state.settings_render_cache = None;
-                } else {
-                    app.settings_state.settings_edit_buffer.clear();
-                }
-            } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
-                app.settings.expert_count = (app.settings.expert_count as i32 - 1).clamp(-1, 99);
-                app.settings_state.settings_render_cache = None;
-            } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
-                app.settings.expert_count = (app.settings.expert_count as i32 + 1).clamp(-1, 99);
-                app.settings_state.settings_render_cache = None;
-            }
-        }
-        // Tags: open tags modal on Enter
-        _ if idx == 22 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                // Open tags modal
-                app.edit.tags_editing = true;
-                app.edit.tags_insert_mode = true;
-                app.edit.tags_edit_buffer = String::new();
-                app.edit.tags_selected_idx = None;
-                app.settings_state.settings_render_cache = None;
-            }
-        }
-        // LLama.cpp Version: cycle on Enter, or open picker
-        _ if idx == 23 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                // Open version picker for the current backend (not implemented)
-            }
-        }
-        // Yarn RoPE: toggle on Enter
-        _ if idx == 24 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
-                app.settings_state.settings_render_cache = None;
-            }
-        }
-        // Yarn Params: open modal on Enter
-        _ if idx == 25 => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else if key.code == KeyCode::Enter {
-                app.ui.global_mode = GlobalMode::YarnRoPESettings {
-                    scale: format!("{:.2}", app.settings.rope_scale),
-                    freq_base: format!("{:.2}", app.settings.rope_freq_base),
-                    freq_scale: format!("{:.2}", app.settings.rope_freq_scale),
-                    selected_field: -1,
-                    editing: false,
-                    edit_buffer: String::new(),
-                    edit_cursor_pos: 0,
-                };
-                app.settings_state.settings_render_cache = None;
-            }
-        }
-        KeyCode::PageDown | KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else {
-                let count = fields.len();
-                app.settings_state.settings_selected_idx = (app.settings_state.settings_selected_idx + 10).min(count.saturating_sub(1));
-            }
-        }
-        KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
-                app.settings_state.settings_edit_buffer.clear();
-            } else {
-                app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(10);
-            }
-        }
-        KeyCode::PageDown => {
-            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_add(5);
-            app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_add(5);
-        }
-        KeyCode::PageUp => {
-            app.settings_state.settings_scroll_offset = app.settings_state.settings_scroll_offset.saturating_sub(5);
-            app.settings_state.settings_selected_idx = app.settings_state.settings_selected_idx.saturating_sub(5);
-        }
+    }
+
+    // ── Navigation & general edit handlers ──────────────────────────────────
+
+    match key.code {
         KeyCode::Left | KeyCode::Backspace => {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.pop();
             } else if let Some(f) = field {
                 f.adjust(&mut app.settings, -1, app.loading.model_n_ctx_train);
-                if idx == 11 {
+                if field_id == Some("max_concurrent_predictions") {
                     sync_global_settings(app);
                 }
                 app.update_vram_estimate();
@@ -402,7 +478,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if let Some(f) = field {
                 f.adjust(&mut app.settings, 1, app.loading.model_n_ctx_train);
             }
-            if idx == 11 {
+            if field_id == Some("max_concurrent_predictions") {
                 sync_global_settings(app);
             }
             app.update_vram_estimate();
@@ -424,7 +500,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if let Some(f) = field {
                     f.apply_edit(&mut app.settings, &app.settings_state.settings_edit_buffer);
                 }
-                if idx == 11 {
+                if field_id == Some("max_concurrent_predictions") {
                     sync_global_settings(app);
                 }
                 app.settings_state.settings_edit_buffer.clear();

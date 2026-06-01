@@ -1,5 +1,5 @@
 use crate::config::Profile;
-use crate::models::ModelSettings;
+use crate::models::{ModelSettings, CacheTypeK, CacheTypeV, GpuLayersMode, Mirostat, NumMode, SplitMode};
 use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
@@ -15,6 +15,7 @@ pub type CtrlEToggleFn = fn(&mut ModelSettings);
 
 // ── Edit kinds ───────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EditKind {
     /// Direct text entry (digits, decimals, etc.)
     Direct,
@@ -27,7 +28,6 @@ pub enum EditKind {
 // ── SettingField ─────────────────────────────────────────────────────────────
 
 pub struct SettingField {
-    #[allow(dead_code)]
     pub id: &'static str,
     pub name: &'static str,
     pub section: &'static str,
@@ -38,6 +38,8 @@ pub struct SettingField {
     pub ctrl_e_toggle: Option<CtrlEToggleFn>,
     #[allow(dead_code)]
     pub edit_kind: EditKind,
+    pub is_expert: bool,
+    pub is_ultra: bool,
 }
 
 impl SettingField {
@@ -95,6 +97,58 @@ fn field(
         apply_edit,
         ctrl_e_toggle: None,
         edit_kind,
+        is_expert: false,
+        is_ultra: false,
+    }
+}
+
+fn expert_field(
+    id: &'static str,
+    name: &'static str,
+    section: &'static str,
+    display: DisplayFn,
+    dirty: DirtyFn,
+    adjust: AdjustFn,
+    apply_edit: ApplyEditFn,
+    edit_kind: EditKind,
+) -> SettingField {
+    SettingField {
+        id,
+        name,
+        section,
+        display,
+        dirty,
+        adjust,
+        apply_edit,
+        ctrl_e_toggle: None,
+        edit_kind,
+        is_expert: true,
+        is_ultra: false,
+    }
+}
+
+fn ultra_field(
+    id: &'static str,
+    name: &'static str,
+    section: &'static str,
+    display: DisplayFn,
+    dirty: DirtyFn,
+    adjust: AdjustFn,
+    apply_edit: ApplyEditFn,
+    edit_kind: EditKind,
+) -> SettingField {
+    SettingField {
+        id,
+        name,
+        section,
+        display,
+        dirty,
+        adjust,
+        apply_edit,
+        ctrl_e_toggle: None,
+        edit_kind,
+        is_expert: true,
+        is_ultra: true,
     }
 }
 
@@ -110,16 +164,75 @@ fn field_with_toggle(
     edit_kind: EditKind,
 ) -> SettingField {
     SettingField {
-        id, name, section, display, dirty, adjust, apply_edit,
+        id,
+        name,
+        section,
+        display,
+        dirty,
+        adjust,
+        apply_edit,
         ctrl_e_toggle: Some(ctrl_e_toggle),
         edit_kind,
+        is_expert: false,
+        is_ultra: false,
     }
 }
 
-// ── GPU Layers special adjust (needs total_layers from App, so partial) ──────
+fn expert_field_with_toggle(
+    id: &'static str,
+    name: &'static str,
+    section: &'static str,
+    display: DisplayFn,
+    dirty: DirtyFn,
+    adjust: AdjustFn,
+    apply_edit: ApplyEditFn,
+    ctrl_e_toggle: CtrlEToggleFn,
+    edit_kind: EditKind,
+) -> SettingField {
+    SettingField {
+        id,
+        name,
+        section,
+        display,
+        dirty,
+        adjust,
+        apply_edit,
+        ctrl_e_toggle: Some(ctrl_e_toggle),
+        edit_kind,
+        is_expert: true,
+        is_ultra: false,
+    }
+}
+
+fn ultra_field_with_toggle(
+    id: &'static str,
+    name: &'static str,
+    section: &'static str,
+    display: DisplayFn,
+    dirty: DirtyFn,
+    adjust: AdjustFn,
+    apply_edit: ApplyEditFn,
+    ctrl_e_toggle: CtrlEToggleFn,
+    edit_kind: EditKind,
+) -> SettingField {
+    SettingField {
+        id,
+        name,
+        section,
+        display,
+        dirty,
+        adjust,
+        apply_edit,
+        ctrl_e_toggle: Some(ctrl_e_toggle),
+        edit_kind,
+        is_expert: true,
+        is_ultra: true,
+    }
+}
+
+// ── Shared adjustment and toggle logic ───────────────────────────────────────
 
 fn gpu_layers_adjust(settings: &mut ModelSettings, delta: i32, _context_limit: u32) {
-    use crate::models::GpuLayersMode;
     settings.gpu_layers_mode = match (delta, &settings.gpu_layers_mode) {
         (1, GpuLayersMode::Auto) => GpuLayersMode::Specific(1),
         (1, GpuLayersMode::Specific(n)) => GpuLayersMode::Specific(n + 1),
@@ -134,7 +247,6 @@ fn gpu_layers_adjust(settings: &mut ModelSettings, delta: i32, _context_limit: u
 }
 
 fn gpu_layers_apply(settings: &mut ModelSettings, buf: &str) {
-    use crate::models::GpuLayersMode;
     if let Ok(v) = buf.parse::<i32>() {
         settings.gpu_layers_mode = if v < 0 {
             GpuLayersMode::All
@@ -149,24 +261,24 @@ fn toggle_flash_attn(settings: &mut ModelSettings) { settings.flash_attn = !sett
 fn toggle_kv_cache_offload(settings: &mut ModelSettings) { settings.kv_cache_offload = !settings.kv_cache_offload; }
 fn toggle_uniform_cache(settings: &mut ModelSettings) { settings.uniform_cache = !settings.uniform_cache; }
 fn toggle_rope_yarn_enabled(settings: &mut ModelSettings) { settings.rope_yarn_enabled = !settings.rope_yarn_enabled; }
-fn toggle_swa_full(settings: &mut ModelSettings) { settings.swa_full = !settings.swa_full; }
-fn toggle_mmap(settings: &mut ModelSettings) { settings.mmap = !settings.mmap; }
-fn toggle_fit(settings: &mut ModelSettings) { settings.fit = !settings.fit; }
-fn toggle_embedding(settings: &mut ModelSettings) { settings.embedding = !settings.embedding; }
 fn toggle_ignore_eos(settings: &mut ModelSettings) { settings.ignore_eos = !settings.ignore_eos; }
-fn toggle_cache_prompt(settings: &mut ModelSettings) { settings.cache_prompt = !settings.cache_prompt; }
-fn toggle_webui(settings: &mut ModelSettings) { settings.webui = !settings.webui; }
 fn toggle_max_tokens(settings: &mut ModelSettings) { settings.max_tokens = settings.max_tokens.map_or(Some(2048), |_| None); }
 fn toggle_max_concurrent_predictions(settings: &mut ModelSettings) { settings.max_concurrent_predictions = settings.max_concurrent_predictions.map_or(Some(1), |_| None); }
-fn toggle_cache_type_k(settings: &mut ModelSettings) { use crate::models::CacheTypeK; settings.cache_type_k = settings.cache_type_k.map_or(Some(CacheTypeK::F16), |_| None); }
-fn toggle_cache_type_v(settings: &mut ModelSettings) { use crate::models::CacheTypeV; settings.cache_type_v = settings.cache_type_v.map_or(Some(CacheTypeV::F16), |_| None); }
-fn toggle_expert_count(settings: &mut ModelSettings) { settings.expert_count = if settings.expert_count == 0 { 1 } else { 0 }; }
+fn toggle_cache_type_k(settings: &mut ModelSettings) { settings.cache_type_k = settings.cache_type_k.map_or(Some(CacheTypeK::F16), |_| None); }
+fn toggle_cache_type_v(settings: &mut ModelSettings) { settings.cache_type_v = settings.cache_type_v.map_or(Some(CacheTypeV::F16), |_| None); }
+fn toggle_expert_count(settings: &mut ModelSettings) {
+    settings.expert_count = match settings.expert_count {
+        0 => 1,
+        -1 => 0,
+        _ => -1,
+    };
+}
 fn toggle_presence_penalty(settings: &mut ModelSettings) { settings.presence_penalty = settings.presence_penalty.map_or(Some(0.0), |_| None); }
 fn toggle_frequency_penalty(settings: &mut ModelSettings) { settings.frequency_penalty = settings.frequency_penalty.map_or(Some(0.0), |_| None); }
 
-// ── Standard fields (28 fields) ─────────────────────────────────────────────
+// ── All Fields (Interleaved for context-aware expert mode) ────────────────────
 
-pub fn standard_fields() -> Vec<SettingField> {
+pub fn all_fields() -> Vec<SettingField> {
     vec![
         // ── Loading ───────────────────────────────────────────────────────────
         field(
@@ -203,6 +315,80 @@ pub fn standard_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
+        expert_field_with_toggle(
+            "rope_yarn_enabled",
+            "Yarn RoPE",
+            "Loading",
+            |s| s.rope_yarn_enabled.to_string(),
+            |s, c| s.rope_yarn_enabled != c.rope_yarn_enabled,
+            |_, _, _| {},
+            |_, _| {},
+            toggle_rope_yarn_enabled,
+            EditKind::Toggle,
+        ),
+        expert_field(
+            "yarn_params",
+            "Yarn Params",
+            "Loading",
+            |s| format!(
+                "scale={:.2} base={:.2} scale_f={:.2}",
+                s.rope_scale, s.rope_freq_base, s.rope_freq_scale
+            ),
+            |s, c| s.rope_scale != c.rope_scale
+                || s.rope_freq_base != c.rope_freq_base
+                || s.rope_freq_scale != c.rope_freq_scale,
+            |_, _, _| {},
+            |_, _| {},
+            EditKind::Modal,
+        ),
+        ultra_field(
+            "threads_batch",
+            "Threads Batch",
+            "Loading",
+            |s| s.threads_batch.to_string(),
+            |s, c| s.threads_batch != c.threads_batch,
+            |s, delta, _| {
+                s.threads_batch = (s.threads_batch as i32 + delta).max(1) as u32;
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<u32>() {
+                    s.threads_batch = v.max(1);
+                }
+            },
+            EditKind::Direct,
+        ),
+        ultra_field(
+            "ubatch_size",
+            "UBatch Size",
+            "Loading",
+            |s| s.ubatch_size.to_string(),
+            |s, c| s.ubatch_size != c.ubatch_size,
+            |s, delta, _| {
+                s.ubatch_size = (s.ubatch_size as i32 + delta * 64).max(1) as u32;
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<u32>() {
+                    s.ubatch_size = v.max(1);
+                }
+            },
+            EditKind::Direct,
+        ),
+        ultra_field(
+            "keep",
+            "Keep",
+            "Loading",
+            |s| s.keep.to_string(),
+            |s, c| s.keep != c.keep,
+            |s, delta, _| {
+                s.keep = s.keep + delta;
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<i32>() {
+                    s.keep = v;
+                }
+            },
+            EditKind::Direct,
+        ),
         field_with_toggle(
             "mlock",
             "Keep in memory (mlock)",
@@ -214,6 +400,30 @@ pub fn standard_fields() -> Vec<SettingField> {
             toggle_mlock,
             EditKind::Toggle,
         ),
+        expert_field(
+            "numa",
+            "NUMA",
+            "Loading",
+            |s| s.numa.to_string(),
+            |s, c| s.numa != c.numa,
+            |s, delta, _| {
+                let mut val = s.numa;
+                val = match (delta, val) {
+                    (1, NumMode::None) => NumMode::Distribute,
+                    (1, NumMode::Distribute) => NumMode::Isolate,
+                    (1, NumMode::Isolate) => NumMode::Numactl,
+                    (1, NumMode::Numactl) => NumMode::None,
+                    (-1, NumMode::None) => NumMode::Numactl,
+                    (-1, NumMode::Distribute) => NumMode::None,
+                    (-1, NumMode::Isolate) => NumMode::Distribute,
+                    (-1, NumMode::Numactl) => NumMode::Isolate,
+                    _ => val,
+                };
+                s.numa = val;
+            },
+            |_, _| {},
+            EditKind::Toggle,
+        ),
 
         // ── GPU Offload ───────────────────────────────────────────────────────
         field(
@@ -221,13 +431,63 @@ pub fn standard_fields() -> Vec<SettingField> {
             "GPU Layers",
             "GPU Offload",
             |s| match s.gpu_layers_mode {
-                crate::models::GpuLayersMode::Auto => "Auto".to_string(),
-                crate::models::GpuLayersMode::Specific(n) => n.to_string(),
-                crate::models::GpuLayersMode::All => "All".to_string(),
+                GpuLayersMode::Auto => "Auto".to_string(),
+                GpuLayersMode::Specific(n) => n.to_string(),
+                GpuLayersMode::All => "All".to_string(),
             },
             |s, c| s.gpu_layers_mode != c.gpu_layers_mode,
             gpu_layers_adjust,
             gpu_layers_apply,
+            EditKind::Direct,
+        ),
+        ultra_field(
+            "split_mode",
+            "Split Mode",
+            "GPU Offload",
+            |s| s.split_mode.to_string(),
+            |s, c| s.split_mode != c.split_mode,
+            |s, delta, _| {
+                let mut val = s.split_mode;
+                val = match (delta, val) {
+                    (1, SplitMode::None) => SplitMode::Layer,
+                    (1, SplitMode::Layer) => SplitMode::Row,
+                    (1, SplitMode::Row) => SplitMode::Tensor,
+                    (1, SplitMode::Tensor) => SplitMode::None,
+                    (-1, SplitMode::None) => SplitMode::Tensor,
+                    (-1, SplitMode::Layer) => SplitMode::None,
+                    (-1, SplitMode::Row) => SplitMode::Layer,
+                    (-1, SplitMode::Tensor) => SplitMode::Row,
+                    _ => val,
+                };
+                s.split_mode = val;
+            },
+            |_, _| {},
+            EditKind::Toggle,
+        ),
+        ultra_field(
+            "tensor_split",
+            "Tensor Split",
+            "GPU Offload",
+            |s| s.tensor_split.clone(),
+            |s, c| s.tensor_split != c.tensor_split,
+            |_, _, _| {},
+            |_, _| {},
+            EditKind::Modal,
+        ),
+        expert_field(
+            "main_gpu",
+            "Main GPU",
+            "GPU Offload",
+            |s| s.main_gpu.to_string(),
+            |s, c| s.main_gpu != c.main_gpu,
+            |s, delta, _| {
+                s.main_gpu = s.main_gpu + delta;
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<i32>() {
+                    s.main_gpu = v;
+                }
+            },
             EditKind::Direct,
         ),
         field_with_toggle(
@@ -252,7 +512,7 @@ pub fn standard_fields() -> Vec<SettingField> {
             toggle_kv_cache_offload,
             EditKind::Toggle,
         ),
-        field_with_toggle(
+        expert_field_with_toggle(
             "cache_type_k",
             "Cache Type K",
             "GPU Offload",
@@ -261,13 +521,11 @@ pub fn standard_fields() -> Vec<SettingField> {
                 .unwrap_or_else(|| "Disabled".to_string()),
             |s, c| s.cache_type_k != c.cache_type_k,
             |s, delta, _| {
-                use crate::models::CacheTypeK;
                 let mut val = s.cache_type_k.unwrap_or(CacheTypeK::F16);
                 val = if delta > 0 { val.next() } else { val.prev() };
                 s.cache_type_k = Some(val);
             },
             |s, buf| {
-                use crate::models::CacheTypeK;
                 if let Ok(n) = buf.parse::<u8>() {
                     s.cache_type_k = Some(CacheTypeK::from_u8(n));
                 }
@@ -275,7 +533,7 @@ pub fn standard_fields() -> Vec<SettingField> {
             toggle_cache_type_k,
             EditKind::Direct,
         ),
-        field_with_toggle(
+        expert_field_with_toggle(
             "cache_type_v",
             "Cache Type V",
             "GPU Offload",
@@ -284,13 +542,11 @@ pub fn standard_fields() -> Vec<SettingField> {
                 .unwrap_or_else(|| "Disabled".to_string()),
             |s, c| s.cache_type_v != c.cache_type_v,
             |s, delta, _| {
-                use crate::models::CacheTypeV;
                 let mut val = s.cache_type_v.unwrap_or(CacheTypeV::F16);
                 val = if delta > 0 { val.next() } else { val.prev() };
                 s.cache_type_v = Some(val);
             },
             |s, buf| {
-                use crate::models::CacheTypeV;
                 if let Ok(n) = buf.parse::<u8>() {
                     s.cache_type_v = Some(CacheTypeV::from_u8(n));
                 }
@@ -298,12 +554,14 @@ pub fn standard_fields() -> Vec<SettingField> {
             toggle_cache_type_v,
             EditKind::Direct,
         ),
-        field_with_toggle(
+        expert_field_with_toggle(
             "expert_count",
             "Active Experts",
             "GPU Offload",
             |s| if s.expert_count > 0 {
                 s.expert_count.to_string()
+            } else if s.expert_count == -1 {
+                "Auto".to_string()
             } else {
                 "Disabled".to_string()
             },
@@ -348,7 +606,7 @@ pub fn standard_fields() -> Vec<SettingField> {
             toggle_uniform_cache,
             EditKind::Toggle,
         ),
-        field_with_toggle(
+        expert_field_with_toggle(
             "max_concurrent_predictions",
             "Max Concurrent Pred",
             "Evaluation",
@@ -452,6 +710,97 @@ pub fn standard_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
+        ultra_field(
+            "typical_p",
+            "Typical P",
+            "Sampling",
+            |s| format!("{:.2}", s.typical_p),
+            |s, c| (s.typical_p - c.typical_p).abs() > 0.001,
+            |s, delta, _| {
+                s.typical_p = ((s.typical_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<i32>() {
+                    s.typical_p = (v as f32 / 100.0).clamp(0.0, 1.0);
+                }
+            },
+            EditKind::Direct,
+        ),
+        ultra_field(
+            "mirostat",
+            "Mirostat",
+            "Sampling",
+            |s| s.mirostat.to_string(),
+            |s, c| s.mirostat != c.mirostat,
+            |s, delta, _| {
+                let mut val = s.mirostat;
+                val = match (delta, val) {
+                    (1, Mirostat::Off) => Mirostat::Mirostat,
+                    (1, Mirostat::Mirostat) => Mirostat::Mirostat2,
+                    (1, Mirostat::Mirostat2) => Mirostat::Off,
+                    (-1, Mirostat::Off) => Mirostat::Mirostat2,
+                    (-1, Mirostat::Mirostat) => Mirostat::Off,
+                    (-1, Mirostat::Mirostat2) => Mirostat::Mirostat,
+                    _ => val,
+                };
+                s.mirostat = val;
+            },
+            |_, _| {},
+            EditKind::Toggle,
+        ),
+        ultra_field(
+            "mirostat_lr",
+            "Mirostat LR",
+            "Sampling",
+            |s| format!("{:.2}", s.mirostat_lr),
+            |s, c| (s.mirostat_lr - c.mirostat_lr).abs() > 0.001,
+            |s, delta, _| {
+                s.mirostat_lr = ((s.mirostat_lr * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<i32>() {
+                    s.mirostat_lr = (v as f32 / 100.0).clamp(0.0, 1.0);
+                }
+            },
+            EditKind::Direct,
+        ),
+        ultra_field(
+            "mirostat_ent",
+            "Mirostat Ent",
+            "Sampling",
+            |s| format!("{:.2}", s.mirostat_ent),
+            |s, c| (s.mirostat_ent - c.mirostat_ent).abs() > 0.001,
+            |s, delta, _| {
+                s.mirostat_ent = ((s.mirostat_ent * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<i32>() {
+                    s.mirostat_ent = (v as f32 / 100.0).clamp(0.0, 10.0);
+                }
+            },
+            EditKind::Direct,
+        ),
+        ultra_field_with_toggle(
+            "ignore_eos",
+            "Ignore EOS",
+            "Sampling",
+            |s| s.ignore_eos.to_string(),
+            |s, c| s.ignore_eos != c.ignore_eos,
+            |_, _, _| {},
+            |_, _| {},
+            toggle_ignore_eos,
+            EditKind::Toggle,
+        ),
+        ultra_field(
+            "samplers",
+            "Samplers",
+            "Sampling",
+            |s| s.samplers.0.clone(),
+            |s, c| s.samplers.0 != c.samplers.0,
+            |_, _, _| {},
+            |_, _| {},
+            EditKind::Modal,
+        ),
         field_with_toggle(
             "max_tokens",
             "Max Tokens",
@@ -510,7 +859,7 @@ pub fn standard_fields() -> Vec<SettingField> {
             },
             EditKind::Direct,
         ),
-        field_with_toggle(
+        expert_field_with_toggle(
             "presence_penalty",
             "Presence Penalty",
             "Repetition",
@@ -534,7 +883,7 @@ pub fn standard_fields() -> Vec<SettingField> {
             toggle_presence_penalty,
             EditKind::Direct,
         ),
-        field_with_toggle(
+        expert_field_with_toggle(
             "frequency_penalty",
             "Freq Penalty",
             "Repetition",
@@ -556,6 +905,104 @@ pub fn standard_fields() -> Vec<SettingField> {
                 }
             },
             toggle_frequency_penalty,
+            EditKind::Direct,
+        ),
+
+        // ── DRY ───────────────────────────────────────────────────────────────
+        ultra_field(
+            "dry_multiplier",
+            "DRY Multiplier",
+            "DRY",
+            |s| format!("{:.2}", s.dry_multiplier),
+            |s, c| (s.dry_multiplier - c.dry_multiplier).abs() > 0.001,
+            |s, delta, _| {
+                s.dry_multiplier = ((s.dry_multiplier * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<i32>() {
+                    s.dry_multiplier = (v as f32 / 100.0).clamp(0.0, 10.0);
+                }
+            },
+            EditKind::Direct,
+        ),
+        ultra_field(
+            "dry_base",
+            "DRY Base",
+            "DRY",
+            |s| format!("{:.2}", s.dry_base),
+            |s, c| (s.dry_base - c.dry_base).abs() > 0.001,
+            |s, delta, _| {
+                s.dry_base = ((s.dry_base * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<i32>() {
+                    s.dry_base = (v as f32 / 100.0).clamp(0.0, 10.0);
+                }
+            },
+            EditKind::Direct,
+        ),
+        ultra_field(
+            "dry_allowed_length",
+            "DRY Allowed Length",
+            "DRY",
+            |s| s.dry_allowed_length.to_string(),
+            |s, c| s.dry_allowed_length != c.dry_allowed_length,
+            |s, delta, _| {
+                s.dry_allowed_length = s.dry_allowed_length + delta;
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<i32>() {
+                    s.dry_allowed_length = v;
+                }
+            },
+            EditKind::Direct,
+        ),
+        ultra_field(
+            "dry_penalty_last_n",
+            "DRY Penalty Last N",
+            "DRY",
+            |s| s.dry_penalty_last_n.to_string(),
+            |s, c| s.dry_penalty_last_n != c.dry_penalty_last_n,
+            |s, delta, _| {
+                s.dry_penalty_last_n = s.dry_penalty_last_n + delta;
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<i32>() {
+                    s.dry_penalty_last_n = v;
+                }
+            },
+            EditKind::Direct,
+        ),
+
+        // ── Speculative Decoding ─────────────────────────────────────────────
+        ultra_field(
+            "spec_type",
+            "Spec Type",
+            "Speculative",
+            |s| if s.spec_type.is_empty() {
+                "Off".to_string()
+            } else {
+                s.spec_type.clone()
+            },
+            |s, c| s.spec_type != c.spec_type,
+            |_, _, _| {},
+            |_, _| {},
+            EditKind::Modal,
+        ),
+        ultra_field(
+            "draft_tokens",
+            "Spec Draft N Max",
+            "Speculative",
+            |s| s.draft_tokens.to_string(),
+            |s, c| s.draft_tokens != c.draft_tokens,
+            |s, delta, _| {
+                s.draft_tokens = (s.draft_tokens as i32 + delta).max(0).min(16) as u32;
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<u32>() {
+                    s.draft_tokens = v.min(16);
+                }
+            },
             EditKind::Direct,
         ),
 
@@ -586,481 +1033,17 @@ pub fn standard_fields() -> Vec<SettingField> {
             |_, _| {},
             EditKind::Modal,
         ),
-
-        // ── Yarn RoPE ─────────────────────────────────────────────────────────
-        field_with_toggle(
-            "rope_yarn_enabled",
-            "Yarn RoPE",
-            "Yarn RoPE",
-            |s| s.rope_yarn_enabled.to_string(),
-            |s, c| s.rope_yarn_enabled != c.rope_yarn_enabled,
-            |_, _, _| {},
-            |_, _| {},
-            toggle_rope_yarn_enabled,
-            EditKind::Toggle,
-        ),
-        field(
-            "yarn_params",
-            "Yarn Params",
-            "Yarn RoPE",
-            |s| format!(
-                "scale={:.2} base={:.2} scale_f={:.2}",
-                s.rope_scale, s.rope_freq_base, s.rope_freq_scale
-            ),
-            |s, c| s.rope_scale != c.rope_scale
-                || s.rope_freq_base != c.rope_freq_base
-                || s.rope_freq_scale != c.rope_freq_scale,
-            |_, _, _| {},
-            |_, _| {},
-            EditKind::Modal,
-        ),
-
-        // ── MTP ───────────────────────────────────────────────────────────────
-        field(
-            "is_mtp",
-            "Spec Type",
-            "Speculative decoding type (draft-mtp, ngram-simple, etc.)",
-            |s| if s.spec_type.is_empty() {
-                "Off".to_string()
-            } else {
-                s.spec_type.clone()
-            },
-            |s, c| s.spec_type != c.spec_type,
-            |_, _, _| {},
-            |_, _| {},
-            EditKind::Modal,
-        ),
-        field(
-            "draft_tokens",
-            "Spec Draft N Max",
-            "Max draft tokens (--spec-draft-n-max)",
-            |s| s.draft_tokens.to_string(),
-            |s, c| s.draft_tokens != c.draft_tokens,
-            |s, delta, _| {
-                s.draft_tokens = (s.draft_tokens as i32 + delta).max(0).min(16) as u32;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<u32>() {
-                    s.draft_tokens = v.min(16);
-                }
-            },
-            EditKind::Direct,
-        ),
     ]
 }
 
-// ── Expert fields (27 fields) ───────────────────────────────────────────────
-
-pub fn expert_fields() -> Vec<SettingField> {
-    vec![
-        // ── Loading Ultra Expert ──────────────────────────────────────────────────
-        field(
-            "threads_batch",
-            "Threads Batch",
-            "Loading Ultra Expert",
-            |s| s.threads_batch.to_string(),
-            |s, c| s.threads_batch != c.threads_batch,
-            |s, delta, _| {
-                s.threads_batch = (s.threads_batch as i32 + delta).max(1) as u32;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<u32>() {
-                    s.threads_batch = v.max(1);
-                }
-            },
-            EditKind::Direct,
-        ),
-        field(
-            "ubatch_size",
-            "UBatch Size",
-            "Loading Ultra Expert",
-            |s| s.ubatch_size.to_string(),
-            |s, c| s.ubatch_size != c.ubatch_size,
-            |s, delta, _| {
-                s.ubatch_size = (s.ubatch_size as i32 + delta * 64).max(1) as u32;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<u32>() {
-                    s.ubatch_size = v.max(1);
-                }
-            },
-            EditKind::Direct,
-        ),
-        field(
-            "keep",
-            "Keep",
-            "Loading Ultra Expert",
-            |s| s.keep.to_string(),
-            |s, c| s.keep != c.keep,
-            |s, delta, _| {
-                s.keep = s.keep + delta;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.keep = v;
-                }
-            },
-            EditKind::Direct,
-        ),
-        field_with_toggle(
-            "swa_full",
-            "SWA Full",
-            "Loading Ultra Expert",
-            |s| s.swa_full.to_string(),
-            |s, c| s.swa_full != c.swa_full,
-            |_, _, _| {},
-            |_, _| {},
-            toggle_swa_full,
-            EditKind::Toggle,
-        ),
-        field_with_toggle(
-            "mmap",
-            "MMap",
-            "Loading Ultra Expert",
-            |s| s.mmap.to_string(),
-            |s, c| s.mmap != c.mmap,
-            |_, _, _| {},
-            |_, _| {},
-            toggle_mmap,
-            EditKind::Toggle,
-        ),
-        field(
-            "numa",
-            "NUMA",
-            "Loading Ultra Expert",
-            |s| s.numa.to_string(),
-            |s, c| s.numa != c.numa,
-            |s, delta, _| {
-                use crate::models::NumMode;
-                let mut val = s.numa;
-                val = match (delta, val) {
-                    (1, NumMode::None) => NumMode::Distribute,
-                    (1, NumMode::Distribute) => NumMode::Isolate,
-                    (1, NumMode::Isolate) => NumMode::Numactl,
-                    (1, NumMode::Numactl) => NumMode::None,
-                    (-1, NumMode::None) => NumMode::Numactl,
-                    (-1, NumMode::Distribute) => NumMode::None,
-                    (-1, NumMode::Isolate) => NumMode::Distribute,
-                    (-1, NumMode::Numactl) => NumMode::Isolate,
-                    _ => val,
-                };
-                s.numa = val;
-            },
-            |_, _| {},
-            EditKind::Toggle,
-        ),
-
-        // ── GPU Ultra Expert ──────────────────────────────────────────────────────
-        field(
-            "split_mode",
-            "Split Mode",
-            "GPU Ultra Expert",
-            |s| s.split_mode.to_string(),
-            |s, c| s.split_mode != c.split_mode,
-            |s, delta, _| {
-                use crate::models::SplitMode;
-                let mut val = s.split_mode;
-                val = match (delta, val) {
-                    (1, SplitMode::None) => SplitMode::Layer,
-                    (1, SplitMode::Layer) => SplitMode::Row,
-                    (1, SplitMode::Row) => SplitMode::Tensor,
-                    (1, SplitMode::Tensor) => SplitMode::None,
-                    (-1, SplitMode::None) => SplitMode::Tensor,
-                    (-1, SplitMode::Layer) => SplitMode::None,
-                    (-1, SplitMode::Row) => SplitMode::Layer,
-                    (-1, SplitMode::Tensor) => SplitMode::Row,
-                    _ => val,
-                };
-                s.split_mode = val;
-            },
-            |_, _| {},
-            EditKind::Toggle,
-        ),
-        field(
-            "tensor_split",
-            "Tensor Split",
-            "GPU Ultra Expert",
-            |s| s.tensor_split.clone(),
-            |s, c| s.tensor_split != c.tensor_split,
-            |_, _, _| {},
-            |_, _| {},
-            EditKind::Modal,
-        ),
-        field(
-            "main_gpu",
-            "Main GPU",
-            "GPU Ultra Expert",
-            |s| s.main_gpu.to_string(),
-            |s, c| s.main_gpu != c.main_gpu,
-            |s, delta, _| {
-                s.main_gpu = s.main_gpu + delta;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.main_gpu = v;
-                }
-            },
-            EditKind::Direct,
-        ),
-        field_with_toggle(
-            "fit",
-            "Fit",
-            "GPU Ultra Expert",
-            |s| s.fit.to_string(),
-            |s, c| s.fit != c.fit,
-            |_, _, _| {},
-            |_, _| {},
-            toggle_fit,
-            EditKind::Toggle,
-        ),
-        field(
-            "lora",
-            "LoRA",
-            "GPU Ultra Expert",
-            |s| s.lora
-                .as_ref()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| "Disabled".to_string()),
-            |s, c| s.lora != c.lora,
-            |_, _, _| {},
-            |_, _| {},
-            EditKind::Modal,
-        ),
-        field(
-            "lora_scaled",
-            "LoRA Scaled",
-            "GPU Ultra Expert",
-            |s| s.lora_scaled
-                .as_ref()
-                .map(|(p, _)| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| "Disabled".to_string()),
-            |s, c| s.lora_scaled != c.lora_scaled,
-            |_, _, _| {},
-            |_, _| {},
-            EditKind::Modal,
-        ),
-        field(
-            "rpc",
-            "RPC",
-            "GPU Ultra Expert",
-            |s| s.rpc.clone(),
-            |s, c| s.rpc != c.rpc,
-            |_, _, _| {},
-            |_, _| {},
-            EditKind::Modal,
-        ),
-        field_with_toggle(
-            "embedding",
-            "Embedding",
-            "GPU Ultra Expert",
-            |s| s.embedding.to_string(),
-            |s, c| s.embedding != c.embedding,
-            |_, _, _| {},
-            |_, _| {},
-            toggle_embedding,
-            EditKind::Toggle,
-        ),
-
-        // ── Sampling Ultra Expert ─────────────────────────────────────────────────
-        field(
-            "typical_p",
-            "Typical P",
-            "Sampling Ultra Expert",
-            |s| format!("{:.2}", s.typical_p),
-            |s, c| (s.typical_p - c.typical_p).abs() > 0.001,
-            |s, delta, _| {
-                s.typical_p = ((s.typical_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.typical_p = (v as f32 / 100.0).clamp(0.0, 1.0);
-                }
-            },
-            EditKind::Direct,
-        ),
-        field(
-            "mirostat",
-            "Mirostat",
-            "Sampling Ultra Expert",
-            |s| s.mirostat.to_string(),
-            |s, c| s.mirostat != c.mirostat,
-            |s, delta, _| {
-                use crate::models::Mirostat;
-                let mut val = s.mirostat;
-                val = match (delta, val) {
-                    (1, Mirostat::Off) => Mirostat::Mirostat,
-                    (1, Mirostat::Mirostat) => Mirostat::Mirostat2,
-                    (1, Mirostat::Mirostat2) => Mirostat::Off,
-                    (-1, Mirostat::Off) => Mirostat::Mirostat2,
-                    (-1, Mirostat::Mirostat) => Mirostat::Off,
-                    (-1, Mirostat::Mirostat2) => Mirostat::Mirostat,
-                    _ => val,
-                };
-                s.mirostat = val;
-            },
-            |_, _| {},
-            EditKind::Toggle,
-        ),
-        field(
-            "mirostat_lr",
-            "Mirostat LR",
-            "Sampling Ultra Expert",
-            |s| format!("{:.2}", s.mirostat_lr),
-            |s, c| (s.mirostat_lr - c.mirostat_lr).abs() > 0.001,
-            |s, delta, _| {
-                s.mirostat_lr = ((s.mirostat_lr * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.mirostat_lr = (v as f32 / 100.0).clamp(0.0, 1.0);
-                }
-            },
-            EditKind::Direct,
-        ),
-        field(
-            "mirostat_ent",
-            "Mirostat Ent",
-            "Sampling Ultra Expert",
-            |s| format!("{:.2}", s.mirostat_ent),
-            |s, c| (s.mirostat_ent - c.mirostat_ent).abs() > 0.001,
-            |s, delta, _| {
-                s.mirostat_ent = ((s.mirostat_ent * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.mirostat_ent = (v as f32 / 100.0).clamp(0.0, 10.0);
-                }
-            },
-            EditKind::Direct,
-        ),
-        field_with_toggle(
-            "ignore_eos",
-            "Ignore EOS",
-            "Sampling Ultra Expert",
-            |s| s.ignore_eos.to_string(),
-            |s, c| s.ignore_eos != c.ignore_eos,
-            |_, _, _| {},
-            |_, _| {},
-            toggle_ignore_eos,
-            EditKind::Toggle,
-        ),
-        field(
-            "samplers",
-            "Samplers",
-            "Sampling Ultra Expert",
-            |s| s.samplers.0.clone(),
-            |s, c| s.samplers.0 != c.samplers.0,
-            |_, _, _| {},
-            |_, _| {},
-            EditKind::Modal,
-        ),
-
-        // ── DRY Ultra Expert ──────────────────────────────────────────────────────
-        field(
-            "dry_multiplier",
-            "DRY Multiplier",
-            "DRY Ultra Expert",
-            |s| format!("{:.2}", s.dry_multiplier),
-            |s, c| (s.dry_multiplier - c.dry_multiplier).abs() > 0.001,
-            |s, delta, _| {
-                s.dry_multiplier = ((s.dry_multiplier * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.dry_multiplier = (v as f32 / 100.0).clamp(0.0, 10.0);
-                }
-            },
-            EditKind::Direct,
-        ),
-        field(
-            "dry_base",
-            "DRY Base",
-            "DRY Ultra Expert",
-            |s| format!("{:.2}", s.dry_base),
-            |s, c| (s.dry_base - c.dry_base).abs() > 0.001,
-            |s, delta, _| {
-                s.dry_base = ((s.dry_base * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.dry_base = (v as f32 / 100.0).clamp(0.0, 10.0);
-                }
-            },
-            EditKind::Direct,
-        ),
-        field(
-            "dry_allowed_length",
-            "DRY Allowed Length",
-            "DRY Ultra Expert",
-            |s| s.dry_allowed_length.to_string(),
-            |s, c| s.dry_allowed_length != c.dry_allowed_length,
-            |s, delta, _| {
-                s.dry_allowed_length = s.dry_allowed_length + delta;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.dry_allowed_length = v;
-                }
-            },
-            EditKind::Direct,
-        ),
-        field(
-            "dry_penalty_last_n",
-            "DRY Penalty Last N",
-            "DRY Ultra Expert",
-            |s| s.dry_penalty_last_n.to_string(),
-            |s, c| s.dry_penalty_last_n != c.dry_penalty_last_n,
-            |s, delta, _| {
-                s.dry_penalty_last_n = s.dry_penalty_last_n + delta;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.dry_penalty_last_n = v;
-                }
-            },
-            EditKind::Direct,
-        ),
-
-        // ── Server Ultra Expert ───────────────────────────────────────────────────
-        field_with_toggle(
-            "cache_prompt",
-            "Cache Prompt",
-            "Server Ultra Expert",
-            |s| s.cache_prompt.to_string(),
-            |s, c| s.cache_prompt != c.cache_prompt,
-            |_, _, _| {},
-            |_, _| {},
-            toggle_cache_prompt,
-            EditKind::Toggle,
-        ),
-        field(
-            "cache_reuse",
-            "Cache Reuse",
-            "Server Ultra Expert",
-            |s| s.cache_reuse.to_string(),
-            |s, c| s.cache_reuse != c.cache_reuse,
-            |s, delta, _| {
-                s.cache_reuse = (s.cache_reuse as i32 + delta).max(0) as u32;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<u32>() {
-                    s.cache_reuse = v;
-                }
-            },
-            EditKind::Direct,
-        ),
-        field_with_toggle(
-            "webui",
-            "WebUI",
-            "Server Ultra Expert",
-            |s| s.webui.to_string(),
-            |s, c| s.webui != c.webui,
-            |_, _, _| {},
-            |_, _| {},
-            toggle_webui,
-            EditKind::Toggle,
-        ),
-    ]
+pub fn filtered_fields(expert_mode: bool) -> Vec<SettingField> {
+    all_fields().into_iter().filter(|f| {
+        if !expert_mode {
+            !f.is_expert
+        } else {
+            !f.is_ultra // In expert mode, hide ultra experts
+        }
+    }).collect()
 }
 
 // ── Simple helper for the server settings panel (tabbed.rs) ──────────────────
@@ -1070,8 +1053,8 @@ pub fn expert_fields() -> Vec<SettingField> {
 pub fn add_setting(
     lines: &mut Vec<Line<'static>>,
     total_count: &mut usize,
-    _settings: &crate::models::ModelSettings,
-    _cached: &crate::models::ModelSettings,
+    _settings: &ModelSettings,
+    _cached: &ModelSettings,
     selected_line_idx: &mut usize,
     selected_content_line: &mut usize,
     idx: usize,
@@ -1238,7 +1221,6 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
             parts.push(format!("webui={}", v));
         }
     }
-    
 
     parts
 }

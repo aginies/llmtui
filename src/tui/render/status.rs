@@ -15,6 +15,10 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     };
     parts.push(Span::styled(format!("[Mode: {}] ", mode_name), Style::default().fg(Color::DarkGray)));
 
+    if app.settings_state.expert_mode {
+        parts.push(Span::styled("[EXPERT] ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)));
+    }
+
     if let Some(handle) = &app.server.server_handle {
         let label = if app.server_mode == crate::models::ServerMode::Bench {
             "BENCHMARKING".to_string()

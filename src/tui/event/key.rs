@@ -5,6 +5,7 @@ use tracing::debug;
 use crate::backend::hub;
 use crate::models::SearchSort;
 use crate::tui::app::{App, ActivePanel, ConfirmationKind, GlobalMode, ModelsMode};
+use crate::tui::settings;
 use super::helpers::{execute_confirmation, sync_global_settings};
 use super::panel::{handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key, handle_settings_key, handle_system_prompt_presets_key};
 use super::readme::{fetch_and_store_readme, fetch_readme_for_selected, handle_readme_key};
@@ -100,13 +101,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Ctrl+X: toggle expert mode
     if key.code == KeyCode::Char('x') && key.modifiers.contains(KeyModifiers::CONTROL) {
         app.settings_state.expert_mode = !app.settings_state.expert_mode;
+        app.add_log(format!("Expert mode: {}", if app.settings_state.expert_mode { "ENABLED" } else { "DISABLED" }), crate::config::LogLevel::Info);
         
         // Ensure selected index is still valid in the new mode
-        let new_fields = if app.settings_state.expert_mode {
-            settings::standard_fields().into_iter().chain(settings::expert_fields()).collect::<Vec<_>>()
-        } else {
-            settings::standard_fields()
-        };
+        let new_fields = settings::filtered_fields(app.settings_state.expert_mode);
         if app.settings_state.settings_selected_idx >= new_fields.len() {
             app.settings_state.settings_selected_idx = new_fields.len().saturating_sub(1);
         }

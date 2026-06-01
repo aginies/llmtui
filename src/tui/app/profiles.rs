@@ -89,6 +89,7 @@ impl App {
         self.settings.threads_batch.hash(&mut h);
         self.settings.get_active_backend_version().hash(&mut h);
         self.settings_state.settings_edit_buffer.hash(&mut h);
+        self.settings_state.expert_mode.hash(&mut h);
         h.finish()
     }
 

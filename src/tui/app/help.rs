@@ -80,6 +80,7 @@ impl App {
                 Line::from(vec![Span::styled("Ctrl+S", y), Span::raw("  Save settings for selected model")]),
                 Line::from(vec![Span::styled("Ctrl+R", y), Span::raw("  Reset to defaults")]),
                 Line::from(vec![Span::styled("Ctrl+E", y), Span::raw("  Toggle enabled/disabled")]),
+                Line::from(vec![Span::styled("Ctrl+X", y), Span::raw("  Toggle expert mode (shows additional parameters)")]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Loading ---", y)]),
                 Line::from(vec![Span::styled("Context", y), Span::raw("  Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more RAM. Typical: 8192-65536 depending on model and RAM.")]),

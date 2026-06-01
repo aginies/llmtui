@@ -49,6 +49,8 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                     parts.push(Span::styled("*unsaved*", r));
                     parts.push(Span::raw("  "));
                 }
+                parts.push(Span::styled("Ctrl+X expert", y));
+                parts.push(Span::raw("  "));
                 parts.push(Span::styled("Ctrl+P profiles", y));
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled("⇥ panels", c));

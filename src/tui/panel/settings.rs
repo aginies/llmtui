@@ -34,11 +34,7 @@ pub fn render_all(app: &mut crate::tui::app::App, area: Rect) -> (Vec<Line<'stat
     // Always runs, regardless of cache hit state.
     let mut lines = Vec::new();
     let mut selected_line_idx = 0;
-    let fields = if app.settings_state.expert_mode {
-        settings::standard_fields().into_iter().chain(settings::expert_fields()).collect::<Vec<_>>()
-    } else {
-        settings::standard_fields()
-    };
+    let fields = settings::filtered_fields(app.settings_state.expert_mode);
     render_settings(
         &mut lines, &mut total_count, &mut selected_line_idx, &mut selected_content_line,
         &fields, settings, cached, selected, edit_buf, editing,
