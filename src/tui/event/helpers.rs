@@ -35,6 +35,13 @@ pub async fn execute_confirmation(app: &mut App, kind: ConfirmationKind) {
     }
 }
 
+pub fn mark_settings_dirty(app: &mut App, recalc_vram: bool) {
+    app.settings_state.settings_render_cache = None;
+    if recalc_vram {
+        app.update_vram_estimate();
+    }
+}
+
 pub fn sync_global_settings(app: &mut App) {
     let changed = app.config.default.host != app.settings.host
         || app.config.default.port != app.settings.port

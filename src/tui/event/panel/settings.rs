@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 
-use super::super::helpers::sync_global_settings;
+use super::super::helpers::{mark_settings_dirty, sync_global_settings};
 use crate::config::builtin_profiles;
 use crate::tui::app::{App, GlobalMode};
 use crate::tui::settings;
@@ -23,7 +23,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_selected_idx =
                     app.settings_state.settings_selected_idx.saturating_sub(1);
             }
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
         KeyCode::Down | KeyCode::Char('j') => {
@@ -34,7 +34,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_selected_idx =
                     (app.settings_state.settings_selected_idx + 1).min(count.saturating_sub(1));
             }
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
         KeyCode::PageDown | KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -45,7 +45,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_selected_idx =
                     (app.settings_state.settings_selected_idx + 10).min(count.saturating_sub(1));
             }
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
         KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -55,7 +55,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_selected_idx =
                     app.settings_state.settings_selected_idx.saturating_sub(10);
             }
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
         KeyCode::PageDown => {
@@ -67,7 +67,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if app.settings_state.settings_selected_idx >= count {
                 app.settings_state.settings_selected_idx = count.saturating_sub(1);
             }
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
         KeyCode::PageUp => {
@@ -75,7 +75,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_scroll_offset.saturating_sub(5);
             app.settings_state.settings_selected_idx =
                 app.settings_state.settings_selected_idx.saturating_sub(5);
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
         _ => {}
@@ -133,9 +133,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         if let Some(f) = field {
             f.ctrl_e_toggle(&mut app.settings);
         }
-        app.update_vram_estimate();
+        mark_settings_dirty(app, true);
         sync_global_settings(app);
-        app.settings_state.settings_render_cache = None;
         return;
     }
 
@@ -176,8 +175,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.settings_state.settings_edit_buffer.clear();
         } else if key.code == KeyCode::Enter {
             app.settings.mlock = !app.settings.mlock;
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         }
     }
@@ -195,8 +193,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     let total = app.loading.model_total_layers;
                     app.settings.gpu_layers_mode =
                         crate::models::GpuLayersMode::Specific(total.max(1).min(256));
-                    app.update_vram_estimate();
-                    app.settings_state.settings_render_cache = None;
+                    mark_settings_dirty(app, true);
                 }
             }
             return;
@@ -218,8 +215,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     crate::models::GpuLayersMode::Specific(max)
                 }
             };
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         } else if key.code == KeyCode::Right {
             let total = app.loading.model_total_layers;
@@ -233,8 +229,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 crate::models::GpuLayersMode::All => crate::models::GpuLayersMode::Auto,
             };
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         }
     }
@@ -245,8 +240,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.settings_state.settings_edit_buffer.clear();
         } else if key.code == KeyCode::Enter {
             app.settings.flash_attn = !app.settings.flash_attn;
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         }
     }
@@ -257,22 +251,21 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.settings_state.settings_edit_buffer.clear();
         } else if key.code == KeyCode::Enter {
             app.settings.kv_cache_offload = !app.settings.kv_cache_offload;
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         }
     }
 
     // Cache Type K: cycle on Enter, or apply typed number
-    if field_id == Some("cache_type_k") {
+      if field_id == Some("cache_type_k") {
         if !app.settings_state.settings_edit_buffer.is_empty() {
             if key.code == KeyCode::Enter {
                 if let Ok(n) = app.settings_state.settings_edit_buffer.parse::<u8>() {
                     app.settings.cache_type_k = Some(crate::models::CacheTypeK::from_u8(n));
-                    app.update_vram_estimate();
+                    mark_settings_dirty(app, true);
                 }
                 app.settings_state.settings_edit_buffer.clear();
-                app.settings_state.settings_render_cache = None;
+                mark_settings_dirty(app, false);
             } else {
                 app.settings_state.settings_edit_buffer.clear();
             }
@@ -284,8 +277,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .unwrap_or(crate::models::CacheTypeK::F16);
             val = val.next();
             app.settings.cache_type_k = Some(val);
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
             let mut val = app
@@ -294,8 +286,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .unwrap_or(crate::models::CacheTypeK::F16);
             val = val.prev();
             app.settings.cache_type_k = Some(val);
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
             let mut val = app
@@ -304,22 +295,21 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .unwrap_or(crate::models::CacheTypeK::F16);
             val = val.next();
             app.settings.cache_type_k = Some(val);
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         }
     }
 
     // Cache Type V: cycle on Enter, or apply typed number
-    if field_id == Some("cache_type_v") {
+     if field_id == Some("cache_type_v") {
         if !app.settings_state.settings_edit_buffer.is_empty() {
             if key.code == KeyCode::Enter {
                 if let Ok(n) = app.settings_state.settings_edit_buffer.parse::<u8>() {
                     app.settings.cache_type_v = Some(crate::models::CacheTypeV::from_u8(n));
-                    app.update_vram_estimate();
+                    mark_settings_dirty(app, true);
                 }
                 app.settings_state.settings_edit_buffer.clear();
-                app.settings_state.settings_render_cache = None;
+                mark_settings_dirty(app, false);
             } else {
                 app.settings_state.settings_edit_buffer.clear();
             }
@@ -331,8 +321,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .unwrap_or(crate::models::CacheTypeV::F16);
             val = val.next();
             app.settings.cache_type_v = Some(val);
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
             let mut val = app
@@ -341,8 +330,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .unwrap_or(crate::models::CacheTypeV::F16);
             val = val.prev();
             app.settings.cache_type_v = Some(val);
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
             let mut val = app
@@ -351,8 +339,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .unwrap_or(crate::models::CacheTypeV::F16);
             val = val.next();
             app.settings.cache_type_v = Some(val);
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         }
     }
@@ -365,18 +352,18 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.settings.expert_count = v.clamp(-1, 99);
                 }
                 app.settings_state.settings_edit_buffer.clear();
-                app.settings_state.settings_render_cache = None;
+                mark_settings_dirty(app, false);
             } else {
                 app.settings_state.settings_edit_buffer.clear();
             }
             return;
         } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
             app.settings.expert_count = (app.settings.expert_count as i32 - 1).clamp(-1, 99);
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
             app.settings.expert_count = (app.settings.expert_count as i32 + 1).clamp(-1, 99);
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
     }
@@ -387,8 +374,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.settings_state.settings_edit_buffer.clear();
         } else if key.code == KeyCode::Enter {
             app.settings.uniform_cache = !app.settings.uniform_cache;
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
             return;
         }
     }
@@ -403,7 +389,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| "1".to_string());
                 app.ui.global_mode = GlobalMode::MaxConcurrentPicker { value: current };
-                app.settings_state.settings_render_cache = None;
+                mark_settings_dirty(app, false);
                 return;
             }
         } else if key.code == KeyCode::Enter {
@@ -411,7 +397,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings.max_concurrent_predictions = Some(v.clamp(1, 10));
                 sync_global_settings(app);
                 app.settings_state.settings_edit_buffer.clear();
-                app.settings_state.settings_render_cache = None;
+                mark_settings_dirty(app, false);
             }
             return;
         } else if key.code == KeyCode::Left || key.code == KeyCode::Char('h') {
@@ -423,7 +409,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 None => app.settings.max_concurrent_predictions = Some(1),
             }
             sync_global_settings(app);
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         } else if key.code == KeyCode::Right || key.code == KeyCode::Char('l') {
             match app.settings.max_concurrent_predictions {
@@ -434,7 +420,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 None => app.settings.max_concurrent_predictions = Some(1),
             }
             sync_global_settings(app);
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
     }
@@ -448,7 +434,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.edit.tags_insert_mode = true;
             app.edit.tags_edit_buffer = String::new();
             app.edit.tags_selected_idx = None;
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
     }
@@ -459,7 +445,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.settings_state.settings_edit_buffer.clear();
         } else if key.code == KeyCode::Enter {
             app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
     }
@@ -478,7 +464,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 edit_buffer: String::new(),
                 edit_cursor_pos: 0,
             };
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
     }
@@ -502,7 +488,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             let spec_type = app.settings.spec_type.clone();
             let selected = entries.iter().position(|e| e == &spec_type).unwrap_or(0);
             app.ui.global_mode = GlobalMode::SpecTypePicker { entries, selected };
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
             return;
         }
     }
@@ -518,9 +504,9 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if field_id == Some("max_concurrent_predictions") {
                     sync_global_settings(app);
                 }
-                app.update_vram_estimate();
+                mark_settings_dirty(app, true);
             }
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
         }
         KeyCode::Right => {
             if let Some(f) = field {
@@ -529,8 +515,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if field_id == Some("max_concurrent_predictions") {
                 sync_global_settings(app);
             }
-            app.update_vram_estimate();
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, true);
         }
         KeyCode::Char(c @ '0'..='9') => {
             app.settings_state.settings_edit_buffer.push(c);
@@ -552,14 +537,14 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     sync_global_settings(app);
                 }
                 app.settings_state.settings_edit_buffer.clear();
-                app.update_vram_estimate();
+                mark_settings_dirty(app, true);
             }
-            app.settings_state.settings_render_cache = None;
+            mark_settings_dirty(app, false);
         }
         KeyCode::Esc => {
             if !app.settings_state.settings_edit_buffer.is_empty() {
                 app.settings_state.settings_edit_buffer.clear();
-                app.update_vram_estimate();
+                mark_settings_dirty(app, true);
             }
         }
         _ => {}

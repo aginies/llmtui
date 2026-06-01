@@ -3,7 +3,7 @@ use ratatui::widgets::TableState;
 use tracing::debug;
 
 use super::benches::handle_rpc_workers_key;
-use super::helpers::{execute_confirmation, sync_global_settings};
+use super::helpers::{execute_confirmation, mark_settings_dirty, sync_global_settings};
 use super::panel::{
     handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key,
     handle_settings_key, handle_system_prompt_presets_key,
@@ -140,7 +140,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.settings_state.settings_selected_idx = new_fields.len().saturating_sub(1);
         }
 
-        app.settings_state.settings_render_cache = None;
+        mark_settings_dirty(app, false);
         return;
     }
 
@@ -424,7 +424,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 } else {
                     selected_entry
                 };
-                app.settings_state.settings_render_cache = None;
+                mark_settings_dirty(app, false);
                 app.ui.global_mode = GlobalMode::Normal;
                 return;
             }
@@ -619,7 +619,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         app.edit.tags_insert_mode = true;
         app.edit.tags_edit_buffer = String::new();
         app.edit.tags_selected_idx = None;
-        app.settings_state.settings_render_cache = None;
+        mark_settings_dirty(app, false);
         return;
     }
 
@@ -1614,10 +1614,10 @@ fn handle_max_concurrent_picker_key(app: &mut App, key: crossterm::event::KeyEve
                     let n = n.clamp(1, 10);
                     app.settings.max_concurrent_predictions = Some(n);
                     sync_global_settings(app);
-                    app.update_vram_estimate();
+                    mark_settings_dirty(app, true);
                 }
                 app.ui.global_mode = GlobalMode::Normal;
-                app.settings_state.settings_render_cache = None;
+                mark_settings_dirty(app, false);
             }
             _ => {}
         }
@@ -2159,9 +2159,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 _ => {}
             }
-            app.update_vram_estimate();
+            mark_settings_dirty(app, true);
             sync_global_settings(app);
-            app.settings_state.settings_render_cache = None;
         }
         KeyCode::Right | KeyCode::Char('l') => {
             match app.settings_state.server_settings_selected_idx {
@@ -2169,9 +2168,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 3 => app.settings.threads_batch = (app.settings.threads_batch + 1).min(64),
                 _ => {}
             }
-            app.update_vram_estimate();
+            mark_settings_dirty(app, true);
             sync_global_settings(app);
-            app.settings_state.settings_render_cache = None;
         }
         _ => {}
     }
