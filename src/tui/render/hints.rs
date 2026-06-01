@@ -8,24 +8,18 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
     let r = Style::default().fg(Color::Red);
 
     match &app.models_mode {
-        ModelsMode::Search { sort_by, show_readme, loading, .. } => {
+        ModelsMode::Search { sort_by, show_readme: _, loading, .. } => {
             let mut parts = Vec::new();
             parts.push(Span::styled("⎋ exit", c));
             parts.push(Span::raw("  "));
-            parts.push(Span::styled("↵ search", y));
+            parts.push(Span::styled("↵ files", y));
             parts.push(Span::raw("  "));
-            parts.push(Span::styled("L files", y));
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("S sort", y));
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("B back", y));
-            if *show_readme {
-                parts.push(Span::raw("  "));
-                parts.push(Span::styled("R README", y));
-            }
+            parts.push(Span::styled("-> readme", y));
             parts.push(Span::raw("  "));
             parts.push(Span::styled("sort:", c));
             parts.push(Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)));
+            parts.push(Span::raw("  "));
+            parts.push(Span::styled("⎋ back", y));
             if *loading {
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled("[loading]", Style::default().fg(Color::Yellow)));
@@ -83,12 +77,16 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             vec![
                                 Span::styled("j/k scroll", c),
                                 Span::raw("  "),
+                                Span::styled("f/follow", c),
+                                Span::raw("  "),
                                 Span::styled("⎋ collapse", c),
                                 Span::raw("  "),
                                 Span::styled("g/G top/bottom", c),
                             ]
                         } else {
                             vec![
+                                Span::styled("f/follow", c),
+                                Span::raw("  "),
                                 Span::styled("⎋ collapse", c),
                                 Span::raw("  "),
                                 Span::styled("g/G top/bottom", c),
