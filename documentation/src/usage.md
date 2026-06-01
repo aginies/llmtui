@@ -75,7 +75,7 @@ Search mode lets you browse and download GGUF models from HuggingFace:
 | `Ctrl+S` | Cycle sort order |
 | `Ctrl+B` | Go back one page |
 | `Down` (at bottom) | Load more results |
-| `Ctrl+R` | Fetch and view README |
+| `->` | Fetch and view README |
 
 ### Multi-word Search
 
@@ -260,8 +260,9 @@ Dirty (changed) fields are highlighted in yellow.
 | `Ctrl+K` | CmdLine overlay |
 | `Ctrl+Alt+K` | Kill llama-server |
 | `Ctrl+S` | Save settings / Cycle search sort (in search) |
-| `Ctrl+R` | Reset settings / Fetch README (in search) |
+| `Ctrl+R` | Reset settings |
 | `Ctrl+E` | Toggle optional fields (Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred) |
+| `->` | Fetch README for selected model (in search) |
 | `g` / `G` | Jump to top/bottom of log |
 | `PageUp` / `PageDown` | Fast scroll (logs, README, benchmarks) |
 | `F1`–`F6` | Toggle panels (Models, Server, Info, Settings, Active, Log) |

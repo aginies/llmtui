@@ -323,7 +323,7 @@ Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSetti
 | **Sort cycling** | `⌃S` (Ctrl+S) cycles through Relevance, Downloads, Likes, Trending, Created |
 | **Pagination** | `⌃B` (Ctrl+B) goes back one page; `Down` at bottom loads more results (infinite scroll) |
 | **File selection** | `Enter` selects the highlighted model's GGUF files |
-| **README viewing** | `⌃R` (Ctrl+R) fetches and displays the model's README from HuggingFace; `Enter` in README expands to fullscreen |
+| **README viewing** | `->` fetches and displays the model's README from HuggingFace; `Enter` in README expands to fullscreen |
 | **README horizontal scroll** | `h`/`l` keys scroll horizontally |
 | **Multi-word search** | Type space-separated words (e.g. "qwen opus"); all must match the model name. Matching words are highlighted in cyan. |
 | **README rendering** | Full markdown renderer with headings, code blocks, lists, blockquotes, tables, and task lists |

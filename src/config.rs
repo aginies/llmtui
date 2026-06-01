@@ -831,13 +831,15 @@ impl Default for DefaultParams {
             max_tokens: None,
             cache_type: CacheType::F16,
             backend: {
-                use crate::backend::hardware::{detect_gpu_vendor, GpuVendor};
-                match detect_gpu_vendor() {
-                    GpuVendor::Amd => Backend::Rocm,
-                    GpuVendor::Nvidia => Backend::Cuda,
-                    GpuVendor::Intel => Backend::Vulkan,
-                    GpuVendor::Unknown => Backend::Cpu,
+                use crate::backend::hardware::{detect_gpu_vendors, GpuVendor};
+                let vendors = detect_gpu_vendors();
+                let mut result = Backend::Cpu;
+                for v in &vendors {
+                    if matches!(v, GpuVendor::Nvidia) { result = Backend::Cuda; break; }
+                    if matches!(v, GpuVendor::Amd) { result = Backend::Rocm; break; }
+                    if matches!(v, GpuVendor::Intel) { result = Backend::Vulkan; break; }
                 }
+                result
             },
             platform: None,
             llama_cpp_version_cpu: None,

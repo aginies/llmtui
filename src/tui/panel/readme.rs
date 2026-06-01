@@ -390,7 +390,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         Some((_, None)) => {
             app.picker.readme_scroll_offset = 0;
             // Not yet fetched
-            vec![Line::from(Span::styled("Press R to Fetch the README.md", Style::default().fg(Color::Green)))]
+            vec![Line::from(Span::styled("Press -> to Fetch the README.md", Style::default().fg(Color::Green)))]
         }
         None => {
             app.picker.readme_scroll_offset = 0;

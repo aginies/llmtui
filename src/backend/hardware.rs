@@ -71,7 +71,8 @@ fn drm_card_paths() -> Vec<std::path::PathBuf> {
         .unwrap_or_default()
 }
 
-/// Detect the GPU vendor by scanning /sys/class/drm/card*/device/vendor
+/// Detect the GPU vendor by scanning /sys/class/drm/card*/device/vendor.
+/// Returns the first detected vendor (legacy API, kept for backward compatibility).
 pub fn detect_gpu_vendor() -> GpuVendor {
     for card_path in drm_card_paths() {
         let vendor_path = card_path.join("device/vendor");
@@ -88,6 +89,33 @@ pub fn detect_gpu_vendor() -> GpuVendor {
     }
 
     GpuVendor::Unknown
+}
+
+/// Detect all GPU vendors by scanning /sys/class/drm/card*/device/vendor.
+/// Returns a Vec of unique vendors (preserves detection order, deduplicates).
+pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
+    let mut vendors = Vec::new();
+    for card_path in drm_card_paths() {
+        let vendor_path = card_path.join("device/vendor");
+        if let Ok(vendor_id) = fs::read_to_string(vendor_path) {
+            let vendor_id = vendor_id.trim();
+            let vendor = match vendor_id {
+                "0x1002" => GpuVendor::Amd,
+                "0x10de" => GpuVendor::Nvidia,
+                "0x8086" => GpuVendor::Intel,
+                _ => continue,
+            };
+            if !vendors.contains(&vendor) {
+                vendors.push(vendor);
+            }
+        }
+    }
+
+    if vendors.is_empty() {
+        vendors.push(GpuVendor::Unknown);
+    }
+
+    vendors
 }
 
 /// Detect the GPU model name (e.g. "Radeon RX 7900 XTX")
@@ -117,6 +145,48 @@ pub fn detect_gpu_model() -> Option<String> {
     }
 
     None
+}
+
+/// Detect all GPU model names (one per GPU).
+/// For AMD GPUs, includes the GFX target version.
+pub fn detect_gpu_models() -> Vec<Option<String>> {
+    let card_paths = drm_card_paths();
+    if card_paths.is_empty() {
+        return Vec::new();
+    }
+
+    let mut models = Vec::new();
+    for card_path in &card_paths {
+        let vendor_path = card_path.join("device/vendor");
+        if let Ok(vendor_id) = fs::read_to_string(vendor_path) {
+            let vendor_id = vendor_id.trim();
+            let vendor = match vendor_id {
+                "0x1002" => GpuVendor::Amd,
+                "0x10de" => GpuVendor::Nvidia,
+                "0x8086" => GpuVendor::Intel,
+                _ => continue,
+            };
+
+            let vendor_name = match vendor {
+                GpuVendor::Amd => "AMD",
+                GpuVendor::Nvidia => "NVIDIA",
+                GpuVendor::Intel => "Intel",
+                GpuVendor::Unknown => continue,
+            };
+
+            if vendor == GpuVendor::Amd {
+                if let Some(gfx) = detect_amd_gfx_target() {
+                    models.push(Some(format!("{} ({})", vendor_name, gfx)));
+                } else {
+                    models.push(Some(vendor_name.to_string()));
+                }
+            } else {
+                models.push(Some(vendor_name.to_string()));
+            }
+        }
+    }
+
+    models
 }
 
 /// Detect AMD GFX target version (e.g. "gfx1100")

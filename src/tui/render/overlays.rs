@@ -12,7 +12,7 @@ use crate::tui::app::{ConfirmationKind, GlobalMode};
 use crate::tui::render_vertical_scrollbar;
 use crate::tui::format_bench_params;
 use crate::tui::settings::profile_settings_parts;
-use crate::backend::hardware::{detect_gpu_vendor, detect_gpu_model, GpuVendor};
+use crate::backend::hardware::{detect_gpu_vendors, detect_gpu_models, detect_gpu_model, GpuVendor};
 use crate::tui::panel;
 
 pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
@@ -292,10 +292,11 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
 
 fn render_backend_picker(f: &mut Frame, area: Rect, entries: &Vec<(crate::models::Backend, Option<String>)>, selected: usize) {
     let w = (area.width as f64 * 0.5).clamp(50.0, 70.0) as u16;
-    let gpu_info_lines = if detect_gpu_model().is_some() { 1 } else { 0 };
+    let all_models = detect_gpu_models();
+    let gpu_info_lines = if all_models.iter().any(|m| m.is_some()) { 1 } else { 0 };
     let h = (entries.len() + 4 + gpu_info_lines).min(area.height as usize - 4) as u16;
     let picker_area = Rect { x: (area.width - w) / 2, y: (area.height - h) / 2, width: w, height: h };
-    let vendor = detect_gpu_vendor();
+    let vendors = detect_gpu_vendors();
     let gpu_model = detect_gpu_model();
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(" Select Backend Acceleration ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))));
@@ -306,7 +307,7 @@ fn render_backend_picker(f: &mut Frame, area: Rect, entries: &Vec<(crate::models
     for (i, (backend, tag)) in entries.iter().enumerate() {
         let marker = if i == selected { "> " } else { "  " };
         let is_installed = if tag.is_some() { true } else { crate::backend::hub::is_backend_any_version_installed(*backend) };
-        let is_recommended = match (vendor, backend, tag) {
+        let is_recommended = vendors.iter().any(|v| match (v, backend, tag) {
             (GpuVendor::Amd, crate::models::Backend::Rocm, None) => true,
             (GpuVendor::Amd, crate::models::Backend::RocmLemonade, None) => true,
             (GpuVendor::Nvidia, crate::models::Backend::Cuda, None) => true,
@@ -314,7 +315,7 @@ fn render_backend_picker(f: &mut Frame, area: Rect, entries: &Vec<(crate::models
             (GpuVendor::Intel, crate::models::Backend::Vulkan, None) => true,
             (GpuVendor::Unknown, crate::models::Backend::Cpu, None) => true,
             _ => false,
-        };
+        });
         let style = if i == selected { Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD) } else { Style::default().fg(Color::White) };
         let label = match backend {
             crate::models::Backend::Cpu => "CPU-only",

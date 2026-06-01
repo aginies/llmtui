@@ -34,29 +34,33 @@ impl App {
                 if hardware::is_arm64() {
                     entries.push((crate::models::Backend::CpuArm64, None));
                 }
-                match hardware::detect_gpu_vendor() {
-                    hardware::GpuVendor::Amd => {
-                        entries.push((crate::models::Backend::Rocm, None));
-                        entries.push((crate::models::Backend::RocmLemonade, None));
+                for vendor in hardware::detect_gpu_vendors() {
+                    match vendor {
+                        hardware::GpuVendor::Amd => {
+                            entries.push((crate::models::Backend::Rocm, None));
+                            entries.push((crate::models::Backend::RocmLemonade, None));
+                        }
+                        hardware::GpuVendor::Nvidia => {
+                            entries.push((crate::models::Backend::Cuda, None));
+                        }
+                        _ => {}
                     }
-                    hardware::GpuVendor::Nvidia => {
-                        entries.push((crate::models::Backend::Cuda, None));
-                    }
-                    _ => {}
                 }
             }
             crate::backend::hardware::Platform::Windows => {
                 entries.push((crate::models::Backend::CpuWindows, None));
                 entries.push((crate::models::Backend::VulkanWindows, None));
-                match hardware::detect_gpu_vendor() {
-                    hardware::GpuVendor::Nvidia => {
-                        entries.push((crate::models::Backend::CudaWindows12_4, None));
-                        entries.push((crate::models::Backend::CudaWindows13_1, None));
+                for vendor in hardware::detect_gpu_vendors() {
+                    match vendor {
+                        hardware::GpuVendor::Nvidia => {
+                            entries.push((crate::models::Backend::CudaWindows12_4, None));
+                            entries.push((crate::models::Backend::CudaWindows13_1, None));
+                        }
+                        hardware::GpuVendor::Amd => {
+                            entries.push((crate::models::Backend::HipWindows, None));
+                        }
+                        _ => {}
                     }
-                    hardware::GpuVendor::Amd => {
-                        entries.push((crate::models::Backend::HipWindows, None));
-                    }
-                    _ => {}
                 }
             }
             crate::backend::hardware::Platform::Macos => {

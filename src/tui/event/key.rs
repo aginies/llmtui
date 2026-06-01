@@ -1187,11 +1187,19 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.ui.panel_visibility |= (1 << 4) | (1 << 5);
             return;
         }
-        KeyCode::Enter => {
+        KeyCode::Enter | KeyCode::Char('f') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) || key.code == KeyCode::Enter => {
             let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
                 app.search.search_results_idx.and_then(|idx| results.get(idx).map(|r| r.model_id.clone()))
             } else { None };
             if let Some(ref model_id) = model_id {
+                // Fetch and display README first
+                app.add_log(format!("Fetching README for {}...", model_id), crate::config::LogLevel::Info);
+                fetch_and_store_readme(app, model_id.clone()).await;
+                if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
+                    *show_readme = true;
+                }
+                app.ui.active_panel = ActivePanel::SearchReadme;
+
                 app.add_log(format!("Loading files for {}...", model_id), crate::config::LogLevel::Info);
                 match hub::list_gguf_files(&model_id).await {
                     Ok(files) => {
