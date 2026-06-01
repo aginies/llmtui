@@ -260,6 +260,14 @@ fn toggle_mlock(settings: &mut ModelSettings) { settings.mlock = !settings.mlock
 fn toggle_flash_attn(settings: &mut ModelSettings) { settings.flash_attn = !settings.flash_attn; }
 fn toggle_kv_cache_offload(settings: &mut ModelSettings) { settings.kv_cache_offload = !settings.kv_cache_offload; }
 fn toggle_uniform_cache(settings: &mut ModelSettings) { settings.uniform_cache = !settings.uniform_cache; }
+fn toggle_mtp(settings: &mut ModelSettings) {
+    if settings.spec_type.is_empty() {
+        settings.spec_type = "draft-mtp".to_string();
+    } else {
+        settings.spec_type = String::new();
+    }
+}
+
 fn toggle_rope_yarn_enabled(settings: &mut ModelSettings) { settings.rope_yarn_enabled = !settings.rope_yarn_enabled; }
 fn toggle_ignore_eos(settings: &mut ModelSettings) { settings.ignore_eos = !settings.ignore_eos; }
 fn toggle_max_tokens(settings: &mut ModelSettings) { settings.max_tokens = settings.max_tokens.map_or(Some(2048), |_| None); }
@@ -971,7 +979,22 @@ pub fn all_fields() -> Vec<SettingField> {
         ),
 
         // ── Speculative Decoding ─────────────────────────────────────────────
-        ultra_field(
+        expert_field_with_toggle(
+            "is_mtp",
+            "MTP",
+            "Speculative",
+            |s| if s.spec_type.is_empty() {
+                "Off".to_string()
+            } else {
+                s.spec_type.clone()
+            },
+            |s, c| s.spec_type != c.spec_type,
+            |_, _, _| {},
+            |_, _| {},
+            toggle_mtp,
+            EditKind::Modal,
+        ),
+        expert_field(
             "spec_type",
             "Spec Type",
             "Speculative",
@@ -985,7 +1008,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _| {},
             EditKind::Modal,
         ),
-        ultra_field(
+        expert_field(
             "draft_tokens",
             "Spec Draft N Max",
             "Speculative",
