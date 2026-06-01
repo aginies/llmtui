@@ -1,11 +1,10 @@
 //! Tests for UI utility functions — pure functions in panel and render modules.
 //!
-//! Tests cover: MdRenderer markdown parsing, max_context_for_vram,
+//! Tests cover: MdRenderer markdown parsing,
 //! is_dirty settings tracking, and fixes for dead/no-op assertions in existing tests.
 
 use llm_manager::models::*;
 use llm_manager::tui::panel::readme::MdRenderer;
-use llm_manager::tui::panel::info::max_context_for_vram;
 
 // ── MdRenderer: basic text ──────────────────────────────────────
 
@@ -251,151 +250,6 @@ fn md_renderer_long_line_wrapped() {
 fn md_renderer_unicode() {
     let lines = MdRenderer::render_markdown("日本語テスト 🦙");
     assert_eq!(lines.len(), 1);
-}
-
-// ── max_context_for_vram: basic scenarios ───────────────────────
-
-#[test]
-fn max_context_zero_vram_budget() {
-    // Model uses all VRAM, leaving nothing for KV cache
-    let result = max_context_for_vram(
-        16_000,  // model_mib
-        16_000,  // vram_mib (model uses all)
-        32,      // total_layers
-        4096,    // hidden_size
-        32,      // n_head
-        32,      // n_kv_head
-        -1,      // gpu_layers (all)
-        false,   // flash_attn
-        false,   // uniform_cache
-        1,       // parallel
-        "F16",   // cache_type_k
-        "F16",   // cache_type_v
-    );
-    assert_eq!(result, 0);
-}
-
-#[test]
-fn max_context_zero_layers() {
-    let result = max_context_for_vram(
-        16_000, 4096, 0, 4096, 32, 32, -1, false, false, 1, "F16", "F16",
-    );
-    assert_eq!(result, 0);
-}
-
-#[test]
-fn max_context_no_gpu_layers() {
-    let result = max_context_for_vram(
-        16_000, 4096, 32, 4096, 32, 32, 0, false, false, 1, "F16", "F16",
-    );
-    assert_eq!(result, 0);
-}
-
-#[test]
-fn max_context_with_vram_budget() {
-    let result = max_context_for_vram(
-        16_000,  // model_mib
-        24_000,  // vram_mib (8000 MiB for KV cache)
-        32,      // total_layers
-        4096,    // hidden_size
-        32,      // n_head
-        32,      // n_kv_head
-        32,      // gpu_layers (all)
-        false,   // flash_attn
-        false,   // uniform_cache
-        1,       // parallel
-        "F16",   // cache_type_k
-        "F16",   // cache_type_v
-    );
-    assert!(result > 0);
-}
-
-#[test]
-fn max_context_flash_attn_doubles_context() {
-    let no_flash = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, 32, false, false, 1, "F16", "F16",
-    );
-    let flash = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, 32, true, false, 1, "F16", "F16",
-    );
-    assert!(flash > no_flash);
-}
-
-#[test]
-fn max_context_uniform_cache_increases_context() {
-    let single = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, 32, false, false, 1, "F16", "F16",
-    );
-    let parallel_4 = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, 32, false, true, 4, "F16", "F16",
-    );
-    assert!(parallel_4 > single);
-}
-
-#[test]
-fn max_context_gqa_reduces_kv_size() {
-    // GQA: 32 query heads, 8 KV heads
-    let with_gqa = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 8, 32, false, false, 1, "F16", "F16",
-    );
-    // No GQA: 32 query heads, 32 KV heads
-    let without_gqa = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, 32, false, false, 1, "F16", "F16",
-    );
-    assert!(with_gqa > without_gqa);
-}
-
-#[test]
-fn max_context_quantization_increases_context() {
-    let f16 = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, 32, false, false, 1, "F16", "F16",
-    );
-    let q4 = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, 32, false, false, 1, "Q4_0", "Q4_0",
-    );
-    assert!(q4 > f16);
-}
-
-#[test]
-fn max_context_all_layers() {
-    let result = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, -1, false, false, 1, "F16", "F16",
-    );
-    // gpu_layers < 0 means all layers
-    assert!(result > 0);
-}
-
-#[test]
-fn max_context_specific_gpu_layers() {
-    let half = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, 16, false, false, 1, "F16", "F16",
-    );
-    let all = max_context_for_vram(
-        16_000, 24_000, 32, 4096, 32, 32, 32, false, false, 1, "F16", "F16",
-    );
-    // More layers in VRAM = less budget for KV cache = smaller context
-    assert!(all < half);
-}
-
-#[test]
-fn max_context_increases_with_vram() {
-    let small = max_context_for_vram(
-        16_000, 20_000, 32, 4096, 32, 32, 32, false, false, 1, "F16", "F16",
-    );
-    let large = max_context_for_vram(
-        16_000, 40_000, 32, 4096, 32, 32, 32, false, false, 1, "F16", "F16",
-    );
-    assert!(large > small);
-}
-
-#[test]
-fn max_context_no_hidden_size_zero() {
-    let result = max_context_for_vram(
-        16_000, 24_000, 32, 0, 32, 32, 32, false, false, 1, "F16", "F16",
-    );
-    // Zero hidden_size means zero bytes per token, so infinite context
-    // (but clamped by float precision, likely very large)
-    assert!(result >= 0);
 }
 
 // ── ModelSettings::is_dirty ─────────────────────────────────────

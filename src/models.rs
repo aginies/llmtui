@@ -1362,12 +1362,6 @@ fn kv_quant_bytes(k_type: CacheQuantType, v_type: CacheQuantType) -> f64 {
     (get_bytes(k_type) + get_bytes(v_type)) / 2.0
 }
 
-pub fn kv_quant_bytes_from_str(k: &str, v: &str) -> f64 {
-    let k_type = CacheTypeK::from(k);
-    let v_type = CacheTypeV::from(v);
-    kv_quant_bytes(k_type, v_type)
-}
-
 impl ModelSettings {
     /// Check if this settings differs from `other` in any field.
     pub fn is_dirty(&self, other: &Self) -> bool {

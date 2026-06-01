@@ -127,6 +127,8 @@ pub fn build_server_cmd(binary: &std::path::Path, model: Option<&DiscoveredModel
     }
     if !settings.fit {
         push_arg(&mut cmd, &mut parts, "--fit", "off");
+    } else if !settings.spec_type.is_empty() {
+        push_arg(&mut cmd, &mut parts, "--fit-target", "128");
     }
 
     if let Some(ref lora) = settings.lora {

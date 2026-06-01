@@ -224,8 +224,7 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
                 Some(model) => {
                     let key = model.path.to_string_lossy().to_string();
                     let cached_meta = app.search.gguf_metadata_cache.get(&key);
-                    let gpu_mem_total_mib = app.metrics.gpu_mem_total / (1024 * 1024);
-                    let pairs = info::render_model_lines(model, cached_meta, app.loading.vram_estimate, &app.model_settings_cache, gpu_mem_total_mib);
+                    let pairs = info::render_model_lines(model, cached_meta);
                     let mut lines = render_model_info_lines(&pairs, width);
                     // Hint when GGUF metadata was not available.
                     if cached_meta.is_none() {

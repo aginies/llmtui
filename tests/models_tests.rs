@@ -561,29 +561,6 @@ fn estimate_vram_no_gpu_memory_total() {
     assert!(result > 0);
 }
 
-// ── kv_quant_bytes helpers ──────────────────────────────────────
-
-#[test]
-fn kv_quant_bytes_f16_f16() {
-    assert_eq!(kv_quant_bytes_from_str("F16", "F16"), 2.0);
-}
-
-#[test]
-fn kv_quant_bytes_f32_f32() {
-    assert_eq!(kv_quant_bytes_from_str("F32", "F32"), 4.0);
-}
-
-#[test]
-fn kv_quant_bytes_q4_q4() {
-    assert_eq!(kv_quant_bytes_from_str("Q4_0", "Q4_0"), 0.5);
-}
-
-#[test]
-fn kv_quant_bytes_mixed() {
-    // (4.0 + 2.0) / 2.0 = 3.0
-    assert_eq!(kv_quant_bytes_from_str("F32", "F16"), 3.0);
-}
-
 // ── DownloadState ───────────────────────────────────────────────
 
 #[test]

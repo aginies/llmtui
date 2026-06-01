@@ -1,6 +1,6 @@
 use ratatui::style::Color;
 
-use crate::tui::{format_size, format_number};
+use crate::tui::format_size;
 
 /// A single key-value pair for model info, rendered in two columns.
 #[derive(Clone, Debug)]
@@ -9,90 +9,6 @@ pub struct ModelInfoPair {
     pub value: String,
     pub value_style: Color,
 }
-
-/// Compute the maximum context length that can fit within the given VRAM budget.
-///
-/// This mirrors the KV cache formula from `estimate_vram_mib` but solves
-/// backwards for context length given a fixed VRAM budget.
-#[allow(clippy::too_many_arguments)]
-pub fn max_context_for_vram(
-    model_mib: u64,
-    vram_mib: u64,
-    total_layers: u32,
-    hidden_size: u32,
-    n_head: u32,
-    n_kv_head: u32,
-    gpu_layers: i32,
-    flash_attn: bool,
-    uniform_cache: bool,
-    parallel: u32,
-    cache_type_k: &str,
-    cache_type_v: &str,
-) -> u32 {
-    let model_mib_f = model_mib as f64;
-    let vram_f = vram_mib as f64;
-
-    // How much of the model is loaded into VRAM based on GPU layers.
-    let gpu_layers = if gpu_layers < 0 {
-        if total_layers > 0 { total_layers as f64 } else { 32.0 }
-    } else {
-        let requested = gpu_layers.unsigned_abs() as f64;
-        if total_layers > 0 {
-            requested.min(total_layers as f64)
-        } else {
-            requested
-        }
-    };
-
-    let model_vram = if total_layers > 0 && gpu_layers > 0.0 {
-        model_mib_f * (gpu_layers / total_layers as f64).min(1.0)
-    } else if gpu_layers > 0.0 {
-        model_mib_f
-    } else {
-        0.0
-    };
-
-    // VRAM budget for KV cache
-    let kv_budget = vram_f - model_vram;
-    if kv_budget <= 0.0 {
-        return 0;
-    }
-
-    // GQA ratio
-    let gqa_ratio = if n_head > 0 {
-        n_kv_head as f64 / n_head as f64
-    } else {
-        1.0
-    };
-
-    let flash_attn_factor = if flash_attn { 0.5 } else { 1.0 };
-
-    // Uniform cache factor: when enabled, KV cache is shared across `parallel` sequences,
-    // reducing per-sequence VRAM cost and allowing more context per sequence.
-    let uniform_cache_factor = if uniform_cache && parallel > 0 {
-        1.0 / parallel as f64
-    } else {
-        1.0
-    };
-
-    // KV quant factor: average bytes per K/V element.
-    let kv_bytes = crate::models::kv_quant_bytes_from_str(cache_type_k, cache_type_v);
-
-    // Bytes per token per layer for K+V cache:
-    // 2 (K+V) * hidden * gqa_ratio * flash_attn_factor * kv_bytes
-    let kv_bytes_per_token_per_layer = 2.0 * hidden_size as f64 * gqa_ratio * flash_attn_factor * kv_bytes;
-
-    // ctx = (kv_budget_MiB * 1024^2) / (kv_bytes_per_token_per_layer * gpu_layers * uniform_cache_factor)
-    // uniform_cache_factor divides the denominator, effectively multiplying ctx by `parallel` when uniform is enabled.
-    if gpu_layers > 0.0 && kv_bytes_per_token_per_layer > 0.0 {
-        let ctx = (kv_budget * 1024.0 * 1024.0) / (kv_bytes_per_token_per_layer * gpu_layers * uniform_cache_factor);
-        ctx as u32
-    } else {
-        0
-    }
-}
-
-
 
 /// Render model metadata as a list of (label, value) pairs.
 ///
@@ -105,9 +21,6 @@ pub fn max_context_for_vram(
 pub fn render_model_lines(
     model: &crate::models::DiscoveredModel,
     cached: Option<&crate::models::GgufMetadata>,
-    vram_mib: u64,
-    settings: &crate::models::ModelSettings,
-    gpu_mem_total_mib: u64,
 ) -> Vec<ModelInfoPair> {
     let mut pairs: Vec<ModelInfoPair> = Vec::new();
 
@@ -210,53 +123,7 @@ pub fn render_model_lines(
             });
         }
 
-        // Compute and show max context possible given VRAM.
-        // Use the provided vram_mib if available, otherwise compute it from
-        // the model file size and settings (mirrors estimate_vram_mib).
-        let effective_vram = if vram_mib > 0 {
-            vram_mib
-        } else if meta.hidden_size > 0 {
-            let model_mib = model.file_size / (1024 * 1024);
-            let hidden = Some(meta.hidden_size);
-            let n_head = if meta.n_head > 0 { Some(meta.n_head) } else { None };
-            let n_kv_head = if meta.n_kv_head > 0 { Some(meta.n_kv_head) } else { None };
-            crate::models::estimate_vram_mib(
-                model_mib, settings, meta.layers, hidden, n_head, n_kv_head, gpu_mem_total_mib
-            )
-        } else {
-            0
-        };
-
-        if effective_vram > 0 && meta.hidden_size > 0 {
-            let max_ctx = max_context_for_vram(
-                model.file_size / (1024 * 1024),
-                effective_vram,
-                meta.layers,
-                meta.hidden_size,
-                meta.n_head,
-                meta.n_kv_head,
-                match settings.gpu_layers_mode {
-                    crate::models::GpuLayersMode::Auto => {
-                        // ~60% heuristic, same as estimate_vram_mib
-                        if meta.layers > 0 { (meta.layers as f64 * 0.6) as i32 } else { 20 }
-                    }
-                    crate::models::GpuLayersMode::Specific(n) => n as i32,
-                    crate::models::GpuLayersMode::All => -1,
-                },
-                settings.flash_attn,
-                settings.uniform_cache,
-                settings.parallel,
-                &settings.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "F16".to_string()),
-                &settings.cache_type_v.map(|v| v.to_string()).unwrap_or_else(|| "F16".to_string()),
-            );
-            if max_ctx > 0 {
-                pairs.push(ModelInfoPair {
-                    label: "Max Context".to_string(),
-                    value: format_number(max_ctx as u64),
-                    value_style: Color::Yellow,
-                });
-            }
-        }
+ 
     }
 
     pairs
