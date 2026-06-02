@@ -458,7 +458,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Qwen".into(),
             description: "Optimized for Qwen models (dense)".into(),
             settings: ModelOverride {
-                context_length: Some(32768),
+                context_length: Some(131072),
                 temperature: Some(0.7),
                 top_k: Some(20),
                 top_p: Some(0.95),
@@ -473,7 +473,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Qwen-MoE".into(),
             description: "Optimized for Qwen MoE models (35B-A3B)".into(),
             settings: ModelOverride {
-                context_length: Some(32768),
+                context_length: Some(131072),
                 temperature: Some(0.8),
                 top_k: Some(20),
                 top_p: Some(0.95),
@@ -488,7 +488,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Qwen-Coding".into(),
             description: "Optimized for Qwen models in coding mode".into(),
             settings: ModelOverride {
-                context_length: Some(32768),
+                context_length: Some(131072),
                 temperature: Some(0.6),
                 top_k: Some(20),
                 top_p: Some(0.95),
@@ -503,7 +503,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Gemma".into(),
             description: "Optimized for Gemma 2/4 models".into(),
             settings: ModelOverride {
-                context_length: Some(32768),
+                context_length: Some(131072),
                 min_p: Some(0.1),
                 temperature: Some(1.0),
                 top_k: Some(65),
@@ -518,7 +518,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Llama".into(),
             description: "Optimized for Llama 3.1/3.3 models".into(),
             settings: ModelOverride {
-                context_length: Some(32768),
+                context_length: Some(131072),
                 temperature: Some(0.7),
                 top_p: Some(0.9),
                 repeat_penalty: Some(1.1),
@@ -532,7 +532,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Mistral".into(),
             description: "Optimized for Mistral 7B/NeMo models".into(),
             settings: ModelOverride {
-                context_length: Some(32768),
+                context_length: Some(131072),
                 temperature: Some(0.7),
                 top_k: Some(50),
                 top_p: Some(0.9),
@@ -546,7 +546,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
             name: "Phi".into(),
             description: "Optimized for Phi 3.5 Mini models".into(),
             settings: ModelOverride {
-                context_length: Some(32768),
+                context_length: Some(131072),
                 temperature: Some(0.7),
                 top_k: Some(50),
                 top_p: Some(0.9),
@@ -559,7 +559,7 @@ pub fn builtin_profiles() -> Vec<Profile> {
     ]
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct DefaultParams {
     // Loading
@@ -786,7 +786,7 @@ impl Default for DefaultParams {
     fn default() -> Self {
         Self {
             // Loading
-            context_length: 32768,
+            context_length: 131072,
             threads: physical_cores(),
             threads_batch: 8,
             batch_size: 512,
