@@ -13,7 +13,7 @@ use llm_manager::models::*;
 #[test]
 fn default_params_context_length() {
     let dp = DefaultParams::default();
-    assert_eq!(dp.context_length, 32768);
+    assert_eq!(dp.context_length, 131072);
 }
 
 #[test]
@@ -334,7 +334,7 @@ fn builtin_profiles_apply_to_settings() {
     let qwen = profiles.iter().find(|p| p.name == "Qwen").unwrap();
     let mut settings = ModelSettings::default();
     settings = qwen.apply(settings);
-    assert_eq!(settings.context_length, 32768);
+    assert_eq!(settings.context_length, 131072);
     assert!((settings.temperature - 0.7).abs() < f32::EPSILON);
 }
 
@@ -365,7 +365,7 @@ fn builtin_system_prompt_presets_have_content() {
 fn config_resolve_settings_returns_model_settings() {
     let config = Config::default();
     let settings = config.resolve_settings(None, None);
-    assert_eq!(settings.context_length, 32768);
+    assert_eq!(settings.context_length, 131072);
 }
 
 #[test]
@@ -388,7 +388,7 @@ fn config_resolve_settings_with_model_override() {
 fn config_resolve_settings_profile_overrides() {
     let config = Config::default();
     let settings = config.resolve_settings(None, Some("Qwen"));
-    assert_eq!(settings.context_length, 32768);
+    assert_eq!(settings.context_length, 131072);
     assert!((settings.temperature - 0.7).abs() < f32::EPSILON);
 }
 
