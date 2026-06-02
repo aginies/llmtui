@@ -310,7 +310,8 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     );
 
     // Set LD_LIBRARY_PATH so the binary can find its shared libraries
-    let bin_dir = binary.parent().unwrap();
+    let bin_dir = binary.parent()
+        .context("Backend binary path has no parent directory. Use a full path for --backend-binary.")?;
     if let Ok(current) = std::env::var("LD_LIBRARY_PATH") {
         cmd.env(
             "LD_LIBRARY_PATH",

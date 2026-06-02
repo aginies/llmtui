@@ -10,7 +10,10 @@ pub const DOWNLOAD_STATE_CANCELLED: u8 = 3;
 /// Uses `statvfs` on Unix systems.
 pub fn get_free_space_bytes(path: &std::path::Path) -> u64 {
     let path_str = path.to_string_lossy();
-    let c_path = std::ffi::CString::new(path_str.as_ref()).unwrap();
+    let c_path = match std::ffi::CString::new(path_str.as_ref()) {
+        Ok(c) => c,
+        Err(_) => return 0,
+    };
 
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
     let result = unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) };
