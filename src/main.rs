@@ -289,6 +289,51 @@ async fn main() -> Result<()> {
                 app.poll_sync();
                 app.poll_metrics();
 
+                // Send metrics snapshot to WebSocket clients
+                if let Some(tx) = &app.server.metrics_tx {
+                    let loaded_model_name = {
+                        let names = app
+                            .server
+                            .loaded_model_names
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner());
+                        names.first().cloned()
+                    };
+
+                    let model_name = loaded_model_name
+                        .as_deref()
+                        .or(app.server.spawned_model_name.as_deref())
+                        .unwrap_or("");
+
+                    let state = if !model_name.is_empty() {
+                        if app.is_model_loaded(model_name) {
+                            "loaded"
+                        } else if app.is_loading() {
+                            "loading"
+                        } else {
+                            "unloaded"
+                        }
+                    } else {
+                        "unloaded"
+                    };
+
+                    let settings = app
+                        .server
+                        .spawned_settings
+                        .as_ref()
+                        .unwrap_or(&app.settings);
+
+                    if let Err(e) = tx.send(crate::models::WsMetrics::from_metrics(
+                        &app.metrics,
+                        model_name,
+                        state,
+                        settings,
+                        app.server.cmd_display.as_deref(),
+                    )) {
+                        tracing::debug!("Failed to send metrics to ws: {e}");
+                    }
+                }
+
                 app.handle_pending_search().await;
                 app.update_ws_server().await;
                 app.update_api_endpoint().await;
