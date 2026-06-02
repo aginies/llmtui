@@ -1444,12 +1444,18 @@ impl App {
                         crate::config::LogLevel::Info,
                     );
                     match crate::backend::tls::ensure_tls_certs() {
-                        Ok((cert, key)) => crate::backend::tls::load_tls_config(
-                            cert.to_string_lossy().as_ref(),
-                            key.to_string_lossy().as_ref(),
-                        )
-                        .await
-                        .ok(),
+                        Ok((cert, key)) => {
+                            self.server.running_ws_tls_cert_path =
+                                Some(cert.to_string_lossy().to_string());
+                            self.server.running_ws_tls_key_path =
+                                Some(key.to_string_lossy().to_string());
+                            crate::backend::tls::load_tls_config(
+                                cert.to_string_lossy().as_ref(),
+                                key.to_string_lossy().as_ref(),
+                            )
+                            .await
+                            .ok()
+                        }
                         Err(_) => None,
                     }
                 }
@@ -1473,7 +1479,9 @@ impl App {
         // Check if settings have changed since last start
         let settings_changed = self.server.running_ws_port != Some(port)
             || self.server.running_ws_auth != auth_key
-            || self.server.running_ws_tls != Some(tls_enabled);
+            || self.server.running_ws_tls != Some(tls_enabled)
+            || self.server.running_ws_tls_cert_path.as_deref() != tls_cert.as_deref()
+            || self.server.running_ws_tls_key_path.as_deref() != tls_key.as_deref();
 
         if self.ws_server_handle.is_some() && (!enabled || settings_changed) {
             let handle = self.ws_server_handle.take().unwrap();
