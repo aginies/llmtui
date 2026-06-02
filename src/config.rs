@@ -18,12 +18,30 @@ use crate::models::{
 };
 pub use presets::PresetStore;
 
+/// Resolve the base config directory with a safe fallback chain.
+///
+/// Prefers `dirs::config_dir()` (XDG on Linux, ~/Library/Application Support on macOS,
+/// etc.), falls back to `~/.config`, and lastly `./.llm-manager` if both fail.
+pub fn config_base_dir() -> PathBuf {
+    if let Some(d) = dirs::config_dir() {
+        return d;
+    }
+    if let Some(home) = dirs::home_dir() {
+        return home.join(".config");
+    }
+    PathBuf::from(".").join(".llm-manager")
+}
+
 /// Count physical CPU cores on Linux (ignores hyperthreading).
 /// Falls back to 1 if the file can't be read or parsing fails.
 pub fn physical_cores() -> u32 {
     let content = match std::fs::read_to_string("/proc/cpuinfo") {
         Ok(c) => c,
-        Err(_) => return 1,
+        Err(_) => {
+            return std::thread::available_parallelism()
+                .map(|p| p.get() as u32)
+                .unwrap_or(1);
+        }
     };
     let mut seen = HashSet::new();
     let mut cur_phys: Option<&str> = None;
@@ -941,8 +959,7 @@ impl Default for Config {
 
 impl Config {
     pub fn config_path() -> PathBuf {
-        dirs::config_dir()
-            .unwrap_or_default()
+        config_base_dir()
             .join("llm-manager")
             .join("config.yaml")
     }
@@ -1081,17 +1098,17 @@ impl Config {
             }
         }
 
-        // Merge built-in profiles (add any missing ones)
+        // Merge built-in profiles into in-memory cache (do not persist to disk)
         for p in builtin_profiles() {
             if config.profiles.get(&p.name).is_none() {
-                config.profiles.save(&p);
+                config.profiles.insert_builtin(p);
             }
         }
 
-        // Merge built-in system prompt presets (add any missing ones)
+        // Merge built-in system prompt presets into in-memory cache (do not persist to disk)
         for p in builtin_system_prompt_presets() {
             if config.system_prompt_presets.get(&p.name).is_none() {
-                config.system_prompt_presets.save(&p);
+                config.system_prompt_presets.insert_builtin(p);
             }
         }
         config
@@ -1163,12 +1180,12 @@ impl Config {
         for (name, cfg) in entries {
             self.model_overrides.save(&name, &cfg);
         }
-        // Persist profiles to individual YAML files
-        for profile in self.profiles.all() {
+        // Persist user profiles to individual YAML files (skip built-ins)
+        for profile in self.profiles.user_profiles() {
             self.profiles.save(&profile);
         }
-        // Persist presets to individual YAML files
-        for preset in self.system_prompt_presets.all() {
+        // Persist user presets to individual YAML files (skip built-ins)
+        for preset in self.system_prompt_presets.user_presets() {
             self.system_prompt_presets.save(&preset);
         }
         Ok(())

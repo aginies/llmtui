@@ -456,17 +456,9 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 if let Some((_, _, tx)) = &mut api_server_handle {
                     let _ = tx.send(true);
                 }
-                if let Some(handle) = &ws_server_handle {
-                    handle.abort();
-                }
             }
         }
     };
-
-    // Kill the other process if both are running
-    if !status.success() {
-        let _ = child.kill().await;
-    }
 
     // Drop the API server handle so the spawned task can finish
     if let Some((handle, _, _)) = api_server_handle {

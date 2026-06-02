@@ -3,22 +3,21 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::config::config_base_dir;
 use crate::config::SystemPromptPreset;
 use crate::config::builtin_system_prompt_presets;
 use crate::config::store::{load_all_from_dir, move_to_unused, save_yaml};
 
 /// Directory for per-preset YAML configs.
 pub fn presets_config_dir() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_default()
+    config_base_dir()
         .join("llm-manager")
         .join("presets")
 }
 
 /// Directory for unused (deleted) preset configs.
 pub fn unused_presets_dir() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_default()
+    config_base_dir()
         .join("llm-manager")
         .join("unused_presets")
 }
@@ -43,20 +42,26 @@ impl PresetStore {
         }
     }
 
-    /// Get all user-defined presets (excluding built-ins).
-    pub fn user_presets(&self) -> Vec<&SystemPromptPreset> {
-        let builtin = builtin_system_prompt_presets();
-        self.cache
-            .values()
-            .filter(|p| !builtin.iter().any(|b| b.name == p.name))
-            .collect()
-    }
+   /// Get all user-defined presets (excluding built-ins).
+        pub fn user_presets(&self) -> Vec<SystemPromptPreset> {
+            let builtin = builtin_system_prompt_presets();
+            self.cache
+                .values()
+                .filter(|p| !builtin.iter().any(|b| b.name == p.name))
+                .cloned()
+                .collect()
+        }
 
-    /// Save (or update) a preset.
-    pub fn save(&mut self, preset: &SystemPromptPreset) {
-        save_yaml(&preset.name, preset, &self.presets_dir, &self.unused_dir);
-        self.cache.insert(preset.name.clone(), preset.clone());
-    }
+  /// Save (or update) a preset.
+        pub fn save(&mut self, preset: &SystemPromptPreset) {
+            save_yaml(&preset.name, preset, &self.presets_dir, &self.unused_dir);
+            self.cache.insert(preset.name.clone(), preset.clone());
+        }
+
+        /// Insert a built-in preset into the in-memory cache only (no disk I/O).
+        pub fn insert_builtin(&mut self, preset: SystemPromptPreset) {
+            self.cache.insert(preset.name.clone(), preset);
+        }
 
     /// Delete a preset by moving it to the unused directory.
     pub fn delete(&mut self, name: &str) -> bool {

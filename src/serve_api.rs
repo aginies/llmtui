@@ -76,22 +76,36 @@ async fn proxy_streaming(
                 .into_response();
         }
     };
-    let body_stream = stream::iter(vec![Ok::<_, reqwest::Error>(body_bytes.clone())]);
+    let body_stream = stream::iter(vec![Ok::<_, reqwest::Error>(body_bytes)]);
 
     let mut request_builder = match method {
         axum::http::Method::GET => state.client.get(&url),
         axum::http::Method::POST => state.client.post(&url),
         axum::http::Method::PUT => state.client.put(&url),
         axum::http::Method::DELETE => state.client.delete(&url),
-        _ => state.client.get(&url),
+        _ => return (
+            StatusCode::METHOD_NOT_ALLOWED,
+            Json(serde_json::json!({"error": "Method not supported"})),
+        )
+            .into_response(),
     };
 
-    if matches!(method, axum::http::Method::POST | axum::http::Method::PUT) {
-        let content_type = headers
-            .get(axum::http::header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("application/json");
-        request_builder = request_builder.header("Content-Type", content_type);
+    const HOP_BY_HOP: &[&str] = &[
+        "connection",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "te",
+        "trailer",
+        "transfer-encoding",
+        "upgrade",
+        "host",
+    ];
+    for (name, value) in headers.iter() {
+        let name_str = name.as_str();
+        if !HOP_BY_HOP.contains(&name_str) && name_str != "authorization" {
+            request_builder = request_builder.header(name, value);
+        }
     }
 
     let response = request_builder
@@ -218,7 +232,10 @@ pub async fn start_api_server(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
-    let client = Client::builder().pool_max_idle_per_host(20).build()?;
+    let client = Client::builder()
+        .pool_max_idle_per_host(20)
+        .timeout(std::time::Duration::from_secs(300))
+        .build()?;
     let state = ApiState {
         server_url: format!("http://127.0.0.1:{}", server_port),
         api_key,
