@@ -1439,6 +1439,10 @@ impl App {
                 if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
                     crate::backend::tls::load_tls_config(cert, key).await.ok()
                 } else {
+                    self.add_log(
+                        "Auto-generating TLS certificate and key",
+                        crate::config::LogLevel::Info,
+                    );
                     match crate::backend::tls::ensure_tls_certs() {
                         Ok((cert, key)) => crate::backend::tls::load_tls_config(
                             cert.to_string_lossy().as_ref(),
