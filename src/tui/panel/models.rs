@@ -311,9 +311,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         direction: 1,
                         hold_count: 0,
                         max_offset,
+                        visible: false,
                     }
                 });
                 state.max_offset = max_offset;
+                state.visible = true;
 
                 let name_display = scroll_text(&model.display_name, name_width, Some(state));
                 let name_style = if is_selected {
@@ -433,9 +435,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             direction: 1,
                             hold_count: 0,
                             max_offset,
+                            visible: false,
                         }
                     });
                     state.max_offset = max_offset;
+                    state.visible = true;
                     let scrolled_raw = scroll_text(&result.model_id, col_width, Some(state));
                     let highlighted = highlight_query(&scrolled_raw, query);
 
@@ -539,9 +543,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             direction: 1,
                             hold_count: 0,
                             max_offset,
+                            visible: false,
                         }
                     });
                     state.max_offset = max_offset;
+                    state.visible = true;
                     let scrolled_raw = scroll_text(name, available, Some(state));
                     let highlighted = highlight_query(&scrolled_raw, "");
                     let mut name_spans: Vec<Span> = vec![marker_span];

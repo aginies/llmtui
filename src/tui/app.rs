@@ -214,6 +214,11 @@ impl App {
         let mut changed = false;
 
         for (_, state) in self.ui.text_scrolls.iter_mut() {
+            // Skip invisible entries entirely
+            if !state.visible {
+                continue;
+            }
+
             if state.max_offset == 0 {
                 if state.offset != 0 {
                     state.offset = 0;
@@ -229,6 +234,8 @@ impl App {
                     state.direction = -1;
                     state.hold_count = Self::SCROLL_HOLD_FRAMES;
                 }
+
+                let prev_offset = state.offset;
 
                 if state.offset == 0 && state.direction == -1 {
                     state.direction = 1;
@@ -249,7 +256,9 @@ impl App {
                 }
 
                 state.last_tick = now;
-                changed = true;
+                if state.offset != prev_offset {
+                    changed = true;
+                }
             }
         }
 
@@ -269,6 +278,7 @@ impl App {
                 direction: 1,
                 hold_count: 0,
                 max_offset,
+                visible: false,
             });
         }
     }

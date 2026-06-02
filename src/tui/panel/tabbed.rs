@@ -431,9 +431,11 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                             direction: 1,
                             hold_count: 0,
                             max_offset,
+                            visible: false,
                         }
                     });
                     state.max_offset = max_offset;
+                    state.visible = true;
                     let mut lines = render_model_info_lines(&pairs, width, Some(state));
                     // Hint when GGUF metadata was not available.
                     if cached_meta.is_none() {

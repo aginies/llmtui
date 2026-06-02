@@ -185,6 +185,7 @@ pub struct TextScrollState {
     pub direction: i8,
     pub hold_count: u8,
     pub max_offset: usize,
+    pub visible: bool,
 }
 
 /// Phase of model loading.
