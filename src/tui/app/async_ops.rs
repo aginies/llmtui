@@ -606,9 +606,9 @@ impl App {
                 .map(|m| m.display_name.clone())
                 .unwrap_or_else(|| "Router".to_string());
             if let Some(m) = &model_opt {
-                let state = if server_mode_clone == crate::models::ServerMode::Bench {
-                    crate::models::ModelState::Benchmarking
-                } else if server_mode_clone == crate::models::ServerMode::BenchTune {
+                let state = if server_mode_clone == crate::models::ServerMode::Bench
+                    || server_mode_clone == crate::models::ServerMode::BenchTune
+                {
                     crate::models::ModelState::Benchmarking
                 } else {
                     crate::models::ModelState::Loading
@@ -1363,10 +1363,12 @@ impl App {
         let tls_cert = self.settings.ws_server_tls_cert.clone();
         let tls_key = self.settings.ws_server_tls_key.clone();
 
-        let tls_cfg = if tls_enabled && tls_cert.is_some() && tls_key.is_some() {
-            let cert = tls_cert.as_ref().unwrap();
-            let key = tls_key.as_ref().unwrap();
-            crate::backend::tls::load_tls_config(cert, key).await.ok()
+        let tls_cfg = if tls_enabled {
+            if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
+                crate::backend::tls::load_tls_config(cert, key).await.ok()
+            } else {
+                None
+            }
         } else {
             None
         };

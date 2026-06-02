@@ -2,12 +2,23 @@ use crate::backend::server::ServerHandle;
 use crate::config::LogEntry;
 use crate::models::Backend;
 use crate::models::{BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress};
+
 use ratatui::widgets::{ListState, TableState};
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::{ActivePanel, GlobalMode, LoadingPhase, ResizeState, SettingsRenderCache};
+
+type SpawnTaskHandle = tokio::task::JoinHandle<
+    Result<(String, ServerHandle, String, crate::models::ModelSettings), String>,
+>;
+type BenchTuneTaskHandle = tokio::task::JoinHandle<(
+    Result<Vec<BenchTuneResult>, String>,
+    String,
+    BenchTuneConfig,
+)>;
+type SyncRx = tokio::sync::mpsc::Receiver<Vec<(String, String, Option<String>)>>;
 
 pub struct SettingsState {
     pub settings_selected_idx: usize,
@@ -48,21 +59,11 @@ pub struct ServerState {
     pub server_handle: Option<ServerHandle>,
     pub metrics_task_handle: Option<tokio::task::JoinHandle<()>>,
     pub sync_task_handle: Option<tokio::task::JoinHandle<()>>,
-    pub spawn_task_handle: Option<
-        tokio::task::JoinHandle<
-            Result<(String, ServerHandle, String, crate::models::ModelSettings), String>,
-        >,
-    >,
-    pub bench_tune_task_handle: Option<
-        tokio::task::JoinHandle<(
-            Result<Vec<BenchTuneResult>, String>,
-            String,
-            BenchTuneConfig,
-        )>,
-    >,
+    pub spawn_task_handle: Option<SpawnTaskHandle>,
+    pub bench_tune_task_handle: Option<BenchTuneTaskHandle>,
     pub server_log_rx: Option<tokio::sync::mpsc::Receiver<String>>,
     pub metrics_rx: Option<tokio::sync::mpsc::Receiver<crate::models::ServerMetrics>>,
-    pub sync_rx: Option<tokio::sync::mpsc::Receiver<Vec<(String, String, Option<String>)>>>,
+    pub sync_rx: Option<SyncRx>,
     pub spawn_log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,

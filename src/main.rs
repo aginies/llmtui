@@ -205,9 +205,7 @@ async fn main() -> Result<()> {
                 Config::load_from(config_path)
                     .map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
             } else {
-                let mut c = Config::default();
-                c.llama_server = PathBuf::from(&llama_server);
-                c
+                Config { llama_server: PathBuf::from(&llama_server), ..Default::default() }
             };
 
             // If CLI models_dirs are provided, override the config ones

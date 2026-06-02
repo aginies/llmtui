@@ -6,7 +6,7 @@ use ratatui::{
 use crate::config::SystemPromptPreset;
 
 pub fn render_all<'a>(
-    presets: &'a Vec<SystemPromptPreset>,
+    presets: &'a [SystemPromptPreset],
     selected: usize,
     editing: bool,
     edit_content: &str,

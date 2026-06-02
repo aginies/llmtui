@@ -800,13 +800,12 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
             };
             let file_size_mb = results
                 .first()
-                .map(|r| {
+                .and_then(|r| {
                     r.base_settings.as_ref().map(|_s| {
                         // We don't have file_size in settings, use a placeholder
                         0u64
                     })
                 })
-                .flatten()
                 .unwrap_or(0);
             (model_name, file_size_mb, s.clone())
         })

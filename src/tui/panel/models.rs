@@ -170,8 +170,8 @@ fn highlight_query<'a>(text: &'a str, query: &str) -> Line<'a> {
         while let Some(idx) = lower_text[pos..].find(word) {
             let start = pos + idx;
             let end = start + word.len();
-            for i in start..end {
-                highlight[i] = true;
+            for flag in highlight.iter_mut().skip(start).take(end - start) {
+                *flag = true;
             }
             pos = end;
         }

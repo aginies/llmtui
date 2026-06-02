@@ -192,8 +192,7 @@ pub async fn serve_model(
 
     // TLS configuration
     let tls_config = if tls_enable || (tls_cert.is_some() && tls_key.is_some()) {
-        let (cert_path, key_path) = if tls_cert.is_some() {
-            let cert = tls_cert.unwrap();
+        let (cert_path, key_path) = if let Some(cert) = tls_cert {
             let key = tls_key.unwrap();
             tls::validate_tls_path(cert).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
             tls::validate_tls_path(key).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;

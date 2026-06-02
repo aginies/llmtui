@@ -137,12 +137,7 @@ fn render_settings(
             field.display(settings)
         };
 
-        let val_style = if *total_count == selected && editing {
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Yellow)
-                .add_modifier(Modifier::BOLD)
-        } else if *total_count == selected {
+        let val_style = if *total_count == selected {
             Style::default()
                 .fg(Color::Black)
                 .bg(Color::Yellow)

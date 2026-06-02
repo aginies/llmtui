@@ -188,7 +188,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 _ => {
                     let total = app.loading.model_total_layers;
                     app.settings.gpu_layers_mode =
-                        crate::models::GpuLayersMode::Specific(total.max(1).min(256));
+                        crate::models::GpuLayersMode::Specific(total.clamp(1, 256));
                     mark_settings_dirty(app, true);
                 }
             }
@@ -197,7 +197,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             let total = app.loading.model_total_layers;
             app.settings.gpu_layers_mode = match &app.settings.gpu_layers_mode {
                 crate::models::GpuLayersMode::Auto => {
-                    crate::models::GpuLayersMode::Specific(total.max(1).min(256))
+                    crate::models::GpuLayersMode::Specific(total.clamp(1, 256))
                 }
                 crate::models::GpuLayersMode::Specific(0) => crate::models::GpuLayersMode::Auto,
                 crate::models::GpuLayersMode::Specific(n) if *n == 1 => {
@@ -207,7 +207,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     crate::models::GpuLayersMode::Specific(n - 1)
                 }
                 crate::models::GpuLayersMode::All => {
-                    let max = total.max(1).min(256);
+                    let max = total.clamp(1, 256);
                     crate::models::GpuLayersMode::Specific(max)
                 }
             };

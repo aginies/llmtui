@@ -384,7 +384,7 @@ fn render_confirmation(
     );
 }
 
-fn render_host_picker(f: &mut Frame, area: Rect, entries: &Vec<(String, String)>, selected: usize) {
+fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], selected: usize) {
     let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
     let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
     let picker_area = Rect {
@@ -433,7 +433,7 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &Vec<(String, String)>
 fn render_profile_picker(
     f: &mut Frame,
     area: Rect,
-    entries: &Vec<(String, String)>,
+    entries: &[(String, String)],
     selected: usize,
     current_settings: &crate::models::ModelSettings,
     selected_profile: Option<&crate::config::Profile>,
@@ -537,7 +537,7 @@ fn render_profile_picker(
 fn render_prompt_picker(
     f: &mut Frame,
     area: Rect,
-    entries: &Vec<(String, String)>,
+    entries: &[(String, String)],
     selected: usize,
     editing: bool,
     edit_buffer: &str,
@@ -764,7 +764,7 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
 fn render_backend_picker(
     f: &mut Frame,
     area: Rect,
-    entries: &Vec<(crate::models::Backend, Option<String>)>,
+    entries: &[(crate::models::Backend, Option<String>)],
     selected: usize,
 ) {
     let w = (area.width as f64 * 0.5).clamp(50.0, 70.0) as u16;
@@ -804,15 +804,15 @@ fn render_backend_picker(
         } else {
             crate::backend::hub::is_backend_any_version_installed(*backend)
         };
-        let is_recommended = vendors.iter().any(|v| match (v, backend, tag) {
-            (GpuVendor::Amd, crate::models::Backend::Rocm, None) => true,
-            (GpuVendor::Amd, crate::models::Backend::RocmLemonade, None) => true,
-            (GpuVendor::Nvidia, crate::models::Backend::Cuda, None) => true,
-            (GpuVendor::Nvidia, crate::models::Backend::Vulkan, None) => true,
-            (GpuVendor::Intel, crate::models::Backend::Vulkan, None) => true,
-            (GpuVendor::Unknown, crate::models::Backend::Cpu, None) => true,
-            _ => false,
-        });
+        let is_recommended = vendors.iter().any(|v| matches!(
+            (v, backend, tag),
+            (GpuVendor::Amd, crate::models::Backend::Rocm, None)
+                | (GpuVendor::Amd, crate::models::Backend::RocmLemonade, None)
+                | (GpuVendor::Nvidia, crate::models::Backend::Cuda, None)
+                | (GpuVendor::Nvidia, crate::models::Backend::Vulkan, None)
+                | (GpuVendor::Intel, crate::models::Backend::Vulkan, None)
+                | (GpuVendor::Unknown, crate::models::Backend::Cpu, None)
+        ));
         let style = if i == selected {
             Style::default()
                 .fg(Color::Black)
@@ -2010,37 +2010,38 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
     let clamped_pos = cursor_pos.min(buffer.len());
     let before: String = buffer.chars().take(clamped_pos).collect();
     let after: String = buffer.chars().skip(clamped_pos).collect();
-    let mut picker_lines: Vec<Line> = Vec::new();
-    picker_lines.push(Line::from(Span::styled(
-        " Search Query ",
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    )));
-    picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(vec![
-        Span::styled("Search: ", Style::default().fg(Color::Yellow)),
-        Span::styled(before, Style::default().fg(Color::White)),
-        Span::styled(
-            "|",
+    let picker_lines: Vec<Line> = vec![
+        Line::from(Span::styled(
+            " Search Query ",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
-        ),
-        Span::styled(after, Style::default().fg(Color::White)),
-    ]));
-    picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(vec![
-        Span::styled(
-            "  [Enter] search  ",
-            Style::default().fg(Color::Black).bg(Color::Yellow),
-        ),
-        Span::raw("  "),
-        Span::styled(
-            "  [Esc] cancel  ",
-            Style::default().fg(Color::Black).bg(Color::DarkGray),
-        ),
-    ]));
+        )),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Search: ", Style::default().fg(Color::Yellow)),
+            Span::styled(before, Style::default().fg(Color::White)),
+            Span::styled(
+                "|",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(after, Style::default().fg(Color::White)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(
+                "  [Enter] search  ",
+                Style::default().fg(Color::Black).bg(Color::Yellow),
+            ),
+            Span::raw("  "),
+            Span::styled(
+                "  [Esc] cancel  ",
+                Style::default().fg(Color::Black).bg(Color::DarkGray),
+            ),
+        ]),
+    ];
     f.render_widget(Clear, popup_area);
     f.render_widget(
         Paragraph::new(picker_lines).block(
@@ -2095,21 +2096,22 @@ fn render_yarn_rope_picker(
         width: w,
         height: h,
     };
-    let mut picker_lines: Vec<Line> = Vec::new();
-    picker_lines.push(Line::from(Span::styled(
-        " Yarn RoPE Params ",
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    )));
-    picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(Span::styled(
-        " [↑/↓] Select  [Enter] Edit  [Esc] Done  [Space] Enable/Disable Yarn RoPE ",
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    )));
-    picker_lines.push(Line::from(""));
+    let mut picker_lines: Vec<Line> = vec![
+        Line::from(Span::styled(
+            " Yarn RoPE Params ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            " [↑/↓] Select  [Enter] Edit  [Esc] Done  [Space] Enable/Disable Yarn RoPE ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+    ];
 
     let fields = [
         (
@@ -2211,19 +2213,20 @@ fn render_spec_type_picker(
         width: w,
         height: h,
     };
-    let mut picker_lines: Vec<Line> = Vec::new();
-    picker_lines.push(Line::from(Span::styled(
-        " Speculative Decoding Type ",
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    )));
-    picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(Span::styled(
-        " [↑/↓] Select  [Enter] Apply  [Esc] Cancel ",
-        Style::default().fg(Color::Yellow),
-    )));
-    picker_lines.push(Line::from(""));
+    let mut picker_lines: Vec<Line> = vec![
+        Line::from(Span::styled(
+            " Speculative Decoding Type ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            " [↑/↓] Select  [Enter] Apply  [Esc] Cancel ",
+            Style::default().fg(Color::Yellow),
+        )),
+        Line::from(""),
+    ];
 
     for (i, entry) in entries.iter().enumerate() {
         let marker = if i == selected { "> " } else { "  " };

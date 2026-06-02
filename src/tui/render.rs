@@ -107,7 +107,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             ])
             .split(chunks[1])
     } else {
-        let left_pct = app.ui.left_pct.max(20).min(80);
+        let left_pct = app.ui.left_pct.clamp(20, 80);
         ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([

@@ -695,12 +695,12 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, delta, _| {
                 let mut val = s.mirostat;
                 val = match (delta, val) {
-                    (1, Mirostat::Off) => Mirostat::Mirostat,
-                    (1, Mirostat::Mirostat) => Mirostat::Mirostat2,
+                    (1, Mirostat::Off) => Mirostat::V1,
+                    (1, Mirostat::V1) => Mirostat::Mirostat2,
                     (1, Mirostat::Mirostat2) => Mirostat::Off,
                     (-1, Mirostat::Off) => Mirostat::Mirostat2,
-                    (-1, Mirostat::Mirostat) => Mirostat::Off,
-                    (-1, Mirostat::Mirostat2) => Mirostat::Mirostat,
+                    (-1, Mirostat::V1) => Mirostat::Off,
+                    (-1, Mirostat::Mirostat2) => Mirostat::V1,
                     _ => val,
                 };
                 s.mirostat = val;
@@ -992,7 +992,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s| s.draft_tokens.to_string(),
             |s, c| s.draft_tokens != c.draft_tokens,
             |s, delta, _| {
-                s.draft_tokens = (s.draft_tokens as i32 + delta).max(0).min(16) as u32;
+                s.draft_tokens = (s.draft_tokens as i32 + delta).clamp(0, 16) as u32;
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<u32>() {

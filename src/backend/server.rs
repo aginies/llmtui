@@ -743,8 +743,7 @@ pub async fn get_metrics(
         .await
         .map_err(|e| format!("Failed to read metrics: {}", e))?;
 
-    let mut m = ServerMetrics::default();
-    m.loaded = true;
+    let mut m = ServerMetrics { loaded: true, ..Default::default() };
 
     let mut ctx_max_slots = 0u32;
     let mut ctx_used_slots = 0u32;

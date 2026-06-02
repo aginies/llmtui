@@ -37,7 +37,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
         match mouse.kind {
             MouseEventKind::Drag(_) => {
                 let dx = pos.x as i16 - rs.start_x as i16;
-                let delta = (dx * 100 / rs.container.width as i16).max(-5).min(5);
+                let delta = (dx * 100 / rs.container.width as i16).clamp(-5, 5);
                 app.ui.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
             }
             MouseEventKind::Up(MouseButton::Left) => {
@@ -107,7 +107,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
 
     // 2. Check Top panels
     if chunks[1].contains(pos) {
-        let left_pct = app.ui.left_pct.max(20).min(80);
+        let left_pct = app.ui.left_pct.clamp(20, 80);
         let top_chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Horizontal)
             .constraints([
@@ -136,7 +136,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
                 MouseEventKind::Drag(_) => {
                     if let Some(ref rs) = app.ui.resize_state {
                         let dx = pos.x as i16 - rs.start_x as i16;
-                        let delta = (dx * 100 / rs.container.width as i16).max(-5).min(5);
+                        let delta = (dx * 100 / rs.container.width as i16).clamp(-5, 5);
                         app.ui.left_pct = (rs.start_pct as i16 + delta).clamp(20, 80) as u16;
                     }
                 }

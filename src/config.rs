@@ -1068,9 +1068,9 @@ impl Config {
         // normalize models_dirs
         for path in &mut config.models_dirs {
             let path_str = path.to_string_lossy();
-            if path_str.starts_with("~/") {
+            if let Some(stripped) = path_str.strip_prefix("~/") {
                 let home = dirs::home_dir().unwrap_or_default();
-                *path = home.join(&path_str[2..]);
+                *path = home.join(stripped);
             } else if !path.is_absolute() {
                 let home = dirs::home_dir().unwrap_or_default();
                 *path = home.join(path_str.as_ref());

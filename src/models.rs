@@ -497,7 +497,7 @@ pub enum Mirostat {
     #[default]
     Off,
     #[serde(rename = "1")]
-    Mirostat,
+    V1,
     #[serde(rename = "2")]
     Mirostat2,
 }
@@ -506,7 +506,7 @@ impl std::fmt::Display for Mirostat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Mirostat::Off => write!(f, "off"),
-            Mirostat::Mirostat => write!(f, "1"),
+            Mirostat::V1 => write!(f, "1"),
             Mirostat::Mirostat2 => write!(f, "2"),
         }
     }
@@ -624,8 +624,6 @@ impl Backend {
             }
         } else if s.starts_with("cuda") || s.starts_with("cu") {
             Backend::Cuda
-        } else if s.starts_with("cpu") || s.starts_with("cp") {
-            Backend::Cpu
         } else {
             Backend::Cpu // Default
         }
@@ -1196,7 +1194,7 @@ impl WsMetrics {
             frequency_penalty: settings.frequency_penalty,
             mirostat: Some(match settings.mirostat {
                 crate::models::Mirostat::Off => 0,
-                crate::models::Mirostat::Mirostat => 1,
+                crate::models::Mirostat::V1 => 1,
                 crate::models::Mirostat::Mirostat2 => 2,
             }),
             mirostat_lr: Some(settings.mirostat_lr),

@@ -14,18 +14,19 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
             loading,
             ..
         } => {
-            let mut parts = Vec::new();
-            parts.push(Span::styled("⎋ exit", c));
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("↵ files", y));
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("-> readme", y));
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("sort:", c));
-            parts.push(Span::styled(
-                sort_by.label(),
-                Style::default().fg(Color::Magenta),
-            ));
+            let mut parts = vec![
+                Span::styled("⎋ exit", c),
+                Span::raw("  "),
+                Span::styled("↵ files", y),
+                Span::raw("  "),
+                Span::styled("-> readme", y),
+                Span::raw("  "),
+                Span::styled("sort:", c),
+                Span::styled(
+                    sort_by.label(),
+                    Style::default().fg(Color::Magenta),
+                ),
+            ];
             if *loading {
                 parts.push(Span::raw("  "));
                 parts.push(Span::styled(
@@ -36,23 +37,24 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
             parts
         }
         ModelsMode::Files { .. } => {
-            let mut parts = Vec::new();
-            parts.push(Span::styled("↵ download", y));
-            parts.push(Span::raw("  "));
-            parts.push(Span::styled("⎋ back", c));
-            parts
+            vec![
+                Span::styled("↵ download", y),
+                Span::raw("  "),
+                Span::styled("⎋ back", c),
+            ]
         }
         ModelsMode::List => {
             if app.ui.active_panel == ActivePanel::LlmSettings {
-                let mut parts = Vec::new();
-                parts.push(Span::styled("j/k nav", c));
-                parts.push(Span::raw("  "));
-                parts.push(Span::styled("^S save", y));
-                parts.push(Span::raw("  "));
-                parts.push(Span::styled("^R reset", y));
-                parts.push(Span::raw("  "));
-                parts.push(Span::styled("^E toggle", y));
-                parts.push(Span::raw("  "));
+                let mut parts = vec![
+                    Span::styled("j/k nav", c),
+                    Span::raw("  "),
+                    Span::styled("^S save", y),
+                    Span::raw("  "),
+                    Span::styled("^R reset", y),
+                    Span::raw("  "),
+                    Span::styled("^E toggle", y),
+                    Span::raw("  "),
+                ];
                 if app.is_settings_dirty() {
                     parts.push(Span::raw("  "));
                     parts.push(Span::styled("*unsaved*", r));

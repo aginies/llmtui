@@ -113,7 +113,7 @@ async fn proxy_streaming(
             if is_sse {
                 let mut response = axum::response::Response::new(Body::from_stream(
                     resp.bytes_stream().map(|result| {
-                        result.map_err(|e| std::io::Error::other(e))
+                        result.map_err(std::io::Error::other)
                     }),
                 ));
                 *response.status_mut() = status;

@@ -1405,7 +1405,7 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.edit.editing_n_predict = false;
                 } else if app.edit.editing_iters {
                     if let Ok(val) = app.edit.iters_edit_buffer.parse::<u32>() {
-                        config.num_iterations = val.max(1).min(100);
+                        config.num_iterations = val.clamp(1, 100);
                     }
                     app.edit.editing_iters = false;
                 } else {
