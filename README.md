@@ -5,6 +5,8 @@
 
 A terminal UI (TUI) for managing local LLM models with HuggingFace search, download, and inference control.
 
+> **NOTE:** This app is WIP (Work in Progress).
+
 **Version 1.0.0**
 
 ![Screenshot](documentation/main.png)
@@ -387,6 +389,8 @@ Tunable parameters: temperature (0.4-1.0), top_p (0.8-1.0), top_k (10-40), repea
 Results can be exported as Markdown table, JSON, YAML, or HTML report with summary cards, winner section, impact analysis, and Chart.js charts.
 
 ### RPC Workers
+
+> **NOTE:** RPC Workers is WIP and not yet tested.
 
 Remote workers for distributed inference. Each worker has a name, IP address, and port (default: 50052). Managed via the dedicated RPC Workers window — add (`n`), edit (`e`), delete (`d`), or toggle selection (`Space`).
 
