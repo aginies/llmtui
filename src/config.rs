@@ -726,7 +726,7 @@ pub struct DefaultParams {
     pub ws_server_port: u16,
     #[serde(default)]
     pub ws_server_auth_key: Option<String>,
-    #[serde(default)]
+    #[serde(default = "default_ws_server_tls_enabled")]
     pub ws_server_tls_enabled: bool,
     #[serde(default)]
     pub ws_server_tls_cert: Option<String>,
@@ -798,9 +798,12 @@ fn default_cache_prompt() -> bool {
     true
 }
 fn default_ws_server_port() -> u16 {
-    49223
-}
-fn default_gpu_layers_mode() -> crate::models::GpuLayersMode {
+     49223
+ }
+ fn default_ws_server_tls_enabled() -> bool {
+     true
+ }
+ fn default_gpu_layers_mode() -> crate::models::GpuLayersMode {
     crate::models::GpuLayersMode::Auto
 }
 
@@ -884,7 +887,7 @@ impl Default for DefaultParams {
             ws_server_enabled: false,
             ws_server_port: 49223,
             ws_server_auth_key: None,
-            ws_server_tls_enabled: false,
+            ws_server_tls_enabled: true,
             ws_server_tls_cert: None,
             ws_server_tls_key: None,
             router_max_models: 4,
