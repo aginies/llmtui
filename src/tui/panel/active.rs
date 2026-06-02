@@ -274,38 +274,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     String::new()
                 };
 
-                let mut tps_parts = Vec::new();
-                tps_parts.push(Span::styled(" [ ", Style::default().fg(Color::White)));
-                tps_parts.push(Span::styled(
-                    "Tokens/s: ",
-                    Style::default().fg(Color::Yellow),
-                ));
-                tps_parts.push(Span::styled(tps_str, tps_style));
-                if !latency_str.is_empty() {
-                    tps_parts.push(Span::styled(
-                        latency_str,
-                        Style::default().fg(Color::DarkGray),
-                    ));
-                }
-                tps_parts.push(Span::styled(
-                    " (prompt: ",
-                    Style::default().fg(Color::DarkGray),
-                ));
-                tps_parts.push(Span::styled(prompt_str, prompt_style));
-                tps_parts.push(Span::styled(")", Style::default().fg(Color::DarkGray)));
-                tps_parts.push(Span::styled(" ]", Style::default().fg(Color::White)));
-                tps_parts.push(Span::styled("  [ ", Style::default().fg(Color::White)));
-                tps_parts.push(Span::styled(
-                    "Context: ",
-                    Style::default().fg(Color::Yellow),
-                ));
-                tps_parts.push(Span::styled(bar_only, Style::default().fg(Color::Cyan)));
-                tps_parts.push(Span::styled(" ", Style::default().fg(Color::Cyan)));
-                tps_parts.push(Span::styled(token_str, Style::default().fg(Color::Cyan)));
-                tps_parts.push(Span::styled(" ]", Style::default().fg(Color::White)));
-
-                lines.push(Line::from(tps_parts));
-
                 let gen_tps_style = if app.metrics.gen_tps > 30.0 {
                     Style::default().fg(Color::Green)
                 } else if app.metrics.gen_tps > 15.0 {
@@ -316,29 +284,41 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Style::default().fg(Color::DarkGray)
                 };
 
-                let mut gen_parts = Vec::new();
-                gen_parts.push(Span::styled(" [ ", Style::default().fg(Color::White)));
-                gen_parts.push(Span::styled(
-                    "Decoded: ",
-                    Style::default().fg(Color::Yellow),
-                ));
-                gen_parts.push(Span::styled(
-                    format!("{}", app.metrics.decoded_tokens),
-                    Style::default().fg(Color::Cyan),
-                ));
-                gen_parts.push(Span::styled("  ", Style::default().fg(Color::White)));
-                gen_parts.push(Span::styled(
-                    "Gen: ",
-                    Style::default().fg(Color::Yellow),
-                ));
-                gen_parts.push(Span::styled(
-                    format!("{:.1}", app.metrics.gen_tps),
-                    gen_tps_style,
-                ));
-                gen_parts.push(Span::styled(" t/s", Style::default().fg(Color::DarkGray)));
-                gen_parts.push(Span::styled(" ]", Style::default().fg(Color::White)));
+                let tps_parts = vec![
+                    Span::styled(" [ ", Style::default().fg(Color::White)),
+                    Span::styled("Tokens/s: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(tps_str, tps_style),
+                    if !latency_str.is_empty() {
+                        Span::styled(latency_str, Style::default().fg(Color::DarkGray))
+                    } else {
+                        Span::styled(" ".repeat(10), Style::default().fg(Color::DarkGray))
+                    },
+                    Span::styled(" (prompt: ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(prompt_str, prompt_style),
+                    Span::styled(")", Style::default().fg(Color::DarkGray)),
+                    Span::styled(" ]", Style::default().fg(Color::White)),
+                    Span::styled("  [ ", Style::default().fg(Color::White)),
+                    Span::styled("Decoded: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(format!("{}", app.metrics.decoded_tokens), Style::default().fg(Color::Cyan)),
+                    Span::styled("  ", Style::default().fg(Color::White)),
+                    Span::styled("Gen: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(format!("{:.1}", app.metrics.gen_tps), gen_tps_style),
+                    Span::styled(" t/s", Style::default().fg(Color::DarkGray)),
+                    Span::styled(" ]", Style::default().fg(Color::White)),
+                ];
 
-                lines.push(Line::from(gen_parts));
+                lines.push(Line::from(tps_parts));
+
+                let context_parts = vec![
+                    Span::styled(" [ ", Style::default().fg(Color::White)),
+                    Span::styled("Context: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(bar_only, Style::default().fg(Color::Cyan)),
+                    Span::styled(" ", Style::default().fg(Color::Cyan)),
+                    Span::styled(token_str, Style::default().fg(Color::Cyan)),
+                    Span::styled(" ]", Style::default().fg(Color::White)),
+                ];
+
+                lines.push(Line::from(context_parts));
 
                 lines.push(Line::from(vec![
                     Span::styled(" [ ", Style::default().fg(Color::White)),
