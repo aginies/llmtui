@@ -1,6 +1,6 @@
 use crate::config::Profile;
 use crate::models::{
-    CacheTypeK, CacheTypeV, GpuLayersMode, Mirostat, ModelSettings, NumMode, SplitMode,
+    CacheQuantType, GpuLayersMode, Mirostat, ModelSettings, NumMode, SplitMode,
 };
 use ratatui::{
     style::{Color, Modifier, Style},
@@ -207,14 +207,10 @@ fn toggle_max_concurrent_predictions(settings: &mut ModelSettings) {
         .map_or(Some(1), |_| None);
 }
 fn toggle_cache_type_k(settings: &mut ModelSettings) {
-    settings.cache_type_k = settings
-        .cache_type_k
-        .map_or(Some(CacheTypeK::F16), |_| None);
+    settings.cache_type_k = settings.cache_type_k.map_or(Some(CacheQuantType::F16), |_| None);
 }
 fn toggle_cache_type_v(settings: &mut ModelSettings) {
-    settings.cache_type_v = settings
-        .cache_type_v
-        .map_or(Some(CacheTypeV::F16), |_| None);
+    settings.cache_type_v = settings.cache_type_v.map_or(Some(CacheQuantType::F16), |_| None);
 }
 fn toggle_expert_count(settings: &mut ModelSettings) {
     settings.expert_count = match settings.expert_count {
@@ -231,6 +227,30 @@ fn toggle_frequency_penalty(settings: &mut ModelSettings) {
 }
 
 // ── All Fields (Interleaved for context-aware expert mode) ────────────────────
+
+macro_rules! make_cache_type_field {
+    ($field:ident, $name:literal, $toggle:ident) => {
+        expert_field_with_toggle(
+            stringify!($field),
+            $name,
+            "GPU Offload",
+            |s| s.$field.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
+            |s, c| s.$field != c.$field,
+            |s, delta, _| {
+                let mut val = s.$field.unwrap_or(CacheQuantType::F16);
+                val = if delta > 0 { val.next() } else { val.prev() };
+                s.$field = Some(val);
+            },
+            |s, buf| {
+                if let Ok(n) = buf.parse::<u8>() {
+                    s.$field = Some(CacheQuantType::from_u8(n));
+                }
+            },
+            $toggle,
+            EditKind::Direct,
+        )
+    };
+}
 
 pub fn all_fields() -> Vec<SettingField> {
     vec![
@@ -465,52 +485,10 @@ pub fn all_fields() -> Vec<SettingField> {
             toggle_kv_cache_offload,
             EditKind::Toggle,
         ),
-        expert_field_with_toggle(
-            "cache_type_k",
-            "Cache Type K",
-            "GPU Offload",
-            |s| {
-                s.cache_type_k
-                    .map(|v| v.to_string())
-                    .unwrap_or_else(|| "Disabled".to_string())
-            },
-            |s, c| s.cache_type_k != c.cache_type_k,
-            |s, delta, _| {
-                let mut val = s.cache_type_k.unwrap_or(CacheTypeK::F16);
-                val = if delta > 0 { val.next() } else { val.prev() };
-                s.cache_type_k = Some(val);
-            },
-            |s, buf| {
-                if let Ok(n) = buf.parse::<u8>() {
-                    s.cache_type_k = Some(CacheTypeK::from_u8(n));
-                }
-            },
-            toggle_cache_type_k,
-            EditKind::Direct,
-        ),
-        expert_field_with_toggle(
-            "cache_type_v",
-            "Cache Type V",
-            "GPU Offload",
-            |s| {
-                s.cache_type_v
-                    .map(|v| v.to_string())
-                    .unwrap_or_else(|| "Disabled".to_string())
-            },
-            |s, c| s.cache_type_v != c.cache_type_v,
-            |s, delta, _| {
-                let mut val = s.cache_type_v.unwrap_or(CacheTypeV::F16);
-                val = if delta > 0 { val.next() } else { val.prev() };
-                s.cache_type_v = Some(val);
-            },
-            |s, buf| {
-                if let Ok(n) = buf.parse::<u8>() {
-                    s.cache_type_v = Some(CacheTypeV::from_u8(n));
-                }
-            },
-            toggle_cache_type_v,
-            EditKind::Direct,
-        ),
+        // ── Cache type fields ──────────────────────────────────────────────────
+
+        make_cache_type_field!(cache_type_k, "Cache Type K", toggle_cache_type_k),
+        make_cache_type_field!(cache_type_v, "Cache Type V", toggle_cache_type_v),
         expert_field_with_toggle(
             "expert_count",
             "Active Experts",

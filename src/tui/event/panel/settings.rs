@@ -2,8 +2,13 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use super::super::helpers::{mark_settings_dirty, sync_global_settings};
 use crate::config::builtin_profiles;
+use crate::models::CacheQuantType;
 use crate::tui::app::{App, GlobalMode};
 use crate::tui::settings;
+
+fn cycle_cache_type(field: &mut Option<CacheQuantType>) {
+    *field = Some(field.take().unwrap_or(CacheQuantType::F16).next());
+}
 
 pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     let idx = app.settings_state.settings_selected_idx;
@@ -244,22 +249,18 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Cache Type K: cycle on Enter with empty buffer; delegate buffer/arrow to generic handler
-    if field_id == Some("cache_type_k") && key.code == KeyCode::Enter
-    {
-        let val = app.settings.cache_type_k.unwrap_or(crate::models::CacheTypeK::F16).next();
-        app.settings.cache_type_k = Some(val);
-        mark_settings_dirty(app, true);
-        return;
-    }
-
-    // Cache Type V: cycle on Enter with empty buffer; delegate buffer/arrow to generic handler
-    if field_id == Some("cache_type_v") && key.code == KeyCode::Enter
-    {
-        let val = app.settings.cache_type_v.unwrap_or(crate::models::CacheTypeV::F16).next();
-        app.settings.cache_type_v = Some(val);
-        mark_settings_dirty(app, true);
-        return;
+    // Cache Type K/V: cycle on Enter with empty buffer
+    if key.code == KeyCode::Enter {
+        if field_id == Some("cache_type_k") {
+            cycle_cache_type(&mut app.settings.cache_type_k);
+            mark_settings_dirty(app, true);
+            return;
+        }
+        if field_id == Some("cache_type_v") {
+            cycle_cache_type(&mut app.settings.cache_type_v);
+            mark_settings_dirty(app, true);
+            return;
+        }
     }
 
     // Unified KV: toggle on Enter
