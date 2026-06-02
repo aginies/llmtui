@@ -959,41 +959,37 @@ impl App {
                         });
                         self.bench_tune.bench_tune_results = sorted_results;
                         self.bench_tune.bench_tune_running = false;
+
+                        let model_display_name = self
+                            .selected_model()
+                            .map(|m| m.display_name.clone());
+
+                        if let Some(model_display_name) = model_display_name {
+                            self.model_states
+                                .insert(model_display_name.clone(), crate::models::ModelState::Available);
+                        }
+
+                        if let Some(handle) = &self.server.server_handle {
+                            if let Some(model) = self.selected_model() {
+                                let host = handle.host.clone();
+                                let port = handle.port;
+                                let model_name = model.display_name.clone();
+                                let model_path_str = model.path.to_str().map(|s| s.to_string());
+                                let task_name = format!("bench_unload_{}", model.display_name);
+                                let task_handle = tokio::spawn(async move {
+                                    let _ = crate::backend::server::unload_model(
+                                        &host,
+                                        port,
+                                        &model_name,
+                                        model_path_str.as_deref(),
+                                    )
+                                    .await;
+                                });
+                                self.background_tasks.insert(task_name, task_handle);
+                            }
+                        }
+
                         self.ui.needs_redraw = true;
-                        let (host, port, model_name, model_path_str, task_name, model_display_name) = {
-                            let model = match self.selected_model() {
-                                Some(m) => m,
-                                None => {
-                                    return;
-                                }
-                            };
-                            let handle = match &self.server.server_handle {
-                                Some(h) => h,
-                                None => {
-                                    return;
-                                }
-                            };
-                            (
-                                handle.host.clone(),
-                                handle.port,
-                                model.display_name.clone(),
-                                model.path.to_str().map(|s| s.to_string()),
-                                format!("bench_unload_{}", model.display_name),
-                                model.display_name.clone(),
-                            )
-                        };
-                        let task_handle = tokio::spawn(async move {
-                            let _ = crate::backend::server::unload_model(
-                                &host,
-                                port,
-                                &model_name,
-                                model_path_str.as_deref(),
-                            )
-                            .await;
-                        });
-                        self.background_tasks.insert(task_name, task_handle);
-                        self.model_states
-                            .insert(model_display_name, crate::models::ModelState::Available);
                     }
                     Err(e) => {
                         self.add_log(

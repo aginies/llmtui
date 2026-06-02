@@ -321,10 +321,12 @@ impl App {
                 self.loading.loading_progress = 0.0;
                 self.loading.load_progress = Default::default();
 
-                for state in self.model_states.values_mut() {
-                    *state = crate::models::ModelState::Available;
+                if !self.bench_tune.bench_tune_running {
+                    for state in self.model_states.values_mut() {
+                        *state = crate::models::ModelState::Available;
+                    }
+                    self.ui.needs_redraw = true;
                 }
-                self.ui.needs_redraw = true;
             }
     }
 
