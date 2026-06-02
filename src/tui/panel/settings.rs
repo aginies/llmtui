@@ -149,6 +149,8 @@ fn render_settings(
 
         let name_style = if disabled {
             Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)
+        } else if dirty {
+            Style::default().fg(Color::Red)
         } else {
             Style::default().fg(Color::Yellow)
         };
