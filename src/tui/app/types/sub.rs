@@ -132,7 +132,7 @@ pub struct LoadingState {
 }
 
 pub struct PendingOperations {
-    pub pending_download: Option<(String, String, String, u64)>,
+    pub pending_download: Option<(String, String, String, u64, String)>,
     pub pending_deletion: Option<PathBuf>,
     pub pending_backend_deletion: Option<(Backend, String)>,
     pub pending_spawn: Option<(

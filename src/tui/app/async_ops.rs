@@ -5,13 +5,19 @@ use std::sync::atomic::{AtomicBool, AtomicU8};
 
 impl App {
     pub async fn start_pending_download(&mut self) {
-        if let Some((model_id, filename, download_url, file_size)) =
+        if let Some((model_id, filename, download_url, file_size, model_id_for_subdir)) =
             self.pending.pending_download.take()
         {
             let models_dirs = &self.config.models_dirs;
-            // Use the first directory as the download destination
+            // Use the first directory as the download destination, stored under model_id subdirectory
             let models_dir = models_dirs.first().cloned().unwrap_or_default();
-            let dest = models_dir.join(&filename);
+            let dest_dir = models_dir.join(&model_id_for_subdir);
+            let basename = std::path::Path::new(&filename)
+                .file_name()
+                .unwrap_or_default();
+            let dest = dest_dir.join(basename);
+            // Create the model_id subdirectory if it doesn't exist
+            tokio::fs::create_dir_all(&dest_dir).await.ok();
             let free_space = crate::backend::hub::get_free_space_bytes(&models_dir);
             if file_size > free_space {
                 self.add_log(

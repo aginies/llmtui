@@ -1006,6 +1006,32 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             .modifiers
             .contains(crossterm::event::KeyModifiers::CONTROL)
     {
+        // Ctrl+S: sort in search mode (takes priority over save)
+        if matches!(app.models_mode, ModelsMode::Search { .. }) {
+            if let ModelsMode::Search {
+                sort_by, results, ..
+            } = &mut app.models_mode
+            {
+                *sort_by = sort_by.next();
+                results.sort_by(|a, b| match sort_by {
+                    SearchSort::Downloads => b.downloads.cmp(&a.downloads),
+                    SearchSort::Likes => b.likes.cmp(&a.likes),
+                    SearchSort::Trending => b.trending_score.cmp(&a.trending_score),
+                    SearchSort::CreatedAt => {
+                        let a_date = a.created_at.as_deref().unwrap_or("");
+                        let b_date = b.created_at.as_deref().unwrap_or("");
+                        b_date.cmp(a_date)
+                    }
+                    SearchSort::Relevance => std::cmp::Ordering::Equal,
+                });
+                if !results.is_empty() {
+                    app.search.search_results_idx = Some(0);
+                } else {
+                    app.search.search_results_idx = None;
+                }
+            }
+            return;
+        }
         app.save_model_settings();
         return;
     }
@@ -1824,12 +1850,12 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 selected_idx.and_then(|idx| {
                     files
                         .get(idx)
-                        .map(|(f, s, u): &(_, _, _)| (model_id.clone(), f.clone(), u.clone(), *s))
+                        .map(|(f, s, u): &(_, _, _)| (model_id.clone(), f.clone(), u.clone(), *s, model_id.clone()))
                 })
             } else {
                 None
             };
-            if let Some((model_id, filename, url, file_size)) = download_info {
+            if let Some((model_id, filename, url, file_size, subdir)) = download_info {
                 if app
                     .download
                     .download_progress
@@ -1843,7 +1869,11 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     return;
                 }
                 let models_dir = app.config.models_dirs.first().cloned().unwrap_or_default();
-                let file_path = models_dir.join(&filename);
+                let dest_dir = models_dir.join(&subdir);
+                let basename = std::path::Path::new(&filename)
+                    .file_name()
+                    .unwrap_or_default();
+                let file_path = dest_dir.join(basename);
                 if file_path.exists() {
                     app.add_log("File already downloaded", crate::config::LogLevel::Warning);
                     return;
@@ -1852,7 +1882,7 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     format!("Downloading {}...", filename),
                     crate::config::LogLevel::Info,
                 );
-                app.pending.pending_download = Some((model_id, filename, url, file_size));
+                app.pending.pending_download = Some((model_id, filename, url, file_size, subdir));
             }
             return;
         }
