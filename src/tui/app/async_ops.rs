@@ -463,7 +463,6 @@ impl App {
 
     pub fn poll_metrics(&mut self) {
         if let Some(rx) = &mut self.server.metrics_rx {
-            let mut received_metrics = false;
             while let Ok(mut m) = rx.try_recv() {
                 // ctx_max uses the effective context length (context_length * rope_scale).
                 if self.server.spawned_context_length > 0 {
@@ -500,11 +499,22 @@ impl App {
                     m.cpu_usage = self.metrics.cpu_usage;
                 }
 
+                // Only redraw if metrics actually changed
+                let any_changed = m.loaded != self.metrics.loaded
+                    || m.tps != self.metrics.tps
+                    || m.prompt_tps != self.metrics.prompt_tps
+                    || (m.cpu_usage - self.metrics.cpu_usage).abs() > 0.01
+                    || m.gpu_mem_used != self.metrics.gpu_mem_used
+                    || m.ram_used != self.metrics.ram_used
+                    || m.ctx_used != self.metrics.ctx_used
+                    || m.decoded_tokens != self.metrics.decoded_tokens
+                    || (m.gen_tps - self.metrics.gen_tps).abs() > 0.01;
+
                 self.metrics = m;
-                received_metrics = true;
-            }
-            if received_metrics {
-                self.ui.needs_redraw = true;
+
+                if any_changed {
+                    self.ui.needs_redraw = true;
+                }
             }
         }
     }
