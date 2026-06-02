@@ -1433,7 +1433,12 @@ impl App {
                     Some(cert.as_str()) != self.server.running_ws_tls_cert_path.as_deref()
                         || Some(key.as_str()) != self.server.running_ws_tls_key_path.as_deref()
                 }
-                _ => true,
+                _ => {
+                    // Auto-generated certs: only reload if we haven't cached
+                    // the auto-generated paths yet.
+                    self.server.running_ws_tls_cert_path.is_none()
+                        || self.server.running_ws_tls_key_path.is_none()
+                }
             };
             if needs_reload {
                 if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
