@@ -214,7 +214,22 @@ impl App {
         let mut changed = false;
 
         for (_, state) in self.ui.text_scrolls.iter_mut() {
+            if state.max_offset == 0 {
+                if state.offset != 0 {
+                    state.offset = 0;
+                    changed = true;
+                }
+                continue;
+            }
+
             if now.duration_since(state.last_tick) >= std::time::Duration::from_millis(Self::SCROLL_TICK_MS) {
+                // Handle window resize where the new visible width is smaller (max_offset shrinks)
+                if state.offset > state.max_offset {
+                    state.offset = state.max_offset;
+                    state.direction = -1;
+                    state.hold_count = Self::SCROLL_HOLD_FRAMES;
+                }
+
                 if state.offset == 0 && state.direction == -1 {
                     state.direction = 1;
                     state.hold_count = Self::SCROLL_HOLD_FRAMES;
