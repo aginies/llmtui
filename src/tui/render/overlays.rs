@@ -211,9 +211,10 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         port,
         auth_key,
         ws_enabled,
+        tls_enabled,
     } = &app.ui.global_mode
     {
-        render_dashboard_url(f, f.area(), app, host, port, auth_key, *ws_enabled);
+        render_dashboard_url(f, f.area(), app, host, port, auth_key, *ws_enabled, *tls_enabled);
         return true;
     }
 
@@ -1444,6 +1445,7 @@ fn render_dashboard_url(
     port: &str,
     auth_key: &str,
     ws_enabled: bool,
+    tls_enabled: bool,
 ) {
     let modal_area = Rect {
         x: 0,
@@ -1476,7 +1478,7 @@ fn render_dashboard_url(
     } else {
         "None".to_string()
     };
-    let mut url = format!("http://{}:{}/dashboard", host, port);
+    let mut url = format!("{}://{}:{}/dashboard", if tls_enabled { "https" } else { "http" }, host, port);
     if !auth_key.is_empty() {
         url.push_str(&format!("?auth={}", auth_key));
     }

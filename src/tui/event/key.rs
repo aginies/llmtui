@@ -81,6 +81,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             port: app.settings.ws_server_port.to_string(),
             auth_key: app.settings.ws_server_auth_key.clone().unwrap_or_default(),
             ws_enabled: app.settings.ws_server_enabled,
+            tls_enabled: app.settings.ws_server_tls_enabled,
         };
         return;
     }
@@ -550,6 +551,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         host,
         port,
         auth_key,
+        tls_enabled,
         ..
     } = &app.ui.global_mode
     {
@@ -560,7 +562,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             KeyCode::Enter => {
                 let host_val = crate::models::format_host(host);
-                let mut url = format!("http://{}:{}/dashboard", host_val, port);
+                let mut url = format!("{}://{}:{}/dashboard", if *tls_enabled { "https" } else { "http" }, host_val, port);
                 if !auth_key.is_empty() {
                     url.push_str(&format!("?auth={}", auth_key));
                 }

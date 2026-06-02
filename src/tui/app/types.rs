@@ -161,6 +161,7 @@ pub enum GlobalMode {
         port: String,
         auth_key: String,
         ws_enabled: bool,
+        tls_enabled: bool,
     },
     SearchInput {
         buffer: String,
