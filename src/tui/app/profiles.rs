@@ -86,6 +86,7 @@ impl App {
         self.settings.mlock.hash(&mut h);
         self.settings.gpu_layers_mode.hash(&mut h);
         self.settings.flash_attn.hash(&mut h);
+        self.settings.fit.hash(&mut h);
         self.settings.kv_cache_offload.hash(&mut h);
         self.settings.cache_type_k.hash(&mut h);
         self.settings.cache_type_v.hash(&mut h);

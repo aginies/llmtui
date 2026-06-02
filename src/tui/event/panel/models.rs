@@ -233,6 +233,25 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 );
             }
         }
+        KeyCode::Delete if app.ui.active_panel == crate::tui::app::ActivePanel::Models => {
+            if let Some(model) = app.selected_model() {
+                let display_name = model.display_name.clone();
+                app.pending.pending_deletion = Some(model.path.clone());
+                app.ui.global_mode = GlobalMode::Confirmation {
+                    selected: false,
+                    kind: crate::tui::app::ConfirmationKind::Delete,
+                };
+                app.add_log(
+                    format!("Delete confirmation for {} shown", display_name),
+                    crate::config::LogLevel::Info,
+                );
+            } else {
+                app.add_log(
+                    "No model selected to delete",
+                    crate::config::LogLevel::Warning,
+                );
+            }
+        }
         KeyCode::Char('d')
             if key
                 .modifiers
@@ -240,7 +259,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
         {
             if app.ui.active_panel != crate::tui::app::ActivePanel::Models {
                 app.add_log(
-                    "Press Tab to switch to Models panel, then Ctrl+D to delete",
+                    "Press Tab to switch to Models panel, then Ctrl+D or Del to delete",
                     crate::config::LogLevel::Warning,
                 );
                 return;

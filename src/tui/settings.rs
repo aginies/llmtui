@@ -178,6 +178,10 @@ fn toggle_mlock(settings: &mut ModelSettings) {
 fn toggle_flash_attn(settings: &mut ModelSettings) {
     settings.flash_attn = !settings.flash_attn;
 }
+
+fn toggle_fit(settings: &mut ModelSettings) {
+    settings.fit = !settings.fit;
+}
 fn toggle_kv_cache_offload(settings: &mut ModelSettings) {
     settings.kv_cache_offload = !settings.kv_cache_offload;
 }
@@ -519,6 +523,17 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             EditKind::Direct,
+        ),
+        field_with_toggle(
+            "fit",
+            "Fit",
+            "GPU Offload",
+            |s| s.fit.to_string(),
+            |s, c| s.fit != c.fit,
+            |_, _, _| {},
+            |_, _| {},
+            toggle_fit,
+            EditKind::Toggle,
         ),
         field_with_toggle(
             "flash_attn",

@@ -241,6 +241,14 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Fit: toggle on Enter
+    if field_id == Some("fit") && key.code == KeyCode::Enter
+    {
+        app.settings.fit = !app.settings.fit;
+        mark_settings_dirty(app, true);
+        return;
+    }
+
     // KV Cache Offload: toggle on Enter
     if field_id == Some("kv_cache_offload") && key.code == KeyCode::Enter
     {

@@ -27,7 +27,7 @@ impl App {
                     Span::raw("  Unload model from server"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Ctrl+D", y),
+                    Span::styled("Ctrl+D / Del", y),
                     Span::raw("  Delete model (with confirmation)"),
                 ]),
                 Line::from(""),
@@ -429,7 +429,7 @@ impl App {
                 Line::from(vec![
                     Span::styled("Fit", y),
                     Span::raw(
-                        "  Automatically adjust GPU layer count to fit VRAM. Toggle on/off with Enter. Useful when you don't want to manually calculate GPU layers.",
+                        "  Automatically adjust arguments to fit device memory. Toggle on/off with Enter.",
                     ),
                 ]),
                 Line::from(vec![
