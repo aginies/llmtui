@@ -206,7 +206,7 @@ impl App {
 }
 
 impl App {
-    const SCROLL_TICK_MS: u64 = 500;
+    const SCROLL_TICK_MS: u64 = 400;
     const SCROLL_HOLD_FRAMES: u8 = 5;
 
     pub fn tick_text_scrolls(&mut self) {
