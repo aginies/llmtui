@@ -150,21 +150,21 @@ async fn main() -> Result<()> {
                     .init();
             }
 
-            serve::serve_model(
-                &model,
-                profile.as_deref(),
-                config.as_deref(),
+            serve::serve_model(serve::ServeOptions {
+                model_path: model,
+                profile_name: profile,
+                config_path: config,
                 api_port,
                 api_key,
                 ws_enable,
                 ws_port,
                 ws_auth,
-                backend_binary.as_deref(),
-                host.as_deref(),
+                backend_binary,
+                host,
                 tls_enable,
-                tls_cert.as_deref(),
-                tls_key.as_deref(),
-            )
+                tls_cert,
+                tls_key,
+            })
             .await
             .map_err(|e| {
                 tracing::error!("{}", e);

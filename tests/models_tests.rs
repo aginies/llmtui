@@ -260,7 +260,7 @@ fn rope_scaling_default_is_none() {
 #[test]
 fn mirostat_display_all() {
     assert_eq!(format!("{}", Mirostat::Off), "off");
-    assert_eq!(format!("{}", Mirostat::Mirostat), "1");
+    assert_eq!(format!("{}", Mirostat::V1), "1");
     assert_eq!(format!("{}", Mirostat::Mirostat2), "2");
 }
 

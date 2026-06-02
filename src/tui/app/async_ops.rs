@@ -657,13 +657,15 @@ impl App {
                 let spawn_log_tx_clone = tx.clone();
                 let handle = tokio::spawn(async move {
                     let results = crate::backend::benchmark::run_bench_tune(
-                        &config_clone,
-                        &bench_tune_config_clone,
-                        &model_clone,
-                        &settings_clone,
-                        tx_tune_clone,
-                        spawn_log_tx_clone,
-                        &mut cancel_rx,
+                        crate::backend::benchmark::BenchTuneRequest {
+                            main_config: &config_clone,
+                            config: &bench_tune_config_clone,
+                            model: &model_clone,
+                            settings: &settings_clone,
+                            progress_tx: tx_tune_clone,
+                            log_tx: spawn_log_tx_clone,
+                            cancel_rx: &mut cancel_rx,
+                        },
                     )
                     .await
                     .map_err(|e| e.to_string());
@@ -676,16 +678,16 @@ impl App {
                 let settings_for_result = settings_clone.clone();
                 let exit_tx_clone = exit_tx.clone();
                 let handle = tokio::spawn(async move {
-                    crate::backend::server::spawn_server(
-                        &config_clone,
-                        model_clone.as_ref(),
-                        &settings_clone,
-                        tx_clone,
-                        download_tx_clone,
-                        server_mode_clone,
-                        router_max_models_clone,
-                        exit_tx_clone,
-                    )
+                    crate::backend::server::spawn_server(crate::backend::server::SpawnServerRequest {
+                        config: &config_clone,
+                        model: model_clone.as_ref(),
+                        settings: &settings_clone,
+                        log_tx: tx_clone,
+                        progress_tx: download_tx_clone,
+                        server_mode: server_mode_clone,
+                        router_max_models: router_max_models_clone,
+                        exit_tx: exit_tx_clone,
+                    })
                     .await
                     .map(|(handle, cmd)| (display_name, handle, cmd, settings_for_result))
                 });

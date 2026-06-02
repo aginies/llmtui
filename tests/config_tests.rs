@@ -475,7 +475,7 @@ fn model_override_apply_sampling_params() {
         top_p: Some(0.9),
         min_p: Some(0.1),
         typical_p: Some(0.95),
-        mirostat: Some(Mirostat::Mirostat),
+        mirostat: Some(Mirostat::V1),
         ignore_eos: Some(true),
         ..Default::default()
     };

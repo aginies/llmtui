@@ -256,7 +256,7 @@ fn md_renderer_unicode() {
 
 #[test]
 fn settings_is_dirty_identical() {
-    let mut settings = ModelSettings::default();
+    let settings = ModelSettings::default();
     let cache = settings.clone();
     assert!(!settings.is_dirty(&cache));
 }
@@ -264,7 +264,7 @@ fn settings_is_dirty_identical() {
 #[test]
 fn settings_is_dirty_context_changed() {
     let mut settings = ModelSettings::default();
-    let mut cache = settings.clone();
+    let cache = settings.clone();
     settings.context_length = 8192;
     assert!(settings.is_dirty(&cache));
 }
@@ -272,7 +272,7 @@ fn settings_is_dirty_context_changed() {
 #[test]
 fn settings_is_dirty_temperature_changed() {
     let mut settings = ModelSettings::default();
-    let mut cache = settings.clone();
+    let cache = settings.clone();
     settings.temperature = 0.5;
     assert!(settings.is_dirty(&cache));
 }
@@ -288,7 +288,7 @@ fn settings_is_dirty_gpu_layers_changed() {
 #[test]
 fn settings_is_dirty_mlock_changed() {
     let mut settings = ModelSettings::default();
-    let mut cache = settings.clone();
+    let cache = settings.clone();
     settings.mlock = true;
     assert!(settings.is_dirty(&cache));
 }
@@ -296,7 +296,7 @@ fn settings_is_dirty_mlock_changed() {
 #[test]
 fn settings_is_dirty_flash_attn_changed() {
     let mut settings = ModelSettings::default();
-    let mut cache = settings.clone();
+    let cache = settings.clone();
     settings.flash_attn = false;
     assert!(settings.is_dirty(&cache));
 }
@@ -304,7 +304,7 @@ fn settings_is_dirty_flash_attn_changed() {
 #[test]
 fn settings_is_dirty_cache_type_changed() {
     let mut settings = ModelSettings::default();
-    let mut cache = settings.clone();
+    let cache = settings.clone();
     settings.cache_type_k = Some(CacheTypeK::Q8_0);
     assert!(settings.is_dirty(&cache));
 }
@@ -312,7 +312,7 @@ fn settings_is_dirty_cache_type_changed() {
 #[test]
 fn settings_is_dirty_threads_changed() {
     let mut settings = ModelSettings::default();
-    let mut cache = settings.clone();
+    let cache = settings.clone();
     settings.threads = 1;
     assert!(settings.is_dirty(&cache));
 }
@@ -320,7 +320,7 @@ fn settings_is_dirty_threads_changed() {
 #[test]
 fn settings_is_dirty_backend_version_changed() {
     let mut settings = ModelSettings::default();
-    let mut cache = settings.clone();
+    let cache = settings.clone();
     settings.llama_cpp_version_cpu = Some("b1234".into());
     assert!(settings.is_dirty(&cache));
 }
@@ -328,7 +328,7 @@ fn settings_is_dirty_backend_version_changed() {
 #[test]
 fn settings_is_dirty_multiple_fields() {
     let mut settings = ModelSettings::default();
-    let mut cache = settings.clone();
+    let cache = settings.clone();
     settings.context_length = 8192;
     settings.temperature = 0.5;
     settings.top_k = 30;
@@ -337,7 +337,7 @@ fn settings_is_dirty_multiple_fields() {
 
 #[test]
 fn settings_is_dirty_no_change_after_clone() {
-    let mut settings = ModelSettings::default();
+    let settings = ModelSettings::default();
     let cache = settings.clone();
     assert!(!settings.is_dirty(&cache));
 }

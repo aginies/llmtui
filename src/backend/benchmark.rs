@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, watch};
 
-use crate::backend::server::spawn_server;
+use crate::backend::server::{spawn_server, SpawnServerRequest};
 use crate::models::{
     BenchTuneConfig, BenchTuneMetrics, BenchTuneMode, BenchTuneParamValue, BenchTuneResult,
     BenchTuneStatus, DiscoveredModel, ModelSettings, ServerMode,
@@ -15,8 +15,7 @@ const HEALTH_CHECK_INTERVAL_MS: u64 = 500;
 const HEALTH_CHECK_LOG_INTERVAL: u32 = 10;
 const REQUEST_TIMEOUT_SECS: u64 = 120;
 
-/// Build a BenchTuneResult from accumulated iteration metrics.
-fn build_bench_result(
+struct BenchAccumulator {
     params: BenchTuneParamValue,
     total_prompt_tokens: u64,
     total_generation_tokens: u64,
@@ -27,7 +26,21 @@ fn build_bench_result(
     outputs: Vec<String>,
     per_iteration_metrics: Vec<BenchTuneMetrics>,
     base_settings: Option<ModelSettings>,
-) -> BenchTuneResult {
+}
+
+fn build_bench_result(acc: BenchAccumulator) -> BenchTuneResult {
+    let BenchAccumulator {
+        params,
+        total_prompt_tokens,
+        total_generation_tokens,
+        total_prompt_time,
+        total_generation_time,
+        total_time,
+        first_token_times,
+        outputs,
+        per_iteration_metrics,
+        base_settings,
+    } = acc;
     let prompt_tps = if total_prompt_time.as_secs_f64() > 0.0 {
         (total_prompt_tokens as f64) / total_prompt_time.as_secs_f64()
     } else {
@@ -73,16 +86,29 @@ fn build_bench_result(
     }
 }
 
+pub struct BenchTuneRequest<'a> {
+    pub main_config: &'a crate::config::Config,
+    pub config: &'a BenchTuneConfig,
+    pub model: &'a DiscoveredModel,
+    pub settings: &'a ModelSettings,
+    pub progress_tx: mpsc::Sender<BenchTuneStatus>,
+    pub log_tx: mpsc::Sender<String>,
+    pub cancel_rx: &'a mut watch::Receiver<bool>,
+}
+
 /// Run a benchmark tuning test with multiple parameter combinations
 pub async fn run_bench_tune(
-    main_config: &crate::config::Config,
-    config: &BenchTuneConfig,
-    model: &DiscoveredModel,
-    settings: &ModelSettings,
-    progress_tx: mpsc::Sender<BenchTuneStatus>,
-    log_tx: mpsc::Sender<String>,
-    cancel_rx: &mut watch::Receiver<bool>,
+    req: BenchTuneRequest<'_>,
 ) -> Result<Vec<BenchTuneResult>, Box<dyn std::error::Error + Send + Sync>> {
+    let BenchTuneRequest {
+        main_config,
+        config,
+        model,
+        settings,
+        progress_tx,
+        log_tx,
+        cancel_rx,
+    } = req;
     let start_time = Instant::now();
     let total_tests = config.get_total_tests_count();
 
@@ -118,16 +144,16 @@ pub async fn run_bench_tune(
     if config.bench_mode == BenchTuneMode::RuntimeOnly {
         // Spawn a single server for all runtime-only iterations
         let (exit_tx, _exit_rx) = tokio::sync::mpsc::channel(1);
-        let (server_handle, _command) = spawn_server(
-            main_config,
-            Some(model),
-            &settings,
-            log_tx.clone(),
-            None,
-            ServerMode::Normal,
-            1,
+        let (server_handle, _command) = spawn_server(SpawnServerRequest {
+            config: main_config,
+            model: Some(model),
+            settings: &settings,
+            log_tx: log_tx.clone(),
+            progress_tx: None,
+            server_mode: ServerMode::Normal,
+            router_max_models: 1,
             exit_tx,
-        )
+        })
         .await?;
 
         let host = if server_handle.host == "0.0.0.0" {
@@ -194,17 +220,17 @@ pub async fn run_bench_tune(
                 })
                 .await?;
 
-            let result = run_bench_tune_runtime_only(
-                combination,
-                &settings,
-                config.num_iterations,
-                config.prompt.clone(),
-                &server_host,
+            let result = run_bench_tune_runtime_only(RuntimeOnlyCtx {
+                params: combination,
+                settings: &settings,
+                num_iterations: config.num_iterations,
+                prompt: config.prompt.clone(),
+                server_host: &server_host,
                 server_port,
-                log_tx.clone(),
+                log_tx: log_tx.clone(),
                 config,
-                &client,
-            )
+                client: &client,
+            })
             .await;
 
             match result {
@@ -251,17 +277,17 @@ pub async fn run_bench_tune(
                 })
                 .await?;
 
-            let result = run_bench_tune_single_test(
+            let result = run_bench_tune_single_test(SingleTestCtx {
                 main_config,
-                combination,
+                params: combination,
                 model,
-                &settings,
-                config.num_iterations,
-                config.prompt.clone(),
-                log_tx.clone(),
+                base_settings: &settings,
+                num_iterations: config.num_iterations,
+                prompt: config.prompt.clone(),
+                log_tx: log_tx.clone(),
                 config,
-                &client,
-            )
+                client: &client,
+            })
             .await;
 
             match result {
@@ -317,18 +343,33 @@ pub async fn run_bench_tune(
 }
 
 /// Run inference iterations and accumulate metrics into a BenchTuneResult.
+struct IterationLoopCtx<'a> {
+    prompt: &'a str,
+    host: &'a str,
+    port: u16,
+    params: &'a BenchTuneParamValue,
+    num_iterations: u32,
+    config: &'a BenchTuneConfig,
+    client: &'a reqwest::Client,
+    log_tx: mpsc::Sender<String>,
+    log_prefix: &'a str,
+}
+
 /// Shared by both runtime-only and full benchmark modes.
 async fn run_iteration_loop(
-    prompt: &str,
-    host: &str,
-    port: u16,
-    params: &BenchTuneParamValue,
-    num_iterations: u32,
-    config: &BenchTuneConfig,
-    client: &reqwest::Client,
-    log_tx: mpsc::Sender<String>,
-    log_prefix: &str,
+    ctx: IterationLoopCtx<'_>,
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
+    let IterationLoopCtx {
+        prompt,
+        host,
+        port,
+        params,
+        num_iterations,
+        config,
+        client,
+        log_tx,
+        log_prefix,
+    } = ctx;
     let mut total_prompt_tokens = 0u64;
     let mut total_generation_tokens = 0u64;
     let mut total_prompt_time = Duration::ZERO;
@@ -417,8 +458,8 @@ async fn run_iteration_loop(
         }
     }
 
-    Ok(build_bench_result(
-        params.clone(),
+    Ok(build_bench_result(BenchAccumulator {
+        params: params.clone(),
         total_prompt_tokens,
         total_generation_tokens,
         total_prompt_time,
@@ -427,33 +468,48 @@ async fn run_iteration_loop(
         first_token_times,
         outputs,
         per_iteration_metrics,
-        None,
-    ))
+        base_settings: None,
+    }))
+}
+
+struct RuntimeOnlyCtx<'a> {
+    params: &'a BenchTuneParamValue,
+    settings: &'a ModelSettings,
+    num_iterations: u32,
+    prompt: String,
+    server_host: &'a str,
+    server_port: u16,
+    log_tx: mpsc::Sender<String>,
+    config: &'a BenchTuneConfig,
+    client: &'a reqwest::Client,
 }
 
 /// Run benchmark in runtime-only mode: sends params in /completion request body, no server restarts
 async fn run_bench_tune_runtime_only(
-    params: &BenchTuneParamValue,
-    settings: &ModelSettings,
-    num_iterations: u32,
-    prompt: String,
-    server_host: &str,
-    server_port: u16,
-    log_tx: mpsc::Sender<String>,
-    config: &BenchTuneConfig,
-    client: &reqwest::Client,
+    ctx: RuntimeOnlyCtx<'_>,
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
-    run_iteration_loop(
-        &prompt,
+    let RuntimeOnlyCtx {
+        params,
+        settings,
+        num_iterations,
+        prompt,
         server_host,
         server_port,
+        log_tx,
+        config,
+        client,
+    } = ctx;
+    run_iteration_loop(IterationLoopCtx {
+        prompt: &prompt,
+        host: server_host,
+        port: server_port,
         params,
         num_iterations,
         config,
         client,
         log_tx,
-        "(runtime-only mode)",
-    )
+        log_prefix: "(runtime-only mode)",
+    })
     .await
     .map(|mut r| {
         r.base_settings = Some(settings.clone());
@@ -461,18 +517,33 @@ async fn run_bench_tune_runtime_only(
     })
 }
 
-/// Run a single benchmark tuning test with specific parameters
-async fn run_bench_tune_single_test(
-    main_config: &crate::config::Config,
-    params: &BenchTuneParamValue,
-    model: &DiscoveredModel,
-    base_settings: &ModelSettings,
+struct SingleTestCtx<'a> {
+    main_config: &'a crate::config::Config,
+    params: &'a BenchTuneParamValue,
+    model: &'a DiscoveredModel,
+    base_settings: &'a ModelSettings,
     num_iterations: u32,
     prompt: String,
     log_tx: mpsc::Sender<String>,
-    config: &BenchTuneConfig,
-    client: &reqwest::Client,
+    config: &'a BenchTuneConfig,
+    client: &'a reqwest::Client,
+}
+
+/// Run a single benchmark tuning test with specific parameters
+async fn run_bench_tune_single_test(
+    ctx: SingleTestCtx<'_>,
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
+    let SingleTestCtx {
+        main_config,
+        params,
+        model,
+        base_settings,
+        num_iterations,
+        prompt,
+        log_tx,
+        config,
+        client,
+    } = ctx;
     // Create settings with test parameters
     let mut settings = base_settings.clone();
 
@@ -506,16 +577,16 @@ async fn run_bench_tune_single_test(
 
     // Spawn server with test parameters
     let (exit_tx, _exit_rx) = tokio::sync::mpsc::channel(1);
-    let (server_handle, _command) = spawn_server(
-        main_config,
-        Some(model),
-        &settings,
-        log_tx.clone(),
-        None,
-        ServerMode::Normal,
-        1,
+    let (server_handle, _command) = spawn_server(SpawnServerRequest {
+        config: main_config,
+        model: Some(model),
+        settings: &settings,
+        log_tx: log_tx.clone(),
+        progress_tx: None,
+        server_mode: ServerMode::Normal,
+        router_max_models: 1,
         exit_tx,
-    )
+    })
     .await?;
     // Wait for server to be ready
     let mut ready = false;
@@ -556,17 +627,17 @@ async fn run_bench_tune_single_test(
         return Err("Server failed to become healthy".into());
     }
 
-    let result = run_iteration_loop(
-        &prompt,
+    let result = run_iteration_loop(IterationLoopCtx {
+        prompt: &prompt,
         host,
-        server_handle.port,
+        port: server_handle.port,
         params,
         num_iterations,
         config,
         client,
         log_tx,
-        "",
-    )
+        log_prefix: "",
+    })
     .await;
 
     let _ = crate::backend::server::kill_server(server_handle).await;

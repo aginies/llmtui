@@ -443,16 +443,30 @@ pub fn build_bench_cmd(
 
 /// Spawn a llama.cpp server process (single model or router).
 /// Returns (ServerHandle, command_string) where command_string is the full CLI.
+pub struct SpawnServerRequest<'a> {
+    pub config: &'a Config,
+    pub model: Option<&'a DiscoveredModel>,
+    pub settings: &'a ModelSettings,
+    pub log_tx: mpsc::Sender<String>,
+    pub progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
+    pub server_mode: crate::models::ServerMode,
+    pub router_max_models: u32,
+    pub exit_tx: mpsc::Sender<()>,
+}
+
 pub async fn spawn_server(
-    config: &Config,
-    model: Option<&DiscoveredModel>,
-    settings: &ModelSettings,
-    log_tx: mpsc::Sender<String>,
-    progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
-    server_mode: crate::models::ServerMode,
-    router_max_models: u32,
-    exit_tx: mpsc::Sender<()>,
+    req: SpawnServerRequest<'_>,
 ) -> Result<(ServerHandle, String), String> {
+    let SpawnServerRequest {
+        config,
+        model,
+        settings,
+        log_tx,
+        progress_tx,
+        server_mode,
+        router_max_models,
+        exit_tx,
+    } = req;
     if server_mode != crate::models::ServerMode::Bench
         && server_mode != crate::models::ServerMode::BenchTune
     {

@@ -11,6 +11,23 @@ use crate::backend::tls;
 use crate::config::Config;
 use crate::models::{DiscoveredModel, WsMetrics};
 
+#[derive(Default)]
+pub struct ServeOptions {
+    pub model_path: String,
+    pub profile_name: Option<String>,
+    pub config_path: Option<String>,
+    pub api_port: Option<u16>,
+    pub api_key: Option<String>,
+    pub ws_enable: bool,
+    pub ws_port: Option<u16>,
+    pub ws_auth: Option<String>,
+    pub backend_binary: Option<String>,
+    pub host: Option<String>,
+    pub tls_enable: bool,
+    pub tls_cert: Option<String>,
+    pub tls_key: Option<String>,
+}
+
 async fn start_metrics_polling_task(
     host: String,
     port: u16,
@@ -86,23 +103,9 @@ async fn start_metrics_polling_task(
 /// Usage:
 ///   llm-manager serve --model /path/to/model.gguf [--profile qwen] [--config /path/to/config.yaml]
 ///   llm-manager serve --model model.gguf --api-port 49222 --api-key secret
-pub async fn serve_model(
-    model_path: &str,
-    profile_name: Option<&str>,
-    config_path: Option<&str>,
-    api_port: Option<u16>,
-    api_key: Option<String>,
-    ws_enable: bool,
-    ws_port: Option<u16>,
-    ws_auth: Option<String>,
-    backend_binary: Option<&str>,
-    host: Option<&str>,
-    tls_enable: bool,
-    tls_cert: Option<&str>,
-    tls_key: Option<&str>,
-) -> Result<()> {
+pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     // Load config from explicit path or default location
-    let config = match config_path {
+    let config = match opts.config_path.as_deref() {
         Some(p) => {
             let path = PathBuf::from(p);
             Config::load_from(path).map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
@@ -111,7 +114,7 @@ pub async fn serve_model(
     };
 
     // Resolve model path
-    let model_path = PathBuf::from(model_path);
+    let model_path = PathBuf::from(&opts.model_path);
 
     // Check for broken symlinks first
     if let Ok(metadata) = model_path.symlink_metadata()
@@ -172,7 +175,7 @@ pub async fn serve_model(
         "Available model config keys: {:?}",
         config.model_overrides.keys()
     );
-    let mut settings = config.resolve_settings(Some(&name), profile_name);
+    let mut settings = config.resolve_settings(Some(&name), opts.profile_name.as_deref());
 
     // Auto-enable MTP if supported by model and not explicitly enabled in config
     if settings.spec_type.is_empty()
@@ -186,16 +189,16 @@ pub async fn serve_model(
             }
 
     // Finalize WebSocket settings: CLI flags take precedence, then config.yaml
-    let ws_enable = ws_enable || settings.ws_server_enabled;
-    let ws_port = ws_port.unwrap_or(settings.ws_server_port);
-    let ws_auth = ws_auth.or(settings.ws_server_auth_key.clone());
+    let ws_enable = opts.ws_enable || settings.ws_server_enabled;
+    let ws_port = opts.ws_port.unwrap_or(settings.ws_server_port);
+    let ws_auth = opts.ws_auth.or(settings.ws_server_auth_key.clone());
 
     // TLS configuration
-    let tls_config = if tls_enable || (tls_cert.is_some() && tls_key.is_some()) {
-        let (cert_path, key_path) = if let Some(cert) = tls_cert {
-            let key = tls_key.unwrap();
-            tls::validate_tls_path(cert).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
-            tls::validate_tls_path(key).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+    let tls_config = if opts.tls_enable || (opts.tls_cert.is_some() && opts.tls_key.is_some()) {
+        let (cert_path, key_path) = if let Some(cert) = opts.tls_cert {
+            let key = opts.tls_key.unwrap();
+            tls::validate_tls_path(&cert).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+            tls::validate_tls_path(&key).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
             (cert.to_string(), key.to_string())
         } else {
             let (cert, key) = tls::ensure_tls_certs().map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
@@ -217,7 +220,7 @@ pub async fn serve_model(
     }
 
     // CLI host override
-    if let Some(h) = host {
+    if let Some(h) = &opts.host {
         settings.host = h.to_string();
     }
 
@@ -259,7 +262,7 @@ pub async fn serve_model(
     }
 
     // Resolve the backend binary (downloads if needed)
-    let binary = if let Some(path) = backend_binary {
+    let binary = if let Some(path) = &opts.backend_binary {
         let binary_path = PathBuf::from(path);
         if !binary_path.exists() {
             anyhow::bail!("Backend binary not found: {}", binary_path.display());
@@ -333,12 +336,12 @@ pub async fn serve_model(
     // Optionally start the API proxy server
     let (api_done_tx, api_done_rx) = tokio::sync::oneshot::channel();
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
-    let mut api_server_handle = if let Some(port) = api_port {
+    let mut api_server_handle = if let Some(port) = opts.api_port {
         let host_str = &settings.host;
         let addr: SocketAddr = format!("{}:{}", host_str, port).parse()?;
         let model_name = model.display_name.clone();
         let server_port = settings.port;
-        let api_key_clone = api_key.clone();
+        let api_key_clone = opts.api_key.clone();
         let shutdown_rx_for_api = shutdown_rx.clone();
         let host_clone = host_str.clone();
         let tls_for_api = tls_config.clone();

@@ -1075,7 +1075,7 @@ async fn test_log_down_increases_scroll() {
     app.ui.active_panel = ActivePanel::Log;
     let key = make_key(KeyCode::Down);
     handle_key(&mut app, key).await;
-    assert!(app.log.log_scroll_offset >= 0);
+    assert_eq!(app.log.log_scroll_offset, 1);
 }
 
 #[tokio::test]
