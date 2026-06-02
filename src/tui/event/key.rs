@@ -601,10 +601,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
             KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
             KeyCode::Enter => {
-                let (ip, _) = entries[*selected].clone();
-                app.settings.host = ip;
-                app.ui.global_mode = GlobalMode::Normal;
-                sync_global_settings(app);
+                if *selected < entries.len() {
+                    let (ip, _) = entries[*selected].clone();
+                    app.settings.host = ip;
+                    app.ui.global_mode = GlobalMode::Normal;
+                    sync_global_settings(app);
+                }
             }
             KeyCode::Char('d') => {
                 *entries = App::fetch_host_picker_entries();
@@ -1117,10 +1119,12 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
             KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
             KeyCode::Enter => {
-                let (name, _) = entries[*selected].clone();
-                app.settings.system_prompt_preset_name = name.clone();
-                app.resolve_system_prompt();
-                app.ui.global_mode = GlobalMode::Normal;
+                if *selected < entries.len() {
+                    let (name, _) = entries[*selected].clone();
+                    app.settings.system_prompt_preset_name = name.clone();
+                    app.resolve_system_prompt();
+                    app.ui.global_mode = GlobalMode::Normal;
+                }
             }
             KeyCode::Char('e') => {
                 *editing = true;

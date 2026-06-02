@@ -936,19 +936,15 @@ pub async fn get_metrics(
         }
     }
 
-    // Fallback for RAM and CPU using /proc if available (Linux)
+    // Fallback for RAM and CPU using sysinfo (cross-platform)
     if let Some(p) = pid {
-        let cpu_ticks_prev = m.cpu_ticks_prev;
-        let system_uptime_prev = m.system_uptime_prev;
-        if let Ok((ram, cpu)) = get_process_metrics(p, cpu_ticks_prev, system_uptime_prev) {
+        if let Ok((ram, cpu, _, _)) = get_process_metrics(p, 0, 0.0) {
             if m.ram_used == 0 {
                 m.ram_used = ram;
             }
             if m.cpu_usage == 0.0 {
                 m.cpu_usage = cpu;
             }
-            m.cpu_ticks_prev = cpu_ticks_prev;
-            m.system_uptime_prev = system_uptime_prev;
         }
     }
 
@@ -1067,76 +1063,36 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
     Err("Could not find VRAM info in amdgpu_top output".to_string())
 }
 
-/// Linux-specific: Get RAM (RSS) and CPU usage for a PID via /proc
+/// Cross-platform: Get RAM (RSS) and CPU usage for a PID.
 fn get_process_metrics(
     pid: u32,
-    cpu_ticks_prev: u64,
-    system_uptime_prev: f64,
-) -> Result<(u64, f64), String> {
-    #[cfg(target_os = "linux")]
-    {
-        use std::fs;
+    _cpu_ticks_prev: u64,
+    _system_uptime_prev: f64,
+) -> Result<(u64, f64, u64, f64), String> {
+    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 
-        // RAM (RSS) from /proc/[pid]/statm (2nd field is RSS in pages)
-        let statm =
-            fs::read_to_string(format!("/proc/{}/statm", pid)).map_err(|e| e.to_string())?;
-        let pages: u64 = statm
-            .split_whitespace()
-            .nth(1)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
-        let ram = pages * 4096; // assumes 4KB page size, typical for Linux
+    let mut sys = System::new_with_specifics(
+        RefreshKind::new().with_processes(ProcessRefreshKind::new().with_cpu().with_memory()),
+    );
 
-        // CPU from /proc/[pid]/stat - compute delta-based CPU usage
-        let stat = fs::read_to_string(format!("/proc/{}/stat", pid)).map_err(|e| e.to_string())?;
-        let parts: Vec<&str> = stat.split_whitespace().collect();
-        if parts.len() > 14 {
-            let utime: u64 = parts[13].parse().unwrap_or(0);
-            let stime: u64 = parts[14].parse().unwrap_or(0);
-            let start_time: u64 = parts[21].parse().unwrap_or(0);
+    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
 
-            let uptime = fs::read_to_string("/proc/uptime").unwrap_or_default();
-            let system_uptime: f64 = uptime
-                .split_whitespace()
-                .next()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0.0);
+    let pids = [Pid::from(pid as usize)];
+    sys.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&pids),
+        true,
+        ProcessRefreshKind::new().with_cpu().with_memory(),
+    );
 
-            let clk_tck = {
-                #[cfg(target_os = "linux")]
-                {
-                    unsafe { libc::sysconf(libc::_SC_CLK_TCK) as f64 }
-                }
-                #[cfg(not(target_os = "linux"))]
-                {
-                    100.0
-                }
-            };
-            let total_time = (utime + stime) as f64 / clk_tck;
-            let seconds = system_uptime - (start_time as f64 / clk_tck);
+    let sys_pid = Pid::from(pid as usize);
 
-            let cpu = if cpu_ticks_prev > 0 && system_uptime_prev > 0.0 {
-                let ticks_delta = (utime + stime) as f64 - cpu_ticks_prev as f64;
-                let wall_delta = system_uptime - system_uptime_prev;
-                if wall_delta > 0.0 {
-                    (ticks_delta / clk_tck / wall_delta) * 100.0
-                } else {
-                    0.0
-                }
-            } else if seconds > 0.0 {
-                // First call: fall back to average since start
-                (total_time / seconds) * 100.0
-            } else {
-                0.0
-            };
-            return Ok((ram, cpu));
-        }
-
-        Ok((ram, 0.0))
+    if let Some(process) = sys.process(sys_pid) {
+        let ram = process.memory(); // bytes
+        let cpu = process.cpu_usage() as f64; // percentage
+        return Ok((ram, cpu, 0, 0.0));
     }
 
-    #[cfg(not(target_os = "linux"))]
-    Err("OS not supported for process metrics".to_string())
+    Err("Process not found".to_string())
 }
 
 /// Load a model via the llama-server Router API.
