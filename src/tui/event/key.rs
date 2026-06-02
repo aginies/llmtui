@@ -1614,7 +1614,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Char('S')
+        KeyCode::Char('s')
             if key
                 .modifiers
                 .contains(crossterm::event::KeyModifiers::CONTROL) =>
