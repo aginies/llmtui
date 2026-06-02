@@ -1450,6 +1450,8 @@ impl App {
                     );
                     match crate::backend::tls::ensure_tls_certs() {
                         Ok((cert, key)) => {
+                            self.settings.ws_server_tls_cert = Some(cert.to_string_lossy().to_string());
+                            self.settings.ws_server_tls_key = Some(key.to_string_lossy().to_string());
                             self.server.running_ws_tls_cert_path =
                                 Some(cert.to_string_lossy().to_string());
                             self.server.running_ws_tls_key_path =
@@ -1557,7 +1559,6 @@ impl App {
                     );
                     self.settings.ws_server_enabled = false;
                     self.config.default.ws_server_enabled = false;
-                    self.config.ws_server.enabled = false;
                     if let Err(e) = self.config.save() {
                         self.add_log(
                             format!("Failed to persist dashboard-disabled state: {}", e),

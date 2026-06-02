@@ -303,7 +303,6 @@ mod tests {
             profiles: crate::config::ProfileStore::new(),
             system_prompt_presets: crate::config::PresetStore::new(),
             rpc_workers: Vec::new(),
-            ws_server: crate::config::WsServer::default(),
             search_limit: 50,
         };
         let mut app = App::new(config);

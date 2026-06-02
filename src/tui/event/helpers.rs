@@ -173,14 +173,6 @@ pub fn sync_global_settings(app: &mut App) {
     app.config.default.ws_server_tls_cert = app.settings.ws_server_tls_cert.clone();
     app.config.default.ws_server_tls_key = app.settings.ws_server_tls_key.clone();
 
-    // Also sync the dedicated ws_server struct in config
-    app.config.ws_server.enabled = app.settings.ws_server_enabled;
-    app.config.ws_server.port = app.settings.ws_server_port;
-    app.config.ws_server.auth_key = app.settings.ws_server_auth_key.clone();
-    app.config.ws_server.tls_enabled = app.settings.ws_server_tls_enabled;
-    app.config.ws_server.tls_cert = app.settings.ws_server_tls_cert.clone();
-    app.config.ws_server.tls_key = app.settings.ws_server_tls_key.clone();
-
     if let Err(e) = app.config.save() {
         app.add_log(
             format!("Failed to save global settings: {}", e),

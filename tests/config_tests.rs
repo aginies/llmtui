@@ -606,7 +606,6 @@ fn config_default_empty_model_overrides() {
         profiles: ProfileStore::new(),
         system_prompt_presets: PresetStore::new(),
         rpc_workers: Vec::new(),
-        ws_server: llm_manager::WsServer::default(),
         search_limit: 50,
     };
     // Store is initialized successfully (may contain existing configs on disk)

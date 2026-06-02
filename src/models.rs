@@ -874,14 +874,7 @@ impl Default for ModelSettings {
 impl ModelSettings {
     /// Create ModelSettings from config defaults, applying model-specific overrides.
     pub fn from_config(config: &crate::config::Config) -> Self {
-        let mut settings: ModelSettings = config.default.clone().into();
-        settings.ws_server_enabled = config.ws_server.enabled;
-        settings.ws_server_port = config.ws_server.port;
-        settings.ws_server_auth_key = config.ws_server.auth_key.clone();
-        settings.ws_server_tls_enabled = config.default.ws_server_tls_enabled;
-        settings.ws_server_tls_cert = config.ws_server.tls_cert.clone();
-        settings.ws_server_tls_key = config.ws_server.tls_key.clone();
-        settings
+        config.default.clone().into()
     }
 }
 
