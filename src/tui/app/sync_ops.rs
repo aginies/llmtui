@@ -61,6 +61,7 @@ impl App {
             "Reset LLM Settings to defaults",
             crate::config::LogLevel::Info,
         );
+        self.ui.needs_redraw = true;
     }
 
     pub fn selected_model(&self) -> Option<&crate::models::DiscoveredModel> {
@@ -121,6 +122,7 @@ impl App {
             self.loading.loading_phases.clear();
             self.loading.last_active_phase = None;
         }
+        self.ui.needs_redraw = true;
     }
 
     /// Return the current number of search results.

@@ -324,6 +324,7 @@ impl App {
                 for state in self.model_states.values_mut() {
                     *state = crate::models::ModelState::Available;
                 }
+                self.ui.needs_redraw = true;
             }
     }
 

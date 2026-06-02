@@ -183,6 +183,7 @@ impl App {
                 resize_state: None,
                 left_pct: 55,
                 needs_full_redraw: false,
+                needs_redraw: true,
             },
             edit: EditState {
                 edit_cursor_pos: 0,

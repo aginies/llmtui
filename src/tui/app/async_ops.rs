@@ -73,6 +73,7 @@ impl App {
             self.download.downloading = true;
             self.cancelled = Some(cancelled);
             self.download.download_scroll_state.select(Some(0));
+            self.ui.needs_redraw = true;
         }
     }
 
@@ -110,6 +111,7 @@ impl App {
             format!("Model deleted: {:?}", path.file_name().unwrap_or_default()),
             crate::config::LogLevel::Info,
         );
+        self.ui.needs_redraw = true;
     }
 
     pub fn start_pending_backend_deletion(&mut self, backend: crate::models::Backend, tag: String) {
@@ -134,6 +136,7 @@ impl App {
                         *selected = entries.len().saturating_sub(1);
                     }
                 }
+                self.ui.needs_redraw = true;
             }
         }
     }
@@ -163,6 +166,7 @@ impl App {
                         }
                     }
                     self.pending.backend_resolving = false;
+                    self.ui.needs_redraw = true;
                 }
     }
 
@@ -212,7 +216,9 @@ impl App {
         for log in download_logs {
             self.add_log(log, crate::config::LogLevel::Info);
         }
-        if redraw {}
+        if redraw {
+            self.ui.needs_redraw = true;
+        }
     }
 
     pub fn poll_bench_tune_progress(&mut self) {
@@ -222,6 +228,7 @@ impl App {
                     crate::models::BenchTuneProgress::from_status(&status);
             }
             self.bench_tune.bench_tune_rx = Some(rx);
+            self.ui.needs_redraw = true;
         }
     }
 
@@ -302,7 +309,7 @@ impl App {
                         | crate::models::DownloadStatus::Cancelled
                 )
             });
-            self.download.downloading = !self.download.download_progress.is_empty();
+              self.download.downloading = !self.download.download_progress.is_empty();
             if !self.download.downloading {
                 self.download.download_scroll_state.select(None);
             } else if let Some(idx) = self.download.download_scroll_state.selected()
@@ -312,6 +319,7 @@ impl App {
                     .download_scroll_state
                     .select(Some(self.download.download_progress.len() - 1));
             }
+            self.ui.needs_redraw = true;
         }
     }
 
@@ -353,6 +361,7 @@ impl App {
             for line in server_logs {
                 self.add_log(line, crate::config::LogLevel::Info);
             }
+            self.ui.needs_redraw = true;
         }
     }
 
@@ -441,7 +450,9 @@ impl App {
                 }
             }
         }
-        if sync_updated {}
+        if sync_updated {
+            self.ui.needs_redraw = true;
+        }
     }
 
     pub fn poll_metrics(&mut self) {
@@ -483,7 +494,9 @@ impl App {
                 self.metrics = m;
                 received_metrics = true;
             }
-            if received_metrics {}
+            if received_metrics {
+                self.ui.needs_redraw = true;
+            }
         }
     }
 
@@ -525,6 +538,7 @@ impl App {
                     self.server.spawned_model_state = Some("loaded".to_string());
                     self.loading.progress_target = 1.0;
                     self.ui.needs_full_redraw = true;
+                    self.ui.needs_redraw = true;
 
                     if let Some(handle) = &self.server.server_handle {
                         let port = handle.port;
@@ -715,6 +729,7 @@ impl App {
                 });
                 self.server.spawn_task_handle = Some(handle);
                 self.server.spawn_log_tx = Some(tx);
+                self.ui.needs_redraw = true;
             }
         }
     }
@@ -772,6 +787,7 @@ impl App {
                         tokio::spawn(Self::sync_polling_task(sync_host, sync_port, sync_tx));
                     self.server.sync_rx = Some(sync_rx);
                     self.server.sync_task_handle = Some(_sync_task_handle);
+                    self.ui.needs_redraw = true;
                 }
                 Ok(Err(e)) => {
                     self.loading.progress_target = 1.0;
@@ -786,6 +802,7 @@ impl App {
                     }
                     self.ui.last_error_message = Some(e);
                     self.reset_loading_state(true);
+                    self.ui.needs_redraw = true;
                 }
                 Err(e) => {
                     self.loading.progress_target = 1.0;
@@ -793,6 +810,7 @@ impl App {
                         format!("ERROR: Spawn task panicked: {}", e),
                         crate::config::LogLevel::Error,
                     );
+                    self.ui.needs_redraw = true;
                 }
             }
         }
@@ -870,7 +888,7 @@ impl App {
             if metrics_tx.send(m).await.is_err() {
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
     }
 
@@ -885,7 +903,7 @@ impl App {
             {
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
         }
     }
 
@@ -938,6 +956,7 @@ impl App {
                         });
                         self.bench_tune.bench_tune_results = sorted_results;
                         self.bench_tune.bench_tune_running = false;
+                        self.ui.needs_redraw = true;
                         let (host, port, model_name, model_path_str, task_name, model_display_name) = {
                             let model = match self.selected_model() {
                                 Some(m) => m,
@@ -987,6 +1006,7 @@ impl App {
                                 },
                             );
                         }
+                        self.ui.needs_redraw = true;
                     }
                 },
                 Err(e) => {
@@ -995,6 +1015,7 @@ impl App {
                         crate::config::LogLevel::Error,
                     );
                     self.bench_tune.bench_tune_running = false;
+                    self.ui.needs_redraw = true;
                 }
             }
         }
@@ -1048,6 +1069,7 @@ impl App {
                     });
                     self.model_states
                         .insert(model_name, crate::models::ModelState::Loading);
+                    self.ui.needs_redraw = true;
                 }
             } else if self.server.spawn_task_handle.is_none()
                 && self.pending.pending_spawn.is_none()
@@ -1166,6 +1188,7 @@ impl App {
                 self.metrics.ctx_used = 0;
                 self.model_states
                     .insert(model_name, crate::models::ModelState::Available);
+                self.ui.needs_redraw = true;
             }
     }
 
@@ -1208,6 +1231,7 @@ impl App {
                     self.loading.loading_progress = 0.0;
                     self.loading.progress_target = 0.0;
                     self.ui.needs_full_redraw = true;
+                    self.ui.needs_redraw = true;
                 }
                 Err(e) => {
                     self.add_log(

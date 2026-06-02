@@ -289,63 +289,20 @@ async fn main() -> Result<()> {
                 app.poll_sync();
                 app.poll_metrics();
 
-                // Send metrics snapshot to WebSocket clients
-                if let Some(tx) = &app.server.metrics_tx {
-                    // Try to get the first actually loaded model name
-                    let loaded_model_name = {
-                        let names = app
-                            .server
-                            .loaded_model_names
-                            .lock()
-                            .unwrap_or_else(|e| e.into_inner());
-                        names.first().cloned()
-                    };
-
-                    let model_name = loaded_model_name
-                        .as_deref()
-                        .or(app.server.spawned_model_name.as_deref())
-                        .unwrap_or("");
-
-                    let state = if !model_name.is_empty() {
-                        if app.is_model_loaded(model_name) {
-                            "loaded"
-                        } else if app.is_loading() {
-                            "loading"
-                        } else {
-                            "unloaded"
-                        }
-                    } else {
-                        "unloaded"
-                    };
-
-                    let settings = app
-                        .server
-                        .spawned_settings
-                        .as_ref()
-                        .unwrap_or(&app.settings);
-
-                    if let Err(e) = tx.send(crate::models::WsMetrics::from_metrics(
-                        &app.metrics,
-                        model_name,
-                        state,
-                        settings,
-                        app.server.cmd_display.as_deref(),
-                    )) {
-                        tracing::debug!("Failed to send metrics to ws: {e}");
-                    }
-                }
-
                 app.handle_pending_search().await;
                 app.update_ws_server().await;
                 app.update_api_endpoint().await;
                 app.tick_spinner();
-                app.render(&mut terminal)?;
+                if app.ui.needs_redraw {
+                    app.ui.needs_redraw = false;
+                    app.render(&mut terminal)?;
+                }
 
                 let poll_timeout = if app.download.downloading || app.server.server_handle.is_some()
                 {
-                    std::time::Duration::from_millis(50)
+                    std::time::Duration::from_millis(100)
                 } else {
-                    std::time::Duration::from_millis(200)
+                    std::time::Duration::from_millis(500)
                 };
 
                 if crossterm::event::poll(poll_timeout)?
@@ -374,6 +331,7 @@ async fn main() -> Result<()> {
                         crossterm::event::Event::Resize(_, _) => {}
                         _ => {}
                     }
+                    app.ui.needs_redraw = true;
                 }
 
                 if !app.running {
