@@ -1476,12 +1476,28 @@ impl App {
         }
         self.server.running_ws_tls_cfg = tls_cfg.clone();
 
-        // Check if settings have changed since last start
+        // Check if settings have changed since last start.
+        // When the user sets cert paths, compare configured against running.
+        // When TLS is auto-generated (user didn't set paths), the effective
+        // paths are already stored in running_ws_tls_cert_path/key_path, so
+        // just skip the TLS path comparison — the paths haven't changed
+        // unless the user explicitly changed their config.
+        let tls_paths_changed = match (&tls_cert, &tls_key) {
+            (Some(cert), Some(key)) => {
+                Some(cert.as_str()) != self.server.running_ws_tls_cert_path.as_deref()
+                    || Some(key.as_str()) != self.server.running_ws_tls_key_path.as_deref()
+            }
+            _ => {
+                // Auto-generated: paths are stored in running_ws_tls_*_path,
+                // which is set once after generation. Since the user didn't
+                // configure specific paths, just check the TLS toggle itself.
+                false
+            }
+        };
         let settings_changed = self.server.running_ws_port != Some(port)
             || self.server.running_ws_auth != auth_key
             || self.server.running_ws_tls != Some(tls_enabled)
-            || self.server.running_ws_tls_cert_path.as_deref() != tls_cert.as_deref()
-            || self.server.running_ws_tls_key_path.as_deref() != tls_key.as_deref();
+            || tls_paths_changed;
 
         if self.ws_server_handle.is_some() && (!enabled || settings_changed) {
             let handle = self.ws_server_handle.take().unwrap();
