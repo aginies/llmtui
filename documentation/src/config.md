@@ -67,7 +67,7 @@ cargo run -- --config /path/to/config.yaml
 | `top_k` | 40 | Top-k sampling |
 | `top_p` | 0.95 | Top-p sampling |
 | `repeat_penalty` | 1.1 | Repetition penalty |
-| `backend` | auto-detected | Default backend (auto-detected: Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel; falls back to cpu) |
+| `backend` | auto-detected | Default backend (auto-detected: Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel; falls back to cpu). Options: `cpu`, `vulkan`, `rocm`, `rocm-lemonade`, `cuda` |
 
 ## Profiles
 

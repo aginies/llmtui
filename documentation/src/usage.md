@@ -134,23 +134,19 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 | Setting | Default | Description |
 |---------|---------|-------------|
 | **Host** | 127.0.0.1 | Bind address for the llama.cpp server. Use `0.0.0.0` to accept connections from other machines. |
-| **Port** | 8080 | Port for the llama.cpp server. |
 | **Backend** | auto-detected | Acceleration backend: auto-detected based on GPU (Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel). Options: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU), `rocm-lemonade` (AMD optimized), `cuda` (NVIDIA CUDA 12.8). Shows the currently selected version. |
 | **Threads** | (physical cores) | CPU threads for generation. Set to your physical core count for best performance. |
 | **Threads Batch** | 8 | CPU threads for batch processing (prompt evaluation). |
 | **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models), `Bench` (run llama-bench), or `BenchTune` (parameter auto-tuning). |
-| **RPC Workers** | None | Open a dedicated window to manage distributed inference nodes (IP:Port). |
-| **Timeout** | 600 | Server timeout in seconds before auto-shutdown. |
-| **Max Models** | 4 | Maximum concurrent models in Router mode. |
 | **API Endpoint** | false | Enable the API proxy server (see Serve Mode). |
-| **API Port** | 49222 | Port for the API proxy server. |
 | **Dashboard** | false | WebSocket dashboard server (port 49223). Press `Enter` to configure (enabled, port, auth key, TLS). |
+| **RPC Workers** | None | Open a dedicated window to manage distributed inference nodes (IP:Port). |
 
 > **Note:** The Server Settings panel is hidden when a server is already running. Press `F2` to toggle Server Settings only when no server is active.
 
 ### LLM Settings
 
-The LLM Settings panel has 19 standard fields, 14 expert fields (revealed with `Ctrl+X`), and 15 ultra fields (hidden even in expert mode), for a total of 48 fields. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields respond to `e` or `Ctrl+E`.
+The LLM Settings panel has 32 standard fields, 16 expert fields (revealed with `Ctrl+X`), and 19 ultra fields (hidden even in expert mode), for a total of 67 fields. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields respond to `e` or `Ctrl+E`.
 
 #### Loading
 
@@ -217,13 +213,11 @@ The LLM Settings panel has 19 standard fields, 14 expert fields (revealed with `
 
 #### Expert Mode
 
-Press `Ctrl+X` to toggle expert mode, which reveals 14 additional parameters:
+Press `Ctrl+X` to toggle expert mode, which reveals 16 additional parameters:
 
-**Loading (expert):** Yarn RoPE (toggle), Yarn Params (modal), NUMA (None/Distribute/Isolate/Numactl)
+**Loading (expert):** NUMA (None/Distribute/Isolate/Numactl)
 
 **GPU (expert):** Cache Type K (toggle), Cache Type V (toggle), Main GPU, Fit, Active Experts (toggle)
-
-**Evaluation (expert):** Max Concurrent Pred (toggle, 1-10)
 
 **Sampling (expert):** Mirostat (Off/1/2), Mirostat LR, Mirostat Ent, Ignore EOS (toggle)
 
@@ -235,22 +229,22 @@ These fields follow the same navigation and editing rules as standard fields. Ar
 
 #### Ultra Fields
 
-15 ultra fields are hidden even in expert mode. They include: Threads Batch, UBatch Size, Keep, Split Mode, Tensor Split, Typical P, Mirostat, Mirostat LR, Mirostat Ent, Samplers, DRY Multiplier, DRY Base, DRY Allowed Length, DRY Penalty Last N. These require direct config file editing or profile application.
+19 ultra fields are hidden even in expert mode. They include: Typical P, Mirostat, Mirostat LR, Mirostat Ent, Ignore EOS, Samplers, DRY Multiplier, DRY Base, DRY Allowed Length, DRY Penalty Last N, Threads Batch, UBatch Size, Keep, Split Mode, Tensor Split, Main GPU, Fit, Embedding, RPC. These require direct config file editing or profile application.
 
 **Cache Type K/V options:** F32, F16, BF16, Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl
 
 #### Changing Values
 
-Use `Left`/`Right` to adjust numeric fields by 1, or `Up`/`Down` for larger steps. Toggle fields respond to `e` or `Ctrl+E`. Dirty (changed) fields are highlighted in yellow with a trailing `*`. The status bar shows `*unsaved*` when settings are dirty.
+Use `Left`/`Right` to adjust numeric fields by 1, or `Up`/`Down` for larger steps. Toggle fields respond to `e` or `Ctrl+E`. Dirty (changed) fields have the name in red and a trailing `*`. The status bar shows `*unsaved*` when settings are dirty.
 
 ### Saving Settings
 
 - `Ctrl+S` — Save settings for the selected model
 - `Ctrl+R` — Reset to defaults
 - `e` / `Ctrl+E` — Toggle enabled/disabled (for Keep in memory, Flash Attention, KV Cache Offload, Cache Type K/V, Fit, Unified KV, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, MTP, Ignore EOS, Yarn RoPE, Active Experts)
-- `Ctrl+X` — Toggle expert mode (reveals 14 additional parameters)
+- `Ctrl+X` — Toggle expert mode (reveals 16 additional parameters)
 
-Dirty (changed) fields are highlighted in yellow.
+Dirty (changed) fields are highlighted with red names and a trailing `*`.
 
 ## Keyboard Shortcuts
 

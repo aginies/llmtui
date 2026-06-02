@@ -40,7 +40,6 @@ src/
 │       ├── downloads.rs   # Download progress panel (rendered inline, not a separate module)
 ```
 
-> **Note:** `src/tui/panel/api_endpoints.rs` exists on disk but is **not declared** in `panel/mod.rs`, so it is not compiled. It contains a render function for displaying API endpoint documentation in a panel.
 ```
 
 ## App State Machine
@@ -70,7 +69,7 @@ pub enum GlobalMode {
     MaxConcurrentPicker { value: String },
     SpecTypePicker { entries: Vec<String>, selected: usize },
     YarnRoPESettings { scale: String, freq_base: String, freq_scale: String, selected_field: i32, editing: bool, edit_buffer: String, edit_cursor_pos: usize },
-    BenchTuneSetup { config, selected_idx, editing_param, editing_param_field, param_edit_buffer, param_edit_cursor_pos, bench_mode_selection, editing_prompt, editing_kwargs },
+    BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs },
     PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete },
     ProfilePicker { entries, selected, profiles },
     DashboardPicker { enabled, port, auth_key, tls_enabled, tls_cert, tls_key, selected_field, editing, edit_buffer, edit_cursor_pos },

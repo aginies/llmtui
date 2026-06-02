@@ -30,14 +30,15 @@ A convenience script is included for common operations:
 
 ```bash
 ./build.sh build      # Build (debug)
-./build.sh run        # Build and run
+./build.sh run        # Build and run (TUI mode)
 ./build.sh serve      # Serve a model
+./build.sh servedoc   # Serve docs with watch mode
 ./build.sh release    # Release build
 ./build.sh clean      # Remove build artifacts
 ./build.sh format     # Format code
 ./build.sh clippy     # Run clippy
 ./build.sh doc        # Build documentation
-./build.sh servedoc   # Serve docs with watch mode
+./build.sh help       # Show help
 ```
 
 ## First Run
