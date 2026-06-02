@@ -24,13 +24,6 @@ fn main() {
     let model_settings_count = count_struct_fields(&src_dir, "models.rs", "ModelSettings");
     let model_override_count = count_struct_fields(&src_dir, "config.rs", "ModelOverride");
 
-    println!(
-        "cargo::warning=llm-manager parameter structs: DefaultParams={} fields (expected {}), ModelSettings={} fields (expected {}), ModelOverride={} fields (expected {})",
-        default_params_count, EXPECTED_DEFAULT_PARAMS_FIELDS,
-        model_settings_count, EXPECTED_MODEL_SETTINGS_FIELDS,
-        model_override_count, EXPECTED_MODEL_OVERRIDE_FIELDS
-    );
-
     let mut errors = Vec::new();
 
     if default_params_count != EXPECTED_DEFAULT_PARAMS_FIELDS {
