@@ -67,7 +67,7 @@ cargo run -- --config /path/to/config.yaml
 | `top_k` | 40 | Top-k sampling |
 | `top_p` | 0.95 | Top-p sampling |
 | `repeat_penalty` | 1.1 | Repetition penalty |
-| `backend` | vulkan | Default backend (cpu/vulkan/rocm) |
+| `backend` | auto-detected | Default backend (auto-detected: Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel; falls back to cpu) |
 | `ws_server_enabled` | false | Enable the WebSocket dashboard server |
 | `ws_server_port` | 49223 | Port for the WebSocket dashboard server |
 | `ws_server_auth_key` | — | Optional auth key for dashboard access |
@@ -183,32 +183,37 @@ The API proxy forwards requests to the llama.cpp server and provides OpenAI-comp
 
 ### API Endpoints
 
+The API proxy explicitly handles the following endpoints, while all other paths are automatically proxied to the llama-server instance:
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/metrics` | GET | Prometheus metrics |
 | `/v1/chat/completions` | POST | Chat completions (OpenAI) |
 | `/v1/completions` | POST | Completions (OpenAI) |
+| `/v1/embeddings` | POST | Embeddings |
+| `/v1/models` | GET | List models |
+| `/api/status` | GET | Server status (pid, uptime, loaded models) |
+
+The following endpoints are automatically proxied to llama-server (not explicitly handled):
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/v1/responses` | POST | Responses (Anthropic) |
 | `/v1/messages` | POST | Messages (Anthropic) |
 | `/v1/messages/count_tokens` | POST | Count tokens (Anthropic) |
-| `/v1/embeddings` | POST | Embeddings |
-| `/v1/models` | GET | List models |
 | `/completion` | POST | Legacy completion |
 | `/infill` | POST | Code completion (FIM) |
 | `/reranking` | POST | Re-ranking |
 | `/tokenize` | POST | Tokenize text |
 | `/detokenize` | POST | Detokenize tokens |
 | `/apply-template` | POST | Apply chat template |
-| `/health` | GET | Health check |
 | `/v1/health` | GET | Health check (alias) |
-| `/metrics` | GET | Prometheus metrics |
 | `/props` | GET/POST | Get/set server properties |
 | `/slots` | GET | Slot monitoring |
 | `/lora-adapters` | GET/POST | List/load LoRA adapters |
 | `/models/load` | POST | Load a model (router mode) |
 | `/models/unload` | POST | Unload a model (router mode) |
-| `/api/status` | GET | Server status (pid, uptime, loaded models) |
-
-Any endpoint not listed above is automatically proxied to the llama-server instance.
 
 ## Model Overrides
 

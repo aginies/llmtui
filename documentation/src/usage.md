@@ -75,7 +75,7 @@ Search mode lets you browse and download GGUF models from HuggingFace:
 | `Ctrl+S` | Cycle sort order |
 | `Ctrl+B` | Go back one page |
 | `Down` (at bottom) | Load more results |
-| `->` | Fetch and view README |
+| `Ctrl+Shift+R` | Fetch and view README for the selected model |
 
 ### Multi-word Search
 
@@ -135,7 +135,7 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 |---------|---------|-------------|
 | **Host** | 127.0.0.1 | Bind address for the llama.cpp server. Use `0.0.0.0` to accept connections from other machines. |
 | **Port** | 8080 | Port for the llama.cpp server. |
-| **Backend** | vulkan | Acceleration backend: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU), `rocm-lemonade` (AMD optimized), `cuda` (NVIDIA CUDA 12.8). Shows the currently selected version. |
+| **Backend** | auto-detected | Acceleration backend: auto-detected based on GPU (Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel). Options: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU), `rocm-lemonade` (AMD optimized), `cuda` (NVIDIA CUDA 12.8). Shows the currently selected version. |
 | **Threads** | (physical cores) | CPU threads for generation. Set to your physical core count for best performance. |
 | **Threads Batch** | 8 | CPU threads for batch processing (prompt evaluation). |
 | **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models), `Bench` (run llama-bench), or `BenchTune` (parameter auto-tuning). |
@@ -150,7 +150,7 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 
 ### LLM Settings
 
-The LLM Settings panel has 70+ fields organized into groups. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields (Flash Attention, Unified KV, Keep in memory) respond to `e` or `Ctrl+E`.
+The LLM Settings panel has 19 standard fields, 14 expert fields (revealed with `Ctrl+X`), and 15 ultra fields (hidden even in expert mode), for a total of 48 fields. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields respond to `e` or `Ctrl+E`.
 
 #### Loading
 
@@ -177,8 +177,6 @@ The LLM Settings panel has 70+ fields organized into groups. Arrow keys adjust v
 |-------|---------|-------------|
 | **Eval Batch** | 512 | Logical maximum batch size for evaluation. Larger batches improve throughput but increase memory usage. Set to the model's native context length for single-sequence inference. |
 | **Unified KV** | true | Shares KV cache across sequences, reducing memory usage when running multiple prompts. Can cause cache eviction conflicts. |
-| **Max Concurrent Pred** | 1 | Maximum number of concurrent predictions. Useful in Router mode for parallel inference. |
-| **Context** | 32096 | Context window size in tokens. Must be a power of two. Larger values consume more VRAM and RAM. Models often have a maximum context length (e.g., 32K, 128K). |
 
 #### Sampling
 
@@ -197,8 +195,6 @@ The LLM Settings panel has 70+ fields organized into groups. Arrow keys adjust v
 |-------|---------|-------------|
 | **Repetition Penalty** | 1.1 | Penalizes tokens that have already appeared. Values > 1.0 reduce repetition. Typical: 1.1-1.2. |
 | **Rep. Last N** | 64 | Number of recent tokens to consider for repetition penalty. `-1` uses the full context. |
-| **Presence Penalty** | 0.0 | Adds penalty to tokens that have appeared at least once. Encourages the model to discuss new topics. Range: -2.0 to 2.0. |
-| **Frequency Penalty** | 0.0 | Adds penalty proportional to how often a token has appeared. Stronger than presence penalty. Range: -2.0 to 2.0. |
 
 #### Yarn RoPE
 
@@ -207,9 +203,39 @@ The LLM Settings panel has 70+ fields organized into groups. Arrow keys adjust v
 | **Yarn RoPE** | false | Enables YaRN (Yet another RoPE extensioN) for extending context beyond the model's training length. |
 | **Yarn Params** | — | Opens a modal to configure three floating-point values: `rope_scale` (default 1.0, multiplies context), `rope_freq_base` (default 0.0, overrides the model's base frequency), `rope_freq_scale` (default 1.0, scales the frequency). Only digits, `.`, `-`, `e`, and `E` are accepted. |
 
-#### Additional Settings
+#### Tags
 
-Additional fields beyond the tables above are available in expert mode (toggle with `Ctrl+X`): `threads_batch`, `ubatch_size`, `keep`, `swa_full`, `mmap`, `numa` (None/Distribute/Isolate/Numactl), `split_mode` (None/Layer/Row/Tensor), `tensor_split`, `main_gpu`, `fit`, `embedding`, `jinja`, `chat_template`, `chat_template_kwargs`, `typical_p`, `mirostat` (Off/1/2), `mirostat_lr`, `mirostat_ent`, `ignore_eos`, `samplers` (semicolon-separated order), `dry_multiplier`, `dry_base`, `dry_allowed_length`, `dry_penalty_last_n`, `cache_prompt`, `cache_reuse`, `webui`.
+| Field | Default | Description |
+|-------|---------|-------------|
+| **Tags** | None | Per-model tags stored in the YAML config. Press `Enter` to open the tag editor modal. Press `t` in the LLM Settings panel to open the tag editor. |
+
+#### Backend
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| **LLama.cpp Version** | Latest | Shows the currently selected backend version. Press `Enter` to open the backend version picker. |
+
+#### Expert Mode
+
+Press `Ctrl+X` to toggle expert mode, which reveals 14 additional parameters:
+
+**Loading (expert):** Yarn RoPE (toggle), Yarn Params (modal), NUMA (None/Distribute/Isolate/Numactl)
+
+**GPU (expert):** Cache Type K (toggle), Cache Type V (toggle), Main GPU, Fit, Active Experts (toggle)
+
+**Evaluation (expert):** Max Concurrent Pred (toggle, 1-10)
+
+**Sampling (expert):** Mirostat (Off/1/2), Mirostat LR, Mirostat Ent, Ignore EOS (toggle)
+
+**Repetition (expert):** Presence Penalty (toggle, -2.0 to 2.0), Frequency Penalty (toggle, -2.0 to 2.0)
+
+**Speculative (expert):** MTP (toggle), Spec Type, Spec Draft N Max
+
+These fields follow the same navigation and editing rules as standard fields. Arrow keys adjust values, `Enter` enters direct edit mode, and dirty fields are highlighted in yellow.
+
+#### Ultra Fields
+
+15 ultra fields are hidden even in expert mode. They include: Threads Batch, UBatch Size, Keep, Split Mode, Tensor Split, Typical P, Mirostat, Mirostat LR, Mirostat Ent, Samplers, DRY Multiplier, DRY Base, DRY Allowed Length, DRY Penalty Last N. These require direct config file editing or profile application.
 
 **Cache Type K/V options:** F32, F16, BF16, Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl
 
@@ -221,24 +247,8 @@ Use `Left`/`Right` to adjust numeric fields by 1, or `Up`/`Down` for larger step
 
 - `Ctrl+S` — Save settings for the selected model
 - `Ctrl+R` — Reset to defaults
-- `e` / `Ctrl+E` — Toggle enabled/disabled (for Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred)
-- `Ctrl+X` — Toggle expert mode (reveals hidden parameters)
-
-### Expert Mode
-
-Press `Ctrl+X` in the LLM Settings panel to toggle expert mode, which reveals additional parameters organized into sections:
-
-**Loading (expert):** Threads Batch, UBatch Size, Keep, SWA Full, MMap, NUMA
-
-**GPU (expert):** Split Mode, Tensor Split, Main GPU, Fit, LoRA, LoRA Scaled, RPC, Embedding
-
-**Sampling (expert):** Typical P, Mirostat, Mirostat LR, Mirostat Ent, Ignore EOS, Samplers
-
-**DRY Sampling:** DRY Multiplier, DRY Base, DRY Allowed Length, DRY Penalty Last N
-
-**Server (expert):** Cache Prompt, Cache Reuse, WebUI
-
-These fields follow the same navigation and editing rules as standard fields. Arrow keys adjust values, `Enter` enters direct edit mode, and dirty fields are highlighted in yellow.
+- `e` / `Ctrl+E` — Toggle enabled/disabled (for Keep in memory, Flash Attention, KV Cache Offload, Cache Type K/V, Fit, Unified KV, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, MTP, Ignore EOS, Yarn RoPE, Active Experts)
+- `Ctrl+X` — Toggle expert mode (reveals 14 additional parameters)
 
 Dirty (changed) fields are highlighted in yellow.
 
@@ -250,19 +260,27 @@ Dirty (changed) fields are highlighted in yellow.
 | `Enter` | Load model / Select GGUF files (in search) / Expand log |
 | `f` | Filter local models list / Toggle Follow mode (in Log panel) |
 | `Esc` | Back / Exit search / Collapse log / Clear local filter |
-| `Tab` | Switch panels |
+| `Tab` | Switch panels (next) |
+| `Shift+Tab` | Switch panels (previous) |
 | `/` | Open search input modal |
 | `l` | Load model |
 | `u` | Unload model |
+| `t` | Open tags editor (in LLM Settings) |
 | `A` | About box (license and version info) |
-| `Ctrl+D` | Delete model |
+| `Ctrl+D` | Delete model (with confirmation) |
 | `Ctrl+H` | Panel-specific help |
 | `Ctrl+K` | CmdLine overlay |
 | `Ctrl+Alt+K` | Kill llama-server |
+| `Ctrl+L` | Focus Log panel |
 | `Ctrl+S` | Save settings / Cycle search sort (in search) |
-| `Ctrl+R` | Reset settings |
-| `Ctrl+E` | Toggle optional fields (Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred) |
-| `->` | Fetch README for selected model (in search) |
+| `Ctrl+R` | Reset settings (in LLM Settings) |
+| `Ctrl+E` | Toggle field enabled/disabled (in LLM Settings: Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, Flash Attention, Unified KV, Keep in memory, Fit, MTP, Ignore EOS, Yarn RoPE, Active Experts) |
+| `Ctrl+X` | Toggle expert mode (in LLM Settings) |
+| `Ctrl+P` | Open Profile Picker modal (in LLM Settings) |
+| `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
+| `Ctrl+B` | Back one page in search |
+| `Ctrl+Shift+K` | Kill llama-server (alternative) |
+| `Ctrl+Shift+R` | Fetch README for selected model (in search) |
 | `g` / `G` | Jump to top/bottom of log |
 | `PageUp` / `PageDown` | Fast scroll (logs, README, benchmarks) |
 | `F1`–`F6` | Toggle panels (Models, Server, Info, Settings, Active, Log) |
@@ -270,24 +288,17 @@ Dirty (changed) fields are highlighted in yellow.
 | `Ctrl+F7` | Focus Models panel |
 | `Ctrl+F8` | Focus Server Settings panel |
 | `Ctrl+F9` | Focus LLM Settings panel |
-| `Ctrl+P` | Open Profile Picker modal (LLM Settings only) |
-| `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
-| `Ctrl+B` | Back one page in search |
-| `Ctrl+D` / `Ctrl+U` | Jump 10 settings down/up |
 | `Shift+←` / `Shift+→` | Resize horizontal panel split (20%-80%) |
-| `p` | Pause/resume download / Previous benchmark result (also `Ctrl+P` for Profile Picker in LLM Settings) |
-| `n` | New preset (System Prompt Presets) / Next benchmark result |
+| `p` | Pause/resume download / Previous benchmark result / Apply profile |
+| `n` | New preset (System Prompt Presets) / Next benchmark result / Add new worker (RPC) |
 | `Space` | Toggle selection (RPC workers, benchmark parameters) |
 | `Alt+M` | Toggle benchmark mode (RuntimeOnly / Full) |
 | `Alt+P` | Edit benchmark prompt |
 | `Alt+N` | Edit n_predict (max tokens) |
 | `Alt+I` | Edit iterations |
-| `Alt+C` | Edit chat template kwargs |
-| `Ctrl+F7` | Focus Models panel |
-| `Ctrl+F8` | Focus Server Settings panel |
-| `Ctrl+F9` | Focus LLM Settings panel |
-| `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
-| `F9` / `F10` / `Ctrl+F10` | Show all panels |
+| `Alt+C` | Edit chat template kwargs / Cancel confirmation |
+| `y` | Confirm destructive action |
+| `h` | Cancel confirmation dialog |
 
 ## Log Panel
 
@@ -399,10 +410,14 @@ The Active Model panel shows real-time metrics:
 |--------|-------------|
 | TPS | Tokens per second (generation speed) |
 | Prompt TPS | Prompt processing speed |
+| Gen TPS | Generation tokens per second (separate from prompt TPS) |
 | Context usage | Progress bar showing ctx_used/ctx_max |
 | CPU% | CPU usage percentage |
 | RAM | RAM usage |
 | VRAM | GPU memory used/total |
+| Total VRAM | Total GPU memory used (including non-model allocations) |
+| Latency | Milliseconds per token (generation and prompt) |
+| Tokens | Total decoded tokens generated |
 
 The panel also shows benchmarking state with progress bar and current parameter display when running BenchTune.
 

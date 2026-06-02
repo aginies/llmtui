@@ -36,7 +36,11 @@ src/
 │       ├── readme.rs      # README rendering
 │       ├── rpc_workers.rs # RPC workers manager
 │       ├── system_prompt_presets.rs # System prompt presets
-│       └── profiles.rs    # Profiles manager
+│       ├── profiles.rs    # Profiles manager
+│       ├── downloads.rs   # Download progress panel (rendered inline, not a separate module)
+```
+
+> **Note:** `src/tui/panel/api_endpoints.rs` exists on disk but is **not declared** in `panel/mod.rs`, so it is not compiled. It contains a render function for displaying API endpoint documentation in a panel.
 ```
 
 ## App State Machine
@@ -65,12 +69,12 @@ pub enum GlobalMode {
     About,
     MaxConcurrentPicker { value: String },
     SpecTypePicker { entries: Vec<String>, selected: usize },
-    YarnRoPESettings { selected_field: i32, editing: bool, edit_buffer: String, edit_cursor_pos: usize },
+    YarnRoPESettings { scale: String, freq_base: String, freq_scale: String, selected_field: i32, editing: bool, edit_buffer: String, edit_cursor_pos: usize },
     BenchTuneSetup { config, selected_idx, editing_param, editing_param_field, param_edit_buffer, param_edit_cursor_pos, bench_mode_selection, editing_prompt, editing_kwargs },
     PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete },
-    ProfilePicker { entries, selected },
-    DashboardPicker { entries, selected, selected_field },
-    DashboardUrl { url: String },
+    ProfilePicker { entries, selected, profiles },
+    DashboardPicker { enabled, port, auth_key, tls_enabled, tls_cert, tls_key, selected_field, editing, edit_buffer, edit_cursor_pos },
+    DashboardUrl { host, port, auth_key, ws_enabled },
     SearchInput { buffer: String, cursor_pos: usize },
 }
 ```
@@ -137,9 +141,9 @@ A post-filter checks that the model_id contains the search query (case-insensiti
 **Multi-word search:** Space-separated words are split and each word must match the model name (AND logic). Matching words are highlighted in cyan in the results list.
 
 - Default: 70 results per page (max 200)
-- Pagination: `B` goes back, `Down` at bottom loads more
+- Pagination: `Ctrl+B` goes back, `Down` at bottom loads more
 - Sort order cycles: Relevance → Downloads → Likes → Trending → Created
-- README fetching: `R` downloads and renders the model's README
+- README fetching: `Ctrl+Shift+R` downloads and renders the model's README
 
 ## VRAM Estimation
 
