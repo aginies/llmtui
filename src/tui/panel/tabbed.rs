@@ -415,7 +415,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
             }
             lines
         }
-         _ => {
+        _ => {
             match app.selected_model() {
                 Some(model) => {
                     let key = model.path.to_string_lossy().to_string();

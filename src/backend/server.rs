@@ -1069,7 +1069,7 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
 fn get_process_metrics(
     pid: u32,
 ) -> Result<(u64, f64), String> {
-   use std::sync::{LazyLock, Mutex};
+    use std::sync::{LazyLock, Mutex};
     use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 
     static SYS: LazyLock<Mutex<System>> = LazyLock::new(|| {

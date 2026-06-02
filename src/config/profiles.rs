@@ -42,16 +42,16 @@ impl ProfileStore {
         }
     }
 
-   /// Save (or update) a profile.
-        pub fn save(&mut self, profile: &Profile) {
-            save_yaml(&profile.name, profile, &self.profiles_dir, &self.unused_dir);
-            self.cache.insert(profile.name.clone(), profile.clone());
-        }
+    /// Save (or update) a profile.
+    pub fn save(&mut self, profile: &Profile) {
+        save_yaml(&profile.name, profile, &self.profiles_dir, &self.unused_dir);
+        self.cache.insert(profile.name.clone(), profile.clone());
+    }
 
-        /// Insert a built-in profile into the in-memory cache only (no disk I/O).
-        pub fn insert_builtin(&mut self, profile: Profile) {
-            self.cache.insert(profile.name.clone(), profile);
-        }
+    /// Insert a built-in profile into the in-memory cache only (no disk I/O).
+    pub fn insert_builtin(&mut self, profile: Profile) {
+        self.cache.insert(profile.name.clone(), profile);
+    }
 
     /// Delete a profile by moving it to the unused directory.
     pub fn delete(&mut self, name: &str) -> bool {
@@ -64,22 +64,22 @@ impl ProfileStore {
         true
     }
 
-   /// Get a profile by name.
-        pub fn get(&self, name: &str) -> Option<&Profile> {
-            self.cache.get(name)
-        }
+    /// Get a profile by name.
+    pub fn get(&self, name: &str) -> Option<&Profile> {
+        self.cache.get(name)
+    }
 
-        /// Get all user-defined profiles (excluding built-ins).
-        pub fn user_profiles(&self) -> Vec<Profile> {
-            let builtin = builtin_profiles();
-            self.cache
-                .values()
-                .filter(|p| !builtin.iter().any(|b| b.name == p.name))
-                .cloned()
-                .collect()
-        }
+    /// Get all user-defined profiles (excluding built-ins).
+    pub fn user_profiles(&self) -> Vec<Profile> {
+        let builtin = builtin_profiles();
+        self.cache
+            .values()
+            .filter(|p| !builtin.iter().any(|b| b.name == p.name))
+            .cloned()
+            .collect()
+    }
 
-        /// Get all profiles (built-in + user).
+    /// Get all profiles (built-in + user).
     pub fn all(&self) -> Vec<Profile> {
         let builtin = builtin_profiles();
         let mut all: Vec<Profile> = builtin.clone();
