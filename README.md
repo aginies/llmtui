@@ -58,13 +58,17 @@ A convenience script is included for common operations:
 
 ```bash
 ./build.sh build      # Build (debug)
-./build.sh run        # Build and run
+./build.sh run        # Build and run (TUI mode)
+./build.sh serve      # Build and serve a model (llama-server)
+./build.sh servedoc   # Serve documentation with watch mode
 ./build.sh release    # Release build
 ./build.sh clean      # Remove build artifacts
 ./build.sh format     # Format code
 ./build.sh check      # cargo check
 ./build.sh test       # Run tests
 ./build.sh clippy     # Run clippy
+./build.sh doc        # Build documentation
+./build.sh help       # Show help
 ```
 
 ### Testing
@@ -238,21 +242,26 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `t` — Switch settings tab / Open tags modal (in LLM Settings)
 - `/` — Search models on HuggingFace (opens search input modal)
 - `l` — Load selected model / `u` — Unload selected model
+- `d` — Delete model (in Models panel) / Delete backend version (in backend picker)
+- `D` — Delete selected backend version (in LLM Settings)
 - `A` — About box (license and version info)
+- `E` — Toggle expert mode (in LLM Settings)
+- `I` — Open Info panel
+- `Y` — Edit YaRN RoPE parameters (rope_scale, rope_freq_base, rope_freq_scale)
+- `N` — New preset (in System Prompt Presets) / Next Benchmark result
+- `B` — Go back one page in search results
 - `⌃H` (Ctrl+H) — Show Help overlay
 - `⌃K` (Ctrl+K) — Show CmdLine overlay
 - `⌃D` (Ctrl+D) — Delete model (with confirmation)
 - `p` — Open Profiles panel / Pause or resume download / Previous Benchmark result (context-sensitive)
 - `⌃P` (Ctrl+P) — Open Profile Picker modal (select from built-in or user profiles)
-- `n` — New preset (in System Prompt Presets) / Next Benchmark result
-- `⌃S` (Ctrl+S) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created)
+- `⌃S` (Ctrl+S) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created) / Save settings
 - `⌃B` (Ctrl+B) — Back one page in search results
 - `↓` at bottom — Load more search results (infinite scroll)
 - `⌃⌥K` (Ctrl+Alt+K) — Kill llama-server process forcefully
 - `g` / `G` — Jump to top/bottom of log panel
 - `PageUp` / `PageDown` — Scroll fast in logs, README, and Benchmark Output
 - `⌃R` (Ctrl+R) — Fetch README for selected model (in search) / Reset LLM settings (in LLM Settings)
-- `⌃S` (Ctrl+S) — Save settings for selected model / Save preset
 - `⌃E` (Ctrl+E) — Toggle enabled/disabled for specific settings
 - `⌃⇟` / `⌃⇞` (Ctrl+PgDn/PgUp) — Jump 10 settings down/up
 - `Shift+←` / `Shift+→` — Resize horizontal panel split (20%-80%)
@@ -418,9 +427,11 @@ The LLM Settings panel (28 standard fields in 6 groups, 55 total in expert mode)
 
 **Additional settings:** threads_batch, batch_size, ubatch_size, parallel, keep, swa_full, mmap, numa (None/Distribute/Isolate/Numactl), reasoning_mode (Default/Gemma), split_mode (None/Layer/Row/Tensor), tensor_split, main_gpu, fit, embedding, expert_count, jinja, chat_template, chat_template_kwargs, typical_p, mirostat (Off/1/2), mirostat_lr, mirostat_ent, ignore_eos, samplers (semicolon-separated order), repeat_penalty, repeat_last_n, presence_penalty, frequency_penalty
 
+**Speculative decoding:** Spec Type (Off, draft-mtp, draft-simple, draft-eagle3, ngram variants), Spec Draft N Max (0-16)
+
 **Cache Type K/V options:** F32, F16, BF16, Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl
 
-**Dirty tracking:** Modified fields are shown in yellow with a trailing `*`. The status bar shows `*unsaved*` when settings are dirty. Press `⌃S` to save or `⌃R` to reset to defaults.
+**Dirty tracking:** Modified fields are shown with the name in red and a trailing `*`. The status bar shows `*unsaved*` when settings are dirty. Press `⌃S` to save or `⌃R` to reset to defaults.
 
 **VRAM estimate:** The app computes a detailed VRAM estimate based on model size, GPU layers, KV cache, activation overhead, and fixed overhead. The formula accounts for GQA ratio, FlashAttention (0.5x KV cache reduction), unified KV cache, KV cache quantization bytes, activation overhead (8x multiplier), and fixed overhead (3.8% of max VRAM or 500 MiB fallback). The estimate is shown in the LLM Settings title (e.g., "VRAM ~= 8.2 GB").
 
