@@ -24,14 +24,10 @@ impl App {
             visible.push(ActivePanel::Models);
         }
 
-        // 2. Model Info (Left Bottom)
-        if self.is_panel_visible(2) {
-            visible.push(ActivePanel::ModelInfo);
-        }
-
         // 3. Right Panel (README / Settings / Profiles / Presets)
         let is_search = matches!(self.models_mode, ModelsMode::Search { .. });
         let is_files = matches!(self.models_mode, ModelsMode::Files { .. });
+        let is_bench_tune = matches!(self.models_mode, ModelsMode::BenchTune);
         let show_readme = match &self.models_mode {
             ModelsMode::Search { show_readme, .. } => *show_readme,
             ModelsMode::Files { .. } => true,
@@ -45,10 +41,10 @@ impl App {
         } else if show_readme && (is_search || is_files) {
             visible.push(ActivePanel::SearchReadme);
         } else {
-            if self.is_panel_visible(1) && self.server.server_handle.is_none() {
+            if self.is_panel_visible(1) && self.server.server_handle.is_none() && !is_bench_tune {
                 visible.push(ActivePanel::ServerSettings);
             }
-            if self.is_panel_visible(3) {
+            if self.is_panel_visible(3) && !is_bench_tune {
                 visible.push(ActivePanel::LlmSettings);
             }
         }

@@ -19,6 +19,8 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         return;
     }
 
+    let server_running = app.server.server_handle.is_some()
+        || matches!(app.models_mode, crate::tui::app::ModelsMode::BenchTune);
     let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::LlmSettings;
 
     // Split area: top for Server Settings, rest for LLM Settings
@@ -41,7 +43,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // ── LLM Settings ─────────────────────────────────────────
     let (settings_lines, _count, settings_height, _selected_line_idx) =
-        settings::render_all(app, llm_area);
+        settings::render_all(app, llm_area, server_running);
 
     let available_height = llm_area.height.saturating_sub(2);
 
@@ -54,7 +56,9 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         .cloned()
         .collect();
 
-    let border_color = if is_focused {
+    let border_color = if server_running {
+        Color::DarkGray
+    } else if is_focused {
         Color::Green
     } else {
         Color::Rgb(255, 165, 0)
@@ -65,9 +69,14 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     } else {
         ""
     };
+    let title = if server_running {
+        format!("{} LLM Settings (F4) [Ctrl+F9] (Disabled) ", title_prefix)
+    } else {
+        format!("{} LLM Settings (F4) [Ctrl+F9] ", title_prefix)
+    };
     let block = Block::default()
         .title(Line::from(vec![
-            Span::raw(format!("{} LLM Settings (F4) [Ctrl+F9] ", title_prefix)),
+            Span::raw(title),
             Span::styled(
                 format!("(VRAM ~= {}) ", vram_text),
                 Style::default().fg(Color::Yellow),
@@ -92,7 +101,8 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     }
 }
 fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
-    let server_running = app.server.server_handle.is_some();
+    let server_running = app.server.server_handle.is_some()
+        || matches!(app.models_mode, crate::tui::app::ModelsMode::BenchTune);
 
     if area.height < 2 || area.width < 10 {
         return;
@@ -321,16 +331,25 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
 }
 
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
+    let is_bench_tune = matches!(app.models_mode, crate::tui::app::ModelsMode::BenchTune);
     let is_focused = app.ui.active_panel == ActivePanel::LlmSettings;
-    let border_color = if is_focused {
+    let disabled = is_bench_tune;
+    let border_color = if disabled {
+        Color::DarkGray
+    } else if is_focused {
         Color::Green
     } else {
         Color::Rgb(255, 165, 0)
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
+    let title = if disabled {
+        " LLM Settings (F4) [4] (Disabled) "
+    } else {
+        " LLM Settings (F4) [4] "
+    };
     let block = Block::default()
         .title(Line::from(vec![
-            Span::raw(" LLM Settings (F4) [4] "),
+            Span::raw(title),
             Span::styled(
                 format!("(VRAM ~= {}) ", vram_text),
                 Style::default().fg(Color::Yellow),
@@ -339,7 +358,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    let (all_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, area);
+    let (all_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, area, disabled);
 
     let available_height = area.height.saturating_sub(2);
     let start_idx = app.settings_state.settings_scroll_offset;

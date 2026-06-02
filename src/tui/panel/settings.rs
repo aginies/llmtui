@@ -11,6 +11,7 @@ use crate::tui::settings::{self, SettingField};
 pub fn render_all(
     app: &mut crate::tui::app::App,
     area: Rect,
+    disabled: bool,
 ) -> (Vec<Line<'static>>, usize, usize, usize) {
     let settings = &app.settings;
     let cached = &app.model_settings_cache;
@@ -49,6 +50,7 @@ pub fn render_all(
         selected,
         edit_buf,
         editing,
+        disabled,
     );
 
     // On cache hit, use cached lines (faster). On miss, update cache.
@@ -108,17 +110,25 @@ fn render_settings(
     selected: usize,
     edit_buf: &str,
     editing: bool,
+    disabled: bool,
 ) {
     let mut prev_section: Option<&str> = None;
 
     for field in fields {
         // Section header
         if field.is_new_section(prev_section) {
-            lines.push(Line::from(vec![Span::styled(
-                format!("--- {} ---", field.section),
+            let section_style = if disabled {
                 Style::default()
                     .fg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD),
+                    .add_modifier(Modifier::DIM)
+            } else {
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD)
+            };
+            lines.push(Line::from(vec![Span::styled(
+                format!("--- {} ---", field.section),
+                section_style,
             )]));
             prev_section = Some(field.section);
         }
@@ -137,11 +147,25 @@ fn render_settings(
             field.display(settings)
         };
 
-        let val_style = if *total_count == selected {
+        let name_style = if disabled {
+            Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)
+        } else {
+            Style::default().fg(Color::Yellow)
+        };
+        let indicator_style = if disabled {
+            Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)
+        } else {
+            Style::default().fg(Color::Yellow)
+        };
+        let final_val_style = if *total_count == selected {
             Style::default()
                 .fg(Color::Black)
                 .bg(Color::Yellow)
                 .add_modifier(Modifier::BOLD)
+        } else if disabled {
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::DIM)
         } else if dirty {
             Style::default().fg(Color::Red)
         } else {
@@ -151,13 +175,13 @@ fn render_settings(
         lines.push(Line::from(vec![
             Span::styled(
                 if *total_count == selected { "> " } else { "  " },
-                Style::default().fg(Color::Yellow),
+                indicator_style,
             ),
             Span::styled(
                 format!("{}: ", field.name()),
-                Style::default().fg(Color::Yellow),
+                name_style,
             ),
-            Span::styled(display, val_style),
+            Span::styled(display, final_val_style),
         ]));
         *total_count += 1;
     }
