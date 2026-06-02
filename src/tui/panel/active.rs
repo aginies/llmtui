@@ -306,35 +306,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                 lines.push(Line::from(tps_parts));
 
-                lines.push(Line::from(vec![
-                    Span::styled(" [ ", Style::default().fg(Color::White)),
-                    Span::styled("CPU: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(
-                        format!("{:.1}%", app.metrics.cpu_usage),
-                        Style::default().fg(Color::Cyan),
-                    ),
-                    Span::styled(" ]", Style::default().fg(Color::White)),
-                    Span::styled("  [ ", Style::default().fg(Color::White)),
-                    Span::styled("RAM: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(
-                        format_size(app.metrics.ram_used),
-                        Style::default().fg(Color::Cyan),
-                    ),
-                    Span::styled(" ]", Style::default().fg(Color::White)),
-                    Span::styled("  [ ", Style::default().fg(Color::White)),
-                    Span::styled("VRAM: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(
-                        format_size(app.metrics.gpu_mem_used),
-                        Style::default().fg(Color::Cyan),
-                    ),
-                    Span::styled(" / ", Style::default().fg(Color::White)),
-                    Span::styled(
-                        format_size(app.metrics.gpu_mem_total),
-                        Style::default().fg(Color::Cyan),
-                    ),
-                    Span::styled(" ]", Style::default().fg(Color::White)),
-                ]));
-
                 let gen_tps_style = if app.metrics.gen_tps > 30.0 {
                     Style::default().fg(Color::Green)
                 } else if app.metrics.gen_tps > 15.0 {
@@ -368,6 +339,35 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 gen_parts.push(Span::styled(" ]", Style::default().fg(Color::White)));
 
                 lines.push(Line::from(gen_parts));
+
+                lines.push(Line::from(vec![
+                    Span::styled(" [ ", Style::default().fg(Color::White)),
+                    Span::styled("CPU: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(
+                        format!("{:.1}%", app.metrics.cpu_usage),
+                        Style::default().fg(Color::Cyan),
+                    ),
+                    Span::styled(" ]", Style::default().fg(Color::White)),
+                    Span::styled("  [ ", Style::default().fg(Color::White)),
+                    Span::styled("RAM: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(
+                        format_size(app.metrics.ram_used),
+                        Style::default().fg(Color::Cyan),
+                    ),
+                    Span::styled(" ]", Style::default().fg(Color::White)),
+                    Span::styled("  [ ", Style::default().fg(Color::White)),
+                    Span::styled("VRAM: ", Style::default().fg(Color::Yellow)),
+                    Span::styled(
+                        format_size(app.metrics.gpu_mem_used),
+                        Style::default().fg(Color::Cyan),
+                    ),
+                    Span::styled(" / ", Style::default().fg(Color::White)),
+                    Span::styled(
+                        format_size(app.metrics.gpu_mem_total),
+                        Style::default().fg(Color::Cyan),
+                    ),
+                    Span::styled(" ]", Style::default().fg(Color::White)),
+                ]));
             }
             ModelState::Benchmarking => {
                 lines.push(Line::from(vec![

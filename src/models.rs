@@ -1902,7 +1902,7 @@ fn test_is_dirty_uses_derived_eq() {
 
         // Verify the From impl produces a valid ModelSettings
         // The derived PartialEq ensures all fields were mapped
-        assert_eq!(ms.context_length, 32768);
+        assert_eq!(ms.context_length, 131072);
         assert_eq!(ms.threads, dp.threads);
         assert_eq!(ms.temperature, 0.8);
         // backend is hardware-dependent in DefaultParams::default(),
