@@ -1411,15 +1411,37 @@ impl App {
         let tls_cert = self.settings.ws_server_tls_cert.clone();
         let tls_key = self.settings.ws_server_tls_key.clone();
 
+        // Load TLS config only if paths changed since last load, or if not yet cached.
         let tls_cfg = if tls_enabled {
-            if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
-                crate::backend::tls::load_tls_config(cert, key).await.ok()
+            let needs_reload = match (&tls_cert, &tls_key) {
+                (Some(cert), Some(key)) => {
+                    Some(cert.as_str()) != self.server.running_ws_tls_cert_path.as_deref()
+                        || Some(key.as_str()) != self.server.running_ws_tls_key_path.as_deref()
+                }
+                _ => true,
+            };
+            if needs_reload {
+                if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
+                    crate::backend::tls::load_tls_config(cert, key).await.ok()
+                } else {
+                    None
+                }
             } else {
-                None
+                self.server.running_ws_tls_cfg.clone()
             }
         } else {
+            self.server.running_ws_tls_cfg = None;
+            self.server.running_ws_tls_cert_path = None;
+            self.server.running_ws_tls_key_path = None;
             None
         };
+
+        // Cache the TLS config and the paths used to load it.
+        if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
+            self.server.running_ws_tls_cert_path = Some(cert.clone());
+            self.server.running_ws_tls_key_path = Some(key.clone());
+        }
+        self.server.running_ws_tls_cfg = tls_cfg.clone();
 
         // Check if settings have changed since last start
         let settings_changed = self.server.running_ws_port != Some(port)
@@ -1514,6 +1536,13 @@ impl App {
             .map(|h| h.pid)
             .unwrap_or(0);
         let model_name = self.server.spawned_model_name.clone().unwrap_or_default();
+
+        // No backend server and API proxy is not running — nothing to do.
+        // This prevents a busy loop where settings_changed is always true
+        // because running_api_server_port holds the old port while server_port is 0.
+        if self.server.server_handle.is_none() && self.server.api_proxy_handle.is_none() {
+            return;
+        }
 
         let settings_changed = self.server.running_api_port != Some(port)
             || self.server.running_api_server_port != Some(server_port)
