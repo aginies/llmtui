@@ -235,7 +235,6 @@ pub struct ModelOverride {
     pub ws_server_enabled: Option<bool>,
     pub ws_server_port: Option<u16>,
     pub ws_server_auth_key: Option<String>,
-    pub ws_server_tls_enabled: Option<bool>,
     pub ws_server_tls_cert: Option<String>,
     pub ws_server_tls_key: Option<String>,
 
@@ -363,7 +362,6 @@ impl ModelOverride {
             ws_server_enabled: Some(s.ws_server_enabled),
             ws_server_port: Some(s.ws_server_port),
             ws_server_auth_key: s.ws_server_auth_key.clone(),
-            ws_server_tls_enabled: Some(s.ws_server_tls_enabled),
             ws_server_tls_cert: s.ws_server_tls_cert.clone(),
             ws_server_tls_key: s.ws_server_tls_key.clone(),
         }
@@ -385,7 +383,7 @@ impl ModelOverride {
             dry_multiplier, dry_base, dry_allowed_length, dry_penalty_last_n,
             rope_scaling, rope_scale, rope_freq_base, rope_freq_scale, rope_yarn_enabled,
             cache_prompt, cache_reuse, webui, cache_type,
-            ws_server_enabled, ws_server_port, ws_server_tls_enabled,
+            ws_server_enabled, ws_server_port,
             draft_tokens, gpu_layers_mode,
         );
 

@@ -143,7 +143,6 @@ pub fn sync_global_settings(app: &mut App) {
         || app.config.default.ws_server_enabled != app.settings.ws_server_enabled
         || app.config.default.ws_server_port != app.settings.ws_server_port
         || app.config.default.ws_server_auth_key != app.settings.ws_server_auth_key
-        || app.config.default.ws_server_tls_enabled != app.settings.ws_server_tls_enabled
         || app.config.default.ws_server_tls_cert != app.settings.ws_server_tls_cert
         || app.config.default.ws_server_tls_key != app.settings.ws_server_tls_key;
     if !changed {
@@ -169,7 +168,6 @@ pub fn sync_global_settings(app: &mut App) {
     app.config.default.ws_server_enabled = app.settings.ws_server_enabled;
     app.config.default.ws_server_port = app.settings.ws_server_port;
     app.config.default.ws_server_auth_key = app.settings.ws_server_auth_key.clone();
-    app.config.default.ws_server_tls_enabled = app.settings.ws_server_tls_enabled;
     app.config.default.ws_server_tls_cert = app.settings.ws_server_tls_cert.clone();
     app.config.default.ws_server_tls_key = app.settings.ws_server_tls_key.clone();
 

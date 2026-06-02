@@ -258,7 +258,6 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             ws_server_enabled: dp.ws_server_enabled,
             ws_server_port: dp.ws_server_port,
             ws_server_auth_key: dp.ws_server_auth_key,
-            ws_server_tls_enabled: dp.ws_server_tls_enabled,
             ws_server_tls_cert: dp.ws_server_tls_cert,
             ws_server_tls_key: dp.ws_server_tls_key,
             spec_type: dp.spec_type,
@@ -851,7 +850,6 @@ pub struct ModelSettings {
     pub ws_server_enabled: bool,
     pub ws_server_port: u16,
     pub ws_server_auth_key: Option<String>,
-    pub ws_server_tls_enabled: bool,
     pub ws_server_tls_cert: Option<String>,
     pub ws_server_tls_key: Option<String>,
 }
@@ -1855,7 +1853,6 @@ fn count_model_settings_fields(s: &ModelSettings) -> usize {
         &s.ws_server_enabled,
         &s.ws_server_port,
         &s.ws_server_auth_key,
-        &s.ws_server_tls_enabled,
         &s.ws_server_tls_cert,
         &s.ws_server_tls_key,
     );

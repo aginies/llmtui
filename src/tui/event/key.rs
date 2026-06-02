@@ -81,7 +81,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             port: app.settings.ws_server_port.to_string(),
             auth_key: app.settings.ws_server_auth_key.clone().unwrap_or_default(),
             ws_enabled: app.settings.ws_server_enabled,
-            tls_enabled: app.settings.ws_server_tls_enabled,
+            tls_enabled: app.config.default.ws_server_tls_enabled,
         };
         return;
     }
@@ -288,7 +288,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                     if *selected_field == 2i32 {
                         *tls_enabled = !*tls_enabled;
-                        app.settings.ws_server_tls_enabled = *tls_enabled;
+app.config.default.ws_server_tls_enabled = *tls_enabled;
                     }
                     if *selected_field == 3i32 {
                         app.settings.ws_server_tls_cert = if edit_buffer.is_empty() {
@@ -330,7 +330,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 if *selected_field == 2i32 {
                     *tls_enabled = !*tls_enabled;
-                    app.settings.ws_server_tls_enabled = *tls_enabled;
+                    app.config.default.ws_server_tls_enabled = *tls_enabled;
                     super::helpers::sync_global_settings(app);
                     return;
                 }
@@ -2060,7 +2060,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         enabled: app.settings.ws_server_enabled,
                         port: app.settings.ws_server_port.to_string(),
                         auth_key: app.settings.ws_server_auth_key.clone().unwrap_or_default(),
-                        tls_enabled: app.settings.ws_server_tls_enabled,
+tls_enabled: app.config.default.ws_server_tls_enabled,
                         tls_cert: app.settings.ws_server_tls_cert.clone().unwrap_or_default(),
                         tls_key: app.settings.ws_server_tls_key.clone().unwrap_or_default(),
                         selected_field: -1,

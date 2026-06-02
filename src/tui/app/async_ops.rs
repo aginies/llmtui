@@ -1422,7 +1422,7 @@ impl App {
         let enabled = self.settings.ws_server_enabled;
         let port = self.settings.ws_server_port;
         let auth_key = self.settings.ws_server_auth_key.clone();
-        let tls_enabled = self.settings.ws_server_tls_enabled;
+        let tls_enabled = self.config.default.ws_server_tls_enabled;
         let tls_cert = self.settings.ws_server_tls_cert.clone();
         let tls_key = self.settings.ws_server_tls_key.clone();
 
