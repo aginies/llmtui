@@ -210,8 +210,7 @@ fn model_override_apply_gpu_layers_specific() {
         ..Default::default()
     };
     override_settings.apply(&mut settings);
-    // Positive gpu_layers value (not negative) sets Auto mode per implementation
-    assert!(matches!(settings.gpu_layers_mode, GpuLayersMode::Auto));
+    assert!(matches!(settings.gpu_layers_mode, GpuLayersMode::Specific(20)));
 }
 
 // ── Config validation ──────────────────────────────────────────

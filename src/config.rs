@@ -398,7 +398,7 @@ impl ModelOverride {
             rope_scaling, rope_scale, rope_freq_base, rope_freq_scale, rope_yarn_enabled,
             cache_prompt, cache_reuse, webui, cache_type,
             ws_server_enabled, ws_server_port, ws_server_tls_enabled,
-            draft_tokens,
+            draft_tokens, gpu_layers_mode,
         );
 
         // Cloneable fields: if let Some(v) = &self.f { base.f = v.clone(); }
@@ -429,18 +429,22 @@ impl ModelOverride {
             .or(base.max_concurrent_predictions);
 
         // Special: gpu_layers converts i32 legacy field to GpuLayersMode enum
-        base.gpu_layers_mode = match self.gpu_layers.unwrap_or(-1) {
-            n if n < 0 => crate::models::GpuLayersMode::All,
-            _ => crate::models::GpuLayersMode::Auto,
-        };
+        // Only applies when gpu_layers is explicitly set in the override.
+        if let Some(n) = self.gpu_layers {
+            base.gpu_layers_mode = match n {
+                n if n < 0 => crate::models::GpuLayersMode::All,
+                n => crate::models::GpuLayersMode::Specific(n as u32),
+            };
+        }
 
         // FIELD ACCOUNTING (ModelOverride: 92 fields):
-        // - apply_scalar: 65 fields
+        // - apply_scalar: 55 fields
         // - apply_clone: 7 fields
         // - apply_option: 13 fields
         // - direct Option assign: 5 fields (cache_type_k, cache_type_v, presence_penalty,
         //   frequency_penalty, max_tokens)
-        // - special: 2 fields (max_concurrent_predictions, gpu_layers->gpu_layers_mode)
+        // - special: 1 field (max_concurrent_predictions)
+        // - conditional: gpu_layers overrides gpu_layers_mode only when Some
         // - NOT in ModelSettings: 0 (all ModelOverride fields mapped above)
         //
         // ModelSettings fields NOT in ModelOverride (not overridable):
