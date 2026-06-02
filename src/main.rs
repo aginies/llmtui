@@ -63,6 +63,18 @@ enum Cli {
         #[arg(long)]
         api_key: Option<String>,
 
+        /// Enable the WebSocket dashboard server
+        #[arg(long)]
+        ws_enable: bool,
+
+        /// Port for the WebSocket dashboard server
+        #[arg(long)]
+        ws_port: Option<u16>,
+
+        /// Auth key for the WebSocket dashboard server
+        #[arg(long)]
+        ws_auth: Option<String>,
+
         /// Path to a custom llama-server binary to use instead of auto-resolved
         #[arg(long)]
         backend_binary: Option<String>,
@@ -100,6 +112,9 @@ async fn main() -> Result<()> {
             config,
             api_port,
             api_key,
+            ws_enable,
+            ws_port,
+            ws_auth,
             backend_binary,
             host,
             log_file,
@@ -141,6 +156,9 @@ async fn main() -> Result<()> {
                 config_path: config,
                 api_port,
                 api_key,
+                ws_enable,
+                ws_port,
+                ws_auth,
                 backend_binary,
                 host,
                 tls_enable,
