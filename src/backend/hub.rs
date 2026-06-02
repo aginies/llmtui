@@ -7,24 +7,32 @@ pub const DOWNLOAD_STATE_PAUSED: u8 = 2;
 pub const DOWNLOAD_STATE_CANCELLED: u8 = 3;
 
 /// Get the amount of free disk space (in bytes) at the given path.
-/// Uses `statvfs` on Unix systems.
+/// Uses `statvfs` on Linux; returns 0 on other platforms.
 pub fn get_free_space_bytes(path: &std::path::Path) -> u64 {
-    let path_str = path.to_string_lossy();
-    let c_path = match std::ffi::CString::new(path_str.as_ref()) {
-        Ok(c) => c,
-        Err(_) => return 0,
-    };
+    #[cfg(target_os = "linux")]
+    {
+        let path_str = path.to_string_lossy();
+        let c_path = match std::ffi::CString::new(path_str.as_ref()) {
+            Ok(c) => c,
+            Err(_) => return 0,
+        };
 
-    let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
-    let result = unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) };
+        let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+        let result = unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) };
 
-    if result != 0 {
-        return 0;
+        if result != 0 {
+            return 0;
+        }
+
+        // f_bavail = free blocks available to unprivileged user
+        // f_frsize = fundamental filesystem block size
+        stat.f_bavail * stat.f_frsize
     }
-
-    // f_bavail = free blocks available to unprivileged user
-    // f_frsize = fundamental filesystem block size
-    stat.f_bavail * stat.f_frsize
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = path;
+        0
+    }
 }
 
 fn default_tag(repo: &str) -> String {
