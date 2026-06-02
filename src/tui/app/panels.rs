@@ -44,7 +44,7 @@ impl App {
             if self.is_panel_visible(1) && self.server.server_handle.is_none() && !is_bench_tune {
                 visible.push(ActivePanel::ServerSettings);
             }
-            if self.is_panel_visible(3) && !is_bench_tune {
+            if self.is_panel_visible(3) {
                 visible.push(ActivePanel::LlmSettings);
             }
         }
