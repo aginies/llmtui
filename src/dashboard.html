@@ -69,6 +69,16 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
     <div class="bar-container"><div id="ctx-bar" class="bar blue" style="width:0%"></div></div>
   </div>
   <div class="card">
+    <h2>Decoded</h2>
+    <div id="decoded" class="value">0</div>
+    <div class="label">total tokens</div>
+  </div>
+  <div class="card">
+    <h2>Gen</h2>
+    <div id="gen-tps" class="value">0</div>
+    <div class="label">tokens/sec</div>
+  </div>
+  <div class="card">
     <h2>VRAM</h2>
     <div id="vram" class="value">0 / 0 MiB</div>
     <div class="bar-container"><div id="vram-bar" class="bar green" style="width:0%"></div></div>
@@ -196,6 +206,8 @@ function update(m) {
   vramBar.style.width = vramPct + '%';
   vramBar.className = 'bar ' + (vramPct > 80 ? 'red' : vramPct > 50 ? 'yellow' : 'green');
   document.getElementById('ram').textContent = (m.ram_used / 1024 / 1024 / 1024).toFixed(1) + ' GB';
+  document.getElementById('decoded').textContent = m.decoded_tokens;
+  document.getElementById('gen-tps').textContent = m.gen_tps.toFixed(1);
   document.getElementById('latency').textContent = m.latency_per_token_ms.toFixed(1) + ' ms';
   render_settings(m);
   const cmd = m.cmd_display;
