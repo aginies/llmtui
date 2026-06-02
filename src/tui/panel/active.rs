@@ -334,6 +334,40 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     ),
                     Span::styled(" ]", Style::default().fg(Color::White)),
                 ]));
+
+                let gen_tps_style = if app.metrics.gen_tps > 30.0 {
+                    Style::default().fg(Color::Green)
+                } else if app.metrics.gen_tps > 15.0 {
+                    Style::default().fg(Color::Yellow)
+                } else if app.metrics.gen_tps > 0.0 {
+                    Style::default().fg(Color::Red)
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                };
+
+                let mut gen_parts = Vec::new();
+                gen_parts.push(Span::styled(" [ ", Style::default().fg(Color::White)));
+                gen_parts.push(Span::styled(
+                    "Decoded: ",
+                    Style::default().fg(Color::Yellow),
+                ));
+                gen_parts.push(Span::styled(
+                    format!("{}", app.metrics.decoded_tokens),
+                    Style::default().fg(Color::Cyan),
+                ));
+                gen_parts.push(Span::styled("  ", Style::default().fg(Color::White)));
+                gen_parts.push(Span::styled(
+                    "Gen: ",
+                    Style::default().fg(Color::Yellow),
+                ));
+                gen_parts.push(Span::styled(
+                    format!("{:.1}", app.metrics.gen_tps),
+                    gen_tps_style,
+                ));
+                gen_parts.push(Span::styled(" t/s", Style::default().fg(Color::DarkGray)));
+                gen_parts.push(Span::styled(" ]", Style::default().fg(Color::White)));
+
+                lines.push(Line::from(gen_parts));
             }
             ModelState::Benchmarking => {
                 lines.push(Line::from(vec![

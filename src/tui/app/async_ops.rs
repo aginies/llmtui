@@ -327,6 +327,22 @@ impl App {
                         self.metrics.ctx_used = tokens;
                     }
                 }
+                if line.contains("n_decoded =")
+                    && let Some(decoded_part) = line.split("n_decoded =").last()
+                {
+                    let val_str = decoded_part.split(',').next().unwrap_or(decoded_part).trim();
+                    if let Ok(tokens) = val_str.parse::<u64>() {
+                        self.metrics.decoded_tokens = tokens;
+                    }
+                }
+                if line.contains("tg =")
+                    && let Some(tg_part) = line.split("tg =").last()
+                {
+                    let val_str = tg_part.trim().split(' ').next().unwrap_or(tg_part).trim();
+                    if let Ok(tg) = val_str.parse::<f64>() {
+                        self.metrics.gen_tps = tg;
+                    }
+                }
                 server_logs.push(line);
                 if server_logs.len() > 100 {
                     break;
@@ -456,6 +472,12 @@ impl App {
                 // If log parsing gave us a value but API didn't (or hasn't yet), use the log value.
                 if m.ctx_used == 0 && self.metrics.ctx_used > 0 {
                     m.ctx_used = self.metrics.ctx_used;
+                }
+                if m.decoded_tokens == 0 && self.metrics.decoded_tokens > 0 {
+                    m.decoded_tokens = self.metrics.decoded_tokens;
+                }
+                if m.gen_tps == 0.0 && self.metrics.gen_tps > 0.0 {
+                    m.gen_tps = self.metrics.gen_tps;
                 }
 
                 self.metrics = m;
