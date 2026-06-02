@@ -7,7 +7,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 
 > **NOTE:** This app is WIP (Work in Progress).
 
-**Version 1.0.0**
+**Version 1.1.0**
 
 ![Screenshot](documentation/main.png)
 
