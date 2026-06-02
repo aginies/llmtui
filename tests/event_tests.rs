@@ -928,7 +928,7 @@ async fn test_search_sort_cycles() {
         has_more: true,
     };
     app.ui.active_panel = ActivePanel::Models;
-    let key = make_key_with_mod(KeyCode::Char('S'), KeyModifiers::CONTROL);
+    let key = make_key_with_mod(KeyCode::Char('s'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
     if let ModelsMode::Search {
         sort_by, results, ..
