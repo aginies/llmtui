@@ -106,6 +106,8 @@ pub fn detect_gpu_models() -> Vec<Option<String>> {
         return Vec::new();
     }
 
+    let amd_gfx_targets = detect_amd_gfx_targets();
+    let mut amd_card_idx: usize = 0;
     let mut models = Vec::new();
     for card_path in &card_paths {
         let vendor_path = card_path.join("device/vendor");
@@ -126,11 +128,12 @@ pub fn detect_gpu_models() -> Vec<Option<String>> {
             };
 
             if vendor == GpuVendor::Amd {
-                if let Some(gfx) = detect_amd_gfx_target() {
+                if let Some(gfx) = amd_gfx_targets.get(amd_card_idx % amd_gfx_targets.len()) {
                     models.push(Some(format!("{} ({})", vendor_name, gfx)));
                 } else {
                     models.push(Some(vendor_name.to_string()));
                 }
+                amd_card_idx += 1;
             } else {
                 models.push(Some(vendor_name.to_string()));
             }
@@ -140,13 +143,33 @@ pub fn detect_gpu_models() -> Vec<Option<String>> {
     models
 }
 
-/// Detect AMD GFX target version (e.g. "gfx1100")
-pub fn detect_amd_gfx_target() -> Option<String> {
-    let kfd_path = Path::new("/sys/class/kfd/kfd/topology/nodes");
-    if !kfd_path.exists() {
+/// Format a raw GFX target version value to a string (e.g. 110003 -> "gfx1103").
+/// Returns None for value 0 (CPU node).
+fn gfx_target_to_string(val: u32) -> Option<String> {
+    if val == 0 {
         return None;
     }
+    let major = val / 10000;
+    let minor = (val % 10000) / 100;
+    let stepping = val % 100;
 
+    if stepping > 0 {
+        Some(format!("gfx{}{}{}", major, minor, stepping))
+    } else {
+        Some(format!("gfx{}{}", major, minor))
+    }
+}
+
+/// Collect all unique, non-zero AMD GFX target versions from KFD nodes.
+/// Skips CPU nodes (gfx_target_version == 0).
+/// Returns deduplicated targets in detection order.
+pub fn detect_amd_gfx_targets() -> Vec<String> {
+    let kfd_path = Path::new("/sys/class/kfd/kfd/topology/nodes");
+    if !kfd_path.exists() {
+        return Vec::new();
+    }
+
+    let mut targets = Vec::new();
     if let Ok(entries) = fs::read_dir(kfd_path) {
         for entry in entries.flatten() {
             let props_path = entry.path().join("properties");
@@ -154,24 +177,24 @@ pub fn detect_amd_gfx_target() -> Option<String> {
                 for line in props.lines() {
                     if line.starts_with("gfx_target_version")
                         && let Some(val_str) = line.split_whitespace().last()
-                            && let Ok(val) = val_str.parse::<u32>() {
-                                // Format is usually 110000 for gfx1100, 100301 for gfx1031
-                                let major = val / 10000;
-                                let minor = (val % 10000) / 100;
-                                let stepping = val % 100;
-
-                                if stepping > 0 {
-                                    return Some(format!("gfx{}{}{}", major, minor, stepping));
-                                } else {
-                                    return Some(format!("gfx{}{}", major, minor));
+                            && let Ok(val) = val_str.parse::<u32>()
+                            && let Some(gfx) = gfx_target_to_string(val) {
+                                if !targets.contains(&gfx) {
+                                    targets.push(gfx);
                                 }
+                                break;
                             }
                 }
             }
         }
     }
+    targets
+}
 
-    None
+/// Detect AMD GFX target version (e.g. "gfx1100").
+/// Returns the first non-zero GFX target found, or None.
+pub fn detect_amd_gfx_target() -> Option<String> {
+    detect_amd_gfx_targets().into_iter().next()
 }
 
 /// Get the best Lemonade asset suffix for the detected AMD architecture
