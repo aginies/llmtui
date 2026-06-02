@@ -77,7 +77,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .margin(0)
             .constraints([
                 ratatui::layout::Constraint::Length(1),
-                ratatui::layout::Constraint::Fill(1),
+                ratatui::layout::Constraint::Fill(3),
                 active_model_constraint,
                 bottom_constraint,
             ])
