@@ -226,6 +226,63 @@ fn toggle_frequency_penalty(settings: &mut ModelSettings) {
     settings.frequency_penalty = settings.frequency_penalty.map_or(Some(0.0), |_| None);
 }
 
+// ── Diff macros for profile settings comparison ──────────────────────────────
+
+macro_rules! diff_int {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if let Some(v) = $s.$field && v != $c.$field {
+            $parts.push(format!("{}={}", $label, v));
+        }
+    };
+}
+macro_rules! diff_float {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if let Some(v) = $s.$field && (v - $c.$field).abs() > 0.001 {
+            $parts.push(format!("{}={:.2}", $label, v));
+        }
+    };
+}
+macro_rules! diff_bool {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if let Some(v) = $s.$field && v != $c.$field {
+            $parts.push(format!("{}={}", $label, v));
+        }
+    };
+}
+macro_rules! diff_string {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if let Some(v) = &$s.$field && v != &$c.$field {
+            $parts.push(format!("{}={}", $label, v));
+        }
+    };
+}
+macro_rules! diff_enum {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if let Some(ref v) = $s.$field && *v != $c.$field {
+            $parts.push(format!("{}={}", $label, v));
+        }
+    };
+}
+macro_rules! diff_option {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if $s.$field != $c.$field {
+            if let Some(ref v) = $s.$field {
+                $parts.push(format!("{}={}", $label, v));
+            }
+        }
+    };
+}
+macro_rules! diff_option_float {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if let Some(v) = $s.$field {
+            let current_val = $c.$field.unwrap_or(0.0);
+            if (v - current_val).abs() > 0.001 {
+                $parts.push(format!("{}={:.2}", $label, v));
+            }
+        }
+    };
+}
+
 // ── All Fields (Interleaved for context-aware expert mode) ────────────────────
 
 macro_rules! make_cache_type_field {
@@ -1093,107 +1150,96 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     let mut parts = Vec::new();
     let s = &profile.settings;
 
-    if let Some(v) = s.context_length
-        && Some(v) != Some(current.context_length) {
-            parts.push(format!("ctx={}", v));
-        }
-    if let Some(v) = s.threads
-        && Some(v) != Some(current.threads) {
-            parts.push(format!("threads={}", v));
-        }
-    if let Some(v) = s.temperature
-        && (v - current.temperature).abs() > 0.001 {
-            parts.push(format!("temp={:.2}", v));
-        }
-    if let Some(v) = s.top_p
-        && (v - current.top_p).abs() > 0.001 {
-            parts.push(format!("top_p={:.2}", v));
-        }
-    if let Some(v) = s.top_k
-        && Some(v) != Some(current.top_k) {
-            parts.push(format!("top_k={}", v));
-        }
-    if let Some(v) = s.min_p
-        && (v - current.min_p).abs() > 0.001 {
-            parts.push(format!("min_p={:.2}", v));
-        }
-    if let Some(v) = s.typical_p
-        && (v - current.typical_p).abs() > 0.001 {
-            parts.push(format!("typical_p={:.2}", v));
-        }
-    if let Some(v) = s.repeat_penalty
-        && (v - current.repeat_penalty).abs() > 0.001 {
-            parts.push(format!("rep={:.2}", v));
-        }
-    if let Some(v) = s.gpu_layers_mode
-        && v != current.gpu_layers_mode {
-            let display = match v {
-                crate::models::GpuLayersMode::Auto => "Auto".to_string(),
-                crate::models::GpuLayersMode::Specific(n) => n.to_string(),
-                crate::models::GpuLayersMode::All => "All".to_string(),
-            };
-            parts.push(format!("gpu_layers={}", display));
-        }
-    if let Some(v) = s.flash_attn
-        && v != current.flash_attn {
-            parts.push(format!("flash_attn={}", v));
-        }
-    if let Some(v) = s.kv_cache_offload
-        && v != current.kv_cache_offload {
-            parts.push(format!("kv_cache_offload={}", v));
-        }
-    if let Some(v) = &s.system_prompt_preset_name
-        && v != &current.system_prompt_preset_name {
-            parts.push(format!("preset={}", v));
-        }
-    if let Some(v) = s.max_tokens
-        && Some(v) != current.max_tokens {
-            parts.push(format!("max_tokens={}", v));
-        }
-    if let Some(v) = s.jinja
-        && v != current.jinja {
-            parts.push(format!("jinja={}", v));
-        }
-    if let Some(v) = s.uniform_cache
-        && v != current.uniform_cache {
-            parts.push(format!("uniform_cache={}", v));
-        }
-    if let Some(v) = s.mlock
-        && v != current.mlock {
-            parts.push(format!("mlock={}", v));
-        }
-    if let Some(v) = s.mmap
-        && v != current.mmap {
-            parts.push(format!("mmap={}", v));
-        }
-    if let Some(v) = s.cache_prompt
-        && v != current.cache_prompt {
-            parts.push(format!("cache_prompt={}", v));
-        }
-    if let Some(v) = s.presence_penalty {
-        let current_pp = current.presence_penalty.unwrap_or(0.0);
-        if (v - current_pp).abs() > 0.001 {
-            parts.push(format!("pres_pen={:.2}", v));
-        }
+    // ── Integers ──────────────────────────────────────────────────────────
+    diff_int!(parts, s, current, context_length, "ctx");
+    diff_int!(parts, s, current, threads, "threads");
+    diff_int!(parts, s, current, threads_batch, "threads_batch");
+    diff_int!(parts, s, current, batch_size, "batch");
+    diff_int!(parts, s, current, ubatch_size, "ubatch");
+    diff_int!(parts, s, current, parallel, "parallel");
+    diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
+    diff_int!(parts, s, current, cache_reuse, "cache_reuse");
+    diff_option!(parts, s, current, max_tokens, "max_tokens");
+    diff_int!(parts, s, current, draft_tokens, "draft_tokens");
+    diff_int!(parts, s, current, ws_server_port, "ws_port");
+
+    diff_int!(parts, s, current, keep, "keep");
+    diff_int!(parts, s, current, main_gpu, "main_gpu");
+    diff_int!(parts, s, current, expert_count, "expert_count");
+    diff_int!(parts, s, current, seed, "seed");
+    diff_int!(parts, s, current, top_k, "top_k");
+    diff_int!(parts, s, current, repeat_last_n, "repeat_last_n");
+    diff_int!(parts, s, current, dry_allowed_length, "dry_allowed");
+    diff_int!(parts, s, current, dry_penalty_last_n, "dry_penalty_last_n");
+
+    // ── Floats ────────────────────────────────────────────────────────────
+    diff_float!(parts, s, current, temperature, "temp");
+    diff_float!(parts, s, current, top_p, "top_p");
+    diff_float!(parts, s, current, min_p, "min_p");
+    diff_float!(parts, s, current, typical_p, "typical_p");
+    diff_float!(parts, s, current, mirostat_lr, "mirostat_lr");
+    diff_float!(parts, s, current, mirostat_ent, "mirostat_ent");
+    diff_float!(parts, s, current, repeat_penalty, "rep_pen");
+    diff_option_float!(parts, s, current, presence_penalty, "pres_pen");
+    diff_option_float!(parts, s, current, frequency_penalty, "freq_pen");
+    diff_float!(parts, s, current, dry_multiplier, "dry_mult");
+    diff_float!(parts, s, current, dry_base, "dry_base");
+    diff_float!(parts, s, current, rope_scale, "rope_scale");
+    diff_float!(parts, s, current, rope_freq_base, "rope_freq_base");
+    diff_float!(parts, s, current, rope_freq_scale, "rope_freq_scale");
+
+    // ── Bools ─────────────────────────────────────────────────────────────
+    diff_bool!(parts, s, current, swa_full, "swa_full");
+    diff_bool!(parts, s, current, mlock, "mlock");
+    diff_bool!(parts, s, current, mmap, "mmap");
+    diff_bool!(parts, s, current, uniform_cache, "uniform_cache");
+    diff_bool!(parts, s, current, kv_cache_offload, "kv_cache_offload");
+    diff_bool!(parts, s, current, fit, "fit");
+    diff_bool!(parts, s, current, embedding, "embedding");
+    diff_bool!(parts, s, current, flash_attn, "flash_attn");
+    diff_bool!(parts, s, current, jinja, "jinja");
+    diff_bool!(parts, s, current, ignore_eos, "ignore_eos");
+    diff_bool!(parts, s, current, rope_yarn_enabled, "yarn_enabled");
+    diff_bool!(parts, s, current, cache_prompt, "cache_prompt");
+    diff_bool!(parts, s, current, webui, "webui");
+    diff_bool!(parts, s, current, ws_server_enabled, "ws_enabled");
+    diff_bool!(parts, s, current, ws_server_tls_enabled, "ws_tls");
+
+    // ── Strings ───────────────────────────────────────────────────────────
+    diff_string!(parts, s, current, system_prompt_preset_name, "preset");
+    diff_string!(parts, s, current, tensor_split, "tensor_split");
+    diff_string!(parts, s, current, rpc, "rpc");
+    diff_option!(parts, s, current, chat_template, "chat_template");
+    diff_option!(parts, s, current, chat_template_kwargs, "chat_template_kwargs");
+    diff_option!(parts, s, current, ws_server_auth_key, "ws_key");
+    diff_option!(parts, s, current, ws_server_tls_cert, "ws_cert");
+    diff_option!(parts, s, current, ws_server_tls_key, "ws_key_file");
+    diff_option!(parts, s, current, llama_cpp_version_cpu, "llama_cpp_cpu");
+    diff_option!(parts, s, current, llama_cpp_version_vulkan, "llama_cpp_vulkan");
+    diff_option!(parts, s, current, llama_cpp_version_rocm, "llama_cpp_rocm");
+    diff_option!(parts, s, current, llama_cpp_version_rocm_lemonade, "llama_cpp_rocm_lemonade");
+    diff_option!(parts, s, current, llama_cpp_version_cuda, "llama_cpp_cuda");
+    diff_string!(parts, s, current, spec_type, "spec_type");
+
+    // ── Enums ─────────────────────────────────────────────────────────────
+    diff_enum!(parts, s, current, numa, "numa");
+    diff_enum!(parts, s, current, split_mode, "split_mode");
+    diff_enum!(parts, s, current, mirostat, "mirostat");
+    diff_enum!(parts, s, current, samplers, "samplers");
+    diff_enum!(parts, s, current, rope_scaling, "rope_scaling");
+    diff_enum!(parts, s, current, cache_type, "cache_type");
+    diff_option!(parts, s, current, cache_type_k, "cache_type_k");
+    diff_option!(parts, s, current, cache_type_v, "cache_type_v");
+
+    // ── Special (custom display) ──────────────────────────────────────────
+    if let Some(v) = s.gpu_layers_mode && v != current.gpu_layers_mode {
+        let display = match v {
+            crate::models::GpuLayersMode::Auto => "Auto".to_string(),
+            crate::models::GpuLayersMode::Specific(n) => n.to_string(),
+            crate::models::GpuLayersMode::All => "All".to_string(),
+        };
+        parts.push(format!("gpu_layers={}", display));
     }
-    if let Some(v) = s.frequency_penalty {
-        let current_fp = current.frequency_penalty.unwrap_or(0.0);
-        if (v - current_fp).abs() > 0.001 {
-            parts.push(format!("freq_pen={:.2}", v));
-        }
-    }
-    if let Some(v) = s.repeat_last_n
-        && Some(v) != Some(current.repeat_last_n) {
-            parts.push(format!("repeat_last_n={}", v));
-        }
-    if let Some(v) = s.rope_scaling
-        && v != current.rope_scaling {
-            parts.push(format!("rope_scaling={}", v));
-        }
-    if let Some(v) = s.webui
-        && v != current.webui {
-            parts.push(format!("webui={}", v));
-        }
 
     parts
 }

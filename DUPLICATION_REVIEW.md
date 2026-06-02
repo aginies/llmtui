@@ -1,6 +1,6 @@
 # Code Duplication Report — llm-manager
 
-Generated: 2026-06-01 | Updated: 2026-06-01
+Generated: 2026-06-01 | Updated: 2026-06-03
 
 ---
 
@@ -56,31 +56,34 @@ declare_model_fields! {
 
 ### 2. cache_type_k / cache_type_v handler duplication
 
-**Severity:** HIGH | **Status:** ✅ Done
+**Severity:** HIGH | **Status:** ✅ Done (`77499dc`)
 
-**File:** `src/tui/event/panel/settings.rs`
+**Files:**
+- `src/tui/event/panel/settings.rs` — event handlers
+- `src/tui/settings.rs` — toggle functions + field definitions
 
-**Duplication:** Two blocks of ~41 lines each, identical logic differing only in field name and type alias.
+**Duplication:** Three locations with identical logic differing only in field name (`cache_type_k` vs `cache_type_v`). Both types are `CacheQuantType` aliases, sharing all methods.
 
-**Fix applied:** Both handlers reduced to ~5 lines each. Buffer entry, arrow cycling, and digit input now handled by the generic bottom match via `f.apply_edit()` and `f.adjust()`. Field-specific handlers only intercept Enter with empty buffer to cycle.
+**Fix applied:**
+- Event handlers → `cycle_cache_type()` helper function
+- Toggle functions → simplified to single-line bodies using `CacheQuantType::F16`
+- Field definitions → `make_cache_type_field!` macro generating both from one template
 
-**Lines saved:** ~82 → ~18 (64 lines removed)
+**Lines saved:** 70 → 42 (28 lines removed)
 
 ---
 
 ### 5. `settings_edit_buffer.is_empty()` guard repeated
 
-**Severity:** HIGH | **Status:** ✅ Done
+**Severity:** HIGH | **Status:** ✅ Done (`028d4e8`)
 
 **File:** `src/tui/event/panel/settings.rs`
 
-**Occurrences eliminated:** 9 field handlers (5 toggles + 4 modals)
+**Occurrences eliminated:** 12 field handlers (6 toggles + 6 modals)
 
-**Fix applied:** Removed redundant guard pattern (`if !buffer.is_empty() { buffer.clear(); } else if key == Enter`). Combined into single condition: `if field_id == Some("X") && key.code == KeyCode::Enter && buffer.is_empty()`. Buffer clearing on non-Enter keys delegated to generic handler.
+**Fix applied:** Removed redundant `&& buffer.is_empty()` guard from 12 field handlers. Guard centralized in generic Enter handler — returns early when buffer is empty, letting field handlers process only empty input.
 
-**Also removed:** Entire `expert_count` handler (redundant — generic handler handles it via `f.adjust()` + `f.apply_edit()`) and simplified `max_concurrent_predictions` handler (only Enter-with-empty-buffer to open picker remains; Left/Right + `sync_global_settings()` already handled by generic match).
-
-**Lines saved:** ~108 net lines removed from settings.rs (518 → 410 lines)
+**Lines saved:** 12 lines removed from settings.rs (410 → 398 lines)
 
 ---
 
@@ -210,8 +213,8 @@ The following items have been resolved:
 | 11 | Scrollbar rendering copy-paste (2×) | `d91f180` | -22 (render.rs) |
 | 12 | Text editing logic duplicated (4 overlays) + cursor bugfix | `d91f180` | -46 (key.rs) |
 | 14 | `ModelOverride::apply()` repeated pattern | `56b05fa` | -28 (config.rs) |
-| 2 | cache_type_k/v handler duplication | TBD | -64 (settings.rs) |
-| 5 | settings_edit_buffer guard (9 handlers) + expert_count/redundant max_concurrent | TBD | -108 (settings.rs) |
+| 2 | cache_type_k/v handler duplication | `77499dc` | -28 (2 files) |
+| 5 | settings_edit_buffer guard (12 handlers) | `028d4e8` | -12 (settings.rs) |
 
 **Details:**
 - **#3+4** → `mark_settings_dirty(app, recalc_vram)` helper in `src/tui/event/helpers.rs`
@@ -222,8 +225,8 @@ The following items have been resolved:
 - **#11** → `render_scrollbar()` helper in `src/tui/render.rs`
 - **#12** → `TextEditor` struct in `src/tui/event/helpers.rs`; fixed cursor position bugs (`c.len_utf8()` → `1`) in DashboardPicker, YarnRoPESettings, and BenchTuneSetup param editing
 - **#14** → `apply_scalar!`, `apply_clone!`, `apply_option!` macros in `src/config.rs`
-- **#2** → cache_type_k/v handlers reduced to Enter-with-empty-buffer cycle; buffer/arrow/number entry delegated to generic `f.apply_edit()` / `f.adjust()` handlers
-- **#5** → guard pattern removed from 9 field handlers (5 toggles + 4 modals); expert_count handler fully removed (redundant); max_concurrent_predictions simplified to picker-only
+- **#2** → `cycle_cache_type()` helper for events; `make_cache_type_field!` macro for field definitions; toggle functions simplified to `CacheQuantType::F16`
+- **#5** → guard pattern centralized in generic Enter handler; removed from 12 field handlers (6 toggles + 6 modals)
 
 ---
 
@@ -243,17 +246,13 @@ The following items have been resolved:
 | # | Severity | Issue | Est. Lines Saved |
 |---|----------|-------|-----------------|
 | 1 | CRITICAL | ModelOverride/ModelSettings/DefaultParams tripling | N/A (preventive, phased) |
-| 2 | HIGH | cache_type_k/v handler duplication | ~42 |
-| 5 | HIGH | settings_edit_buffer guard (21×) | ~63 |
 | 10 | MEDIUM | F-key panel visibility toggling | ~55 |
 | 13 | MEDIUM | profile_settings_parts() manual field list | ~92 |
 
-**Remaining estimated lines saved: ~152 lines**
+**Remaining estimated lines saved: ~147 lines**
 
 ### Priority order for remaining fixes:
 
-1. **#5**: Edit buffer guard — simple refactor, eliminates 63 lines
-2. **#2**: Cache type handler — 42 lines saved, straightforward generic
-3. **#13**: diff_field macro — 92 lines saved, prevents missing fields
-4. **#10**: F-key helper — 55 lines saved
-5. **#1** (Phase 1): Compile-time audit — zero lines but prevents silent bugs
+1. **#13**: diff_field macro — 92 lines saved, prevents missing fields
+2. **#10**: F-key helper — 55 lines saved
+3. **#1** (Phase 1): Compile-time audit — zero lines but prevents silent bugs
