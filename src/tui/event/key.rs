@@ -946,16 +946,18 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         _ => {}
     }
 
-    // Handle search mode first (it takes priority)
-    let is_search = matches!(app.models_mode, ModelsMode::Search { .. });
-    if is_search && app.ui.active_panel == ActivePanel::Models {
+    // Handle search mode first (it takes priority) - unless README panel has focus
+    let is_search = matches!(app.models_mode, ModelsMode::Search { .. })
+        && app.ui.active_panel != ActivePanel::SearchReadme;
+    if is_search {
         handle_search_key(app, key).await;
         return;
     }
 
-    // Handle files mode
-    let is_files = matches!(app.models_mode, ModelsMode::Files { .. });
-    if is_files && app.ui.active_panel == ActivePanel::Models {
+    // Handle files mode - unless README panel has focus
+    let is_files = matches!(app.models_mode, ModelsMode::Files { .. })
+        && app.ui.active_panel != ActivePanel::SearchReadme;
+    if is_files {
         handle_files_key(app, key).await;
         return;
     }
@@ -1709,6 +1711,28 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     *show_readme = true;
                 }
             }
+            app.ui.active_panel = ActivePanel::SearchReadme;
+            return;
+        }
+        KeyCode::Right => {
+            let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
+                app.search
+                    .search_results_idx
+                    .and_then(|idx| results.get(idx).map(|r| r.model_id.clone()))
+            } else {
+                None
+            };
+            if let Some(ref model_id) = model_id {
+                app.add_log(
+                    format!("Fetching README for {}...", model_id),
+                    crate::config::LogLevel::Info,
+                );
+                fetch_and_store_readme(app, model_id.clone()).await;
+                if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
+                    *show_readme = true;
+                }
+            }
+            app.ui.active_panel = ActivePanel::SearchReadme;
             return;
         }
         _ => {}
@@ -1830,6 +1854,10 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 );
                 app.pending.pending_download = Some((model_id, filename, url, file_size));
             }
+            return;
+        }
+        KeyCode::Right => {
+            app.ui.active_panel = ActivePanel::SearchReadme;
             return;
         }
         _ => {}
