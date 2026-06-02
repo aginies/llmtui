@@ -117,7 +117,9 @@ async fn proxy_streaming(
                     }),
                 ));
                 *response.status_mut() = status;
-                *response.headers_mut() = headers;
+                for (name, value) in headers.iter() {
+                    response.headers_mut().insert(name, value.clone());
+                }
                 response
             } else {
                 let bytes = match resp.bytes().await {
