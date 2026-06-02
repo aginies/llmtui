@@ -255,11 +255,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
             api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
-            ws_server_enabled: dp.ws_server_enabled,
-            ws_server_port: dp.ws_server_port,
-            ws_server_auth_key: dp.ws_server_auth_key,
-            ws_server_tls_cert: dp.ws_server_tls_cert,
-            ws_server_tls_key: dp.ws_server_tls_key,
+ 
             spec_type: dp.spec_type,
             draft_tokens: dp.draft_tokens,
             tags: dp.tags,
@@ -846,13 +842,7 @@ pub struct ModelSettings {
     pub draft_tokens: u32,
     /// Tags for the model.
     pub tags: Vec<String>,
-    /// Whether to enable the WebSocket dashboard server.
-    pub ws_server_enabled: bool,
-    pub ws_server_port: u16,
-    pub ws_server_auth_key: Option<String>,
-    pub ws_server_tls_cert: Option<String>,
-    pub ws_server_tls_key: Option<String>,
-}
+ }
 
 impl Default for ModelSettings {
     fn default() -> Self {
@@ -1762,8 +1752,8 @@ mod field_count_tests {
     let s = ModelSettings::default();
     let field_count = count_model_settings_fields(&s);
     assert_eq!(
-        field_count, 81,
-        "ModelSettings has {} fields (expected 81). \
+        field_count, 75,
+        "ModelSettings has {} fields (expected 75). \
          Update the checklist at src/models.rs:665 and all locations listed there.",
         field_count
     );
@@ -1850,13 +1840,8 @@ fn count_model_settings_fields(s: &ModelSettings) -> usize {
         &s.spec_type,
         &s.draft_tokens,
         &s.tags,
-        &s.ws_server_enabled,
-        &s.ws_server_port,
-        &s.ws_server_auth_key,
-        &s.ws_server_tls_cert,
-        &s.ws_server_tls_key,
     );
-    81
+    75
 }
 
 /// Verify that is_dirty() uses derived PartialEq (compiler-enforced).

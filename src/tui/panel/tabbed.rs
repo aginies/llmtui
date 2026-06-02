@@ -230,7 +230,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
 
     let dashboard_val = format!(
         "Dashboard ({})",
-        if app.settings.ws_server_enabled {
+        if app.config.default.ws_server_enabled {
             "Enabled"
         } else {
             "Disabled"

@@ -232,11 +232,6 @@ pub struct ModelOverride {
     pub cache_prompt: Option<bool>,
     pub cache_reuse: Option<u32>,
     pub webui: Option<bool>,
-    pub ws_server_enabled: Option<bool>,
-    pub ws_server_port: Option<u16>,
-    pub ws_server_auth_key: Option<String>,
-    pub ws_server_tls_cert: Option<String>,
-    pub ws_server_tls_key: Option<String>,
 
     // Other
     pub max_tokens: Option<u32>,
@@ -358,12 +353,7 @@ impl ModelOverride {
             llama_cpp_version_cuda: s.llama_cpp_version_cuda.clone(),
             spec_type: Some(s.spec_type.clone()),
             draft_tokens: Some(s.draft_tokens),
-            tags: Some(s.tags.clone()),
-            ws_server_enabled: Some(s.ws_server_enabled),
-            ws_server_port: Some(s.ws_server_port),
-            ws_server_auth_key: s.ws_server_auth_key.clone(),
-            ws_server_tls_cert: s.ws_server_tls_cert.clone(),
-            ws_server_tls_key: s.ws_server_tls_key.clone(),
+           tags: Some(s.tags.clone()),
         }
     }
 
@@ -383,7 +373,6 @@ impl ModelOverride {
             dry_multiplier, dry_base, dry_allowed_length, dry_penalty_last_n,
             rope_scaling, rope_scale, rope_freq_base, rope_freq_scale, rope_yarn_enabled,
             cache_prompt, cache_reuse, webui, cache_type,
-            ws_server_enabled, ws_server_port,
             draft_tokens, gpu_layers_mode,
         );
 
@@ -399,7 +388,6 @@ impl ModelOverride {
             llama_cpp_version_cpu, llama_cpp_version_vulkan,
             llama_cpp_version_rocm, llama_cpp_version_rocm_lemonade,
             llama_cpp_version_cuda,
-            ws_server_auth_key, ws_server_tls_cert, ws_server_tls_key,
         );
 
         // Direct Option<T> assignment (same type in both structs)
@@ -423,10 +411,10 @@ impl ModelOverride {
             };
         }
 
-        // FIELD ACCOUNTING (ModelOverride: 92 fields):
-        // - apply_scalar: 55 fields
+        // FIELD ACCOUNTING (ModelOverride: 87 fields):
+        // - apply_scalar: 53 fields
         // - apply_clone: 7 fields
-        // - apply_option: 13 fields
+        // - apply_option: 10 fields
         // - direct Option assign: 5 fields (cache_type_k, cache_type_v, presence_penalty,
         //   frequency_penalty, max_tokens)
         // - special: 1 field (max_concurrent_predictions)

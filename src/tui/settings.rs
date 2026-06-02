@@ -1175,8 +1175,7 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
     diff_int!(parts, s, current, cache_reuse, "cache_reuse");
     diff_option!(parts, s, current, max_tokens, "max_tokens");
-    diff_int!(parts, s, current, draft_tokens, "draft_tokens");
-    diff_int!(parts, s, current, ws_server_port, "ws_port");
+   diff_int!(parts, s, current, draft_tokens, "draft_tokens");
 
     diff_int!(parts, s, current, keep, "keep");
     diff_int!(parts, s, current, main_gpu, "main_gpu");
@@ -1217,16 +1216,12 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_bool!(parts, s, current, rope_yarn_enabled, "yarn_enabled");
     diff_bool!(parts, s, current, cache_prompt, "cache_prompt");
     diff_bool!(parts, s, current, webui, "webui");
-    diff_bool!(parts, s, current, ws_server_enabled, "ws_enabled");
     // ── Strings ───────────────────────────────────────────────────────────
     diff_string!(parts, s, current, system_prompt_preset_name, "preset");
     diff_string!(parts, s, current, tensor_split, "tensor_split");
     diff_string!(parts, s, current, rpc, "rpc");
     diff_option!(parts, s, current, chat_template, "chat_template");
     diff_option!(parts, s, current, chat_template_kwargs, "chat_template_kwargs");
-    diff_option!(parts, s, current, ws_server_auth_key, "ws_key");
-    diff_option!(parts, s, current, ws_server_tls_cert, "ws_cert");
-    diff_option!(parts, s, current, ws_server_tls_key, "ws_key_file");
     diff_option!(parts, s, current, llama_cpp_version_cpu, "llama_cpp_cpu");
     diff_option!(parts, s, current, llama_cpp_version_vulkan, "llama_cpp_vulkan");
     diff_option!(parts, s, current, llama_cpp_version_rocm, "llama_cpp_rocm");

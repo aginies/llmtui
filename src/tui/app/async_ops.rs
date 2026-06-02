@@ -1419,12 +1419,12 @@ impl App {
     }
 
     pub async fn update_ws_server(&mut self) {
-        let enabled = self.settings.ws_server_enabled;
-        let port = self.settings.ws_server_port;
-        let auth_key = self.settings.ws_server_auth_key.clone();
+        let enabled = self.config.default.ws_server_enabled;
+        let port = self.config.default.ws_server_port;
+        let auth_key = self.config.default.ws_server_auth_key.clone();
         let tls_enabled = self.config.default.ws_server_tls_enabled;
-        let tls_cert = self.settings.ws_server_tls_cert.clone();
-        let tls_key = self.settings.ws_server_tls_key.clone();
+        let tls_cert = self.config.default.ws_server_tls_cert.clone();
+        let tls_key = self.config.default.ws_server_tls_key.clone();
 
         // Load TLS config only if paths changed since last load, or if not yet cached.
         let tls_cfg = if tls_enabled {
@@ -1450,8 +1450,8 @@ impl App {
                     );
                     match crate::backend::tls::ensure_tls_certs() {
                         Ok((cert, key)) => {
-                            self.settings.ws_server_tls_cert = Some(cert.to_string_lossy().to_string());
-                            self.settings.ws_server_tls_key = Some(key.to_string_lossy().to_string());
+                            self.config.default.ws_server_tls_cert = Some(cert.to_string_lossy().to_string());
+                            self.config.default.ws_server_tls_key = Some(key.to_string_lossy().to_string());
                             self.server.running_ws_tls_cert_path =
                                 Some(cert.to_string_lossy().to_string());
                             self.server.running_ws_tls_key_path =
@@ -1557,7 +1557,6 @@ impl App {
                         format!("Dashboard failed to start on port {}: {}", port, e),
                         crate::config::LogLevel::Error,
                     );
-                    self.settings.ws_server_enabled = false;
                     self.config.default.ws_server_enabled = false;
                     if let Err(e) = self.config.save() {
                         self.add_log(

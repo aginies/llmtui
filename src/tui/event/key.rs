@@ -78,9 +78,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
         app.ui.global_mode = GlobalMode::DashboardUrl {
             host: app.settings.host.clone(),
-            port: app.settings.ws_server_port.to_string(),
-            auth_key: app.settings.ws_server_auth_key.clone().unwrap_or_default(),
-            ws_enabled: app.settings.ws_server_enabled,
+            port: app.config.default.ws_server_port.to_string(),
+            auth_key: app.config.default.ws_server_auth_key.clone().unwrap_or_default(),
+            ws_enabled: app.config.default.ws_server_enabled,
             tls_enabled: app.config.default.ws_server_tls_enabled,
         };
         return;
@@ -275,11 +275,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if *editing {
                     if *selected_field == 0i32
                         && let Ok(p) = edit_buffer.parse::<u16>() {
-                            app.settings.ws_server_port = p;
+                            app.config.default.ws_server_port = p;
                             port.clone_from(edit_buffer);
                         }
                     if *selected_field == 1i32 {
-                        app.settings.ws_server_auth_key = if edit_buffer.is_empty() {
+                        app.config.default.ws_server_auth_key = if edit_buffer.is_empty() {
                             None
                         } else {
                             Some(edit_buffer.clone())
@@ -288,10 +288,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                     if *selected_field == 2i32 {
                         *tls_enabled = !*tls_enabled;
-app.config.default.ws_server_tls_enabled = *tls_enabled;
+                        app.config.default.ws_server_tls_enabled = *tls_enabled;
                     }
                     if *selected_field == 3i32 {
-                        app.settings.ws_server_tls_cert = if edit_buffer.is_empty() {
+                        app.config.default.ws_server_tls_cert = if edit_buffer.is_empty() {
                             None
                         } else {
                             Some(edit_buffer.clone())
@@ -299,7 +299,7 @@ app.config.default.ws_server_tls_enabled = *tls_enabled;
                         tls_cert.clone_from(edit_buffer);
                     }
                     if *selected_field == 4i32 {
-                        app.settings.ws_server_tls_key = if edit_buffer.is_empty() {
+                        app.config.default.ws_server_tls_key = if edit_buffer.is_empty() {
                             None
                         } else {
                             Some(edit_buffer.clone())
@@ -312,7 +312,7 @@ app.config.default.ws_server_tls_enabled = *tls_enabled;
                 }
                 if *selected_field == -1 {
                     *enabled = !*enabled;
-                    app.settings.ws_server_enabled = *enabled;
+                    app.config.default.ws_server_enabled = *enabled;
                     super::helpers::sync_global_settings(app);
                     return;
                 }
@@ -2057,12 +2057,12 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 6 => {
                     app.ui.global_mode = GlobalMode::DashboardPicker {
-                        enabled: app.settings.ws_server_enabled,
-                        port: app.settings.ws_server_port.to_string(),
-                        auth_key: app.settings.ws_server_auth_key.clone().unwrap_or_default(),
-tls_enabled: app.config.default.ws_server_tls_enabled,
-                        tls_cert: app.settings.ws_server_tls_cert.clone().unwrap_or_default(),
-                        tls_key: app.settings.ws_server_tls_key.clone().unwrap_or_default(),
+                        enabled: app.config.default.ws_server_enabled,
+                        port: app.config.default.ws_server_port.to_string(),
+                        auth_key: app.config.default.ws_server_auth_key.clone().unwrap_or_default(),
+                        tls_enabled: app.config.default.ws_server_tls_enabled,
+                        tls_cert: app.config.default.ws_server_tls_cert.clone().unwrap_or_default(),
+                        tls_key: app.config.default.ws_server_tls_key.clone().unwrap_or_default(),
                         selected_field: -1,
                         editing: false,
                         edit_buffer: String::new(),

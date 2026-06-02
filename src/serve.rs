@@ -18,9 +18,6 @@ pub struct ServeOptions {
     pub config_path: Option<String>,
     pub api_port: Option<u16>,
     pub api_key: Option<String>,
-    pub ws_enable: bool,
-    pub ws_port: Option<u16>,
-    pub ws_auth: Option<String>,
     pub backend_binary: Option<String>,
     pub host: Option<String>,
     pub tls_enable: bool,
@@ -188,10 +185,10 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 }
             }
 
-    // Finalize WebSocket settings: CLI flags take precedence, then config.yaml
-    let ws_enable = opts.ws_enable || settings.ws_server_enabled;
-    let ws_port = opts.ws_port.unwrap_or(settings.ws_server_port);
-    let ws_auth = opts.ws_auth.or(settings.ws_server_auth_key.clone());
+    // WebSocket settings from config
+    let ws_enable = config.default.ws_server_enabled;
+    let ws_port = config.default.ws_server_port;
+    let ws_auth: Option<String> = config.default.ws_server_auth_key.clone();
 
     // TLS configuration
     let tls_config = if opts.tls_enable || (opts.tls_cert.is_some() && opts.tls_key.is_some()) {
