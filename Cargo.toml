@@ -2,6 +2,23 @@
 name = "llm-manager"
 version = "1.0.0"
 edition = "2024"
+description = "Terminal UI for managing LLMs"
+license = "GPL-3.0-or-later"
+authors = ["Antoine Giniès <antoine@ginies.org>"]
+repository = "https://github.com/aginies/llmtui"
+documentation = "https://docs.rs/llm-manager"
+readme = "README.md"
+categories = ["command-line-utilities", "visualization"]
+keywords = ["llm", "llama", "tui", "terminal", "ai"]
+exclude = [
+    ".git/",
+    ".github/",
+    "documentation/",
+    "*.env",
+    "*.service",
+    ".gitignore",
+    "*.swp",
+]
 
 [dependencies]
 ratatui = "0.29"
