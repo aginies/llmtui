@@ -938,7 +938,7 @@ pub async fn get_metrics(
 
     // Fallback for RAM and CPU using sysinfo (cross-platform)
     if let Some(p) = pid {
-        if let Ok((ram, cpu, _, _)) = get_process_metrics(p, 0, 0.0) {
+        if let Ok((ram, cpu)) = get_process_metrics(p) {
             if m.ram_used == 0 {
                 m.ram_used = ram;
             }
@@ -1066,9 +1066,7 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
 /// Cross-platform: Get RAM (RSS) and CPU usage for a PID.
 fn get_process_metrics(
     pid: u32,
-    _cpu_ticks_prev: u64,
-    _system_uptime_prev: f64,
-) -> Result<(u64, f64, u64, f64), String> {
+) -> Result<(u64, f64), String> {
     use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 
     let mut sys = System::new_with_specifics(
@@ -1089,7 +1087,7 @@ fn get_process_metrics(
     if let Some(process) = sys.process(sys_pid) {
         let ram = process.memory(); // bytes
         let cpu = process.cpu_usage() as f64; // percentage
-        return Ok((ram, cpu, 0, 0.0));
+        return Ok((ram, cpu));
     }
 
     Err("Process not found".to_string())

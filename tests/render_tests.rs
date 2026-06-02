@@ -349,8 +349,6 @@ fn test_active_model_panel_renders() {
         tps: 25.5,
         prompt_tps: 100.0,
         cpu_usage: 45.0,
-        cpu_ticks_prev: 0,
-        system_uptime_prev: 0.0,
         gpu_mem_used: 8_000,
         gpu_mem_total: 16_000,
         ram_used: 16_000,

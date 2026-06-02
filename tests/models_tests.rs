@@ -622,8 +622,6 @@ fn server_metrics_default_all_zero() {
     assert_eq!(m.tps, 0.0);
     assert_eq!(m.prompt_tps, 0.0);
     assert_eq!(m.cpu_usage, 0.0);
-    assert_eq!(m.cpu_ticks_prev, 0);
-    assert_eq!(m.system_uptime_prev, 0.0);
     assert_eq!(m.gpu_mem_used, 0);
     assert_eq!(m.gpu_mem_total, 0);
     assert_eq!(m.ram_used, 0);

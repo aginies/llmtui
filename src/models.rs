@@ -1040,10 +1040,6 @@ pub struct ServerMetrics {
     pub tps: f64,
     pub prompt_tps: f64,
     pub cpu_usage: f64,
-    /// Previous CPU ticks (utime + stime) for delta-based CPU calculation.
-    pub cpu_ticks_prev: u64,
-    /// System uptime in seconds at last poll, used for wall-time delta in CPU calculation.
-    pub system_uptime_prev: f64,
     pub gpu_mem_used: u64,
     pub gpu_mem_total: u64,
     pub ram_used: u64,
@@ -1090,8 +1086,6 @@ impl Default for ServerMetrics {
             tps: 0.0,
             prompt_tps: 0.0,
             cpu_usage: 0.0,
-            cpu_ticks_prev: 0,
-            system_uptime_prev: 0.0,
             gpu_mem_used: 0,
             gpu_mem_total: 0,
             ram_used: 0,
