@@ -67,7 +67,7 @@ jobs:
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
         run: |
           cargo build --release --target ${{ matrix.target }}
-          cp target/${{ matrix.target }}/release/llm-manager ${{ matrix.name }}
+          cp target/${{ matrix.target }}/release/llm-manager* ${{ matrix.name }}
 
       - name: Create tarball (Linux)
         if: runner.os == 'Linux'
