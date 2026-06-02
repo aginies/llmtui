@@ -3,7 +3,10 @@ use ratatui::widgets::TableState;
 use tracing::debug;
 
 use super::benches::handle_rpc_workers_key;
-use super::helpers::{execute_confirmation, mark_settings_dirty, sync_global_settings, TextEditor};
+use super::helpers::{
+    execute_confirmation, handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle,
+    mark_settings_dirty, sync_global_settings, TextEditor,
+};
 use super::panel::{
     handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key,
     handle_settings_key, handle_system_prompt_presets_key,
@@ -792,37 +795,23 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         }
         KeyCode::F(2) => {
-            if app.server.server_handle.is_none() {
-                app.toggle_panel_visibility(1);
-                if app.is_panel_visible(1) {
-                    app.ui.active_panel = ActivePanel::ServerSettings;
-                }
-            }
+            handle_fkey_toggle(app, 1, Some(ActivePanel::ServerSettings), true);
             return;
         }
         KeyCode::F(3) => {
-            app.toggle_panel_visibility(2);
-            if app.is_panel_visible(2) {
-                app.ui.active_panel = ActivePanel::ModelInfo;
-            }
+            handle_fkey_toggle(app, 2, Some(ActivePanel::ModelInfo), false);
             return;
         }
         KeyCode::F(4) => {
-            app.toggle_panel_visibility(3);
-            if app.is_panel_visible(3) {
-                app.ui.active_panel = ActivePanel::LlmSettings;
-            }
+            handle_fkey_toggle(app, 3, Some(ActivePanel::LlmSettings), false);
             return;
         }
         KeyCode::F(5) => {
-            app.toggle_panel_visibility(4);
+            handle_fkey_toggle(app, 4, None, false);
             return;
         }
         KeyCode::F(6) => {
-            app.toggle_panel_visibility(5);
-            if app.is_panel_visible(5) {
-                app.ui.active_panel = ActivePanel::Log;
-            }
+            handle_fkey_toggle(app, 5, Some(ActivePanel::Log), false);
             return;
         }
         KeyCode::Left
@@ -846,8 +835,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .modifiers
                 .contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
-            app.ui.panel_visibility |= 1 << 0;
-            app.ui.active_panel = ActivePanel::Models;
+            handle_fkey_show(app, 0, ActivePanel::Models, false);
             return;
         }
         KeyCode::F(8)
@@ -855,10 +843,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .modifiers
                 .contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
-            if app.server.server_handle.is_none() {
-                app.ui.panel_visibility |= 1 << 1;
-                app.ui.active_panel = ActivePanel::ServerSettings;
-            }
+            handle_fkey_show(app, 1, ActivePanel::ServerSettings, true);
             return;
         }
         KeyCode::F(9)
@@ -866,8 +851,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .modifiers
                 .contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
-            app.ui.panel_visibility |= 1 << 3;
-            app.ui.active_panel = ActivePanel::LlmSettings;
+            handle_fkey_show(app, 3, ActivePanel::LlmSettings, false);
             return;
         }
         KeyCode::F(10)
@@ -875,13 +859,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .modifiers
                 .contains(crossterm::event::KeyModifiers::CONTROL) =>
         {
-            app.ui.panel_visibility = 0b111111;
-            app.log.log_expanded = false;
+            handle_fkey_show_all(app);
             return;
         }
         KeyCode::F(10) => {
-            app.ui.panel_visibility = 0b111111;
-            app.log.log_expanded = false;
+            handle_fkey_show_all(app);
             return;
         }
         KeyCode::Char('k')

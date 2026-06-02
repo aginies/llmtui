@@ -1,6 +1,6 @@
 # Code Duplication Report — llm-manager
 
-Generated: 2026-06-01 | Updated: 2026-06-03
+Generated: 2026-06-01 | Updated: 2026-06-02
 
 ---
 
@@ -91,44 +91,18 @@ declare_model_fields! {
 
 ### 10. F-key panel visibility toggling
 
-**Severity:** MEDIUM | **Status:** 🔍 Analyzed — still open
+**Severity:** MEDIUM | **Status:** ✅ Done
 
 **File:** `src/tui/event/key.rs`
 
 **Seven F-key handlers (same pattern × 7) plus Ctrl+F variants**
 
-**Proposed fix — parameterized helper:**
+**Fix applied:**
+- `handle_fkey_toggle()` helper in `src/tui/event/helpers.rs` — handles toggle + active panel for F2-F6
+- `handle_fkey_show()` helper — handles force-show for Ctrl+F7-F9
+- `handle_fkey_show_all()` helper — handles show all panels for Ctrl+F10/F10
 
-```rust
-fn handle_fkey_toggle(
-    app: &mut App,
-    panel_idx: u32,
-    target_panel: Option<ActivePanel>,
-    require_no_server: bool,
-) {
-    if require_no_server && app.server.server_handle.is_some() {
-        return;
-    }
-    app.toggle_panel_visibility(panel_idx);
-    if app.is_panel_visible(panel_idx) {
-        if let Some(panel) = target_panel {
-            app.ui.active_panel = panel;
-        }
-    }
-}
-```
-
-Usage:
-```rust
-KeyCode::F(1) => { app.ui.active_panel = ActivePanel::Models; }
-KeyCode::F(2) => handle_fkey_toggle(app, 1, Some(ActivePanel::ServerSettings), true);
-KeyCode::F(3) => handle_fkey_toggle(app, 2, Some(ActivePanel::ModelInfo), false);
-KeyCode::F(4) => handle_fkey_toggle(app, 3, Some(ActivePanel::LlmSettings), false);
-KeyCode::F(5) => handle_fkey_toggle(app, 4, None, false);
-KeyCode::F(6) => handle_fkey_toggle(app, 5, Some(ActivePanel::Log), false);
-```
-
-**Lines saved:** ~80 → ~25 (55 lines removed)
+**Lines saved:** ~100 → ~25 (75 lines removed)
 
 ---
 
@@ -167,35 +141,15 @@ KeyCode::F(6) => handle_fkey_toggle(app, 5, Some(ActivePanel::Log), false);
 
 ### 13. profile_settings_parts() manual field list
 
-**Severity:** MEDIUM | **Status:** 🔍 Analyzed — still open
+**Severity:** MEDIUM | **Status:** ✅ Done (`ad597d4`)
 
 **File:** `src/tui/settings.rs`
 
-**Pattern (22 fields manually compared, 70+ total):**
-```rust
-if let Some(v) = s.context_length {
-    if Some(v) != Some(current.context_length) {
-        parts.push(format!("ctx={}", v));
-    }
-}
-// ... repeated for each field
-```
+**Before:** 107 lines, 23 fields manually compared (47 fields missing).
 
-**Missing fields (not compared):**
-`threads_batch`, `batch_size`, `ubatch_size`, `parallel`, `max_concurrent_predictions`, `cache_type_k`, `cache_type_v`, `keep`, `swa_full`, `numa`, `split_mode`, `tensor_split`, `main_gpu`, `fit`, `expert_count`, `seed`, `mirostat`, `mirostat_lr`, `mirostat_ent`, `ignore_eos`, `samplers`, `dry_*`, `rope_*`, `cache_reuse`, `spec_type`, `draft_tokens`, and more.
+**Fix applied:** 6 macros (`diff_int!`, `diff_float!`, `diff_bool!`, `diff_string!`, `diff_enum!`, `diff_option!`, `diff_option_float!`) with typed parameter handling for concrete/Option fields. Covers all 55 ModelOverride fields.
 
-**Proposed fix — macro for field comparisons:**
-
-```rust
-macro_rules! diff_field {
-    ($s:expr, $current:expr, $field:ident, @int $label:expr) => { /* ... */ };
-    ($s:expr, $current:expr, $field:ident, @float $label:expr) => { /* ... */ };
-    ($s:expr, $current:expr, $field:ident, @bool $label:expr) => { /* ... */ };
-    ($s:expr, $current:expr, $field:ident, @string $label:expr) => { /* ... */ };
-}
-```
-
-**Lines saved:** ~127 → ~35 (92 lines removed)
+**Lines saved:** 107 → ~80 (macros: ~30 + calls: ~55) — net -27, plus 32 new fields covered
 
 ---
 
@@ -210,13 +164,16 @@ The following items have been resolved:
 | 7 | Benchmark iteration accumulation | `130cd6f` | -85 (benchmark.rs) |
 | 8 | Picker navigation patterns (4×) | `81473e1` | -21 (key.rs) |
 | 9 | `build_server_cmd` / `build_bench_cmd` shared logic + bugfix | `81473e1` | -23 (server.rs) |
+| 10 | F-key panel visibility toggling (7× + Ctrl+F) | pending | -75 (key.rs + helpers.rs) |
 | 11 | Scrollbar rendering copy-paste (2×) | `d91f180` | -22 (render.rs) |
 | 12 | Text editing logic duplicated (4 overlays) + cursor bugfix | `d91f180` | -46 (key.rs) |
 | 14 | `ModelOverride::apply()` repeated pattern | `56b05fa` | -28 (config.rs) |
 | 2 | cache_type_k/v handler duplication | `77499dc` | -28 (2 files) |
 | 5 | settings_edit_buffer guard (12 handlers) | `028d4e8` | -12 (settings.rs) |
+| 13 | profile_settings_parts() manual field list | `ad597d4` | -27 (settings.rs) |
 
 **Details:**
+- **#10** → `handle_fkey_toggle()`, `handle_fkey_show()`, `handle_fkey_show_all()` helpers in `src/tui/event/helpers.rs`; replaced 13 F-key handlers in `src/tui/event/key.rs`
 - **#3+4** → `mark_settings_dirty(app, recalc_vram)` helper in `src/tui/event/helpers.rs`
 - **#6** → `make_field_fn!` macro generating 6 field constructors from one definition
 - **#7** → `run_iteration_loop()` shared function in `src/backend/benchmark.rs`
@@ -227,6 +184,7 @@ The following items have been resolved:
 - **#14** → `apply_scalar!`, `apply_clone!`, `apply_option!` macros in `src/config.rs`
 - **#2** → `cycle_cache_type()` helper for events; `make_cache_type_field!` macro for field definitions; toggle functions simplified to `CacheQuantType::F16`
 - **#5** → guard pattern centralized in generic Enter handler; removed from 12 field handlers (6 toggles + 6 modals)
+- **#13** → 6 diff_field macros covering all 55 ModelOverride fields (was 23/55)
 
 ---
 
@@ -246,13 +204,9 @@ The following items have been resolved:
 | # | Severity | Issue | Est. Lines Saved |
 |---|----------|-------|-----------------|
 | 1 | CRITICAL | ModelOverride/ModelSettings/DefaultParams tripling | N/A (preventive, phased) |
-| 10 | MEDIUM | F-key panel visibility toggling | ~55 |
-| 13 | MEDIUM | profile_settings_parts() manual field list | ~92 |
 
-**Remaining estimated lines saved: ~147 lines**
+**Remaining estimated lines saved: ~0 lines**
 
 ### Priority order for remaining fixes:
 
-1. **#13**: diff_field macro — 92 lines saved, prevents missing fields
-2. **#10**: F-key helper — 55 lines saved
-3. **#1** (Phase 1): Compile-time audit — zero lines but prevents silent bugs
+1. **#1** (Phase 1): Compile-time audit — zero lines but prevents silent bugs

@@ -1,4 +1,4 @@
-use crate::tui::app::{App, ConfirmationKind};
+use crate::tui::app::{ActivePanel, App, ConfirmationKind};
 
 pub struct TextEditor<'a> {
     pub buffer: &'a mut String,
@@ -187,4 +187,39 @@ pub fn sync_global_settings(app: &mut App) {
             crate::config::LogLevel::Error,
         );
     }
+}
+
+pub fn handle_fkey_toggle(
+    app: &mut App,
+    panel_idx: u8,
+    target_panel: Option<ActivePanel>,
+    require_no_server: bool,
+) {
+    if require_no_server && app.server.server_handle.is_some() {
+        return;
+    }
+    app.toggle_panel_visibility(panel_idx);
+    if app.is_panel_visible(panel_idx) {
+        if let Some(panel) = target_panel {
+            app.ui.active_panel = panel;
+        }
+    }
+}
+
+pub fn handle_fkey_show(
+    app: &mut App,
+    panel_idx: u8,
+    target_panel: ActivePanel,
+    require_no_server: bool,
+) {
+    if require_no_server && app.server.server_handle.is_some() {
+        return;
+    }
+    app.ui.panel_visibility |= 1 << panel_idx;
+    app.ui.active_panel = target_panel;
+}
+
+pub fn handle_fkey_show_all(app: &mut App) {
+    app.ui.panel_visibility = 0b111111;
+    app.log.log_expanded = false;
 }
