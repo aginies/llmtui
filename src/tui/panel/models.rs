@@ -394,15 +394,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .iter()
                 .map(|result| {
                     let license = result.license.as_deref().unwrap_or("—");
-                    let marker = if result.downloaded { "✓" } else { " " };
-                    let marker_span =
-                        Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));
                     let highlighted = highlight_query(&result.model_id, query);
-                    let mut model_spans: Vec<Span> = vec![marker_span];
-                    model_spans.extend(highlighted.spans.iter().cloned());
 
                     Row::new(vec![
-                        Cell::from(Line::from(model_spans)),
+                        Cell::from(highlighted),
                         Cell::from(format_number(result.downloads)),
                         Cell::from(format_number(result.likes)),
                         Cell::from(license.to_string()),
