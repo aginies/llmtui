@@ -341,7 +341,7 @@ fn app_new_settings_match_config() {
     let config = Config::default();
     let app = App::new(config);
     // Settings should be initialized from config default
-    assert_eq!(app.settings.context_length, 32768);
+    assert_eq!(app.settings.context_length, 131072);
 }
 
 #[test]
