@@ -28,7 +28,7 @@ cargo doc --open
 
 | Type | Module | Description |
 |------|--------|-------------|
-| `Backend` | `models` | Acceleration backend: `Cpu`, `Vulkan`, `Rocm`, `RocmLemonade`, or `Cuda` |
+| `Backend` | `models` | Acceleration backend: `Cpu`, `Vulkan`, `Rocm`, `RocmLemonade`, `Cuda`, `CpuArm64`, `CpuWindows`, `VulkanWindows`, `CudaWindows12_4`, `CudaWindows13_1`, `HipWindows`, `CpuMacosArm64`, `CpuMacosX64` |
 | `ServerMode` | `models` | Server operating mode: `Normal` (single model), `Router` (multiple), `Bench` (GPU benchmarking), or `BenchTune` (parameter auto-tuning) |
 | `GpuLayersMode` | `models` | GPU offloading: `Auto`, `Specific(n)`, or `All` |
 | `SearchSort` | `models` | Search result sort order: `Relevance`, `Downloads`, `Likes`, `Trending`, `Created` |
@@ -43,7 +43,7 @@ cargo doc --open
 | `LoadProgress` | `models` | Load progress with `layers_total`, `layers_loaded`, `tensors_loaded` |
 | `Samplers` | `models` | Semicolon-separated sampler order string |
 | `BenchTuneMode` | `benchmark` | Benchmark mode: `RuntimeOnly` or `Full` |
-| `BenchTuneStatus` | `benchmark` | Status: `Running`, `Completed`, or `Error` |
+| `BenchTuneStatus` | `benchmark` | Status: `Running`, `Completed`, `PartiallyCompleted`, `Cancelled`, or `Error` |
 
 ## Main Modules
 
@@ -81,7 +81,7 @@ pub async fn resolve_backend_binary(
     backend: Backend,
     tag: Option<&str>,
     log_tx: Option<mpsc::Sender<String>>,
-    download_tx: Option<broadcast::Sender<DownloadProgressUpdate>>,
+    progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
 ) -> Result<PathBuf>
 ```
 
@@ -108,13 +108,20 @@ pub fn build_server_cmd(
     router_max_models: u32,
 ) -> (Command, String)
 
+/// Request to spawn a llama.cpp server process.
+pub struct SpawnServerRequest<'a> {
+    pub config: &'a Config,
+    pub model: Option<&'a DiscoveredModel>,
+    pub settings: &'a ModelSettings,
+    pub log_tx: mpsc::Sender<String>,
+    pub progress_tx: Option<tokio::sync::broadcast::Sender<DownloadState>>,
+    pub server_mode: ServerMode,
+    pub router_max_models: u32,
+    pub exit_tx: mpsc::Sender<()>,
+}
+
 /// Spawn a llama.cpp server process.
-pub async fn spawn_server(
-    config: &Config,
-    model: Option<&DiscoveredModel>,
-    settings: &ModelSettings,
-    log_tx: mpsc::Sender<String>,
-) -> Result<(ServerHandle, String), String>
+pub async fn spawn_server(request: SpawnServerRequest) -> Result<(ServerHandle, String), String>
 
 /// Check if the server is healthy and responsive.
 pub async fn check_health(host: &str, port: u16) -> bool
@@ -209,7 +216,9 @@ pub async fn start_ws_server(
     port: u16,
     metrics_rx: Arc<broadcast::Receiver<WsMetrics>>,
     auth_key: Option<String>,
-) -> JoinHandle<()>
+    tls_config: Option<axum_server::tls_rustls::RustlsConfig>,
+    host: String,
+) -> Result<JoinHandle<()>>
 
 pub fn stop_ws_server(handle: JoinHandle<()>)
 ```
@@ -222,13 +231,13 @@ Benchmark tuning system.
 /// Configuration for a benchmark run.
 pub struct BenchTuneConfig {
     pub model_path: PathBuf,
-    pub iterations: usize,
+    pub num_iterations: u32,
     pub prompt: String,
     pub params: Vec<BenchTuneParam>,
     pub duration: Duration,
     pub mode: BenchTuneMode,
     pub n_predict: usize,
-    pub chat_template_kwargs: serde_json::Value,
+    pub chat_template_kwargs: Option<String>,
 }
 
 /// A tunable parameter for benchmarking.
@@ -244,13 +253,15 @@ pub struct BenchTuneParam {
 pub struct BenchTuneParamValue {
     pub temperature: Option<f64>,
     pub top_p: Option<f64>,
-    pub top_k: Option<u32>,
+    pub top_k: Option<i64>,
     pub repeat_penalty: Option<f64>,
     pub context_length: Option<u32>,
     pub batch_size: Option<u32>,
-    pub threads: Option<u32>,
     pub flash_attn: Option<bool>,
+    pub threads: Option<u32>,
     pub expert_count: Option<i32>,
+    pub spec_type: Option<String>,
+    pub draft_tokens: Option<u32>,
 }
 
 /// Results from a benchmark run.
@@ -259,7 +270,7 @@ pub struct BenchTuneResult {
     pub metrics: BenchTuneMetrics,
     pub outputs: Vec<String>,
     pub per_iteration_metrics: Vec<BenchTuneMetrics>,
-    pub base_settings: BenchTuneParamValue,
+    pub base_settings: Option<ModelSettings>,
 }
 
 /// Metrics from a benchmark run.
@@ -297,13 +308,20 @@ pub fn format_mib(mib: u64) -> String
 Configuration is stored in `~/.config/llm-manager/config.yaml` and loaded via `Config::load()`. The config file structure:
 
 ```yaml
-models_dir: ~/.local/share/llm-manager/models
+models_dirs:
+  - ~/.local/share/llm-manager/models
 llama_server: llama-server
 default:
   context_length: 32096
   threads: <physical cores>
   # ... more default parameters
+  llama_cpp_version_cpu: null
+  llama_cpp_version_vulkan: null
+  llama_cpp_version_rocm: null
+  llama_cpp_version_rocm_lemonade: null
+  llama_cpp_version_cuda: null
 model_overrides:
+  # Per-model configs stored as individual YAML files in ~/.config/llm-manager/models/
   model.gguf:
     temperature: 0.7
     gpu_layers: 32

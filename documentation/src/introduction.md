@@ -24,13 +24,18 @@
 - **Panel Resize** — drag the border between left and right panels, or use `Shift+←/→`
 - **README rendering** — full markdown renderer for HuggingFace model documentation
 - **HuggingFace URL links** — navigate to model pages from Model Info
-- **Multi-backend** — CPU, Vulkan, ROCm, ROCm Lemonade, and CUDA support with per-backend version picker
+- **Multi-backend** — CPU, Vulkan, ROCm, ROCm Lemonade, and CUDA support with per-backend version picker (13 platform-specific variants)
+- **Speculative decoding** — MTP and other speculative decoding types via SpecTypePicker
+- **Per-model tags** — Edit and manage tags for each model
+- **TLS support** — Secure WebSocket dashboard with self-signed certificate generation
+- **Dashboard URL modal** — Copy dashboard URL to clipboard with `Ctrl+U`
+- **YaRN RoPE** — Extend context beyond training length with YaRN RoPE parameter tuning
 
 ## Prerequisites
 
 - Rust toolchain (edition 2024)
 - A HuggingFace account (for downloading gated models)
-- An NVIDIA GPU (Vulkan/CUDA) or AMD GPU (ROCm) for GPU inference, or a CPU for CPU-only inference
+- An NVIDIA GPU (Vulkan/CUDA) or AMD GPU (ROCm/ROCm Lemonade) for GPU inference, or a CPU for CPU-only inference
 
 ## Screenshot
 

@@ -14,13 +14,13 @@ cargo build --release
 
 llm-manager runs on Linux, macOS, and Windows. GPU backends available per platform:
 
-| Platform | CPU | Vulkan | ROCm | CUDA |
-|----------|-----|--------|------|------|
-| **Linux x64** | Yes | Yes | Yes | Yes |
-| **Linux ARM64** | Yes | — | — | — |
-| **Windows x64** | Yes | Yes | Yes (HIP) | Yes (12.4 / 13.1) |
-| **macOS ARM64** | Yes | — | — | — |
-| **macOS x64** | Yes | — | — | — |
+| Platform | CPU | Vulkan | ROCm | ROCm Lemonade | CUDA |
+|----------|-----|--------|------|---------------|------|
+| **Linux x64** | Yes | Yes | Yes | Yes | Yes |
+| **Linux ARM64** | Yes | — | — | — | — |
+| **Windows x64** | Yes | Yes | Yes (HIP) | — | Yes (12.4 / 13.1) |
+| **macOS ARM64** | Yes | — | — | — | — |
+| **macOS x64** | Yes | — | — | — | — |
 
 ROCm Lemonade (AMD optimized) is Linux-only and auto-detects your GPU architecture (e.g. `gfx1100`).
 

@@ -130,7 +130,7 @@ llama_cpp_version_rocm_lemonade: null
 llama_cpp_version_cuda: null
 ```
 
-Windows and macOS have separate backend variants (e.g. `llama_cpp_version_cpu_windows`, `llama_cpp_version_cpu_macos_arm64`). Each backend has its own independently configurable version.
+Platform-specific backend variants (e.g. `CpuArm64`, `CpuWindows`, `CpuMacosArm64`) are handled through the `Backend` enum and `platform` field, not through separate version config keys. Each backend has its own independently configurable version.
 
 Setting to `null` uses the latest release. Specific versions can be set via the version picker in LLM Settings. These selections are automatically persisted to your configuration and remembered across restarts.
 
@@ -164,9 +164,15 @@ You can start a model directly from the command line without the TUI:
 | `--config` | Path to config file |
 | `--api-port` | Start API proxy on given port |
 | `--api-key` | API key for Bearer token authentication |
+| `--ws-enable` | Enable WebSocket dashboard server |
+| `--ws-port` | Port for WebSocket dashboard server |
+| `--ws-auth` | Auth key for WebSocket dashboard access |
 | `--host` | Bind address for the server (e.g., `0.0.0.0`) |
 | `--backend-binary` | Path to a custom llama-server binary |
 | `--log-file` | Log file path (default: stdout) |
+| `--tls-enable` | Enable TLS for WebSocket dashboard |
+| `--tls-cert` | Path to TLS certificate file |
+| `--tls-key` | Path to TLS private key file |
 | `--threads` | CPU threads |
 | `--context` | Context length |
 | `--gpu-layers` | Number of GPU layers |

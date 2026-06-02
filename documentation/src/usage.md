@@ -144,13 +144,13 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 | **Max Models** | 4 | Maximum concurrent models in Router mode. |
 | **API Endpoint** | false | Enable the API proxy server (see Serve Mode). |
 | **API Port** | 49222 | Port for the API proxy server. |
-| **Dashboard** | false | WebSocket dashboard server (port 49223). Press `Enter` to configure. |
+| **Dashboard** | false | WebSocket dashboard server (port 49223). Press `Enter` to configure (enabled, port, auth key, TLS). |
 
 > **Note:** The Server Settings panel is hidden when a server is already running. Press `F2` to toggle Server Settings only when no server is active.
 
 ### LLM Settings
 
-The LLM Settings panel has 24 fields organized into 6 groups. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields (Flash Attention, Unified KV, Keep in memory) respond to `e` or `Ctrl+E`.
+The LLM Settings panel has 70+ fields organized into groups. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields (Flash Attention, Unified KV, Keep in memory) respond to `e` or `Ctrl+E`.
 
 #### Loading
 
@@ -283,6 +283,11 @@ Dirty (changed) fields are highlighted in yellow.
 | `Alt+N` | Edit n_predict (max tokens) |
 | `Alt+I` | Edit iterations |
 | `Alt+C` | Edit chat template kwargs |
+| `Ctrl+F7` | Focus Models panel |
+| `Ctrl+F8` | Focus Server Settings panel |
+| `Ctrl+F9` | Focus LLM Settings panel |
+| `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
+| `F9` / `F10` / `Ctrl+F10` | Show all panels |
 
 ## Log Panel
 
@@ -324,8 +329,11 @@ Open the Server Settings panel, navigate to **Dashboard**, and press `Enter` to 
 | **Enabled** | Toggle the dashboard on/off |
 | **Port** | Server port (default: 49223) |
 | **Auth Key** | Optional authentication key |
+| **TLS Enabled** | Enable TLS for secure dashboard access |
+| **TLS Cert** | Path to TLS certificate file |
+| **TLS Key** | Path to TLS private key file |
 
-When an auth key is set, clients must include it as a URL parameter: `http://localhost:49223?auth=<key>`.
+When an auth key is set, clients must include it as a URL parameter: `http://localhost:49223?auth=<key>`. With TLS enabled, the URL uses `https://`.
 
 ### Dashboard Display
 
@@ -340,7 +348,7 @@ Two modes are available:
 - **RuntimeOnly** — Single server, params sent in request body (no server restarts)
 - **Full** — New server spawned for each parameter combination
 
-Tunable parameters: temperature (0.4–1.0), top_p (0.8–1.0), top_k (40–50), repeat_penalty (1.0–1.2), flash_attn (0/1), threads (4–16), batch_size (512–2048), expert_count (1–4).
+Tunable parameters: temperature (0.4–1.0), top_p (0.8–1.0), top_k (40–50), repeat_penalty (1.0–1.2), flash_attn (0/1), threads (4–16), batch_size (512–2048), expert_count (1–4), context_length, spec_type (speculative decoding type), draft_tokens.
 
 Results can be exported as Markdown table, JSON, YAML, or HTML report with summary cards, winner section, impact analysis, and Chart.js charts. Navigate between results with `p` (previous) and `n` (next).
 
@@ -370,6 +378,10 @@ In the LLM Settings panel, the GPU Layers field cycles through three modes with 
 | **All** | Offloads all layers (equivalent to `-ngl 999`) |
 
 Arrow keys cycle: `Auto` → `1` → `2` → ... → `N` → `All` → `Auto`. Pressing `Enter` from a specific number opens an edit buffer for direct input. The `-ngl` flag is only added for Specific and All modes.
+
+## Tags
+
+Per-model tags can be edited in the LLM Settings panel. The Tags field opens an edit modal where you can add, remove, or modify tags associated with the model. Tags are stored in the per-model YAML config.
 
 ## MTP (Multi-Token Prediction)
 
@@ -405,6 +417,14 @@ Multiple backends are supported via the llama.cpp server:
 | **ROCm** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | GPU via ROCm (AMD Native) |
 | **ROCm Lemonade** | [lemonade-sdk/llamacpp-rocm](https://github.com/lemonade-sdk/llamacpp-rocm) | GPU via ROCm (AMD Optimized, auto-detects GFX architecture) |
 | **CUDA** | [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) | GPU via CUDA (NVIDIA Native, CUDA 12.8) |
+| **CPU ARM64** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | CPU-only for ARM64 Linux |
+| **CPU Windows** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | CPU-only for Windows |
+| **Vulkan Windows** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | Vulkan for Windows |
+| **CUDA Windows 12.4** | [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) | CUDA 12.4 for Windows |
+| **CUDA Windows 13.1** | [ai-dock/llama.cpp-cuda](https://github.com/ai-dock/llama.cpp-cuda) | CUDA 13.1 for Windows |
+| **HIP Windows** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | HIP (ROCm) for Windows |
+| **CPU macOS ARM64** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | CPU-only for macOS Apple Silicon |
+| **CPU macOS x64** | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | CPU-only for macOS Intel |
 
 Each backend has its own independently configurable llama.cpp version. Switching versions is instant — no re-download.
 

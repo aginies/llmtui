@@ -4,33 +4,39 @@ LLM Manager is a Rust application built on ratatui and crossterm, using tokio fo
 
 ```
 src/
-├── main.rs          # Entry point, event loop, model discovery
-├── config.rs        # Config loading/saving, YAML-based
-├── models.rs        # Domain types (SearchResult, DownloadState, etc.)
+├── main.rs          # Entry point, event loop, model discovery, metrics polling
+├── config.rs        # Config loading/saving, YAML-based, profiles, presets
+├── models.rs        # Domain types (SearchResult, DownloadState, ModelSettings, etc.)
+├── serve.rs         # Standalone serve mode CLI (--model, --profile, --api-port, --api-key)
+├── serve_api.rs     # Axum-based API proxy server for serve mode
 ├── backend/
 │   ├── hub.rs       # HuggingFace API: search, list files, download
-│   └── server.rs    # llama.cpp server spawning
-├── serve.rs         # Standalone serve mode
-├── serve_api.rs     # API proxy server
-└── tui/
-    ├── mod.rs       # Module declaration
-    ├── app.rs       # App state (App struct, enums for modes/panels)
-    ├── event/       # Keyboard/mouse event handler
-    ├── render.rs    # Top-level render dispatcher
-  └── panel/
-       ├── mod.rs
-       ├── models.rs      # Left panel: model list / search / download
-       ├── info.rs        # GGUF metadata rendering
-       ├── tabbed.rs      # Right panel: Model Info / Settings tabs
-       ├── settings.rs
-       ├── log.rs
-       ├── help.rs
-       ├── active.rs      # Active model metrics panel
-       ├── about.rs       # About box
-       ├── readme.rs      # README rendering
-       ├── rpc_workers.rs # RPC workers manager
-       ├── system_prompt_presets.rs # System prompt presets
-       └── api_endpoints.rs # API endpoints viewer
+│   ├── server.rs    # llama.cpp server spawning (resolve_backend_binary, spawn_server)
+│   ├── benchmark.rs # Benchmark tuning system (RuntimeOnly and Full modes)
+│   ├── hardware.rs  # GPU detection (AMD/NVIDIA/Intel), platform detection
+│   ├── tls.rs       # TLS certificate generation for secure connections
+│   └── ws_server.rs # WebSocket metrics server
+├── tui/
+│   ├── mod.rs       # Module declaration, format_size/format_number helpers
+│   ├── app/         # App state (types.rs, async_ops.rs, sync_ops.rs, state.rs, metadata.rs,
+│   │                  # profiles.rs, pickers.rs, panels.rs, help.rs)
+│   ├── event/       # Keyboard/mouse event handling (benches.rs, helpers.rs, key.rs, mouse.rs,
+│   │                  # panel/, readme.rs)
+│   ├── render.rs    # Top-level render dispatcher (hints.rs, overlays.rs, status.rs)
+│   └── panel/       # Individual panel render functions
+│       ├── mod.rs
+│       ├── models.rs      # Left panel: model list / search / download
+│       ├── info.rs        # GGUF metadata rendering
+│       ├── tabbed.rs      # Right panel: Model Info / Settings tabs
+│       ├── settings.rs
+│       ├── log.rs
+│       ├── help.rs
+│       ├── active.rs      # Active model metrics panel
+│       ├── about.rs       # About box
+│       ├── readme.rs      # README rendering
+│       ├── rpc_workers.rs # RPC workers manager
+│       ├── system_prompt_presets.rs # System prompt presets
+│       └── profiles.rs    # Profiles manager
 ```
 
 ## App State Machine
@@ -51,18 +57,21 @@ Each mode controls rendering in `render.rs` and key handling in `event.rs`. The 
 ```rust
 pub enum GlobalMode {
     Normal,
-    Confirmation { selected: bool, kind: ConfirmationKind },
     CmdLine { cmd_line: String },
     HostPicker { entries: Vec<(String, String)>, selected: usize },
     BackendPicker { entries: Vec<(Backend, Option<String>)>, selected: usize },
+    Confirmation { selected: bool, kind: ConfirmationKind },
     RpcManager,
     About,
-    ProfilePicker { entries: Vec<(String, String)>, selected: usize },
-    PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete },
     MaxConcurrentPicker { value: String },
-    BenchTuneSetup { config, selected_idx, bench_mode_selection, editing_prompt, editing_kwargs },
-    ApiEndpoints,
-    Tags { editing, insert_mode, edit_buffer, selected_idx },
+    SpecTypePicker { entries: Vec<String>, selected: usize },
+    YarnRoPESettings { selected_field: i32, editing: bool, edit_buffer: String, edit_cursor_pos: usize },
+    BenchTuneSetup { config, selected_idx, editing_param, editing_param_field, param_edit_buffer, param_edit_cursor_pos, bench_mode_selection, editing_prompt, editing_kwargs },
+    PromptPicker { entries, selected, editing, edit_buffer, edit_cursor_pos, confirm_delete },
+    ProfilePicker { entries, selected },
+    DashboardPicker { entries, selected, selected_field },
+    DashboardUrl { url: String },
+    SearchInput { buffer: String, cursor_pos: usize },
 }
 ```
 
@@ -176,7 +185,7 @@ Key types:
 - `BenchTuneConfig`: Model path, iterations, prompt, params to test, duration, mode
 - `BenchTuneParam`: name, min, max, step, enabled
 - `BenchTuneResult`: params, metrics (prompt_tps, generation_tps, combined_tps, latency_per_token, first_token_time), outputs, per-iteration metrics
-- `BenchTuneStatus`: Running (with progress), Completed, Error
+- `BenchTuneStatus`: Running (with progress), Completed (with stats), PartiallyCompleted (with stats), Cancelled (with stats)
 
 ## Error Handling
 
