@@ -10,6 +10,8 @@ use crate::models::SearchSort;
 use crate::tui::app::{App, ModelsMode};
 use crate::tui::{format_number, format_size};
 
+const MARQUEE_SUFFIX: &str = "\u{25B6}";
+
 pub fn render_download_panel(
     f: &mut Frame,
     area: Rect,
@@ -153,14 +155,44 @@ fn format_eta(d: &crate::models::DownloadState) -> String {
     }
 }
 
+fn format_time_remaining(total_secs: u64) -> String {
+    let days = total_secs / 86400;
+    let hours = (total_secs % 86400) / 3600;
+    let minutes = (total_secs % 3600) / 60;
+    let secs = total_secs % 60;
+
+    if days > 0 {
+        format!("{days}d {hours}h {minutes}m")
+    } else if hours > 0 {
+        format!("{hours}h {minutes}m {secs}s")
+    } else if minutes > 0 {
+        format!("{minutes}m {secs}s")
+    } else {
+        format!("{secs}s")
+    }
+}
+
+pub fn scroll_text<'a>(text: &'a str, max_width: u16, state: Option<&crate::tui::app::TextScrollState>) -> String {
+    if text.chars().count() <= max_width as usize {
+        return text.to_string();
+    }
+    let chars: Vec<char> = text.chars().collect();
+    let max_offset = chars.len() - max_width as usize;
+    let offset = state.map_or(0, |s| s.offset.min(max_offset));
+    let start = offset;
+    let end = start + max_width as usize;
+    let visible: String = chars[start..end].iter().collect();
+    format!("{}{}", visible, MARQUEE_SUFFIX)
+}
+
 /// Highlight occurrences of each word in `query` within `text` (case-insensitive).
-fn highlight_query<'a>(text: &'a str, query: &str) -> Line<'a> {
+fn highlight_query(text: &str, query: &str) -> Line<'static> {
     let words: Vec<String> = query
         .split_whitespace()
         .map(|w| w.to_lowercase())
         .collect();
     if words.is_empty() || text.is_empty() {
-        return Line::from(text);
+        return Line::from(text.to_string());
     }
     let lower_text = text.to_lowercase();
     // Build a set of character positions that match any query word
@@ -188,7 +220,7 @@ fn highlight_query<'a>(text: &'a str, query: &str) -> Line<'a> {
             } else {
                 Style::default()
             };
-            spans.push(Span::styled(&text[start..i], style));
+            spans.push(Span::styled(text[start..i].to_string(), style));
             start = i;
             if i < text.len() {
                 in_highlight = highlight[i];
@@ -196,23 +228,6 @@ fn highlight_query<'a>(text: &'a str, query: &str) -> Line<'a> {
         }
     }
     Line::from(spans)
-}
-
-fn format_time_remaining(total_secs: u64) -> String {
-    let days = total_secs / 86400;
-    let hours = (total_secs % 86400) / 3600;
-    let minutes = (total_secs % 3600) / 60;
-    let secs = total_secs % 60;
-
-    if days > 0 {
-        format!("{days}d {hours}h {minutes}m")
-    } else if hours > 0 {
-        format!("{hours}h {minutes}m {secs}s")
-    } else if minutes > 0 {
-        format!("{minutes}m {secs}s")
-    } else {
-        format!("{secs}s")
-    }
 }
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
@@ -273,45 +288,58 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             }
 
             let filtered_indices = app.get_filtered_model_indices();
-            let list_items: Vec<ListItem> = filtered_indices
-                .iter()
-                .map(|&idx| {
-                    let model = &app.models[idx];
-                    let model_state = app.model_states.get(&model.display_name);
-                    let is_selected = Some(idx) == app.selected_model_idx;
+            let list_items: Vec<ListItem> = filtered_indices.iter().map(|&idx| {
+                let model = &app.models[idx];
+                let key = model.display_name.clone();
+                let model_state = app.model_states.get(&model.display_name);
+                let is_selected = Some(idx) == app.selected_model_idx;
 
-                    let selector = if is_selected { "> " } else { "  " };
-                    let status = match model_state {
-                        Some(crate::models::ModelState::Loaded { .. }) => "[loaded] ",
-                        Some(crate::models::ModelState::Loading) => "[loading] ",
-                        Some(crate::models::ModelState::Benchmarking) => "[benchmarking] ",
-                        _ => "",
-                    };
+                let selector = if is_selected { "> " } else { "  " };
+                let status = match model_state {
+                    Some(crate::models::ModelState::Loaded { .. }) => "[loaded] ",
+                    Some(crate::models::ModelState::Loading) => "[loading] ",
+                    Some(crate::models::ModelState::Benchmarking) => "[benchmarking] ",
+                    _ => "",
+                };
 
-                    let name_style = if is_selected {
-                        Style::default()
-                            .fg(Color::Black)
-                            .bg(Color::Green)
-                            .add_modifier(Modifier::BOLD)
-                    } else {
-                        match model_state {
-                            Some(crate::models::ModelState::Loaded { .. }) => {
-                                Style::default().fg(Color::Green)
-                            }
-                            Some(crate::models::ModelState::Loading)
-                            | Some(crate::models::ModelState::Benchmarking) => {
-                                Style::default().fg(Color::Yellow)
-                            }
-                            _ => Style::default().fg(Color::White),
+                let name_width = list_area.width.saturating_sub(2).saturating_sub(status.len() as u16);
+                let max_offset = model.display_name.chars().count().saturating_sub(name_width as usize);
+                let state = app.ui.text_scrolls.entry(key).or_insert_with(|| {
+                    crate::tui::app::TextScrollState {
+                        offset: 0,
+                        last_tick: std::time::Instant::now(),
+                        direction: 1,
+                        hold_count: 0,
+                        max_offset,
+                    }
+                });
+                state.max_offset = max_offset;
+
+                let name_display = scroll_text(&model.display_name, name_width, Some(state));
+                let name_style = if is_selected {
+                    Style::default()
+                        .fg(Color::Black)
+                        .bg(Color::Green)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    match model_state {
+                        Some(crate::models::ModelState::Loaded { .. }) => {
+                            Style::default().fg(Color::Green)
                         }
-                    };
+                        Some(crate::models::ModelState::Loading)
+                        | Some(crate::models::ModelState::Benchmarking) => {
+                            Style::default().fg(Color::Yellow)
+                        }
+                        _ => Style::default().fg(Color::White),
+                    }
+                };
 
-                    ListItem::new(Line::from(vec![
-                        Span::styled(selector, Style::default().fg(Color::Yellow)),
-                        Span::styled(status, Style::default().fg(Color::Yellow)),
-                        Span::styled(&model.display_name, name_style),
-                    ]))
-                })
+                ListItem::new(Line::from(vec![
+                    Span::styled(selector, Style::default().fg(Color::Yellow)),
+                    Span::styled(status, Style::default().fg(Color::Yellow)),
+                    Span::styled(name_display, name_style),
+                ]))
+            })
                 .collect();
 
             app.ui.list_state.select(
@@ -394,7 +422,22 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .iter()
                 .map(|result| {
                     let license = result.license.as_deref().unwrap_or("—");
-                    let highlighted = highlight_query(&result.model_id, query);
+                    let table_width = area.width.saturating_sub(2);
+                    let col_width = table_width * 60 / 100;
+                    let key = result.model_id.clone();
+                    let max_offset = result.model_id.chars().count().saturating_sub(col_width as usize);
+                    let state = app.ui.text_scrolls.entry(key).or_insert_with(|| {
+                        crate::tui::app::TextScrollState {
+                            offset: 0,
+                            last_tick: std::time::Instant::now(),
+                            direction: 1,
+                            hold_count: 0,
+                            max_offset,
+                        }
+                    });
+                    state.max_offset = max_offset;
+                    let scrolled_raw = scroll_text(&result.model_id, col_width, Some(state));
+                    let highlighted = highlight_query(&scrolled_raw, query);
 
                     Row::new(vec![
                         Cell::from(highlighted),
@@ -484,8 +527,24 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let marker = if is_downloaded { "✓" } else { " " };
                     let marker_span =
                         Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));
+                    let table_width = inner_area.width.saturating_sub(2);
+                    let col_width = table_width * 80 / 100;
+                    let available = col_width.saturating_sub(4);
+                    let key = filename.clone();
+                    let max_offset = name.chars().count().saturating_sub(available as usize);
+                    let state = app.ui.text_scrolls.entry(key).or_insert_with(|| {
+                        crate::tui::app::TextScrollState {
+                            offset: 0,
+                            last_tick: std::time::Instant::now(),
+                            direction: 1,
+                            hold_count: 0,
+                            max_offset,
+                        }
+                    });
+                    state.max_offset = max_offset;
+                    let scrolled_raw = scroll_text(name, available, Some(state));
+                    let highlighted = highlight_query(&scrolled_raw, "");
                     let mut name_spans: Vec<Span> = vec![marker_span];
-                    let highlighted = highlight_query(name, "");
                     name_spans.extend(highlighted.spans.iter().cloned());
                     Row::new(vec![
                         Cell::from(Line::from(name_spans)),

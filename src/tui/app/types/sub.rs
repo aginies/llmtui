@@ -4,11 +4,11 @@ use crate::models::Backend;
 use crate::models::{BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress};
 
 use ratatui::widgets::{ListState, TableState};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use super::{ActivePanel, GlobalMode, LoadingPhase, ResizeState, SettingsRenderCache};
+use super::{ActivePanel, GlobalMode, LoadingPhase, ResizeState, SettingsRenderCache, TextScrollState};
 
 type SpawnTaskHandle = tokio::task::JoinHandle<
     Result<(String, ServerHandle, String, crate::models::ModelSettings), String>,
@@ -171,6 +171,7 @@ pub struct UIState {
     pub left_pct: u16,
     pub needs_full_redraw: bool,
     pub needs_redraw: bool,
+    pub text_scrolls: HashMap<String, TextScrollState>,
 }
 
 pub struct EditState {

@@ -187,6 +187,7 @@ impl App {
                 left_pct: 55,
                 needs_full_redraw: false,
                 needs_redraw: true,
+                text_scrolls: Default::default(),
             },
             edit: EditState {
                 edit_cursor_pos: 0,
@@ -204,7 +205,64 @@ impl App {
     }
 }
 
-impl App {}
+impl App {
+    const SCROLL_TICK_MS: u64 = 200;
+    const SCROLL_HOLD_FRAMES: u8 = 5;
+
+    pub fn tick_text_scrolls(&mut self) {
+        let now = std::time::Instant::now();
+        let mut changed = false;
+
+        for (_, state) in self.ui.text_scrolls.iter_mut() {
+            if now.duration_since(state.last_tick) >= std::time::Duration::from_millis(Self::SCROLL_TICK_MS) {
+                if state.offset == 0 && state.direction == -1 {
+                    state.direction = 1;
+                    state.hold_count = Self::SCROLL_HOLD_FRAMES;
+                } else if state.offset == state.max_offset && state.direction == 1 {
+                    state.direction = -1;
+                    state.hold_count = Self::SCROLL_HOLD_FRAMES;
+                }
+
+                if state.hold_count > 0 {
+                    state.hold_count -= 1;
+                } else {
+                    state.offset = if state.direction > 0 {
+                        state.offset.saturating_add(1)
+                    } else {
+                        state.offset.saturating_sub(1)
+                    };
+                }
+
+                state.last_tick = now;
+                changed = true;
+            }
+        }
+
+        if changed {
+            self.ui.needs_redraw = true;
+        }
+    }
+
+    pub fn init_scrolls_for_models(&mut self) {
+        use std::time::Instant;
+        for model in &self.models {
+            let key = model.display_name.clone();
+            let max_offset = model.display_name.chars().count().saturating_sub(20);
+            self.ui.text_scrolls.insert(key, TextScrollState {
+                offset: 0,
+                last_tick: Instant::now(),
+                direction: 1,
+                hold_count: 0,
+                max_offset,
+            });
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn get_scroll_state(&self, key: &str) -> Option<&TextScrollState> {
+        self.ui.text_scrolls.get(key)
+    }
+}
 
 #[cfg(test)]
 mod tests {

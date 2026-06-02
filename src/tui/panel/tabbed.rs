@@ -376,7 +376,7 @@ fn empty_info() -> Vec<Line<'static>> {
     ))]
 }
 
-pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
+pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
     let mut info_lines: Vec<Line<'static>> = match &app.models_mode {
         crate::tui::app::ModelsMode::Search { results, .. } => {
             if let Some(idx) = app.search.search_results_idx {
@@ -415,13 +415,26 @@ pub fn get_info_lines(app: &App, width: u16) -> Vec<Line<'static>> {
             }
             lines
         }
-        _ => {
+         _ => {
             match app.selected_model() {
                 Some(model) => {
                     let key = model.path.to_string_lossy().to_string();
                     let cached_meta = app.search.gguf_metadata_cache.get(&key);
                     let pairs = info::render_model_lines(model, cached_meta);
-                    let mut lines = render_model_info_lines(&pairs, width);
+                    let value_width = width.saturating_sub(7);
+                    let path_str = model.path.to_string_lossy().to_string();
+                    let max_offset = path_str.chars().count().saturating_sub(value_width as usize);
+                    let state = app.ui.text_scrolls.entry(key.clone()).or_insert_with(|| {
+                        crate::tui::app::TextScrollState {
+                            offset: 0,
+                            last_tick: std::time::Instant::now(),
+                            direction: 1,
+                            hold_count: 0,
+                            max_offset,
+                        }
+                    });
+                    state.max_offset = max_offset;
+                    let mut lines = render_model_info_lines(&pairs, width, Some(state));
                     // Hint when GGUF metadata was not available.
                     if cached_meta.is_none() {
                         lines.push(Line::from(vec![Span::styled(
@@ -482,7 +495,7 @@ pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static
 
 /// Convert ModelInfoPairs into 2-column Lines.
 /// Path is rendered full-width on its own line.
-fn render_model_info_lines(pairs: &[ModelInfoPair], _width: u16) -> Vec<Line<'static>> {
+fn render_model_info_lines(pairs: &[ModelInfoPair], width: u16, state: Option<&crate::tui::app::TextScrollState>) -> Vec<Line<'static>> {
     if pairs.is_empty() {
         return empty_info();
     }
@@ -493,9 +506,11 @@ fn render_model_info_lines(pairs: &[ModelInfoPair], _width: u16) -> Vec<Line<'st
     if let Some(first) = pairs.first() {
         let label = format!("{}: ", first.label);
         let value = first.value.clone();
+        let value_width = width.saturating_sub(label.len() as u16 + 1);
+        let value_display = crate::tui::panel::models::scroll_text(&value, value_width, state);
         lines.push(Line::from(vec![
             Span::styled(label, Style::default().fg(Color::Yellow)),
-            Span::styled(value, Style::default().fg(first.value_style)),
+            Span::styled(value_display, Style::default().fg(first.value_style)),
         ]));
     }
 

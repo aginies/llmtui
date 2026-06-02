@@ -177,6 +177,16 @@ pub enum ConfirmationKind {
     DeleteBackend,
 }
 
+/// Scroll state for text that exceeds display width.
+#[derive(Debug, Clone)]
+pub struct TextScrollState {
+    pub offset: usize,
+    pub last_tick: std::time::Instant,
+    pub direction: i8,
+    pub hold_count: u8,
+    pub max_offset: usize,
+}
+
 /// Phase of model loading.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LoadingPhase {

@@ -234,6 +234,7 @@ async fn main() -> Result<()> {
 
             let mut app = App::new(config);
             app.models = models;
+            app.init_scrolls_for_models();
             if !app.models.is_empty() {
                 app.selected_model_idx = Some(0);
                 app.on_model_selection_change();
@@ -338,6 +339,7 @@ async fn main() -> Result<()> {
                 app.update_ws_server().await;
                 app.update_api_endpoint().await;
                 app.tick_spinner();
+                app.tick_text_scrolls();
                 if app.ui.needs_redraw {
                     app.ui.needs_redraw = false;
                     app.render(&mut terminal)?;
