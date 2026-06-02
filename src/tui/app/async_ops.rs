@@ -1439,7 +1439,15 @@ impl App {
                 if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
                     crate::backend::tls::load_tls_config(cert, key).await.ok()
                 } else {
-                    None
+                    match crate::backend::tls::ensure_tls_certs() {
+                        Ok((cert, key)) => crate::backend::tls::load_tls_config(
+                            cert.to_string_lossy().as_ref(),
+                            key.to_string_lossy().as_ref(),
+                        )
+                        .await
+                        .ok(),
+                        Err(_) => None,
+                    }
                 }
             } else {
                 self.server.running_ws_tls_cfg.clone()
