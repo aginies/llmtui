@@ -490,6 +490,9 @@ impl App {
                 if m.gen_tps == 0.0 && self.metrics.gen_tps > 0.0 {
                     m.gen_tps = self.metrics.gen_tps;
                 }
+                if m.cpu_usage == 0.0 && self.metrics.cpu_usage > 0.0 {
+                    m.cpu_usage = self.metrics.cpu_usage;
+                }
 
                 self.metrics = m;
                 received_metrics = true;

@@ -55,5 +55,5 @@ rcgen = { version = "0.14", default-features = false, features = ["pem", "x509-p
 rustls-pemfile = "2"
 libc = "0.2"
    arboard = "3"
-    sysinfo = "0.32"
+    sysinfo = "0.38"
 

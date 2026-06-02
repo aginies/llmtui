@@ -1064,22 +1064,26 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
 }
 
 /// Cross-platform: Get RAM (RSS) and CPU usage for a PID.
+/// Uses a persistent System instance so sysinfo can compute accurate
+/// CPU deltas across calls (first call on a fresh instance is always 0).
 fn get_process_metrics(
     pid: u32,
 ) -> Result<(u64, f64), String> {
+   use std::sync::{LazyLock, Mutex};
     use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 
-    let mut sys = System::new_with_specifics(
-        RefreshKind::new().with_processes(ProcessRefreshKind::new().with_cpu().with_memory()),
-    );
+    static SYS: LazyLock<Mutex<System>> = LazyLock::new(|| {
+        Mutex::new(System::new_with_specifics(
+            RefreshKind::everything().with_processes(ProcessRefreshKind::nothing().with_cpu().with_memory()),
+        ))
+    });
 
-    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-
+    let mut sys = SYS.lock().unwrap();
     let pids = [Pid::from(pid as usize)];
     sys.refresh_processes_specifics(
         ProcessesToUpdate::Some(&pids),
         true,
-        ProcessRefreshKind::new().with_cpu().with_memory(),
+        ProcessRefreshKind::nothing().with_cpu().with_memory(),
     );
 
     let sys_pid = Pid::from(pid as usize);
@@ -1090,7 +1094,7 @@ fn get_process_metrics(
         return Ok((ram, cpu));
     }
 
-    Err("Process not found".to_string())
+    Err(format!("Process not found: pid={}", pid))
 }
 
 /// Load a model via the llama-server Router API.
