@@ -465,8 +465,9 @@ pub async fn spawn_server(
         && server_mode != crate::models::ServerMode::BenchTune
     {
         let port = settings.port;
-        // Check if port is already in use
-        if std::net::TcpListener::bind(("127.0.0.1", port)).is_err() {
+        // Check if port is already in use (bind to the same host the server will use)
+        let resolved_host = clean_host(&settings.host);
+        if std::net::TcpListener::bind(format!("{}:{}", resolved_host, port)).is_err() {
             return Err(format!("Port {} is already in use", port));
         }
     }
