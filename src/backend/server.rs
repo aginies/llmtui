@@ -391,7 +391,7 @@ pub fn build_server_cmd(
             &mut cmd,
             &mut parts,
             "--override-kv",
-            format!("llama.context_length={}", effective_ctx),
+            format!("llama.context_length=int:{}", effective_ctx),
         );
         if let Some(model) = model {
             if let Ok(gguf_meta) = crate::models::GgufMetadata::from_path(&model.path) {
