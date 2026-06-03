@@ -3,9 +3,9 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::mpsc;
-use tracing::info;
+use tracing::{info, warn};
 
-use crate::config::Config;
+use crate::config::{Config, DEFAULT_SYSTEM_PROMPT};
 use crate::models::{
     DiscoveredModel, ModelSettings, RopeScaling, ServerMetrics, clean_host, strip_gguf,
 };
@@ -228,7 +228,7 @@ pub fn build_server_cmd(
     }
 
     // Inject system prompt via chat template kwargs when it differs from default
-    if settings.system_prompt != "You are a helpful assistant." {
+    if settings.system_prompt != DEFAULT_SYSTEM_PROMPT {
         let mut merged = serde_json::Map::new();
         if let Some(ref kwargs) = settings.chat_template_kwargs
             && let Ok(obj) = serde_json::from_str::<serde_json::Value>(kwargs)
@@ -1000,8 +1000,20 @@ fn get_nvidia_vram_metrics() -> Result<(u64, u64), String> {
     for line in stdout.lines() {
         let parts: Vec<&str> = line.split(',').collect();
         if parts.len() >= 2 {
-            let used = parts[0].trim().parse::<u64>().unwrap_or(0) * 1024 * 1024;
-            let total = parts[1].trim().parse::<u64>().unwrap_or(0) * 1024 * 1024;
+            let used = match parts[0].trim().parse::<u64>() {
+                Ok(v) => v,
+                Err(_) => {
+                    warn!("nvidia-smi: failed to parse used memory from '{}'", parts[0]);
+                    continue;
+                }
+            } * 1024 * 1024;
+            let total = match parts[1].trim().parse::<u64>() {
+                Ok(v) => v,
+                Err(_) => {
+                    warn!("nvidia-smi: failed to parse total memory from '{}'", parts[1]);
+                    continue;
+                }
+            } * 1024 * 1024;
             total_used += used;
             total_total += total;
         }
@@ -1276,6 +1288,9 @@ pub async fn unload_model(
         variants.push(path.to_string());
     }
 
+    let mut last_status = reqwest::StatusCode::OK;
+    let mut last_error = String::new();
+
     for endpoint in endpoints {
         let url = format!("http://{}:{}{}", host, port, endpoint);
         for variant in &variants {
@@ -1283,13 +1298,23 @@ pub async fn unload_model(
                 "model": variant
             });
 
-            if let Ok(res) = client.post(&url).json(&body).send().await
-                && res.status().is_success()
-            {
-                return Ok(());
+            if let Ok(res) = client.post(&url).json(&body).send().await {
+                if res.status().is_success() {
+                    return Ok(());
+                }
+                last_status = res.status();
+                last_error = res
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unknown error".to_string());
             }
         }
     }
 
-    Ok(()) // Silently ignore unload errors as it's often just a cleanup
+    tracing::debug!(
+        "Model unload failed (status {}, error: {}): this is expected if model was already unloaded",
+        last_status,
+        last_error
+    );
+    Ok(())
 }

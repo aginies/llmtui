@@ -19,6 +19,10 @@ use crate::models::{
 use crate::tui::app::ActivePanel;
 pub use presets::PresetStore;
 
+/// Default system prompt used when no preset is selected.
+pub const DEFAULT_SYSTEM_PROMPT: &str =
+    "You are an expert software developer. Write clean, well-documented code. Explain your reasoning and suggest improvements.";
+
 /// Resolve the base config directory with a safe fallback chain.
 ///
 /// Prefers `dirs::config_dir()` (XDG on Linux, ~/Library/Application Support on macOS,
@@ -796,7 +800,7 @@ impl Default for DefaultParams {
             kv_cache_offload: true,
             parallel: 1,
             max_concurrent_predictions: None,
-            system_prompt: "You are an expert software developer. Write clean, well-documented code. Explain your reasoning and suggest improvements.".to_string(),
+            system_prompt: DEFAULT_SYSTEM_PROMPT.to_string(),
             system_prompt_preset_name: "Coder".to_string(),
 
             // GPU

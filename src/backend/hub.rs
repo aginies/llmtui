@@ -734,7 +734,7 @@ pub async fn resolve_backend_binary(
     } else {
         let resp = client
             .get(&download_url)
-            .header("User-Agent", "llm-manager/0.9.9")
+            .header("User-Agent", concat!("llm-manager/", env!("CARGO_PKG_VERSION")))
             .send()
             .await?
             .error_for_status()?;

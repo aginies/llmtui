@@ -4,7 +4,6 @@
 //! This enables testing without modifying the binary source files.
 
 // Re-declare modules so they're available as `pub mod` in the library target.
-// These mirror the private modules in main.rs.
 pub mod backend;
 pub mod config;
 pub mod models;
