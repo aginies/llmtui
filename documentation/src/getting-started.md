@@ -24,6 +24,8 @@ llm-manager runs on Linux, macOS, and Windows. GPU backends available per platfo
 
 ROCm Lemonade (AMD optimized) is Linux-only and auto-detects your GPU architecture (e.g. `gfx1100`).
 
+> **Note:** Benchmarks show Vulkan provides comparable performance to CUDA on NVIDIA GPUs, making it a viable cross-platform alternative.
+
 ### Using the build script
 
 A convenience script is included for common operations:
