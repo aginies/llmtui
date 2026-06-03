@@ -793,6 +793,7 @@ fn bench_tune_param_eq_same_values() {
         max: 1.0,
         step: 0.1,
         enabled: true,
+        variants: vec![],
     };
     let b = BenchTuneParam {
         name: "temperature".into(),
@@ -800,6 +801,7 @@ fn bench_tune_param_eq_same_values() {
         max: 1.0,
         step: 0.1,
         enabled: true,
+        variants: vec![],
     };
     assert_eq!(a, b);
 }
@@ -812,6 +814,7 @@ fn bench_tune_param_ne_different_name() {
         max: 1.0,
         step: 0.1,
         enabled: true,
+        variants: vec![],
     };
     let b = BenchTuneParam {
         name: "top_p".into(),
@@ -819,6 +822,7 @@ fn bench_tune_param_ne_different_name() {
         max: 1.0,
         step: 0.1,
         enabled: true,
+        variants: vec![],
     };
     assert_ne!(a, b);
 }

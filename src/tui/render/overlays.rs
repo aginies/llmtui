@@ -1014,42 +1014,89 @@ fn render_bench_tune_setup(
         regions[3],
     );
 
-   let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.params_to_test.len() {
-        let field_names = ["Min", "Max", "Step"];
-        let active_field_name = field_names[editing_param_field as usize];
-        let mut lines = vec![Line::from(vec![
-            Span::raw(" Select parameters to vary: ("),
-            Span::styled("Press E to edit", Style::default().fg(Color::Yellow)),
-            Span::raw(")  "),
-            Span::styled(" [Tab: Min → Max → Step] ", Style::default().fg(Color::DarkGray)),
-            Span::styled(
-                format!("Editing: {}", active_field_name),
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        ])];
-        // Validation warnings
+let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.params_to_test.len() {
         let p = &config.params_to_test[selected_idx];
-        if p.min >= p.max {
-            lines.push(Line::from(Span::styled(
-                " ⚠ min must be less than max",
-                Style::default().fg(Color::Red),
-            )));
+        if !p.variants.is_empty() {
+            let selected_variant_idx = if editing_param_field < -1 {
+                (editing_param_field + 2) as usize
+            } else {
+                0
+            };
+            let selected_name = p.variants.get(selected_variant_idx).map(|s: &String| s.as_str()).unwrap_or("");
+            let mut lines = vec![Line::from(vec![
+                Span::raw(" Select parameters to vary: ("),
+                Span::styled("Press E to edit", Style::default().fg(Color::Yellow)),
+                Span::raw(")  "),
+                Span::styled(" [←/→: cycle] ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("Editing: {}", selected_name),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(" ({}/{})", selected_variant_idx + 1, p.variants.len()),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ])];
+            if editing_param_field >= 0 && p.variants.is_empty() {
+                // Show validation warnings only for numeric params
+                if p.min >= p.max {
+                    lines.push(Line::from(Span::styled(
+                        " ⚠ min must be less than max",
+                        Style::default().fg(Color::Red),
+                    )));
+                }
+                if p.step <= 0.0 {
+                    lines.push(Line::from(Span::styled(
+                        " ⚠ step must be positive",
+                        Style::default().fg(Color::Red),
+                    )));
+                }
+                if p.step >= (p.max - p.min) && (p.max - p.min) > 0.001 {
+                    lines.push(Line::from(Span::styled(
+                        " ⚠ step ≥ range — only 2 values will be tested",
+                        Style::default().fg(Color::Yellow),
+                    )));
+                }
+            }
+            lines
+        } else {
+            let field_names = ["Min", "Max", "Step"];
+            let active_field_name = field_names[editing_param_field as usize];
+            let mut lines = vec![Line::from(vec![
+                Span::raw(" Select parameters to vary: ("),
+                Span::styled("Press E to edit", Style::default().fg(Color::Yellow)),
+                Span::raw(")  "),
+                Span::styled(" [Tab: Min → Max → Step] ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("Editing: {}", active_field_name),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ])];
+            // Validation warnings
+            if p.min >= p.max {
+                lines.push(Line::from(Span::styled(
+                    " ⚠ min must be less than max",
+                    Style::default().fg(Color::Red),
+                )));
+            }
+            if p.step <= 0.0 {
+                lines.push(Line::from(Span::styled(
+                    " ⚠ step must be positive",
+                    Style::default().fg(Color::Red),
+                )));
+            }
+            if p.step >= (p.max - p.min) && (p.max - p.min) > 0.001 {
+                lines.push(Line::from(Span::styled(
+                    " ⚠ step ≥ range — only 2 values will be tested",
+                    Style::default().fg(Color::Yellow),
+                )));
+            }
+            lines
         }
-        if p.step <= 0.0 {
-            lines.push(Line::from(Span::styled(
-                " ⚠ step must be positive",
-                Style::default().fg(Color::Red),
-            )));
-        }
-        if p.step >= (p.max - p.min) && (p.max - p.min) > 0.001 {
-            lines.push(Line::from(Span::styled(
-                " ⚠ step ≥ range — only 2 values will be tested",
-                Style::default().fg(Color::Yellow),
-            )));
-        }
-        lines
     } else {
         vec![Line::from(vec![
             Span::raw(" Select parameters to vary:"),
@@ -1067,7 +1114,26 @@ fn render_bench_tune_setup(
             let checkbox = if p.enabled { "[X]" } else { "[ ]" };
             let name = p.name.replace("_", " ");
             let is_selected = i == selected_idx;
-            let desc_str = if editing_param && is_selected && editing_param_field >= 0 {
+let desc_str = if editing_param && is_selected && editing_param_field < -1 {
+                let selected_variant_idx = (editing_param_field + 2) as usize; // -2 -> 0, -3 -> 1, etc.
+                let variant_names: Vec<String> = p.variants.iter().enumerate().map(|(i, v)| {
+                    if i == selected_variant_idx {
+                        format!("▶{}", v)
+                    } else {
+                        format!(" {} ", v)
+                    }
+                }).collect();
+                variant_names.join("│")
+            } else if !p.variants.is_empty() {
+                let base_idx = p.min as usize;
+                p.variants.iter().enumerate().map(|(i, v)| {
+                    if i == base_idx {
+                        format!("[{}]", v)
+                    } else {
+                        format!("({})", v)
+                    }
+                }).collect::<Vec<_>>().join("│")
+            } else if editing_param && is_selected && editing_param_field >= 0 {
                 let cursor_pos = param_edit_cursor_pos.min(param_edit_buffer.len());
                 let before: String = param_edit_buffer.chars().take(cursor_pos).collect();
                 let after: String = param_edit_buffer.chars().skip(cursor_pos).collect();
@@ -1108,12 +1174,12 @@ fn render_bench_tune_setup(
                     _ => format!("{:.2} to {:.2}, step {:.2}", p.min, p.max, p.step),
                 }
             };
-            let row_style = if is_selected {
+      let row_style = if is_selected {
                 Style::default().fg(Color::Black).bg(Color::Yellow)
             } else {
                 Style::default().fg(Color::White)
             };
-            let desc_style = if editing_param && is_selected && editing_param_field >= 0 {
+            let desc_style = if editing_param && is_selected && (editing_param_field >= 0 || editing_param_field < -1) {
                 Style::default().fg(Color::Blue)
             } else {
                 Style::default().fg(Color::DarkGray)

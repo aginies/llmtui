@@ -99,7 +99,7 @@ fn bench_tune_config_has_repeat_penalty_param() {
         .find(|p| p.name == "repeat_penalty")
         .unwrap();
     assert_eq!(rp.min, 1.0);
-    assert_eq!(rp.max, 1.2);
+    assert_eq!(rp.max, 1.5);
     assert_eq!(rp.step, 0.1);
 }
 
@@ -150,7 +150,7 @@ fn bench_tune_config_has_expert_count_param() {
         .iter()
         .find(|p| p.name == "expert_count")
         .unwrap();
-    assert_eq!(ec.min, 1.0);
+    assert_eq!(ec.min, -1.0);
     assert_eq!(ec.max, 4.0);
     assert_eq!(ec.step, 1.0);
 }
@@ -266,9 +266,9 @@ fn generate_combinations_batch_size_four_values() {
 }
 
 #[test]
-fn generate_combinations_expert_count_four_values() {
+fn generate_combinations_expert_count_six_values() {
     let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    // Enable only expert_count (1, 2, 3, 4 = 4 values)
+    // Enable only expert_count (-1 to 4 step 1 = 6 values: -1, 0, 1, 2, 3, 4)
     if let Some(p) = config
         .params_to_test
         .iter_mut()
@@ -277,13 +277,13 @@ fn generate_combinations_expert_count_four_values() {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    assert_eq!(combos.len(), 4);
+    assert_eq!(combos.len(), 6);
 }
 
 #[test]
 fn generate_combinations_repeat_penalty_three_values() {
-    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    // Enable only repeat_penalty (1.0, 1.1, 1.2 = 3 values)
+  let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    // Enable only repeat_penalty (1.0 to 1.5 step 0.1 = 6 values)
     if let Some(p) = config
         .params_to_test
         .iter_mut()
@@ -292,7 +292,7 @@ fn generate_combinations_repeat_penalty_three_values() {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    assert_eq!(combos.len(), 3);
+    assert_eq!(combos.len(), 6);
 }
 
 // ── Total test count ──────────────────────────────────────────
@@ -617,7 +617,7 @@ fn generate_combinations_expert_count_values_correct() {
     }
     let combos = config.generate_combinations();
     let exps: Vec<i32> = combos.iter().filter_map(|c| c.expert_count).collect();
-    assert_eq!(exps, vec![1, 2, 3, 4]);
+    assert_eq!(exps, vec![-1, 0, 1, 2, 3, 4]);
 }
 
 #[test]
@@ -669,15 +669,15 @@ fn generate_combinations_multiple_enabled_product() {
 fn generate_combinations_all_enabled_large_product() {
     let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable all 10 params:
-    // temperature: 7, top_p: 3, top_k: 7, repeat_penalty: 3
-    // flash_attn: 2, threads: 4, batch_size: 4, expert_count: 4
+    // temperature: 7, top_p: 3, top_k: 7, repeat_penalty: 6 (1.0-1.5 step 0.1)
+    // flash_attn: 2, threads: 4, batch_size: 4, expert_count: 6 (-1 to 4 step 1)
     // spec_type: 9, draft_tokens: 9
-    // Total: 7 * 3 * 7 * 3 * 2 * 4 * 4 * 4 * 9 * 9 = 4572288
+    // Total: 7 * 3 * 7 * 6 * 2 * 4 * 4 * 6 * 9 * 9 = 13716864
     for p in &mut config.params_to_test {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    assert_eq!(combos.len(), 4572288);
+    assert_eq!(combos.len(), 13716864);
 }
 
 // ── BenchTuneProgress from_status ──────────────────────────────

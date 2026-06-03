@@ -1243,7 +1243,7 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         config.chat_template_kwargs.as_deref().unwrap_or("").len();
                 }
             }
-            KeyCode::Char('e')
+           KeyCode::Char('e')
                 if !*editing_prompt
                     && !*editing_kwargs
                     && !app.edit.editing_n_predict
@@ -1253,9 +1253,14 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if *selected_idx < config.params_to_test.len() {
                     let p = &config.params_to_test[*selected_idx];
                     *editing_param = true;
-                    *editing_param_field = 0;
-                    param_edit_buffer.clone_from(&p.min.to_string());
-                    *param_edit_cursor_pos = param_edit_buffer.len();
+                    if !p.variants.is_empty() {
+                        *editing_param_field = -1;
+                        param_edit_buffer.clear();
+                    } else {
+                        *editing_param_field = 0;
+                        param_edit_buffer.clone_from(&p.min.to_string());
+                        *param_edit_cursor_pos = param_edit_buffer.len();
+                    }
                 }
             }
             KeyCode::Up | KeyCode::Char('k') => {
@@ -1310,75 +1315,73 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         (*selected_idx + 1).min(config.params_to_test.len().saturating_sub(1));
                 }
             }
-            KeyCode::Tab => {
+             KeyCode::Tab => {
                 if *editing_param {
-                    *editing_param_field = (*editing_param_field + 1).min(2);
-                    let p = &config.params_to_test[*selected_idx];
-                    let val = match *editing_param_field {
-                        0 => p.min,
-                        1 => p.max,
-                        2 => p.step,
-                        _ => 0.0,
-                    };
-                    param_edit_buffer.clear();
-                    if *editing_param_field == 2 {
-                        *param_edit_buffer = val.to_string();
-                    } else {
-                        *param_edit_buffer = format!("{:.2}", val);
+                    if config.params_to_test[*selected_idx].variants.is_empty() {
+                        *editing_param_field = (*editing_param_field + 1).min(2);
+                        let p = &config.params_to_test[*selected_idx];
+                        let val = match *editing_param_field {
+                            0 => p.min,
+                            1 => p.max,
+                            2 => p.step,
+                            _ => 0.0,
+                        };
+                        param_edit_buffer.clear();
+                        if *editing_param_field == 2 {
+                            *param_edit_buffer = val.to_string();
+                        } else {
+                            *param_edit_buffer = format!("{:.2}", val);
+                        }
+                        *param_edit_cursor_pos = param_edit_buffer.len();
                     }
-                    *param_edit_cursor_pos = param_edit_buffer.len();
                 }
             }
             KeyCode::BackTab => {
                 if *editing_param {
-                    *editing_param_field = if *editing_param_field <= 0 {
-                        2
-                    } else {
-                        *editing_param_field - 1
-                    };
-                    let p = &config.params_to_test[*selected_idx];
-                    let val = match *editing_param_field {
-                        0 => p.min,
-                        1 => p.max,
-                        2 => p.step,
-                        _ => 0.0,
-                    };
-                    param_edit_buffer.clear();
-                    if *editing_param_field == 2 {
-                        *param_edit_buffer = val.to_string();
-                    } else {
-                        *param_edit_buffer = format!("{:.2}", val);
+                    if config.params_to_test[*selected_idx].variants.is_empty() {
+                        *editing_param_field = if *editing_param_field <= 0 {
+                            2
+                        } else {
+                            *editing_param_field - 1
+                        };
+                        let p = &config.params_to_test[*selected_idx];
+                        let val = match *editing_param_field {
+                            0 => p.min,
+                            1 => p.max,
+                            2 => p.step,
+                            _ => 0.0,
+                        };
+                        param_edit_buffer.clear();
+                        if *editing_param_field == 2 {
+                            *param_edit_buffer = val.to_string();
+                        } else {
+                            *param_edit_buffer = format!("{:.2}", val);
+                        }
+                        *param_edit_cursor_pos = param_edit_buffer.len();
                     }
-                    *param_edit_cursor_pos = param_edit_buffer.len();
                 }
             }
-            KeyCode::Char('+') if *editing_param => {
+KeyCode::Char('+') if *editing_param => {
                 if *selected_idx < config.params_to_test.len() {
-                    let p = &mut config.params_to_test[*selected_idx];
-                    match *editing_param_field {
-                        0 => p.min += p.step,
-                        1 => p.max += p.step,
-                        2 => {
-                            if p.step > 0.0 {
-                                p.step *= 2.0;
-                            }
-                        }
-                        _ => {}
+                    if !config.params_to_test[*selected_idx].variants.is_empty() {
+                        let current_idx = if *editing_param_field < -1 {
+                            (*editing_param_field + 2).max(0)
+                        } else {
+                            0
+                        };
+                        *editing_param_field = -((current_idx as usize).saturating_add(1).min(config.params_to_test[*selected_idx].variants.len()).saturating_sub(1) as i32 + 2);
                     }
                 }
             }
             KeyCode::Char('-') if *editing_param => {
                 if *selected_idx < config.params_to_test.len() {
-                    let p = &mut config.params_to_test[*selected_idx];
-                    match *editing_param_field {
-                        0 => p.min -= p.step,
-                        1 => p.max -= p.step,
-                        2 => {
-                            if p.step > 0.0 {
-                                p.step /= 2.0;
-                            }
-                        }
-                        _ => {}
+                    if !config.params_to_test[*selected_idx].variants.is_empty() {
+                        let current_idx = if *editing_param_field < -1 {
+                            (*editing_param_field + 2).max(0)
+                        } else {
+                            0
+                        };
+                        *editing_param_field = -(current_idx.saturating_sub(1).max(0) as i32 + 2);
                     }
                 }
             }
@@ -1399,9 +1402,18 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         !config.params_to_test[*selected_idx].enabled;
                 }
             }
-          KeyCode::Char(c) if *editing_param => {
+          KeyCode::Char(c) if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() => {
                 if "0123456789.-eE".contains(c) {
                     TextEditor { buffer: param_edit_buffer, cursor: param_edit_cursor_pos }.insert_char(c);
+                }
+            }
+            KeyCode::Char(c) if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() => {
+                if c.is_ascii_digit() {
+                    let idx = c.to_digit(10).unwrap() as usize;
+                    let variants = &config.params_to_test[*selected_idx].variants;
+                    if idx < variants.len() {
+                        *editing_param_field = -(idx as i32 + 2);
+                    }
                 }
             }
             KeyCode::Char(c) => {
@@ -1474,7 +1486,17 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Enter => {
                 if *editing_param {
                     if *selected_idx < config.params_to_test.len() {
-                        if let Ok(val) = param_edit_buffer.parse::<f64>() {
+                        if !config.params_to_test[*selected_idx].variants.is_empty() {
+                            let variant_idx = if *editing_param_field < -1 {
+                                (*editing_param_field + 2).max(0) as usize
+                            } else {
+                                0
+                            };
+                            if let Some(_variant) = config.params_to_test[*selected_idx].variants.get(variant_idx) {
+                                // Store variant index in min field (we'll map it back later)
+                                config.params_to_test[*selected_idx].min = variant_idx as f64;
+                            }
+                        } else if let Ok(val) = param_edit_buffer.parse::<f64>() {
                             match *editing_param_field {
                                 0 => config.params_to_test[*selected_idx].min = val,
                                 1 => config.params_to_test[*selected_idx].max = val,

@@ -1393,6 +1393,7 @@ pub struct BenchTuneParam {
     pub max: f64,
     pub step: f64,
     pub enabled: bool,
+    pub variants: Vec<String>,
 }
 
 impl PartialEq for BenchTuneParam {
@@ -1402,6 +1403,7 @@ impl PartialEq for BenchTuneParam {
             && self.max.to_bits() == other.max.to_bits()
             && self.step.to_bits() == other.step.to_bits()
             && self.enabled == other.enabled
+            && self.variants == other.variants
     }
 }
 impl Eq for BenchTuneParam {}
@@ -1597,6 +1599,7 @@ impl BenchTuneConfig {
                     max: 1.0,
                     step: 0.1,
                     enabled: false,
+                    variants: vec![],
                 },
                 BenchTuneParam {
                     name: "top_p".to_string(),
@@ -1604,6 +1607,7 @@ impl BenchTuneConfig {
                     max: 1.0,
                     step: 0.1,
                     enabled: false,
+                    variants: vec![],
                 },
                 BenchTuneParam {
                     name: "top_k".to_string(),
@@ -1611,13 +1615,15 @@ impl BenchTuneConfig {
                     max: 40.0,
                     step: 5.0,
                     enabled: false,
+                    variants: vec![],
                 },
                 BenchTuneParam {
                     name: "repeat_penalty".to_string(),
                     min: 1.0,
-                    max: 1.2,
+                    max: 1.5,
                     step: 0.1,
                     enabled: false,
+                    variants: vec![],
                 },
                 BenchTuneParam {
                     name: "flash_attn".to_string(),
@@ -1625,6 +1631,7 @@ impl BenchTuneConfig {
                     max: 1.0,
                     step: 1.0,
                     enabled: false,
+                    variants: vec![],
                 },
                 BenchTuneParam {
                     name: "threads".to_string(),
@@ -1632,6 +1639,7 @@ impl BenchTuneConfig {
                     max: 16.0,
                     step: 4.0,
                     enabled: false,
+                    variants: vec![],
                 },
                 BenchTuneParam {
                     name: "batch_size".to_string(),
@@ -1639,13 +1647,15 @@ impl BenchTuneConfig {
                     max: 2048.0,
                     step: 512.0,
                     enabled: false,
+                    variants: vec![],
                 },
                 BenchTuneParam {
                     name: "expert_count".to_string(),
-                    min: 1.0,
+                    min: -1.0,
                     max: 4.0,
                     step: 1.0,
                     enabled: false,
+                    variants: vec![],
                 },
                 BenchTuneParam {
                     name: "spec_type".to_string(),
@@ -1653,13 +1663,25 @@ impl BenchTuneConfig {
                     max: 8.0,
                     step: 1.0,
                     enabled: false,
+                    variants: vec![
+                        "Off".to_string(),
+                        "draft-mtp".to_string(),
+                        "draft-simple".to_string(),
+                        "draft-eagle3".to_string(),
+                        "ngram-simple".to_string(),
+                        "ngram-map-k".to_string(),
+                        "ngram-map-k4v".to_string(),
+                        "ngram-mod".to_string(),
+                        "ngram-cache".to_string(),
+                    ],
                 },
-                BenchTuneParam {
+     BenchTuneParam {
                     name: "draft_tokens".to_string(),
                     min: 0.0,
                     max: 8.0,
                     step: 1.0,
                     enabled: false,
+                    variants: vec![],
                 },
             ],
             test_duration: Duration::from_secs(30),
@@ -1723,13 +1745,17 @@ impl BenchTuneConfig {
                     expert_count_values = vals.into_iter().map(|v| Some(v as i32)).collect()
                 }
                 "spec_type" => {
-                    let step_count = ((p.max - p.min) / p.step).ceil() as usize;
-                    spec_type_values = (0..=step_count)
-                        .map(|i| {
-                            let idx = i.min(spec_type_options.len() - 1);
-                            Some(spec_type_options[idx].clone())
-                        })
-                        .collect()
+                    if !p.variants.is_empty() {
+                        spec_type_values = p.variants.clone().into_iter().map(Some).collect();
+                    } else {
+                        let step_count = ((p.max - p.min) / p.step).ceil() as usize;
+                        spec_type_values = (0..=step_count)
+                            .map(|i| {
+                                let idx = i.min(spec_type_options.len() - 1);
+                                Some(spec_type_options[idx].clone())
+                            })
+                            .collect()
+                    }
                 }
                 "draft_tokens" => {
                     draft_tokens_values = vals.into_iter().map(|v| Some(v as u32)).collect()
@@ -1790,6 +1816,8 @@ impl BenchTuneConfig {
             }
             let vals = if p.name == "flash_attn" {
                 2 // On/Off
+            } else if !p.variants.is_empty() {
+                p.variants.len()
             } else if p.name == "spec_type" {
                 let step_count = ((p.max - p.min) / p.step).ceil() as usize;
                 (step_count + 1).min(9)
