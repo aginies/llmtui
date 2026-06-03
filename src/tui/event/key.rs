@@ -1156,7 +1156,7 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 }
             }
-            KeyCode::Char('n') => {
+       KeyCode::Char('>') | KeyCode::Char('n') => {
                 let name = format!(
                     "Custom {}",
                     app.config.system_prompt_presets.user_presets().len() + 1
@@ -1909,7 +1909,7 @@ fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) 
             app.bench_tune.bench_tune_output_scroll =
                 app.bench_tune.bench_tune_output_scroll.saturating_sub(10);
         }
-        KeyCode::Char('n') => {
+        KeyCode::Right => {
             if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view
                 && let Some(result) = app.bench_tune.bench_tune_results.get(result_idx) {
                     let max_iter_idx = result.outputs.len().saturating_sub(1);
@@ -1927,7 +1927,7 @@ fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) 
                     }
                 }
         }
-        KeyCode::Char('p') => {
+        KeyCode::Left => {
             if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view {
                 if app.bench_tune.bench_tune_output_index > 0 {
                     app.bench_tune.bench_tune_output_index -= 1;

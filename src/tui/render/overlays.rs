@@ -1980,12 +1980,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             Span::raw("  "),
             Span::styled("[j/k] scroll  ", Style::default().fg(Color::Yellow)),
             Span::raw("  "),
+            Span::styled("[←] prev   ", Style::default().fg(Color::Yellow)),
             Span::styled(
-                format!("[p] prev({}/{}) ", absolute_idx, total_outputs),
+                format!("({}/{})", absolute_idx, total_outputs),
                 Style::default().fg(Color::Yellow),
             ),
             Span::raw("  "),
-            Span::styled("[n] next  ", Style::default().fg(Color::Yellow)),
+            Span::styled("[→] next  ", Style::default().fg(Color::Yellow)),
         ]);
         let controls_area = Rect {
             x: 0,
