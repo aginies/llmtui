@@ -90,6 +90,11 @@ pub fn build_server_cmd(
         }
     }
 
+    // Parse GGUF metadata for arch-specific override-kv keys
+    let gguf_meta = model
+        .map(|m| crate::models::GgufMetadata::from_path(&m.path))
+        .transpose();
+
     // ── Loading ──────────────────────────────────────────────
     push_arg(&mut cmd, &mut parts, "--threads", settings.threads);
     push_arg(
@@ -193,11 +198,17 @@ pub fn build_server_cmd(
     }
 
     if settings.expert_count > 0 {
+        let arch = gguf_meta
+            .as_ref()
+            .ok()
+            .and_then(|opt| opt.as_ref())
+            .map(|m| m.arch.as_str())
+            .unwrap_or("llama");
         push_arg(
             &mut cmd,
             &mut parts,
             "--override-kv",
-            format!("qwen35moe.expert_used_count=int:int:{}", settings.expert_count),
+            format!("{}.expert_used_count=int:int:{}", arch, settings.expert_count),
         );
     }
 
@@ -387,41 +398,20 @@ pub fn build_server_cmd(
     }
 
     if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--override-kv",
-            format!("qwen35moe.context_length=int:{}", effective_ctx),
-        );
-        if let Some(model) = model {
-            if let Ok(gguf_meta) = crate::models::GgufMetadata::from_path(&model.path) {
-                let orig_ctx = gguf_meta.n_ctx_train;
-                push_arg(
-                    &mut cmd,
-                    &mut parts,
-                    "--yarn-orig-ctx",
-                    orig_ctx,
-                );
-                match gguf_meta.arch.as_str() {
-                    "qwen3moe" => {
-                        push_arg(
-                            &mut cmd,
-                            &mut parts,
-                            "--override-kv",
-                            "qwen35moe.context_length=int:1000000",
-                        );
-                    }
-                    "qwen3" => {
-                        push_arg(
-                            &mut cmd,
-                            &mut parts,
-                            "--override-kv",
-                            "qwen35.context_length=int:1000000",
-                        );
-                    }
-                    _ => {}
-                }
-            }
+        if let Some(ref meta) = gguf_meta.as_ref().ok().and_then(|x| x.as_ref()) {
+            push_arg(
+                &mut cmd,
+                &mut parts,
+                "--override-kv",
+                format!("{}.context_length=int:{}", meta.arch, effective_ctx),
+            );
+            let orig_ctx = meta.n_ctx_train;
+            push_arg(
+                &mut cmd,
+                &mut parts,
+                "--yarn-orig-ctx",
+                orig_ctx,
+            );
         }
     }
 
