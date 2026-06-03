@@ -386,6 +386,15 @@ pub fn build_server_cmd(
         );
     }
 
+    if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--override-kv",
+            format!("llama.context_length={}", effective_ctx),
+        );
+    }
+
     let resolved_host = clean_host(&settings.host);
     push_arg(&mut cmd, &mut parts, "--host", resolved_host);
     push_arg(&mut cmd, &mut parts, "--port", settings.port);
