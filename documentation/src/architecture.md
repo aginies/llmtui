@@ -142,7 +142,7 @@ A post-filter checks that the model_id contains the search query (case-insensiti
 - Default: 70 results per page (max 200)
 - Pagination: `Ctrl+B` goes back, `Down` at bottom loads more
 - Sort order cycles: Relevance → Downloads → Likes → Trending → Created
-- README fetching: `Ctrl+Shift+R` downloads and renders the model's README
+- README fetching: `->` downloads and renders the model's README
 
 ## VRAM Estimation
 

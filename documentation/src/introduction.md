@@ -4,38 +4,49 @@
 
 ## Features
 
-- **Model search** on HuggingFace (filters to GGUF models, paginated with infinite scroll)
-- **Download** GGUF model files with progress tracking and cancellation (with disk space check)
-- **Load/unload** models via llama.cpp server with progress visualization
-- **Local Model Filter** — quickly find models in your list with `f`
-- **RPC Workers Manager** — dedicated window to manage distributed inference nodes
-- **Chat** with loaded models in the terminal
-- **Configure** loading and inference parameters per model
-- **GGUF file browser** — list and select specific GGUF files for a model
-- **Log panel** — expand/collapse with Enter/Esc, follow mode with `f`
-- **About Box** — application info and GPLv3 license link (`A`)
-- **CmdLine overlay** — view the full llama-server command line (`Ctrl+K`), export to script (`e`)
+### Model Discovery & Downloads
+- **HuggingFace search** — GGUF-filtered, paginated results with multiple sort options (relevance, downloads, likes, trending, created)
+- **GGUF file browser** — browse and select specific GGUF files for each model
+- **Download manager** — progress tracking with speed, ETA, and cancellation support; automatic disk space checks before downloading
+- **Multi-word search** — space-separated words use AND logic for precise filtering
+
+### Inference
+- **Model loading** — progress visualization through server start, weight loading, metadata, tensor loading, and server listening phases
+- **Chat interface** — interact with loaded models directly in the terminal
+- **RPC Workers** — manage distributed inference nodes from a dedicated window
+- **Router Mode** — load multiple models simultaneously
+
+### Configuration
+- **Per-model settings** — full control over context length, GPU layers, sampling parameters, and more
+- **Profiles** — save and quickly switch between named presets of settings
+- **System Prompt Presets** — named system prompts for different use cases (Coder, Thinker, Mathematician, etc.)
+- **Multi-backend support** — CPU, Vulkan, ROCm, ROCm Lemonade, and CUDA with per-backend version picker (13 platform-specific variants)
+- **Speculative decoding** — MTP and other speculative decoding types via SpecTypePicker
+- **YaRN RoPE** — extend context beyond training length with YaRN RoPE parameter tuning
+- **Benchmark Tuning** — auto-tune model parameters for optimal performance (RuntimeOnly or Full modes)
+
+### Dashboard & Networking
+- **WebSocket Dashboard** — real-time metrics visualization in a web browser (TPS, VRAM, RAM, CPU, latency)
+- **TLS support** — secure WebSocket dashboard with auto-generated self-signed certificates
 - **API proxy** — expose an OpenAI-compatible API with CORS and SSE streaming support
 - **API key authentication** — Bearer token authentication for the API proxy
-- **Profiles** — save and apply named presets of settings
-- **System Prompt Presets** — named system prompts for different use cases
-- **Router Mode** — load multiple models simultaneously
-- **Benchmark Tuning** — auto-tune model parameters for optimal performance
-- **Panel Resize** — drag the border between left and right panels, or use `Shift+←/→`
+
+### Interface
+- **Log panel** — expandable/collapsible with following and manual scroll modes
 - **README rendering** — full markdown renderer for HuggingFace model documentation
-- **HuggingFace URL links** — navigate to model pages from Model Info
-- **Multi-backend** — CPU, Vulkan, ROCm, ROCm Lemonade, and CUDA support with per-backend version picker (13 platform-specific variants)
-- **Speculative decoding** — MTP and other speculative decoding types via SpecTypePicker
-- **Per-model tags** — Edit and manage tags for each model
-- **TLS support** — Secure WebSocket dashboard with self-signed certificate generation
-- **Dashboard URL modal** — Copy dashboard URL to clipboard with `Ctrl+U`
-- **YaRN RoPE** — Extend context beyond training length with YaRN RoPE parameter tuning
+- **Model info** — GGUF metadata display with HuggingFace URL navigation
+- **CmdLine overlay** — view the full llama-server command line (`Ctrl+K`), export to script (`e`)
+- **Panel resize** — drag the border between left and right panels, or use `Shift+←/→`
+- **Mouse support** — click panels to focus, scroll in logs, README, and settings
+- **Local Model Filter** — quickly find models with `f`
+- **About box** — application info and GPLv3 license link (`A`)
+- **Dashboard URL modal** — copy dashboard URL to clipboard with `Ctrl+U`
 
 ## Prerequisites
 
-- Rust toolchain (edition 2024)
-- A HuggingFace account (for downloading gated models)
-- An NVIDIA GPU (Vulkan/CUDA) or AMD GPU (ROCm/ROCm Lemonade) for GPU inference, or a CPU for CPU-only inference
+- **Rust toolchain** — edition 2024
+- **HuggingFace account** — required for downloading gated models
+- **GPU (optional)** — NVIDIA (CUDA), AMD (ROCm/ROCm Lemonade), or Intel (Vulkan) for accelerated inference; CPU-only inference is fully supported
 
 ## Screenshot
 
@@ -49,3 +60,5 @@ cd llmtui
 cargo build --release
 cargo run
 ```
+
+See the [Getting Started](getting-started.md) guide for detailed installation and usage instructions.

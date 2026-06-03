@@ -75,7 +75,7 @@ To search HuggingFace for models:
 3. Results appear sorted by relevance by default
 4. Press `Ctrl+S` to cycle sort order (Relevance / Downloads / Likes / Trending / Created)
 5. Press `Ctrl+B` to go back one page, or scroll down at the bottom for more results
-6. Press `Ctrl+Shift+R` to fetch the model's README (auto-fetched when navigating results)
+6. Press -> to fetch the model's README (auto-fetched when navigating results)
 
 **Multi-word search:** Type space-separated words (e.g. `qwen opus`) to search with AND logic — all words must match the model name.
 

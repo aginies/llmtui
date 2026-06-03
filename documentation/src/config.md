@@ -53,7 +53,7 @@ cargo run -- --config /path/to/config.yaml
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `context_length` | 32096 | Context window size in tokens |
+| `context_length` | 131072 | Context window size in tokens |
 | `threads` | (physical cores) | CPU threads for generation |
 | `threads_batch` | 8 | CPU threads for batch processing |
 | `batch_size` | 512 | Logical maximum batch size |
@@ -66,7 +66,14 @@ cargo run -- --config /path/to/config.yaml
 | `temperature` | 0.8 | Sampling temperature |
 | `top_k` | 40 | Top-k sampling |
 | `top_p` | 0.95 | Top-p sampling |
+| `min_p` | 0.0 | Min-p sampling |
+| `typical_p` | 1.0 | Typical-p sampling |
 | `repeat_penalty` | 1.1 | Repetition penalty |
+| `repeat_last_n` | 64 | Repetition penalty last N tokens |
+| `presence_penalty` | null | Presence penalty |
+| `frequency_penalty` | null | Frequency penalty |
+| `max_tokens` | null | Maximum generation tokens (unlimited if null) |
+| `seed` | -1 | Random seed (-1 = random) |
 | `backend` | auto-detected | Default backend (auto-detected: Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel; falls back to cpu). Options: `cpu`, `vulkan`, `rocm`, `rocm-lemonade`, `cuda` |
 
 ## Profiles
@@ -75,11 +82,13 @@ Profiles are named presets of settings. The built-in profiles are:
 
 | Profile | Description | Key Settings |
 |---------|-------------|--------------|
-| Qwen | Optimized for Qwen models | temp: 0.6, top-k: 20, context: 32768 |
-| Gemma | Optimized for Gemma models | temp: 0.8, min-p: 0.1, typical-p: 0.9 |
-| Llama | Optimized for Llama models | temp: 0.7, repeat-penalty: 1.1 |
-| Mistral | Optimized for Mistral models | temp: 0.7, top-k: 50 |
-| Phi | Optimized for Phi models | temp: 0.7, top-k: 50 |
+| Qwen | Optimized for Qwen models (dense) | temp: 0.7, top-k: 20, context: 131072 |
+| Qwen-MoE | Optimized for Qwen MoE models (35B-A3B) | temp: 0.8, top-k: 20, context: 131072 |
+| Qwen-Coding | Optimized for Qwen models in coding mode | temp: 0.6, top-k: 20, context: 131072 |
+| Gemma | Optimized for Gemma 2/4 models | temp: 1.0, min-p: 0.1, context: 131072 |
+| Llama | Optimized for Llama 3.1/3.3 models | temp: 0.7, top-p: 0.9, repeat-penalty: 1.1 |
+| Mistral | Optimized for Mistral 7B/NeMo models | temp: 0.7, top-k: 50, top-p: 0.9 |
+| Phi | Optimized for Phi 3.5 Mini models | temp: 0.7, top-k: 50, top-p: 0.9, repeat-penalty: 1.1 |
 
 User-defined profiles are stored as individual YAML files in `~/.config/llm-manager/profiles/<name>.yaml`. Built-in profiles are auto-merged on load.
 

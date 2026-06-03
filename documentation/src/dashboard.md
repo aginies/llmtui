@@ -109,6 +109,60 @@ When an auth key is configured, clients must include it as a query parameter:
 http://localhost:49223?auth=mysecretkey
 ```
 
+## TLS / HTTPS
+
+The WebSocket Dashboard supports TLS (HTTPS) for encrypted connections.
+
+### In TUI Mode
+
+Enable TLS from the **Server Settings** panel (F2 → Dashboard):
+
+1. **Enabled** — toggle on/off (default: off)
+2. **TLS** — toggle on/off (default: off)
+3. **TLS Cert** — path to a PEM certificate file (optional; leave blank for auto-generated self-signed certificate)
+4. **TLS Key** — path to a PEM private key file (optional; leave blank for auto-generated certificate)
+
+When TLS is enabled without specifying cert/key paths, the application auto-generates a self-signed certificate and CA. The certificates are stored in `~/.config/llm-manager/tls/`:
+
+```
+~/.config/llm-manager/tls/
+├── ca.pem              # CA certificate
+├── ca-key.pem          # CA private key
+├── server.pem          # Server certificate
+└── server-key.pem      # Server private key
+```
+
+To trust the auto-generated CA:
+
+```bash
+# Linux (system-wide)
+sudo cp ~/.config/llm-manager/tls/ca.pem /usr/local/share/ca-certificates/ && sudo update-ca-certificates
+
+# macOS
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/.config/llm-manager/tls/ca.pem
+```
+
+The dashboard URL changes to `https://` when TLS is enabled:
+
+```
+https://localhost:49223
+```
+
+### In Serve Mode
+
+Enable TLS from the command line:
+
+```bash
+./build.sh serve --model model.gguf --api-port 49222 --ws-enable --tls-enable
+
+# With custom certificate and key
+./build.sh serve --model model.gguf --api-port 49222 --ws-enable --tls-enable --tls-cert /path/to/cert.pem --tls-key /path/to/key.pem
+```
+
+When `--tls-enable` is set without `--tls-cert`/`--tls-key`, self-signed certificates are auto-generated.
+
+> **Note:** The TLS certificate is also applied to the API proxy server, so both the dashboard and API endpoints use HTTPS.
+
 ## Connection Status
 
 The dashboard shows a connection indicator at the top of the page:
