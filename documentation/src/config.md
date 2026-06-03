@@ -238,3 +238,5 @@ rpc_workers:
 ```
 
 Workers can be managed via the **RPC Workers** window in the **Server Settings** panel. Selected workers are combined into the `--rpc` flag when starting the server.
+
+![Server Dashboard](images/server_dashboard.png)

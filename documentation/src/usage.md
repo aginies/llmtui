@@ -81,6 +81,8 @@ Search mode lets you browse and download GGUF models from HuggingFace:
 
 Type space-separated words (e.g. `qwen opus`) to search with AND logic — all words must match the model name. Matching words are highlighted in cyan in the results list.
 
+![Search Results](images/search_result.png)
+
 ### GGUF File Browser
 
 When viewing GGUF files for a model:
@@ -355,7 +357,13 @@ Two modes are available:
 
 Tunable parameters: temperature (0.4–1.0), top_p (0.8–1.0), top_k (40–50), repeat_penalty (1.0–1.2), flash_attn (0/1), threads (4–16), batch_size (512–2048), expert_count (1–4), context_length, spec_type (speculative decoding type), draft_tokens.
 
-Results can be exported as Markdown table, JSON, YAML, or HTML report with summary cards, winner section, impact analysis, and Chart.js charts. Navigate between results with `p` (previous) and `n` (next).
+![Benchmark Configuration](images/benchmark_configuration.png)
+
+Results can be exported as Markdown table, JSON, YAML, or HTML report with summary cards, winner section, impact analysis, and Chart.js charts.
+
+![Benchmark Results](images/bench_result_html.png)
+
+Navigate between results with `p` (previous) and `n` (next).
 
 ## System Prompt Presets
 
@@ -498,3 +506,5 @@ Profiles are named presets of LLM settings. Built-in profiles include Qwen, Gemm
 - `p` — Apply a profile to current settings
 - `Ctrl+S` — Save current settings as a new profile (in the Profiles panel)
 - `Ctrl+D` — Delete a user-defined profile (moved to `unused_profiles/`)
+
+![LLM Profiles](images/LLM_profiles.png)

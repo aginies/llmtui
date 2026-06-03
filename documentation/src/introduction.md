@@ -50,7 +50,7 @@
 
 ## Screenshot
 
-![LLM Manager](main.png)
+![LLM Manager](images/main.png)
 
 ## Quick Start
 

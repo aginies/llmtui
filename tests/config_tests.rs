@@ -44,8 +44,8 @@ fn default_params_repeat_penalty() {
 #[test]
 fn default_params_system_prompt() {
     let dp = DefaultParams::default();
-    assert_eq!(dp.system_prompt, "You are a helpful assistant.");
-    assert_eq!(dp.system_prompt_preset_name, "General");
+    assert_eq!(dp.system_prompt, "You are an expert software developer. Write clean, well-documented code. Explain your reasoning and suggest improvements.");
+    assert_eq!(dp.system_prompt_preset_name, "Coder");
 }
 
 #[test]

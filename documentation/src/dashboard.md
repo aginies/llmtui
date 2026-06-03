@@ -48,7 +48,7 @@ The dashboard can also be enabled from the TUI:
 
 The dashboard displays real-time metrics in a card-based layout:
 
-![Dashboard](dashboard.png)
+![Dashboard](images/dashboard.png)
 
 ### Metrics Cards
 
@@ -96,10 +96,12 @@ To enable and configure the dashboard:
 1. Open the **Server Settings** panel (F2)
 2. Navigate to **Dashboard** and press `Enter`
 3. Configure:
-   - **Enabled** — toggle on/off
-   - **Port** — server port (default: 49223)
-   - **Auth Key** — optional authentication (see below)
+    - **Enabled** -- toggle on/off
+    - **Port** -- server port (default: 49223)
+    - **Auth Key** -- optional authentication (see below)
 4. Press `Enter` to save, `Esc` to close
+
+![Dashboard Configuration](images/dashboard_config.png)
 
 ## Authentication
 
