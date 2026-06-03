@@ -36,9 +36,9 @@ fn bench_tune_config_new_n_predict() {
 }
 
 #[test]
-fn bench_tune_config_new_has_8_params() {
+fn bench_tune_config_new_has_10_params() {
     let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    assert_eq!(config.params_to_test.len(), 8);
+    assert_eq!(config.params_to_test.len(), 10);
 }
 
 #[test]
@@ -667,15 +667,16 @@ fn generate_combinations_multiple_enabled_product() {
 #[test]
 fn generate_combinations_all_enabled_large_product() {
     let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    // Enable all 8 params:
+    // Enable all 10 params:
     // temperature: 7, top_p: 3, top_k: 7, repeat_penalty: 3
     // flash_attn: 2, threads: 4, batch_size: 4, expert_count: 4
-    // Total: 7 * 3 * 7 * 3 * 2 * 4 * 4 * 4 = 56448
+    // spec_type: 9, draft_tokens: 9
+    // Total: 7 * 3 * 7 * 3 * 2 * 4 * 4 * 4 * 9 * 9 = 4572288
     for p in &mut config.params_to_test {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    assert_eq!(combos.len(), 56448);
+    assert_eq!(combos.len(), 4572288);
 }
 
 // ── BenchTuneProgress from_status ──────────────────────────────

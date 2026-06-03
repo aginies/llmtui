@@ -1383,6 +1383,7 @@ pub struct BenchTuneConfig {
     pub bench_mode: BenchTuneMode,
     pub n_predict: u32,
     pub chat_template_kwargs: Option<String>,
+    pub test_timeout: Duration,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1645,11 +1646,26 @@ impl BenchTuneConfig {
                     step: 1.0,
                     enabled: false,
                 },
+                BenchTuneParam {
+                    name: "spec_type".to_string(),
+                    min: 0.0,
+                    max: 8.0,
+                    step: 1.0,
+                    enabled: false,
+                },
+                BenchTuneParam {
+                    name: "draft_tokens".to_string(),
+                    min: 0.0,
+                    max: 8.0,
+                    step: 1.0,
+                    enabled: false,
+                },
             ],
             test_duration: Duration::from_secs(30),
             bench_mode: BenchTuneMode::default(),
             n_predict: 512,
             chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
+            test_timeout: Duration::from_secs(60),
         }
     }
 
@@ -1663,6 +1679,20 @@ impl BenchTuneConfig {
         let mut threads_values = vec![None];
         let mut batch_size_values = vec![None];
         let mut expert_count_values = vec![None];
+        let mut spec_type_values = vec![None::<String>];
+        let mut draft_tokens_values = vec![None];
+
+        let spec_type_options = vec![
+            "Off".to_string(),
+            "draft-mtp".to_string(),
+            "draft-simple".to_string(),
+            "draft-eagle3".to_string(),
+            "ngram-simple".to_string(),
+            "ngram-map-k".to_string(),
+            "ngram-map-k4v".to_string(),
+            "ngram-mod".to_string(),
+            "ngram-cache".to_string(),
+        ];
 
         for p in &self.params_to_test {
             if !p.enabled {
@@ -1691,6 +1721,18 @@ impl BenchTuneConfig {
                 "expert_count" => {
                     expert_count_values = vals.into_iter().map(|v| Some(v as i32)).collect()
                 }
+                "spec_type" => {
+                    let step_count = ((p.max - p.min) / p.step).ceil() as usize;
+                    spec_type_values = (0..=step_count)
+                        .map(|i| {
+                            let idx = i.min(spec_type_options.len() - 1);
+                            Some(spec_type_options[idx].clone())
+                        })
+                        .collect()
+                }
+                "draft_tokens" => {
+                    draft_tokens_values = vals.into_iter().map(|v| Some(v as u32)).collect()
+                }
                 _ => {}
             }
         }
@@ -1704,19 +1746,23 @@ impl BenchTuneConfig {
                             for &th in &threads_values {
                                 for &bs in &batch_size_values {
                                     for &ec in &expert_count_values {
-                                        combinations.push(BenchTuneParamValue {
-                                            temperature: temp,
-                                            top_p,
-                                            top_k,
-                                            repeat_penalty: rp,
-                                            context_length: None,
-                                            batch_size: bs,
-                                            flash_attn: fa,
-                                            threads: th,
-                                            expert_count: ec,
-                                            spec_type: None,
-                                            draft_tokens: None,
-                                        });
+                                        for st in &spec_type_values {
+                                            for &dt in &draft_tokens_values {
+                                                combinations.push(BenchTuneParamValue {
+                                                    temperature: temp,
+                                                    top_p,
+                                                    top_k,
+                                                    repeat_penalty: rp,
+                                                    context_length: None,
+                                                    batch_size: bs,
+                                                    flash_attn: fa,
+                                                    threads: th,
+                                                    expert_count: ec,
+                                                    spec_type: st.clone(),
+                                                    draft_tokens: dt,
+                                                });
+                                            }
+                                        }
                                     }
                                 }
                             }

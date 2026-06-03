@@ -409,6 +409,11 @@ async fn run_iteration_loop(
                 } else {
                     0.0
                 };
+                let iter_combined_tps = if res.total_time.as_secs_f64() > 0.0 {
+                    ((res.prompt_tokens + res.generation_tokens) as f64) / res.total_time.as_secs_f64()
+                } else {
+                    0.0
+                };
                 let iter_latency = if res.generation_tokens > 0 {
                     res.generation_time.as_millis() as f64 / res.generation_tokens as f64
                 } else {
@@ -418,7 +423,7 @@ async fn run_iteration_loop(
                 per_iteration_metrics.push(BenchTuneMetrics {
                     prompt_tps: iter_prompt_tps,
                     generation_tps: iter_gen_tps,
-                    combined_tps: 0.0,
+                    combined_tps: iter_combined_tps,
                     latency_per_token: iter_latency,
                     first_token_time: res.first_token_time as f64,
                 });
@@ -499,7 +504,7 @@ async fn run_bench_tune_runtime_only(
         config,
         client,
     } = ctx;
-    run_iteration_loop(IterationLoopCtx {
+    let loop_fut = run_iteration_loop(IterationLoopCtx {
         prompt: &prompt,
         host: server_host,
         port: server_port,
@@ -509,9 +514,13 @@ async fn run_bench_tune_runtime_only(
         client,
         log_tx,
         log_prefix: "(runtime-only mode)",
-    })
-    .await
-    .map(|mut r| {
+    });
+    let result = tokio::time::timeout(config.test_timeout, loop_fut).await;
+    let result = match result {
+        Ok(inner) => inner,
+        Err(_) => return Err(format!("Test timed out after {:?}", config.test_timeout).into()),
+    };
+    result.map(|mut r| {
         r.base_settings = Some(settings.clone());
         r
     })
@@ -574,6 +583,16 @@ async fn run_bench_tune_single_test(
     if let Some(expert_count) = params.expert_count {
         settings.expert_count = expert_count;
     }
+    if let Some(ref spec_type) = params.spec_type {
+        settings.spec_type = if spec_type == "Off" {
+            String::new()
+        } else {
+            spec_type.clone()
+        };
+    }
+    if let Some(draft_tokens) = params.draft_tokens {
+        settings.draft_tokens = draft_tokens;
+    }
 
     // Spawn server with test parameters
     let (exit_tx, _exit_rx) = tokio::sync::mpsc::channel(1);
@@ -627,7 +646,7 @@ async fn run_bench_tune_single_test(
         return Err("Server failed to become healthy".into());
     }
 
-    let result = run_iteration_loop(IterationLoopCtx {
+    let loop_fut = run_iteration_loop(IterationLoopCtx {
         prompt: &prompt,
         host,
         port: server_handle.port,
@@ -637,8 +656,15 @@ async fn run_bench_tune_single_test(
         client,
         log_tx,
         log_prefix: "",
-    })
-    .await;
+    });
+    let result = tokio::time::timeout(config.test_timeout, loop_fut).await;
+    let result = match result {
+        Ok(inner) => inner,
+        Err(_) => {
+            let _ = crate::backend::server::kill_server(server_handle).await;
+            return Err(format!("Test timed out after {:?}", config.test_timeout).into());
+        }
+    };
 
     let _ = crate::backend::server::kill_server(server_handle).await;
     tokio::time::sleep(Duration::from_secs(1)).await;

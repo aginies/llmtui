@@ -869,6 +869,6 @@ fn bench_tune_config_new_has_default_params() {
     assert_eq!(config.model_path.to_string_lossy(), "/path/to/model.gguf");
     assert_eq!(config.num_iterations, 3);
     assert_eq!(config.prompt, "test prompt");
-    assert_eq!(config.params_to_test.len(), 8);
+    assert_eq!(config.params_to_test.len(), 10);
     assert_eq!(config.test_duration, std::time::Duration::from_secs(30));
 }

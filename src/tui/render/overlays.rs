@@ -884,7 +884,7 @@ fn render_bench_tune_setup(
     bench_mode_selection: usize,
     editing_prompt: bool,
 ) {
-    let w = 70u16;
+    let w = 90u16;
     let h = 28u16;
     let popup_area = Rect {
         x: (area.width.saturating_sub(w)) / 2,
@@ -1117,7 +1117,7 @@ fn render_bench_tune_setup(
         [
             Constraint::Length(2),
             Constraint::Length(4),
-            Constraint::Length(16),
+            Constraint::Length(18),
             Constraint::Fill(1),
         ],
     );
