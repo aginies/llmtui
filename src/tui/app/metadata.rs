@@ -33,10 +33,10 @@ impl App {
         }
     }
 
-    /// Read metadata (layers, hidden size) from the model's GGUF file.
+   /// Read metadata (layers, hidden size) from the model's GGUF file.
     ///
-    /// Uses a single cache keyed by the model's full path, so each unique
-    /// model is parsed only once regardless of how many times it's selected.
+    /// Uses a cache keyed by the model's full path, so each unique model
+    /// is parsed only once regardless of how many times it's selected.
     pub fn update_model_metadata(&mut self) {
         let model = match self.selected_model() {
             Some(m) => m.clone(),
@@ -44,38 +44,20 @@ impl App {
         };
         let key = model.path.to_string_lossy().to_string();
 
-        // 1. Debounce: skip re-parse if file hasn't changed.
-        // This must run before the cache lookup so file changes are detected
-        // even when a stale cache entry exists.
-        if let Ok(meta) = std::fs::metadata(&model.path) {
-            let mtime = meta.modified().unwrap_or(std::time::SystemTime::now());
-            let (last_path, last_mtime) = &self.loading.last_metadata_parse;
-            if last_path == &model.path && mtime == *last_mtime {
-                // File unchanged — use cached values if available.
-                if let Some(cached) = self.search.gguf_metadata_cache.get(&key) {
-                    self.loading.model_total_layers = cached.layers;
-                    self.loading.model_hidden_size = cached.hidden_size;
-                    self.loading.model_n_ctx_train = cached.n_ctx_train;
-                    self.loading.model_n_head = cached.n_head;
-                    self.loading.model_n_kv_head = cached.n_kv_head;
-                }
-                if self.loading.model_hidden_size > 0 {
-                    self.update_vram_estimate();
-                }
-                return;
+        // Cache hit — use stored values immediately without re-parsing.
+        if let Some(cached) = self.search.gguf_metadata_cache.get(&key) {
+            self.loading.model_total_layers = cached.layers;
+            self.loading.model_hidden_size = cached.hidden_size;
+            self.loading.model_n_ctx_train = cached.n_ctx_train;
+            self.loading.model_n_head = cached.n_head;
+            self.loading.model_n_kv_head = cached.n_kv_head;
+            if self.loading.model_hidden_size > 0 {
+                self.update_vram_estimate();
             }
-            self.loading.last_metadata_parse = (model.path.clone(), mtime);
+            return;
         }
 
-        // 2. Evict cache entries if it exceeds the maximum size.
-        // BTreeMap keys are sorted, so `next()` returns the smallest (oldest) key.
-        const MAX_CACHE_SIZE: usize = 50;
-        if self.search.gguf_metadata_cache.len() > MAX_CACHE_SIZE
-            && let Some(first_key) = self.search.gguf_metadata_cache.keys().next().cloned() {
-                self.search.gguf_metadata_cache.remove(&first_key);
-            }
-
-        // 3. Perform the actual parse
+        // Cache miss — parse the GGUF file and store in cache.
         if let Ok(meta) = crate::models::GgufMetadata::from_path(&model.path) {
             self.loading.model_total_layers = meta.layers;
             self.loading.model_hidden_size = meta.hidden_size;
@@ -88,7 +70,6 @@ impl App {
                 self.settings.draft_tokens = meta.draft_tokens;
             }
 
-            // Cache the parsed metadata
             self.search.gguf_metadata_cache.insert(key, meta);
         } else {
             self.add_log(

@@ -151,7 +151,6 @@ impl App {
                 model_n_head: 0,
                 model_n_kv_head: 0,
                 vram_estimate: 0,
-                last_metadata_parse: (std::path::PathBuf::new(), std::time::SystemTime::now()),
                 health_poll_handle: None,
                 loading_completion_rx: None,
             },
