@@ -320,17 +320,8 @@ pub async fn download_file(
             return Err(anyhow::anyhow!("Download cancelled"));
         }
         if state == DOWNLOAD_STATE_PAUSED {
-            // Pause: wait until resumed (state changes back to DOWNLOADING)
-            // Also check download_state_arc if present for UI consistency
-            let should_pause = if let Some(arc) = &progress.download_state_arc {
-                arc.load(std::sync::atomic::Ordering::Relaxed) == DOWNLOAD_STATE_PAUSED
-            } else {
-                true
-            };
-            if should_pause {
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                continue;
-            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            continue;
         }
 
         // Send progress update at most every 100ms and only if bytes changed
