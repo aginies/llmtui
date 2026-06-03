@@ -11,6 +11,7 @@ use super::panel::{
     handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key,
     handle_settings_key, handle_system_prompt_presets_key,
 };
+use crate::config::builtin_profiles;
 use super::readme::{fetch_and_store_readme, fetch_readme_for_selected, handle_readme_key};
 
 fn picker_nav_up(selected: &mut usize) {
@@ -162,6 +163,31 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
 
         mark_settings_dirty(app, false);
+        return;
+    }
+
+    // Ctrl+P: open profile picker modal (global, works from any panel)
+    if key.code == KeyCode::Char('p') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        let builtin = builtin_profiles();
+        let all_profiles = app.config.merged_profiles();
+        app.picker.profile_picker_entries = all_profiles
+            .iter()
+            .map(|p| {
+                let is_builtin = builtin.iter().any(|b| b.name == p.name);
+                let desc = if is_builtin {
+                    "built-in".to_string()
+                } else {
+                    p.description.clone()
+                };
+                (p.name.clone(), desc)
+            })
+            .collect();
+        app.picker.profile_picker_selected = 0;
+        app.ui.global_mode = GlobalMode::ProfilePicker {
+            entries: app.picker.profile_picker_entries.clone(),
+            selected: app.picker.profile_picker_selected,
+            profiles: all_profiles.clone(),
+        };
         return;
     }
 

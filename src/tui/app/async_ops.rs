@@ -182,12 +182,13 @@ impl App {
         if self.download.last_progress_update.elapsed() < DOWNLOAD_PROGRESS_INTERVAL {
             return;
         }
-        self.download.last_progress_update = std::time::Instant::now();
 
         let mut redraw = false;
         let mut download_logs = Vec::new();
+        let mut received_any = false;
         if let Some(rx) = &mut self.download.download_rx {
             while let Ok(state) = rx.try_recv() {
+                received_any = true;
                 if let Some(idx) = self
                     .download
                     .download_progress
@@ -225,6 +226,9 @@ impl App {
                 }
                 redraw = true;
             }
+        }
+        if received_any {
+            self.download.last_progress_update = std::time::Instant::now();
         }
         for log in download_logs {
             self.add_log(log, crate::config::LogLevel::Info);

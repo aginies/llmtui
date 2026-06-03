@@ -794,8 +794,8 @@ impl Default for DefaultParams {
             kv_cache_offload: true,
             parallel: 1,
             max_concurrent_predictions: None,
-            system_prompt: "You are a helpful assistant.".to_string(),
-            system_prompt_preset_name: "General".to_string(),
+            system_prompt: "You are an expert software developer. Write clean, well-documented code. Explain your reasoning and suggest improvements.".to_string(),
+            system_prompt_preset_name: "Coder".to_string(),
 
             // GPU
             gpu_layers: -1,

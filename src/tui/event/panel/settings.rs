@@ -1,7 +1,6 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 
 use super::super::helpers::{mark_settings_dirty, sync_global_settings};
-use crate::config::builtin_profiles;
 use crate::models::CacheQuantType;
 use crate::tui::app::{App, GlobalMode};
 use crate::tui::settings;
@@ -106,31 +105,6 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.reset_to_defaults();
             return;
         }
-    }
-
-    // Ctrl+P: open profile picker modal
-    if key.code == KeyCode::Char('p') && key.modifiers.contains(KeyModifiers::CONTROL) {
-        let builtin = builtin_profiles();
-        let all_profiles = app.config.merged_profiles();
-        app.picker.profile_picker_entries = all_profiles
-            .iter()
-            .map(|p| {
-                let is_builtin = builtin.iter().any(|b| b.name == p.name);
-                let desc = if is_builtin {
-                    "built-in".to_string()
-                } else {
-                    p.description.clone()
-                };
-                (p.name.clone(), desc)
-            })
-            .collect();
-        app.picker.profile_picker_selected = 0;
-        app.ui.global_mode = GlobalMode::ProfilePicker {
-            entries: app.picker.profile_picker_entries.clone(),
-            selected: app.picker.profile_picker_selected,
-            profiles: all_profiles.clone(),
-        };
-        return;
     }
 
     // Ctrl+E: toggle field (use SettingField if available)
