@@ -165,11 +165,8 @@ async fn main() -> Result<()> {
                 tls_cert,
                 tls_key,
             })
-            .await
-            .map_err(|e| {
-                tracing::error!("{}", e);
-                e
-            })
+            .await?;
+            Ok(())
         }
         Cli::Tui {
             models_dirs: cli_models_dirs,
@@ -212,7 +209,7 @@ async fn main() -> Result<()> {
 
             // If CLI models_dirs are provided, override the config ones
             if let Some(dirs) = cli_models_dirs {
-                config.models_dirs = resolve_models_dirs(&Some(dirs));
+                config.models_dirs = resolve_models_dirs(dirs);
             }
 
             // Apply CLI backend override
@@ -378,7 +375,9 @@ async fn main() -> Result<()> {
                         crossterm::event::Event::Resize(_, _) => {}
                         _ => {}
                     }
-                    app.ui.needs_redraw = true;
+                    if matches!(event, crossterm::event::Event::Key(_) | crossterm::event::Event::Mouse(_)) {
+                        app.ui.needs_redraw = true;
+                    }
                 }
 
                 if !app.running {
@@ -426,14 +425,6 @@ async fn main() -> Result<()> {
     }
 }
 
-fn resolve_models_dirs(cli_value: &Option<Vec<String>>) -> Vec<PathBuf> {
-    match cli_value {
-        Some(dirs) => dirs.iter().map(PathBuf::from).collect(),
-        None => {
-            let home = dirs::home_dir()
-                .or_else(|| std::env::current_dir().ok())
-                .unwrap_or_default();
-            vec![home.join(".local/share/llm-manager/models")]
-        }
-    }
+fn resolve_models_dirs(dirs: Vec<String>) -> Vec<PathBuf> {
+    dirs.iter().map(PathBuf::from).collect()
 }
