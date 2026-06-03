@@ -76,6 +76,8 @@ cargo run -- --config /path/to/config.yaml
 | `seed` | -1 | Random seed (-1 = random) |
 | `backend` | auto-detected | Default backend (auto-detected: Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel; falls back to cpu). Options: `cpu`, `vulkan`, `rocm`, `rocm-lemonade`, `cuda` |
 
+Additional advanced parameters are available including RoPE scaling, DRY sampling, NUMA optimization, cache quantization, speculative decoding, chat templates, and more. These can be configured via the LLM Settings panel or per-model config files.
+
 ## Profiles
 
 Profiles are named presets of settings. The built-in profiles are:

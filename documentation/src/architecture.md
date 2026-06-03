@@ -139,7 +139,7 @@ A post-filter checks that the model_id contains the search query (case-insensiti
 
 **Multi-word search:** Space-separated words are split and each word must match the model name (AND logic). Matching words are highlighted in cyan in the results list.
 
-- Default: 70 results per page (max 200)
+- Default: 50 results per page (max 200)
 - Pagination: `Ctrl+B` goes back, `Down` at bottom loads more
 - Sort order cycles: Relevance → Downloads → Likes → Trending → Created
 - README fetching: `->` downloads and renders the model's README

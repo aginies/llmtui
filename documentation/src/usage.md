@@ -155,7 +155,7 @@ The LLM Settings panel has 32 standard fields, 16 expert fields (revealed with `
 | Field | Default | Description |
 |-------|---------|-------------|
 | **Prompt** | General | System prompt preset that defines the model's initial behavior. Presets include General, Coder, Thinker, Mathematician, and any user-defined prompts. |
-| **Context** | 32096 | Context window size in tokens. Must be a power of two. Larger values consume more VRAM and RAM. Models often have a maximum context length (e.g., 32K, 128K). |
+| **Context** | 131072 | Context window size in tokens. Larger values consume more VRAM and RAM. Models often have a maximum context length (e.g., 32K, 128K). |
 | **Keep in memory** | false | Locks model weights in RAM (`-mlock`) to prevent the OS from swapping them out. Useful when repeatedly loading/unloading models. Increases RAM usage. |
 
 #### GPU Offload
@@ -185,7 +185,7 @@ The LLM Settings panel has 32 standard fields, 16 expert fields (revealed with `
 | **Top-k** | 40 | Limits sampling to the k most likely next tokens. `0` disables. Smaller values make outputs more focused. Typical: 20-50. |
 | **Top-p** | 0.95 | Nucleus sampling: limits to tokens whose cumulative probability reaches p. `1.0` disables. Lower values (0.8-0.95) reduce randomness. |
 | **Min P** | 0.0 | Minimum probability threshold for sampling. Tokens with probability below this fraction of the highest-probability token are excluded. Useful for controlling extreme outputs. |
-| **Max Tokens** | 0 | Maximum tokens to generate per response. `0` means no limit (until EOS token). |
+| **Max Tokens** | None (unlimited) | Maximum tokens to generate per response. None means no limit (until EOS token). |
 
 #### Repetition Control
 

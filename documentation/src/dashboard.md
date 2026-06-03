@@ -120,7 +120,7 @@ The WebSocket Dashboard supports TLS (HTTPS) for encrypted connections.
 Enable TLS from the **Server Settings** panel (F2 → Dashboard):
 
 1. **Enabled** — toggle on/off (default: off)
-2. **TLS** — toggle on/off (default: off)
+2. **TLS** — toggle on/off (default: on)
 3. **TLS Cert** — path to a PEM certificate file (optional; leave blank for auto-generated self-signed certificate)
 4. **TLS Key** — path to a PEM private key file (optional; leave blank for auto-generated certificate)
 

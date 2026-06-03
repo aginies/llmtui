@@ -161,8 +161,9 @@ pub struct Config {
     pub profiles: ProfileStore,
     pub system_prompt_presets: PresetStore,
     pub rpc_workers: Vec<RpcWorker>,
-    pub ws_server: WsServer,
     pub search_limit: u32,
+    pub active_panel: ActivePanel,
+    pub left_pct: u16,
 }
 
 /// A remote RPC worker for distributed inference.
@@ -233,11 +234,12 @@ pub struct BenchTuneConfig {
     pub model_path: PathBuf,
     pub num_iterations: u32,
     pub prompt: String,
-    pub params: Vec<BenchTuneParam>,
-    pub duration: Duration,
-    pub mode: BenchTuneMode,
-    pub n_predict: usize,
+    pub params_to_test: Vec<BenchTuneParam>,
+    pub test_duration: Duration,
+    pub bench_mode: BenchTuneMode,
+    pub n_predict: u32,
     pub chat_template_kwargs: Option<String>,
+    pub test_timeout: Duration,
 }
 
 /// A tunable parameter for benchmarking.
@@ -247,6 +249,7 @@ pub struct BenchTuneParam {
     pub max: f64,
     pub step: f64,
     pub enabled: bool,
+    pub variants: Vec<String>,
 }
 
 /// Actual parameter values for a benchmark run.
@@ -271,6 +274,7 @@ pub struct BenchTuneResult {
     pub outputs: Vec<String>,
     pub per_iteration_metrics: Vec<BenchTuneMetrics>,
     pub base_settings: Option<ModelSettings>,
+    pub server_command: Option<String>,
 }
 
 /// Metrics from a benchmark run.
@@ -298,9 +302,6 @@ pub fn estimate_vram_mib(
     n_kv_head_opt: Option<u32>,
     gpu_mem_total_mib: u64,
 ) -> u64
-
-/// Format bytes as MB or GB.
-pub fn format_mib(mib: u64) -> String
 ```
 
 ## Configuration
