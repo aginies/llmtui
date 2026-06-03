@@ -393,6 +393,36 @@ pub fn build_server_cmd(
             "--override-kv",
             format!("llama.context_length={}", effective_ctx),
         );
+        if let Some(model) = model {
+            if let Ok(gguf_meta) = crate::models::GgufMetadata::from_path(&model.path) {
+                let orig_ctx = gguf_meta.n_ctx_train;
+                push_arg(
+                    &mut cmd,
+                    &mut parts,
+                    "--yarn-orig-ctx",
+                    orig_ctx,
+                );
+                match gguf_meta.arch.as_str() {
+                    "qwen3moe" => {
+                        push_arg(
+                            &mut cmd,
+                            &mut parts,
+                            "--override-kv",
+                            "qwen35moe.context_length=int:1000000",
+                        );
+                    }
+                    "qwen3" => {
+                        push_arg(
+                            &mut cmd,
+                            &mut parts,
+                            "--override-kv",
+                            "qwen35.context_length=int:1000000",
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 
     let resolved_host = clean_host(&settings.host);
