@@ -45,6 +45,55 @@ fn default_tag(repo: &str) -> String {
     }
 }
 
+/// Extract the numeric part from a version tag (e.g. "v3081" -> "3081", "b1273" -> "1273").
+fn extract_version_number(tag: &str) -> u64 {
+    tag.chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect::<String>()
+        .parse::<u64>()
+        .unwrap_or(0)
+}
+
+/// Compare two version tags, returning the newer one.
+/// Handles both "v1234" and "b1234" formats by extracting numeric parts.
+fn compare_versions<'a>(a: &'a str, b: &'a str) -> &'a str {
+    let a_num = extract_version_number(a);
+    let b_num = extract_version_number(b);
+    if a_num >= b_num {
+        a
+    } else {
+        b
+    }
+}
+
+/// Map a backend to the GitHub repo and asset name pattern to search for.
+/// Returns (repo, asset_pattern) or None for backends that don't need asset lookup.
+fn resolve_backend_key(backend: &crate::models::Backend) -> Option<(&'static str, &'static str)> {
+    match backend {
+        // Linux x64 backends from ggml-org/llama.cpp
+        crate::models::Backend::Cpu => Some(("ggml-org/llama.cpp", "bin-ubuntu-x64.tar.gz")),
+        crate::models::Backend::Vulkan => Some(("ggml-org/llama.cpp", "bin-ubuntu-vulkan-x64.tar.gz")),
+        crate::models::Backend::Rocm => Some(("ggml-org/llama.cpp", "bin-ubuntu-rocm-7.2-x64.tar.gz")),
+        // Linux ARM64
+        crate::models::Backend::CpuArm64 => Some(("ggml-org/llama.cpp", "bin-ubuntu-arm64.tar.gz")),
+        // ROCm Lemonade (separate repo)
+        crate::models::Backend::RocmLemonade => Some(("lemonade-sdk/llamacpp-rocm", "rocm-")),
+        // CUDA (separate repo)
+        crate::models::Backend::Cuda => Some(("ai-dock/llama.cpp-cuda", "cuda-12.8")),
+        // Windows CPU/Vulkan
+        crate::models::Backend::CpuWindows => Some(("ggml-org/llama.cpp", "bin-win-cpu-x64.zip")),
+        crate::models::Backend::VulkanWindows => Some(("ggml-org/llama.cpp", "bin-win-vulkan-x64.zip")),
+        // Windows HIP (AMD)
+        crate::models::Backend::HipWindows => Some(("ggml-org/llama.cpp", "bin-win-hip-x64.zip")),
+        // Windows CUDA (different CUDA versions)
+        crate::models::Backend::CudaWindows12_4 => Some(("ai-dock/llama.cpp-cuda", "cuda-12.4")),
+        crate::models::Backend::CudaWindows13_1 => Some(("ai-dock/llama.cpp-cuda", "cuda-13.1")),
+        // macOS (no Vulkan/CUDA; only CPU)
+        crate::models::Backend::CpuMacosArm64 => Some(("ggml-org/llama.cpp", "macos-arm64.tar.gz")),
+        crate::models::Backend::CpuMacosX64 => Some(("ggml-org/llama.cpp", "macos-x64.tar.gz")),
+    }
+}
+
 /// Search models on HuggingFace.
 ///
 /// `limit` is the number of results per page (default 10, max 200).
@@ -480,7 +529,7 @@ pub async fn resolve_backend_binary(
             v.to_string()
         }
         _ => {
-            // Check if we have any local version first before asking GitHub
+            // Check if we have any local version first
             let installed = list_installed_backends();
             let backend_versions: Vec<_> = installed
                 .iter()
@@ -501,21 +550,43 @@ pub async fn resolve_backend_binary(
                 .map(|(_, t)| t.clone())
                 .next(); // list_installed_backends is already sorted by tag desc
 
-            if let Some(t) = &latest_local {
-                tracing::info!("  -> using latest installed version: {}", t);
-                t.clone()
-            } else {
-                // Fetch latest release tag (best-effort; falls back to hardcoded tag)
-                let repo = match backend {
-                    crate::models::Backend::RocmLemonade => "lemonade-sdk/llamacpp-rocm",
-                    crate::models::Backend::Cuda => "ai-dock/llama.cpp-cuda",
-                    _ => "ggml-org/llama.cpp",
-                };
+            // Also check what's the latest available from GitHub
+            let github_latest = if let Some((repo, pattern)) = resolve_backend_key(&backend) {
                 tracing::info!(
-                    "  -> no local version, fetching latest from GitHub repo: {}",
-                    repo
+                    "  -> fetching latest available version from GitHub repo '{}' with asset pattern '{}'",
+                    repo,
+                    pattern
                 );
-                fetch_latest_release_tag(repo, &default_tag(repo)).await
+                let available = latest_release_with_asset(repo, pattern, &default_tag(repo)).await;
+                tracing::info!("  -> latest available from GitHub: {}", available);
+                Some(available)
+            } else {
+                None
+            };
+
+            match (latest_local, github_latest) {
+                (Some(local), Some(available)) => {
+                    let chosen = compare_versions(&local, &available);
+                    if local != available {
+                        tracing::info!(
+                            "  -> using newer version: local={}, available={}",
+                            local,
+                            available
+                        );
+                    }
+                    chosen.to_string()
+                }
+                (Some(local), None) => {
+                    tracing::info!("  -> using latest installed version: {}", local);
+                    local
+                }
+                (None, Some(available)) => {
+                    tracing::info!("  -> using latest from GitHub: {}", available);
+                    available
+                }
+                (None, None) => {
+                    default_tag("ggml-org/llama.cpp").to_string()
+                }
             }
         }
     };
@@ -828,29 +899,255 @@ where
     }
 }
 
-/// Fetch the latest release tag from a GitHub repository.
-/// Returns the tag_name from the API, or falls back to a hardcoded default.
-async fn fetch_latest_release_tag(repo: &str, fallback: &str) -> String {
+/// Find the latest release tag that has an asset matching the given pattern.
+/// Iterates through the last 100 releases and returns the first tag whose
+/// release assets contain a file whose name includes `asset_pattern`.
+/// Falls back to the provided default tag if no match is found.
+async fn latest_release_with_asset(
+    repo: &str,
+    asset_pattern: &str,
+    fallback: &str,
+) -> String {
     let client = reqwest::Client::new();
-    let url = format!("https://api.github.com/repos/{}/releases/latest", repo);
+    let url = format!("https://api.github.com/repos/{}/releases?per_page=100", repo);
+    latest_release_with_asset_inner(&client, &url, asset_pattern, fallback).await
+}
+
+async fn latest_release_with_asset_inner(
+    client: &reqwest::Client,
+    url: &str,
+    asset_pattern: &str,
+    fallback: &str,
+) -> String {
     match client
-        .get(&url)
+        .get(url)
         .header("Accept", "application/vnd.github.v3+json")
         .header("User-Agent", "llm-manager/1.1.1")
         .send()
         .await
     {
         Ok(resp) => match resp.error_for_status() {
-            Ok(resp) => match resp.json::<serde_json::Value>().await {
-                Ok(json) => json
-                    .get("tag_name")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| fallback.to_string()),
+            Ok(resp) => match resp.json::<Vec<serde_json::Value>>().await {
+                Ok(releases) => {
+                    let count = releases.len();
+                    for release in &releases {
+                        if let Some(assets) = release.get("assets").and_then(|v| v.as_array()) {
+                            let tag = release
+                                .get("tag_name")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| fallback.to_string());
+                            for asset in assets {
+                                if let Some(name) = asset.get("name").and_then(|v| v.as_str()) {
+                                    if name.contains(asset_pattern) {
+                                        tracing::info!(
+                                            "  -> found asset '{}' in release '{}'",
+                                            name,
+                                            tag
+                                        );
+                                        return tag;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    tracing::info!(
+                        "  -> no asset matching '{}' found in {} releases, using fallback '{}'",
+                        asset_pattern,
+                        count,
+                        fallback
+                    );
+                    fallback.to_string()
+                }
                 Err(_) => fallback.to_string(),
             },
             Err(_) => fallback.to_string(),
         },
         Err(_) => fallback.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    fn make_releases_response(releases: serde_json::Value) -> ResponseTemplate {
+        ResponseTemplate::new(200).set_body_string(releases.to_string())
+    }
+
+  #[tokio::test]
+    async fn test_latest_release_with_asset_finds_vulkan() {
+        let server = MockServer::start().await;
+
+        let releases = serde_json::json!([
+            {
+                "tag_name": "v3081",
+                "assets": [
+                    {"name": "llama-v3081-bin-ubuntu-x64.tar.gz"},
+                    {"name": "llama-v3081-bin-ubuntu-rocm-7.2-x64.tar.gz"}
+                ]
+            },
+            {
+                "tag_name": "v3080",
+                "assets": [
+                    {"name": "llama-v3080-bin-ubuntu-x64.tar.gz"},
+                    {"name": "llama-v3080-bin-ubuntu-vulkan-x64.tar.gz"},
+                    {"name": "llama-v3080-bin-ubuntu-rocm-7.2-x64.tar.gz"}
+                ]
+            }
+        ]);
+
+        Mock::given(method("GET"))
+            .and(path("/org/repo/releases"))
+            .respond_with(make_releases_response(releases))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+
+        let url = format!("{}/org/repo/releases?per_page=100", server.uri());
+        let result = latest_release_with_asset_inner(
+            &client,
+            &url,
+            "bin-ubuntu-vulkan-x64.tar.gz",
+            "fallback-tag",
+        )
+        .await;
+
+        assert_eq!(result, "v3080");
+    }
+
+    #[tokio::test]
+    async fn test_latest_release_with_asset_no_match_fallback() {
+        let server = MockServer::start().await;
+
+        let releases = serde_json::json!([
+            {
+                "tag_name": "v3081",
+                "assets": [
+                    {"name": "llama-v3081-bin-ubuntu-x64.tar.gz"}
+                ]
+            },
+            {
+                "tag_name": "v3080",
+                "assets": [
+                    {"name": "llama-v3080-bin-ubuntu-x64.tar.gz"}
+                ]
+            }
+        ]);
+
+        Mock::given(method("GET"))
+            .and(path("/org/repo/releases"))
+            .respond_with(make_releases_response(releases))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+
+        let url = format!("{}/org/repo/releases?per_page=100", server.uri());
+        let result = latest_release_with_asset_inner(
+            &client,
+            &url,
+            "bin-ubuntu-vulkan-x64.tar.gz",
+            "fallback-tag",
+        )
+        .await;
+
+        assert_eq!(result, "fallback-tag");
+    }
+
+    #[tokio::test]
+    async fn test_latest_release_with_asset_empty_repo_fallback() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/org/repo/releases"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+
+        let url = format!("{}/org/repo/releases?per_page=100", server.uri());
+        let result = latest_release_with_asset_inner(
+            &client,
+            &url,
+            "bin-ubuntu-vulkan-x64.tar.gz",
+            "fallback-tag",
+        )
+        .await;
+
+        assert_eq!(result, "fallback-tag");
+    }
+
+    #[tokio::test]
+    async fn test_latest_release_with_asset_uses_first_match() {
+        let server = MockServer::start().await;
+
+        // Vulkan asset appears in both releases; should pick the first (most recent)
+        let releases = serde_json::json!([
+            {
+                "tag_name": "v3081",
+                "assets": [
+                    {"name": "llama-v3081-bin-ubuntu-vulkan-x64.tar.gz"}
+                ]
+            },
+            {
+                "tag_name": "v3080",
+                "assets": [
+                    {"name": "llama-v3080-bin-ubuntu-vulkan-x64.tar.gz"}
+                ]
+            }
+        ]);
+
+        Mock::given(method("GET"))
+            .and(path("/org/repo/releases"))
+            .respond_with(make_releases_response(releases))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+
+        let url = format!("{}/org/repo/releases?per_page=100", server.uri());
+        let result = latest_release_with_asset_inner(
+            &client,
+            &url,
+            "bin-ubuntu-vulkan-x64.tar.gz",
+            "fallback-tag",
+        )
+        .await;
+
+        assert_eq!(result, "v3081");
+    }
+
+    #[test]
+    fn test_extract_version_number() {
+        assert_eq!(extract_version_number("v3081"), 3081);
+        assert_eq!(extract_version_number("b4100"), 4100);
+        assert_eq!(extract_version_number("v1.2.3"), 123);
+        assert_eq!(extract_version_number("abc"), 0);
+    }
+
+    #[test]
+    fn test_compare_versions() {
+        assert_eq!(compare_versions("v3081", "v3080"), "v3081");
+        assert_eq!(compare_versions("v3080", "v3081"), "v3081");
+        assert_eq!(compare_versions("v3081", "v3081"), "v3081");
+        assert_eq!(compare_versions("b9266", "b9279"), "b9279");
+        assert_eq!(compare_versions("b9279", "b9266"), "b9279");
     }
 }
