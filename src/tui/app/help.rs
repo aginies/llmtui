@@ -27,7 +27,7 @@ impl App {
                     Span::raw("  Unload model from server"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Ctrl+D / Del", y),
+                    Span::styled("^D / Del", y),
                     Span::raw("  Delete model (with confirmation)"),
                 ]),
                 Line::from(""),
@@ -168,24 +168,24 @@ impl App {
                 ]),
                 Line::from(vec![
                     Span::styled("0-9, -, .", y),
-                    Span::raw("  Type numeric value  ·  Ctrl+F7/8/9 switch panels"),
+                    Span::raw("  Type numeric value  ·  ^F7/8/9 switch panels"),
                 ]),
                 Line::from(vec![Span::styled("Esc", y), Span::raw("  Cancel edit")]),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Ctrl+S", y),
+                    Span::styled("^S", y),
                     Span::raw("  Save settings for selected model"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Ctrl+R", y),
+                    Span::styled("^R", y),
                     Span::raw("  Reset to defaults"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Ctrl+E", y),
+                    Span::styled("^E", y),
                     Span::raw("  Toggle enabled/disabled"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Ctrl+X", y),
+                    Span::styled("^X", y),
                     Span::raw("  Toggle expert mode (shows additional parameters)"),
                 ]),
                 Line::from(""),

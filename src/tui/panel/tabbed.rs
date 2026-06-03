@@ -65,7 +65,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     } else {
         ""
     };
-    let title = format!("{} LLM Settings (F4) [Ctrl+F9] ", title_prefix);
+    let title = format!("{} LLM Settings (F4) [^F9] ", title_prefix);
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(title),
@@ -294,9 +294,9 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         .collect();
 
     let title = if server_running {
-        " Server Settings (F2) [Ctrl+F8] (Disabled) "
+        " Server Settings (F2) [^F8] (Disabled) "
     } else {
-        " Server Settings (F2) [Ctrl+F8] "
+        " Server Settings (F2) [^F8] "
     };
     let block = Block::default()
         .title(title)

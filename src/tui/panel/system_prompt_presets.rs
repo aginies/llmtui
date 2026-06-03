@@ -83,7 +83,7 @@ pub fn render_all<'a>(
 
         lines.push(Line::from(""));
         lines.push(Line::from(vec![Span::styled(
-            "[Enter] new line  [Esc] cancel  [Ctrl+S] save",
+            "[Enter] new line  [Esc] cancel  [^S] save",
             Style::default().fg(Color::Cyan),
         )]));
     } else {

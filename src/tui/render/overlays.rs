@@ -626,7 +626,7 @@ fn render_prompt_picker(
         }
         picker_lines.push(Line::from(""));
         picker_lines.push(Line::from(Span::styled(
-            "[Enter] new line  [Esc] cancel  [Ctrl+S] save",
+            "[Enter] new line  [Esc] cancel  [^S] save",
             Style::default().fg(Color::Cyan),
         )));
     } else {

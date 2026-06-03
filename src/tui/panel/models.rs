@@ -234,7 +234,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     match &app.models_mode {
         ModelsMode::List => {
             let title = if app.is_panel_visible(0) {
-                " Models [Ctrl+F7] ".to_string()
+                " Models [^F7] ".to_string()
             } else {
                 " Models ".to_string()
             };
@@ -364,14 +364,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let display_query = app.search.search_input.as_deref().unwrap_or(query);
             let title = if app.is_panel_visible(0) {
                 format!(
-                    " Search [Ctrl+F7]: {} [{}] ({} results) [Ctrl+s:Sort] [Esc:Back] [->:Readme]",
+                    " Search [^F7]: {} [{}] ({} results) [^s:Sort] [Esc:Back] [->:Readme]",
                     display_query,
                     sort_label,
                     results.len()
                 )
             } else {
                 format!(
-                    " Search: {} [{}] ({} results) [Ctrl+s:Sort] [Esc:Back] [->:Readme]",
+                    " Search: {} [{}] ({} results) [^s:Sort] [Esc:Back] [->:Readme]",
                     display_query,
                     sort_label,
                     results.len()
