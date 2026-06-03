@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use llm_manager::config::*;
 use llm_manager::models::*;
+use llm_manager::tui::app::ActivePanel;
 
 // ── DefaultParams ───────────────────────────────────────────────
 
@@ -605,9 +606,11 @@ fn config_default_empty_model_overrides() {
         model_overrides: ModelConfigStore::new(),
         profiles: ProfileStore::new(),
         system_prompt_presets: PresetStore::new(),
-        rpc_workers: Vec::new(),
-        search_limit: 50,
-    };
+          rpc_workers: Vec::new(),
+            search_limit: 50,
+            active_panel: ActivePanel::Models,
+            left_pct: 55,
+        };
     // Store is initialized successfully (may contain existing configs on disk)
     let _keys = config.model_overrides.keys();
 }

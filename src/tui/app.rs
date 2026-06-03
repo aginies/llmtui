@@ -306,6 +306,8 @@ mod tests {
             system_prompt_presets: crate::config::PresetStore::new(),
             rpc_workers: Vec::new(),
             search_limit: 50,
+            active_panel: types::ActivePanel::Models,
+            left_pct: 55,
         };
         let mut app = App::new(config);
         app.loading.loading_phases.clear();
