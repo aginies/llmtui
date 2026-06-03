@@ -84,7 +84,7 @@ fn resolve_backend_key(backend: &crate::models::Backend) -> Option<(&'static str
         crate::models::Backend::CpuWindows => Some(("ggml-org/llama.cpp", "bin-win-cpu-x64.zip")),
         crate::models::Backend::VulkanWindows => Some(("ggml-org/llama.cpp", "bin-win-vulkan-x64.zip")),
         // Windows HIP (AMD)
-        crate::models::Backend::HipWindows => Some(("ggml-org/llama.cpp", "bin-win-hip-x64.zip")),
+        crate::models::Backend::HipWindows => Some(("ggml-org/llama.cpp", "bin-win-hip-radeon-x64.zip")),
         // Windows CUDA (different CUDA versions)
         crate::models::Backend::CudaWindows12_4 => Some(("ai-dock/llama.cpp-cuda", "cuda-12.4")),
         crate::models::Backend::CudaWindows13_1 => Some(("ai-dock/llama.cpp-cuda", "cuda-13.1")),
