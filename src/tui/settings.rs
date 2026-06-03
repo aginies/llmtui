@@ -1175,7 +1175,7 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
     diff_int!(parts, s, current, cache_reuse, "cache_reuse");
     diff_option!(parts, s, current, max_tokens, "max_tokens");
-   diff_int!(parts, s, current, draft_tokens, "draft_tokens");
+    diff_int!(parts, s, current, draft_tokens, "draft_tokens");
 
     diff_int!(parts, s, current, keep, "keep");
     diff_int!(parts, s, current, main_gpu, "main_gpu");

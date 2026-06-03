@@ -145,7 +145,7 @@ impl App {
                         Span::styled("API Port", y),
                         Span::raw(self.get_api_port_str()),
                     ]),
-                   Line::from(""),
+                    Line::from(""),
                     Line::from(vec![
                         Span::styled("⇥ Panels", y),
                         Span::raw("  Switch panels"),

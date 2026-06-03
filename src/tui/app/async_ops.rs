@@ -329,7 +329,7 @@ impl App {
                         | crate::models::DownloadStatus::Cancelled
                 )
             });
-              self.download.downloading = !self.download.download_progress.is_empty();
+            self.download.downloading = !self.download.download_progress.is_empty();
             if !self.download.downloading {
                 self.download.download_scroll_state.select(None);
             } else if let Some(idx) = self.download.download_scroll_state.selected()

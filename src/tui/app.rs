@@ -33,7 +33,7 @@ impl App {
         let settings_clone = settings.clone();
         let server_mode = config.default.server_mode;
         let router_max_models = config.default.router_max_models;
-          Self {
+        Self {
             running: true,
             config,
             models: Vec::new(),

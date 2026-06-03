@@ -364,7 +364,7 @@ impl ModelOverride {
             llama_cpp_version_cuda: s.llama_cpp_version_cuda.clone(),
             spec_type: Some(s.spec_type.clone()),
             draft_tokens: Some(s.draft_tokens),
-           tags: Some(s.tags.clone()),
+            tags: Some(s.tags.clone()),
         }
     }
 
@@ -765,12 +765,14 @@ fn default_cache_prompt() -> bool {
     true
 }
 fn default_ws_server_port() -> u16 {
-     49223
- }
- fn default_ws_server_tls_enabled() -> bool {
-     true
- }
- fn default_gpu_layers_mode() -> crate::models::GpuLayersMode {
+    49223
+}
+
+fn default_ws_server_tls_enabled() -> bool {
+    true
+}
+
+fn default_gpu_layers_mode() -> crate::models::GpuLayersMode {
     crate::models::GpuLayersMode::Auto
 }
 

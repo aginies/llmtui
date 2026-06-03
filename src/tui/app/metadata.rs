@@ -33,7 +33,7 @@ impl App {
         }
     }
 
-   /// Read metadata (layers, hidden size) from the model's GGUF file.
+    /// Read metadata (layers, hidden size) from the model's GGUF file.
     ///
     /// Uses a cache keyed by the model's full path, so each unique model
     /// is parsed only once regardless of how many times it's selected.

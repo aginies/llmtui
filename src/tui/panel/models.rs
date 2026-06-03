@@ -377,7 +377,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     results.len()
                 )
             };
-           let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
+            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
                 Color::DarkGray
@@ -516,7 +516,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             ..
         } => {
             let title = format!(" {} - GGUF files ", model_id);
-          let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
+            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
                 Color::DarkGray

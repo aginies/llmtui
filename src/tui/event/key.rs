@@ -1182,7 +1182,7 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 }
             }
-       KeyCode::Char('>') | KeyCode::Char('n') => {
+            KeyCode::Char('>') | KeyCode::Char('n') => {
                 let name = format!(
                     "Custom {}",
                     app.config.system_prompt_presets.user_presets().len() + 1
@@ -1269,7 +1269,7 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         config.chat_template_kwargs.as_deref().unwrap_or("").len();
                 }
             }
-           KeyCode::Char('e')
+            KeyCode::Char('e')
                 if !*editing_prompt
                     && !*editing_kwargs
                     && !app.edit.editing_n_predict
@@ -1347,7 +1347,7 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         (*selected_idx + 1).min(config.params_to_test.len().saturating_sub(1));
                 }
             }
-             KeyCode::Tab => {
+            KeyCode::Tab => {
                 if *editing_param {
                     if config.params_to_test[*selected_idx].variants.is_empty() {
                         *editing_param_field = (*editing_param_field + 1).min(2);
@@ -1434,7 +1434,7 @@ KeyCode::Char('+') if *editing_param && !config.params_to_test[*selected_idx].va
                     }
                 }
             }
-          KeyCode::Char(c) if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() => {
+            KeyCode::Char(c) if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() => {
                 if "0123456789.-eE".contains(c) {
                     TextEditor { buffer: param_edit_buffer, cursor: param_edit_cursor_pos }.insert_char(c);
                 }

@@ -841,8 +841,8 @@ pub struct ModelSettings {
     /// Number of draft tokens for MTP.
     pub draft_tokens: u32,
     /// Tags for the model.
-    pub tags: Vec<String>,
- }
+   pub tags: Vec<String>,
+    }
 
 impl Default for ModelSettings {
     fn default() -> Self {
@@ -1675,7 +1675,7 @@ impl BenchTuneConfig {
                         "ngram-cache".to_string(),
                     ],
                 },
-     BenchTuneParam {
+    BenchTuneParam {
                     name: "draft_tokens".to_string(),
                     min: 0.0,
                     max: 8.0,
@@ -1858,7 +1858,7 @@ mod field_count_tests {
     assert_eq!(
         field_count, 75,
         "ModelSettings has {} fields (expected 75). \
-         Update the checklist at src/models.rs:665 and all locations listed there.",
+        Update the checklist at src/models.rs:665 and all locations listed there.",
         field_count
     );
 }
@@ -1966,7 +1966,7 @@ fn test_is_dirty_uses_derived_eq() {
     assert_eq!(s1 != s3, s1.is_dirty(&s3));
 }
 
-  /// Verify DefaultParams and ModelSettings share the same field set
+   /// Verify DefaultParams and ModelSettings share the same field set
     /// via the From<DefaultParams> for ModelSettings implementation.
     #[test]
     fn test_from_default_params_completeness() {

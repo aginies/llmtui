@@ -968,7 +968,7 @@ mod tests {
         ResponseTemplate::new(200).set_body_string(releases.to_string())
     }
 
-  #[tokio::test]
+    #[tokio::test]
     async fn test_latest_release_with_asset_finds_vulkan() {
         let server = MockServer::start().await;
 
