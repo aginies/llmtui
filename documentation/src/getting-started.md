@@ -77,7 +77,7 @@ To search HuggingFace for models:
 3. Results appear sorted by relevance by default
 4. Press `Ctrl+S` to cycle sort order (Relevance / Downloads / Likes / Trending / Created)
 5. Press `Ctrl+B` to go back one page, or scroll down at the bottom for more results
-6. Press -> to fetch the model's README (auto-fetched when navigating results)
+6. Press `Enter` to browse GGUF files (auto-fetches README) or `->`/`Ctrl+R` to fetch README only
 
 **Multi-word search:** Type space-separated words (e.g. `qwen opus`) to search with AND logic — all words must match the model name.
 
@@ -87,7 +87,7 @@ To download a model from HuggingFace:
 
 1. Press `/` to enter search mode
 2. Type your query and press `Enter`
-3. Press `l` on a result to browse available GGUF files
+3. Press `Enter` on a result to browse available GGUF files
 4. Select a file and press `Enter` to download
 5. Press `⌥C` (Alt+C) to cancel, or `p` to pause/resume the download at any time
 
@@ -115,7 +115,6 @@ The Log panel shows live output from the llama.cpp server. Press `Enter` to expa
 
 ### Other Features
 
-- **Profiles** (`p`) — Quick-switch between saved settings presets
 - **Profile Picker** (`Ctrl+P`) — Open a modal to select from built-in or user profiles
 - **System Prompt Presets** — Named system prompts for different use cases (Coder, Thinker, Mathematician)
 - **RPC Workers** — Manage distributed inference nodes from Server Settings

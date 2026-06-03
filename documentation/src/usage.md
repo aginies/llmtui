@@ -33,10 +33,7 @@ Run a model directly with llama-server and expose an OpenAI-compatible API:
 # Serve with API proxy and WebSocket dashboard on a specific host
 ./build.sh serve --model model.gguf --api-port 49222 --ws-enable --host 192.168.1.100
 
-# Redirect logs to a file (useful for systemd)
-./build.sh serve --model model.gguf --log-file /var/log/llm-manager/model.log
-
-# Combine options
+# Combine all options
 ./build.sh serve --model model.gguf --api-port 49222 --ws-enable --host 0.0.0.0 --backend-binary /opt/rocm/bin/llama-server --log-file /var/log/llm-manager/model.log
 ```
 
@@ -75,7 +72,7 @@ Search mode lets you browse and download GGUF models from HuggingFace:
 | `Ctrl+S` | Cycle sort order |
 | `Ctrl+B` | Go back one page |
 | `Down` (at bottom) | Load more results |
-| `Ctrl+Shift+R` | Fetch and view README for the selected model |
+| `Ctrl+R` | Fetch and view README for the selected model |
 
 ### Multi-word Search
 
@@ -148,7 +145,7 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 
 ### LLM Settings
 
-The LLM Settings panel has 32 standard fields, 16 expert fields (revealed with `Ctrl+X`), and 19 ultra fields (hidden even in expert mode), for a total of 67 fields. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields respond to `e` or `Ctrl+E`.
+The LLM Settings panel has 19 standard fields, 12 expert fields (revealed with `Ctrl+X`), and 15 ultra fields (hidden even in expert mode), for a total of 46 fields. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields respond to `e` or `Ctrl+E`.
 
 #### Loading
 
@@ -165,7 +162,7 @@ The LLM Settings panel has 32 standard fields, 16 expert fields (revealed with `
 | **GPU Layers** | Auto | Number of model layers offloaded to GPU memory. `Auto` lets llama.cpp decide based on available VRAM. `Specific` sets an exact number. `All` offloads every layer (`-ngl 999`). |
 | **Flash Attention** | true | Enables Flash Attention 2 for faster inference with lower memory usage. Requires GPU support. Can improve throughput by 20-40%. |
 | **KV Cache Offload** | true | Offloads the KV cache to RAM when GPU memory is full. Trade-off: more VRAM available for model weights at the cost of slower cache access. |
-| **Cache Type K** | F16 | Data type for the key cache. Options: F32 (most accurate, most memory), F16 (default), BF16 (better than F16 for some models), Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4_NL. |
+| **Cache Type K** | F16 | Data type for the key cache. Options: F32 (most accurate, most memory), F16 (default), BF16 (better than F16 for some models), Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl. |
 | **Cache Type V** | F16 | Data type for the value cache. Same options as Cache Type K. Using lower precision reduces VRAM but may affect quality. |
 | **Active Experts** | 1 | For Mixture-of-Experts (MoE) models, the number of experts activated per token. Higher values improve quality but increase compute. |
 
@@ -269,23 +266,21 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | `Ctrl+Alt+K` | Kill llama-server |
 | `Ctrl+L` | Focus Log panel |
 | `Ctrl+S` | Save settings / Cycle search sort (in search) |
-| `Ctrl+R` | Reset settings (in LLM Settings) |
+| `Ctrl+R` | Reset settings (in LLM Settings) / Fetch README (in search) |
 | `Ctrl+E` | Toggle field enabled/disabled (in LLM Settings: Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, Flash Attention, Unified KV, Keep in memory, Fit, MTP, Ignore EOS, Yarn RoPE, Active Experts) |
 | `Ctrl+X` | Toggle expert mode (in LLM Settings) |
 | `Ctrl+P` | Open Profile Picker modal (in LLM Settings) |
 | `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
 | `Ctrl+B` | Back one page in search |
-| `Ctrl+Shift+K` | Kill llama-server (alternative) |
-| `Ctrl+Shift+R` | Fetch README for selected model (in search) |
 | `g` / `G` | Jump to top/bottom of log |
-| `PageUp` / `PageDown` | Fast scroll (logs, README, benchmarks) |
+| `PageUp` / `PageDown` | Fast scroll (logs, profiles, presets, benchmarks) |
 | `F1`–`F6` | Toggle panels (Models, Server, Info, Settings, Active, Log) |
 | `F9` / `F10` / `Ctrl+F10` | Show all panels |
 | `Ctrl+F7` | Focus Models panel |
 | `Ctrl+F8` | Focus Server Settings panel |
 | `Ctrl+F9` | Focus LLM Settings panel |
 | `Shift+←` / `Shift+→` | Resize horizontal panel split (20%-80%) |
-| `p` | Pause/resume download / Previous benchmark result / Apply profile |
+| `p` | Pause/resume download / Previous benchmark result |
 | `n` | New preset (System Prompt Presets) / Next benchmark result / Add new worker (RPC) |
 | `Space` | Toggle selection (RPC workers, benchmark parameters) |
 | `Alt+M` | Toggle benchmark mode (RuntimeOnly / Full) |
@@ -294,7 +289,7 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | `Alt+I` | Edit iterations |
 | `Alt+C` | Edit chat template kwargs / Cancel confirmation |
 | `y` | Confirm destructive action |
-| `h` | Cancel confirmation dialog |
+| `Ctrl+h` | Cancel confirmation dialog |
 
 ## Log Panel
 

@@ -37,7 +37,7 @@ src/
 │       ├── rpc_workers.rs # RPC workers manager
 │       ├── system_prompt_presets.rs # System prompt presets
 │       ├── profiles.rs    # Profiles manager
-│       ├── downloads.rs   # Download progress panel (rendered inline, not a separate module)
+│       (downloads rendered inline in models.rs panel, not a separate module)
 ```
 
 ```
@@ -84,13 +84,13 @@ The application supports real-time filtering of the local models list. Triggered
 
 ## Model Discovery
 
-The `discover_models()` function in `main.rs` recursively scans the models directory for `.gguf` files:
+The `discover_models()` function in `src/tui/app/sync_ops.rs` recursively scans the models directory for `.gguf` files:
 
 ```rust
 fn discover_models(dir: &Path) -> Vec<DiscoveredModel>
 ```
 
-Each `DiscoveredModel` contains the file path, name, size, and display name (relative path from models directory). Discovery runs in a blocking task on startup.
+Each `DiscoveredModel` contains the file path, name, file_size, and display name (relative path from models directory). Discovery runs in a blocking task on startup.
 
 ## Download System
 
@@ -132,7 +132,7 @@ Each log entry is stored in `log_entries: VecDeque<LogEntry>` with a max of 500 
 Search uses the HuggingFace API with `&filter=gguf` to only return GGUF models:
 
 ```rust
-pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<SearchResult>, bool)>
+pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<SearchResult>, usize, Vec<String>)> // third element: raw model IDs for post-filtering
 ```
 
 A post-filter checks that the model_id contains the search query (case-insensitive), since the HF API does full-text search across descriptions/tags and can return unrelated models.

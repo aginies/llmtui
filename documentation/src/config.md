@@ -35,7 +35,7 @@ models_dirs:
   - ~/.local/share/llm-manager/models
 llama_server: llama-server
 default:
-  context_length: 32096
+  context_length: 131072
   threads: <physical cores>
   threads_batch: 8
   batch_size: 512

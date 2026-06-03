@@ -14,9 +14,9 @@ cargo doc --open
 
 | Type | Module | Description |
 |------|--------|-------------|
-| `DiscoveredModel` | `models` | A discovered `.gguf` file with path, name, size, and display name |
+| `DiscoveredModel` | `models` | A discovered `.gguf` file with path, name, file_size, and display name |
 | `ModelSettings` | `models` | All settings for loading a model via llama.cpp server (70+ fields) |
-| `ModelState` | `models` | State of a model: `Available`, `Loading`, `Loaded`, or `Failed` |
+| `ModelState` | `models` | State of a model: `Available`, `Loading`, `Benchmarking`, `Loaded`, or `Failed` |
 | `SearchResult` | `models` | A model found via HuggingFace search |
 | `DownloadState` | `models` | Download progress tracking with cancellation support |
 | `GgufMetadata` | `models` | Parsed GGUF metadata (layers, hidden size, context, etc.) |
@@ -31,18 +31,18 @@ cargo doc --open
 | `Backend` | `models` | Acceleration backend: `Cpu`, `Vulkan`, `Rocm`, `RocmLemonade`, `Cuda`, `CpuArm64`, `CpuWindows`, `VulkanWindows`, `CudaWindows12_4`, `CudaWindows13_1`, `HipWindows`, `CpuMacosArm64`, `CpuMacosX64` |
 | `ServerMode` | `models` | Server operating mode: `Normal` (single model), `Router` (multiple), `Bench` (GPU benchmarking), or `BenchTune` (parameter auto-tuning) |
 | `GpuLayersMode` | `models` | GPU offloading: `Auto`, `Specific(n)`, or `All` |
-| `SearchSort` | `models` | Search result sort order: `Relevance`, `Downloads`, `Likes`, `Trending`, `Created` |
+| `SearchSort` | `models` | Search result sort order: `Relevance`, `Downloads`, `Likes`, `Trending`, `CreatedAt` |
 | `CacheType` | `models` | Main KV cache data type: `F16`, `BF16`, `Fq8_0`, `Fq4_1` |
 | `CacheQuantType` | `models` | KV cache data type for quantization (F32, F16, BF16, Q8_0, Q5_0, Q5_1, Q4_0, Q4_1, Iq4Nl) |
 | `CacheTypeK` / `CacheTypeV` | `models` | Type aliases for `CacheQuantType` (used for keys and values) |
 | `SplitMode` | `models` | Multi-GPU split mode: `None`, `Layer`, `Row`, `Tensor` |
 | `NumMode` | `models` | NUMA optimization: `None`, `Distribute`, `Isolate`, `Numactl` |
 | `RopeScaling` | `models` | RoPE frequency scaling: `None`, `Linear`, `Yarn` |
-| `Mirostat` | `models` | Mirostat version: `Off`, `Mirostat`, `Mirostat2` |
+| `Mirostat` | `models` | Mirostat version: `Off`, `V1`, `Mirostat2` |
 | `LoadingPhase` | `app` | Phase of model loading (used internally by the TUI) |
 | `LoadProgress` | `models` | Load progress with `layers_total`, `layers_loaded`, `tensors_loaded` |
 | `Samplers` | `models` | Semicolon-separated sampler order string |
-| `BenchTuneMode` | `benchmark` | Benchmark mode: `RuntimeOnly` or `Full` |
+| `BenchTuneMode` | `benchmark` | Benchmark mode: `RuntimeOnly` or `Full` (default: `Full`) |
 | `BenchTuneStatus` | `benchmark` | Status: `Running`, `Completed`, `PartiallyCompleted`, `Cancelled`, or `Error` |
 
 ## Main Modules
@@ -53,7 +53,7 @@ HuggingFace API integration.
 
 ```rust
 /// Search models on HuggingFace.
-pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<SearchResult>, usize)>
+pub async fn search_models(query: &str, limit: u32, offset: u32) -> Result<(Vec<SearchResult>, usize, Vec<String>)> // third element: raw model IDs for post-filtering
 
 /// List all GGUF files for a model.
 pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)>>
@@ -313,7 +313,7 @@ models_dirs:
   - ~/.local/share/llm-manager/models
 llama_server: llama-server
 default:
-  context_length: 32096
+  context_length: 131072
   threads: <physical cores>
   # ... more default parameters
   llama_cpp_version_cpu: null
