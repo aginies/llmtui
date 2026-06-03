@@ -1780,6 +1780,27 @@ impl BenchTuneConfig {
     pub fn get_total_tests_count(&self) -> usize {
         self.generate_combinations().len()
     }
+
+    /// Get number of parameter combinations (fast, without generating them)
+    pub fn get_num_combinations(&self) -> usize {
+        let mut count: u64 = 1;
+        for p in &self.params_to_test {
+            if !p.enabled {
+                continue;
+            }
+            let vals = if p.name == "flash_attn" {
+                2 // On/Off
+            } else if p.name == "spec_type" {
+                let step_count = ((p.max - p.min) / p.step).ceil() as usize;
+                (step_count + 1).min(9)
+            } else {
+                let step_count = ((p.max - p.min) / p.step).ceil() as usize;
+                step_count + 1
+            };
+            count *= vals as u64;
+        }
+        count as usize
+    }
 }
 
 // ── Parameter struct field count tests ──────────────────────────

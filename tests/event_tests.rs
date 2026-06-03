@@ -1390,6 +1390,7 @@ async fn test_bench_tune_down_moves_result_row() {
             outputs: vec![],
             per_iteration_metrics: vec![],
             base_settings: None,
+            server_command: None,
         },
         BenchTuneResult {
             params: BenchTuneParamValue {
@@ -1415,6 +1416,7 @@ async fn test_bench_tune_down_moves_result_row() {
             outputs: vec![],
             per_iteration_metrics: vec![],
             base_settings: None,
+            server_command: None,
         },
     ];
     app.bench_tune.bench_tune_result_row = 0;
@@ -1452,6 +1454,7 @@ async fn test_bench_tune_up_decreases_result_row() {
             outputs: vec![],
             per_iteration_metrics: vec![],
             base_settings: None,
+            server_command: None,
         },
         BenchTuneResult {
             params: BenchTuneParamValue {
@@ -1477,6 +1480,7 @@ async fn test_bench_tune_up_decreases_result_row() {
             outputs: vec![],
             per_iteration_metrics: vec![],
             base_settings: None,
+            server_command: None,
         },
     ];
     app.bench_tune.bench_tune_result_row = 1;
@@ -1513,6 +1517,7 @@ async fn test_bench_tune_enter_opens_output_view() {
         outputs: vec!["output1".into()],
         per_iteration_metrics: vec![],
         base_settings: None,
+            server_command: None,
     }];
     app.bench_tune.bench_tune_result_row = 0;
     let key = make_key(KeyCode::Enter);

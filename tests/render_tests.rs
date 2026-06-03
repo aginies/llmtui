@@ -540,6 +540,7 @@ fn test_model_list_with_bench_tune_mode() {
         outputs: vec![],
         per_iteration_metrics: vec![],
         base_settings: None,
+        server_command: None,
     }];
     let _terminal = make_terminal(&mut app);
 }

@@ -918,7 +918,7 @@ fn render_bench_tune_setup(
         ratatui::layout::Constraint::Length(1),
         ratatui::layout::Constraint::Length(1),
         ratatui::layout::Constraint::Min(0),
-        ratatui::layout::Constraint::Length(5),
+        ratatui::layout::Constraint::Length(7),
     ])
     .split(inner_area);
     let iters_display = if app.edit.editing_iters {
@@ -1014,27 +1014,49 @@ fn render_bench_tune_setup(
         regions[3],
     );
 
-    let param_header = if editing_param && selected_idx < config.params_to_test.len() {
+   let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.params_to_test.len() {
         let field_names = ["Min", "Max", "Step"];
         let active_field_name = field_names[editing_param_field as usize];
-        Line::from(vec![
+        let mut lines = vec![Line::from(vec![
             Span::raw(" Select parameters to vary: ("),
             Span::styled("Press E to edit", Style::default().fg(Color::Yellow)),
             Span::raw(")  "),
+            Span::styled(" [Tab: Min → Max → Step] ", Style::default().fg(Color::DarkGray)),
             Span::styled(
-                format!("Editing: {} ", active_field_name),
+                format!("Editing: {}", active_field_name),
                 Style::default()
-                    .fg(Color::Green)
+                    .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
             ),
-        ])
+        ])];
+        // Validation warnings
+        let p = &config.params_to_test[selected_idx];
+        if p.min >= p.max {
+            lines.push(Line::from(Span::styled(
+                " ⚠ min must be less than max",
+                Style::default().fg(Color::Red),
+            )));
+        }
+        if p.step <= 0.0 {
+            lines.push(Line::from(Span::styled(
+                " ⚠ step must be positive",
+                Style::default().fg(Color::Red),
+            )));
+        }
+        if p.step >= (p.max - p.min) && (p.max - p.min) > 0.001 {
+            lines.push(Line::from(Span::styled(
+                " ⚠ step ≥ range — only 2 values will be tested",
+                Style::default().fg(Color::Yellow),
+            )));
+        }
+        lines
     } else {
-        Line::from(vec![
+        vec![Line::from(vec![
             Span::raw(" Select parameters to vary:"),
             Span::styled(" (Space to toggle)", Style::default().fg(Color::DarkGray)),
-        ])
+        ])]
     };
-    f.render_widget(Paragraph::new(param_header), regions[5]);
+    f.render_widget(Paragraph::new(param_header_lines), regions[5]);
 
     let data_rows: Vec<Row> = config
         .params_to_test
@@ -1123,6 +1145,7 @@ fn render_bench_tune_setup(
     );
     f.render_widget(table, regions[6]);
     let total_tests = config.get_total_tests_count();
+    let num_combinations = config.get_num_combinations();
     let footer_lines = vec![
         Line::from(vec![
             Span::raw(" Total tests: "),
@@ -1154,6 +1177,13 @@ fn render_bench_tune_setup(
             Span::raw("  "),
             Span::styled(" [⎋]", Style::default().fg(Color::Yellow)),
             Span::raw(" Cancel "),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(
+                format!(" Generates {} combinations ", num_combinations),
+                Style::default().fg(Color::DarkGray),
+            ),
         ]),
     ];
     f.render_widget(

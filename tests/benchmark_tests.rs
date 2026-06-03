@@ -429,6 +429,7 @@ fn bench_tune_result_serializable() {
         outputs: vec!["Hello world".into()],
         per_iteration_metrics: vec![],
         base_settings: None,
+        server_command: None,
     };
     let json = serde_json::to_string(&r).expect("should serialize");
     assert!(json.contains("Hello world"));
