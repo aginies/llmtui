@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8};
 
-const DOWNLOAD_PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
+const DOWNLOAD_PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_millis(1000);
 
 impl App {
     pub async fn start_pending_download(&mut self) {
