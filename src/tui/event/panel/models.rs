@@ -259,7 +259,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
         {
             if app.ui.active_panel != crate::tui::app::ActivePanel::Models {
                 app.add_log(
-                    "Press Tab to switch to Models panel, then ^D or Del to delete",
+                    "Press ⇥ to switch to Models panel, then ^D or Del to delete",
                     crate::config::LogLevel::Warning,
                 );
                 return;

@@ -16,7 +16,7 @@ pub fn render_api_endpoints(app: &crate::tui::app::App) -> Vec<Line<'static>> {
     lines.push(Line::from(vec![
         Span::styled("API Endpoints", y),
         Span::raw(" — "),
-        Span::styled("Esc / ⌃A to close", d),
+        Span::styled("⎋ / ⌃A to close", d),
     ]));
     lines.push(Line::from(""));
 
@@ -190,7 +190,7 @@ pub fn render_api_endpoints(app: &crate::tui::app::App) -> Vec<Line<'static>> {
     lines.push(Line::from(vec![
         Span::styled("j/k scroll", d),
         Span::raw("  "),
-        Span::styled("Esc / ⌃A close", d),
+        Span::styled("⎋ / ⌃A close", d),
     ]));
 
     lines

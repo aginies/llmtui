@@ -36,7 +36,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         let wrapped = wrap_text(cmd_line, max_width);
         let text = Text::from(wrapped);
         let block = Block::default()
-            .title(" CmdLine — Esc to close  e to export ")
+            .title(" CmdLine — ⎋ to close  e to export ")
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Yellow));
         f.render_widget(Paragraph::new(text).block(block), area);
@@ -396,7 +396,7 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
     };
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        " [↑] Select Host Address  [d] Refresh  [j/k] nav  [Esc] cancel ",
+        " [↑] Select Host Address  [d] Refresh  [j/k] nav  [⎋] cancel ",
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -442,7 +442,7 @@ fn render_profile_picker(
     let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        " [↑/↓] Select  [Enter] Apply  [Esc] Cancel ",
+            " [↑/↓] Select  [↵] Apply  [⎋] Cancel ",
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -575,7 +575,7 @@ fn render_prompt_picker(
         )));
         picker_lines.push(Line::from(""));
         picker_lines.push(Line::from(Span::styled(
-            " [Y] Yes  [N] Cancel  [Esc] Cancel ",
+            " [Y] Yes  [N] Cancel  [⎋] Cancel ",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -626,12 +626,12 @@ fn render_prompt_picker(
         }
         picker_lines.push(Line::from(""));
         picker_lines.push(Line::from(Span::styled(
-            "[Enter] new line  [Esc] cancel  [^S] save",
+            "[↵] new line  [⎋] cancel  [^S] save",
             Style::default().fg(Color::Cyan),
         )));
     } else {
         picker_lines.push(Line::from(Span::styled(
-            " [↑/↓] Select  [Enter] Confirm  [e] Edit  [n] New  [d] Delete  [Esc] Cancel ",
+            " [↑/↓] Select  [↵] Confirm  [e] Edit  [n] New  [d] Delete  [⎋] Cancel ",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -702,12 +702,12 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     modal_lines.push(Line::from(""));
     if app.edit.tags_insert_mode {
         modal_lines.push(Line::from(Span::styled(
-            " [Enter] Add tag  [Esc] Cancel  [Tab] Switch to edit mode ",
+            " [↵] Add tag  [⎋] Cancel  [⇥] Switch to edit mode ",
             Style::default().fg(Color::DarkGray),
         )));
     } else {
         modal_lines.push(Line::from(Span::styled(
-            " [e/i] Edit  [d/Del] Delete  [a] Add  [Tab] Switch to add mode ",
+            " [e/i] Edit  [d/Del] Delete  [a] Add  [⇥] Switch to add mode ",
             Style::default().fg(Color::DarkGray),
         )));
     }
@@ -984,7 +984,7 @@ fn render_bench_tune_setup(
                     Style::default().fg(Color::Cyan),
                 ),
                 Span::styled(
-                    " [Press Esc to finish] ",
+                    " [Press ⎋ to finish] ",
                     Style::default().fg(Color::Yellow),
                 ),
             ]),
@@ -1143,13 +1143,13 @@ fn render_bench_tune_setup(
             Span::raw(" Range]"),
         ]),
         Line::from(vec![
-            Span::styled(" [Enter]", Style::default().fg(Color::Yellow)),
+            Span::styled(" [↵]", Style::default().fg(Color::Yellow)),
             Span::styled(
                 " START ",
                 Style::default().fg(Color::Black).bg(Color::Green),
             ),
             Span::raw("  "),
-            Span::styled(" [Esc]", Style::default().fg(Color::Yellow)),
+            Span::styled(" [⎋]", Style::default().fg(Color::Yellow)),
             Span::raw(" Cancel "),
         ]),
     ];
@@ -1288,12 +1288,12 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(
-            "  [Enter] confirm  ",
+            "  [↵] confirm  ",
             Style::default().fg(Color::Black).bg(Color::Yellow),
         ),
         Span::raw("  "),
         Span::styled(
-            "  [Esc] cancel  ",
+                "  [⎋] cancel  ",
             Style::default().fg(Color::Black).bg(Color::DarkGray),
         ),
     ]));
@@ -1422,7 +1422,7 @@ fn render_dashboard_picker(
     ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::styled(
-        "[Esc] close  ",
+        "[⎋] close  ",
         Style::default().fg(Color::Black).bg(Color::DarkGray),
     )]));
     f.render_widget(Clear, picker_area);
@@ -1538,11 +1538,11 @@ fn render_dashboard_url(
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(
-            "[Enter] copy URL  ",
+            "[↵] copy URL  ",
             Style::default().fg(Color::Black).bg(Color::DarkGray),
         ),
         Span::styled(
-            "[Esc] close",
+            "[⎋] close",
             Style::default().fg(Color::Black).bg(Color::DarkGray),
         ),
     ]));
@@ -1974,7 +1974,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
         absolute_idx += output_idx + 1;
         let controls = Line::from(vec![
             Span::styled(
-                "  [Esc] close  ",
+                "  [⎋] close  ",
                 Style::default().fg(Color::Black).bg(Color::Yellow),
             ),
             Span::raw("  "),
@@ -2034,12 +2034,12 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
         Line::from(""),
         Line::from(vec![
             Span::styled(
-                "  [Enter] search  ",
+                "  [↵] search  ",
                 Style::default().fg(Color::Black).bg(Color::Yellow),
             ),
             Span::raw("  "),
             Span::styled(
-                "  [Esc] cancel  ",
+            "  [⎋] cancel  ",
                 Style::default().fg(Color::Black).bg(Color::DarkGray),
             ),
         ]),
@@ -2107,7 +2107,7 @@ fn render_yarn_rope_picker(
         )),
         Line::from(""),
         Line::from(Span::styled(
-            " [↑/↓] Select  [Enter] Edit  [Esc] Done  [Space] Enable/Disable Yarn RoPE ",
+            " [↑/↓] Select  [↵] Edit  [⎋] Done  [Space] Enable/Disable Yarn RoPE ",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -2224,7 +2224,7 @@ fn render_spec_type_picker(
         )),
         Line::from(""),
         Line::from(Span::styled(
-            " [↑/↓] Select  [Enter] Apply  [Esc] Cancel ",
+        " [↑/↓] Select  [↵] Apply  [⎋] Cancel ",
             Style::default().fg(Color::Yellow),
         )),
         Line::from(""),

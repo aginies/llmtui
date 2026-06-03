@@ -22,7 +22,7 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
     let title = Paragraph::new(Line::from(vec![
         Span::styled("Help", Style::default().add_modifier(Modifier::BOLD)),
         Span::styled(" — ", Style::default().fg(Color::DarkGray)),
-        Span::styled("Esc to close", Style::default().fg(Color::DarkGray)),
+        Span::styled("⎋ to close", Style::default().fg(Color::DarkGray)),
     ]))
     .block(Block::default().borders(Borders::ALL).title(" "))
     .style(Style::default().fg(Color::White));

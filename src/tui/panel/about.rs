@@ -50,7 +50,7 @@ pub fn render_about() -> Vec<Line<'static>> {
     lines.push(Line::from("Built with Rust, Ratatui, and Tokio."));
     lines.push(Line::from(""));
     lines.push(Line::from(vec![Span::styled(
-        "[Esc/Any] Close",
+        "[⎋/Any] Close",
         Style::default().fg(Color::DarkGray),
     )]));
 

@@ -83,7 +83,7 @@ pub fn render_all<'a>(
 
         lines.push(Line::from(""));
         lines.push(Line::from(vec![Span::styled(
-            "[Enter] new line  [Esc] cancel  [^S] save",
+            "[↵] new line  [⎋] cancel  [^S] save",
             Style::default().fg(Color::Cyan),
         )]));
     } else {
@@ -123,7 +123,7 @@ pub fn render_all<'a>(
         }
 
         lines.push(Line::from(vec![Span::styled(
-            "[Enter] apply  [e] edit  [n] new  [d] delete  [Esc] cancel",
+            "[↵] apply  [e] edit  [n] new  [d] delete  [⎋] cancel",
             Style::default().fg(Color::Cyan),
         )]));
     }

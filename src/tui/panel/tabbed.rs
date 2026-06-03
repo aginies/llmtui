@@ -330,7 +330,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         Color::Rgb(255, 165, 0)
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
-    let title = " LLM Settings (F4) [4] ";
+    let title = " LLM Settings (F4) [^F9] ";
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(title),
@@ -487,7 +487,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
 /// Render the info paragraph with a block and borders.
 pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
-        .title(" Model Info (F3)")
+        .title(" Model Info (F3) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Blue));
 

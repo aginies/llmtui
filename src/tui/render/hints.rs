@@ -10,7 +10,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
     // Backend picker has its own hint rendering
     if matches!(app.ui.global_mode, crate::tui::app::GlobalMode::BackendPicker { .. }) {
         return vec![
-            Span::styled("Suppr Del", r),
+            Span::styled("Del", r),
             Span::raw("  "),
             Span::styled("⎋ Exit", c),
         ];
@@ -82,7 +82,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 match app.ui.active_panel {
                     ActivePanel::Models => {
                         vec![
-                            Span::styled("⇥ panels", c),
+                            Span::styled("⇥ Panels", c),
                             Span::raw("  "),
                             Span::styled("f Filter", y),
                             Span::raw("  "),
@@ -178,7 +178,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw("  "),
                             Span::styled("p Pause", y),
                             Span::raw("  "),
-                            Span::styled("⌥C Cancel", y),
+                            Span::styled("Alt+C Cancel", y),
                             Span::raw("  "),
                             Span::styled("⇥ Panels", c),
                         ]

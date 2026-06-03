@@ -56,10 +56,10 @@ pub fn render_all<'a>(
     }
 
     lines.push(Line::from(vec![
-        Span::styled("[Enter] Apply  ", Style::default().fg(Color::Cyan)),
+        Span::styled("[↵] Apply  ", Style::default().fg(Color::Cyan)),
         Span::styled("[s] Save  ", Style::default().fg(Color::Cyan)),
         Span::styled("[d] Delete  ", Style::default().fg(Color::Cyan)),
-        Span::styled("[Esc] Cancel", Style::default().fg(Color::Cyan)),
+        Span::styled("[⎋] Cancel", Style::default().fg(Color::Cyan)),
     ]));
 
     (lines, profiles.len())

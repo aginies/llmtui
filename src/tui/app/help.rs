@@ -19,7 +19,7 @@ impl App {
                     Span::raw("  Navigate model list"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Enter / l", y),
+                    Span::styled("↵ / l", y),
                     Span::raw("  Load selected model into server"),
                 ]),
                 Line::from(vec![
@@ -33,10 +33,10 @@ impl App {
                 Line::from(""),
                 Line::from("In search mode (/):"),
                 Line::from(vec![
-                    Span::styled("Enter", y),
+                    Span::styled("↵", y),
                     Span::raw("  Execute search"),
                 ]),
-                Line::from(vec![Span::styled("Esc", y), Span::raw("  Exit search")]),
+                Line::from(vec![Span::styled("⎋", y), Span::raw("  Exit search")]),
                 Line::from(vec![
                     Span::styled("l", y),
                     Span::raw("  View available GGUF files"),
@@ -65,7 +65,7 @@ impl App {
                 ]),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Shift+A", y),
+                    Span::styled("Shift+a", y),
                     Span::raw("  About box (GPLv3)"),
                 ]),
             ],
@@ -91,13 +91,13 @@ impl App {
                     Span::raw("  Jump to bottom (Follow mode)"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Enter", y),
+                    Span::styled("↵", y),
                     Span::raw("  Expand log (fills screen)"),
                 ]),
-                Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse log")]),
+                Line::from(vec![Span::styled("⎋", y), Span::raw("  Collapse log")]),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Shift+A", y),
+                    Span::styled("Shift+a", y),
                     Span::raw("  About box (GPLv3)"),
                 ]),
             ],
@@ -111,7 +111,7 @@ impl App {
                         Span::styled("j / k", y),
                         Span::raw("  Select setting"),
                     ]),
-                    Line::from(vec![Span::styled("Enter", y), Span::raw("  Toggle value")]),
+                    Line::from(vec![Span::styled("↵", y), Span::raw("  Toggle value")]),
                     Line::from(vec![
                         Span::styled("Left / Right", y),
                         Span::raw("  Adjust value"),
@@ -145,9 +145,13 @@ impl App {
                         Span::styled("API Port", y),
                         Span::raw(self.get_api_port_str()),
                     ]),
-                    Line::from(""),
+                   Line::from(""),
                     Line::from(vec![
-                        Span::styled("Shift+A", y),
+                        Span::styled("⇥ Panels", y),
+                        Span::raw("  Switch panels"),
+                    ]),
+                    Line::from(vec![
+                        Span::styled("Shift+a", y),
                         Span::raw("  About box (GPLv3)"),
                     ]),
                 ]
@@ -161,7 +165,7 @@ impl App {
                     Span::styled("j / k", y),
                     Span::raw("  Navigate settings"),
                 ]),
-                Line::from(vec![Span::styled("Enter", y), Span::raw("  Apply value")]),
+                Line::from(vec![Span::styled("↵", y), Span::raw("  Apply value")]),
                 Line::from(vec![
                     Span::styled("Left / Right", y),
                     Span::raw("  Adjust value"),
@@ -170,7 +174,7 @@ impl App {
                     Span::styled("0-9, -, .", y),
                     Span::raw("  Type numeric value  ·  ^F7/8/9 switch panels"),
                 ]),
-                Line::from(vec![Span::styled("Esc", y), Span::raw("  Cancel edit")]),
+                Line::from(vec![Span::styled("⎋", y), Span::raw("  Cancel edit")]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("^S", y),
@@ -542,7 +546,7 @@ impl App {
                 ]),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Shift+A", y),
+                    Span::styled("Shift+a", y),
                     Span::raw("  About box (GPLv3)"),
                 ]),
             ],
@@ -552,6 +556,15 @@ impl App {
                 Line::from("Displays metrics for the currently loaded model."),
                 Line::from(""),
                 Line::from("Shows Tokens/s, context usage (progress bar), CPU, RAM, and VRAM."),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("⇥ Panels", y),
+                    Span::raw("  Switch panels"),
+                ]),
+                Line::from(vec![
+                    Span::styled("Shift+a", y),
+                    Span::raw("  About box (GPLv3)"),
+                ]),
             ],
             ActivePanel::ModelInfo => vec![
                 Line::from(Span::styled("MODEL INFO PANEL", y)),
@@ -559,6 +572,15 @@ impl App {
                 Line::from("GGUF metadata for the selected model."),
                 Line::from(""),
                 Line::from("Displays file name, size, architecture, layers, and training context."),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("⇥ Panels", y),
+                    Span::raw("  Switch panels"),
+                ]),
+                Line::from(vec![
+                    Span::styled("Shift+a", y),
+                    Span::raw("  About box (GPLv3)"),
+                ]),
             ],
             ActivePanel::Profiles => vec![
                 Line::from(Span::styled("PROFILES PANEL", y)),
@@ -570,7 +592,7 @@ impl App {
                     Span::raw("  Select profile"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Enter", y),
+                    Span::styled("↵", y),
                     Span::raw("  Apply profile settings"),
                 ]),
                 Line::from(vec![
@@ -582,7 +604,7 @@ impl App {
                     Span::raw("  Delete user profile"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Esc", y),
+                    Span::styled("⎋", y),
                     Span::raw("  Back to settings"),
                 ]),
             ],
@@ -592,14 +614,14 @@ impl App {
                 Line::from("Named system prompts for different use cases."),
                 Line::from(""),
                 Line::from(vec![Span::styled("j / k", y), Span::raw("  Select preset")]),
-                Line::from(vec![Span::styled("Enter", y), Span::raw("  Apply preset")]),
+                Line::from(vec![Span::styled("↵", y), Span::raw("  Apply preset")]),
                 Line::from(vec![
                     Span::styled("e", y),
                     Span::raw("  Edit selected preset"),
                 ]),
                 Line::from(vec![Span::styled("n", y), Span::raw("  Create new preset")]),
                 Line::from(vec![
-                    Span::styled("Esc", y),
+                    Span::styled("⎋", y),
                     Span::raw("  Back to settings"),
                 ]),
             ],
@@ -617,10 +639,10 @@ impl App {
                     Span::raw("  Scroll horizontally"),
                 ]),
                 Line::from(vec![
-                    Span::styled("Enter", y),
+                    Span::styled("↵", y),
                     Span::raw("  Expand to fullscreen"),
                 ]),
-                Line::from(vec![Span::styled("Esc", y), Span::raw("  Collapse / Exit")]),
+                Line::from(vec![Span::styled("⎋", y), Span::raw("  Collapse / Exit")]),
             ],
             ActivePanel::Downloads => vec![
                 Line::from(Span::styled("DOWNLOADS PANEL", y)),
@@ -636,8 +658,13 @@ impl App {
                     Span::raw("  Pause / Resume selected download"),
                 ]),
                 Line::from(vec![
-                    Span::styled("⌥C", y),
+                    Span::styled("Alt+C", y),
                     Span::raw("  Cancel selected download"),
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("⇥ Panels", y),
+                    Span::raw("  Switch panels"),
                 ]),
             ],
         }
