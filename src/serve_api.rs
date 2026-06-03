@@ -300,9 +300,9 @@ pub async fn start_api_server(
             let shutdown_fut = async {
                 let _ = shutdown_rx.wait_for(|v| *v).await;
             };
-            let _ = tokio::select! {
-                result = tls_listener.serve(app.into_make_service()) => result,
-                _ = shutdown_fut => Ok(()),
+            tokio::select! {
+                result = tls_listener.serve(app.into_make_service()) => result?,
+                _ = shutdown_fut => {},
             };
         }
         None => {
