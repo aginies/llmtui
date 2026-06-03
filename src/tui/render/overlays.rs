@@ -885,7 +885,7 @@ fn render_bench_tune_setup(
     editing_prompt: bool,
 ) {
     let w = 90u16;
-    let h = 28u16;
+    let h = 30u16;
     let popup_area = Rect {
         x: (area.width.saturating_sub(w)) / 2,
         y: (area.height.saturating_sub(h)) / 2,
@@ -1018,10 +1018,11 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
         let p = &config.params_to_test[selected_idx];
         if !p.variants.is_empty() {
             let selected_variant_idx = if editing_param_field < -1 {
-                (editing_param_field + 2) as usize
+                ((editing_param_field + 2) as isize).max(0) as usize
             } else {
                 0
             };
+            let selected_variant_idx = selected_variant_idx.min(p.variants.len().saturating_sub(1));
             let selected_name = p.variants.get(selected_variant_idx).map(|s: &String| s.as_str()).unwrap_or("");
             let mut lines = vec![Line::from(vec![
                 Span::raw(" Select parameters to vary: ("),
@@ -1063,7 +1064,11 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
             lines
         } else {
             let field_names = ["Min", "Max", "Step"];
-            let active_field_name = field_names[editing_param_field as usize];
+            let active_field_name = if editing_param_field >= 0 && editing_param_field < 3 {
+                field_names[editing_param_field as usize]
+            } else {
+                "Min"
+            };
             let mut lines = vec![Line::from(vec![
                 Span::raw(" Select parameters to vary: ("),
                 Span::styled("Press E to edit", Style::default().fg(Color::Yellow)),
@@ -1105,17 +1110,38 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
     };
     f.render_widget(Paragraph::new(param_header_lines), regions[5]);
 
+    let is_spec_off = config
+        .params_to_test
+        .iter()
+        .find(|p| p.name == "spec_type")
+        .map(|p| p.min as usize == 0)
+        .unwrap_or(true);
+
     let data_rows: Vec<Row> = config
         .params_to_test
         .iter()
         .enumerate()
         .map(|(i, p)| {
             let marker = if i == selected_idx { ">" } else { " " };
-            let checkbox = if p.enabled { "[X]" } else { "[ ]" };
-            let name = p.name.replace("_", " ");
             let is_selected = i == selected_idx;
-let desc_str = if editing_param && is_selected && editing_param_field < -1 {
-                let selected_variant_idx = (editing_param_field + 2) as usize; // -2 -> 0, -3 -> 1, etc.
+            let checkbox = if p.name == "spec_type" {
+                " - "
+            } else if p.name == "draft_tokens" && is_spec_off {
+                " - "
+            } else if p.enabled {
+                "[X]"
+            } else {
+                "[ ]"
+            };
+            let name = p.name.replace("_", " ");
+            let desc_str = if p.name == "spec_type" {
+                let base_idx = (p.min as usize).min(p.variants.len().saturating_sub(1));
+                format!("▶ {}", p.variants[base_idx])
+            } else if p.name == "draft_tokens" && is_spec_off {
+                "(Disabled - Spec type is Off)".to_string()
+            } else if editing_param && is_selected && editing_param_field < -1 {
+                let selected_variant_idx = ((editing_param_field + 2) as isize).max(0) as usize;
+                let selected_variant_idx = selected_variant_idx.min(p.variants.len().saturating_sub(1));
                 let variant_names: Vec<String> = p.variants.iter().enumerate().map(|(i, v)| {
                     if i == selected_variant_idx {
                         format!("▶{}", v)
@@ -1125,7 +1151,8 @@ let desc_str = if editing_param && is_selected && editing_param_field < -1 {
                 }).collect();
                 variant_names.join("│")
             } else if !p.variants.is_empty() {
-                let base_idx = p.min as usize;
+                let base_idx = (p.min as isize).max(0) as usize;
+                let base_idx = base_idx.min(p.variants.len().saturating_sub(1));
                 p.variants.iter().enumerate().map(|(i, v)| {
                     if i == base_idx {
                         format!("[{}]", v)
@@ -1174,21 +1201,29 @@ let desc_str = if editing_param && is_selected && editing_param_field < -1 {
                     _ => format!("{:.2} to {:.2}, step {:.2}", p.min, p.max, p.step),
                 }
             };
-      let row_style = if is_selected {
+            let row_style = if is_selected {
                 Style::default().fg(Color::Black).bg(Color::Yellow)
             } else {
                 Style::default().fg(Color::White)
             };
-            let desc_style = if editing_param && is_selected && (editing_param_field >= 0 || editing_param_field < -1) {
+            let desc_style = if p.name == "draft_tokens" && is_spec_off {
+                if is_selected {
+                    Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                }
+            } else if editing_param && is_selected && (editing_param_field >= 0 || editing_param_field < -1) {
                 Style::default().fg(Color::Blue)
             } else {
-                Style::default().fg(Color::DarkGray)
+                Style::default().fg(Color::Gray)
             };
             Row::new(vec![
                 Cell::from(Span::styled(marker, Style::default().fg(Color::Yellow))),
                 Cell::from(Span::styled(
                     checkbox,
-                    if p.enabled {
+                    if p.name == "spec_type" || (p.name == "draft_tokens" && is_spec_off) {
+                        Style::default().fg(Color::DarkGray)
+                    } else if p.enabled {
                         Style::default().fg(Color::Green)
                     } else {
                         Style::default().fg(Color::DarkGray)

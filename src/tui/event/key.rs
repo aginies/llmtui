@@ -1251,15 +1251,21 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     && !*editing_param =>
             {
                 if *selected_idx < config.params_to_test.len() {
+                    let is_spec_off = config.params_to_test.iter()
+                        .find(|p| p.name == "spec_type")
+                        .map(|p| p.min as usize == 0)
+                        .unwrap_or(true);
                     let p = &config.params_to_test[*selected_idx];
-                    *editing_param = true;
-                    if !p.variants.is_empty() {
-                        *editing_param_field = -1;
-                        param_edit_buffer.clear();
-                    } else {
-                        *editing_param_field = 0;
-                        param_edit_buffer.clone_from(&p.min.to_string());
-                        *param_edit_cursor_pos = param_edit_buffer.len();
+                    if p.name != "spec_type" && !(p.name == "draft_tokens" && is_spec_off) {
+                        *editing_param = true;
+                        if !p.variants.is_empty() {
+                            *editing_param_field = -1;
+                            param_edit_buffer.clear();
+                        } else {
+                            *editing_param_field = 0;
+                            param_edit_buffer.clone_from(&p.min.to_string());
+                            *param_edit_cursor_pos = param_edit_buffer.len();
+                        }
                     }
                 }
             }
@@ -1361,29 +1367,23 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 }
             }
-KeyCode::Char('+') if *editing_param => {
-                if *selected_idx < config.params_to_test.len() {
-                    if !config.params_to_test[*selected_idx].variants.is_empty() {
-                        let current_idx = if *editing_param_field < -1 {
-                            (*editing_param_field + 2).max(0)
-                        } else {
-                            0
-                        };
-                        *editing_param_field = -((current_idx as usize).saturating_add(1).min(config.params_to_test[*selected_idx].variants.len()).saturating_sub(1) as i32 + 2);
-                    }
-                }
+KeyCode::Char('+') if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() => {
+                let current_idx = if *editing_param_field < -1 {
+                    (*editing_param_field + 2) as usize
+                } else {
+                    0
+                };
+                let variants = &config.params_to_test[*selected_idx].variants;
+                *editing_param_field = -(((current_idx + 1) % variants.len()) as i32 + 2);
             }
-            KeyCode::Char('-') if *editing_param => {
-                if *selected_idx < config.params_to_test.len() {
-                    if !config.params_to_test[*selected_idx].variants.is_empty() {
-                        let current_idx = if *editing_param_field < -1 {
-                            (*editing_param_field + 2).max(0)
-                        } else {
-                            0
-                        };
-                        *editing_param_field = -(current_idx.saturating_sub(1).max(0) as i32 + 2);
-                    }
-                }
+            KeyCode::Char('-') if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() => {
+                let current_idx = if *editing_param_field < -1 {
+                    (*editing_param_field + 2) as usize
+                } else {
+                    0
+                };
+                let variants = &config.params_to_test[*selected_idx].variants;
+                *editing_param_field = -(((current_idx + variants.len() - 1) % variants.len()) as i32 + 2);
             }
             KeyCode::Char(' ') => {
                 if *editing_prompt {
@@ -1398,8 +1398,14 @@ KeyCode::Char('+') if *editing_param => {
                         app.edit.edit_cursor_pos += 1;
                     }
                 } else if *selected_idx < config.params_to_test.len() {
-                    config.params_to_test[*selected_idx].enabled =
-                        !config.params_to_test[*selected_idx].enabled;
+                    let is_spec_off = config.params_to_test.iter()
+                        .find(|p| p.name == "spec_type")
+                        .map(|p| p.min as usize == 0)
+                        .unwrap_or(true);
+                    let p = &mut config.params_to_test[*selected_idx];
+                    if p.name != "spec_type" && !(p.name == "draft_tokens" && is_spec_off) {
+                        p.enabled = !p.enabled;
+                    }
                 }
             }
           KeyCode::Char(c) if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() => {
@@ -1487,15 +1493,15 @@ KeyCode::Char('+') if *editing_param => {
                 if *editing_param {
                     if *selected_idx < config.params_to_test.len() {
                         if !config.params_to_test[*selected_idx].variants.is_empty() {
-                            let variant_idx = if *editing_param_field < -1 {
-                                (*editing_param_field + 2).max(0) as usize
+                            // Cycle to next variant, stay in editing mode
+                            let current_idx = if *editing_param_field < -1 {
+                                (*editing_param_field + 2) as usize
                             } else {
                                 0
                             };
-                            if let Some(_variant) = config.params_to_test[*selected_idx].variants.get(variant_idx) {
-                                // Store variant index in min field (we'll map it back later)
-                                config.params_to_test[*selected_idx].min = variant_idx as f64;
-                            }
+                            let variants = &config.params_to_test[*selected_idx].variants;
+                            let next_idx = (current_idx + 1) % variants.len();
+                            *editing_param_field = -(next_idx as i32 + 2);
                         } else if let Ok(val) = param_edit_buffer.parse::<f64>() {
                             match *editing_param_field {
                                 0 => config.params_to_test[*selected_idx].min = val,
@@ -1518,8 +1524,12 @@ KeyCode::Char('+') if *editing_param => {
                             config.params_to_test[*selected_idx].step = max_val - min_val;
                         }
                     }
-                    *editing_param = false;
-                    param_edit_buffer.clear();
+                    if !config.params_to_test[*selected_idx].variants.is_empty() {
+                        // Stay in variant editing mode
+                    } else {
+                        *editing_param = false;
+                        param_edit_buffer.clear();
+                    }
                 } else if *editing_prompt {
                     *editing_prompt = false;
                 } else if *editing_kwargs {
@@ -1534,6 +1544,22 @@ KeyCode::Char('+') if *editing_param => {
                         config.num_iterations = val.clamp(1, 100);
                     }
                     app.edit.editing_iters = false;
+                } else if *selected_idx < config.params_to_test.len()
+                    && config.params_to_test[*selected_idx].name == "spec_type"
+                {
+                    let p = &mut config.params_to_test[*selected_idx];
+                    let current_idx = p.min as usize;
+                    let next_idx = (current_idx + 1) % p.variants.len();
+                    p.min = next_idx as f64;
+
+                    // If spec_type becomes "Off" (index 0), disable draft_tokens
+                    if next_idx == 0 {
+                        for param in &mut config.params_to_test {
+                            if param.name == "draft_tokens" {
+                                param.enabled = false;
+                            }
+                        }
+                    }
                 } else {
                     let config_final = config.clone();
                     if let Some(idx) = app.selected_model_idx {

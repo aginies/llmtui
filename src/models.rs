@@ -1702,7 +1702,15 @@ impl BenchTuneConfig {
         let mut threads_values = vec![None];
         let mut batch_size_values = vec![None];
         let mut expert_count_values = vec![None];
-        let mut spec_type_values = vec![None::<String>];
+        let mut selected_spec_type = None;
+        if let Some(p) = self.params_to_test.iter().find(|p| p.name == "spec_type") {
+            let base_idx = (p.min as usize).min(p.variants.len().saturating_sub(1));
+            let val = &p.variants[base_idx];
+            if val != "Off" {
+                selected_spec_type = Some(val.clone());
+            }
+        }
+        let mut spec_type_values = vec![selected_spec_type];
         let mut draft_tokens_values = vec![None];
 
         let spec_type_options = vec![
