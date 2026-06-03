@@ -1171,8 +1171,8 @@ pub async fn load_model(
     }
 
     Err(format!(
-        "Failed to load model (tried {} variants). Last status {}: {}",
-        variants.len() * 2,
+        "Failed to load model (tried {} requests). Last status {}: {}",
+        endpoints.len() * variants.len() * 2,
         last_status,
         last_error
     ))
