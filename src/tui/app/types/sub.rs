@@ -53,6 +53,7 @@ pub struct DownloadState {
     pub download_rx: Option<tokio::sync::broadcast::Receiver<crate::models::DownloadState>>,
     pub download_scroll_state: TableState,
     pub downloading: bool,
+    pub last_progress_update: std::time::Instant,
 }
 
 pub struct ServerState {

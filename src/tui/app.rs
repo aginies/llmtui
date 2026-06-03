@@ -81,6 +81,7 @@ impl App {
                 download_rx: None,
                 download_scroll_state: Default::default(),
                 downloading: false,
+                last_progress_update: std::time::Instant::now(),
             },
             server: ServerState {
                 server_handle: None,

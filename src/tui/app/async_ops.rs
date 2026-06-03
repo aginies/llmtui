@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8};
 
+const DOWNLOAD_PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
+
 impl App {
     pub async fn start_pending_download(&mut self) {
         if let Some((model_id, filename, download_url, file_size, model_id_for_subdir)) =
@@ -177,6 +179,11 @@ impl App {
     }
 
     pub fn poll_download_progress(&mut self) {
+        if self.download.last_progress_update.elapsed() < DOWNLOAD_PROGRESS_INTERVAL {
+            return;
+        }
+        self.download.last_progress_update = std::time::Instant::now();
+
         let mut redraw = false;
         let mut download_logs = Vec::new();
         if let Some(rx) = &mut self.download.download_rx {
@@ -267,7 +274,10 @@ impl App {
                                 format!("Download complete: {}", state.filename),
                                 crate::config::LogLevel::Info,
                             );
-                            self.models = Self::discover_models(&self.config.models_dirs);
+                            self.models = Self::discover_models(
+                                &self.config.models_dirs,
+                                &self.download.download_progress,
+                            );
                         }
                     }
                     crate::models::DownloadStatus::Error(e) => {

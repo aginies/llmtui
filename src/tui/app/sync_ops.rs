@@ -14,8 +14,16 @@ impl App {
         Ok(())
     }
 
-    pub fn discover_models(dirs: &[PathBuf]) -> Vec<crate::models::DiscoveredModel> {
+    pub fn discover_models(dirs: &[PathBuf], downloads: &[crate::models::DownloadState]) -> Vec<crate::models::DiscoveredModel> {
         let mut models = Vec::new();
+
+        // Build a map of filename -> expected total_bytes from active downloads
+        let expected_sizes: std::collections::HashMap<&str, u64> = downloads
+            .iter()
+            .filter(|d| d.status == crate::models::DownloadStatus::Downloading)
+            .map(|d| (d.filename.as_str(), d.total_bytes))
+            .collect();
+
         for dir in dirs {
             crate::backend::hub::walk_dir_recursive(dir, 0, 10, &mut |entry| {
                 let path = entry.path();
@@ -23,6 +31,14 @@ impl App {
                     && let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                         let name = name.to_string();
                         let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+
+                        // Skip files that are currently being downloaded (partial downloads)
+                        if let Some(&expected) = expected_sizes.get(name.as_str()) {
+                            if size != expected {
+                                return;
+                            }
+                        }
+
                         let display_name = path
                             .strip_prefix(dir)
                             .ok()

@@ -226,7 +226,7 @@ async fn main() -> Result<()> {
 
             // Discover models asynchronously
             let models_dirs = config.models_dirs.clone();
-            let models = tokio::task::spawn_blocking(move || App::discover_models(&models_dirs))
+            let models = tokio::task::spawn_blocking(move || App::discover_models(&models_dirs, &[]))
                 .await
                 .unwrap_or_default();
 
