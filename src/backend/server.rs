@@ -218,10 +218,6 @@ pub fn build_server_cmd(
 
     // Inject system prompt via chat template kwargs when it differs from default
     if settings.system_prompt != "You are a helpful assistant." {
-        let escaped = settings
-            .system_prompt
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"");
         let mut merged = serde_json::Map::new();
         if let Some(ref kwargs) = settings.chat_template_kwargs
             && let Ok(obj) = serde_json::from_str::<serde_json::Value>(kwargs)
@@ -232,7 +228,7 @@ pub fn build_server_cmd(
                 }
         merged.insert(
             "system_prompt".to_string(),
-            serde_json::Value::String(escaped),
+            serde_json::Value::String(settings.system_prompt.clone()),
         );
         push_arg(
             &mut cmd,
