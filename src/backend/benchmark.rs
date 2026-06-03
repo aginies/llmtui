@@ -83,6 +83,7 @@ fn build_bench_result(acc: BenchAccumulator) -> BenchTuneResult {
         outputs,
         per_iteration_metrics,
         base_settings,
+        server_command: None,
     }
 }
 
@@ -144,7 +145,7 @@ pub async fn run_bench_tune(
     if config.bench_mode == BenchTuneMode::RuntimeOnly {
         // Spawn a single server for all runtime-only iterations
         let (exit_tx, _exit_rx) = tokio::sync::mpsc::channel(1);
-        let (server_handle, _command) = spawn_server(SpawnServerRequest {
+        let (server_handle, server_command) = spawn_server(SpawnServerRequest {
             config: main_config,
             model: Some(model),
             settings: &settings,
@@ -230,6 +231,7 @@ pub async fn run_bench_tune(
                 log_tx: log_tx.clone(),
                 config,
                 client: &client,
+                server_command: &server_command,
             })
             .await;
 
@@ -487,6 +489,7 @@ struct RuntimeOnlyCtx<'a> {
     log_tx: mpsc::Sender<String>,
     config: &'a BenchTuneConfig,
     client: &'a reqwest::Client,
+    server_command: &'a str,
 }
 
 /// Run benchmark in runtime-only mode: sends params in /completion request body, no server restarts
@@ -503,6 +506,7 @@ async fn run_bench_tune_runtime_only(
         log_tx,
         config,
         client,
+        server_command,
     } = ctx;
     let loop_fut = run_iteration_loop(IterationLoopCtx {
         prompt: &prompt,
@@ -522,6 +526,7 @@ async fn run_bench_tune_runtime_only(
     };
     result.map(|mut r| {
         r.base_settings = Some(settings.clone());
+        r.server_command = Some(server_command.to_string());
         r
     })
 }
@@ -596,7 +601,7 @@ async fn run_bench_tune_single_test(
 
     // Spawn server with test parameters
     let (exit_tx, _exit_rx) = tokio::sync::mpsc::channel(1);
-    let (server_handle, _command) = spawn_server(SpawnServerRequest {
+    let (server_handle, command) = spawn_server(SpawnServerRequest {
         config: main_config,
         model: Some(model),
         settings: &settings,
@@ -671,6 +676,7 @@ async fn run_bench_tune_single_test(
 
     result.map(|mut r| {
         r.base_settings = Some(base_settings.clone());
+        r.server_command = Some(command);
         r
     })
 }
@@ -1240,6 +1246,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                         "first_token_time": m.first_token_time,
                     })
                 }).collect::<Vec<_>>(),
+                "server_command": r.server_command.as_deref().unwrap_or("-"),
             })
         })
         .collect();

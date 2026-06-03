@@ -918,7 +918,7 @@ fn render_bench_tune_setup(
         ratatui::layout::Constraint::Length(1),
         ratatui::layout::Constraint::Length(1),
         ratatui::layout::Constraint::Min(0),
-        ratatui::layout::Constraint::Length(3),
+        ratatui::layout::Constraint::Length(5),
     ])
     .split(inner_area);
     let iters_display = if app.edit.editing_iters {
@@ -1132,7 +1132,9 @@ fn render_bench_tune_setup(
                     .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::raw("  |  "),
+        ]),
+        Line::from(""),
+        Line::from(vec![
             Span::styled(" [Alt+M]", Style::default().fg(Color::Yellow)),
             Span::raw(" Mode "),
             Span::styled(" [Alt+N]", Style::default().fg(Color::Yellow)),
@@ -1140,8 +1142,9 @@ fn render_bench_tune_setup(
             Span::styled(" [Alt+I]", Style::default().fg(Color::Yellow)),
             Span::raw(" Iters "),
             Span::styled(" [E]", Style::default().fg(Color::Yellow)),
-            Span::raw(" Range]"),
+            Span::raw(" Range"),
         ]),
+        Line::from(""),
         Line::from(vec![
             Span::styled(" [↵]", Style::default().fg(Color::Yellow)),
             Span::styled(
@@ -1935,6 +1938,46 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
         };
         f.render_widget(metrics_table, metrics_area);
         let output_y = 1 + top_height;
+        let cmd_text = result.server_command.as_deref().unwrap_or("-");
+        let command_height = if !cmd_text.is_empty() && cmd_text != "-" && area.height >= 18 {
+            let available_width = area.width.saturating_sub(4); // border + padding
+            let wrapped_lines: usize = cmd_text
+                .lines()
+                .map(|line| {
+                    let line_width = line.width() as u16;
+                    if line_width <= available_width {
+                        1
+                    } else {
+                        ((line_width as f64 / available_width as f64).ceil()) as usize
+                    }
+                })
+                .sum();
+            let required_height = wrapped_lines as u16 + 2; // border top + bottom
+            let max_height = area.height.saturating_sub(1 + top_height + 1 + output_y + 1); // leave room for output + controls
+            required_height.min(max_height).max(2)
+        } else {
+            0
+        };
+        let command_y = output_y;
+        if command_height > 0 {
+            let command_area = Rect {
+                x: 0,
+                y: command_y,
+                width: area.width,
+                height: command_height,
+            };
+            let command_block = Block::default()
+                .title(" Server Command ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow));
+            f.render_widget(
+                Paragraph::new(cmd_text.to_string())
+                    .block(command_block)
+                    .wrap(Wrap { trim: true }),
+                command_area,
+            );
+        }
+        let output_y = output_y + command_height;
         let controls_height = 1;
         if output_y < area.height.saturating_sub(controls_height) {
             let output_area = Rect {

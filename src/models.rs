@@ -1445,6 +1445,7 @@ pub struct BenchTuneResult {
     pub outputs: Vec<String>,
     pub per_iteration_metrics: Vec<BenchTuneMetrics>,
     pub base_settings: Option<ModelSettings>,
+    pub server_command: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
