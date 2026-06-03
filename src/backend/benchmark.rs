@@ -956,16 +956,17 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         }
         vals.iter().sum::<f64>() / vals.len() as f64
     }
-    fn median(vals: &mut [f64]) -> f64 {
+    fn median(vals: &[f64]) -> f64 {
         if vals.is_empty() {
             return 0.0;
         }
-        vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let mid = vals.len() / 2;
-        if vals.len().is_multiple_of(2) {
-            (vals[mid - 1] + vals[mid]) / 2.0
+        let mut sorted = vals.to_vec();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let mid = sorted.len() / 2;
+        if sorted.len().is_multiple_of(2) {
+            (sorted[mid - 1] + sorted[mid]) / 2.0
         } else {
-            vals[mid]
+            sorted[mid]
         }
     }
     fn std_dev(vals: &[f64], avg: f64) -> f64 {
@@ -984,15 +985,15 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     }
 
     let gen_tps: Vec<f64> = results.iter().map(|r| r.metrics.generation_tps).collect();
-    let mut prompt_tps: Vec<f64> = results.iter().map(|r| r.metrics.prompt_tps).collect();
+    let prompt_tps: Vec<f64> = results.iter().map(|r| r.metrics.prompt_tps).collect();
     let latency: Vec<f64> = results
         .iter()
         .map(|r| r.metrics.latency_per_token)
         .collect();
-    let mut first_token: Vec<f64> = results.iter().map(|r| r.metrics.first_token_time).collect();
+    let first_token: Vec<f64> = results.iter().map(|r| r.metrics.first_token_time).collect();
 
-    let mut gen_tps_sorted = gen_tps.clone();
-    let mut latency_sorted = latency.clone();
+    let gen_tps_sorted = gen_tps.clone();
+    let latency_sorted = latency.clone();
 
     let avg_gen_tps = mean(&gen_tps);
     let avg_prompt_tps = mean(&prompt_tps);
@@ -1500,7 +1501,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .replace("__AVG_GEN_TPS__", &format!("{:.1}", avg_gen_tps))
         .replace(
             "__MED_GEN_TPS__",
-            &format!("{:.1}", median(&mut gen_tps_sorted)),
+            &format!("{:.1}", median(&gen_tps_sorted)),
         )
         .replace("__GEN_STD__", &format!("{:.1}", gen_std))
         .replace("__MIN_GEN__", &format!("{:.1}", min_gen_tps))
@@ -1508,7 +1509,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .replace("__AVG_PROMPT_TPS__", &format!("{:.1}", avg_prompt_tps))
         .replace(
             "__MED_PROMPT_TPS__",
-            &format!("{:.1}", median(&mut prompt_tps)),
+            &format!("{:.1}", median(&prompt_tps)),
         )
         .replace("__PROMPT_STD__", &format!("{:.1}", prompt_std))
         .replace("__MIN_PROMPT__", &format!("{:.1}", min_prompt_tps))
@@ -1516,13 +1517,13 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .replace("__AVG_LATENCY__", &format!("{:.1}ms", avg_latency))
         .replace(
             "__MED_LATENCY__",
-            &format!("{:.1}ms", median(&mut latency_sorted)),
+            &format!("{:.1}ms", median(&latency_sorted)),
         )
         .replace("__LAT_STD__", &format!("{:.1}", lat_std))
         .replace("__MIN_LAT__", &format!("{:.1}", min_latency))
         .replace("__MAX_LAT__", &format!("{:.1}", best_latency))
         .replace("__AVG_FT__", &format!("{:.0}ms", avg_first_token))
-        .replace("__MED_FT__", &format!("{:.0}ms", median(&mut first_token)))
+        .replace("__MED_FT__", &format!("{:.0}ms", median(&first_token)))
         .replace("__FT_STD__", &format!("{:.0}", ft_std))
         .replace("__MIN_FT__", &format!("{:.0}ms", min_first_token))
         .replace("__MAX_FT__", &format!("{:.0}ms", best_first_token))
