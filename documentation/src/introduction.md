@@ -1,6 +1,6 @@
 # Introduction
 
-**LLM Manager** is a terminal UI (TUI) for managing local LLM models. It lets you search HuggingFace, download GGUF models, load them via llama.cpp's `llama-server`, and chat with them — all from your terminal.
+**LLM Manager** is a terminal UI (TUI) for managing local LLM models. It lets you search HuggingFace, download GGUF models, and load them via llama.cpp's `llama-server` — all from your terminal.
 
 ## Features
 
@@ -12,7 +12,7 @@
 
 ### Inference
 - **Model loading** — progress visualization through server start, weight loading, metadata, tensor loading, and server listening phases
-- **Chat interface** — interact with loaded models directly in the terminal
+- **Chat with models** — interact with loaded models via the API proxy
 - **RPC Workers** — manage distributed inference nodes from a dedicated window
 - **Router Mode** — load multiple models simultaneously
 

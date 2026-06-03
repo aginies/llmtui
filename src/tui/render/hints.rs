@@ -7,6 +7,15 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
     let c = Style::default().fg(Color::Cyan);
     let r = Style::default().fg(Color::Red);
 
+    // Backend picker has its own hint rendering
+    if matches!(app.ui.global_mode, crate::tui::app::GlobalMode::BackendPicker { .. }) {
+        return vec![
+            Span::styled("Suppr Del", r),
+            Span::raw("  "),
+            Span::styled("⎋ Exit", c),
+        ];
+    }
+
     match &app.models_mode {
         ModelsMode::Search {
             sort_by,

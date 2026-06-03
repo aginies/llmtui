@@ -90,7 +90,17 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if let GlobalMode::Confirmation { selected, kind } = &app.ui.global_mode {
         match key.code {
             KeyCode::Char('y') => {
-                execute_confirmation(app, *kind).await;
+                let kind_copy = *kind;
+                execute_confirmation(app, kind_copy).await;
+                if matches!(kind_copy, ConfirmationKind::DeleteBackend) {
+                    let new_entries = app.fetch_backend_picker_entries();
+                    if let GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode {
+                        *entries = new_entries;
+                        if *selected >= entries.len() {
+                            *selected = entries.len().saturating_sub(1);
+                        }
+                    }
+                }
                 app.ui.global_mode = GlobalMode::Normal;
             }
             KeyCode::Char('n') | KeyCode::Esc => {
@@ -1496,7 +1506,7 @@ fn handle_backend_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.ui.global_mode = GlobalMode::Normal;
                 sync_global_settings(app);
             }
-            KeyCode::Char('d') => {
+            KeyCode::Char('d') | KeyCode::Delete => {
                 if let Some((backend, Some(tag))) = entries.get(*selected) {
                     app.pending.pending_backend_deletion = Some((*backend, tag.clone()));
                     app.ui.global_mode = GlobalMode::Confirmation {
