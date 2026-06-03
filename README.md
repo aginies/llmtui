@@ -2,12 +2,11 @@
 
 [![CI](https://github.com/aginies/llmtui/actions/workflows/ci.yml/badge.svg)](https://github.com/aginies/llmtui/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aginies.github.io/llmtui/)
+[![Version](https://img.shields.io/crates/v/llm-manager)](https://crates.io/crates/llm-manager)
 
 A terminal UI (TUI) for managing local LLM models with HuggingFace search, download, and inference control.
 
 > **NOTE:** This app is WIP (Work in Progress).
-
-**Version 1.1.1**
 
 ![Screenshot](documentation/main.png)
 
