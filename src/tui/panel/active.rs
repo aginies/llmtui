@@ -11,11 +11,29 @@ use crate::tui::app::{App, LoadingPhase};
 use crate::tui::format_size;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
-    let mut title_spans = if app.is_panel_visible(4) {
+    // Get the actually loaded model(s) or the one currently being loaded
+    let mut loaded_models = Vec::new();
+    for (name, state) in &app.model_states {
+        if !matches!(state, ModelState::Available) {
+            loaded_models.push((name.clone(), state.clone()));
+        }
+    }
+
+    // If no model is active in app.model_states, fallback to selected model
+    // but only if it's actually in a non-available state.
+    if loaded_models.is_empty()
+        && let Some(m) = app.selected_model()
+            && let Some(state) = app.model_states.get(&m.display_name)
+                && !matches!(state, ModelState::Available) {
+                    loaded_models.push((m.display_name.clone(), state.clone()));
+                }
+
+    let mut title_spans = if loaded_models.len() == 1 {
         vec![Span::raw(" Active Model (F5) ")]
     } else {
         vec![Span::raw(" Active Model(s) (F5) ")]
     };
+
     if app.metrics.total_vram_used > 0 {
         title_spans.push(Span::styled("[ ", Style::default().fg(Color::White)));
         title_spans.push(Span::styled(
@@ -46,23 +64,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         ));
 
     let mut lines = Vec::new();
-
-    // Get the actually loaded model(s) or the one currently being loaded
-    let mut loaded_models = Vec::new();
-    for (name, state) in &app.model_states {
-        if !matches!(state, ModelState::Available) {
-            loaded_models.push((name.clone(), state.clone()));
-        }
-    }
-
-    // If no model is active in app.model_states, fallback to selected model
-    // but only if it's actually in a non-available state.
-    if loaded_models.is_empty()
-        && let Some(m) = app.selected_model()
-            && let Some(state) = app.model_states.get(&m.display_name)
-                && !matches!(state, ModelState::Available) {
-                    loaded_models.push((m.display_name.clone(), state.clone()));
-                }
 
     // Robust check for Benchmarking - prioritize global flag
     if app.bench_tune.bench_tune_running {
@@ -481,9 +482,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(error, Style::default().fg(Color::White)),
                 ]));
             }
-            ModelState::Available => {
-                // This shouldn't be in loaded_models
-            }
+            ModelState::Available => unreachable!(),
         }
     } else {
         if app.server.server_handle.is_some() {

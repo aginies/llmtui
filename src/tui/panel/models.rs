@@ -444,8 +444,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let scrolled_raw = scroll_text(&result.model_id, col_width, Some(state));
                     let highlighted = highlight_query(&scrolled_raw, query);
 
+                    let is_downloaded =
+                        crate::tui::app::sync_ops::model_dir_has_contents(&app.config.models_dirs, &result.model_id);
+                    let marker = if is_downloaded { "✓" } else { " " };
+                    let marker_span = Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));
+                    let mut name_spans: Vec<Span> = vec![marker_span];
+                    name_spans.extend(highlighted.spans.iter().cloned());
+
                     Row::new(vec![
-                        Cell::from(highlighted),
+                        Cell::from(Line::from(name_spans)),
                         Cell::from(format_number(result.downloads)),
                         Cell::from(format_number(result.likes)),
                         Cell::from(license.to_string()),

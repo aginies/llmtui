@@ -217,6 +217,18 @@ pub fn file_is_downloaded(models: &[crate::models::DiscoveredModel], filename: &
     })
 }
 
+/// Check if a model has been downloaded by verifying that
+/// models_dir/<model_id>/ exists and is non-empty.
+pub fn model_dir_has_contents(models_dirs: &[PathBuf], model_id: &str) -> bool {
+    for dir in models_dirs {
+        let model_dir = dir.join(model_id);
+        if let Ok(mut entries) = std::fs::read_dir(&model_dir) {
+            return entries.next().is_some();
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
