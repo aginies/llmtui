@@ -872,15 +872,20 @@ pub async fn get_metrics(
         }
     }
 
-    m.gpu_mem_used = if vram_used_slots > 0 {
+    // Prefer global metrics (includes model weights + KV cache) over slot-only (KV cache subset).
+    m.gpu_mem_used = if vram_used_global > 0 {
+        vram_used_global
+    } else if vram_used_slots > 0 {
         vram_used_slots
     } else {
-        vram_used_global
+        0
     };
-    m.gpu_mem_total = if vram_total_slots > 0 {
+    m.gpu_mem_total = if vram_total_global > 0 {
+        vram_total_global
+    } else if vram_total_slots > 0 {
         vram_total_slots
     } else {
-        vram_total_global
+        0
     };
 
     // ctx_used = tokens currently in the KV cache.
