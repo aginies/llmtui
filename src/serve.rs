@@ -193,13 +193,25 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     let ws_port = opts.ws_port.unwrap_or(config.default.ws_server_port);
     let ws_auth: Option<String> = opts.ws_auth.or(config.default.ws_server_auth_key.clone());
 
-    // TLS configuration
-    let tls_config = if opts.tls_enable || (opts.tls_cert.is_some() && opts.tls_key.is_some()) {
-        let (cert_path, key_path) = if let Some(cert) = opts.tls_cert {
-            let key = opts.tls_key.unwrap();
-            tls::validate_tls_path(&cert).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
-            tls::validate_tls_path(&key).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
-            (cert.to_string(), key.to_string())
+    // TLS settings: CLI flags take precedence, then config.yaml
+    let tls_enable = opts.tls_enable || config.default.ws_server_tls_enabled;
+    let tls_cert = opts.tls_cert.or(config.default.ws_server_tls_cert.clone());
+    let tls_key = opts.tls_key.or(config.default.ws_server_tls_key.clone());
+
+    let tls_config = if tls_enable || (tls_cert.is_some() && tls_key.is_some()) {
+        let (cert_path, key_path) = if let Some(cert) = &tls_cert {
+            match &tls_key {
+                Some(key) => {
+                    tls::validate_tls_path(cert).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+                    tls::validate_tls_path(key).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+                    (cert.clone(), key.clone())
+                }
+                None => {
+                    return Err(anyhow::anyhow!(
+                        "TLS key is required when TLS certificate is provided"
+                    ));
+                }
+            }
         } else {
             let (cert, key) = tls::ensure_tls_certs().map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
             (
