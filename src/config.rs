@@ -16,6 +16,7 @@ pub use profiles::ProfileStore;
 use crate::models::{
     Backend, CacheType, CacheTypeK, CacheTypeV, Mirostat, NumMode, RopeScaling, Samplers, SplitMode,
 };
+use crate::tui::app::ActivePanel;
 pub use presets::PresetStore;
 
 /// Resolve the base config directory with a safe fallback chain.
@@ -100,6 +101,16 @@ pub struct Config {
     /// Number of results per HuggingFace search query.
     #[serde(default = "default_search_limit")]
     pub search_limit: u32,
+    /// The last focused panel position (for restoring on next launch).
+    #[serde(default)]
+    pub active_panel: crate::tui::app::ActivePanel,
+    /// Left panel width percentage (20-80).
+    #[serde(default = "default_left_pct")]
+    pub left_pct: u16,
+}
+
+fn default_left_pct() -> u16 {
+    55
 }
 
 fn default_search_limit() -> u32 {
@@ -903,6 +914,8 @@ impl Default for Config {
             system_prompt_presets: Default::default(),
             rpc_workers: Vec::new(),
             search_limit: default_search_limit(),
+            active_panel: ActivePanel::Models,
+            left_pct: 55,
         }
     }
 }

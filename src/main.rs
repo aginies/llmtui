@@ -232,7 +232,8 @@ async fn main() -> Result<()> {
 
             info!("Discovered {} models", models.len());
 
-            let mut app = App::new(config);
+            let mut app = App::new(std::mem::take(&mut config));
+           let mut config = std::mem::take(&mut app.config);
             app.models = models;
             app.init_scrolls_for_models();
             if !app.models.is_empty() {
@@ -407,6 +408,11 @@ async fn main() -> Result<()> {
             for (_, task) in app.background_tasks.drain() {
                 task.abort();
             }
+
+            // Save config with UI state
+            config.active_panel = app.ui.active_panel;
+            config.left_pct = app.ui.left_pct;
+            config.save().ok();
 
             // Restore terminal
             crossterm::execute!(

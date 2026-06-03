@@ -8,6 +8,7 @@ use crate::models::{
 };
 use ratatui::layout::Rect;
 use ratatui::text::Line;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -39,8 +40,9 @@ pub struct SettingsRenderCache {
 }
 
 /// Which panel has focus.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ActivePanel {
+    #[default]
     Models,
     Log,
     ServerSettings,

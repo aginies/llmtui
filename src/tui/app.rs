@@ -21,6 +21,8 @@ pub use types::App;
 
 impl App {
     pub fn new(config: Config) -> Self {
+        let active_panel = config.active_panel;
+        let left_pct = config.left_pct;
         let mut log = VecDeque::new();
         log.push_back(LogEntry::new(
             "Starting llm-manager...",
@@ -31,7 +33,7 @@ impl App {
         let settings_clone = settings.clone();
         let server_mode = config.default.server_mode;
         let router_max_models = config.default.router_max_models;
-        Self {
+          Self {
             running: true,
             config,
             models: Vec::new(),
@@ -176,7 +178,7 @@ impl App {
                 search_input: None,
             },
             ui: UIState {
-                active_panel: ActivePanel::Models,
+                active_panel,
                 global_mode: types::GlobalMode::Normal,
                 panel_visibility: 0b111111,
                 panel_help: false,
@@ -184,7 +186,7 @@ impl App {
                 last_error_message: None,
                 list_state: Default::default(),
                 resize_state: None,
-                left_pct: 55,
+                left_pct,
                 needs_full_redraw: false,
                 needs_redraw: true,
                 text_scrolls: Default::default(),
