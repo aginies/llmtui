@@ -966,12 +966,19 @@ fn get_nvidia_vram_metrics() -> Result<(u64, u64), String> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let line = stdout.lines().next().ok_or("No output from nvidia-smi")?;
-    let parts: Vec<&str> = line.split(',').collect();
-    if parts.len() >= 2 {
-        let used = parts[0].trim().parse::<u64>().unwrap_or(0) * 1024 * 1024;
-        let total = parts[1].trim().parse::<u64>().unwrap_or(0) * 1024 * 1024;
-        return Ok((used, total));
+    let mut total_used: u64 = 0;
+    let mut total_total: u64 = 0;
+    for line in stdout.lines() {
+        let parts: Vec<&str> = line.split(',').collect();
+        if parts.len() >= 2 {
+            let used = parts[0].trim().parse::<u64>().unwrap_or(0) * 1024 * 1024;
+            let total = parts[1].trim().parse::<u64>().unwrap_or(0) * 1024 * 1024;
+            total_used += used;
+            total_total += total;
+        }
+    }
+    if total_total > 0 {
+        return Ok((total_used, total_total));
     }
 
     Err("Invalid output from nvidia-smi".to_string())
