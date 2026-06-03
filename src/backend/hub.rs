@@ -257,7 +257,7 @@ pub async fn fetch_readme(model_id: &str) -> Result<String> {
     let url = format!("https://huggingface.co/{}/raw/main/README.md", model_id);
     let resp = reqwest::Client::new()
         .get(&url)
-        .header("User-Agent", "llm-manager/1.1.3")
+        .header("User-Agent", super::USER_AGENT)
         .send()
         .await?
         .error_for_status()?;
@@ -913,7 +913,7 @@ async fn latest_release_with_asset_inner(
     match client
         .get(url)
         .header("Accept", "application/vnd.github.v3+json")
-        .header("User-Agent", "llm-manager/1.1.3")
+        .header("User-Agent", super::USER_AGENT)
         .send()
         .await
     {

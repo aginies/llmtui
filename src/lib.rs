@@ -12,6 +12,7 @@ pub mod serve_api;
 pub mod tui;
 
 // Re-export key types for convenience in tests.
+pub use backend::USER_AGENT;
 pub use config::{
     Config, DefaultParams, LogEntry, LogLevel, ModelConfigStore, ModelOverride, Profile,
     SystemPromptPreset, builtin_profiles, builtin_system_prompt_presets,
