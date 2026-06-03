@@ -35,7 +35,7 @@ pub fn render_download_panel(
     let border_color = if is_focused {
         Color::Green
     } else {
-        Color::Yellow
+        Color::DarkGray
     };
     let block = Block::default()
         .title(title)
@@ -377,15 +377,16 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     results.len()
                 )
             };
-            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
+           let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
-                Color::Magenta
+                Color::DarkGray
             };
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color));
+
 
             let headers = vec![
                 Cell::from("Model").style(
@@ -508,10 +509,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             ..
         } => {
             let title = format!(" {} - GGUF files ", model_id);
-            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
+          let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
-                Color::Magenta
+                Color::DarkGray
             };
             let block = Block::default()
                 .title(title)

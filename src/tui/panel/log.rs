@@ -31,7 +31,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Log {
         Color::Green
     } else {
-        Color::Rgb(255, 165, 0)
+        Color::DarkGray
     };
     let block = Block::default()
         .title(title)

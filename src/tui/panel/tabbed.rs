@@ -57,7 +57,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let border_color = if is_focused {
         Color::Green
     } else {
-        Color::Rgb(255, 165, 0)
+        Color::DarkGray
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title_prefix = if app.settings_state.expert_mode {
@@ -106,7 +106,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     } else if is_focused {
         Color::Green
     } else {
-        Color::Rgb(255, 165, 0)
+        Color::DarkGray
     };
     let selected = app.settings_state.server_settings_selected_idx;
 
@@ -327,7 +327,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let border_color = if is_focused {
         Color::Green
     } else {
-        Color::Rgb(255, 165, 0)
+        Color::DarkGray
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = " LLM Settings (F4) [^F9] ";
@@ -489,7 +489,7 @@ pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static
     let block = Block::default()
         .title(" Model Info (F3) ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Blue));
+        .border_style(Style::default().fg(Color::DarkGray));
 
     let paragraph = Paragraph::new(lines).block(block);
     f.render_widget(paragraph, area);
