@@ -159,8 +159,6 @@ pub fn build_server_cmd(
     }
     if settings.fit {
         push_arg(&mut cmd, &mut parts, "--fit", "on");
-    } else {
-        push_arg(&mut cmd, &mut parts, "--fit", "off");
     }
 
     if let Some(ref lora) = settings.lora {
