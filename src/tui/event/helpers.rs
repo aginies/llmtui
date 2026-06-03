@@ -45,7 +45,6 @@ impl TextEditor<'_> {
         *self.cursor -= 1;
     }
 
-    #[allow(dead_code)]
     pub fn delete(&mut self) {
         if *self.cursor >= self.buffer.chars().count() {
             return;

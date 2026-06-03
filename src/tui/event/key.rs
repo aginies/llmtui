@@ -68,7 +68,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .search
                 .search_input
                 .as_ref()
-                .map(|s| s.len())
+                .map(|s| s.chars().count())
                 .unwrap_or(0),
         };
         return;
@@ -216,48 +216,26 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.search.search_results_idx = None;
                 return;
             }
+            KeyCode::Char(c) => {
+                TextEditor { buffer, cursor: cursor_pos }.insert_char(c);
+            }
             KeyCode::Backspace => {
-                if *cursor_pos > 0 {
-                    let mut pos = *cursor_pos - 1;
-                    while pos > 0 && !buffer.is_char_boundary(pos) {
-                        pos -= 1;
-                    }
-                    buffer.remove(pos);
-                    *cursor_pos = pos;
-                }
+                TextEditor { buffer, cursor: cursor_pos }.backspace();
             }
             KeyCode::Delete => {
-                if *cursor_pos < buffer.len() {
-                    buffer.remove(*cursor_pos);
-                }
-            }
-            KeyCode::Char(c) => {
-                buffer.insert(*cursor_pos, c);
-                *cursor_pos += c.len_utf8();
+                TextEditor { buffer, cursor: cursor_pos }.delete();
             }
             KeyCode::Left => {
-                if *cursor_pos > 0 {
-                    let mut pos = *cursor_pos - 1;
-                    while pos > 0 && !buffer.is_char_boundary(pos) {
-                        pos -= 1;
-                    }
-                    *cursor_pos = pos;
-                }
+                TextEditor { buffer, cursor: cursor_pos }.move_left();
             }
             KeyCode::Right => {
-                if *cursor_pos < buffer.len() {
-                    let mut pos = *cursor_pos + 1;
-                    while pos < buffer.len() && !buffer.is_char_boundary(pos) {
-                        pos += 1;
-                    }
-                    *cursor_pos = pos;
-                }
+                TextEditor { buffer, cursor: cursor_pos }.move_right();
             }
             KeyCode::Home => {
-                *cursor_pos = 0;
+                TextEditor { buffer, cursor: cursor_pos }.home();
             }
             KeyCode::End => {
-                *cursor_pos = buffer.len();
+                TextEditor { buffer, cursor: cursor_pos }.end();
             }
             _ => {}
         }
