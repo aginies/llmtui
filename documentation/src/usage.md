@@ -243,7 +243,7 @@ Use `Left`/`Right` to adjust numeric fields by 1, or `Up`/`Down` for larger step
 - `Ctrl+S` — Save settings for the selected model
 - `Ctrl+R` — Reset to defaults
 - `e` / `Ctrl+E` — Toggle enabled/disabled (for Keep in memory, Flash Attention, KV Cache Offload, Cache Type K/V, Fit, Unified KV, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, MTP, Ignore EOS, Yarn RoPE, Active Experts, SWA Full Cache)
-- `Ctrl+X` — Toggle expert mode (reveals 16 additional parameters)
+- `Ctrl+X` — Toggle expert mode (reveals 17 additional parameters)
 
 Dirty (changed) fields are highlighted with red names and a trailing `*`.
 
@@ -269,7 +269,7 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | `Ctrl+L` | Focus Log panel |
 | `Ctrl+S` | Save settings / Cycle search sort (in search) |
 | `Ctrl+R` | Reset settings (in LLM Settings) / Fetch README (in search) |
-| `Ctrl+E` | Toggle field enabled/disabled (in LLM Settings: Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, Flash Attention, Unified KV, Keep in memory, Fit, MTP, Ignore EOS, Yarn RoPE, Active Experts) |
+| `Ctrl+E` | Toggle field enabled/disabled (in LLM Settings: Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, Flash Attention, Unified KV, Keep in memory, Fit, MTP, Ignore EOS, Yarn RoPE, Active Experts, SWA Full Cache) |
 | `Ctrl+G` | Show GGUF filename explanation (global, works from any panel) |
 | `Ctrl+X` | Toggle expert mode (in LLM Settings) |
 | `Ctrl+P` | Open Profile Picker modal (in LLM Settings) |
