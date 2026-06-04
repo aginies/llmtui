@@ -8,10 +8,10 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     let mut parts = Vec::new();
 
     let mode_name = match &app.models_mode {
-        ModelsMode::List => "List".to_string(),
-        ModelsMode::Search { results, .. } => format!("Search({} results)", results.len()),
-        ModelsMode::Files { files, .. } => format!("Files({} files)", files.len()),
-        ModelsMode::BenchTune => "BenchTune".to_string(),
+        ModelsMode::List => crate::t!("status.list").to_string(),
+        ModelsMode::Search { results, .. } => crate::t_fmt!("status.search", results.len()),
+        ModelsMode::Files { files, .. } => crate::t_fmt!("status.files", files.len()),
+        ModelsMode::BenchTune => crate::t!("status.bench_tune").to_string(),
     };
     parts.push(Span::styled(
         format!("[Mode: {}] ", mode_name),
@@ -29,7 +29,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
 
     if let Some(handle) = &app.server.server_handle {
         let label = if app.server_mode == crate::models::ServerMode::Bench {
-            "BENCHMARKING".to_string()
+            crate::t!("status.benchmarking").to_string()
         } else {
             format!("{} {}", handle.port, app.server_mode)
         };
@@ -47,7 +47,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     current_params: _,
                 } => {
                     let progress_str =
-                        format!("BENCH TUNE {}/{} ({:.0}%)", current, total, progress);
+                        crate::t_fmt!("status.bench_tune_progress", current, total, progress);
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
                         Style::default().fg(Color::Yellow),
@@ -59,10 +59,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     elapsed,
                 } => {
                     let elapsed_str = format!("{}s", elapsed.as_secs());
-                    let progress_str = format!(
-                        "BENCH TUNE COMPLETED ({}/{}) in {}",
-                        total_tests, successful_tests, elapsed_str
-                    );
+                    let progress_str = crate::t_fmt!("status.bench_tune_complete", total_tests, successful_tests, elapsed_str);
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
                         Style::default().fg(Color::Green),
@@ -75,10 +72,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     elapsed,
                 } => {
                     let elapsed_str = format!("{}s", elapsed.as_secs());
-                    let progress_str = format!(
-                        "BENCH TUNE PARTIALLY COMPLETED ({}/{}, {} failed) in {}",
-                        total_tests, successful_tests, failed_tests, elapsed_str
-                    );
+                    let progress_str = crate::t_fmt!("status.bench_tune_partial", total_tests, successful_tests, failed_tests, elapsed_str);
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
                         Style::default().fg(Color::Yellow),
@@ -91,10 +85,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     elapsed,
                 } => {
                     let elapsed_str = format!("{}s", elapsed.as_secs());
-                    let progress_str = format!(
-                        "BENCH TUNE CANCELLED ({}/{}, {} failed) in {}",
-                        total_tests, successful_tests, failed_tests, elapsed_str
-                    );
+                    let progress_str = crate::t_fmt!("status.bench_tune_cancelled", total_tests, successful_tests, failed_tests, elapsed_str);
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
                         Style::default().fg(Color::Yellow),
@@ -102,20 +93,20 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                 }
                 crate::models::BenchTuneProgress::Error { error } => {
                     parts.push(Span::styled(
-                        format!("● BENCH TUNE ERROR: {}", error),
+                        format!("● {}", crate::t_fmt!("status.bench_tune_error", error)),
                         Style::default().fg(Color::Red),
                     ));
                 }
             }
         } else {
             parts.push(Span::styled(
-                "● BENCH TUNE READY",
+                format!("● {}", crate::t!("status.bench_tune_ready")),
                 Style::default().fg(Color::Yellow),
             ));
         }
     } else {
         parts.push(Span::styled(
-            "○ Server",
+            format!("○ {}", crate::t!("status.server")),
             Style::default().fg(Color::DarkGray),
         ));
     }
@@ -123,7 +114,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     if matches!(app.ui.global_mode, GlobalMode::HostPicker { .. }) {
         parts.push(Span::raw("  "));
         parts.push(Span::styled(
-            "[HOST PICKER]",
+            crate::t!("status.host_picker"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -132,7 +123,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     if matches!(app.ui.global_mode, GlobalMode::RpcManager) {
         parts.push(Span::raw("  "));
         parts.push(Span::styled(
-            "[RPC MANAGER]",
+            crate::t!("status.rpc_manager"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -141,7 +132,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     if matches!(app.ui.global_mode, GlobalMode::About) {
         parts.push(Span::raw("  "));
         parts.push(Span::styled(
-            "[ABOUT]",
+            crate::t!("status.about"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -151,14 +142,14 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         parts.push(Span::raw("  "));
         if *editing_prompt {
             parts.push(Span::styled(
-                "[EDITING PROMPT]",
+                crate::t!("status.editing_prompt"),
                 Style::default()
                     .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
             ));
         } else {
             parts.push(Span::styled(
-                "[BENCH SETUP]",
+                crate::t!("status.bench_setup"),
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
@@ -173,20 +164,20 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             parts.push(Span::raw("  "));
             if app.ui.active_panel == ActivePanel::Models {
                 parts.push(Span::styled(
-                    "SEARCH",
+                    crate::t!("status.search"),
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ));
             } else {
                 let panel_label = match app.ui.active_panel {
-                    ActivePanel::Log => "LOG",
-                    ActivePanel::ServerSettings => "SERVER",
-                    ActivePanel::LlmSettings => "LLM",
-                    ActivePanel::Profiles => "PROFILES",
-                    ActivePanel::SystemPromptPresets => "PROMPTS",
-                    ActivePanel::SearchReadme => "README",
-                    _ => "SEARCH",
+                    ActivePanel::Log => crate::t!("status.log"),
+                    ActivePanel::ServerSettings => crate::t!("status.server_panel"),
+                    ActivePanel::LlmSettings => crate::t!("status.llm"),
+                    ActivePanel::Profiles => crate::t!("status.profiles"),
+                    ActivePanel::SystemPromptPresets => crate::t!("status.presets"),
+                    ActivePanel::SearchReadme => crate::t!("status.readme"),
+                    _ => crate::t!("status.search"),
                 };
                 parts.push(Span::styled(
                     panel_label,
@@ -205,20 +196,20 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             parts.push(Span::raw("  "));
             if app.ui.active_panel == ActivePanel::Models {
                 parts.push(Span::styled(
-                    "FILES",
+                    crate::t!("status.files"),
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ));
             } else {
                 let panel_label = match app.ui.active_panel {
-                    ActivePanel::Log => "LOG",
-                    ActivePanel::ServerSettings => "SERVER",
-                    ActivePanel::LlmSettings => "LLM",
-                    ActivePanel::Profiles => "PROFILES",
-                    ActivePanel::SystemPromptPresets => "PROMPTS",
-                    ActivePanel::SearchReadme => "README",
-                    _ => "FILES",
+                    ActivePanel::Log => crate::t!("status.log"),
+                    ActivePanel::ServerSettings => crate::t!("status.server_panel"),
+                    ActivePanel::LlmSettings => crate::t!("status.llm"),
+                    ActivePanel::Profiles => crate::t!("status.profiles"),
+                    ActivePanel::SystemPromptPresets => crate::t!("status.presets"),
+                    ActivePanel::SearchReadme => crate::t!("status.readme"),
+                    _ => crate::t!("status.files"),
                 };
                 parts.push(Span::styled(
                     panel_label,
@@ -233,15 +224,15 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         ModelsMode::List => {
             parts.push(Span::raw("  "));
             let panel_label = match app.ui.active_panel {
-                ActivePanel::Models => "MODELS",
-                ActivePanel::Log => "LOG",
-                ActivePanel::ServerSettings => "SERVER",
-                ActivePanel::LlmSettings => "LLM",
-                ActivePanel::Profiles => "PROFILES",
-                ActivePanel::SystemPromptPresets => "PROMPTS",
-                ActivePanel::SearchReadme => "README",
-                ActivePanel::Downloads => "DOWNLOADS",
-                _ => "APP",
+                ActivePanel::Models => crate::t!("status.models"),
+                ActivePanel::Log => crate::t!("status.log"),
+                ActivePanel::ServerSettings => crate::t!("status.server_panel"),
+                ActivePanel::LlmSettings => crate::t!("status.llm"),
+                ActivePanel::Profiles => crate::t!("status.profiles"),
+                ActivePanel::SystemPromptPresets => crate::t!("status.presets"),
+                ActivePanel::SearchReadme => crate::t!("status.readme"),
+                ActivePanel::Downloads => crate::t!("status.downloads"),
+                _ => crate::t!("status.app"),
             };
             parts.push(Span::styled(
                 panel_label,
@@ -253,7 +244,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         ModelsMode::BenchTune => {
             parts.push(Span::raw("  "));
             parts.push(Span::styled(
-                "BENCHTUNE",
+                crate::t!("status.benchtune"),
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),

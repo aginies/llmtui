@@ -23,8 +23,8 @@ impl App {
             let free_space = crate::backend::hub::get_free_space_bytes(&models_dir);
             if file_size > free_space {
                 self.add_log(
-                    format!(
-                        "Not enough disk space to download {}: need {} but only {} available",
+                    crate::t_fmt!(
+                        "async.not_enough_disk",
                         filename,
                         crate::tui::format_size(file_size),
                         crate::tui::format_size(free_space)
@@ -39,7 +39,7 @@ impl App {
             let cancelled = Arc::new(AtomicBool::new(false));
             let cancelled_clone = cancelled.clone();
             self.add_log(
-                format!("Downloading {}...", model_id),
+                crate::t_fmt!("async.downloading", model_id),
                 crate::config::LogLevel::Info,
             );
             let tx = self.ensure_download_channel();
@@ -99,7 +99,7 @@ impl App {
         self.config.model_overrides.delete(&model_key);
         if let Err(e) = self.config.save() {
             self.add_log(
-                format!("Failed to save config after deletion: {}", e),
+                crate::t_fmt!("async.config_save_failed", e),
                 crate::config::LogLevel::Error,
             );
         }
@@ -116,7 +116,7 @@ impl App {
             }
         }
         self.add_log(
-            format!("Model deleted: {:?}", path.file_name().unwrap_or_default()),
+            crate::t_fmt!("async.model_deleted", path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()),
             crate::config::LogLevel::Info,
         );
         self.ui.needs_redraw = true;
@@ -127,12 +127,12 @@ impl App {
         if bin_dir.exists() {
             if let Err(e) = std::fs::remove_dir_all(&bin_dir) {
                 self.add_log(
-                    format!("Failed to delete backend: {}", e),
+                    crate::t_fmt!("async.backend_delete_failed", e),
                     crate::config::LogLevel::Error,
                 );
             } else {
                 self.add_log(
-                    format!("Deleted backend {} ({})", backend, tag),
+                    crate::t_fmt!("async.backend_deleted", backend, tag),
                     crate::config::LogLevel::Info,
                 );
                 let new_entries = self.fetch_backend_picker_entries();
@@ -156,19 +156,19 @@ impl App {
                     match handle.await {
                         Ok(Ok(path)) => {
                             self.add_log(
-                                format!("Backend ready: {}", path.display()),
+                                crate::t_fmt!("async.backend_ready", path.display()),
                                 crate::config::LogLevel::Info,
                             );
                         }
                         Ok(Err(e)) => {
                             self.add_log(
-                                format!("Backend installation failed: {}", e),
+                                crate::t_fmt!("async.backend_install_failed", e),
                                 crate::config::LogLevel::Error,
                             );
                         }
                         Err(e) => {
                             self.add_log(
-                                format!("Backend task panicked: {}", e),
+                                crate::t_fmt!("async.backend_task_panic", e),
                                 crate::config::LogLevel::Error,
                             );
                         }
@@ -209,8 +209,8 @@ impl App {
                             } else {
                                 &state.filename
                             };
-                            download_logs.push(format!(
-                                "Downloading {}: {}% of {:.1} MiB ({:.2} MiB/s)...",
+                            download_logs.push(crate::t_fmt!(
+                                "async.downloading_progress",
                                 name, new_pct, total_mib, speed_mib
                             ));
                         }
@@ -218,9 +218,9 @@ impl App {
                     self.download.download_progress[idx] = state;
                 } else {
                     if state.model_id == "llama-server" {
-                        download_logs.push("Starting backend download...".to_string());
+                        download_logs.push(crate::t!("async.starting_backend_download").to_string());
                     } else {
-                        download_logs.push(format!("Starting download: {}...", state.filename));
+                        download_logs.push(crate::t_fmt!("async.starting_download", state.filename));
                     }
                     self.download.download_progress.push(state);
                 }
@@ -275,7 +275,7 @@ impl App {
                             );
                         } else {
                             self.add_log(
-                                format!("Download complete: {}", state.filename),
+                                crate::t_fmt!("async.download_complete", state.filename),
                                 crate::config::LogLevel::Info,
                             );
                             self.models = Self::discover_models(
@@ -291,7 +291,7 @@ impl App {
                             &state.filename
                         };
                         self.add_log(
-                            format!("Download failed ({}): {}", name, e),
+                            crate::t_fmt!("async.download_failed", name, e),
                             crate::config::LogLevel::Error,
                         );
                     }
@@ -302,18 +302,14 @@ impl App {
                             &state.filename
                         };
                         self.add_log(
-                            format!("Download cancelled: {}", name),
+                            crate::t_fmt!("async.download_cancelled", name),
                             crate::config::LogLevel::Info,
                         );
                         if let Some(ref dest) = state.dest
                             && dest.exists()
                                 && let Err(e) = std::fs::remove_file(dest) {
                                     self.add_log(
-                                        format!(
-                                            "Failed to remove temp file {}: {}",
-                                            dest.display(),
-                                            e
-                                        ),
+                                        crate::t_fmt!("async.remove_temp_failed", dest.display(), e),
                                         crate::config::LogLevel::Warning,
                                     );
                                 }
@@ -685,7 +681,7 @@ impl App {
                 self.model_states.insert(m.display_name.clone(), state);
             }
             self.add_log(
-                format!("Loading {}...", display_name),
+                crate::t_fmt!("async.loading_model", display_name),
                 crate::config::LogLevel::Info,
             );
             if server_mode_clone == crate::models::ServerMode::BenchTune {
@@ -778,7 +774,7 @@ impl App {
                     let pid = server_handle.pid;
                     let host = server_handle.host.clone();
                     self.add_log(
-                        format!("Server started on port {port} (pid={pid})"),
+                        crate::t_fmt!("async.server_started", port, pid),
                         crate::config::LogLevel::Info,
                     );
                     self.server.server_handle = Some(server_handle);
@@ -804,7 +800,7 @@ impl App {
                     let task_port = port;
                     let task_pid = pid;
                     let metrics_model_name = self.server.metrics_model_name.clone();
-                    self.add_log("Starting metrics polling...", crate::config::LogLevel::Info);
+                    self.add_log(crate::t!("async.starting_metrics"), crate::config::LogLevel::Info);
                     let _task_handle = tokio::spawn(Self::metrics_polling_task(
                         task_host,
                         task_port,
@@ -825,7 +821,7 @@ impl App {
                 Ok(Err(e)) => {
                     self.loading.progress_target = 1.0;
                     self.add_log(
-                        format!("ERROR: Server failed: {}", e),
+                        crate::t_fmt!("async.server_failed", e),
                         crate::config::LogLevel::Error,
                     );
                     if let Some(mut rx) = self.server.server_log_rx.take() {
@@ -840,7 +836,7 @@ impl App {
                 Err(e) => {
                     self.loading.progress_target = 1.0;
                     self.add_log(
-                        format!("ERROR: Spawn task panicked: {}", e),
+                        crate::t_fmt!("async.spawn_task_panic", e),
                         crate::config::LogLevel::Error,
                     );
                     self.ui.needs_redraw = true;
@@ -949,15 +945,11 @@ impl App {
                 Ok((results, display_name, bench_config)) => match results {
                     Ok(bench_results) => {
                         self.add_log(
-                            format!(
-                                "Benchmark tuning completed for {} with {} results",
-                                display_name,
-                                bench_results.len()
-                            ),
+                            crate::t_fmt!("async.benchmark_completed", display_name, bench_results.len()),
                             crate::config::LogLevel::Info,
                         );
                         if bench_results.is_empty() {
-                            self.add_log("No successful benchmark results were obtained. Check the Log (F6) for details on test failures.", crate::config::LogLevel::Warning);
+                            self.add_log(crate::t!("async.benchmark_no_results"), crate::config::LogLevel::Warning);
                         } else {
                             let output_dir = crate::config::Config::config_path()
                                 .parent()
@@ -971,11 +963,11 @@ impl App {
                             .await
                             {
                                 Ok(()) => self.add_log(
-                                    format!("Results saved to {}/", output_dir.display()),
+                                    crate::t_fmt!("async.results_saved", output_dir.display()),
                                     crate::config::LogLevel::Info,
                                 ),
                                 Err(e) => self.add_log(
-                                    format!("Failed to save benchmark results: {}", e),
+                                    crate::t_fmt!("async.results_save_failed", e),
                                     crate::config::LogLevel::Error,
                                 ),
                             }
@@ -1023,7 +1015,7 @@ impl App {
                     }
                     Err(e) => {
                         self.add_log(
-                            format!("Benchmark tuning failed: {}", e),
+                            crate::t_fmt!("async.benchmark_failed", e),
                             crate::config::LogLevel::Error,
                         );
                         self.bench_tune.bench_tune_running = false;
@@ -1040,7 +1032,7 @@ impl App {
                 },
                 Err(e) => {
                     self.add_log(
-                        format!("Benchmark task panicked: {:?}", e),
+                        crate::t_fmt!("async.benchmark_task_panic", e),
                         crate::config::LogLevel::Error,
                     );
                     self.bench_tune.bench_tune_running = false;
@@ -1068,7 +1060,7 @@ impl App {
                     let model_path_clone = model_path.clone();
                     self.pending.pending_api_load = None;
                     self.add_log(
-                        format!("Sending load request for {}...", model_name_clone),
+                        crate::t_fmt!("async.send_load", model_name_clone),
                         crate::config::LogLevel::Info,
                     );
                     {
@@ -1088,7 +1080,7 @@ impl App {
                         .await
                         {
                             let err_msg =
-                                format!("ERROR: Failed to load model {}: {}", model_name_err, e);
+                                crate::t_fmt!("async.load_failed", model_name_err, e);
                             if let Some(tx) = log_tx {
                                 let _ = tx.send(err_msg.clone()).await;
                             } else {
@@ -1130,13 +1122,13 @@ impl App {
                 let model_path_clone = model_path.clone();
                 if server_mode == crate::models::ServerMode::Normal {
                     self.add_log(
-                        format!("Unloading {} (killing server)...", model_name_clone),
+                        crate::t_fmt!("async.unloading", model_name_clone),
                         crate::config::LogLevel::Info,
                     );
                     self.pending.pending_kill = Some(handle_clone);
                 } else {
                     self.add_log(
-                        format!("Sending unload request for {}...", model_name_clone),
+                        crate::t_fmt!("async.send_unload", model_name_clone),
                         crate::config::LogLevel::Info,
                     );
                     let kill_tx = self.server.spawn_log_tx.clone();
@@ -1159,7 +1151,7 @@ impl App {
                             {
                                 if let Some(tx) = kill_tx {
                                     let _ = tx
-                                        .send(format!("Failed to unload model via API: {}", e))
+                                        .send(crate::t_fmt!("async.unload_failed", e))
                                         .await;
                                 }
                                 return;
@@ -1176,10 +1168,7 @@ impl App {
                                 } else {
                                     if let Some(tx) = kill_tx.clone() {
                                         let _ = tx
-                                            .send(format!(
-                                                "{} models still loaded on server",
-                                                loaded.len()
-                                            ))
+                                            .send(crate::t_fmt!("async.models_still_loaded", loaded.len()))
                                             .await;
                                     }
                                 }
@@ -1264,7 +1253,7 @@ impl App {
                 }
                 Err(e) => {
                     self.add_log(
-                        format!("Failed to stop server: {}", e),
+                        crate::t_fmt!("async.stop_failed", e),
                         crate::config::LogLevel::Error,
                     );
                 }
@@ -1335,13 +1324,13 @@ impl App {
                             }
                         }
                         self.add_log(
-                            format!("Search complete: {} results for '{}'", raw_len, query_str),
+                            crate::t_fmt!("async.search_complete", raw_len, query_str),
                             crate::config::LogLevel::Info,
                         );
                     }
                     Ok(Err(e)) => {
                         self.add_log(
-                            format!("Search failed: {}", e),
+                            crate::t_fmt!("async.search_failed", e),
                             crate::config::LogLevel::Error,
                         );
                         if let super::types::ModelsMode::Search { loading, .. } =
@@ -1352,7 +1341,7 @@ impl App {
                     }
                     Err(e) => {
                         self.add_log(
-                            format!("Search task error: {}", e),
+                            crate::t_fmt!("async.search_task_error", e),
                             crate::config::LogLevel::Error,
                         );
                         if let super::types::ModelsMode::Search { loading, .. } =
@@ -1434,10 +1423,7 @@ impl App {
                 if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
                     crate::backend::tls::load_tls_config(cert, key).await.ok()
                 } else {
-                    self.add_log(
-                        "Auto-generating TLS certificate and key",
-                        crate::config::LogLevel::Info,
-                    );
+                    self.add_log(crate::t!("async.tls_generating"), crate::config::LogLevel::Info);
                     match crate::backend::tls::ensure_tls_certs() {
                         Ok((cert, key)) => {
                             self.config.default.ws_server_tls_cert = Some(cert.to_string_lossy().to_string());
@@ -1503,7 +1489,7 @@ impl App {
             self.server.running_ws_auth = None;
             self.server.running_ws_tls = None;
             if !enabled {
-                self.add_log("Dashboard disabled", crate::config::LogLevel::Info);
+                self.add_log(crate::t!("async.dashboard_disabled"), crate::config::LogLevel::Info);
             }
         }
 
@@ -1532,10 +1518,7 @@ impl App {
                         None => String::new(),
                     };
                     self.add_log(
-                        format!(
-                            "Dashboard enabled: {protocol}://{}:{}/dashboard{}",
-                            self.settings.host, port, auth_param
-                        ),
+                        crate::t_fmt!("async.dashboard_enabled", self.settings.host, port, auth_param),
                         crate::config::LogLevel::Info,
                     );
                 }
@@ -1544,13 +1527,13 @@ impl App {
                     // error to the user and flip the toggle back so the loop does
                     // not busy-retry every iteration.
                     self.add_log(
-                        format!("Dashboard failed to start on port {}: {}", port, e),
+                        crate::t_fmt!("async.dashboard_failed", port, e),
                         crate::config::LogLevel::Error,
                     );
                     self.config.default.ws_server_enabled = false;
                     if let Err(e) = self.config.save() {
                         self.add_log(
-                            format!("Failed to persist dashboard-disabled state: {}", e),
+                            crate::t_fmt!("async.dashboard_disable_persist_failed", e),
                             crate::config::LogLevel::Error,
                         );
                     }
@@ -1606,7 +1589,7 @@ impl App {
             self.server.running_api_server_port = None;
             self.server.running_api_model = None;
             if !enabled {
-                self.add_log("API endpoint disabled", crate::config::LogLevel::Info);
+                self.add_log(crate::t!("async.api_disabled"), crate::config::LogLevel::Info);
             }
         }
 
@@ -1616,10 +1599,7 @@ impl App {
                 Ok(a) => a,
                 Err(e) => {
                     self.add_log(
-                        format!(
-                            "API endpoint failed to start: invalid address {}:{}: {}",
-                            host, port, e
-                        ),
+                        crate::t_fmt!("async.api_invalid_address", host, port, e),
                         crate::config::LogLevel::Error,
                     );
                     self.settings.api_endpoint_enabled = false;
@@ -1634,7 +1614,7 @@ impl App {
                 Ok(listener) => drop(listener),
                 Err(e) => {
                     self.add_log(
-                        format!("API endpoint failed to start on {}:{}: {}", host, port, e),
+                        crate::t_fmt!("async.api_failed", host, port, e),
                         crate::config::LogLevel::Error,
                     );
                     self.settings.api_endpoint_enabled = false;
@@ -1671,7 +1651,7 @@ impl App {
                 ""
             };
             self.add_log(
-                format!("API endpoint started on {}:{}{}", host, port, status),
+                crate::t_fmt!("async.api_started", host, port, status),
                 crate::config::LogLevel::Info,
             );
         }

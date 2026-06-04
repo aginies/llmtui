@@ -27,9 +27,9 @@ pub fn render_download_panel(
     let total_speed_str = format_speed(total_speed);
     let count = downloads.len();
     let title = if count == 1 {
-        format!(" Downloading ({}) ", total_speed_str)
+        crate::t_fmt!("download.title", total_speed_str)
     } else {
-        format!(" {} Downloads ({}) ", count, total_speed_str)
+        crate::t_fmt!("download.count", count, total_speed_str)
     };
 
     let border_color = if is_focused {
@@ -56,10 +56,10 @@ pub fn render_download_panel(
             let speed_str = format_speed(d.bytes_per_second);
 
             let status = match &d.status {
-                crate::models::DownloadStatus::Downloading => "Downloading...",
-                crate::models::DownloadStatus::Paused => "Paused",
-                crate::models::DownloadStatus::Complete => "Complete",
-                crate::models::DownloadStatus::Cancelled => "Cancelled",
+                crate::models::DownloadStatus::Downloading => crate::t!("download.status.downloading"),
+                crate::models::DownloadStatus::Paused => crate::t!("download.status.paused"),
+                crate::models::DownloadStatus::Complete => crate::t!("download.status.complete"),
+                crate::models::DownloadStatus::Cancelled => crate::t!("download.status.cancelled"),
                 crate::models::DownloadStatus::Error(e) => e.as_str(),
             };
 
@@ -83,32 +83,32 @@ pub fn render_download_panel(
         .collect();
 
     let headers = vec![
-        Cell::from("Model").style(
+        Cell::from(crate::t!("download.headers.model")).style(
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ),
-        Cell::from("File").style(
+        Cell::from(crate::t!("download.headers.file")).style(
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ),
-        Cell::from("Progress").style(
+        Cell::from(crate::t!("download.headers.progress")).style(
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ),
-        Cell::from("Speed").style(
+        Cell::from(crate::t!("download.headers.speed")).style(
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ),
-        Cell::from("ETA").style(
+        Cell::from(crate::t!("download.headers.eta")).style(
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         ),
-        Cell::from("Status").style(
+        Cell::from(crate::t!("download.headers.status")).style(
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -151,7 +151,7 @@ fn format_eta(d: &crate::models::DownloadState) -> String {
         let secs = remaining as f64 / d.bytes_per_second;
         format_time_remaining(secs as u64)
     } else {
-        "calculating...".to_string()
+        crate::t!("download.calculating").to_string()
     }
 }
 
@@ -363,15 +363,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let sort_label = sort_by.label();
             let display_query = app.search.search_input.as_deref().unwrap_or(query);
             let title = if app.is_panel_visible(0) {
-                format!(
-                    " Search (F7) [^F7]: {} [{}] ({} results) [^s:Sort] [⎋:Back] [->:Readme]",
+                crate::t_fmt!(
+                    "models.search_title",
                     display_query,
                     sort_label,
                     results.len()
                 )
             } else {
-                format!(
-                    " Search: {} [{}] ({} results) [^s:Sort] [⎋:Back] [->:Readme]",
+                crate::t_fmt!(
+                    "models.search_simple",
                     display_query,
                     sort_label,
                     results.len()
@@ -389,7 +389,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
 
             let headers = vec![
-                Cell::from("Model").style(
+                Cell::from(crate::t!("models.search_headers.model")).style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
@@ -397,7 +397,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 Cell::from(if *sort_by == SearchSort::Downloads {
                     "⬇"
                 } else {
-                    "Dl"
+                    crate::t!("models.search_headers.downloads")
                 })
                 .style(
                     Style::default()
@@ -407,14 +407,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 Cell::from(if *sort_by == SearchSort::Likes {
                     "♥"
                 } else {
-                    "Lk"
+                    crate::t!("models.search_headers.likes")
                 })
                 .style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Cell::from("License").style(
+                Cell::from(crate::t!("models.search_headers.license")).style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
@@ -515,7 +515,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             selected_result: _,
             ..
         } => {
-            let title = format!(" {} - GGUF files ", model_id);
+            let title = crate::t_fmt!("models.gguf_files", model_id);
             let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {
@@ -567,12 +567,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .collect();
 
             let headers = vec![
-                Cell::from("File").style(
+                Cell::from(crate::t!("models.gguf_headers.file")).style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Cell::from("Size").style(
+                Cell::from(crate::t!("models.gguf_headers.size")).style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
@@ -621,20 +621,20 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         progress: p,
                         current_params,
                     } => {
-                        lines.push(Line::from(format!(
-                            "Progress: {}/{} ({:.0}%)",
+                        lines.push(Line::from(crate::t_fmt!(
+                            "models.benchtune_progress",
                             current, total, p
                         )));
                         lines.push(Line::from(""));
                         lines.push(Line::from(Span::styled(
-                            "Current parameters:",
+                            crate::t!("models.benchtune_current"),
                             Style::default().add_modifier(Modifier::BOLD),
                         )));
 
                         let p_parts = crate::tui::format_bench_params(current_params, true);
 
                         if p_parts.is_empty() {
-                            lines.push(Line::from("  (Baseline)"));
+                            lines.push(Line::from(crate::t!("models.benchtune_baseline")));
                         } else {
                             for part in p_parts {
                                 lines.push(Line::from(part));
@@ -648,14 +648,13 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     } => {
                         let elapsed_str = format!("{}s", elapsed.as_secs());
                         lines.push(Line::from(vec![
-                            Span::raw("Status: "),
+                            Span::raw(crate::t!("models.benchtune_complete")),
                             Span::styled(
-                                "COMPLETED",
+                                crate::t_fmt!("models.benchtune_complete_time", total_tests, elapsed_str),
                                 Style::default()
                                     .fg(Color::Green)
                                     .add_modifier(Modifier::BOLD),
                             ),
-                            Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
                         ]));
 
                         let success_style = if successful_tests == total_tests {
@@ -667,7 +666,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         };
 
                         lines.push(Line::from(vec![
-                            Span::raw("Success: "),
+                            Span::raw(crate::t!("models.benchtune_success")),
                             Span::styled(
                                 format!("{}/{}", successful_tests, total_tests),
                                 success_style.add_modifier(Modifier::BOLD),
@@ -676,8 +675,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                         if successful_tests < total_tests {
                             lines.push(Line::from(Span::styled(
-                                format!(
-                                    "Warning: {} test(s) failed. Check Log (F6) for details.",
+                                crate::t_fmt!(
+                                    "models.benchtune_warning",
                                     total_tests - successful_tests
                                 ),
                                 Style::default().fg(Color::Red),

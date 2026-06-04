@@ -91,6 +91,36 @@ macro_rules! t {
     };
 }
 
+pub fn t_fmt(key: &str, args: &[String]) -> String {
+    let template = t(key);
+    let mut result = template.to_string();
+    for arg in args {
+        if let Some(pos) = result.find("{}") {
+            result.replace_range(pos..pos + 2, arg);
+        }
+    }
+    result
+}
+
+#[macro_export]
+macro_rules! t_fmt {
+    ($key:expr $(,)?) => {
+        $crate::tui::i18n::t($key).to_string()
+    };
+    ($key:expr, $arg1:expr $(,)?) => {
+        $crate::tui::i18n::t_fmt($key, &[$arg1.to_string()])
+    };
+    ($key:expr, $arg1:expr, $arg2:expr $(,)?) => {
+        $crate::tui::i18n::t_fmt($key, &[$arg1.to_string(), $arg2.to_string()])
+    };
+    ($key:expr, $arg1:expr, $arg2:expr, $arg3:expr $(,)?) => {
+        $crate::tui::i18n::t_fmt($key, &[$arg1.to_string(), $arg2.to_string(), $arg3.to_string()])
+    };
+    ($key:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr $(,)?) => {
+        $crate::tui::i18n::t_fmt($key, &[$arg1.to_string(), $arg2.to_string(), $arg3.to_string(), $arg4.to_string()])
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
