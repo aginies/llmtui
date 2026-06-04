@@ -202,3 +202,18 @@ Server exit is detected via a dedicated channel (not log parsing). On error, aff
 ## Confirmation Dialogs
 
 Destructive actions trigger a `GlobalMode::Confirmation` overlay with `ConfirmationKind` variants: `Exit`, `Reset`, `Delete`, `Unload`, `DeleteBackend`. The user confirms with `Enter` or cancels with `Esc`.
+
+## Internationalization (i18n)
+
+All user-facing strings go through the i18n system defined in `src/tui/i18n.rs`. Translations are stored as JSON files in `locales/<lang>.json` (currently `en.json`, `fr.json`, `it.json`). The system loads all locale files at startup into a static `LazyLock<HashMap>` and switches language at runtime via `Ctrl+L` (cycles en → fr → it → en).
+
+Key components:
+- `TRANSLATIONS` — static HashMap keyed by language code, each containing a map of `key → string`
+- `CURRENT_LANG` — thread-safe mutex holding the active language (persisted to config)
+- `t!("key")` — macro for simple string lookup with fallback (current lang → English → key itself)
+- `t_fmt!("key", args...)` — macro for strings with `{}` placeholders
+- `field_help(field_id)` — helper that constructs `field.help.<id>` keys for LLM Settings tooltips
+
+Naming convention: dot-separated hierarchical keys matching UI context (e.g. `dialog.exit.title`, `field.help.context`, `hints.nav`). Technical/internal strings (error messages for logs, debug output) may remain in code. User-facing strings (panel titles, button labels, help text, tooltips, dialog messages, hints) MUST use `t!()`. When adding a new key, it must be added to ALL locale files simultaneously.
+
+Language switching persists the chosen language to `~/.config/llm-manager/config.yaml` under the `language` field. The locale directory is resolved at runtime by checking: (1) `locales/` alongside the binary, (2) `LLM_MANAGER_LOCALES` env var, (3) project root `locales/` directory.

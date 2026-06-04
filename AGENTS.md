@@ -48,6 +48,15 @@ src/
 - `snake_case` for functions/variables, `PascalCase` for types/enums
 - Log errors with `app.add_log()` in the TUI
 
+### i18n / Translation
+- **All user-facing strings MUST go through the i18n system.** No hardcoded English text in source code.
+- Use `t!("key")` for simple strings, `t_fmt!("key", args...)` for strings with placeholders.
+- UI strings live in `locales/<lang>.json` (en, fr, it). Add keys to ALL locale files, not just `en.json`.
+- If a key does not exist in the current language, it falls back to English, then to the key itself.
+- String key naming: dot-separated hierarchical keys matching the UI context (e.g. `dialog.exit.title`, `field.help.context`, `hints.nav`).
+- Technical/internal strings (error messages for logs, debug output) may remain in code. User-facing strings (panel titles, button labels, help text, tooltips, dialog messages, hints) MUST use `t!()`.
+- When adding a new UI string, add the key to `en.json`, `fr.json`, and `it.json` simultaneously.
+
 ### Git
 - **Never commit changes yourself.** Always ask the user before committing.
 - If the user explicitly asks you to commit, then do it.
