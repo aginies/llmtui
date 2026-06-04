@@ -106,7 +106,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         f.render_widget(help_block.clone(), help_area);
         f.render_widget(
             Paragraph::new(help_text.as_str()).wrap(ratatui::widgets::Wrap { trim: true }),
-            help_area,
+            help_block.inner(help_area),
         );
 
         let settings_area = Rect {
@@ -459,7 +459,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         f.render_widget(help_block.clone(), help_area);
         f.render_widget(
             Paragraph::new(help_text.as_str()).wrap(ratatui::widgets::Wrap { trim: true }),
-            help_area,
+            help_block.inner(help_area),
         );
 
         let settings_area = Rect {
