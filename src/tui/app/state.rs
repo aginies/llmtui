@@ -400,4 +400,21 @@ impl App {
             .values()
             .any(|s| matches!(s, ModelState::Loading))
     }
+
+    pub fn tick_settings_help(&mut self) {
+        if self.ui.active_panel != crate::tui::app::ActivePanel::LlmSettings {
+            self.settings_state.help_focus_time = None;
+            self.settings_state.help_visible = false;
+            return;
+        }
+        if self.settings_state.help_focus_time.is_none() {
+            self.settings_state.help_focus_time = Some(tokio::time::Instant::now());
+        }
+        if let Some(focus_time) = self.settings_state.help_focus_time
+            && !self.settings_state.help_visible
+            && focus_time.elapsed() >= std::time::Duration::from_millis(1500)
+        {
+            self.settings_state.help_visible = true;
+        }
+    }
 }

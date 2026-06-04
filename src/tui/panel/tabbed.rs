@@ -4,6 +4,7 @@ use ratatui::{
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
+    prelude::Stylize,
 };
 
 use super::info;
@@ -40,19 +41,11 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     render_server_settings(f, server_area, app);
 
     // ── LLM Settings ─────────────────────────────────────────
-    let (settings_lines, _count, settings_height, _selected_line_idx) =
+    let (settings_lines, _count, settings_height, _selected_line_idx, help_line) =
         settings::render_all(app, llm_area, false);
 
     let available_height = llm_area.height.saturating_sub(2);
-
-    // Build visible settings lines with scroll offset applied
     let start_idx = app.settings_state.settings_scroll_offset;
-    let visible_lines: Vec<Line<'static>> = settings_lines
-        .iter()
-        .skip(start_idx)
-        .take(available_height as usize)
-        .cloned()
-        .collect();
 
     let border_color = if is_focused {
         Color::Green
@@ -77,19 +70,102 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    let paragraph = Paragraph::new(visible_lines).block(block);
-    f.render_widget(paragraph, llm_area);
+    let inner = block.inner(llm_area);
 
-    // Render scrollbar if settings overflow
-    if settings_height > available_height as usize {
-        crate::tui::render_vertical_scrollbar(
-            f,
-            llm_area,
-            settings_height,
-            app.settings_state.settings_scroll_offset,
-            0,
-            0,
+    // Always draw outer block first (green border)
+    f.render_widget(Paragraph::new(vec![]).block(block), llm_area);
+
+    if let Some(ref help_text) = help_line {
+        let max_width = inner.width.saturating_sub(2);
+        let help_char_len = help_text.chars().count();
+        let help_line_count = if max_width > 2 {
+            ((help_char_len as f64) / (max_width as f64)).ceil() as u16
+        } else {
+            1
+        };
+      let help_line_count = help_line_count.clamp(1, 4);
+
+        // visible lines = available height minus help box
+        let visible_lines: Vec<Line<'static>> = settings_lines
+            .iter()
+            .skip(start_idx)
+            .take((available_height as usize).saturating_sub(help_line_count as usize))
+            .cloned()
+            .collect();
+
+        let help_area = Rect {
+            x: inner.x,
+            y: inner.y + inner.height - help_line_count,
+            width: inner.width,
+            height: help_line_count,
+        };
+        let help_block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(Color::Gray))
+            .bg(Color::Black);
+        f.render_widget(help_block.clone(), help_area);
+        f.render_widget(
+            Paragraph::new(help_text.as_str()).wrap(ratatui::widgets::Wrap { trim: true }),
+            help_block.inner(help_area),
         );
+
+        let settings_area = Rect {
+            x: inner.x,
+            y: inner.y,
+            width: inner.width,
+            height: inner.height.saturating_sub(help_line_count),
+        };
+        f.render_widget(Paragraph::new(visible_lines), settings_area);
+
+        if settings_height > available_height.saturating_sub(help_line_count) as usize {
+            let scroll_area = Rect {
+                x: settings_area.x + settings_area.width.saturating_sub(1),
+                y: settings_area.y,
+                width: 1,
+                height: settings_area.height,
+            };
+            crate::tui::render_vertical_scrollbar(
+                f,
+                scroll_area,
+                settings_height,
+                app.settings_state.settings_scroll_offset,
+                0,
+                0,
+            );
+        }
+    } else {
+        // visible lines = full available height
+        let visible_lines: Vec<Line<'static>> = settings_lines
+            .iter()
+            .skip(start_idx)
+            .take(available_height as usize)
+            .cloned()
+            .collect();
+
+        let settings_area = Rect {
+            x: inner.x,
+            y: inner.y,
+            width: inner.width,
+            height: inner.height,
+        };
+        f.render_widget(Paragraph::new(visible_lines), settings_area);
+
+        if settings_height > available_height as usize {
+            let scroll_area = Rect {
+                x: settings_area.x + settings_area.width.saturating_sub(1),
+                y: settings_area.y,
+                width: 1,
+                height: settings_area.height,
+            };
+            crate::tui::render_vertical_scrollbar(
+                f,
+                scroll_area,
+                settings_height,
+                app.settings_state.settings_scroll_offset,
+                0,
+                0,
+            );
+        }
     }
 }
 fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
@@ -342,30 +418,107 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    let (all_lines, _count, settings_height, _selected_line_idx) = settings::render_all(app, area, false);
+    let (all_lines, _count, settings_height, _selected_line_idx, help_line) = settings::render_all(app, area, false);
 
-    let available_height = area.height.saturating_sub(2);
+   let available_height = area.height.saturating_sub(2);
     let start_idx = app.settings_state.settings_scroll_offset;
-    let visible_lines: Vec<Line> = all_lines
-        .iter()
-        .skip(start_idx)
-        .take(available_height as usize)
-        .cloned()
-        .collect();
 
-    let paragraph = Paragraph::new(visible_lines).block(block);
-    f.render_widget(paragraph, area);
+   let inner = block.inner(area);
 
-    // Render scrollbar if settings overflow
-    if settings_height > available_height as usize {
-        crate::tui::render_vertical_scrollbar(
-            f,
-            area,
-            settings_height,
-            app.settings_state.settings_scroll_offset,
-            0,
-            0,
+    // Always draw outer block first (green border)
+    f.render_widget(Paragraph::new(vec![]).block(block), area);
+
+    if let Some(ref help_text) = help_line {
+        let max_width = inner.width.saturating_sub(2);
+        let help_char_len = help_text.chars().count();
+        let help_line_count = if max_width > 2 {
+            ((help_char_len as f64) / (max_width as f64)).ceil() as u16
+        } else {
+            1
+        };
+        let help_line_count = help_line_count.clamp(1, 4);
+
+        // visible lines = available height minus help box
+        let visible_lines: Vec<Line> = all_lines
+            .iter()
+            .skip(start_idx)
+            .take((available_height as usize).saturating_sub(help_line_count as usize))
+            .cloned()
+            .collect();
+
+        let help_area = Rect {
+            x: inner.x,
+            y: inner.y + inner.height - help_line_count,
+            width: inner.width,
+            height: help_line_count,
+        };
+        let help_block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(Color::Gray))
+            .bg(Color::Black);
+        f.render_widget(help_block.clone(), help_area);
+        f.render_widget(
+            Paragraph::new(help_text.as_str()).wrap(ratatui::widgets::Wrap { trim: true }),
+            help_block.inner(help_area),
         );
+
+        let settings_area = Rect {
+            x: inner.x,
+            y: inner.y,
+            width: inner.width,
+            height: inner.height.saturating_sub(help_line_count),
+        };
+        f.render_widget(Paragraph::new(visible_lines), settings_area);
+
+        if settings_height > available_height.saturating_sub(help_line_count) as usize {
+            let scroll_area = Rect {
+                x: settings_area.x + settings_area.width.saturating_sub(1),
+                y: settings_area.y,
+                width: 1,
+                height: settings_area.height,
+            };
+            crate::tui::render_vertical_scrollbar(
+                f,
+                scroll_area,
+                settings_height,
+                app.settings_state.settings_scroll_offset,
+                0,
+                0,
+            );
+        }
+    } else {
+        // visible lines = full available height
+        let visible_lines: Vec<Line> = all_lines
+            .iter()
+            .skip(start_idx)
+            .take(available_height as usize)
+            .cloned()
+            .collect();
+
+        let settings_area = Rect {
+            x: inner.x,
+            y: inner.y,
+            width: inner.width,
+            height: inner.height,
+        };
+        f.render_widget(Paragraph::new(visible_lines), settings_area);
+
+        if settings_height > available_height as usize {
+            let scroll_area = Rect {
+                x: settings_area.x + settings_area.width.saturating_sub(1),
+                y: settings_area.y,
+                width: 1,
+                height: settings_area.height,
+            };
+            crate::tui::render_vertical_scrollbar(
+                f,
+                scroll_area,
+                settings_height,
+                app.settings_state.settings_scroll_offset,
+                0,
+                0,
+            );
+        }
     }
 }
 

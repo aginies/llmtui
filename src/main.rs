@@ -337,6 +337,7 @@ async fn main() -> Result<()> {
                 app.update_api_endpoint().await;
                 app.tick_spinner();
                 app.tick_text_scrolls();
+                app.tick_settings_help();
                 if app.ui.needs_redraw {
                     app.ui.needs_redraw = false;
                     app.render(&mut terminal)?;

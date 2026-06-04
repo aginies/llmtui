@@ -264,6 +264,18 @@ impl App {
                         "  Maximum number of models that can run simultaneously. Press Enter to open a picker that shows how context length divides per model. Each model needs its own VRAM/CPU resources.",
                     ),
                 ]),
+                Line::from(vec![
+                    Span::styled("Cache Reuse", y),
+                    Span::raw(
+                        "  Minimum chunk size (in tokens) before KV cache is reused across requests. Higher values (e.g., 128, 256) only cache large shared prefixes, reducing disk write churn. Lower values (0-32) cache more aggressively. Adjust with Left/Right arrows (step 16).",
+                    ),
+                ]),
+                Line::from(vec![
+                    Span::styled("SWA Full Cache", y),
+                    Span::raw(
+                        "  Enable full-size sliding window attention cache. Stores complete KV entries for SWA layers instead of compressed representation. Uses more VRAM but preserves quality on very long contexts. Toggle with Enter.",
+                    ),
+                ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Sampling ---", y)]),
                 Line::from(vec![
@@ -390,12 +402,6 @@ impl App {
                     Span::styled("Keep", y),
                     Span::raw(
                         "  Number of layers to keep in memory when swapping (negative = all). Useful for fast reloading of the same model. Typical: -1 (all) or 0 (none).",
-                    ),
-                ]),
-                Line::from(vec![
-                    Span::styled("SWA Full", y),
-                    Span::raw(
-                        "  Enable sliding window attention (SWA) for all layers. Allows longer contexts on models trained with SWA (e.g., some Llama variants). Toggle on/off with Enter.",
                     ),
                 ]),
                 Line::from(vec![
@@ -530,12 +536,6 @@ impl App {
                     Span::styled("Cache Prompt", y),
                     Span::raw(
                         "  Cache prompt tokens to avoid re-evaluating them on each request. Toggle on/off with Enter. Requires API server mode. Dramatically speeds up multi-turn conversations.",
-                    ),
-                ]),
-                Line::from(vec![
-                    Span::styled("Cache Reuse", y),
-                    Span::raw(
-                        "  Amount of KV cache to reuse (0 = none). Enables partial cache reuse between requests. Higher values save computation but use more memory. Typical: 0.",
                     ),
                 ]),
                 Line::from(vec![

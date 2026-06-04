@@ -27,6 +27,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_selected_idx =
                     app.settings_state.settings_selected_idx.saturating_sub(1);
             }
+            app.settings_state.help_focus_time = Some(tokio::time::Instant::now());
+            app.settings_state.help_visible = false;
             mark_settings_dirty(app, false);
             return;
         }
@@ -38,6 +40,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_selected_idx =
                     (app.settings_state.settings_selected_idx + 1).min(count.saturating_sub(1));
             }
+            app.settings_state.help_focus_time = Some(tokio::time::Instant::now());
+            app.settings_state.help_visible = false;
             mark_settings_dirty(app, false);
             return;
         }
@@ -49,6 +53,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_selected_idx =
                     (app.settings_state.settings_selected_idx + 10).min(count.saturating_sub(1));
             }
+            app.settings_state.help_focus_time = Some(tokio::time::Instant::now());
+            app.settings_state.help_visible = false;
             mark_settings_dirty(app, false);
             return;
         }
@@ -59,6 +65,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_selected_idx =
                     app.settings_state.settings_selected_idx.saturating_sub(10);
             }
+            app.settings_state.help_focus_time = Some(tokio::time::Instant::now());
+            app.settings_state.help_visible = false;
             mark_settings_dirty(app, false);
             return;
         }
@@ -71,6 +79,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if app.settings_state.settings_selected_idx >= count {
                 app.settings_state.settings_selected_idx = count.saturating_sub(1);
             }
+            app.settings_state.help_focus_time = Some(tokio::time::Instant::now());
+            app.settings_state.help_visible = false;
             mark_settings_dirty(app, false);
             return;
         }
@@ -79,6 +89,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_scroll_offset.saturating_sub(5);
             app.settings_state.settings_selected_idx =
                 app.settings_state.settings_selected_idx.saturating_sub(5);
+            app.settings_state.help_focus_time = Some(tokio::time::Instant::now());
+            app.settings_state.help_visible = false;
             mark_settings_dirty(app, false);
             return;
         }
@@ -249,6 +261,14 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if field_id == Some("uniform_cache") && key.code == KeyCode::Enter
     {
         app.settings.uniform_cache = !app.settings.uniform_cache;
+        mark_settings_dirty(app, true);
+        return;
+    }
+
+    // SWA Full Cache: toggle on Enter
+    if field_id == Some("swa_full") && key.code == KeyCode::Enter
+    {
+        app.settings.swa_full = !app.settings.swa_full;
         mark_settings_dirty(app, true);
         return;
     }

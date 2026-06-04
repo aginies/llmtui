@@ -58,6 +58,8 @@ impl App {
                 settings_scroll_offset: 0,
                 settings_render_cache: None,
                 expert_mode: false,
+                help_focus_time: None,
+                help_visible: false,
             },
             picker: PickerState {
                 host_picker_entries: Vec::new(),

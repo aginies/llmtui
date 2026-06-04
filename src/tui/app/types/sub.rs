@@ -28,6 +28,8 @@ pub struct SettingsState {
     pub settings_scroll_offset: usize,
     pub settings_render_cache: Option<SettingsRenderCache>,
     pub expert_mode: bool,
+    pub help_focus_time: Option<tokio::time::Instant>,
+    pub help_visible: bool,
 }
 
 pub struct PickerState {

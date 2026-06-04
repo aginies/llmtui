@@ -29,6 +29,7 @@ pub struct SettingField {
     pub is_expert: bool,
     pub is_ultra: bool,
     pub is_enabled: Option<fn(&ModelSettings) -> bool>,
+    pub help_text: &'static str,
 }
 
 impl SettingField {
@@ -81,6 +82,7 @@ macro_rules! make_field_fn {
             adjust: AdjustFn,
             apply_edit: ApplyEditFn,
             ctrl_e_toggle: CtrlEToggleFn,
+            help_text: &'static str,
         ) -> SettingField {
             SettingField {
                 id,
@@ -94,6 +96,7 @@ macro_rules! make_field_fn {
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
+                help_text,
             }
         }
     };
@@ -106,6 +109,7 @@ macro_rules! make_field_fn {
             dirty: DirtyFn,
             adjust: AdjustFn,
             apply_edit: ApplyEditFn,
+            help_text: &'static str,
         ) -> SettingField {
             SettingField {
                 id,
@@ -119,6 +123,7 @@ macro_rules! make_field_fn {
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
+                help_text,
             }
         }
     };
@@ -277,29 +282,6 @@ macro_rules! diff_option_float {
 
 // ── All Fields (Interleaved for context-aware expert mode) ────────────────────
 
-macro_rules! make_cache_type_field {
-    ($field:ident, $name:literal, $toggle:ident) => {
-        expert_field_with_toggle(
-            stringify!($field),
-            $name,
-            "GPU Offload",
-            |s| s.$field.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
-            |s, c| s.$field != c.$field,
-            |s, delta, _| {
-                let mut val = s.$field.unwrap_or(CacheQuantType::F16);
-                val = if delta > 0 { val.next() } else { val.prev() };
-                s.$field = Some(val);
-            },
-            |s, buf| {
-                if let Ok(n) = buf.parse::<u8>() {
-                    s.$field = Some(CacheQuantType::from_u8(n));
-                }
-            },
-            $toggle,
-        )
-    };
-}
-
 pub fn all_fields() -> Vec<SettingField> {
     vec![
         // ── Loading ───────────────────────────────────────────────────────────
@@ -311,6 +293,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.system_prompt_preset_name != c.system_prompt_preset_name,
             |_, _, _| {},
             |_, _| {},
+            "System prompt preset. Pre-configured prompts that shape how the model behaves (e.g., 'coder', 'assistant', 'creative'). Affects the model's personality and output style.",
         ),
         field(
             "context_length",
@@ -337,6 +320,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.context_length = v.max(128);
                 }
             },
+            "Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more RAM. Typical: 8192-65536 depending on model and RAM.",
         ),
         expert_field_with_toggle(
             "rope_yarn_enabled",
@@ -347,6 +331,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_rope_yarn_enabled,
+            "Enable YaRN (Yet another RoPE extensioN) for scaling context beyond training limits. YaRN uses a frequency rescaling technique to handle longer contexts. Toggle on/off with Enter.",
         ),
         {
             let mut f = expert_field(
@@ -366,6 +351,7 @@ pub fn all_fields() -> Vec<SettingField> {
                 },
                 |_, _, _| {},
                 |_, _| {},
+                "YaRN configuration: rope_scale (context multiplier), rope_freq_base (frequency base), rope_freq_scale (frequency scaling). Press Enter to open the YaRN parameter editor.",
             );
             f.is_enabled = Some(|s| s.rope_yarn_enabled);
             f
@@ -384,6 +370,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.threads_batch = v.max(1);
                 }
             },
+            "CPU threads for batch processing (1 to 32). Separate from Threads (inference threads). Keep equal for most workloads, or reduce batch threads to lower CPU usage during batch operations.",
         ),
         ultra_field(
             "ubatch_size",
@@ -399,6 +386,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.ubatch_size = v.max(1);
                 }
             },
+            "Unlimited batch size for prompt processing. Larger values improve prompt evaluation throughput but use more RAM. Typical: 512-2048. Set to 0 to match context_length.",
         ),
         ultra_field(
             "keep",
@@ -414,6 +402,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.keep = v;
                 }
             },
+            "Number of layers to keep in memory when swapping (negative = all). Useful for fast reloading of the same model. Typical: -1 (all) or 0 (none).",
         ),
         field_with_toggle(
             "mlock",
@@ -424,6 +413,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_mlock,
+            "Lock model weights in RAM (mlock). Prevents the OS from swapping model weights to disk. Slows model load time but ensures faster inference once loaded. Useful for repeated use.",
         ),
         expert_field(
             "numa",
@@ -447,6 +437,7 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.numa = val;
             },
             |_, _| {},
+            "NUMA (Non-Uniform Memory Access) strategy: None, Distribute, Isolate, or Numactl. Affects CPU thread affinity on multi-socket systems. None = default.",
         ),
         // ── GPU Offload ───────────────────────────────────────────────────────
         field(
@@ -461,6 +452,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.gpu_layers_mode != c.gpu_layers_mode,
             gpu_layers_adjust,
             gpu_layers_apply,
+            "How many model layers to offload to GPU. Arrow keys cycle: Auto → 1 → 2 → ... → N → All → Auto. Auto lets llama.cpp decide based on VRAM. All loads every layer (999). Specific number sets exact offload count.",
         ),
         ultra_field(
             "split_mode",
@@ -484,6 +476,7 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.split_mode = val;
             },
             |_, _| {},
+            "GPU split strategy: None, Layer (default), Row, or Tensor. Controls how model layers are distributed across multiple GPUs. Layer splits by layer count, Row/Tensor split by matrix dimensions for multi-GPU setups.",
         ),
         ultra_field(
             "tensor_split",
@@ -493,6 +486,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.tensor_split != c.tensor_split,
             |_, _, _| {},
             |_, _| {},
+            "Fraction of model weights to load on each GPU (colon-separated for multi-GPU, e.g., '0.5:0.5'). For single GPU, leave empty. Press Enter to edit.",
         ),
         expert_field(
             "main_gpu",
@@ -508,6 +502,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.main_gpu = v;
                 }
             },
+            "Index of the main GPU (0-based). Handles initial model loading and some computations. Typical: 0 for single GPU, 0 for primary in multi-GPU setups.",
         ),
         field_with_toggle(
             "fit",
@@ -518,6 +513,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_fit,
+            "Automatically adjust arguments to fit device memory. Toggle on/off with Enter.",
         ),
         field_with_toggle(
             "flash_attn",
@@ -528,6 +524,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_flash_attn,
+            "Enable Flash Attention (flash-attn) for faster inference. Requires compatible GPU (Ampere+ / Ada). Significantly speeds up long-context inference. Only works with certain GGUF formats.",
         ),
         field_with_toggle(
             "kv_cache_offload",
@@ -538,11 +535,54 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_kv_cache_offload,
+            "Offload KV cache to RAM when GPU memory is full. Allows larger batch sizes and contexts at the cost of some speed. Useful when VRAM is limited but you still want longer conversations.",
         ),
         // ── Cache type fields ──────────────────────────────────────────────────
 
-        make_cache_type_field!(cache_type_k, "Cache Type K", toggle_cache_type_k),
-        make_cache_type_field!(cache_type_v, "Cache Type V", toggle_cache_type_v),
+        {
+            let mut f = expert_field(
+                "cache_type_k",
+                "Cache Type K",
+                "GPU Offload",
+                |s| s.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
+                |s, c| s.cache_type_k != c.cache_type_k,
+                |s, delta, _| {
+                    let mut val = s.cache_type_k.unwrap_or(CacheQuantType::F16);
+                    val = if delta > 0 { val.next() } else { val.prev() };
+                    s.cache_type_k = Some(val);
+                },
+                |s, buf| {
+                    if let Ok(n) = buf.parse::<u8>() {
+                        s.cache_type_k = Some(CacheQuantType::from_u8(n));
+                    }
+                },
+                "Quantization precision for KV cache keys. Lower precision (e.g., Q4, Q8) saves VRAM but may slightly reduce quality. Default is usually FP16. Use lower values if running out of VRAM.",
+            );
+            f.ctrl_e_toggle = Some(toggle_cache_type_k);
+            f
+        },
+        {
+            let mut f = expert_field(
+                "cache_type_v",
+                "Cache Type V",
+                "GPU Offload",
+                |s| s.cache_type_v.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
+                |s, c| s.cache_type_v != c.cache_type_v,
+                |s, delta, _| {
+                    let mut val = s.cache_type_v.unwrap_or(CacheQuantType::F16);
+                    val = if delta > 0 { val.next() } else { val.prev() };
+                    s.cache_type_v = Some(val);
+                },
+                |s, buf| {
+                    if let Ok(n) = buf.parse::<u8>() {
+                        s.cache_type_v = Some(CacheQuantType::from_u8(n));
+                    }
+                },
+                "Quantization precision for KV cache values. Lower precision (e.g., Q4, Q8) saves VRAM but may slightly reduce quality. Default is usually FP16. Use lower values if running out of VRAM.",
+            );
+            f.ctrl_e_toggle = Some(toggle_cache_type_v);
+            f
+        },
         expert_field_with_toggle(
             "expert_count",
             "Active Experts",
@@ -566,6 +606,7 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_expert_count,
+            "Number of MoE (Mixture of Experts) experts to activate per token. -1 = auto (all active). Reducing this speeds up inference for MoE models like Mixtral but may reduce quality. Typical: 2-8 for Mixtral.",
         ),
         // ── Evaluation ────────────────────────────────────────────────────────
         field(
@@ -582,6 +623,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.batch_size = v.max(1);
                 }
             },
+            "Batch size for evaluation (inference). Larger batches use more VRAM but can improve throughput via parallelism. Small values (1-8) for low VRAM, larger (16-128) for high VRAM setups.",
         ),
         field_with_toggle(
             "uniform_cache",
@@ -592,6 +634,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_uniform_cache,
+            "Share KV cache across sequences. Reduces VRAM usage when running multiple requests by reusing allocated cache. May slightly reduce performance but enables more concurrent users.",
         ),
         expert_field(
             "cache_reuse",
@@ -607,6 +650,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.cache_reuse = v;
                 }
             },
+            "Minimum chunk size (in tokens) before KV cache is reused across requests. Higher values (e.g., 128, 256) only cache large shared prefixes, reducing disk write churn. Lower values (0-32) cache more aggressively. Adjust with Left/Right arrows (step 16).",
         ),
         expert_field_with_toggle(
             "swa_full",
@@ -617,6 +661,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_swa_full,
+            "Enable full-size sliding window attention cache. Stores complete KV entries for SWA layers instead of compressed representation. Uses more VRAM but preserves quality on very long contexts. Toggle with Enter.",
         ),
         expert_field_with_toggle(
             "max_concurrent_predictions",
@@ -640,6 +685,7 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_max_concurrent_predictions,
+            "Maximum number of models that can run simultaneously. Press Enter to open a picker that shows how context length divides per model. Each model needs its own VRAM/CPU resources.",
         ),
         // ── Sampling ──────────────────────────────────────────────────────────
         field(
@@ -656,6 +702,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.seed = v;
                 }
             },
+            "Random seed for reproducible outputs. -1 = random (default). Set to a fixed value for deterministic, repeatable responses — useful for debugging or testing prompts.",
         ),
         field(
             "temperature",
@@ -672,6 +719,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.temperature = (v as f32 / 100.0).clamp(0.0, 2.0);
                 }
             },
+            "Sampling temperature. Controls creativity: 0 = deterministic (most predictable), 0.7 = balanced, 1.0+ = creative. Lower values produce more focused, factual outputs. Typical: 0.7-0.9 for general use.",
         ),
         field(
             "top_k",
@@ -687,6 +735,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.top_k = v.max(0);
                 }
             },
+            "Only consider the top k most likely tokens at each step. Smaller top-k (e.g., 10-40) makes output more deterministic. Larger values allow more variety. Typical: 40-50. Set to 0 to disable.",
         ),
         field(
             "top_p",
@@ -702,6 +751,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.top_p = (v as f32 / 100.0).clamp(0.0, 1.0);
                 }
             },
+            "Nucleus sampling: only consider tokens whose cumulative probability reaches p. Smaller top-p (e.g., 0.9) is more conservative, larger (e.g., 0.95-0.99) allows more variety. Often preferred over top-k. Typical: 0.9-0.95.",
         ),
         field(
             "min_p",
@@ -717,6 +767,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.min_p = (v as f32 / 100.0).clamp(0.0, 1.0);
                 }
             },
+            "Minimum probability threshold relative to the most likely token. Tokens below min_p * max_prob are excluded. A filter that's more principled than top-k/top-p for controlling diversity. Typical: 0.01-0.1.",
         ),
         ultra_field(
             "typical_p",
@@ -732,6 +783,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.typical_p = (v as f32 / 100.0).clamp(0.0, 1.0);
                 }
             },
+            "Locally typical sampling (typ_p). Controls diversity by keeping tokens with typical probability mass. Values near 1.0 = no effect, 0.1-0.5 = moderate diversity. Typical: 1.0 (off).",
         ),
         ultra_field(
             "mirostat",
@@ -753,6 +805,7 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.mirostat = val;
             },
             |_, _| {},
+            "Mirostat sampling mode: Off (default), Mirostat, or Mirostat2. Adaptive temperature control that maintains target perplexity. Mirostat2 is more aggressive. Useful for consistent output quality.",
         ),
         ultra_field(
             "mirostat_lr",
@@ -769,6 +822,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.mirostat_lr = (v as f32 / 100.0).clamp(0.0, 1.0);
                 }
             },
+            "Mirostat learning rate (eta). Controls how quickly the temperature adapts. Smaller = smoother adjustments. Typical: 0.1.",
         ),
         ultra_field(
             "mirostat_ent",
@@ -785,6 +839,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.mirostat_ent = (v as f32 / 100.0).clamp(0.0, 10.0);
                 }
             },
+            "Mirostat target entropy. Controls the diversity of output. Higher = more diverse. Typical: 5.0.",
         ),
         ultra_field_with_toggle(
             "ignore_eos",
@@ -795,6 +850,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_ignore_eos,
+            "Ignore end-of-sequence tokens during generation. Toggle on/off with Enter. Useful when you want to force the model to continue generating.",
         ),
         ultra_field(
             "samplers",
@@ -804,6 +860,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.samplers.0 != c.samplers.0,
             |_, _, _| {},
             |_, _| {},
+            "Semicolon-separated sampler order string (e.g., 'mirostat;temperature;top_k;top_p'). Controls which samplers are applied and in what order. Press Enter to edit.",
         ),
         field_with_toggle(
             "max_tokens",
@@ -825,6 +882,7 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_max_tokens,
+            "Maximum number of tokens to generate in the response. Prevents runaway responses. Set to 0 or Disabled for no limit. Typical: 4096-8192 for chat, higher for code generation.",
         ),
         // ── Repetition ────────────────────────────────────────────────────────
         field(
@@ -842,6 +900,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.repeat_penalty = (v as f32 / 100.0).clamp(0.0, 2.0);
                 }
             },
+            "Controls repetition penalty (1.0 = no penalty, 1.1 = mild, 1.2 = strong). Higher values discourage the model from repeating phrases. Typical: 1.05-1.15 for most use cases.",
         ),
         field(
             "repeat_last_n",
@@ -857,6 +916,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.repeat_last_n = v.max(0);
                 }
             },
+            "How many recent tokens to check for repetition (0 = all). Smaller values (32-64) focus on local repetition, larger values (128-256) catch longer patterns. Typical: 64.",
         ),
         expert_field_with_toggle(
             "presence_penalty",
@@ -889,6 +949,7 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_presence_penalty,
+            "Encourages the model to talk about new topics (+) or stay on topic (-). Positive values reduce topic repetition, negative values encourage deeper exploration. Typical: 0.0 (off).",
         ),
         expert_field_with_toggle(
             "frequency_penalty",
@@ -921,6 +982,7 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_frequency_penalty,
+            "Penalizes tokens based on how often they appear in the text (+) or rewards them (-). Positive values reduce word repetition, negative values encourage denser language. Typical: 0.0 (off).",
         ),
         // ── DRY ───────────────────────────────────────────────────────────────
         ultra_field(
@@ -938,6 +1000,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.dry_multiplier = (v as f32 / 100.0).clamp(0.0, 10.0);
                 }
             },
+            "DRY (Don't Repeat Yourself) multiplier. Scales the penalty for repetition. Higher values = stronger anti-repetition. Typical: 1.75.",
         ),
         ultra_field(
             "dry_base",
@@ -953,6 +1016,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.dry_base = (v as f32 / 100.0).clamp(0.0, 10.0);
                 }
             },
+            "DRY penalty base (log scale). Controls the strength of the repetition penalty. Typical: 1.0 (log2) or 0.0 (linear).",
         ),
         ultra_field(
             "dry_allowed_length",
@@ -968,6 +1032,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.dry_allowed_length = v;
                 }
             },
+            "Number of recent tokens to check for repetition (penalty starts after this). Higher values check longer context. Typical: 2.",
         ),
         ultra_field(
             "dry_penalty_last_n",
@@ -983,6 +1048,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.dry_penalty_last_n = v;
                 }
             },
+            "How many tokens to consider for DRY penalty (0 = all). Larger values catch longer repetition patterns. Typical: -1 (all) or 128.",
         ),
         // ── Speculative Decoding ─────────────────────────────────────────────
         expert_field_with_toggle(
@@ -1000,6 +1066,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_mtp,
+            "Speculative decoding method for faster inference. Options: Off, draft-mtp (MTP-based), draft-simple, draft-eagle3, ngram-simple, ngram-map-k, ngram-map-k4v, ngram-mod, ngram-cache. Draft-mtp requires a compatible model with MTP architecture.",
         ),
         expert_field(
             "spec_type",
@@ -1015,6 +1082,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.spec_type != c.spec_type,
             |_, _, _| {},
             |_, _| {},
+            "Speculative decoding method for faster inference. Options: Off, draft-mtp (MTP-based), draft-simple, draft-eagle3, ngram-simple, ngram-map-k, ngram-map-k4v, ngram-mod, ngram-cache. Draft-mtp requires a compatible model with MTP architecture.",
         ),
         expert_field(
             "draft_tokens",
@@ -1030,6 +1098,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.draft_tokens = v.min(16);
                 }
             },
+            "Maximum number of draft tokens per step (0-16). More drafts = more potential speedup but also more wasted computation if drafts are rejected. Typical: 4-8 for draft-mtp.",
         ),
         // ── Tags ──────────────────────────────────────────────────────────────
         field(
@@ -1046,6 +1115,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.tags != c.tags,
             |_, _, _| {},
             |_, _| {},
+            "Comma-separated labels for the model (e.g., 'coding, chat, reasoning'). Used for filtering and organization. Press Enter to open a tag editor.",
         ),
         // ── Backend ───────────────────────────────────────────────────────────
         field(
@@ -1056,6 +1126,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.get_active_backend_version() != c.get_active_backend_version(),
             |_, _, _| {},
             |_, _| {},
+            "Select the llama.cpp backend binary (CPU / Vulkan / ROCm / CUDA). Press Enter to open a version picker. Different backends support different GPU types and features.",
         ),
     ]
 }

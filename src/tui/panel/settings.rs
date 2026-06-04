@@ -12,7 +12,7 @@ pub fn render_all(
     app: &mut crate::tui::app::App,
     area: Rect,
     disabled: bool,
-) -> (Vec<Line<'static>>, usize, usize, usize) {
+) -> (Vec<Line<'static>>, usize, usize, usize, Option<String>) {
     let settings = &app.settings;
     let cached = &app.model_settings_cache;
     let selected = app.settings_state.settings_selected_idx;
@@ -90,11 +90,28 @@ pub fn render_all(
         app.settings_state.settings_scroll_offset = max_offset;
     }
 
+    // Build help text line if visible
+    let help_line = if app.settings_state.help_visible && !editing {
+        let fields = settings::filtered_fields(app.settings_state.expert_mode);
+        if let Some(field) = fields.get(selected) {
+            if !field.help_text.is_empty() {
+                Some(field.help_text.to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     (
         lines_to_return,
         final_total_count,
         settings_height,
         selected_content_line,
+        help_line,
     )
 }
 
