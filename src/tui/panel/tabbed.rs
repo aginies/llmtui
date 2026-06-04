@@ -83,7 +83,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         } else {
             1
         };
-      let help_line_count = help_line_count.clamp(1, 4);
+      let help_line_count = help_line_count.clamp(1, 6);
 
         // visible lines = available height minus help box
         let visible_lines: Vec<Line<'static>> = settings_lines
@@ -106,7 +106,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         f.render_widget(help_block.clone(), help_area);
         f.render_widget(
             Paragraph::new(help_text.as_str()).wrap(ratatui::widgets::Wrap { trim: true }),
-            help_block.inner(help_area),
+            help_area,
         );
 
         let settings_area = Rect {
@@ -436,7 +436,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         } else {
             1
         };
-        let help_line_count = help_line_count.clamp(1, 4);
+        let help_line_count = help_line_count.clamp(1, 6);
 
         // visible lines = available height minus help box
         let visible_lines: Vec<Line> = all_lines
@@ -459,7 +459,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         f.render_widget(help_block.clone(), help_area);
         f.render_widget(
             Paragraph::new(help_text.as_str()).wrap(ratatui::widgets::Wrap { trim: true }),
-            help_block.inner(help_area),
+            help_area,
         );
 
         let settings_area = Rect {
