@@ -74,7 +74,9 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.on_model_selection_change();
             }
         }
-        KeyCode::Enter | KeyCode::Char('l') => {
+        KeyCode::Enter | KeyCode::Char('l')
+            if !matches!(app.models_mode, ModelsMode::Files { .. }) =>
+        {
             if app.pending.backend_resolving {
                 app.add_log(
                     "Wait for backend installation to finish...",
