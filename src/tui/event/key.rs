@@ -237,6 +237,24 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Ctrl+L: cycle UI language (en → fr → it → en)
+    if key.code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        let current = crate::tui::i18n::get_language();
+        let next = match current.as_str() {
+            "fr" => "it",
+            "it" => "en",
+            _ => "fr",
+        };
+        crate::tui::i18n::set_language(next);
+        app.config.language = next.to_string();
+        app.config.save().ok();
+        app.add_log(
+            format!("Language changed to {}", next.to_uppercase()),
+            crate::config::LogLevel::Info,
+        );
+        return;
+    }
+
     // Skip all if in RpcManager overlay
     if matches!(app.ui.global_mode, GlobalMode::RpcManager) {
         handle_rpc_workers_key(app, key);

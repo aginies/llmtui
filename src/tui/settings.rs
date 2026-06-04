@@ -320,7 +320,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.context_length = v.max(128);
                 }
             },
-            "Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more RAM. Typical: 8192-65536 depending on model and RAM.",
+            "Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more RAM. Typical: 32k-256k depending on model and RAM.",
         ),
         expert_field_with_toggle(
             "rope_yarn_enabled",

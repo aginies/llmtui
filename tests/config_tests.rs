@@ -610,6 +610,7 @@ fn config_default_empty_model_overrides() {
             search_limit: 50,
             active_panel: ActivePanel::Models,
             left_pct: 55,
+            language: "en".to_string(),
         };
     // Store is initialized successfully (may contain existing configs on disk)
     let _keys = config.model_overrides.keys();

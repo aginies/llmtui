@@ -5,6 +5,8 @@ mod serve;
 mod serve_api;
 mod tui;
 
+use crate::tui::i18n;
+
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -228,6 +230,9 @@ async fn main() -> Result<()> {
                 .unwrap_or_default();
 
             info!("Discovered {} models", models.len());
+
+            // Set language from config (i18n loads translations lazily)
+            i18n::set_language(&config.language);
 
             let mut app = App::new(std::mem::take(&mut config));
             app.models = models;

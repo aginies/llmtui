@@ -12,134 +12,134 @@ impl App {
             ActivePanel::Models => vec![
                 Line::from(Span::styled("MODELS PANEL", y)),
                 Line::from(""),
-                Line::from("Displays your local GGUF models and their status."),
+                Line::from(crate::t!("panel.help.models.description")),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("j / k / Arrow keys", y),
-                    Span::raw("  Navigate model list"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.navigate"))),
                 ]),
                 Line::from(vec![
                     Span::styled("↵ / l", y),
-                    Span::raw("  Load selected model into server"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.load"))),
                 ]),
                 Line::from(vec![
                     Span::styled("u", y),
-                    Span::raw("  Unload model from server"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.unload"))),
                 ]),
                 Line::from(vec![
                     Span::styled("^D / Del", y),
-                    Span::raw("  Delete model (with confirmation)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.delete"))),
                 ]),
                 Line::from(""),
-                Line::from("In search mode (/):"),
+                Line::from(crate::t!("panel.help.models.search_mode")),
                 Line::from(vec![
                     Span::styled("↵", y),
-                    Span::raw("  Execute search"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.search_execute"))),
                 ]),
-                Line::from(vec![Span::styled("⎋", y), Span::raw("  Exit search")]),
+                Line::from(vec![Span::styled("⎋", y), Span::raw(format!("  {}", crate::t!("panel.help.models.search_exit")))]),
                 Line::from(vec![
                     Span::styled("l", y),
-                    Span::raw("  View available GGUF files"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.view_files"))),
                 ]),
                 Line::from(vec![
                     Span::styled("S", y),
-                    Span::raw("  Cycle sort order (Relevance/Downloads/Likes/Trending/Created)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.cycle_sort"))),
                 ]),
-                Line::from(vec![Span::styled("B", y), Span::raw("  Go back one page")]),
+                Line::from(vec![Span::styled("B", y), Span::raw(format!("  {}", crate::t!("panel.help.models.back_page")))]),
                 Line::from(vec![
                     Span::styled("Down at bottom", y),
-                    Span::raw("  Load more results (infinite scroll)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.load_more"))),
                 ]),
                 Line::from(vec![
                     Span::styled("R", y),
-                    Span::raw("  Fetch and view README"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.readme"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Shift+← / →", y),
-                    Span::raw("  Resize panel split (20%-80%)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.resize"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Mouse drag on border", y),
-                    Span::raw("  Resize panel split"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.resize_mouse"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Shift+a", y),
-                    Span::raw("  About box (GPLv3)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.about"))),
                 ]),
             ],
             ActivePanel::Log => vec![
                 Line::from(Span::styled("LOG PANEL", y)),
                 Line::from(""),
-                Line::from("Live output from the llama.cpp server."),
+                Line::from(crate::t!("panel.help.log.description")),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("j / k / Arrow keys", y),
-                    Span::raw("  Scroll log (Manual mode)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.log.scroll"))),
                 ]),
                 Line::from(vec![
                     Span::styled("f", y),
-                    Span::raw("  Toggle Follow mode"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.log.toggle_follow"))),
                 ]),
                 Line::from(vec![
                     Span::styled("g", y),
-                    Span::raw("  Jump to top (Manual mode)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.log.jump_top"))),
                 ]),
                 Line::from(vec![
                     Span::styled("G", y),
-                    Span::raw("  Jump to bottom (Follow mode)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.log.jump_bottom"))),
                 ]),
                 Line::from(vec![
                     Span::styled("↵", y),
-                    Span::raw("  Expand log (fills screen)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.log.expand"))),
                 ]),
-                Line::from(vec![Span::styled("⎋", y), Span::raw("  Collapse log")]),
+                Line::from(vec![Span::styled("⎋", y), Span::raw(format!("  {}", crate::t!("panel.help.log.collapse")))]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Shift+a", y),
-                    Span::raw("  About box (GPLv3)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.about"))),
                 ]),
             ],
             ActivePanel::ServerSettings => {
                 vec![
                     Line::from(Span::styled("SERVER SETTINGS", y)),
                     Line::from(""),
-                    Line::from("Configuration for the llama.cpp server."),
+                    Line::from(crate::t!("panel.help.server.description")),
                     Line::from(""),
                     Line::from(vec![
                         Span::styled("j / k", y),
-                        Span::raw("  Select setting"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.select"))),
                     ]),
-                    Line::from(vec![Span::styled("↵", y), Span::raw("  Toggle value")]),
+                    Line::from(vec![Span::styled("↵", y), Span::raw(format!("  {}", crate::t!("panel.help.server.toggle")))]),
                     Line::from(vec![
                         Span::styled("Left / Right", y),
-                        Span::raw("  Adjust value"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.adjust"))),
                     ]),
                     Line::from(""),
                     Line::from(vec![
                         Span::styled("Host", y),
-                        Span::raw("  Bind address (127.0.0.1 or 0.0.0.0)"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.host_desc"))),
                     ]),
                     Line::from(vec![
                         Span::styled("Backend", y),
-                        Span::raw("  Acceleration backend (cpu / vulkan / rocm)"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.backend_desc"))),
                     ]),
                     Line::from(vec![
                         Span::styled("Threads", y),
-                        Span::raw("  CPU threads for generation (1 to max)"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.threads_desc"))),
                     ]),
                     Line::from(vec![
                         Span::styled("Threads Batch", y),
-                        Span::raw("  CPU threads for batch processing (1 to 32)"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.threads_batch_desc"))),
                     ]),
                     Line::from(vec![
                         Span::styled("Mode", y),
-                        Span::raw("  Server mode (Normal / Bench GPU / BenchTune)"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.mode_desc"))),
                     ]),
                     Line::from(vec![
                         Span::styled("API Endpoint", y),
-                        Span::raw("  Enable API proxy (True/False)"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.api_endpoint_desc"))),
                     ]),
                     Line::from(vec![
                         Span::styled("API Port", y),
@@ -148,422 +148,314 @@ impl App {
                     Line::from(""),
                     Line::from(vec![
                         Span::styled("⇥ Panels", y),
-                        Span::raw("  Switch panels"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.switch_panels"))),
                     ]),
                     Line::from(vec![
                         Span::styled("Shift+a", y),
-                        Span::raw("  About box (GPLv3)"),
+                        Span::raw(format!("  {}", crate::t!("panel.help.models.about"))),
                     ]),
                 ]
             }
             ActivePanel::LlmSettings => vec![
                 Line::from(Span::styled("LLM SETTINGS", y)),
                 Line::from(""),
-                Line::from("Fine-tuned settings for loading and running a model."),
+                Line::from(crate::t!("panel.help.llm.description")),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("j / k", y),
-                    Span::raw("  Navigate settings"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.navigate"))),
                 ]),
-                Line::from(vec![Span::styled("↵", y), Span::raw("  Apply value")]),
+                Line::from(vec![Span::styled("↵", y), Span::raw(format!("  {}", crate::t!("panel.help.llm.apply")))]),
                 Line::from(vec![
                     Span::styled("Left / Right", y),
-                    Span::raw("  Adjust value"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.adjust"))),
                 ]),
                 Line::from(vec![
                     Span::styled("0-9, -, .", y),
-                    Span::raw("  Type numeric value  ·  ^F7/8/9 switch panels"),
+                    Span::raw(format!("  {}  ·  ^F7/8/9 {}", crate::t!("panel.help.llm.type_numeric").split("·").next().unwrap_or("").trim(), crate::t!("panel.help.llm.navigate"))),
                 ]),
-                Line::from(vec![Span::styled("⎋", y), Span::raw("  Cancel edit")]),
+                Line::from(vec![Span::styled("⎋", y), Span::raw(format!("  {}", crate::t!("panel.help.llm.cancel_edit")))]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("^S", y),
-                    Span::raw("  Save settings for selected model"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.save"))),
                 ]),
                 Line::from(vec![
                     Span::styled("^R", y),
-                    Span::raw("  Reset to defaults"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.reset"))),
                 ]),
                 Line::from(vec![
                     Span::styled("^E", y),
-                    Span::raw("  Toggle enabled/disabled"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.toggle"))),
                 ]),
                 Line::from(vec![
                     Span::styled("^X", y),
-                    Span::raw("  Toggle expert mode (shows additional parameters)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.expert_mode"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Loading ---", y)]),
                 Line::from(vec![
                     Span::styled("Context", y),
-                    Span::raw(
-                        "  Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more RAM. Typical: 8192-65536 depending on model and RAM.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.context_length"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Prompt", y),
-                    Span::raw(
-                        "  System prompt preset. Pre-configured prompts that shape how the model behaves (e.g., 'coder', 'assistant', 'creative'). Affects the model's personality and output style.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.system_prompt_preset_name"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Keep in memory", y),
-                    Span::raw(
-                        "  Lock model weights in RAM (mlock). Prevents the OS from swapping model weights to disk. Slows model load time but ensures faster inference once loaded. Useful for repeated use.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.mlock"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- GPU Offload ---", y)]),
                 Line::from(vec![
                     Span::styled("GPU Layers", y),
-                    Span::raw(
-                        "  How many model layers to offload to GPU. Arrow keys cycle: Auto → 1 → 2 → ... → N → All → Auto. Auto lets llama.cpp decide based on VRAM. All loads every layer (999). Specific number sets exact offload count.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.gpu_layers_mode"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Flash Attention", y),
-                    Span::raw(
-                        "  Enable Flash Attention (flash-attn) for faster inference. Requires compatible GPU (Ampere+ / Ada). Significantly speeds up long-context inference. Only works with certain GGUF formats.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.flash_attn"))),
                 ]),
                 Line::from(vec![
                     Span::styled("KV Cache Offload", y),
-                    Span::raw(
-                        "  Offload KV cache to RAM when GPU memory is full. Allows larger batch sizes and contexts at the cost of some speed. Useful when VRAM is limited but you still want longer conversations.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.kv_cache_offload"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Cache Type K / V", y),
-                    Span::raw(
-                        "  Quantization precision for KV cache (K = keys, V = values). Lower precision (e.g., Q4, Q8) saves VRAM but may slightly reduce quality. Default is usually FP16. Use lower values if running out of VRAM.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.cache_type_k"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Active Experts", y),
-                    Span::raw(
-                        "  Number of MoE (Mixture of Experts) experts to activate per token. -1 = auto (all active). Reducing this speeds up inference for MoE models like Mixtral but may reduce quality. Typical: 2-8 for Mixtral.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.expert_count"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Evaluation ---", y)]),
                 Line::from(vec![
                     Span::styled("Eval Batch", y),
-                    Span::raw(
-                        "  Batch size for evaluation (inference). Larger batches use more VRAM but can improve throughput via parallelism. Small values (1-8) for low VRAM, larger (16-128) for high VRAM setups.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.batch_size"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Unified KV", y),
-                    Span::raw(
-                        "  Share KV cache across sequences. Reduces VRAM usage when running multiple requests by reusing allocated cache. May slightly reduce performance but enables more concurrent users.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.uniform_cache"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Max Concurrent Pred", y),
-                    Span::raw(
-                        "  Maximum number of models that can run simultaneously. Press Enter to open a picker that shows how context length divides per model. Each model needs its own VRAM/CPU resources.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.max_concurrent_predictions"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Cache Reuse", y),
-                    Span::raw(
-                        "  Minimum chunk size (in tokens) before KV cache is reused across requests. Higher values (e.g., 128, 256) only cache large shared prefixes, reducing disk write churn. Lower values (0-32) cache more aggressively. Adjust with Left/Right arrows (step 16).",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.cache_reuse"))),
                 ]),
                 Line::from(vec![
                     Span::styled("SWA Full Cache", y),
-                    Span::raw(
-                        "  Enable full-size sliding window attention cache. Stores complete KV entries for SWA layers instead of compressed representation. Uses more VRAM but preserves quality on very long contexts. Toggle with Enter.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.swa_full"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Sampling ---", y)]),
                 Line::from(vec![
                     Span::styled("Seed", y),
-                    Span::raw(
-                        "  Random seed for reproducible outputs. -1 = random (default). Set to a fixed value for deterministic, repeatable responses — useful for debugging or testing prompts.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.seed"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Temp", y),
-                    Span::raw(
-                        "  Sampling temperature. Controls creativity: 0 = deterministic (most predictable), 0.7 = balanced, 1.0+ = creative. Lower values produce more focused, factual outputs. Typical: 0.7-0.9 for general use.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.temperature"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Top-k", y),
-                    Span::raw(
-                        "  Only consider the top k most likely tokens at each step. Smaller top-k (e.g., 10-40) makes output more deterministic. Larger values allow more variety. Typical: 40-50. Set to 0 to disable.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.top_k"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Top-p", y),
-                    Span::raw(
-                        "  Nucleus sampling: only consider tokens whose cumulative probability reaches p. Smaller top-p (e.g., 0.9) is more conservative, larger (e.g., 0.95-0.99) allows more variety. Often preferred over top-k. Typical: 0.9-0.95.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.top_p"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Min P", y),
-                    Span::raw(
-                        "  Minimum probability threshold relative to the most likely token. Tokens below min_p * max_prob are excluded. A filter that's more principled than top-k/top-p for controlling diversity. Typical: 0.01-0.1.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.min_p"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Max Tokens", y),
-                    Span::raw(
-                        "  Maximum number of tokens to generate in the response. Prevents runaway responses. Set to 0 or Disabled for no limit. Typical: 4096-8192 for chat, higher for code generation.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.max_tokens"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Repetition ---", y)]),
                 Line::from(vec![
                     Span::styled("Repeat Penalty", y),
-                    Span::raw(
-                        "  Controls repetition penalty (1.0 = no penalty, 1.1 = mild, 1.2 = strong). Higher values discourage the model from repeating phrases. Typical: 1.05-1.15 for most use cases.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.repeat_penalty"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Repeat Last N", y),
-                    Span::raw(
-                        "  How many recent tokens to check for repetition (0 = all). Smaller values (32-64) focus on local repetition, larger values (128-256) catch longer patterns. Typical: 64.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.repeat_last_n"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Presence Penalty", y),
-                    Span::raw(
-                        "  Encourages the model to talk about new topics (+) or stay on topic (-). Positive values reduce topic repetition, negative values encourage deeper exploration. Typical: 0.0 (off).",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.presence_penalty"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Freq Penalty", y),
-                    Span::raw(
-                        "  Penalizes tokens based on how often they appear in the text (+) or rewards them (-). Positive values reduce word repetition, negative values encourage denser language. Typical: 0.0 (off).",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.frequency_penalty"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Tags ---", y)]),
                 Line::from(vec![
                     Span::styled("Tags", y),
-                    Span::raw(
-                        "  Comma-separated labels for the model (e.g., 'coding, chat, reasoning'). Used for filtering and organization. Press Enter to open a tag editor.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.tags"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Backend ---", y)]),
                 Line::from(vec![
                     Span::styled("LLama.cpp Version", y),
-                    Span::raw(
-                        "  Select the llama.cpp backend binary (CPU / Vulkan / ROCm / CUDA). Press Enter to open a version picker. Different backends support different GPU types and features.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.backend_version"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Yarn RoPE ---", y)]),
                 Line::from(vec![
                     Span::styled("Yarn RoPE", y),
-                    Span::raw(
-                        "  Enable YaRN (Yet another RoPE extensioN) for scaling context beyond training limits. YaRN uses a frequency rescaling technique to handle longer contexts. Toggle on/off with Enter.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.rope_yarn_enabled"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Yarn Params", y),
-                    Span::raw(
-                        "  YaRN configuration: rope_scale (context multiplier), rope_freq_base (frequency base), rope_freq_scale (frequency scaling). Press Enter to open the YaRN parameter editor.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.yarn_params"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Speculative Decoding ---", y)]),
                 Line::from(vec![
                     Span::styled("Spec Type", y),
-                    Span::raw(
-                        "  Speculative decoding method for faster inference. Options: Off, draft-mtp (MTP-based), draft-simple, draft-eagle3, ngram-simple, ngram-map-k, ngram-map-k4v, ngram-mod, ngram-cache. Draft-mtp requires a compatible model with MTP architecture.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.spec_type"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Spec Draft N Max", y),
-                    Span::raw(
-                        "  Maximum number of draft tokens per step (0-16). More drafts = more potential speedup but also more wasted computation if drafts are rejected. Typical: 4-8 for draft-mtp.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.draft_tokens"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Ultra Expert: Loading ---", y)]),
                 Line::from(vec![
                     Span::styled("Threads Batch", y),
-                    Span::raw(
-                        "  CPU threads for batch processing (1 to 32). Separate from Threads (inference threads). Keep equal for most workloads, or reduce batch threads to lower CPU usage during batch operations.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.threads_batch"))),
                 ]),
                 Line::from(vec![
                     Span::styled("UBatch Size", y),
-                    Span::raw(
-                        "  Unlimited batch size for prompt processing. Larger values improve prompt evaluation throughput but use more RAM. Typical: 512-2048. Set to 0 to match context_length.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.ubatch_size"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Keep", y),
-                    Span::raw(
-                        "  Number of layers to keep in memory when swapping (negative = all). Useful for fast reloading of the same model. Typical: -1 (all) or 0 (none).",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.keep"))),
                 ]),
                 Line::from(vec![
                     Span::styled("MMap", y),
-                    Span::raw(
-                        "  Memory-map the model file instead of loading it entirely into RAM. Saves RAM but may slow model loading. Toggle on/off with Enter.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.mmap"))),
                 ]),
                 Line::from(vec![
                     Span::styled("NUMA", y),
-                    Span::raw(
-                        "  NUMA (Non-Uniform Memory Access) strategy: None, Distribute, Isolate, or Numactl. Affects CPU thread affinity on multi-socket systems. None = default.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.numa"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Ultra Expert: GPU ---", y)]),
                 Line::from(vec![
                     Span::styled("Split Mode", y),
-                    Span::raw(
-                        "  GPU split strategy: None, Layer (default), Row, or Tensor. Controls how model layers are distributed across multiple GPUs. Layer splits by layer count, Row/Tensor split by matrix dimensions for multi-GPU setups.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.split_mode"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Tensor Split", y),
-                    Span::raw(
-                        "  Fraction of model weights to load on each GPU (colon-separated for multi-GPU, e.g., '0.5:0.5'). For single GPU, leave empty. Press Enter to edit.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.tensor_split"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Main GPU", y),
-                    Span::raw(
-                        "  Index of the main GPU (0-based). Handles initial model loading and some computations. Typical: 0 for single GPU, 0 for primary in multi-GPU setups.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.main_gpu"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Fit", y),
-                    Span::raw(
-                        "  Automatically adjust arguments to fit device memory. Toggle on/off with Enter.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.fit"))),
                 ]),
                 Line::from(vec![
                     Span::styled("LoRA", y),
-                    Span::raw(
-                        "  Path to a LoRA adapter to apply to the model. Press Enter to open a file picker. LoRA adapters modify model behavior without full fine-tuning.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.lora"))),
                 ]),
                 Line::from(vec![
                     Span::styled("LoRA Scaled", y),
-                    Span::raw(
-                        "  Path to a LoRA adapter with scaling. Press Enter to open a file picker. Scaling adjusts the adapter's influence on the model.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.lora_scaled"))),
                 ]),
                 Line::from(vec![
                     Span::styled("RPC", y),
-                    Span::raw(
-                        "  RPC endpoint for distributed inference (e.g., 'localhost:50052'). Press Enter to edit. Used for offloading parts of the model to remote devices.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.rpc"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Embedding", y),
-                    Span::raw(
-                        "  Enable embedding mode for generating vector embeddings. Toggle on/off with Enter. Required for embedding/semantic search models.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.embedding"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Ultra Expert: Sampling ---", y)]),
                 Line::from(vec![
                     Span::styled("Typical P", y),
-                    Span::raw(
-                        "  Locally typical sampling (typ_p). Controls diversity by keeping tokens with typical probability mass. Values near 1.0 = no effect, 0.1-0.5 = moderate diversity. Typical: 1.0 (off).",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.typical_p"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Mirostat", y),
-                    Span::raw(
-                        "  Mirostat sampling mode: Off (default), Mirostat, or Mirostat2. Adaptive temperature control that maintains target perplexity. Mirostat2 is more aggressive. Useful for consistent output quality.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.mirostat"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Mirostat LR", y),
-                    Span::raw(
-                        "  Mirostat learning rate (eta). Controls how quickly the temperature adapts. Smaller = smoother adjustments. Typical: 0.1.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.mirostat_lr"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Mirostat Ent", y),
-                    Span::raw(
-                        "  Mirostat target entropy. Controls the diversity of output. Higher = more diverse. Typical: 5.0.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.mirostat_ent"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Ignore EOS", y),
-                    Span::raw(
-                        "  Ignore end-of-sequence tokens during generation. Toggle on/off with Enter. Useful when you want to force the model to continue generating.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.ignore_eos"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Samplers", y),
-                    Span::raw(
-                        "  Semicolon-separated sampler order string (e.g., 'mirostat;temperature;top_k;top_p'). Controls which samplers are applied and in what order. Press Enter to edit.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.samplers"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Ultra Expert: DRY ---", y)]),
                 Line::from(vec![
                     Span::styled("DRY Multiplier", y),
-                    Span::raw(
-                        "  DRY (Don't Repeat Yourself) multiplier. Scales the penalty for repetition. Higher values = stronger anti-repetition. Typical: 1.75.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.dry_multiplier"))),
                 ]),
                 Line::from(vec![
                     Span::styled("DRY Base", y),
-                    Span::raw(
-                        "  DRY penalty base (log scale). Controls the strength of the repetition penalty. Typical: 1.0 (log2) or 0.0 (linear).",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.dry_base"))),
                 ]),
                 Line::from(vec![
                     Span::styled("DRY Allowed Length", y),
-                    Span::raw(
-                        "  Number of recent tokens to check for repetition (penalty starts after this). Higher values check longer context. Typical: 2.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.dry_allowed_length"))),
                 ]),
                 Line::from(vec![
                     Span::styled("DRY Penalty Last N", y),
-                    Span::raw(
-                        "  How many tokens to consider for DRY penalty (0 = all). Larger values catch longer repetition patterns. Typical: -1 (all) or 128.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.dry_penalty_last_n"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("--- Ultra Expert: Server ---", y)]),
                 Line::from(vec![
                     Span::styled("Cache Prompt", y),
-                    Span::raw(
-                        "  Cache prompt tokens to avoid re-evaluating them on each request. Toggle on/off with Enter. Requires API server mode. Dramatically speeds up multi-turn conversations.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.cache_prompt"))),
                 ]),
                 Line::from(vec![
                     Span::styled("WebUI", y),
-                    Span::raw(
-                        "  Enable WebUI mode for interactive chat via browser. Toggle on/off with Enter. Starts a web interface accessible via HTTP.",
-                    ),
+                    Span::raw(format!("  {}", crate::t!("field.help.webui"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Shift+a", y),
-                    Span::raw("  About box (GPLv3)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.about"))),
                 ]),
             ],
             ActivePanel::ActiveModel => vec![
                 Line::from(Span::styled("ACTIVE MODEL PANEL", y)),
                 Line::from(""),
-                Line::from("Displays metrics for the currently loaded model."),
+                Line::from(crate::t!("panel.help.active.description")),
                 Line::from(""),
-                Line::from("Shows Tokens/s, context usage (progress bar), CPU, RAM, and VRAM."),
+                Line::from(crate::t!("panel.help.active.show_metrics")),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("⇥ Panels", y),
-                    Span::raw("  Switch panels"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.server.switch_panels"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Shift+a", y),
-                    Span::raw("  About box (GPLv3)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.about"))),
                 ]),
             ],
             ActivePanel::ModelInfo => vec![
@@ -599,96 +491,96 @@ impl App {
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("⇥ Panels", y),
-                    Span::raw("  Switch panels"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.server.switch_panels"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Shift+a", y),
-                    Span::raw("  About box (GPLv3)"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.about"))),
                 ]),
             ],
             ActivePanel::Profiles => vec![
                 Line::from(Span::styled("PROFILES PANEL", y)),
                 Line::from(""),
-                Line::from("Saved presets of settings for quick switching."),
+                Line::from(crate::t!("panel.help.profiles.description")),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("j / k", y),
-                    Span::raw("  Select profile"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.profiles.select"))),
                 ]),
                 Line::from(vec![
                     Span::styled("↵", y),
-                    Span::raw("  Apply profile settings"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.profiles.apply"))),
                 ]),
                 Line::from(vec![
                     Span::styled("s", y),
-                    Span::raw("  Save current settings as new profile"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.profiles.save"))),
                 ]),
                 Line::from(vec![
                     Span::styled("d", y),
-                    Span::raw("  Delete user profile"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.profiles.delete"))),
                 ]),
                 Line::from(vec![
                     Span::styled("⎋", y),
-                    Span::raw("  Back to settings"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.profiles.back"))),
                 ]),
             ],
             ActivePanel::SystemPromptPresets => vec![
                 Line::from(Span::styled("SYSTEM PROMPT PRESETS", y)),
                 Line::from(""),
-                Line::from("Named system prompts for different use cases."),
+                Line::from(crate::t!("panel.help.presets.description")),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k", y), Span::raw("  Select preset")]),
-                Line::from(vec![Span::styled("↵", y), Span::raw("  Apply preset")]),
+                Line::from(vec![Span::styled("j / k", y), Span::raw(format!("  {}", crate::t!("panel.help.presets.select")))]),
+                Line::from(vec![Span::styled("↵", y), Span::raw(format!("  {}", crate::t!("panel.help.presets.apply")))]),
                 Line::from(vec![
                     Span::styled("e", y),
-                    Span::raw("  Edit selected preset"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.presets.edit"))),
                 ]),
-                Line::from(vec![Span::styled("n", y), Span::raw("  Create new preset")]),
+                Line::from(vec![Span::styled("n", y), Span::raw(format!("  {}", crate::t!("panel.help.presets.create")))]),
                 Line::from(vec![
                     Span::styled("⎋", y),
-                    Span::raw("  Back to settings"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.profiles.back"))),
                 ]),
             ],
             ActivePanel::SearchReadme => vec![
                 Line::from(Span::styled("README PANEL", y)),
                 Line::from(""),
-                Line::from("README documentation for the selected model."),
+                Line::from(crate::t!("panel.help.readme.description")),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("j / k / Arrow keys", y),
-                    Span::raw("  Scroll"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.readme.scroll"))),
                 ]),
                 Line::from(vec![
                     Span::styled("h / l", y),
-                    Span::raw("  Scroll horizontally"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.readme.scroll_horizontal"))),
                 ]),
                 Line::from(vec![
                     Span::styled("↵", y),
-                    Span::raw("  Expand to fullscreen"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.readme.expand"))),
                 ]),
-                Line::from(vec![Span::styled("⎋", y), Span::raw("  Collapse / Exit")]),
+                Line::from(vec![Span::styled("⎋", y), Span::raw(format!("  {}", crate::t!("panel.help.readme.collapse")))]),
             ],
             ActivePanel::Downloads => vec![
                 Line::from(Span::styled("DOWNLOADS PANEL", y)),
                 Line::from(""),
-                Line::from("Active model downloads from HuggingFace."),
+                Line::from(crate::t!("panel.help.downloads.description")),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("j / k / Arrow keys", y),
-                    Span::raw("  Select download"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.downloads.select"))),
                 ]),
                 Line::from(vec![
                     Span::styled("p", y),
-                    Span::raw("  Pause / Resume selected download"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.downloads.pause"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Alt+C", y),
-                    Span::raw("  Cancel selected download"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.downloads.cancel"))),
                 ]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("⇥ Panels", y),
-                    Span::raw("  Switch panels"),
+                    Span::raw(format!("  {}", crate::t!("panel.help.server.switch_panels"))),
                 ]),
             ],
         }

@@ -13,6 +13,7 @@ use llm_manager::config::Config;
 use llm_manager::models::*;
 use llm_manager::tui::app::{ActivePanel, App, ConfirmationKind, GlobalMode, ModelsMode};
 use llm_manager::tui::event::handle_key;
+use llm_manager::tui::i18n;
 
 // ── Test helpers ─────────────────────────────────────────────────
 
@@ -274,12 +275,13 @@ async fn test_f10_all_panels_visible() {
 }
 
 #[tokio::test]
-async fn test_ctrl_l_switches_to_log() {
+async fn test_ctrl_l_cycles_language() {
     let mut app = make_app();
-    app.ui.active_panel = ActivePanel::Models;
+    app.config.language = "en".to_string();
     let key = make_key_with_mod(KeyCode::Char('l'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
-    assert_eq!(app.ui.active_panel, ActivePanel::Log);
+    assert_eq!(app.config.language, "fr");
+    assert_eq!(i18n::get_language(), "fr");
 }
 
 #[tokio::test]

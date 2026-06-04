@@ -111,6 +111,13 @@ pub struct Config {
     /// Left panel width percentage (20-80).
     #[serde(default = "default_left_pct")]
     pub left_pct: u16,
+    /// UI language (en, fr, it). Falls back to en.
+    #[serde(default = "default_language")]
+    pub language: String,
+}
+
+fn default_language() -> String {
+    "en".to_string()
 }
 
 fn default_left_pct() -> u16 {
@@ -922,6 +929,7 @@ impl Default for Config {
             search_limit: default_search_limit(),
             active_panel: ActivePanel::Models,
             left_pct: 55,
+            language: default_language(),
         }
     }
 }

@@ -257,28 +257,28 @@ fn render_confirmation(
                 .filter(|s| matches!(s, crate::models::ModelState::Loaded { .. }))
                 .count();
             (
-                " Exit Application? ",
+                "crate::t!(\"dialog.exit.title\")",
                 vec![
                     Line::from(""),
                     Line::from(vec![
-                        Span::raw("There are "),
+                        Span::raw(crate::t!("dialog.exit.message")),
                         Span::styled(
                             format!("{}", loaded_count),
                             Style::default()
                                 .fg(Color::Yellow)
                                 .add_modifier(Modifier::BOLD),
                         ),
-                        Span::raw(" model(s) loaded."),
+                        Span::raw(""),
                     ]),
-                    Line::from("Are you sure you want to exit?"),
+                    Line::from(crate::t!("dialog.exit.confirm")),
                 ],
             )
         }
         ConfirmationKind::Reset => (
-            " Reset Settings? ",
+            "crate::t!(\"dialog.reset.title\")",
             vec![
                 Line::from(""),
-                Line::from("Reset all LLM settings to defaults?"),
+                Line::from(crate::t!("dialog.reset.message")),
             ],
         ),
         ConfirmationKind::Delete => {
@@ -287,11 +287,11 @@ fn render_confirmation(
                 .map(|m| m.name.as_str())
                 .unwrap_or("Unknown");
             (
-                " Delete Model? ",
+                "crate::t!(\"dialog.delete.title\")",
                 vec![
                     Line::from(""),
                     Line::from(vec![
-                        Span::raw("Are you sure you want to delete "),
+                        Span::raw(crate::t!("dialog.delete.message")),
                         Span::styled(
                             model_name,
                             Style::default()
@@ -301,7 +301,7 @@ fn render_confirmation(
                         Span::raw("?"),
                     ]),
                     Line::from(""),
-                    Line::from("This action cannot be undone."),
+                    Line::from(crate::t!("dialog.delete.confirm")),
                 ],
             )
         }
@@ -311,11 +311,11 @@ fn render_confirmation(
                 None => "Unknown",
             };
             (
-                " Unload Model? ",
+                "crate::t!(\"dialog.unload.title\")",
                 vec![
                     Line::from(""),
                     Line::from(vec![
-                        Span::raw("Unload "),
+                        Span::raw(crate::t!("dialog.unload.message")),
                         Span::styled(
                             model_name,
                             Style::default()
@@ -333,11 +333,11 @@ fn render_confirmation(
                 None => ("Unknown".to_string(), "latest"),
             };
             (
-                " Delete Backend? ",
+                "crate::t!(\"dialog.delete_backend.title\")",
                 vec![
                     Line::from(""),
                     Line::from(vec![
-                        Span::raw("Delete backend "),
+                        Span::raw(crate::t!("dialog.delete_backend.message")),
                         Span::styled(
                             format!("{} ({})", backend, tag),
                             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
@@ -345,7 +345,7 @@ fn render_confirmation(
                         Span::raw("?"),
                     ]),
                     Line::from(""),
-                    Line::from("This will remove the binary and shared libraries."),
+                    Line::from(crate::t!("dialog.delete_backend.confirm")),
                 ],
             )
         }
@@ -364,7 +364,7 @@ fn render_confirmation(
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
         Span::styled(
-            "  [y] Yes  ",
+            crate::t!("dialog.confirm_yes"),
             Style::default().fg(Color::Black).bg(if selected {
                 Color::Yellow
             } else {
@@ -373,7 +373,7 @@ fn render_confirmation(
         ),
         Span::raw("    "),
         Span::styled(
-            "  [n] No   ",
+            crate::t!("dialog.confirm_no"),
             Style::default().fg(Color::Black).bg(if selected {
                 Color::DarkGray
             } else {
@@ -401,7 +401,7 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
     };
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        " [↑] Select Host Address  [d] Refresh  [j/k] nav  [⎋] cancel ",
+        crate::t!("dialog.host_picker.help"),
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -428,7 +428,7 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title(" Host Picker ")
+                .title("crate::t!(\"dialog.host_picker.title\")")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -447,7 +447,7 @@ fn render_profile_picker(
     let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-            " [↑/↓] Select  [↵] Apply  [⎋] Cancel ",
+            crate::t!("dialog.profile_picker.help"),
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -481,14 +481,14 @@ fn render_profile_picker(
             Style::default().fg(Color::DarkGray),
         )));
         picker_lines.push(Line::from(Span::styled(
-            " Changed settings:",
+            crate::t!("dialog.profile_picker.changed"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         )));
         if preview_parts.is_empty() {
             picker_lines.push(Line::from(Span::styled(
-                " (no changes)",
+                crate::t!("dialog.profile_picker.no_changes"),
                 Style::default().fg(Color::DarkGray),
             )));
         } else {
@@ -515,7 +515,7 @@ fn render_profile_picker(
             .wrap(Wrap { trim: true })
             .block(
                 Block::default()
-                    .title(" Profiles ")
+                    .title("crate::t!(\"dialog.profile_picker.title\")")
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Yellow)),
             ),
@@ -549,12 +549,12 @@ fn render_prompt_picker(
     if confirm_delete && selected < entries.len() {
         let name = &entries[selected].0;
         picker_lines.push(Line::from(Span::styled(
-            format!(" Delete '{}'?", name),
+            format!("{} {}", crate::t!("dialog.prompt_picker.delete"), name),
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
         picker_lines.push(Line::from(Span::styled(
-            " [Y] Yes  [N] Cancel  [⎋] Cancel ",
+            crate::t!("dialog.prompt_picker.confirm"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -563,13 +563,13 @@ fn render_prompt_picker(
     } else if editing {
         picker_lines.push(Line::from(Span::styled(
             format!(
-                " Editing: {}",
-                if selected < entries.len() {
-                    &entries[selected].0
-                } else {
-                    "New Preset"
-                }
-            ),
+                 " Editing: {}",
+                 if selected < entries.len() {
+                     entries[selected].0.clone()
+                 } else {
+                     crate::t!("dialog.prompt_picker.new").to_string()
+                 }
+             ),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -605,12 +605,12 @@ fn render_prompt_picker(
         }
         picker_lines.push(Line::from(""));
         picker_lines.push(Line::from(Span::styled(
-            "[↵] new line  [⎋] cancel  [^S] save",
+            crate::t!("dialog.prompt_picker.edit_help"),
             Style::default().fg(Color::Cyan),
         )));
     } else {
         picker_lines.push(Line::from(Span::styled(
-            " [↑/↓] Select  [↵] Confirm  [e] Edit  [n] New  [d] Delete  [⎋] Cancel ",
+            crate::t!("dialog.prompt_picker.list_help"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -644,7 +644,7 @@ fn render_prompt_picker(
             .wrap(Wrap { trim: true })
             .block(
                 Block::default()
-                    .title(" Prompt Presets ")
+                    .title("crate::t!(\"dialog.prompt_picker.title\")")
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Yellow)),
             ),
@@ -663,7 +663,7 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     };
     let mut modal_lines: Vec<Line> = Vec::new();
     modal_lines.push(Line::from(Span::styled(
-        " Tags Editor ",
+        "crate::t!(\"dialog.tags.title\")",
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -671,12 +671,12 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     modal_lines.push(Line::from(""));
     if app.edit.tags_insert_mode {
         modal_lines.push(Line::from(Span::styled(
-            " [↵] Add tag  [⎋] Cancel  [⇥] Switch to edit mode ",
+            crate::t!("dialog.tags.add_help"),
             Style::default().fg(Color::DarkGray),
         )));
     } else {
         modal_lines.push(Line::from(Span::styled(
-            " [e/i] Edit  [d/Del] Delete  [a] Add  [⇥] Switch to add mode ",
+            crate::t!("dialog.tags.edit_help"),
             Style::default().fg(Color::DarkGray),
         )));
     }
@@ -702,7 +702,7 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     }
     if app.edit.tags_insert_mode {
         modal_lines.push(Line::from(vec![
-            Span::styled(" New: ", Style::default().fg(Color::Yellow)),
+            Span::styled(crate::t!("dialog.tags.new_label"), Style::default().fg(Color::Yellow)),
             Span::styled(
                 &app.edit.tags_edit_buffer,
                 Style::default().fg(Color::Black).bg(Color::Yellow),
@@ -711,7 +711,7 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
         ]));
     } else if app.edit.tags_selected_idx.is_some() {
         modal_lines.push(Line::from(vec![
-            Span::styled(" Edit: ", Style::default().fg(Color::Yellow)),
+            Span::styled(crate::t!("dialog.tags.edit_label"), Style::default().fg(Color::Yellow)),
             Span::styled(
                 &app.edit.tags_edit_buffer,
                 Style::default().fg(Color::Black).bg(Color::Yellow),
@@ -723,7 +723,7 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(
         Paragraph::new(modal_lines).block(
             Block::default()
-                .title(" Tags Editor ")
+                .title("crate::t!(\"dialog.tags.title\")")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -754,7 +754,7 @@ fn render_backend_picker(
     let vendors = detect_gpu_vendors();
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        " Select Backend Acceleration ",
+        crate::t!("dialog.backend_picker.select"),
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -762,7 +762,7 @@ fn render_backend_picker(
     let gpu_models: Vec<String> = all_models.iter().filter_map(|m| m.clone()).collect();
     if !gpu_models.is_empty() {
         picker_lines.push(Line::from(vec![
-            Span::raw("Detected Hardware: "),
+            Span::raw(crate::t!("dialog.backend_picker.hardware")),
             Span::styled(gpu_models.join(", "), Style::default().fg(Color::Cyan)),
         ]));
     }
@@ -792,19 +792,19 @@ fn render_backend_picker(
             Style::default().fg(Color::White)
         };
         let label = match backend {
-            crate::models::Backend::Cpu => "CPU-only",
-            crate::models::Backend::Vulkan => "Vulkan (GPU Universal)",
-            crate::models::Backend::Rocm => "ROCm (AMD Native)",
-            crate::models::Backend::RocmLemonade => "ROCm Lemonade (AMD Optimized)",
-            crate::models::Backend::Cuda => "CUDA (NVIDIA Native)",
-            crate::models::Backend::CpuArm64 => "CPU ARM64",
-            crate::models::Backend::CpuWindows => "CPU (Windows)",
-            crate::models::Backend::VulkanWindows => "Vulkan (Windows)",
-            crate::models::Backend::CudaWindows12_4 => "CUDA 12.4 (Windows)",
-            crate::models::Backend::CudaWindows13_1 => "CUDA 13.1 (Windows)",
-            crate::models::Backend::HipWindows => "HIP Radeon (Windows)",
-            crate::models::Backend::CpuMacosArm64 => "CPU (macOS ARM64)",
-            crate::models::Backend::CpuMacosX64 => "CPU (macOS Intel)",
+            crate::models::Backend::Cpu => crate::t!("dialog.backend_picker.cpu"),
+            crate::models::Backend::Vulkan => crate::t!("dialog.backend_picker.vulkan"),
+            crate::models::Backend::Rocm => crate::t!("dialog.backend_picker.rocm"),
+            crate::models::Backend::RocmLemonade => crate::t!("dialog.backend_picker.rocm_lemonade"),
+            crate::models::Backend::Cuda => crate::t!("dialog.backend_picker.cuda"),
+            crate::models::Backend::CpuArm64 => crate::t!("dialog.backend_picker.cpu_arm64"),
+            crate::models::Backend::CpuWindows => crate::t!("dialog.backend_picker.cpu_windows"),
+            crate::models::Backend::VulkanWindows => crate::t!("dialog.backend_picker.vulkan_windows"),
+            crate::models::Backend::CudaWindows12_4 => crate::t!("dialog.backend_picker.cuda_124"),
+            crate::models::Backend::CudaWindows13_1 => crate::t!("dialog.backend_picker.cuda_131"),
+            crate::models::Backend::HipWindows => crate::t!("dialog.backend_picker.hip_windows"),
+            crate::models::Backend::CpuMacosArm64 => crate::t!("dialog.backend_picker.cpu_macos_arm64"),
+            crate::models::Backend::CpuMacosX64 => crate::t!("dialog.backend_picker.cpu_macos_intel"),
         };
         let display_label = if let Some(t) = tag {
             format!("{} ({})", label, t)
@@ -817,12 +817,12 @@ fn render_backend_picker(
         ];
         if tag.is_none() && is_installed {
             line_spans.push(Span::raw("  "));
-            line_spans.push(Span::styled("(Cached)", Style::default().fg(Color::Blue)));
+            line_spans.push(Span::styled(crate::t!("dialog.backend_picker.cached"), Style::default().fg(Color::Blue)));
         }
         if is_recommended {
             line_spans.push(Span::raw("  "));
             line_spans.push(Span::styled(
-                "(Recommended)",
+                crate::t!("dialog.backend_picker.recommended"),
                 Style::default().fg(Color::Green),
             ));
         }
@@ -832,7 +832,7 @@ fn render_backend_picker(
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title(" Backend Picker ")
+                .title("crate::t!(\"dialog.backend_picker.title\")")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -863,13 +863,13 @@ fn render_bench_tune_setup(
     };
     let mode_idx = bench_mode_selection.min(1);
     let mode_name = if mode_idx == 0 {
-        "Runtime Only"
+        crate::t!("dialog.bench_config.runtime_only")
     } else {
-        "Full (inc. load)"
+        crate::t!("dialog.bench_config.full")
     };
     let block = Block::default()
         .title(Span::styled(
-            " Benchmark Configuration ",
+            "crate::t!(\"dialog.bench_config.title\")",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -901,7 +901,7 @@ fn render_bench_tune_setup(
         config.n_predict.to_string()
     };
     let mode_line = Line::from(vec![
-        Span::styled(" Mode: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.bench_config.mode"), Style::default().fg(Color::Yellow)),
         Span::styled(
             mode_name,
             Style::default()
@@ -909,7 +909,7 @@ fn render_bench_tune_setup(
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw(" | "),
-        Span::styled("Iters: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.bench_config.iters"), Style::default().fg(Color::Yellow)),
         Span::styled(
             iters_display,
             if app.edit.editing_iters {
@@ -919,7 +919,7 @@ fn render_bench_tune_setup(
             },
         ),
         Span::raw(" | "),
-        Span::styled("Max Tokens: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.bench_config.max_tokens"), Style::default().fg(Color::Yellow)),
         Span::styled(
             tokens_display,
             if app.edit.editing_n_predict {
@@ -931,14 +931,14 @@ fn render_bench_tune_setup(
     ]);
     f.render_widget(Paragraph::new(mode_line), regions[1]);
     let prompt_title = if editing_prompt {
-        " Editing Prompt... "
+        crate::t!("dialog.bench_config.editing_prompt")
     } else {
-        " Prompt (Alt+P to edit) "
+        crate::t!("dialog.bench_config.prompt")
     };
     let prompt_content = if config.prompt.is_empty() {
-        "(Empty prompt)"
+        crate::t!("dialog.bench_config.empty_prompt").to_string()
     } else {
-        &config.prompt
+        config.prompt.clone()
     };
     let prompt_lines = if editing_prompt {
         let mut display_text = config.prompt.clone();
@@ -953,7 +953,7 @@ fn render_bench_tune_setup(
                     Style::default().fg(Color::Cyan),
                 ),
                 Span::styled(
-                    " [Press ⎋ to finish] ",
+                    crate::t!("dialog.bench_config.finish"),
                     Style::default().fg(Color::Yellow),
                 ),
             ]),
@@ -994,12 +994,12 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
             let selected_variant_idx = selected_variant_idx.min(p.variants.len().saturating_sub(1));
             let selected_name = p.variants.get(selected_variant_idx).map(|s: &String| s.as_str()).unwrap_or("");
             let mut lines = vec![Line::from(vec![
-                Span::raw(" Select parameters to vary: ("),
-                Span::styled("Press E to edit", Style::default().fg(Color::Yellow)),
+                Span::raw(crate::t!("dialog.bench_config.select_params")),
+                Span::styled(crate::t!("dialog.bench_config.edit_hint"), Style::default().fg(Color::Yellow)),
                 Span::raw(")  "),
                 Span::styled(" [←/→: cycle] ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    format!("Editing: {}", selected_name),
+                    format!("{} {}", crate::t!("dialog.bench_config.editing"), selected_name),
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
@@ -1013,13 +1013,13 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
                 // Show validation warnings only for numeric params
                 if p.min >= p.max {
                     lines.push(Line::from(Span::styled(
-                        " ⚠ min must be less than max",
+                        crate::t!("dialog.bench_config.error_min"),
                         Style::default().fg(Color::Red),
                     )));
                 }
                 if p.step <= 0.0 {
                     lines.push(Line::from(Span::styled(
-                        " ⚠ step must be positive",
+                        crate::t!("dialog.bench_config.error_step"),
                         Style::default().fg(Color::Red),
                     )));
                 }
@@ -1039,12 +1039,12 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
                 "Min"
             };
             let mut lines = vec![Line::from(vec![
-                Span::raw(" Select parameters to vary: ("),
-                Span::styled("Press E to edit", Style::default().fg(Color::Yellow)),
+                Span::raw(crate::t!("dialog.bench_config.select_params")),
+                Span::styled(crate::t!("dialog.bench_config.edit_hint"), Style::default().fg(Color::Yellow)),
                 Span::raw(")  "),
                 Span::styled(" [Tab: Min → Max → Step] ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    format!("Editing: {}", active_field_name),
+                    format!("{} {}", crate::t!("dialog.bench_config.editing"), active_field_name),
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
@@ -1053,13 +1053,13 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
             // Validation warnings
             if p.min >= p.max {
                 lines.push(Line::from(Span::styled(
-                    " ⚠ min must be less than max",
+                    crate::t!("dialog.bench_config.error_min"),
                     Style::default().fg(Color::Red),
                 )));
             }
             if p.step <= 0.0 {
                 lines.push(Line::from(Span::styled(
-                    " ⚠ step must be positive",
+                    crate::t!("dialog.bench_config.error_step"),
                     Style::default().fg(Color::Red),
                 )));
             }
@@ -1073,8 +1073,8 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
         }
     } else {
         vec![Line::from(vec![
-            Span::raw(" Select parameters to vary:"),
-            Span::styled(" (Space to toggle)", Style::default().fg(Color::DarkGray)),
+            Span::raw(crate::t!("dialog.bench_config.params_label")),
+            Span::styled(crate::t!("dialog.bench_config.toggle_hint"), Style::default().fg(Color::DarkGray)),
         ])]
     };
     f.render_widget(Paragraph::new(param_header_lines), regions[5]);
@@ -1107,7 +1107,7 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
                 let base_idx = (p.min as usize).min(p.variants.len().saturating_sub(1));
                 format!("▶ {}", p.variants[base_idx])
             } else if p.name == "draft_tokens" && is_spec_off {
-                "(Disabled - Spec type is Off)".to_string()
+                crate::t!("dialog.bench_config.disabled").to_string()
             } else if editing_param && is_selected && editing_param_field < -1 {
                 let selected_variant_idx = ((editing_param_field + 2) as isize).max(0) as usize;
                 let selected_variant_idx = selected_variant_idx.min(p.variants.len().saturating_sub(1));
@@ -1154,7 +1154,7 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
                 format!("[{} {} {}]", fields[0], fields[1], fields[2])
             } else {
                 match p.name.as_str() {
-                    "flash_attn" => "(On/Off)".to_string(),
+                    "flash_attn" => crate::t!("dialog.bench_config.on_off").to_string(),
                     "threads" => format!(
                         "{} to {}, step {}",
                         p.min as u32, p.max as u32, p.step as u32
@@ -1218,7 +1218,7 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
     let num_combinations = config.get_num_combinations();
     let footer_lines = vec![
         Line::from(vec![
-            Span::raw(" Total tests: "),
+            Span::raw(crate::t!("dialog.bench_config.total_tests")),
             Span::styled(
                 total_tests.to_string(),
                 Style::default()
@@ -1239,19 +1239,19 @@ let param_header_lines: Vec<Line> = if editing_param && selected_idx < config.pa
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" [↵]", Style::default().fg(Color::Yellow)),
+            Span::styled(crate::t!("dialog.bench_config.start"), Style::default().fg(Color::Yellow)),
             Span::styled(
-                " START ",
+                crate::t!("dialog.bench_config.start_text"),
                 Style::default().fg(Color::Black).bg(Color::Green),
             ),
             Span::raw("  "),
-            Span::styled(" [⎋]", Style::default().fg(Color::Yellow)),
-            Span::raw(" Cancel "),
+            Span::styled(crate::t!("dialog.bench_config.cancel_key"), Style::default().fg(Color::Yellow)),
+            Span::raw(crate::t!("dialog.bench_config.cancel")),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled(
-                format!(" Generates {} combinations ", num_combinations),
+                format!("{} {}", crate::t!("dialog.bench_config.generates"), num_combinations),
                 Style::default().fg(Color::DarkGray),
             ),
         ]),
@@ -1292,7 +1292,7 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
         .cloned()
         .collect();
     let block = Block::default()
-        .title(" RPC Workers Manager ")
+        .title("crate::t!(\"dialog.rpc.title\")")
         .borders(Borders::ALL)
         .border_style(
             Style::default()
@@ -1324,7 +1324,7 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
     };
     let about_lines = panel::about::render_about();
     let block = Block::default()
-        .title(" About ")
+        .title("crate::t!(\"dialog.about.title\")")
         .borders(Borders::ALL)
         .border_style(
             Style::default()
@@ -1358,14 +1358,14 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
     };
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        " Max Concurrent Predictions ",
+        "crate::t!(\"dialog.max_concurrent.title\")",
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
     )));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::raw(
-        "This divides the context length per loaded model: ",
+        crate::t!("dialog.max_concurrent.divides"),
     )]));
     picker_lines.push(Line::from(vec![
         Span::styled(ctx_len.to_string(), Style::default().fg(Color::Yellow)),
@@ -1381,22 +1381,22 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::raw(" tokens per model"),
+        Span::raw(crate::t!("dialog.max_concurrent.tokens_per_model")),
     ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
-        Span::raw("Value: "),
+        Span::raw(crate::t!("dialog.max_concurrent.value_label")),
         Span::styled(value, Style::default().fg(Color::Black).bg(Color::Yellow)),
     ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(
-            "  [↵] confirm  ",
+            crate::t!("dialog.max_concurrent.confirm"),
             Style::default().fg(Color::Black).bg(Color::Yellow),
         ),
         Span::raw("  "),
         Span::styled(
-                "  [⎋] cancel  ",
+                crate::t!("dialog.max_concurrent.cancel"),
             Style::default().fg(Color::Black).bg(Color::DarkGray),
         ),
     ]));
@@ -1404,7 +1404,7 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title(" Max Concurrent Predictions ")
+                .title("crate::t!(\"dialog.max_concurrent.title\")")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -1436,7 +1436,7 @@ fn render_dashboard_picker(
     };
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        " Dashboard ",
+        "crate::t!(\"dialog.dashboard.title\")",
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -1445,9 +1445,9 @@ fn render_dashboard_picker(
     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
         Span::styled(enabled_marker, Style::default().fg(Color::Yellow)),
-        Span::styled("Enabled: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard.enabled"), Style::default().fg(Color::Yellow)),
         Span::styled(
-            if enabled { "On" } else { "Off" },
+            if enabled { crate::t!("dialog.dashboard.on") } else { crate::t!("dialog.dashboard.off") },
             Style::default()
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD),
@@ -1462,7 +1462,7 @@ fn render_dashboard_picker(
     };
     picker_lines.push(Line::from(vec![
         Span::styled(port_marker, Style::default().fg(Color::Yellow)),
-        Span::styled("Port: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard.port"), Style::default().fg(Color::Yellow)),
         Span::styled(port_val, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(""));
@@ -1470,22 +1470,22 @@ fn render_dashboard_picker(
     let auth_val = if editing && selected_field == 1i32 {
         format!("{}|", edit_buffer)
     } else if auth_key.is_empty() {
-        "(none)".to_string()
+        crate::t!("dialog.dashboard.none").to_string()
     } else {
         auth_key.to_string()
     };
     picker_lines.push(Line::from(vec![
         Span::styled(auth_marker, Style::default().fg(Color::Yellow)),
-        Span::styled("Auth Key: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard.auth_key"), Style::default().fg(Color::Yellow)),
         Span::styled(auth_val, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(""));
     let tls_enabled_marker = if selected_field == 2i32 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
         Span::styled(tls_enabled_marker, Style::default().fg(Color::Yellow)),
-        Span::styled("TLS: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard.tls"), Style::default().fg(Color::Yellow)),
         Span::styled(
-            if tls_enabled { "On" } else { "Off" },
+            if tls_enabled { crate::t!("dialog.dashboard.on") } else { crate::t!("dialog.dashboard.off") },
             Style::default()
                 .fg(if tls_enabled {
                     Color::Green
@@ -1500,13 +1500,13 @@ fn render_dashboard_picker(
     let tls_cert_val = if editing && selected_field == 3i32 {
         format!("{}|", edit_buffer)
     } else if tls_cert.is_empty() {
-        "(auto-generated)".to_string()
+        crate::t!("dialog.dashboard.tls_auto").to_string()
     } else {
         tls_cert.to_string()
     };
     picker_lines.push(Line::from(vec![
         Span::styled(tls_cert_marker, Style::default().fg(Color::Yellow)),
-        Span::styled("TLS Cert: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard.tls_cert"), Style::default().fg(Color::Yellow)),
         Span::styled(tls_cert_val, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(""));
@@ -1514,25 +1514,25 @@ fn render_dashboard_picker(
     let tls_key_val = if editing && selected_field == 4i32 {
         format!("{}|", edit_buffer)
     } else if tls_key.is_empty() {
-        "(auto-generated)".to_string()
+        crate::t!("dialog.dashboard.tls_auto").to_string()
     } else {
         tls_key.to_string()
     };
     picker_lines.push(Line::from(vec![
         Span::styled(tls_key_marker, Style::default().fg(Color::Yellow)),
-        Span::styled("TLS Key: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard.tls_key"), Style::default().fg(Color::Yellow)),
         Span::styled(tls_key_val, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::styled(
-        "[⎋] close  ",
+        crate::t!("dialog.dashboard.close"),
         Style::default().fg(Color::Black).bg(Color::DarkGray),
     )]));
     f.render_widget(Clear, picker_area);
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title(" Dashboard ")
+                .title("crate::t!(\"dialog.dashboard.title\")")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -1587,45 +1587,45 @@ fn render_dashboard_url(
     }
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        " Server Dashboard ",
+        "crate::t!(\"dialog.dashboard_url.title\")",
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
     )));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
-        Span::styled("Host: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard_url.host"), Style::default().fg(Color::Yellow)),
         Span::styled(host_val, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
-        Span::styled("Backend: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard_url.backend"), Style::default().fg(Color::Yellow)),
         Span::styled(&backend_str, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(vec![
-        Span::styled("Threads: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard_url.threads"), Style::default().fg(Color::Yellow)),
         Span::styled(&threads_str, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(vec![
-        Span::styled("Threads Batch: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard_url.threads_batch"), Style::default().fg(Color::Yellow)),
         Span::styled(&threads_batch_str, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(vec![
-        Span::styled("Mode: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard_url.mode"), Style::default().fg(Color::Yellow)),
         Span::styled(&mode_str, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(vec![
-        Span::styled("API Endpoint: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard_url.api_endpoint"), Style::default().fg(Color::Yellow)),
         Span::styled(api_str, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(vec![
-        Span::styled("RPC Workers: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard_url.rpc_workers"), Style::default().fg(Color::Yellow)),
         Span::styled(&rpc_str, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(vec![
-        Span::styled("Dashboard: ", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.dashboard_url.dashboard"), Style::default().fg(Color::Yellow)),
         Span::styled(
-            if ws_enabled { "Enabled" } else { "Disabled" },
+            if ws_enabled { crate::t!("dialog.dashboard.enabled") } else { crate::t!("dialog.dashboard.disabled") },
             Style::default()
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD),
@@ -1641,11 +1641,11 @@ fn render_dashboard_url(
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(
-            "[↵] copy URL  ",
+            crate::t!("dialog.dashboard_url.copy"),
             Style::default().fg(Color::Black).bg(Color::DarkGray),
         ),
         Span::styled(
-            "[⎋] close",
+            crate::t!("dialog.dashboard_url.close"),
             Style::default().fg(Color::Black).bg(Color::DarkGray),
         ),
     ]));
@@ -1653,7 +1653,7 @@ fn render_dashboard_url(
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title(" Server Dashboard ")
+                .title("crate::t!(\"dialog.dashboard_url.title\")")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -1672,12 +1672,12 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
         };
         f.render_widget(Clear, modal_area);
         let p_str = if format_bench_params(&result.params, false).is_empty() {
-            "Baseline".to_string()
+            crate::t!("dialog.bench_result.baseline").to_string()
         } else {
             format_bench_params(&result.params, false).join(", ")
         };
         let main_title = Line::from(vec![
-            Span::styled(" BenchTune Result: ", Style::default().fg(Color::Yellow)),
+            Span::styled("crate::t!(\"dialog.bench_result.title\")", Style::default().fg(Color::Yellow)),
             Span::styled(
                 p_str,
                 Style::default()
@@ -1908,7 +1908,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                         .add_modifier(Modifier::BOLD),
                 )),
                 Cell::from(Span::styled(
-                    "Value",
+                    crate::t!("dialog.gguf.value"),
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
@@ -1916,7 +1916,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             ]))
             .block(
                 Block::default()
-                    .title(" Parameters ")
+                    .title(crate::t!("dialog.bench_result.parameters"))
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Cyan)),
             );
@@ -1986,7 +1986,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                         .add_modifier(Modifier::BOLD),
                 )),
                 Cell::from(Span::styled(
-                    "Value",
+                    crate::t!("dialog.gguf.value"),
                     Style::default()
                         .fg(Color::Green)
                         .add_modifier(Modifier::BOLD),
@@ -2008,7 +2008,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 .map(|l: &str| Line::from(l.to_string()))
                 .collect()
         } else {
-            vec![Line::from("No output captured.")]
+            vec![Line::from(crate::t!("dialog.bench_result.no_output"))]
         };
         let title_area = Rect {
             x: 0,
@@ -2067,7 +2067,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 height: command_height,
             };
             let command_block = Block::default()
-                .title(" Server Command ")
+                .title(crate::t!("dialog.bench_result.server_cmd"))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow));
             f.render_widget(
@@ -2087,7 +2087,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 height: area.height.saturating_sub(output_y + controls_height),
             };
             let output_block = Block::default()
-                .title(" Captured Output ")
+                .title(crate::t!("dialog.bench_result.output"))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Cyan));
             if !output_lines.is_empty() {
@@ -2117,7 +2117,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
         absolute_idx += output_idx + 1;
         let controls = Line::from(vec![
             Span::styled(
-                "  [⎋] close  ",
+                crate::t!("dialog.bench_result.close"),
                 Style::default().fg(Color::Black).bg(Color::Yellow),
             ),
             Span::raw("  "),
@@ -2158,14 +2158,14 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
     let after: String = buffer.chars().skip(clamped_pos).collect();
     let picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            " Search Query ",
+            "crate::t!(\"dialog.search.title\")",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Search: ", Style::default().fg(Color::Yellow)),
+            Span::styled(crate::t!("dialog.search.label"), Style::default().fg(Color::Yellow)),
             Span::styled(before, Style::default().fg(Color::White)),
             Span::styled(
                 "|",
@@ -2178,12 +2178,12 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
         Line::from(""),
         Line::from(vec![
             Span::styled(
-                "  [↵] search  ",
+                crate::t!("dialog.search.execute"),
                 Style::default().fg(Color::Black).bg(Color::Yellow),
             ),
             Span::raw("  "),
             Span::styled(
-            "  [⎋] cancel  ",
+            crate::t!("dialog.max_concurrent.cancel"),
                 Style::default().fg(Color::Black).bg(Color::DarkGray),
             ),
         ]),
@@ -2225,9 +2225,9 @@ fn render_gguf_naming_overlay(f: &mut Frame, area: Rect, explanation: &crate::tu
 
     // Table header
     let header_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
-    let segment_header = "Segment";
-    let value_header = "Value";
-    let desc_header = "Description";
+    let segment_header = crate::t!("dialog.gguf.segment");
+    let value_header = crate::t!("dialog.gguf.value");
+    let desc_header = crate::t!("dialog.gguf.description");
 
     // Calculate column widths
     let max_label_width = explanation.segments.iter()
@@ -2318,12 +2318,12 @@ fn render_gguf_naming_overlay(f: &mut Frame, area: Rect, explanation: &crate::tu
 
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
-        Span::styled("⎋ close", Style::default().fg(Color::Yellow)),
+        Span::styled(crate::t!("dialog.gguf.close"), Style::default().fg(Color::Yellow)),
     ]));
 
     let block = Block::default()
         .title(Span::styled(
-            " GGUF Filename Explanation  ⎋ to close ",
+            "crate::t!(\"dialog.gguf.title\")",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -2382,14 +2382,14 @@ fn render_yarn_rope_picker(
     };
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            " Yarn RoPE Params ",
+            "crate::t!(\"dialog.yarn.title\")",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(Span::styled(
-            " [↑/↓] Select  [↵] Edit  [⎋] Done  [Space] Enable/Disable Yarn RoPE ",
+            crate::t!("dialog.yarn.help"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -2399,7 +2399,7 @@ fn render_yarn_rope_picker(
 
     let fields = [
         (
-            "Yarn RoPE",
+            crate::t!("dialog.yarn.label"),
             format!("{}", app.settings.rope_yarn_enabled),
             -1,
         ),
@@ -2464,7 +2464,7 @@ fn render_yarn_rope_picker(
         Style::default().fg(Color::DarkGray),
     )));
     picker_lines.push(Line::from(Span::styled(
-        format!("  Effective context: {}", ctx_display),
+        format!("{} {}", crate::t!("dialog.yarn.effective_context"), ctx_display),
         Style::default()
             .fg(Color::Cyan)
             .add_modifier(Modifier::BOLD),
@@ -2474,7 +2474,7 @@ fn render_yarn_rope_picker(
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title(" Yarn RoPE Params ")
+                .title("crate::t!(\"dialog.yarn.title\")")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -2499,14 +2499,14 @@ fn render_spec_type_picker(
     };
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            " Speculative Decoding Type ",
+            "crate::t!(\"dialog.spec.title\")",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(Span::styled(
-        " [↑/↓] Select  [↵] Apply  [⎋] Cancel ",
+        crate::t!("dialog.profile_picker.help"),
             Style::default().fg(Color::Yellow),
         )),
         Line::from(""),
@@ -2532,7 +2532,7 @@ fn render_spec_type_picker(
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title(" Speculative Decoding Type ")
+                .title("crate::t!(\"dialog.spec.title\")")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),

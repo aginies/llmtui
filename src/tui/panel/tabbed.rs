@@ -327,7 +327,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         false,
         server_running,
     );
-    settings_helper::add_setting(
+      settings_helper::add_setting(
         &mut lines,
         &mut count,
         &app.settings,
@@ -337,6 +337,22 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         7,
         "RPC Workers",
         &rpc_workers_val,
+        selected,
+        "",
+        false,
+        server_running,
+    );
+    let language_val = app.config.language.to_uppercase();
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        8,
+        "Language",
+        &language_val,
         selected,
         "",
         false,
