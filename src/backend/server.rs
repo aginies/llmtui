@@ -1151,77 +1151,39 @@ fn get_process_metrics(pid: u32) -> Result<(u64, f64), String> {
 }
 
 /// Load a model via the llama-server Router API.
-pub async fn load_model(
-    host: &str,
-    port: u16,
-    model_id: &str,
-    model_path: Option<&str>,
-) -> Result<(), String> {
+/// Uses the canonical `/models/load` endpoint with the `"model"` JSON field.
+/// Model is identified by its display_name (matches the `--alias` registered in llama.cpp).
+pub async fn load_model(host: &str, port: u16, model_id: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
     let host = clean_host(host);
 
-    // Try multiple endpoints
-    let endpoints = ["/models/load", "/v1/models/load"];
-
-    // Construct all possible identification variants
-    let mut variants = Vec::new();
-
-    // 1. Original ID (display_name / relative path)
-    variants.push(model_id.to_string());
-    variants.push(strip_gguf(model_id).to_string());
-
-    // 2. Just the filename
-    if let Some(filename) = std::path::Path::new(model_id)
-        .file_name()
-        .and_then(|f| f.to_str())
-    {
-        variants.push(filename.to_string());
-        variants.push(strip_gguf(filename).to_string());
-    }
-
-    // 3. Absolute path
-    if let Some(path) = model_path {
-        variants.push(path.to_string());
-    }
-
-    let mut last_status = reqwest::StatusCode::OK;
-    let mut last_error = String::new();
-
-    for endpoint in endpoints {
-        let url = format!("http://{}:{}{}", host, port, endpoint);
-        for variant in &variants {
-            // Try both "model" and "alias" fields
-            let bodies = vec![
-                serde_json::json!({ "model": variant }),
-                serde_json::json!({ "alias": variant }),
-            ];
-
-            for body in bodies {
-                match client.post(&url).json(&body).send().await {
-                    Ok(res) => {
-                        if res.status().is_success() {
-                            return Ok(());
-                        }
-                        last_status = res.status();
-                        last_error = res
-                            .text()
-                            .await
-                            .unwrap_or_else(|_| "Unknown error".to_string());
-                    }
-                    Err(e) => {
-                        last_error = e.to_string();
-                    }
+    // Verify server is in router mode
+    let props_url = format!("http://{}:{}/props", host, port);
+    if let Ok(res) = client.get(&props_url).send().await {
+        if res.status().is_success() {
+            if let Ok(json) = res.json::<serde_json::Value>().await {
+                if json.get("role").and_then(|r| r.as_str()) != Some("router") {
+                    return Err("Server is not in router mode. Start with --models-max to enable router mode.".to_string());
                 }
             }
         }
     }
 
-    Err(format!(
-        "Failed to load model (tried {} requests). Last status {}: {}",
-        endpoints.len() * variants.len() * 2,
-        last_status,
-        last_error
-    ))
+    let url = format!("http://{}:{}/models/load", host, port);
+    let body = serde_json::json!({ "model": model_id });
+
+    match client.post(&url).json(&body).send().await {
+        Ok(res) if res.status().is_success() => Ok(()),
+        Ok(res) => {
+            let status = res.status();
+            let error = res
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            Err(format!("Server returned {}: {}", status, error))
+        }
+        Err(e) => Err(format!("Failed to send request: {}", e)),
+    }
 }
 
 /// List all models and their status from the llama-server Router API.
@@ -1265,7 +1227,6 @@ pub async fn list_models(
                 .to_string();
             let path = model
                 .get("path")
-                .or_else(|| model.get("filename"))
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
@@ -1277,49 +1238,31 @@ pub async fn list_models(
 }
 
 /// Unload a model via the llama-server Router API.
-pub async fn unload_model(
-    host: &str,
-    port: u16,
-    model_id: &str,
-    model_path: Option<&str>,
-) -> Result<(), String> {
+/// Uses the canonical `/models/unload` endpoint with the `"model"` JSON field.
+pub async fn unload_model(host: &str, port: u16, model_id: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
     let host = clean_host(host);
+    let url = format!("http://{}:{}/models/unload", host, port);
+    let body = serde_json::json!({ "model": model_id });
 
-    let endpoints = ["/models/unload", "/v1/models/unload"];
-    let stripped = strip_gguf(model_id);
-    let mut variants = vec![model_id.to_string(), stripped.to_string()];
-    if let Some(path) = model_path {
-        variants.push(path.to_string());
-    }
-
-    let mut last_status = reqwest::StatusCode::OK;
-    let mut last_error = String::new();
-
-    for endpoint in endpoints {
-        let url = format!("http://{}:{}{}", host, port, endpoint);
-        for variant in &variants {
-            let body = serde_json::json!({
-                "model": variant
-            });
-
-            if let Ok(res) = client.post(&url).json(&body).send().await {
-                if res.status().is_success() {
-                    return Ok(());
-                }
-                last_status = res.status();
-                last_error = res
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "Unknown error".to_string());
-            }
+    match client.post(&url).json(&body).send().await {
+        Ok(res) if res.status().is_success() => Ok(()),
+        Ok(res) => {
+            let status = res.status();
+            let error = res
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            tracing::debug!(
+                "Model unload failed (status {}, error: {}): this is expected if model was already unloaded",
+                status,
+                error
+            );
+            Ok(())
+        }
+        Err(e) => {
+            tracing::debug!("Model unload request failed: {}", e);
+            Ok(())
         }
     }
-
-    tracing::debug!(
-        "Model unload failed (status {}, error: {}): this is expected if model was already unloaded",
-        last_status,
-        last_error
-    );
-    Ok(())
 }

@@ -123,12 +123,7 @@ pub async fn execute_confirmation(
             );
         }
         ConfirmationKind::Unload => {
-            // Model name was stored in display_name, path in detail
-            if let Some(path) = detail {
-                app.pending.pending_api_unload = Some((display_name, Some(path)));
-            } else {
-                app.pending.pending_api_unload = Some((display_name, None));
-            }
+            app.pending.pending_api_unload = Some(display_name);
         }
         ConfirmationKind::DeleteBackend => {
             if let Some(path) = detail {

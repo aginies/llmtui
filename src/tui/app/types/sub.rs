@@ -138,9 +138,9 @@ pub struct LoadingState {
 pub struct PendingOperations {
     /// API load pending — kept as field because `try_execute_api_load` uses
     /// a clone-check pattern (must survive across ticks until server is ready).
-    pub pending_api_load: Option<(String, Option<String>)>,
+    pub pending_api_load: Option<String>,
     /// API unload pending — kept as field because confirmation dialog reads it.
-    pub pending_api_unload: Option<(String, Option<String>)>,
+    pub pending_api_unload: Option<String>,
     /// Kill handle — kept as field because the main loop needs to take() it
     /// for the async kill operation.
     pub pending_kill: Option<ServerHandle>,

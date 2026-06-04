@@ -139,10 +139,9 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                                 settings: settings.clone(),
                             }).await;
                             // Queue the load so it triggers once server is ready
-                            app.pending.pending_api_load = Some((
+                            app.pending.pending_api_load = Some(
                                 model.display_name.clone(),
-                                Some(model.path.to_string_lossy().to_string()),
-                            ));
+                            );
                             app.loading.loading_phases =
                                 std::iter::once(LoadingPhase::ServerStarting).collect();
                             app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
@@ -190,10 +189,9 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
 
                         app.ui.last_error_message = None;
-                        app.pending.pending_api_load = Some((
+                        app.pending.pending_api_load = Some(
                             model.display_name.clone(),
-                            Some(model.path.to_string_lossy().to_string()),
-                        ));
+                        );
                         app.loading.loading_phases =
                             std::iter::once(LoadingPhase::LoadingModel).collect();
                         app.loading.last_active_phase = Some(LoadingPhase::LoadingModel);
@@ -218,10 +216,9 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         display_name: model.display_name.clone(),
                         detail: Some(model.path.to_string_lossy().to_string()),
                     };
-                    app.pending.pending_api_unload = Some((
+                    app.pending.pending_api_unload = Some(
                         model.display_name.clone(),
-                        Some(model.path.to_string_lossy().to_string()),
-                    ));
+                    );
                 } else {
                     app.add_log(
                         format!("{} is not loaded", model.display_name),

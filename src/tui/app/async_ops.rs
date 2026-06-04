@@ -1042,14 +1042,12 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                                 let host = handle.host.clone();
                                 let port = handle.port;
                                 let model_name = model.display_name.clone();
-                                let model_path_str = model.path.to_str().map(|s| s.to_string());
                                 let task_name = format!("bench_unload_{}", model.display_name);
                                 let task_handle = tokio::spawn(async move {
                                     let _ = crate::backend::server::unload_model(
                                         &host,
                                         port,
                                         &model_name,
-                                        model_path_str.as_deref(),
                                     )
                                     .await;
                                 });
@@ -1090,7 +1088,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
         if !self.server_ready {
             return;
         }
-        if let Some((model_name, model_path)) = self.pending.pending_api_load.clone() {
+        if let Some(model_name) = self.pending.pending_api_load.clone() {
             if let Some(handle) = &self.server.server_handle {
                 if self
                     .loading
@@ -1104,7 +1102,6 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                     let host = handle.host.clone();
                     let port = handle.port;
                     let model_name_clone = model_name.clone();
-                    let model_path_clone = model_path.clone();
                     self.pending.pending_api_load = None;
                     self.add_log(
                         crate::t_fmt!("async.send_load", model_name_clone),
@@ -1122,7 +1119,6 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                             &host,
                             port,
                             &model_name_clone,
-                            model_path_clone.as_deref(),
                         )
                         .await
                         {
@@ -1149,7 +1145,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
         if !matches!(
             self.ui.global_mode,
             super::types::GlobalMode::Confirmation { .. }
-        ) && let Some((model_name, model_path)) = self.pending.pending_api_unload.take()
+        ) && let Some(model_name) = self.pending.pending_api_unload.take()
             && let Some(handle) = &self.server.server_handle
         {
             let server_mode = self.server_mode;
@@ -1163,7 +1159,6 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
             let host = handle.host.clone();
             let port = handle.port;
             let model_name_clone = model_name.clone();
-            let model_path_clone = model_path.clone();
             if server_mode == crate::models::ServerMode::Normal {
                 self.add_log(
                     crate::t_fmt!("async.unloading", model_name_clone),
@@ -1189,7 +1184,6 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                             &host,
                             port,
                             &model_name_clone,
-                            model_path_clone.as_deref(),
                         )
                         .await
                         {
