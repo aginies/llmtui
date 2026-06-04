@@ -12,6 +12,7 @@ use super::panel::{
 };
 use super::readme::{fetch_and_store_readme, fetch_readme_for_selected, handle_readme_key};
 use super::rpc_workers::handle_rpc_workers_key;
+use crate::tui::app::scheduler::PendingEvent;
 
 fn picker_nav_up(selected: &mut usize) {
     *selected = selected.saturating_sub(1);
@@ -103,11 +104,19 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Skip all if in confirmation dialog
-    if let GlobalMode::Confirmation { selected, kind } = &app.ui.global_mode {
+    if let GlobalMode::Confirmation {
+        selected,
+        kind,
+        display_name,
+        detail,
+    } = &app.ui.global_mode
+    {
         match key.code {
             KeyCode::Char('y') => {
                 let kind_copy = *kind;
-                execute_confirmation(app, kind_copy).await;
+                let display_name_copy = display_name.clone();
+                let detail_copy = detail.clone();
+                execute_confirmation(app, kind_copy, display_name_copy, detail_copy).await;
                 if matches!(kind_copy, ConfirmationKind::DeleteBackend) {
                     let new_entries = app.fetch_backend_picker_entries();
                     if let GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode
@@ -121,18 +130,16 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.ui.global_mode = GlobalMode::Normal;
             }
             KeyCode::Char('n') | KeyCode::Esc => {
-                app.pending.pending_deletion = None;
                 app.pending.pending_api_unload = None;
-                app.pending.pending_backend_deletion = None;
                 app.ui.global_mode = GlobalMode::Normal;
             }
             KeyCode::Enter => {
                 if *selected {
-                    execute_confirmation(app, *kind).await;
+                    let display_name_copy = display_name.clone();
+                    let detail_copy = detail.clone();
+                    execute_confirmation(app, *kind, display_name_copy, detail_copy).await;
                 } else {
-                    app.pending.pending_deletion = None;
                     app.pending.pending_api_unload = None;
-                    app.pending.pending_backend_deletion = None;
                 }
                 app.ui.global_mode = GlobalMode::Normal;
             }
@@ -140,6 +147,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.ui.global_mode = GlobalMode::Confirmation {
                     selected: !*selected,
                     kind: *kind,
+                    display_name: display_name.clone(),
+                    detail: detail.clone(),
                 };
             }
             KeyCode::Char('h')
@@ -147,9 +156,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                app.pending.pending_deletion = None;
                 app.pending.pending_api_unload = None;
-                app.pending.pending_backend_deletion = None;
                 app.ui.global_mode = GlobalMode::Normal;
             }
             _ => {}
@@ -304,8 +311,13 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     format!("Searching for '{}'...", query),
                     crate::config::LogLevel::Info,
                 );
-                app.search.pending_search_load = Some((query, 0));
-                app.search.search_loading = true;
+                let _ = app
+                    .pending_tx
+                    .send(PendingEvent::Search {
+                        query: query.clone(),
+                        offset: 0,
+                    })
+                    .await;
                 app.search.search_table_state = TableState::default();
                 app.search.search_results_idx = None;
                 return;
@@ -815,7 +827,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // BenchTune Setup
     if let GlobalMode::BenchTuneSetup { .. } = &mut app.ui.global_mode {
-        handle_bench_tune_setup_key(app, key);
+        handle_bench_tune_setup_key(app, key).await;
         return;
     }
 
@@ -893,6 +905,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.ui.global_mode = GlobalMode::Confirmation {
                     selected: false,
                     kind: ConfirmationKind::Exit,
+                    display_name: String::new(),
+                    detail: None,
                 };
             } else {
                 app.running = false;
@@ -913,7 +927,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 && let Some(handle) = app.server.server_handle.take()
             {
                 app.add_log("Stopping benchmark...", crate::config::LogLevel::Info);
-                app.pending.pending_kill = Some(handle);
+                let _ = app
+                    .pending_tx
+                    .send(PendingEvent::KillHandle { handle })
+                    .await;
                 return;
             }
         }
@@ -1028,7 +1045,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         {
             if let Some(handle) = app.server.server_handle.take() {
                 let port = handle.port;
-                app.pending.pending_kill = Some(handle);
+                let _ = app
+                    .pending_tx
+                    .send(PendingEvent::KillHandle { handle })
+                    .await;
                 app.add_log(
                     format!("Killing llama-server on port {}", port),
                     crate::config::LogLevel::Info,
@@ -1371,7 +1391,7 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 }
 
-fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
+async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if let GlobalMode::BenchTuneSetup {
         config,
         selected_idx,
@@ -1760,7 +1780,13 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         let settings = app.settings.clone();
                         app.ui.global_mode = GlobalMode::Normal;
                         app.bench_tune.bench_tune_config = Some(config_final);
-                        app.pending.pending_spawn = Some((Some(model), settings));
+                        let _ = app
+                            .pending_tx
+                            .send(PendingEvent::Spawn {
+                                model: Some(model),
+                                settings,
+                            })
+                            .await;
                     }
                 }
             }
@@ -1827,10 +1853,12 @@ fn handle_backend_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             KeyCode::Char('d') | KeyCode::Delete => {
                 if let Some((backend, Some(tag))) = entries.get(*selected) {
-                    app.pending.pending_backend_deletion = Some((*backend, tag.clone()));
+                    let backend_slug = backend.slug().to_string();
                     app.ui.global_mode = GlobalMode::Confirmation {
                         selected: false,
                         kind: ConfirmationKind::DeleteBackend,
+                        display_name: format!("{} ({})", backend_slug, tag),
+                        detail: Some(format!("{}:{}", backend_slug, tag)),
                     };
                 }
             }
@@ -1993,8 +2021,13 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if let ModelsMode::Search { page, .. } = &mut app.models_mode {
                     *page -= 1;
                 }
-                app.search.pending_search_load = Some((query, offset));
-                app.search.search_loading = true;
+                let _ = app
+                    .pending_tx
+                    .send(PendingEvent::Search {
+                        query,
+                        offset,
+                    })
+                    .await;
                 return;
             }
             return;
@@ -2021,8 +2054,13 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         };
                         let offset = (*page as u32 + 1) * 50;
                         app.add_log("Loading more results...", crate::config::LogLevel::Info);
-                        app.search.pending_search_load = Some((query, offset));
-                        app.search.search_loading = true;
+                        let _ = app
+                            .pending_tx
+                            .send(PendingEvent::Search {
+                                query,
+                                offset,
+                            })
+                            .await;
                         return;
                     }
                     app.search.search_results_idx = Some(len.saturating_sub(1));
@@ -2214,7 +2252,16 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     format!("Downloading {}...", filename),
                     crate::config::LogLevel::Info,
                 );
-                app.pending.pending_download = Some((model_id, filename, url, file_size, subdir));
+                let _ = app
+                    .pending_tx
+                    .send(PendingEvent::Download {
+                        model_id,
+                        filename,
+                        url,
+                        file_size,
+                        subdir,
+                    })
+                    .await;
             }
             return;
         }

@@ -111,6 +111,8 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.ui.global_mode = GlobalMode::Confirmation {
                 selected: false,
                 kind: crate::tui::app::ConfirmationKind::Reset,
+                display_name: String::new(),
+                detail: None,
             };
             return;
         } else {

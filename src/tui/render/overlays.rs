@@ -43,8 +43,14 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
-    if let GlobalMode::Confirmation { selected, kind } = &app.ui.global_mode {
-        render_confirmation(f, f.area(), app, *selected, *kind);
+    if let GlobalMode::Confirmation {
+        selected,
+        kind,
+        display_name,
+        detail,
+    } = &app.ui.global_mode
+    {
+        render_confirmation(f, f.area(), app, *selected, *kind, display_name, detail.as_deref());
         return true;
     }
 
@@ -255,6 +261,8 @@ fn render_confirmation(
     app: &App,
     selected: bool,
     kind: ConfirmationKind,
+    display_name: &str,
+    detail: Option<&str>,
 ) {
     let popup_area = Rect {
         x: area.width.saturating_sub(50) / 2,
@@ -295,10 +303,6 @@ fn render_confirmation(
             ],
         ),
         ConfirmationKind::Delete => {
-            let model_name = app
-                .selected_model()
-                .map(|m| m.name.as_str())
-                .unwrap_or("Unknown");
             (
                 crate::t!("dialog.delete.title"),
                 vec![
@@ -306,7 +310,7 @@ fn render_confirmation(
                     Line::from(vec![
                         Span::raw(crate::t!("dialog.delete.message")),
                         Span::styled(
-                            model_name,
+                            display_name,
                             Style::default()
                                 .fg(Color::Yellow)
                                 .add_modifier(Modifier::BOLD),
@@ -319,10 +323,6 @@ fn render_confirmation(
             )
         }
         ConfirmationKind::Unload => {
-            let model_name = match &app.pending.pending_api_unload {
-                Some((name, _)) => name.as_str(),
-                None => "Unknown",
-            };
             (
                 crate::t!("dialog.unload.title"),
                 vec![
@@ -330,7 +330,7 @@ fn render_confirmation(
                     Line::from(vec![
                         Span::raw(crate::t!("dialog.unload.message")),
                         Span::styled(
-                            model_name,
+                            display_name,
                             Style::default()
                                 .fg(Color::Yellow)
                                 .add_modifier(Modifier::BOLD),
@@ -341,9 +341,10 @@ fn render_confirmation(
             )
         }
         ConfirmationKind::DeleteBackend => {
-            let (backend, tag) = match &app.pending.pending_backend_deletion {
-                Some((b, t)) => (b.to_string(), t.as_str()),
-                None => ("Unknown".to_string(), "latest"),
+            let display = if let Some(d) = detail {
+                d
+            } else {
+                display_name
             };
             (
                 crate::t!("dialog.delete_backend.title"),
@@ -352,7 +353,7 @@ fn render_confirmation(
                     Line::from(vec![
                         Span::raw(crate::t!("dialog.delete_backend.message")),
                         Span::styled(
-                            format!("{} ({})", backend, tag),
+                            display,
                             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                         ),
                         Span::raw("?"),

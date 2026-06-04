@@ -498,7 +498,7 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
         }
     }
 
-    // BenchTune mode is handled separately in app.start_pending_spawn()
+    // BenchTune mode is handled separately in app.process_pending_spawn()
     // and should never reach this function.
     if server_mode == crate::models::ServerMode::BenchTune {
         unreachable!("BenchTune mode must be handled before calling spawn_server")

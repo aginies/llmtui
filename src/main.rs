@@ -272,33 +272,78 @@ async fn main() -> Result<()> {
             let mut terminal =
                 ratatui::Terminal::new(ratatui::backend::CrosstermBackend::new(std::io::stdout()))?;
 
-            // Main event loop
+            // Main event loop — event-driven architecture
+            // High-priority tick drives the loop (~200ms when active, ~500ms idle).
+            // Pending operations use channels (event-driven).
+            // Settings changes throttled to ~1s via counter.
+            use tui::app::scheduler::PendingEvent;
+            let mut settings_tick_counter: u32 = 0;
             loop {
-                app.update_metrics_model_name();
-                app.start_pending_download().await;
-                if let Some(path) = app.pending.pending_deletion.take() {
-                    app.start_pending_deletion(path).await;
-                }
-                if let Some((backend, tag)) = app.pending.pending_backend_deletion.take() {
-                    app.start_pending_backend_deletion(backend, tag);
-                }
-                app.poll_backend_resolution().await;
-                app.start_pending_spawn().await;
-                app.poll_spawn_result().await;
-                app.poll_bench_tune_result().await;
-                app.handle_server_exit();
-                app.handle_pending_api_load();
-                app.handle_pending_api_unload();
-                app.start_pending_kill().await;
-                app.poll_download_progress();
-                app.poll_bench_tune_progress();
-                app.process_completed_downloads();
-                app.poll_server_logs();
-                app.poll_loading_completion().await;
-                app.poll_sync();
-                app.poll_metrics();
+                // ── High-priority ticks (run every iteration) ──
+                app.tick_download_progress();
+                app.tick_bench_tune_progress();
+                app.tick_server_logs();
+                app.tick_metrics();
+                app.tick_sync();
+                app.tick_spinner();
+                app.tick_text_scrolls();
+                app.tick_settings_help();
+                app.tick_metrics_model_name();
+                app.tick_backend_resolution().await;
+                app.tick_loading_completion().await;
+                app.tick_server_exit();
+                app.tick_completed_downloads();
 
-                // Send metrics snapshot to WebSocket clients
+                // ── Drain pending event channel ──
+                while let Ok(event) = app.pending_rx.try_recv() {
+                    match event {
+                        PendingEvent::Download { model_id, filename, url, file_size, subdir } => {
+                            app.process_pending_download(model_id, filename, url, file_size, subdir).await;
+                        }
+                        PendingEvent::Deletion { path } => {
+                            app.process_pending_deletion(path).await;
+                        }
+                        PendingEvent::BackendDeletion { backend, tag } => {
+                            app.process_pending_backend_deletion(backend, tag);
+                        }
+                        PendingEvent::Spawn { model, settings } => {
+                            app.process_pending_spawn(model, settings).await;
+                        }
+                        PendingEvent::KillHandle { handle } => {
+                            app.pending.pending_kill = Some(handle);
+                        }
+                        PendingEvent::Search { query, offset } => {
+                            app.drain_pending_search(query, offset).await;
+                        }
+                    }
+                }
+
+                // ── Spawn / bench result checks ──
+                if let Some(handle) = &app.server.spawn_task_handle {
+                    if handle.is_finished() {
+                        if let Some(handle) = app.server.spawn_task_handle.take() {
+                            app.tick_spawn_result(handle).await;
+                        }
+                    }
+                }
+                if let Some(handle) = &app.server.bench_tune_task_handle {
+                    if handle.is_finished() {
+                        if let Some(handle) = app.server.bench_tune_task_handle.take() {
+                            app.tick_bench_tune_result(handle).await;
+                        }
+                    }
+                }
+
+                // ── Conditional API operations ──
+                app.try_execute_api_load();
+                app.try_execute_api_unload();
+
+                // ── Kill processing ──
+                if let Some(handle) = app.pending.pending_kill.take() {
+                    app.process_pending_kill(handle).await;
+                }
+
+                // ── WebSocket metrics broadcast ──
                 if let Some(tx) = &app.server.metrics_tx {
                     let loaded_model_name = {
                         let names = app
@@ -343,17 +388,20 @@ async fn main() -> Result<()> {
                     }
                 }
 
-                app.handle_pending_search().await;
-                app.update_ws_server().await;
-                app.update_api_endpoint().await;
-                app.tick_spinner();
-                app.tick_text_scrolls();
-                app.tick_settings_help();
+                // ── Settings change tick (throttled to ~1s) ──
+                settings_tick_counter = settings_tick_counter.wrapping_add(1);
+                if settings_tick_counter % 5 == 0 {
+                    app.tick_ws_server().await;
+                    app.tick_api_endpoint().await;
+                }
+
+                // ── Redraw check ──
                 if app.ui.needs_redraw {
                     app.ui.needs_redraw = false;
                     app.render(&mut terminal)?;
                 }
 
+                // ── Event poll (drives tick frequency) ──
                 let poll_timeout = if app.download.downloading || app.server.server_handle.is_some()
                 {
                     std::time::Duration::from_millis(200)

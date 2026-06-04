@@ -1,5 +1,6 @@
 use crossterm::event::KeyCode;
 
+use crate::tui::app::scheduler::PendingEvent;
 use crate::tui::app::{App, GlobalMode, LoadingPhase, ModelsMode};
 
 pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
@@ -104,7 +105,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             crate::config::LogLevel::Info,
                         );
                         if let Some(h) = app.server.server_handle.take() {
-                            app.pending.pending_kill = Some(h);
+                            let _ = app.pending_tx.send(PendingEvent::KillHandle { handle: h }).await;
                         }
                     }
 
@@ -133,7 +134,10 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
                         if app.server_mode == crate::models::ServerMode::Router {
                             // Router mode: start server without a model, then load via /load API
-                            app.pending.pending_spawn = Some((None, settings.clone()));
+                            let _ = app.pending_tx.send(PendingEvent::Spawn {
+                                model: None,
+                                settings: settings.clone(),
+                            }).await;
                             // Queue the load so it triggers once server is ready
                             app.pending.pending_api_load = Some((
                                 model.display_name.clone(),
@@ -149,7 +153,10 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             );
                         } else {
                             // Normal mode: start server WITH the specific model directly
-                            app.pending.pending_spawn = Some((Some(model.clone()), settings));
+                            let _ = app.pending_tx.send(PendingEvent::Spawn {
+                                model: Some(model.clone()),
+                                settings,
+                            }).await;
                             app.loading.loading_phases =
                                 std::iter::once(LoadingPhase::ServerStarting).collect();
                             app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
@@ -208,6 +215,8 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.ui.global_mode = GlobalMode::Confirmation {
                         selected: false,
                         kind: crate::tui::app::ConfirmationKind::Unload,
+                        display_name: model.display_name.clone(),
+                        detail: Some(model.path.to_string_lossy().to_string()),
                     };
                     app.pending.pending_api_unload = Some((
                         model.display_name.clone(),
@@ -236,10 +245,12 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Delete if app.ui.active_panel == crate::tui::app::ActivePanel::Models => {
             if let Some(model) = app.selected_model() {
                 let display_name = model.display_name.clone();
-                app.pending.pending_deletion = Some(model.path.clone());
+                let path_str = model.path.to_string_lossy().to_string();
                 app.ui.global_mode = GlobalMode::Confirmation {
                     selected: false,
                     kind: crate::tui::app::ConfirmationKind::Delete,
+                    display_name: display_name.clone(),
+                    detail: Some(path_str),
                 };
                 app.add_log(
                     format!("Delete confirmation for {} shown", display_name),
@@ -266,10 +277,12 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             if let Some(model) = app.selected_model() {
                 let display_name = model.display_name.clone();
-                app.pending.pending_deletion = Some(model.path.clone());
+                let path_str = model.path.to_string_lossy().to_string();
                 app.ui.global_mode = GlobalMode::Confirmation {
                     selected: false,
                     kind: crate::tui::app::ConfirmationKind::Delete,
+                    display_name: display_name.clone(),
+                    detail: Some(path_str),
                 };
                 app.add_log(
                     format!("Delete confirmation for {} shown", display_name),

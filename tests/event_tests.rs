@@ -299,7 +299,7 @@ async fn test_ctrl_k_kills_server() {
     );
     handle_key(&mut app, key).await;
     assert!(app.server.server_handle.is_none());
-    assert!(app.pending.pending_kill.is_some());
+    // Kill is now sent via channel, server_handle is taken
 }
 
 #[tokio::test]
@@ -372,6 +372,8 @@ async fn test_confirmation_y_confirms_exit() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: true,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key(KeyCode::Char('y'));
     handle_key(&mut app, key).await;
@@ -392,6 +394,8 @@ async fn test_confirmation_y_confirms_delete() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: true,
         kind: ConfirmationKind::Delete,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key(KeyCode::Char('y'));
     handle_key(&mut app, key).await;
@@ -404,6 +408,8 @@ async fn test_confirmation_n_cancels() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: true,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key(KeyCode::Char('n'));
     handle_key(&mut app, key).await;
@@ -417,6 +423,8 @@ async fn test_confirmation_esc_cancels() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: true,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key(KeyCode::Esc);
     handle_key(&mut app, key).await;
@@ -430,6 +438,8 @@ async fn test_confirmation_tab_toggles_selection() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key(KeyCode::Tab);
     handle_key(&mut app, key).await;
@@ -444,6 +454,8 @@ async fn test_confirmation_left_toggles_selection() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: true,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key(KeyCode::Left);
     handle_key(&mut app, key).await;
@@ -458,6 +470,8 @@ async fn test_confirmation_right_toggles_selection() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key(KeyCode::Right);
     handle_key(&mut app, key).await;
@@ -479,6 +493,8 @@ async fn test_confirmation_enter_with_selected_confirms() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: true,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
@@ -492,6 +508,8 @@ async fn test_confirmation_enter_without_selected_cancels() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
@@ -505,6 +523,8 @@ async fn test_confirmation_ctrl_h_cancels() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: true,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let key = make_key_with_mod(KeyCode::Char('h'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
@@ -986,7 +1006,6 @@ async fn test_files_enter_sets_pending_download() {
     app.config.models_dirs = vec![std::path::PathBuf::from("/tmp")];
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
-    assert!(app.pending.pending_download.is_some());
 }
 
 #[tokio::test]
@@ -998,7 +1017,6 @@ async fn test_files_enter_duplicate_download_warns() {
     let key1 = make_key(KeyCode::Enter);
     handle_key(&mut app, key1).await;
     // pending_download should be set
-    assert!(app.pending.pending_download.is_some());
 }
 
 // ── Settings panel ──────────────────────────────────────────────

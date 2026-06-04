@@ -103,6 +103,8 @@ pub enum GlobalMode {
     Confirmation {
         selected: bool,
         kind: ConfirmationKind,
+        display_name: String,
+        detail: Option<String>,
     },
     RpcManager,
     About,
@@ -250,4 +252,9 @@ pub struct App {
     pub search: SearchState,
     pub ui: UIState,
     pub edit: EditState,
+
+    // ── Scheduler ────────────────────────────────────────────
+    pub pending_tx: tokio::sync::mpsc::Sender<super::scheduler::PendingEvent>,
+    pub pending_rx: tokio::sync::mpsc::Receiver<super::scheduler::PendingEvent>,
+    pub server_ready: bool,
 }

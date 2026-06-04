@@ -4,6 +4,7 @@ pub mod metadata;
 pub mod panels;
 pub mod pickers;
 pub mod profiles;
+pub mod scheduler;
 pub mod state;
 pub mod sync_ops;
 pub mod types;
@@ -33,6 +34,7 @@ impl App {
         let settings_clone = settings.clone();
         let server_mode = config.default.server_mode;
         let router_max_models = config.default.router_max_models;
+        let (pending_tx, pending_rx) = tokio::sync::mpsc::channel(16);
         Self {
             running: true,
             config,
@@ -49,6 +51,9 @@ impl App {
             router_max_models,
             ws_server_handle: None,
             background_tasks: Default::default(),
+            pending_tx,
+            pending_rx,
+            server_ready: false,
 
             settings_state: SettingsState {
                 settings_selected_idx: 0,
@@ -157,10 +162,6 @@ impl App {
                 loading_completion_rx: None,
             },
             pending: PendingOperations {
-                pending_download: None,
-                pending_deletion: None,
-                pending_backend_deletion: None,
-                pending_spawn: None,
                 pending_api_load: None,
                 pending_api_unload: None,
                 pending_kill: None,
@@ -175,8 +176,6 @@ impl App {
                 files_table_state: Default::default(),
                 readme_cache: None,
                 gguf_metadata_cache: Default::default(),
-                pending_search_load: None,
-                search_loading: false,
                 search_input: None,
                 gguf_naming_cache: Default::default(),
             },

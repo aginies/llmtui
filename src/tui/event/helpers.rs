@@ -1,3 +1,4 @@
+use crate::tui::app::scheduler::PendingEvent;
 use crate::tui::app::{ActivePanel, App, ConfirmationKind};
 
 pub struct TextEditor<'a> {
@@ -83,7 +84,12 @@ impl TextEditor<'_> {
     }
 }
 
-pub async fn execute_confirmation(app: &mut App, kind: ConfirmationKind) {
+pub async fn execute_confirmation(
+    app: &mut App,
+    kind: ConfirmationKind,
+    display_name: String,
+    detail: Option<String>,
+) {
     match kind {
         ConfirmationKind::Exit => {
             app.running = false;
@@ -92,28 +98,52 @@ pub async fn execute_confirmation(app: &mut App, kind: ConfirmationKind) {
             app.reset_to_defaults();
         }
         ConfirmationKind::Delete => {
-            if let Some(model) = app.selected_model() {
-                let display_name = model.display_name.clone();
-                app.add_log(
-                    format!(
-                        "Deleting model {} (config moved to unused)...",
-                        display_name
-                    ),
-                    crate::config::LogLevel::Info,
-                );
+            // Path is in detail field
+            if let Some(path) = detail {
+                let _ = app
+                    .pending_tx
+                    .send(PendingEvent::Deletion {
+                        path: std::path::PathBuf::from(path),
+                    })
+                    .await;
             }
+            app.add_log(
+                format!(
+                    "Deleting model {} (config moved to unused)...",
+                    display_name
+                ),
+                crate::config::LogLevel::Info,
+            );
         }
         ConfirmationKind::Unload => {
-            if let Some((name, _)) = &app.pending.pending_api_unload {
-                app.add_log(
-                    format!("Unloading {} via API...", name),
-                    crate::config::LogLevel::Info,
-                );
+            // Model name was stored in display_name, path in detail
+            if let Some(path) = detail {
+                app.pending.pending_api_unload = Some((display_name, Some(path)));
+            } else {
+                app.pending.pending_api_unload = Some((display_name, None));
             }
         }
         ConfirmationKind::DeleteBackend => {
-            // Handled in main.rs loop by looking at pending_backend_deletion
-            // and confirming global_mode transitioned back to Normal
+            if let Some(path) = detail {
+                // Backend deletion path encoding: "backend:tag"
+                if let Some((backend_str, tag)) = path.split_once(':') {
+                    let backend = match backend_str {
+                        "cpu" => crate::models::Backend::Cpu,
+                        "vulkan" => crate::models::Backend::Vulkan,
+                        "rocm" => crate::models::Backend::Rocm,
+                        "rocm-lemonade" => crate::models::Backend::RocmLemonade,
+                        "cuda" => crate::models::Backend::Cuda,
+                        _ => return,
+                    };
+                    let _ = app
+                        .pending_tx
+                        .send(PendingEvent::BackendDeletion {
+                            backend,
+                            tag: tag.to_string(),
+                        })
+                        .await;
+                }
+            }
         }
     }
 }

@@ -103,6 +103,8 @@ fn test_confirmation_exit_renders() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let _terminal = make_terminal(&mut app);
 }
@@ -113,6 +115,8 @@ fn test_confirmation_reset_renders() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::Reset,
+        detail: None,
+        display_name: String::new(),
     };
     let _terminal = make_terminal(&mut app);
 }
@@ -130,6 +134,8 @@ fn test_confirmation_delete_renders() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::Delete,
+        detail: None,
+        display_name: String::new(),
     };
     let _terminal = make_terminal(&mut app);
 }
@@ -141,6 +147,8 @@ fn test_confirmation_unload_renders() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::Unload,
+        detail: None,
+        display_name: String::new(),
     };
     let _terminal = make_terminal(&mut app);
 }
@@ -148,10 +156,11 @@ fn test_confirmation_unload_renders() {
 #[test]
 fn test_confirmation_delete_backend_renders() {
     let mut app = make_app();
-    app.pending.pending_backend_deletion = Some((Backend::Cpu, "b4100".into()));
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::DeleteBackend,
+        detail: None,
+        display_name: String::new(),
     };
     let _terminal = make_terminal(&mut app);
 }
@@ -424,6 +433,8 @@ fn test_status_bar_shows_in_confirmation() {
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
     };
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);

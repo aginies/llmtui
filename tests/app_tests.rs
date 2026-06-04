@@ -443,9 +443,6 @@ fn app_new_max_threads_positive() {
 fn app_new_no_pending_operations() {
     let config = Config::default();
     let app = App::new(config);
-    assert!(app.pending.pending_download.is_none());
-    assert!(app.pending.pending_deletion.is_none());
-    assert!(app.pending.pending_spawn.is_none());
     assert!(app.pending.pending_api_load.is_none());
     assert!(app.pending.pending_api_unload.is_none());
     assert!(app.pending.pending_kill.is_none());

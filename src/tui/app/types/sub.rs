@@ -136,16 +136,15 @@ pub struct LoadingState {
 }
 
 pub struct PendingOperations {
-    pub pending_download: Option<(String, String, String, u64, String)>,
-    pub pending_deletion: Option<PathBuf>,
-    pub pending_backend_deletion: Option<(Backend, String)>,
-    pub pending_spawn: Option<(
-        Option<crate::models::DiscoveredModel>,
-        crate::models::ModelSettings,
-    )>,
+    /// API load pending — kept as field because `try_execute_api_load` uses
+    /// a clone-check pattern (must survive across ticks until server is ready).
     pub pending_api_load: Option<(String, Option<String>)>,
+    /// API unload pending — kept as field because confirmation dialog reads it.
     pub pending_api_unload: Option<(String, Option<String>)>,
+    /// Kill handle — kept as field because the main loop needs to take() it
+    /// for the async kill operation.
     pub pending_kill: Option<ServerHandle>,
+    /// Backend resolution state — moved here from old PendingOperations.
     pub backend_resolving: bool,
     pub backend_resolve_handle: Option<tokio::task::JoinHandle<Result<PathBuf, String>>>,
 }
@@ -158,8 +157,6 @@ pub struct SearchState {
     pub files_table_state: TableState,
     pub readme_cache: Option<(String, Vec<ratatui::text::Line<'static>>)>,
     pub gguf_metadata_cache: BTreeMap<String, crate::models::GgufMetadata>,
-    pub pending_search_load: Option<(String, u32)>,
-    pub search_loading: bool,
     pub search_input: Option<String>,
     pub gguf_naming_cache:
         std::collections::HashMap<String, crate::tui::gguf_naming::GgufExplanation>,

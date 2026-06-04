@@ -313,7 +313,7 @@ impl App {
         }
     }
 
-    pub fn handle_server_exit(&mut self) {
+    pub fn tick_server_exit(&mut self) {
         if let Some(rx) = &mut self.server.server_exit_rx
             && let Ok(()) = rx.try_recv()
         {
