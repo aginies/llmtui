@@ -14,7 +14,7 @@
 - **Model loading** — progress visualization through server start, weight loading, metadata, tensor loading, and server listening phases
 - **Chat with models** — interact with loaded models via the API proxy
 - **RPC Workers** — manage distributed inference nodes from a dedicated window
-- **Router Mode** — load multiple models simultaneously
+- **Router Mode** — load multiple models simultaneously *(Work In Progress — not yet selectable in TUI)*
 
 ### Configuration
 - **Per-model settings** — full control over context length, GPU layers, sampling parameters, and more

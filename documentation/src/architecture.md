@@ -153,8 +153,8 @@ total = model_vram + kv_cache + activation + fixed_overhead + 550
 ```
 
 Where:
-- **model_vram** — proportional to GPU layers loaded
-- **kv_cache** — `2 * n_layer * n_ctx * n_embd_kv * sizeof(type)` with GQA ratio and FlashAttention factor
+- **model_vram** — proportional to GPU layers loaded, with MoE expert ratio applied to FFN portion (~60%) for mixture-of-experts models
+- **kv_cache** — `2 * n_layer * n_ctx * n_embd_kv * sizeof(type)` with GQA ratio, FlashAttention factor, and effective context (context_length × rope_scale)
 - **activation** — proportional to batch size and hidden size
 - **fixed_overhead** — 3.8% of max VRAM (or 500 MiB if unknown)
 

@@ -232,7 +232,7 @@ Disable speculative decoding when:
 Speculative decoding works well with:
 - **Flash Attention:** Reduces memory usage, improves speed
 - **KV Cache Quantization:** Frees VRAM for larger contexts
-- **Router Mode:** Compare speculative vs non-speculative models
+- **Router Mode:** Compare speculative vs non-speculative models *(Work In Progress)*
 
 ### Dynamic Adjustment
 

@@ -80,7 +80,6 @@ Below the metrics, the dashboard shows a grid of current inference settings:
 | Cache Type K / Cache Type V | KV cache quantization |
 | Unified KV / Mlock / Mmap | Memory management |
 | Expert Count / GPU Layers | Model-specific settings |
-| Samplers | Sampler order string |
 | Spec Type / Draft Tokens | Speculative decoding configuration |
 | Yarn RoPE / Yarn Params | Context extension parameters |
 | Tags | Per-model tags |

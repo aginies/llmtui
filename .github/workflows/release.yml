@@ -67,10 +67,14 @@ jobs:
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
         run: |
           cargo build --release --target ${{ matrix.target }}
-          mv target/${{ matrix.target }}/release/llm-manager ${{ matrix.name }}
+          if [ -f target/${{ matrix.target }}/release/llm-manager.exe ]; then
+            mv target/${{ matrix.target }}/release/llm-manager.exe ${{ matrix.name }}.exe
+          else
+            mv target/${{ matrix.target }}/release/llm-manager ${{ matrix.name }}
+          fi
 
       - name: Create tarball (Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !contains(matrix.name, 'windows')
         run: |
           tar -czf ${{ matrix.name }}-v${{ steps.version.outputs.version }}.tar.gz ${{ matrix.name }}
           sha256sum ${{ matrix.name }}-v${{ steps.version.outputs.version }}.tar.gz > ${{ matrix.name }}-v${{ steps.version.outputs.version }}.tar.gz.sha256
@@ -78,11 +82,11 @@ jobs:
       - name: Create zip (Windows)
         if: runner.os == 'Linux' && contains(matrix.name, 'windows')
         run: |
-          zip ${{ matrix.name }}-${{ steps.version.outputs.version }}.zip ${{ matrix.name }}
+          zip ${{ matrix.name }}-${{ steps.version.outputs.version }}.zip ${{ matrix.name }}.exe
           sha256sum ${{ matrix.name }}-${{ steps.version.outputs.version }}.zip > ${{ matrix.name }}-${{ steps.version.outputs.version }}.zip.sha256
 
       - name: Upload to release (Linux)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && !contains(matrix.name, 'windows')
         uses: softprops/action-gh-release@v2
         with:
           files: |

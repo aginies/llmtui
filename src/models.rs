@@ -895,6 +895,8 @@ pub struct GgufMetadata {
     pub tokenizer: String,
     pub vocab_size: u32,
     pub draft_tokens: u32,
+    pub moe_total_experts: u32,
+    pub moe_used_experts: u32,
 }
 
 impl GgufMetadata {
@@ -958,6 +960,10 @@ impl GgufMetadata {
         if meta.arch == "mtp" {
             meta.draft_tokens = extract_num("mtp.draft_tokens").unwrap_or(0) as u32;
         }
+
+        // MoE expert counts (e.g., qwen2_moe.expert_count, qwen2_moe.expert_used_count)
+        meta.moe_total_experts = extract_num(&format!("{}.expert_count", prefix)).unwrap_or(0) as u32;
+        meta.moe_used_experts = extract_num(&format!("{}.expert_used_count", prefix)).unwrap_or(0) as u32;
 
         if let Some(v) = extract_num("general.file_type") {
             meta.file_type = match v {
@@ -1238,6 +1244,8 @@ pub fn estimate_vram_mib(
     n_head_opt: Option<u32>,
     n_kv_head_opt: Option<u32>,
     gpu_mem_total_mib: u64,
+    moe_total_experts: u32,
+    moe_used_experts: u32,
 ) -> u64 {
     let model_mib_f = model_mib as f64;
 
@@ -1268,8 +1276,22 @@ pub fn estimate_vram_mib(
     };
 
     // Model weights loaded into VRAM: proportional to GPU layers.
-    let model_vram = if total_layers > 0 && gpu_layers > 0 {
-        model_mib_f * (gpu_layers as f64 / total_layers as f64).min(1.0)
+    // For MoE models, only the active experts contribute to VRAM.
+    // Transformer models are ~60% FFN / ~40% attention; only FFN scales with expert count.
+    let layer_ratio = if total_layers > 0 && gpu_layers > 0 {
+        (gpu_layers as f64 / total_layers as f64).min(1.0)
+    } else if gpu_layers > 0 {
+        1.0
+    } else {
+        0.0
+    };
+    let expert_ratio = if moe_total_experts > 0 && moe_used_experts > 0 {
+        moe_used_experts as f64 / moe_total_experts as f64
+    } else {
+        1.0
+    };
+    let model_vram = if layer_ratio > 0.0 {
+        model_mib_f * (0.40 + 0.60 * expert_ratio) * layer_ratio
     } else if gpu_layers > 0 {
         model_mib_f
     } else {
@@ -1311,6 +1333,9 @@ pub fn estimate_vram_mib(
         1.0
     };
 
+    // Effective context length: YaRN RoPE scale extends the usable context.
+    let effective_ctx = settings.context_length as f64 * settings.rope_scale as f64;
+
     // KV cache in MiB:
     // Formula: 2 * n_layer * n_ctx * n_embd_kv * sizeof(type)
     // n_embd_kv = hidden_size * gqa_ratio
@@ -1319,7 +1344,7 @@ pub fn estimate_vram_mib(
     // However only gpu_layers * sizeof(type) contributes to the VRAM cost.
     let kv_mib = (2.0
         * hidden_size
-        * settings.context_length as f64
+        * effective_ctx
         * total_layers as f64
         * gqa_ratio
         * gpu_layers as f64

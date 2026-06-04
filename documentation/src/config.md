@@ -220,8 +220,8 @@ The following endpoints are automatically proxied to llama-server (not explicitl
 | `/props` | GET/POST | Get/set server properties |
 | `/slots` | GET | Slot monitoring |
 | `/lora-adapters` | GET/POST | List/load LoRA adapters |
-| `/models/load` | POST | Load a model (router mode) |
-| `/models/unload` | POST | Unload a model (router mode) |
+| `/models/load` | POST | Load a model (router mode, *Work In Progress*) |
+| `/models/unload` | POST | Unload a model (router mode, *Work In Progress*) |
 
 ## Model Overrides
 

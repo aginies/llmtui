@@ -139,7 +139,7 @@ Then use `localhost:50052` as the worker address in llm-manager.
 ### Loading a Model Across Workers
 
 1. Configure and select your workers
-2. Set Mode to `Router` or `Normal`
+2. Set Mode to `Router` (Work In Progress — not yet selectable in TUI) or `Normal`
 3. Load your model
 4. The model is distributed across selected workers
 

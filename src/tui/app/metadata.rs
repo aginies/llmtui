@@ -29,6 +29,8 @@ impl App {
                 n_head,
                 n_kv_head,
                 gpu_mem_total_mib,
+                self.loading.moe_total_experts,
+                self.loading.moe_used_experts,
             );
         }
     }
@@ -51,6 +53,8 @@ impl App {
             self.loading.model_n_ctx_train = cached.n_ctx_train;
             self.loading.model_n_head = cached.n_head;
             self.loading.model_n_kv_head = cached.n_kv_head;
+            self.loading.moe_total_experts = cached.moe_total_experts;
+            self.loading.moe_used_experts = cached.moe_used_experts;
             if self.loading.model_hidden_size > 0 {
                 self.update_vram_estimate();
             }
@@ -64,6 +68,8 @@ impl App {
             self.loading.model_n_ctx_train = meta.n_ctx_train;
             self.loading.model_n_head = meta.n_head;
             self.loading.model_n_kv_head = meta.n_kv_head;
+            self.loading.moe_total_experts = meta.moe_total_experts;
+            self.loading.moe_used_experts = meta.moe_used_experts;
 
             if meta.arch == "mtp" {
                 self.settings.spec_type = "draft-mtp".to_string();

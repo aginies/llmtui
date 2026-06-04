@@ -119,7 +119,7 @@ The Log panel shows live output from the llama.cpp server. Press `Enter` to expa
 - **System Prompt Presets** — Named system prompts for different use cases (Coder, Thinker, Mathematician)
 - **RPC Workers** — Manage distributed inference nodes from Server Settings
 - **Benchmark Tuning** — Auto-tune model parameters for optimal performance (set Mode to BenchTune)
-- **Router Mode** — Load multiple models simultaneously
+- **Router Mode** — Load multiple models simultaneously *(Work In Progress — not yet selectable in TUI)*
 - **Panel Resize** — Drag the border between left and right panels, or use `Shift+←/→` (20%-80%)
 - **Mouse support** — Click panels to focus, scroll in logs, README, and settings
 

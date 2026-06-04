@@ -54,7 +54,7 @@ The Models panel shows all `.gguf` files found in your models directories (recur
 - `u` — Unload model from server
 - `Ctrl+D` — Delete model (with confirmation)
 
-When a model is loaded, its state changes to **Loaded** showing the port and PID. You can load multiple models when using Router mode.
+When a model is loaded, its state changes to **Loaded** showing the port and PID. You can load multiple models when using Router mode *(Work In Progress — not yet selectable in TUI, enable via config.yaml)*.
 
 ### Deleting Models
 
@@ -136,7 +136,7 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 | **Backend** | auto-detected | Acceleration backend: auto-detected based on GPU (Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel). Options: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU), `rocm-lemonade` (AMD optimized), `cuda` (NVIDIA CUDA 12.8). Shows the currently selected version. |
 | **Threads** | (physical cores) | CPU threads for generation. Set to your physical core count for best performance. |
 | **Threads Batch** | 8 | CPU threads for batch processing (prompt evaluation). |
-| **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models), `Bench` (run llama-bench), or `BenchTune` (parameter auto-tuning). |
+| **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models, *Work In Progress — not yet selectable in TUI*), `Bench` (run llama-bench), or `BenchTune` (parameter auto-tuning). |
 | **API Endpoint** | false | Enable the API proxy server (see Serve Mode). |
 | **Dashboard** | false | WebSocket dashboard server (port 49223). Press `Enter` to configure (enabled, port, auth key, TLS). |
 | **RPC Workers** | None | Open a dedicated window to manage distributed inference nodes (IP:Port). |
@@ -445,13 +445,13 @@ Each backend has its own independently configurable llama.cpp version. Switching
 | Mode | Description |
 |------|-------------|
 | **Normal** | Single model via CLI (default) |
-| **Router** | Multiple models via API, loads via `/load` endpoint |
+| **Router** | Multiple models via API, loads via `/load` endpoint *(Work In Progress — not yet selectable in TUI)* |
 | **Bench** | GPU benchmarking mode (runs llama-bench) |
 | **BenchTune** | Parameter auto-tuning mode |
 
 ## VRAM Estimate
 
-The app computes a detailed VRAM estimate based on model size, GPU layers, KV cache, activation overhead, and fixed overhead. The formula accounts for GQA ratio, FlashAttention (0.5× KV cache reduction), unified KV cache, KV cache quantization bytes, activation overhead (8× multiplier), and fixed overhead (3.8% of max VRAM or 500 MiB fallback). The estimate is shown in the LLM Settings title (e.g., "VRAM ~= 8.2 GB").
+The app computes a detailed VRAM estimate based on model size, GPU layers, KV cache, activation overhead, and fixed overhead. The formula accounts for GQA ratio, FlashAttention (0.5× KV cache reduction), unified KV cache, KV cache quantization bytes, activation overhead (8× multiplier), YaRN RoPE scale (effective context = context_length * rope_scale), MoE expert ratio (applied to FFN portion only), and fixed overhead (3.8% of max VRAM or 500 MiB fallback). The estimate is shown in the LLM Settings title (e.g., "VRAM ~= 8.2 GB").
 
 ## Confirmation Dialogs
 
