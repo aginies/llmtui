@@ -143,7 +143,7 @@ fn test_confirmation_delete_renders() {
 #[test]
 fn test_confirmation_unload_renders() {
     let mut app = make_app();
-    app.pending.pending_api_unload = Some(("test-model".into(), None));
+    app.pending.pending_api_unload = Some("test-model".into());
     app.ui.global_mode = GlobalMode::Confirmation {
         selected: false,
         kind: ConfirmationKind::Unload,

@@ -30,16 +30,6 @@
 
 ---
 
-### 13. Download pause only works between chunks
-
-**File:** `src/backend/hub.rs`
-
-**Problem:** Download pause uses `AtomicU8` but the download loop only checks between chunks. A download in progress cannot be paused mid-chunk.
-
-**Proposed:** Document this limitation. Consider using `tokio::sync::watch` for finer-grained control, or at minimum show a "pausing..." indicator.
-
----
-
 ### 15. Missing test coverage for critical paths
 
 **Problem:**

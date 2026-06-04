@@ -1006,6 +1006,17 @@ async fn test_files_enter_sets_pending_download() {
     app.config.models_dirs = vec![std::path::PathBuf::from("/tmp")];
     let key = make_key(KeyCode::Enter);
     handle_key(&mut app, key).await;
+    let event = app.pending_rx.try_recv();
+    assert!(event.is_ok());
+    if let Ok(llm_manager::tui::app::scheduler::PendingEvent::Download { model_id, filename, url, file_size, subdir }) = event {
+        assert_eq!(model_id, "test/model");
+        assert_eq!(filename, "model-q4.gguf");
+        assert_eq!(url, "https://example.com/q4");
+        assert_eq!(file_size, 4_000_000_000);
+        assert_eq!(subdir, "test/model");
+    } else {
+        panic!("Expected PendingEvent::Download");
+    }
 }
 
 #[tokio::test]
@@ -1017,6 +1028,65 @@ async fn test_files_enter_duplicate_download_warns() {
     let key1 = make_key(KeyCode::Enter);
     handle_key(&mut app, key1).await;
     // pending_download should be set
+}
+
+#[tokio::test]
+async fn test_files_enter_with_readme_focused_sets_pending_download() {
+    let mut app = make_app();
+    make_files_mode(&mut app);
+    app.ui.active_panel = ActivePanel::SearchReadme;
+    app.config.models_dirs = vec![std::path::PathBuf::from("/tmp")];
+    let key = make_key(KeyCode::Enter);
+    handle_key(&mut app, key).await;
+    let event = app.pending_rx.try_recv();
+    assert!(event.is_ok());
+    if let Ok(llm_manager::tui::app::scheduler::PendingEvent::Download { model_id, filename, url, file_size, subdir }) = event {
+        assert_eq!(model_id, "test/model");
+        assert_eq!(filename, "model-q4.gguf");
+        assert_eq!(url, "https://example.com/q4");
+        assert_eq!(file_size, 4_000_000_000);
+        assert_eq!(subdir, "test/model");
+    } else {
+        panic!("Expected PendingEvent::Download");
+    }
+}
+
+#[tokio::test]
+async fn test_readme_left_returns_to_models_panel() {
+    let mut app = make_app();
+    app.models_mode = ModelsMode::Search {
+        query: "test".into(),
+        results: vec![],
+        sort_by: SearchSort::Relevance,
+        show_readme: true,
+        page: 0,
+        loading: false,
+        has_more: false,
+    };
+    app.ui.active_panel = ActivePanel::SearchReadme;
+
+    let key = make_key(KeyCode::Left);
+    handle_key(&mut app, key).await;
+
+    assert_eq!(app.ui.active_panel, ActivePanel::Models);
+}
+
+#[tokio::test]
+async fn test_global_alt_c_cancels_download() {
+    let mut app = make_app();
+    app.download.download_progress.push(llm_manager::models::DownloadState::new(
+        "test/model".into(),
+        "model-q4.gguf".into(),
+        4_000_000_000,
+    ));
+    app.download.downloading = true;
+    app.download.download_scroll_state.select(Some(0));
+
+    let key = make_key_with_mod(KeyCode::Char('c'), KeyModifiers::ALT);
+    handle_key(&mut app, key).await;
+
+    assert!(!app.download.downloading);
+    assert!(app.download.download_progress.is_empty());
 }
 
 // ── Settings panel ──────────────────────────────────────────────

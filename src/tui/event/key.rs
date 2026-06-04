@@ -237,6 +237,13 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
         }
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::ALT) => {
+            if !app.download.download_progress.is_empty() {
+                let selected_idx = app.download.download_scroll_state.selected().unwrap_or(0);
+                app.cancel_download(selected_idx);
+                return;
+            }
+        }
         KeyCode::Char('c')
             if key
                 .modifiers
@@ -466,17 +473,17 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // ── Mode-specific handling ────────────────────────────────────
 
-    // Handle search mode first (it takes priority) - unless README panel has focus
+    // Handle search mode first (it takes priority) - unless README panel has focus (except for Enter key)
     let is_search = matches!(app.models_mode, ModelsMode::Search { .. })
-        && app.ui.active_panel != ActivePanel::SearchReadme;
+        && (app.ui.active_panel != ActivePanel::SearchReadme || key.code == KeyCode::Enter);
     if is_search {
         handle_search_key(app, key).await;
         return;
     }
 
-    // Handle files mode - unless README panel has focus
+    // Handle files mode - unless README panel has focus (except for Enter key)
     let is_files = matches!(app.models_mode, ModelsMode::Files { .. })
-        && app.ui.active_panel != ActivePanel::SearchReadme;
+        && (app.ui.active_panel != ActivePanel::SearchReadme || key.code == KeyCode::Enter);
     if is_files {
         handle_files_key(app, key).await;
         return;

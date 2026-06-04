@@ -16,6 +16,54 @@ type BenchTuneTaskHandle = tokio::task::JoinHandle<(
 const DOWNLOAD_PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_millis(1000);
 
 impl App {
+    pub fn cancel_download(&mut self, idx: usize) {
+        if idx >= self.download.download_progress.len() {
+            return;
+        }
+        let name = self.download.download_progress[idx].filename.clone();
+        let dest = self.download.download_progress[idx].dest.take();
+        if let Some(token) = self.download.download_progress[idx].cancel_token.as_ref() {
+            token.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        if let Some(arc) = &self.download.download_progress[idx].download_state_arc {
+            arc.store(3u8, std::sync::atomic::Ordering::Relaxed);
+        }
+        self.download.download_progress[idx].download_state = 3;
+        self.download.download_progress[idx].cancelled = true;
+        self.download.download_progress[idx].status =
+            crate::models::DownloadStatus::Cancelled;
+        if let Some(ref path) = dest
+            && path.exists()
+        {
+            if let Err(e) = std::fs::remove_file(path) {
+                self.add_log(
+                    format!("Failed to remove temp file {}: {}", path.display(), e),
+                    crate::config::LogLevel::Warning,
+                );
+            } else {
+                self.add_log(
+                    format!("Removed temp file: {}", path.display()),
+                    crate::config::LogLevel::Info,
+                );
+            }
+        }
+        self.download.download_progress.remove(idx);
+        self.download.downloading = !self.download.download_progress.is_empty();
+        if !self.download.downloading {
+            self.download.download_scroll_state.select(None);
+        } else if let Some(selected_idx) = self.download.download_scroll_state.selected()
+            && selected_idx >= self.download.download_progress.len()
+        {
+            self.download
+                .download_scroll_state
+                .select(Some(self.download.download_progress.len() - 1));
+        }
+        self.add_log(
+            format!("Cancelled download of {}...", name),
+            crate::config::LogLevel::Info,
+        );
+    }
+
 pub async fn process_pending_download(
         &mut self,
         model_id: String,

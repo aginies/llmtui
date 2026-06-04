@@ -9,7 +9,8 @@ use std::path::PathBuf;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-pub use model_config::ModelConfigStore;
+#[allow(unused_imports)]
+pub use model_config::{display_from_key, key_from_display, ModelConfigStore};
 
 pub use profiles::ProfileStore;
 

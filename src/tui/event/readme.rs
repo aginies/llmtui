@@ -52,6 +52,9 @@ pub fn handle_readme_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.ui.active_panel = crate::tui::app::ActivePanel::Models;
             }
         }
+        KeyCode::Left | KeyCode::Char('h') => {
+            app.ui.active_panel = crate::tui::app::ActivePanel::Models;
+        }
         KeyCode::Up | KeyCode::Char('k') => {
             app.picker.readme_scroll_offset = app.picker.readme_scroll_offset.saturating_sub(1);
         }
