@@ -453,20 +453,8 @@ fn render_profile_picker(
             .add_modifier(Modifier::BOLD),
     )));
     picker_lines.push(Line::from(""));
-    let builtin_names: std::collections::HashSet<&str> = [
-        "Qwen",
-        "Qwen-MoE",
-        "Qwen-Coding",
-        "Gemma",
-        "Llama",
-        "Mistral",
-        "Phi",
-    ]
-    .into_iter()
-    .collect();
     for (i, (name, desc)) in entries.iter().enumerate() {
         let marker = if i == selected { "> " } else { "  " };
-        let is_builtin = builtin_names.contains(name.as_str());
         let style = if i == selected {
             Style::default()
                 .fg(Color::Black)
@@ -475,14 +463,9 @@ fn render_profile_picker(
         } else {
             Style::default().fg(Color::White)
         };
-        let display_name = if is_builtin {
-            format!("{} (built-in)", name)
-        } else {
-            name.clone()
-        };
         picker_lines.push(Line::from(vec![
             Span::styled(marker, Style::default().fg(Color::Yellow)),
-            Span::styled(display_name, style),
+            Span::styled(name, style),
         ]));
         if !desc.is_empty() {
             picker_lines.push(Line::from(Span::styled(
@@ -565,17 +548,8 @@ fn render_prompt_picker(
     let mut picker_lines: Vec<Line> = Vec::new();
     if confirm_delete && selected < entries.len() {
         let name = &entries[selected].0;
-        let is_builtin = matches!(
-            name.as_str(),
-            "General" | "Coder" | "Thinker" | "Mathematician"
-        );
-        let display_name = if is_builtin {
-            format!("{} (built-in)", name)
-        } else {
-            name.clone()
-        };
         picker_lines.push(Line::from(Span::styled(
-            format!(" Delete '{}'?", display_name),
+            format!(" Delete '{}'?", name),
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
@@ -642,13 +616,8 @@ fn render_prompt_picker(
                 .add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
-        let builtin_names: std::collections::HashSet<&str> =
-            ["General", "Coder", "Thinker", "Mathematician"]
-                .into_iter()
-                .collect();
         for (i, (name, desc)) in entries.iter().enumerate() {
             let marker = if i == selected { "> " } else { "  " };
-            let is_builtin = builtin_names.contains(name.as_str());
             let style = if i == selected {
                 Style::default()
                     .fg(Color::Black)
@@ -657,14 +626,9 @@ fn render_prompt_picker(
             } else {
                 Style::default().fg(Color::White)
             };
-            let display_name = if is_builtin {
-                format!("{} (built-in)", name)
-            } else {
-                name.clone()
-            };
             picker_lines.push(Line::from(vec![
                 Span::styled(marker, Style::default().fg(Color::Yellow)),
-                Span::styled(display_name, style),
+                Span::styled(name, style),
             ]));
             if !desc.is_empty() {
                 picker_lines.push(Line::from(Span::styled(

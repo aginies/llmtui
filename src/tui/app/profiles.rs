@@ -22,27 +22,6 @@ impl App {
         }
     }
 
-    /// Save the current settings as a new profile.
-    pub fn save_current_as_profile(&mut self, name: &str) {
-        let profile = crate::config::Profile {
-            name: name.to_string(),
-            description: format!("User-defined profile: {}", name),
-            settings: crate::config::ModelOverride::from_settings(&self.settings),
-        };
-        self.config.profiles.save(&profile);
-        if let Err(e) = self.config.save() {
-            self.add_log(
-                format!("Failed to save profile: {}", e),
-                crate::config::LogLevel::Error,
-            );
-        } else {
-            self.add_log(
-                format!("Saved profile: {}", name),
-                crate::config::LogLevel::Info,
-            );
-        }
-    }
-
     /// Save current settings as an override for the selected model.
     pub fn save_model_settings(&mut self) {
         if let Some(model) = self.selected_model() {

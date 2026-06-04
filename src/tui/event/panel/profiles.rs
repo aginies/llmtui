@@ -31,11 +31,6 @@ pub fn handle_profiles_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.ui.active_panel = crate::tui::app::ActivePanel::LlmSettings;
             }
         }
-        KeyCode::Char('s') => {
-            // Save current settings as a new profile
-            app.save_current_as_profile("New Profile");
-            app.ui.active_panel = crate::tui::app::ActivePanel::LlmSettings;
-        }
         KeyCode::Char('d') => {
             // Delete the selected user profile (not built-in)
             if app.delete_profile(app.settings_state.settings_selected_idx) {
