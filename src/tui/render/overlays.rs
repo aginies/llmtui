@@ -823,6 +823,7 @@ fn render_backend_picker(
                     | (GpuVendor::Nvidia, crate::models::Backend::Vulkan, None)
                     | (GpuVendor::Intel, crate::models::Backend::Vulkan, None)
                     | (GpuVendor::Unknown, crate::models::Backend::Cpu, None)
+                    | (GpuVendor::Apple, crate::models::Backend::Cpu, None)
             )
         });
         let style = if i == selected {

@@ -11,10 +11,12 @@ pub enum Platform {
 
 /// GPU vendors
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum GpuVendor {
     Amd,
     Nvidia,
     Intel,
+    Apple,
     Unknown,
 }
 
@@ -71,9 +73,9 @@ fn drm_card_paths() -> Vec<std::path::PathBuf> {
         .unwrap_or_default()
 }
 
-/// Detect all GPU vendors by scanning /sys/class/drm/card*/device/vendor.
+/// Detect all GPU vendors by scanning /sys/class/drm/card*/device/vendor (Linux).
 /// Returns a Vec of unique vendors (preserves detection order, deduplicates).
-pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
+fn detect_gpu_vendors_linux_impl() -> Vec<GpuVendor> {
     let mut vendors = Vec::new();
     for card_path in drm_card_paths() {
         let vendor_path = card_path.join("device/vendor");
@@ -98,9 +100,9 @@ pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
     vendors
 }
 
-/// Detect all GPU model names (one per GPU).
+/// Detect all GPU model names (one per GPU, Linux).
 /// For AMD GPUs, includes the GFX target version.
-pub fn detect_gpu_models() -> Vec<Option<String>> {
+fn detect_gpu_models_linux_impl() -> Vec<Option<String>> {
     let card_paths = drm_card_paths();
     if card_paths.is_empty() {
         return Vec::new();
@@ -124,6 +126,7 @@ pub fn detect_gpu_models() -> Vec<Option<String>> {
                 GpuVendor::Amd => "AMD",
                 GpuVendor::Nvidia => "NVIDIA",
                 GpuVendor::Intel => "Intel",
+                GpuVendor::Apple => continue,
                 GpuVendor::Unknown => continue,
             };
 
@@ -213,5 +216,364 @@ pub fn get_lemonade_gfx_suffix(gfx: &str) -> &'static str {
     } else {
         // Fallback to most common recent if unknown
         "gfx110X"
+    }
+}
+
+// ── Platform-specific GPU detection ──────────────────────────────────
+
+/// Detect GPU vendors on Windows using wmic.
+#[cfg(target_os = "windows")]
+pub fn detect_gpu_vendors_windows() -> Vec<GpuVendor> {
+    let mut vendors = Vec::new();
+    let output = std::process::Command::new("wmic")
+        .args(["path", "win32_VideoController", "get", "Name"])
+        .output();
+
+    let names = match output {
+        Ok(out) if out.status.success() => {
+            String::from_utf8_lossy(&out.stdout).to_string()
+        }
+        _ => return Vec::new(),
+    };
+
+    for line in names.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.eq_ignore_ascii_case("Name") {
+            continue;
+        }
+
+        let lower = line.to_lowercase();
+        if lower.contains("nvidia") {
+            if !vendors.contains(&GpuVendor::Nvidia) {
+                vendors.push(GpuVendor::Nvidia);
+            }
+        } else if lower.contains("amd") || lower.contains("radeon") || lower.contains("rx ") {
+            if !vendors.contains(&GpuVendor::Amd) {
+                vendors.push(GpuVendor::Amd);
+            }
+        } else if lower.contains("intel") {
+            if !vendors.contains(&GpuVendor::Intel) {
+                vendors.push(GpuVendor::Intel);
+            }
+        }
+    }
+
+    if vendors.is_empty() {
+        vendors.push(GpuVendor::Unknown);
+    }
+
+    vendors
+}
+
+/// Detect GPU models on Windows using wmic.
+#[cfg(target_os = "windows")]
+pub fn detect_gpu_models_windows() -> Vec<Option<String>> {
+    let output = std::process::Command::new("wmic")
+        .args(["path", "win32_VideoController", "get", "Name"])
+        .output();
+
+    let names = match output {
+        Ok(out) if out.status.success() => {
+            String::from_utf8_lossy(&out.stdout).to_string()
+        }
+        _ => return Vec::new(),
+    };
+
+    let mut models = Vec::new();
+    for line in names.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.eq_ignore_ascii_case("Name") {
+            continue;
+        }
+        models.push(Some(line.to_string()));
+    }
+
+    models
+}
+
+/// Detect GPU vendors on macOS using system_profiler.
+#[cfg(target_os = "macos")]
+pub fn detect_gpu_vendors_macos() -> Vec<GpuVendor> {
+    let mut vendors = Vec::new();
+    let output = std::process::Command::new("system_profiler")
+        .args(["SPDisplaysDataType"])
+        .output();
+
+    let data = match output {
+        Ok(out) if out.status.success() => {
+            String::from_utf8_lossy(&out.stdout).to_string()
+        }
+        _ => return Vec::new(),
+    };
+
+    for line in data.lines() {
+        let trimmed = line.trim();
+        if !trimmed.contains(":") {
+            continue;
+        }
+
+        let gpu_name = trimmed.split(':').nth(1).unwrap_or("").trim();
+        let lower = gpu_name.to_lowercase();
+
+        if lower.contains("apple") && (lower.contains("m1") || lower.contains("m2") || lower.contains("m3") || lower.contains("m4") || lower.contains("apple gpu") || lower.contains("apple silicon")) {
+            if !vendors.contains(&GpuVendor::Apple) {
+                vendors.push(GpuVendor::Apple);
+            }
+        } else if lower.contains("nvidia") {
+            if !vendors.contains(&GpuVendor::Nvidia) {
+                vendors.push(GpuVendor::Nvidia);
+            }
+        } else if lower.contains("amd") || lower.contains("radeon") || lower.contains("firepro") {
+            if !vendors.contains(&GpuVendor::Amd) {
+                vendors.push(GpuVendor::Amd);
+            }
+        } else if lower.contains("intel") {
+            if !vendors.contains(&GpuVendor::Intel) {
+                vendors.push(GpuVendor::Intel);
+            }
+        }
+    }
+
+    if vendors.is_empty() {
+        vendors.push(GpuVendor::Unknown);
+    }
+
+    vendors
+}
+
+/// Detect GPU models on macOS using system_profiler.
+#[cfg(target_os = "macos")]
+pub fn detect_gpu_models_macos() -> Vec<Option<String>> {
+    let output = std::process::Command::new("system_profiler")
+        .args(["SPDisplaysDataType"])
+        .output();
+
+    let data = match output {
+        Ok(out) if out.status.success() => {
+            String::from_utf8_lossy(&out.stdout).to_string()
+        }
+        _ => return Vec::new(),
+    };
+
+    let mut models = Vec::new();
+    let mut in_gpu_section = false;
+
+    for line in data.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.contains("Chipset Model") || trimmed.contains("GPU Name") {
+            in_gpu_section = true;
+            if let Some(name) = trimmed.split(':').nth(1) {
+                let name = name.trim();
+                if !name.is_empty() {
+                    models.push(Some(name.to_string()));
+                }
+            }
+        } else if in_gpu_section && trimmed.contains("Vendor") {
+            in_gpu_section = false;
+        } else if in_gpu_section && trimmed.is_empty() {
+            in_gpu_section = false;
+        }
+    }
+
+    models
+}
+
+/// Detect GPU vendors on Linux (wrapper for cfg visibility).
+#[cfg(target_os = "linux")]
+#[allow(dead_code)]
+pub fn detect_gpu_vendors_linux() -> Vec<GpuVendor> {
+    detect_gpu_vendors_linux_impl()
+}
+
+/// Detect GPU models on Linux (wrapper for cfg visibility).
+#[cfg(target_os = "linux")]
+#[allow(dead_code)]
+pub fn detect_gpu_models_linux() -> Vec<Option<String>> {
+    detect_gpu_models_linux_impl()
+}
+
+/// Detect GPU vendors using platform-specific methods.
+#[cfg(target_os = "linux")]
+pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
+    detect_gpu_vendors_linux_impl()
+}
+
+/// Detect GPU models using platform-specific methods.
+#[cfg(target_os = "linux")]
+pub fn detect_gpu_models() -> Vec<Option<String>> {
+    detect_gpu_models_linux_impl()
+}
+
+/// Detect GPU vendors using platform-specific methods.
+#[cfg(target_os = "windows")]
+pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
+    detect_gpu_vendors_windows()
+}
+
+/// Detect GPU models using platform-specific methods.
+#[cfg(target_os = "windows")]
+pub fn detect_gpu_models() -> Vec<Option<String>> {
+    detect_gpu_models_windows()
+}
+
+/// Detect GPU vendors using platform-specific methods.
+#[cfg(target_os = "macos")]
+pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
+    detect_gpu_vendors_macos()
+}
+
+/// Detect GPU models using platform-specific methods.
+#[cfg(target_os = "macos")]
+pub fn detect_gpu_models() -> Vec<Option<String>> {
+    detect_gpu_models_macos()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_windows_nvidia() {
+        let input = "Name\nNVIDIA GeForce RTX 4090\n";
+        let vendors = parse_gpu_name_for_vendor(input);
+        assert!(vendors.contains(&GpuVendor::Nvidia));
+    }
+
+    #[test]
+    fn test_parse_windows_amd() {
+        let input = "Name\nAMD Radeon RX 7900 XTX\n";
+        let vendors = parse_gpu_name_for_vendor(input);
+        assert!(vendors.contains(&GpuVendor::Amd));
+    }
+
+    #[test]
+    fn test_parse_windows_intel() {
+        let input = "Name\nIntel(R) UHD Graphics 770\n";
+        let vendors = parse_gpu_name_for_vendor(input);
+        assert!(vendors.contains(&GpuVendor::Intel));
+    }
+
+    #[test]
+    fn test_parse_windows_radeon() {
+        let input = "Name\nAMD Radeon RX 6600\nName\nRadeon RX 580\n";
+        let vendors = parse_gpu_name_for_vendor(input);
+        assert!(vendors.contains(&GpuVendor::Amd));
+        assert_eq!(vendors.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_windows_multiple_gpus() {
+        let input = "Name\nNVIDIA GeForce RTX 3080\nName\nIntel(R) UHD Graphics 750\n";
+        let vendors = parse_gpu_name_for_vendor(input);
+        assert!(vendors.contains(&GpuVendor::Nvidia));
+        assert!(vendors.contains(&GpuVendor::Intel));
+        assert_eq!(vendors.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_windows_empty() {
+        let input = "Name\n\n";
+        let vendors = parse_gpu_name_for_vendor(input);
+        assert!(vendors.is_empty());
+    }
+
+    #[test]
+    fn test_parse_macos_apple_silicon() {
+        let input = "Chipset Model: Apple M2\nType: GPU\nBus: Built-In\n";
+        let vendors = parse_macos_gpu_output(input);
+        assert!(vendors.contains(&GpuVendor::Apple));
+    }
+
+    #[test]
+    fn test_parse_macos_amd() {
+        let input = "Chipset Model: AMD Radeon Pro 5500M\nType: GPU\nBus: PCIe\nVendor: AMD\n";
+        let vendors = parse_macos_gpu_output(input);
+        assert!(vendors.contains(&GpuVendor::Amd));
+    }
+
+    #[test]
+    fn test_parse_macos_nvidia() {
+        let input = "Chipset Model: NVIDIA GeForce GTX 775M\nType: GPU\nBus: PCIe\n";
+        let vendors = parse_macos_gpu_output(input);
+        assert!(vendors.contains(&GpuVendor::Nvidia));
+    }
+
+    #[test]
+    fn test_parse_macos_intel() {
+        let input = "Chipset Model: Intel Iris Pro\nType: GPU\nBus: Built-In\n";
+        let vendors = parse_macos_gpu_output(input);
+        assert!(vendors.contains(&GpuVendor::Intel));
+    }
+
+    #[test]
+    fn test_parse_macos_m3() {
+        let input = "Chipset Model: Apple M3 Max\nType: GPU\n";
+        let vendors = parse_macos_gpu_output(input);
+        assert!(vendors.contains(&GpuVendor::Apple));
+    }
+
+    #[test]
+    fn test_parse_macos_m4() {
+        let input = "Chipset Model: Apple M4 Pro\nType: GPU\n";
+        let vendors = parse_macos_gpu_output(input);
+        assert!(vendors.contains(&GpuVendor::Apple));
+    }
+
+    // Helper function to parse GPU names from wmic-like output
+    fn parse_gpu_name_for_vendor(input: &str) -> Vec<GpuVendor> {
+        let mut vendors = Vec::new();
+        for line in input.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.eq_ignore_ascii_case("Name") {
+                continue;
+            }
+            let lower = line.to_lowercase();
+            if lower.contains("nvidia") {
+                if !vendors.contains(&GpuVendor::Nvidia) {
+                    vendors.push(GpuVendor::Nvidia);
+                }
+            } else if lower.contains("amd") || lower.contains("radeon") || lower.contains("rx ") {
+                if !vendors.contains(&GpuVendor::Amd) {
+                    vendors.push(GpuVendor::Amd);
+                }
+            } else if lower.contains("intel") {
+                if !vendors.contains(&GpuVendor::Intel) {
+                    vendors.push(GpuVendor::Intel);
+                }
+            }
+        }
+        vendors
+    }
+
+    // Helper function to parse GPU names from system_profiler output
+    fn parse_macos_gpu_output(input: &str) -> Vec<GpuVendor> {
+        let mut vendors = Vec::new();
+        for line in input.lines() {
+            let trimmed = line.trim();
+            if !trimmed.contains(":") {
+                continue;
+            }
+            let gpu_name = trimmed.split(':').nth(1).unwrap_or("").trim();
+            let lower = gpu_name.to_lowercase();
+            if lower.contains("apple") && (lower.contains("m1") || lower.contains("m2") || lower.contains("m3") || lower.contains("m4") || lower.contains("apple gpu") || lower.contains("apple silicon")) {
+                if !vendors.contains(&GpuVendor::Apple) {
+                    vendors.push(GpuVendor::Apple);
+                }
+            } else if lower.contains("nvidia") {
+                if !vendors.contains(&GpuVendor::Nvidia) {
+                    vendors.push(GpuVendor::Nvidia);
+                }
+            } else if lower.contains("amd") || lower.contains("radeon") || lower.contains("firepro") {
+                if !vendors.contains(&GpuVendor::Amd) {
+                    vendors.push(GpuVendor::Amd);
+                }
+            } else if lower.contains("intel") {
+                if !vendors.contains(&GpuVendor::Intel) {
+                    vendors.push(GpuVendor::Intel);
+                }
+            }
+        }
+        vendors
     }
 }
