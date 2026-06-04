@@ -534,8 +534,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .iter()
                 .map(|(filename, size, _url): &(_, _, _)| {
                     let name = filename.rsplit('/').next().unwrap_or(filename);
-                    let is_downloaded =
-                        crate::tui::app::sync_ops::file_is_downloaded(&app.models, name);
+                    let is_downloaded = app.models.iter().any(|m| m.name.to_lowercase() == name.to_lowercase());
                     let marker = if is_downloaded { "✓" } else { " " };
                     let marker_span =
                         Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));

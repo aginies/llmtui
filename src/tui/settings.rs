@@ -15,18 +15,6 @@ pub type AdjustFn = fn(&mut ModelSettings, i32, u32); // u32 = context_limit (0 
 pub type ApplyEditFn = fn(&mut ModelSettings, &str);
 pub type CtrlEToggleFn = fn(&mut ModelSettings);
 
-// ── Edit kinds ───────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum EditKind {
-    /// Direct text entry (digits, decimals, etc.)
-    Direct,
-    /// Toggles a boolean on Enter
-    Toggle,
-    /// Opens a modal (picker, etc.)
-    Modal,
-}
-
 // ── SettingField ─────────────────────────────────────────────────────────────
 
 pub struct SettingField {
@@ -38,8 +26,6 @@ pub struct SettingField {
     pub adjust: AdjustFn,
     pub apply_edit: ApplyEditFn,
     pub ctrl_e_toggle: Option<CtrlEToggleFn>,
-    #[allow(dead_code)]
-    pub edit_kind: EditKind,
     pub is_expert: bool,
     pub is_ultra: bool,
     pub is_enabled: Option<fn(&ModelSettings) -> bool>,
@@ -95,7 +81,6 @@ macro_rules! make_field_fn {
             adjust: AdjustFn,
             apply_edit: ApplyEditFn,
             ctrl_e_toggle: CtrlEToggleFn,
-            edit_kind: EditKind,
         ) -> SettingField {
             SettingField {
                 id,
@@ -106,7 +91,6 @@ macro_rules! make_field_fn {
                 adjust,
                 apply_edit,
                 ctrl_e_toggle: Some(ctrl_e_toggle),
-                edit_kind,
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
@@ -122,7 +106,6 @@ macro_rules! make_field_fn {
             dirty: DirtyFn,
             adjust: AdjustFn,
             apply_edit: ApplyEditFn,
-            edit_kind: EditKind,
         ) -> SettingField {
             SettingField {
                 id,
@@ -133,7 +116,6 @@ macro_rules! make_field_fn {
                 adjust,
                 apply_edit,
                 ctrl_e_toggle: None,
-                edit_kind,
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
@@ -311,7 +293,6 @@ macro_rules! make_cache_type_field {
                 }
             },
             $toggle,
-            EditKind::Direct,
         )
     };
 }
@@ -327,7 +308,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.system_prompt_preset_name != c.system_prompt_preset_name,
             |_, _, _| {},
             |_, _| {},
-            EditKind::Modal,
         ),
         field(
             "context_length",
@@ -354,7 +334,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.context_length = v.max(128);
                 }
             },
-            EditKind::Direct,
         ),
         expert_field_with_toggle(
             "rope_yarn_enabled",
@@ -365,7 +344,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_rope_yarn_enabled,
-            EditKind::Toggle,
         ),
         {
             let mut f = expert_field(
@@ -385,7 +363,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 },
                 |_, _, _| {},
                 |_, _| {},
-                EditKind::Modal,
             );
             f.is_enabled = Some(|s| s.rope_yarn_enabled);
             f
@@ -404,7 +381,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.threads_batch = v.max(1);
                 }
             },
-            EditKind::Direct,
         ),
         ultra_field(
             "ubatch_size",
@@ -420,7 +396,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.ubatch_size = v.max(1);
                 }
             },
-            EditKind::Direct,
         ),
         ultra_field(
             "keep",
@@ -436,7 +411,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.keep = v;
                 }
             },
-            EditKind::Direct,
         ),
         field_with_toggle(
             "mlock",
@@ -447,7 +421,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_mlock,
-            EditKind::Toggle,
         ),
         expert_field(
             "numa",
@@ -471,7 +444,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.numa = val;
             },
             |_, _| {},
-            EditKind::Toggle,
         ),
         // ── GPU Offload ───────────────────────────────────────────────────────
         field(
@@ -486,7 +458,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.gpu_layers_mode != c.gpu_layers_mode,
             gpu_layers_adjust,
             gpu_layers_apply,
-            EditKind::Direct,
         ),
         ultra_field(
             "split_mode",
@@ -510,7 +481,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.split_mode = val;
             },
             |_, _| {},
-            EditKind::Toggle,
         ),
         ultra_field(
             "tensor_split",
@@ -520,7 +490,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.tensor_split != c.tensor_split,
             |_, _, _| {},
             |_, _| {},
-            EditKind::Modal,
         ),
         expert_field(
             "main_gpu",
@@ -536,7 +505,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.main_gpu = v;
                 }
             },
-            EditKind::Direct,
         ),
         field_with_toggle(
             "fit",
@@ -547,7 +515,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_fit,
-            EditKind::Toggle,
         ),
         field_with_toggle(
             "flash_attn",
@@ -558,7 +525,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_flash_attn,
-            EditKind::Toggle,
         ),
         field_with_toggle(
             "kv_cache_offload",
@@ -569,7 +535,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_kv_cache_offload,
-            EditKind::Toggle,
         ),
         // ── Cache type fields ──────────────────────────────────────────────────
 
@@ -598,7 +563,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_expert_count,
-            EditKind::Direct,
         ),
         // ── Evaluation ────────────────────────────────────────────────────────
         field(
@@ -615,7 +579,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.batch_size = v.max(1);
                 }
             },
-            EditKind::Direct,
         ),
         field_with_toggle(
             "uniform_cache",
@@ -626,7 +589,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_uniform_cache,
-            EditKind::Toggle,
         ),
         expert_field_with_toggle(
             "max_concurrent_predictions",
@@ -650,7 +612,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_max_concurrent_predictions,
-            EditKind::Direct,
         ),
         // ── Sampling ──────────────────────────────────────────────────────────
         field(
@@ -667,7 +628,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.seed = v;
                 }
             },
-            EditKind::Direct,
         ),
         field(
             "temperature",
@@ -684,7 +644,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.temperature = (v as f32 / 100.0).clamp(0.0, 2.0);
                 }
             },
-            EditKind::Direct,
         ),
         field(
             "top_k",
@@ -700,7 +659,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.top_k = v.max(0);
                 }
             },
-            EditKind::Direct,
         ),
         field(
             "top_p",
@@ -716,7 +674,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.top_p = (v as f32 / 100.0).clamp(0.0, 1.0);
                 }
             },
-            EditKind::Direct,
         ),
         field(
             "min_p",
@@ -732,7 +689,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.min_p = (v as f32 / 100.0).clamp(0.0, 1.0);
                 }
             },
-            EditKind::Direct,
         ),
         ultra_field(
             "typical_p",
@@ -748,7 +704,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.typical_p = (v as f32 / 100.0).clamp(0.0, 1.0);
                 }
             },
-            EditKind::Direct,
         ),
         ultra_field(
             "mirostat",
@@ -770,7 +725,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.mirostat = val;
             },
             |_, _| {},
-            EditKind::Toggle,
         ),
         ultra_field(
             "mirostat_lr",
@@ -787,7 +741,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.mirostat_lr = (v as f32 / 100.0).clamp(0.0, 1.0);
                 }
             },
-            EditKind::Direct,
         ),
         ultra_field(
             "mirostat_ent",
@@ -804,7 +757,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.mirostat_ent = (v as f32 / 100.0).clamp(0.0, 10.0);
                 }
             },
-            EditKind::Direct,
         ),
         ultra_field_with_toggle(
             "ignore_eos",
@@ -815,7 +767,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_ignore_eos,
-            EditKind::Toggle,
         ),
         ultra_field(
             "samplers",
@@ -825,7 +776,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.samplers.0 != c.samplers.0,
             |_, _, _| {},
             |_, _| {},
-            EditKind::Modal,
         ),
         field_with_toggle(
             "max_tokens",
@@ -847,7 +797,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_max_tokens,
-            EditKind::Direct,
         ),
         // ── Repetition ────────────────────────────────────────────────────────
         field(
@@ -865,7 +814,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.repeat_penalty = (v as f32 / 100.0).clamp(0.0, 2.0);
                 }
             },
-            EditKind::Direct,
         ),
         field(
             "repeat_last_n",
@@ -881,7 +829,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.repeat_last_n = v.max(0);
                 }
             },
-            EditKind::Direct,
         ),
         expert_field_with_toggle(
             "presence_penalty",
@@ -914,7 +861,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_presence_penalty,
-            EditKind::Direct,
         ),
         expert_field_with_toggle(
             "frequency_penalty",
@@ -947,7 +893,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             toggle_frequency_penalty,
-            EditKind::Direct,
         ),
         // ── DRY ───────────────────────────────────────────────────────────────
         ultra_field(
@@ -965,7 +910,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.dry_multiplier = (v as f32 / 100.0).clamp(0.0, 10.0);
                 }
             },
-            EditKind::Direct,
         ),
         ultra_field(
             "dry_base",
@@ -981,7 +925,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.dry_base = (v as f32 / 100.0).clamp(0.0, 10.0);
                 }
             },
-            EditKind::Direct,
         ),
         ultra_field(
             "dry_allowed_length",
@@ -997,7 +940,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.dry_allowed_length = v;
                 }
             },
-            EditKind::Direct,
         ),
         ultra_field(
             "dry_penalty_last_n",
@@ -1013,7 +955,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.dry_penalty_last_n = v;
                 }
             },
-            EditKind::Direct,
         ),
         // ── Speculative Decoding ─────────────────────────────────────────────
         expert_field_with_toggle(
@@ -1031,7 +972,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_mtp,
-            EditKind::Modal,
         ),
         expert_field(
             "spec_type",
@@ -1047,7 +987,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.spec_type != c.spec_type,
             |_, _, _| {},
             |_, _| {},
-            EditKind::Modal,
         ),
         expert_field(
             "draft_tokens",
@@ -1063,7 +1002,6 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.draft_tokens = v.min(16);
                 }
             },
-            EditKind::Direct,
         ),
         // ── Tags ──────────────────────────────────────────────────────────────
         field(
@@ -1080,7 +1018,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.tags != c.tags,
             |_, _, _| {},
             |_, _| {},
-            EditKind::Modal,
         ),
         // ── Backend ───────────────────────────────────────────────────────────
         field(
@@ -1091,7 +1028,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |s, c| s.get_active_backend_version() != c.get_active_backend_version(),
             |_, _, _| {},
             |_, _| {},
-            EditKind::Modal,
         ),
     ]
 }

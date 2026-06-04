@@ -286,20 +286,18 @@ static QUANT_PROVIDERS: LazyLock<HashMap<&'static str, QuantProviderInfo>> =
 
 /// Quantization level description (shared across all families).
 struct QuantLevelInfo {
-    #[allow(dead_code)]
-    bit: u32,
     description: &'static str,
 }
 
 static QUANT_LEVELS: LazyLock<HashMap<u32, QuantLevelInfo>> = LazyLock::new(|| {
     [
-        (2, QuantLevelInfo { bit: 2, description: "2-bit quantization — aggressive compression, largest quality loss" }),
-        (3, QuantLevelInfo { bit: 3, description: "3-bit quantization — high compression, noticeable quality loss" }),
-        (4, QuantLevelInfo { bit: 4, description: "4-bit quantization — balanced compression and quality, widely used" }),
-        (5, QuantLevelInfo { bit: 5, description: "5-bit quantization — good quality with moderate compression" }),
-        (6, QuantLevelInfo { bit: 6, description: "6-bit quantization — high quality with moderate compression" }),
-        (7, QuantLevelInfo { bit: 7, description: "7-bit quantization — near-lossless quality" }),
-        (8, QuantLevelInfo { bit: 8, description: "8-bit quantization — nearly indistinguishable from FP16" }),
+        (2, QuantLevelInfo { description: "2-bit quantization — aggressive compression, largest quality loss" }),
+        (3, QuantLevelInfo { description: "3-bit quantization — high compression, noticeable quality loss" }),
+        (4, QuantLevelInfo { description: "4-bit quantization — balanced compression and quality, widely used" }),
+        (5, QuantLevelInfo { description: "5-bit quantization — good quality with moderate compression" }),
+        (6, QuantLevelInfo { description: "6-bit quantization — high quality with moderate compression" }),
+        (7, QuantLevelInfo { description: "7-bit quantization — near-lossless quality" }),
+        (8, QuantLevelInfo { description: "8-bit quantization — nearly indistinguishable from FP16" }),
     ]
     .into_iter()
     .collect()
@@ -769,19 +767,6 @@ pub fn get_explanation(
     explanation
 }
 
-/// Pre-populate the cache with explanations for multiple filenames.
-#[allow(dead_code)]
-pub fn populate_cache(
-    filenames: &[&str],
-    cache: &mut HashMap<String, GgufExplanation>,
-) {
-    for filename in filenames {
-        let key = extract_stem(filename);
-        if !cache.contains_key(&key) {
-            let explanation = parse_gguf_filename(filename);
-            cache.insert(key, explanation);
-        }
-    }
-}
+
 
 

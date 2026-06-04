@@ -207,16 +207,6 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
     })
 }
 
-/// Check if a GGUF filename is already downloaded locally (exact match).
-#[allow(dead_code)]
-pub fn file_is_downloaded(models: &[crate::models::DiscoveredModel], filename: &str) -> bool {
-    let target = filename.to_lowercase();
-    models.iter().any(|m| {
-        let local = m.name.to_lowercase();
-        local == target
-    })
-}
-
 /// Check if a model has been downloaded by verifying that
 /// models_dir/<model_id>/ exists and is non-empty.
 pub fn model_dir_has_contents(models_dirs: &[PathBuf], model_id: &str) -> bool {

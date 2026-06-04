@@ -286,11 +286,7 @@ impl App {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn get_scroll_state(&self, key: &str) -> Option<&TextScrollState> {
-        self.ui.text_scrolls.get(key)
-    }
-}
+ }
 
 #[cfg(test)]
 mod tests {

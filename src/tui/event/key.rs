@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::widgets::TableState;
 use tracing::debug;
 
-use super::benches::handle_rpc_workers_key;
+use super::rpc_workers::handle_rpc_workers_key;
 use super::helpers::{
     execute_confirmation, handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle,
     mark_settings_dirty, sync_global_settings, TextEditor,

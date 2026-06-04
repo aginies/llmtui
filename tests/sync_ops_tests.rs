@@ -1,10 +1,10 @@
-//! Tests for tui/app/sync_ops.rs — model_is_downloaded and file_is_downloaded.
+//! Tests for tui/app/sync_ops.rs — model_is_downloaded.
 //!
 //! Tests cover: name matching with separators, case insensitivity, GGUF extension handling,
 //! partial prefix rejection, empty model lists, and repo name suffix handling.
 
 use llm_manager::models::DiscoveredModel;
-use llm_manager::tui::app::sync_ops::{file_is_downloaded, model_is_downloaded};
+use llm_manager::tui::app::sync_ops::model_is_downloaded;
 use std::path::PathBuf;
 
 fn make_discovered(name: &str) -> DiscoveredModel {
@@ -110,35 +110,4 @@ fn repo_name_with_extra_suffix_different_size() {
     ));
 }
 
-#[test]
-fn file_exact_match() {
-    let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
-    assert!(file_is_downloaded(&models, "Qwen3.6-27B-Q3_K_S.gguf"));
-}
 
-#[test]
-fn file_exact_match_case_insensitive() {
-    let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
-    assert!(file_is_downloaded(&models, "qwen3.6-27b-q3_k_s.gguf"));
-}
-
-#[test]
-fn file_no_match_different_quant() {
-    let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
-    assert!(!file_is_downloaded(&models, "Qwen3.6-27B-Q4_K_M.gguf"));
-}
-
-#[test]
-fn file_no_match_different_model() {
-    let models = vec![make_discovered("Qwen3.6-27B-Q3_K_S.gguf")];
-    assert!(!file_is_downloaded(
-        &models,
-        "Llama-3.1-8B-Instruct-Q4_K_M.gguf"
-    ));
-}
-
-#[test]
-fn file_empty_models() {
-    let models: Vec<DiscoveredModel> = vec![];
-    assert!(!file_is_downloaded(&models, "Qwen3.6-27B-Q3_K_S.gguf"));
-}
