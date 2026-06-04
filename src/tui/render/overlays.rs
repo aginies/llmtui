@@ -428,7 +428,12 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title("crate::t!(\"dialog.host_picker.title\")")
+                .title(Span::styled(
+                    crate::t!("dialog.host_picker.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -515,7 +520,12 @@ fn render_profile_picker(
             .wrap(Wrap { trim: true })
             .block(
                 Block::default()
-                    .title("crate::t!(\"dialog.profile_picker.title\")")
+                    .title(Span::styled(
+                        crate::t!("dialog.profile_picker.title"),
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ))
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Yellow)),
             ),
@@ -644,7 +654,12 @@ fn render_prompt_picker(
             .wrap(Wrap { trim: true })
             .block(
                 Block::default()
-                    .title("crate::t!(\"dialog.prompt_picker.title\")")
+                    .title(Span::styled(
+                        crate::t!("dialog.prompt_picker.title"),
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ))
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Yellow)),
             ),
@@ -723,7 +738,12 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(
         Paragraph::new(modal_lines).block(
             Block::default()
-                .title("crate::t!(\"dialog.tags.title\")")
+                .title(Span::styled(
+                    crate::t!("dialog.tags.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -832,7 +852,12 @@ fn render_backend_picker(
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title("crate::t!(\"dialog.backend_picker.title\")")
+                .title(Span::styled(
+                    crate::t!("dialog.backend_picker.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -869,7 +894,7 @@ fn render_bench_tune_setup(
     };
     let block = Block::default()
         .title(Span::styled(
-            "crate::t!(\"dialog.bench_config.title\")",
+            crate::t!("dialog.bench_config.title"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -1292,7 +1317,12 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
         .cloned()
         .collect();
     let block = Block::default()
-        .title("crate::t!(\"dialog.rpc.title\")")
+        .title(Span::styled(
+            crate::t!("dialog.rpc.title"),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ))
         .borders(Borders::ALL)
         .border_style(
             Style::default()
@@ -1409,7 +1439,12 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title("crate::t!(\"dialog.max_concurrent.title\")")
+                .title(Span::styled(
+                    crate::t!("dialog.max_concurrent.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -1537,7 +1572,12 @@ fn render_dashboard_picker(
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title("crate::t!(\"dialog.dashboard.title\")")
+                .title(Span::styled(
+                    crate::t!("dialog.dashboard.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -1658,7 +1698,12 @@ fn render_dashboard_url(
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title("crate::t!(\"dialog.dashboard_url.title\")")
+                .title(Span::styled(
+                    crate::t!("dialog.dashboard_url.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -1682,7 +1727,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             format_bench_params(&result.params, false).join(", ")
         };
         let main_title = Line::from(vec![
-            Span::styled("crate::t!(\"dialog.bench_result.title\")", Style::default().fg(Color::Yellow)),
+            Span::styled(crate::t!("dialog.bench_result.title"), Style::default().fg(Color::Yellow)),
             Span::styled(
                 p_str,
                 Style::default()
@@ -2328,7 +2373,7 @@ fn render_gguf_naming_overlay(f: &mut Frame, area: Rect, explanation: &crate::tu
 
     let block = Block::default()
         .title(Span::styled(
-            "crate::t!(\"dialog.gguf.title\")",
+            crate::t!("dialog.gguf.title"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -2479,7 +2524,12 @@ fn render_yarn_rope_picker(
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title("crate::t!(\"dialog.yarn.title\")")
+                .title(Span::styled(
+                    crate::t!("dialog.yarn.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -2537,7 +2587,12 @@ fn render_spec_type_picker(
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title("crate::t!(\"dialog.spec.title\")")
+                .title(Span::styled(
+                    crate::t!("dialog.spec.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
