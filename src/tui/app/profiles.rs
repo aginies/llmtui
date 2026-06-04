@@ -25,7 +25,7 @@ impl App {
     /// Save current settings as an override for the selected model.
     pub fn save_model_settings(&mut self) {
         if let Some(model) = self.selected_model() {
-            let name = model.name.clone();
+            let name = model.display_name.clone();
             let override_cfg = crate::config::ModelOverride::from_settings(&self.settings);
             self.config.model_overrides.save(&name, &override_cfg);
             if let Err(e) = self.config.save() {

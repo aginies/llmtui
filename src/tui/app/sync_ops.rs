@@ -90,7 +90,7 @@ impl App {
     }
 
     pub fn selected_model_settings(&self) -> crate::models::ModelSettings {
-        let model_name = self.selected_model().map(|m| m.name.as_str());
+        let model_name = self.selected_model().map(|m| m.display_name.as_str());
         // For the TUI, we don't currently support a separate profile_name
         // in this method since it's already accounted for in overrides or the default settings.
         self.config.resolve_settings(model_name, None)

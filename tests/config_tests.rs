@@ -6,6 +6,7 @@
 use std::path::PathBuf;
 
 use llm_manager::config::*;
+use llm_manager::config::{key_from_display, display_from_key};
 use llm_manager::models::*;
 use llm_manager::tui::app::ActivePanel;
 
@@ -378,14 +379,14 @@ fn config_resolve_settings_returns_model_settings() {
 fn config_resolve_settings_with_model_override() {
     let mut config = Config::default();
     config.model_overrides.save(
-        "my-model.gguf",
+        "subdir/my-model",
         &ModelOverride {
             context_length: Some(8192),
             temperature: Some(0.5),
             ..Default::default()
         },
     );
-    let settings = config.resolve_settings(Some("my-model.gguf"), None);
+    let settings = config.resolve_settings(Some("subdir/my-model"), None);
     assert_eq!(settings.context_length, 8192);
     assert!((settings.temperature - 0.5).abs() < f32::EPSILON);
 }
@@ -609,7 +610,7 @@ fn config_default_empty_model_overrides() {
         models_dirs: vec![],
         llama_server: std::path::PathBuf::new(),
         default: DefaultParams::default(),
-        model_overrides: ModelConfigStore::new(),
+        model_overrides: ModelConfigStore::new(vec![]),
         profiles: ProfileStore::new(),
         system_prompt_presets: PresetStore::new(),
         rpc_workers: Vec::new(),
@@ -690,4 +691,79 @@ fn model_override_apply_expert_count() {
     };
     override_.apply(&mut settings);
     assert_eq!(settings.expert_count, 2);
+}
+
+// ── Model config key transformation ─────────────────────────────
+
+#[test]
+fn key_from_display_simple_name() {
+    assert_eq!(key_from_display("model-v2"), "model-v2");
+}
+
+#[test]
+fn key_from_display_with_subdir() {
+    assert_eq!(key_from_display("qwen/model-v2"), "qwen__model-v2");
+}
+
+#[test]
+fn key_from_display_nested_paths() {
+    assert_eq!(key_from_display("a/b/c/model"), "a__b__c__model");
+}
+
+#[test]
+fn display_from_key_simple_name() {
+    assert_eq!(display_from_key("model-v2"), "model-v2");
+}
+
+#[test]
+fn display_from_key_with_separator() {
+    assert_eq!(display_from_key("qwen__model-v2"), "qwen/model-v2");
+}
+
+#[test]
+fn display_from_key_nested_keys() {
+    assert_eq!(display_from_key("a__b__c__model"), "a/b/c/model");
+}
+
+#[test]
+fn key_display_roundtrip() {
+    let display_names = vec![
+        "model-v2",
+        "qwen/model-v2",
+        "a/b/c/model",
+        "subdir/my-model.gguf",
+    ];
+    for display in display_names {
+        let key = key_from_display(display);
+        let back = display_from_key(&key);
+        assert_eq!(back, display, "roundtrip failed for: {}", display);
+    }
+}
+
+#[test]
+fn model_config_store_keys_return_display_names() {
+    let mut store = ModelConfigStore::new(vec![]);
+    store.save("subdir/model", &ModelOverride::default());
+    let keys = store.keys();
+    assert!(keys.contains(&"subdir/model".to_string()));
+}
+
+#[test]
+fn model_config_store_get_by_display_name() {
+    let mut store = ModelConfigStore::new(vec![]);
+    let override_ = ModelOverride {
+        context_length: Some(4096),
+        ..Default::default()
+    };
+    store.save("models/llama/model", &override_);
+    let retrieved = store.get("models/llama/model");
+    assert!(retrieved.is_some());
+    assert_eq!(retrieved.unwrap().context_length, Some(4096));
+}
+
+#[test]
+fn model_config_store_get_miss() {
+    let store = ModelConfigStore::new(vec![]);
+    let retrieved = store.get("nonexistent/model");
+    assert!(retrieved.is_none());
 }

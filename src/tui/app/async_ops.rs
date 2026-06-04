@@ -105,10 +105,17 @@ pub async fn process_pending_download(
                 tracing::warn!("Failed to delete file: {}", e);
             }
         });
-        let model_key = path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default();
+        // Find the model by path to get its display_name for config key
+        let model_key = self
+            .models
+            .iter()
+            .find(|m| m.path == path)
+            .map(|m| m.display_name.clone())
+            .unwrap_or_else(|| {
+                path.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default()
+            });
         self.config.model_overrides.delete(&model_key);
         if let Err(e) = self.config.save() {
             self.add_log(

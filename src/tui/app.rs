@@ -303,7 +303,7 @@ mod tests {
             models_dirs: vec![],
             llama_server: std::path::PathBuf::new(),
             default: crate::config::DefaultParams::default(),
-            model_overrides: crate::config::ModelConfigStore::new(),
+            model_overrides: crate::config::ModelConfigStore::new(vec![]),
             profiles: crate::config::ProfileStore::new(),
             system_prompt_presets: crate::config::PresetStore::new(),
             rpc_workers: Vec::new(),

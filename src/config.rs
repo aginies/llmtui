@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-pub use model_config::ModelConfigStore;
+pub use model_config::{key_from_display, display_from_key, ModelConfigStore};
 
 pub use profiles::ProfileStore;
 
@@ -89,7 +89,7 @@ pub struct Config {
     pub models_dirs: Vec<PathBuf>,
     pub llama_server: PathBuf,
     pub default: DefaultParams,
-    /// Per-model overrides (keyed by model file name, stored as YAML in models/).
+    /// Per-model overrides (keyed by display_name/path relative to model dir, stored as YAML in models/).
     #[serde(default, skip)]
     pub model_overrides: ModelConfigStore,
     /// Named profiles of settings presets (stored as YAML in profiles/).
@@ -974,7 +974,7 @@ impl Default for Config {
             ],
             llama_server: "llama-server".into(),
             default: DefaultParams::default(),
-            model_overrides: Default::default(),
+            model_overrides: ModelConfigStore::new(vec![]),
             profiles: Default::default(),
             system_prompt_presets: Default::default(),
             rpc_workers: Vec::new(),

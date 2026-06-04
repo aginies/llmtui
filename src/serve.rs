@@ -170,12 +170,12 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     };
 
     // Build settings: start with defaults, apply model override, then profile override
-    tracing::info!("Model name for config lookup: {}", name);
+    tracing::info!("Model display_name for config lookup: {}", display_name);
     tracing::info!(
         "Available model config keys: {:?}",
         config.model_overrides.keys()
     );
-    let mut settings = config.resolve_settings(Some(&name), opts.profile_name.as_deref());
+    let mut settings = config.resolve_settings(Some(&display_name), opts.profile_name.as_deref());
 
     // Auto-enable MTP if supported by model and not explicitly enabled in config
     if settings.spec_type.is_empty()
