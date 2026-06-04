@@ -174,7 +174,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .collect();
 
             let block = Block::default()
-                .title(" Profiles ")
+                .title(crate::t!("panel.title.profiles"))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow));
             let paragraph = Paragraph::new(visible_lines).block(block);
@@ -211,7 +211,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .collect();
 
             let block = Block::default()
-                .title(" System Prompt Presets ")
+                .title(crate::t!("panel.title.presets"))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow));
             let paragraph = Paragraph::new(visible_lines).block(block);

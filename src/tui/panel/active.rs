@@ -29,9 +29,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 }
 
     let mut title_spans = if loaded_models.len() == 1 {
-        vec![Span::raw(" Active Model (F5) ")]
+        vec![Span::raw(crate::t!("panel.title.active_active"))]
     } else {
-        vec![Span::raw(" Active Model(s) (F5) ")]
+        vec![Span::raw(crate::t!("panel.title.active_multi_active"))]
     };
 
     if app.metrics.total_vram_used > 0 {

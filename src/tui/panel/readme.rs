@@ -439,7 +439,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         Color::DarkGray
     };
     let block = Block::default()
-        .title(" README ")
+        .title(crate::t!("panel.title.readme"))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
     let wrap = ratatui::widgets::Wrap { trim: true };

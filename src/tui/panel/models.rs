@@ -234,9 +234,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     match &app.models_mode {
         ModelsMode::List => {
             let title = if app.is_panel_visible(0) {
-                " Models (F7) [^F7] ".to_string()
+                crate::t!("panel.title.models_active").to_string()
             } else {
-                " Models ".to_string()
+                crate::t!("panel.title.models").to_string()
             };
 
             let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
@@ -596,7 +596,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             f.render_stateful_widget(table, inner_area, &mut app.search.files_table_state);
         }
         ModelsMode::BenchTune => {
-            let title = " BenchTune ".to_string();
+            let title = crate::t!("panel.title.bench_tune").to_string();
             let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
                 Color::Green
             } else {

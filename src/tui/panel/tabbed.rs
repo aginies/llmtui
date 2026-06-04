@@ -53,12 +53,11 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         Color::DarkGray
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
-    let title_prefix = if app.settings_state.expert_mode {
-        " EXPERT - "
+    let title = if app.settings_state.expert_mode {
+        crate::t!("panel.title.llm_expert").to_string()
     } else {
-        ""
+        crate::t!("panel.title.llm_active").to_string()
     };
-    let title = format!("{} LLM Settings (F4) [^F9] ", title_prefix);
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(title),
@@ -386,9 +385,9 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         .collect();
 
     let title = if server_running {
-        " Server Settings (F2) [^F8] (Disabled) "
+        crate::t!("panel.title.server_disabled")
     } else {
-        " Server Settings (F2) [^F8] "
+        crate::t!("panel.title.server_active")
     };
     let block = Block::default()
         .title(title)
@@ -422,7 +421,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         Color::DarkGray
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
-    let title = " LLM Settings (F4) [^F9] ";
+    let title = crate::t!("panel.title.llm_active");
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(title),
@@ -656,7 +655,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
 /// Render the info paragraph with a block and borders.
 pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
-        .title(" Model Info (F3) ")
+        .title(crate::t!("panel.title.model_info_active"))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::DarkGray));
 

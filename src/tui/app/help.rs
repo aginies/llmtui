@@ -10,7 +10,7 @@ impl App {
 
         match self.ui.active_panel {
             ActivePanel::Models => vec![
-                Line::from(Span::styled("MODELS PANEL", y)),
+                Line::from(Span::styled(crate::t!("panel.title.models"), y)),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.models.description")),
                 Line::from(""),
@@ -70,7 +70,7 @@ impl App {
                 ]),
             ],
             ActivePanel::Log => vec![
-                Line::from(Span::styled("LOG PANEL", y)),
+                Line::from(Span::styled(crate::t!("panel.title.log"), y)),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.log.description")),
                 Line::from(""),
@@ -103,7 +103,7 @@ impl App {
             ],
             ActivePanel::ServerSettings => {
                 vec![
-                    Line::from(Span::styled("SERVER SETTINGS", y)),
+                    Line::from(Span::styled(crate::t!("panel.title.server"), y)),
                     Line::from(""),
                     Line::from(crate::t!("panel.help.server.description")),
                     Line::from(""),
@@ -157,7 +157,7 @@ impl App {
                 ]
             }
             ActivePanel::LlmSettings => vec![
-                Line::from(Span::styled("LLM SETTINGS", y)),
+                Line::from(Span::styled(crate::t!("panel.title.llm"), y)),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.llm.description")),
                 Line::from(""),
@@ -443,7 +443,7 @@ impl App {
                 ]),
             ],
             ActivePanel::ActiveModel => vec![
-                Line::from(Span::styled("ACTIVE MODEL PANEL", y)),
+                Line::from(Span::styled(crate::t!("panel.title.active"), y)),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.active.description")),
                 Line::from(""),
@@ -459,7 +459,7 @@ impl App {
                 ]),
             ],
             ActivePanel::ModelInfo => vec![
-                Line::from(Span::styled("MODEL INFO PANEL", y)),
+                Line::from(Span::styled(crate::t!("panel.title.model_info"), y)),
                 Line::from(""),
                 Line::from("GGUF metadata for the selected model."),
                 Line::from(""),
@@ -499,7 +499,7 @@ impl App {
                 ]),
             ],
             ActivePanel::Profiles => vec![
-                Line::from(Span::styled("PROFILES PANEL", y)),
+                Line::from(Span::styled(crate::t!("panel.title.profiles"), y)),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.profiles.description")),
                 Line::from(""),
@@ -542,7 +542,7 @@ impl App {
                 ]),
             ],
             ActivePanel::SearchReadme => vec![
-                Line::from(Span::styled("README PANEL", y)),
+                Line::from(Span::styled(crate::t!("panel.title.readme"), y)),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.readme.description")),
                 Line::from(""),
@@ -561,7 +561,7 @@ impl App {
                 Line::from(vec![Span::styled("⎋", y), Span::raw(format!("  {}", crate::t!("panel.help.readme.collapse")))]),
             ],
             ActivePanel::Downloads => vec![
-                Line::from(Span::styled("DOWNLOADS PANEL", y)),
+                Line::from(Span::styled(crate::t!("panel.title.downloads"), y)),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.downloads.description")),
                 Line::from(""),

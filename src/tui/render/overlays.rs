@@ -257,7 +257,7 @@ fn render_confirmation(
                 .filter(|s| matches!(s, crate::models::ModelState::Loaded { .. }))
                 .count();
             (
-                "crate::t!(\"dialog.exit.title\")",
+                crate::t!("dialog.exit.title"),
                 vec![
                     Line::from(""),
                     Line::from(vec![
@@ -275,7 +275,7 @@ fn render_confirmation(
             )
         }
         ConfirmationKind::Reset => (
-            "crate::t!(\"dialog.reset.title\")",
+            crate::t!("dialog.reset.title"),
             vec![
                 Line::from(""),
                 Line::from(crate::t!("dialog.reset.message")),
@@ -287,7 +287,7 @@ fn render_confirmation(
                 .map(|m| m.name.as_str())
                 .unwrap_or("Unknown");
             (
-                "crate::t!(\"dialog.delete.title\")",
+                crate::t!("dialog.delete.title"),
                 vec![
                     Line::from(""),
                     Line::from(vec![
@@ -311,7 +311,7 @@ fn render_confirmation(
                 None => "Unknown",
             };
             (
-                "crate::t!(\"dialog.unload.title\")",
+                crate::t!("dialog.unload.title"),
                 vec![
                     Line::from(""),
                     Line::from(vec![
@@ -333,7 +333,7 @@ fn render_confirmation(
                 None => ("Unknown".to_string(), "latest"),
             };
             (
-                "crate::t!(\"dialog.delete_backend.title\")",
+                crate::t!("dialog.delete_backend.title"),
                 vec![
                     Line::from(""),
                     Line::from(vec![
@@ -385,7 +385,8 @@ fn render_confirmation(
     f.render_widget(
         Paragraph::new(lines)
             .block(block)
-            .alignment(Alignment::Center),
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: false }),
         popup_area,
     );
 }
@@ -678,7 +679,7 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     };
     let mut modal_lines: Vec<Line> = Vec::new();
     modal_lines.push(Line::from(Span::styled(
-        "crate::t!(\"dialog.tags.title\")",
+        crate::t!("dialog.tags.title"),
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -1393,7 +1394,7 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
     };
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        "crate::t!(\"dialog.max_concurrent.title\")",
+        crate::t!("dialog.max_concurrent.title"),
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -1476,7 +1477,7 @@ fn render_dashboard_picker(
     };
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        "crate::t!(\"dialog.dashboard.title\")",
+        crate::t!("dialog.dashboard.title"),
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -1632,7 +1633,7 @@ fn render_dashboard_url(
     }
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        "crate::t!(\"dialog.dashboard_url.title\")",
+        crate::t!("dialog.dashboard_url.title"),
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD),
@@ -2208,7 +2209,7 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
     let after: String = buffer.chars().skip(clamped_pos).collect();
     let picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            "crate::t!(\"dialog.search.title\")",
+            crate::t!("dialog.search.title"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -2242,7 +2243,7 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
-                .title(" Search Input ")
+                .title(crate::t!("panel.title.search_input"))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
@@ -2432,7 +2433,7 @@ fn render_yarn_rope_picker(
     };
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            "crate::t!(\"dialog.yarn.title\")",
+            crate::t!("dialog.yarn.title"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
@@ -2554,7 +2555,7 @@ fn render_spec_type_picker(
     };
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            "crate::t!(\"dialog.spec.title\")",
+            crate::t!("dialog.spec.title"),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
