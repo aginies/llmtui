@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 
-pub use model_config::{key_from_display, display_from_key, ModelConfigStore};
+pub use model_config::ModelConfigStore;
 
 pub use profiles::ProfileStore;
 

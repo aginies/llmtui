@@ -51,8 +51,8 @@ pub(crate) fn save_yaml<T: serde::Serialize + std::fmt::Debug>(
     unused_dir: &Path,
 ) {
     let path = active_dir.join(format!("{}.yaml", name));
-    if let Some(parent) = path.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
+    if let Some(parent) = path.parent()
+        && let Err(e) = std::fs::create_dir_all(parent) {
             warn!(
                 "Failed to create config directory {}: {}",
                 parent.display(),
@@ -60,7 +60,6 @@ pub(crate) fn save_yaml<T: serde::Serialize + std::fmt::Debug>(
             );
             return;
         }
-    }
     let content = match serde_yaml::to_string(item) {
         Ok(c) => c,
         Err(e) => {
@@ -74,15 +73,14 @@ pub(crate) fn save_yaml<T: serde::Serialize + std::fmt::Debug>(
     }
 
     let unused_path = unused_dir.join(format!("{}.yaml", name));
-    if let Err(e) = std::fs::remove_file(&unused_path) {
-        if e.kind() != std::io::ErrorKind::NotFound {
+    if let Err(e) = std::fs::remove_file(&unused_path)
+        && e.kind() != std::io::ErrorKind::NotFound {
             warn!(
                 "Failed to remove unused config {}: {}",
                 unused_path.display(),
                 e
             );
         }
-    }
 }
 
 /// Delete an item by moving from active dir to unused dir.

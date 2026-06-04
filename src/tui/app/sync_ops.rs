@@ -38,11 +38,10 @@ impl App {
                     let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
 
                     // Skip files that are currently being downloaded (partial downloads)
-                    if let Some(&expected) = expected_sizes.get(name.as_str()) {
-                        if size != expected {
+                    if let Some(&expected) = expected_sizes.get(name.as_str())
+                        && size != expected {
                             return;
                         }
-                    }
 
                     let display_name = path
                         .strip_prefix(dir)

@@ -1037,8 +1037,8 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                             );
                         }
 
-                        if let Some(handle) = &self.server.server_handle {
-                            if let Some(model) = self.selected_model() {
+                        if let Some(handle) = &self.server.server_handle
+                            && let Some(model) = self.selected_model() {
                                 let host = handle.host.clone();
                                 let port = handle.port;
                                 let model_name = model.display_name.clone();
@@ -1055,7 +1055,6 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                                 });
                                 self.background_tasks.insert(task_name, task_handle);
                             }
-                        }
 
                         self.ui.needs_redraw = true;
                     }

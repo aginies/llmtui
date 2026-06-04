@@ -319,20 +319,16 @@ async fn main() -> Result<()> {
                 }
 
                 // ── Spawn / bench result checks ──
-                if let Some(handle) = &app.server.spawn_task_handle {
-                    if handle.is_finished() {
-                        if let Some(handle) = app.server.spawn_task_handle.take() {
+                if let Some(handle) = &app.server.spawn_task_handle
+                    && handle.is_finished()
+                        && let Some(handle) = app.server.spawn_task_handle.take() {
                             app.tick_spawn_result(handle).await;
                         }
-                    }
-                }
-                if let Some(handle) = &app.server.bench_tune_task_handle {
-                    if handle.is_finished() {
-                        if let Some(handle) = app.server.bench_tune_task_handle.take() {
+                if let Some(handle) = &app.server.bench_tune_task_handle
+                    && handle.is_finished()
+                        && let Some(handle) = app.server.bench_tune_task_handle.take() {
                             app.tick_bench_tune_result(handle).await;
                         }
-                    }
-                }
 
                 // ── Conditional API operations ──
                 app.try_execute_api_load();
@@ -390,7 +386,7 @@ async fn main() -> Result<()> {
 
                 // ── Settings change tick (throttled to ~1s) ──
                 settings_tick_counter = settings_tick_counter.wrapping_add(1);
-                if settings_tick_counter % 5 == 0 {
+                if settings_tick_counter.is_multiple_of(5) {
                     app.tick_ws_server().await;
                     app.tick_api_endpoint().await;
                 }

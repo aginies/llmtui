@@ -492,17 +492,16 @@ fn extract_param_info(stem: &str) -> (Option<String>, Option<String>) {
 /// Detect quantization provider (e.g., "UD" for Unsloth Dynamic).
 fn extract_quant_provider(stem: &str) -> Option<(String, &'static QuantProviderInfo)> {
     let parts: Vec<&str> = stem.split('-').collect();
-    for (_i, part) in parts.iter().enumerate() {
+    for part in parts.iter() {
         let upper = part.to_uppercase();
         if upper == "UD" {
             if let Some(provider) = QUANT_PROVIDERS.get("UD") {
                 return Some((part.to_string(), provider));
             }
-        } else if upper == "H" {
-            if let Some(provider) = QUANT_PROVIDERS.get("H") {
+        } else if upper == "H"
+            && let Some(provider) = QUANT_PROVIDERS.get("H") {
                 return Some((part.to_string(), provider));
             }
-        }
     }
     None
 }
@@ -519,14 +518,13 @@ fn extract_quant_scheme(stem: &str) -> (Option<u32>, bool, Option<char>, Option<
     for part in parts {
         let upper = part.to_uppercase();
         // Match IQ1_S, IQ2_XXS, IQ3_XXS, IQ4_NL, etc. (Improved Quantization)
-        if upper.starts_with("IQ") {
-            if let Some(info) = IQ_QUANTS.get(upper.as_str()) {
+        if upper.starts_with("IQ")
+            && let Some(info) = IQ_QUANTS.get(upper.as_str()) {
                 iq_format = Some(info.label.to_string());
                 continue;
             }
-        }
         // Match Q4_K_S, Q5_K_M, Q8_0, Q3_K_S, etc.
-        if upper.starts_with('Q') && upper.chars().nth(1).map_or(false, |c| c.is_ascii_digit()) {
+        if upper.starts_with('Q') && upper.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
             // Extract digit(s) after Q
             let mut digit_str = String::new();
             for c in upper.chars().skip(1) {
@@ -582,8 +580,8 @@ fn build_quant_segments(
         return segments;
     }
 
-    if let Some(b) = bits {
-        if let Some(level_info) = QUANT_LEVELS.get(&b) {
+    if let Some(b) = bits
+        && let Some(level_info) = QUANT_LEVELS.get(&b) {
             segments.push(GgufSegment {
                 label: format!("Q{}", b),
                 value: format!("{}-bit", b),
@@ -591,7 +589,6 @@ fn build_quant_segments(
                 link: QUANTIZATION_COMMON_LINK,
             });
         }
-    }
 
     if k_quant {
         segments.push(GgufSegment {
@@ -603,8 +600,8 @@ fn build_quant_segments(
         });
     }
 
-    if let Some(sv) = size_variant {
-        if let Some(sv_info) = SIZE_VARIANTS.get(&sv) {
+    if let Some(sv) = size_variant
+        && let Some(sv_info) = SIZE_VARIANTS.get(&sv) {
             let quant_label = if let Some(b) = bits {
                 format!("Q{}_", b)
             } else {
@@ -617,7 +614,6 @@ fn build_quant_segments(
                 link: QUANTIZATION_COMMON_LINK,
             });
         }
-    }
 
     segments
 }
@@ -628,7 +624,7 @@ fn strip_quant_suffix(stem: &str) -> String {
     for (i, part) in parts.iter().enumerate() {
         let upper = part.to_uppercase();
         // Stop at quantization part (Q4_K_S, Q5_K_M, etc.)
-        if upper.starts_with('Q') && upper.chars().nth(1).map_or(false, |c| c.is_ascii_digit()) {
+        if upper.starts_with('Q') && upper.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
             if i > 0 {
                 return parts[..i].join("-");
             }
@@ -649,7 +645,7 @@ fn strip_quant_suffix(stem: &str) -> String {
                 && next_upper
                     .chars()
                     .nth(1)
-                    .map_or(false, |c| c.is_ascii_digit())
+                    .is_some_and(|c| c.is_ascii_digit())
             {
                 if i > 0 {
                     return parts[..i].join("-");

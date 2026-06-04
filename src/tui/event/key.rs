@@ -1518,8 +1518,8 @@ async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEv
                 }
             }
             KeyCode::Tab => {
-                if *editing_param {
-                    if config.params_to_test[*selected_idx].variants.is_empty() {
+                if *editing_param
+                    && config.params_to_test[*selected_idx].variants.is_empty() {
                         *editing_param_field = (*editing_param_field + 1).min(2);
                         let p = &config.params_to_test[*selected_idx];
                         let val = match *editing_param_field {
@@ -1536,11 +1536,10 @@ async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEv
                         }
                         *param_edit_cursor_pos = param_edit_buffer.len();
                     }
-                }
             }
             KeyCode::BackTab => {
-                if *editing_param {
-                    if config.params_to_test[*selected_idx].variants.is_empty() {
+                if *editing_param
+                    && config.params_to_test[*selected_idx].variants.is_empty() {
                         *editing_param_field = if *editing_param_field <= 0 {
                             2
                         } else {
@@ -1561,7 +1560,6 @@ async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEv
                         }
                         *param_edit_cursor_pos = param_edit_buffer.len();
                     }
-                }
             }
             KeyCode::Char('+')
                 if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() =>

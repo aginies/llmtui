@@ -930,8 +930,8 @@ async fn latest_release_with_asset_inner(
                                 .map(|s| s.to_string())
                                 .unwrap_or_else(|| fallback.to_string());
                             for asset in assets {
-                                if let Some(name) = asset.get("name").and_then(|v| v.as_str()) {
-                                    if name.contains(asset_pattern) {
+                                if let Some(name) = asset.get("name").and_then(|v| v.as_str())
+                                    && name.contains(asset_pattern) {
                                         tracing::info!(
                                             "  -> found asset '{}' in release '{}'",
                                             name,
@@ -939,7 +939,6 @@ async fn latest_release_with_asset_inner(
                                         );
                                         return tag;
                                     }
-                                }
                             }
                         }
                     }

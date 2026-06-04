@@ -1115,7 +1115,7 @@ fn render_bench_tune_setup(
             lines
         } else {
             let field_names = ["Min", "Max", "Step"];
-            let active_field_name = if editing_param_field >= 0 && editing_param_field < 3 {
+            let active_field_name = if (0..3).contains(&editing_param_field) {
                 field_names[editing_param_field as usize]
             } else {
                 "Min"
@@ -1291,7 +1291,7 @@ fn render_bench_tune_setup(
                 }
             } else if editing_param
                 && is_selected
-                && (editing_param_field >= 0 || editing_param_field < -1)
+                && !(-1..0).contains(&editing_param_field)
             {
                 Style::default().fg(Color::Blue)
             } else {
@@ -2556,11 +2556,10 @@ fn render_gguf_naming_overlay(
                     break;
                 }
                 // Trim leading space for continuation lines
-                if let Some((i, _)) = remaining.char_indices().next() {
-                    if remaining[i..].starts_with(' ') {
+                if let Some((i, _)) = remaining.char_indices().next()
+                    && remaining[i..].starts_with(' ') {
                         remaining = &remaining[i + 1..];
                     }
-                }
                 first_line = false;
             }
         }

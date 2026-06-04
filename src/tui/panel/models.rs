@@ -174,8 +174,8 @@ fn format_time_remaining(total_secs: u64) -> String {
     }
 }
 
-pub fn scroll_text<'a>(
-    text: &'a str,
+pub fn scroll_text(
+    text: &str,
     max_width: u16,
     state: Option<&crate::tui::app::TextScrollState>,
 ) -> String {

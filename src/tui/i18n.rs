@@ -10,10 +10,10 @@ pub static TRANSLATIONS: LazyLock<HashMap<String, HashMap<&'static str, &'static
         if let Ok(entries) = fs::read_dir(&locale_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                    if let Some(lang) = filename.strip_suffix(".json") {
-                        if let Ok(contents) = fs::read_to_string(&path) {
-                            if let Ok(parsed) =
+                if let Some(filename) = path.file_name().and_then(|n| n.to_str())
+                    && let Some(lang) = filename.strip_suffix(".json")
+                        && let Ok(contents) = fs::read_to_string(&path)
+                            && let Ok(parsed) =
                                 serde_json::from_str::<HashMap<String, String>>(&contents)
                             {
                                 let mut static_map = HashMap::new();
@@ -24,9 +24,6 @@ pub static TRANSLATIONS: LazyLock<HashMap<String, HashMap<&'static str, &'static
                                 }
                                 translations.insert(lang.to_string(), static_map);
                             }
-                        }
-                    }
-                }
             }
         }
 
@@ -36,14 +33,13 @@ pub static TRANSLATIONS: LazyLock<HashMap<String, HashMap<&'static str, &'static
 static CURRENT_LANG: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
 fn locale_dir() -> std::path::PathBuf {
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent() {
             let candidate = dir.join("locales");
             if candidate.is_dir() {
                 return candidate;
             }
         }
-    }
 
     if let Ok(p) = std::env::var("LLM_MANAGER_LOCALES") {
         let path = std::path::Path::new(&p);
@@ -68,17 +64,15 @@ pub fn get_language() -> String {
 pub fn t(key: &str) -> &'static str {
     let lang = get_language();
 
-    if let Some(lang_map) = TRANSLATIONS.get(&lang) {
-        if let Some(&value) = lang_map.get(key) {
+    if let Some(lang_map) = TRANSLATIONS.get(&lang)
+        && let Some(&value) = lang_map.get(key) {
             return value;
         }
-    }
 
-    if let Some(en_map) = TRANSLATIONS.get("en") {
-        if let Some(&value) = en_map.get(key) {
+    if let Some(en_map) = TRANSLATIONS.get("en")
+        && let Some(&value) = en_map.get(key) {
             return value;
         }
-    }
 
     Box::leak(key.to_string().into_boxed_str())
 }

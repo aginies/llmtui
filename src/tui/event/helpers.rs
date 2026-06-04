@@ -212,11 +212,10 @@ pub fn handle_fkey_toggle(
         return;
     }
     app.toggle_panel_visibility(panel_idx);
-    if app.is_panel_visible(panel_idx) {
-        if let Some(panel) = target_panel {
+    if app.is_panel_visible(panel_idx)
+        && let Some(panel) = target_panel {
             app.ui.active_panel = panel;
         }
-    }
 }
 
 pub fn handle_fkey_show(

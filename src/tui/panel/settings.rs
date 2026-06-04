@@ -94,7 +94,7 @@ pub fn render_all(
     let help_line = if app.settings_state.help_visible && !editing {
         let fields = settings::filtered_fields(app.settings_state.expert_mode);
         if let Some(field) = fields.get(selected) {
-            let help = crate::tui::i18n::field_help(&field.id);
+            let help = crate::tui::i18n::field_help(field.id);
             if !help.is_empty() { Some(help) } else { None }
         } else {
             None
@@ -153,7 +153,7 @@ fn render_settings(
         }
 
         let dirty = field.is_dirty(settings, cached);
-        let field_enabled = field.is_enabled.map_or(true, |f| f(settings));
+        let field_enabled = field.is_enabled.is_none_or(|f| f(settings));
         let visually_disabled = disabled || !field_enabled;
         let display: String = if editing && *total_count == selected {
             edit_buf.to_string()

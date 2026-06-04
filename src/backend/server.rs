@@ -401,8 +401,8 @@ pub fn build_server_cmd(
         );
     }
 
-    if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
-        if let Some(ref meta) = gguf_meta.as_ref().ok().and_then(|x| x.as_ref()) {
+    if settings.rope_yarn_enabled && settings.rope_scale > 1.0
+        && let Some(meta) = gguf_meta.as_ref().ok().and_then(|x| x.as_ref()) {
             push_arg(
                 &mut cmd,
                 &mut parts,
@@ -412,7 +412,6 @@ pub fn build_server_cmd(
             let orig_ctx = meta.n_ctx_train;
             push_arg(&mut cmd, &mut parts, "--yarn-orig-ctx", orig_ctx);
         }
-    }
 
     let resolved_host = clean_host(&settings.host);
     push_arg(&mut cmd, &mut parts, "--host", resolved_host);
@@ -966,8 +965,8 @@ pub async fn get_metrics(
     }
 
     // Fallback for RAM and CPU using sysinfo (cross-platform)
-    if let Some(p) = pid {
-        if let Ok((ram, cpu)) = get_process_metrics(p) {
+    if let Some(p) = pid
+        && let Ok((ram, cpu)) = get_process_metrics(p) {
             if m.ram_used == 0 {
                 m.ram_used = ram;
             }
@@ -975,7 +974,6 @@ pub async fn get_metrics(
                 m.cpu_usage = cpu;
             }
         }
-    }
 
     Ok(m)
 }
