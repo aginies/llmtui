@@ -3,22 +3,18 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::config_base_dir;
 use crate::config::ModelOverride;
+use crate::config::config_base_dir;
 use crate::config::store::{load_all_from_dir, move_to_unused, save_yaml};
 
 /// Directory for per-model YAML configs.
 pub fn models_config_dir() -> PathBuf {
-    config_base_dir()
-        .join("llm-manager")
-        .join("models")
+    config_base_dir().join("llm-manager").join("models")
 }
 
 /// Directory for unused (deleted) model configs.
 pub fn unused_config_dir() -> PathBuf {
-    config_base_dir()
-        .join("llm-manager")
-        .join("unused")
+    config_base_dir().join("llm-manager").join("unused")
 }
 
 /// Per-model configuration store.

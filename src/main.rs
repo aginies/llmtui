@@ -204,8 +204,13 @@ async fn main() -> Result<()> {
                 Config::load_from(config_path)
                     .map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?
             } else {
-                let mut default_config = Config { llama_server: PathBuf::from(&llama_server), ..Default::default() };
-                default_config.save().map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
+                let mut default_config = Config {
+                    llama_server: PathBuf::from(&llama_server),
+                    ..Default::default()
+                };
+                default_config
+                    .save()
+                    .map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
                 default_config
             };
 
@@ -225,9 +230,10 @@ async fn main() -> Result<()> {
 
             // Discover models asynchronously
             let models_dirs = config.models_dirs.clone();
-            let models = tokio::task::spawn_blocking(move || App::discover_models(&models_dirs, &[]))
-                .await
-                .unwrap_or_default();
+            let models =
+                tokio::task::spawn_blocking(move || App::discover_models(&models_dirs, &[]))
+                    .await
+                    .unwrap_or_default();
 
             info!("Discovered {} models", models.len());
 
@@ -381,7 +387,10 @@ async fn main() -> Result<()> {
                         crossterm::event::Event::Resize(_, _) => {}
                         _ => {}
                     }
-                    if matches!(event, crossterm::event::Event::Key(_) | crossterm::event::Event::Mouse(_)) {
+                    if matches!(
+                        event,
+                        crossterm::event::Event::Key(_) | crossterm::event::Event::Mouse(_)
+                    ) {
                         app.ui.needs_redraw = true;
                     }
                 }

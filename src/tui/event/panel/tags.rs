@@ -92,22 +92,22 @@ pub fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         // Edit selected tag
         KeyCode::Char('e') | KeyCode::Char('i') => {
-            if !insert_mode
-                && let Some(idx) = selected {
-                    app.edit.tags_edit_buffer = tags[idx].clone();
-                }
+            if !insert_mode && let Some(idx) = selected {
+                app.edit.tags_edit_buffer = tags[idx].clone();
+            }
         }
         // Delete selected tag
         KeyCode::Char('d') | KeyCode::Delete => {
             if !insert_mode
                 && let Some(idx) = selected
-                    && idx < app.settings.tags.len() {
-                        app.settings.tags.remove(idx);
-                        app.edit.tags_selected_idx = None;
-                        app.edit.tags_edit_buffer.clear();
-                        app.edit.tags_insert_mode = false;
-                        app.settings_state.settings_render_cache = None;
-                    }
+                && idx < app.settings.tags.len()
+            {
+                app.settings.tags.remove(idx);
+                app.edit.tags_selected_idx = None;
+                app.edit.tags_edit_buffer.clear();
+                app.edit.tags_insert_mode = false;
+                app.settings_state.settings_render_cache = None;
+            }
         }
         // Add new tag
         KeyCode::Char('a') => {

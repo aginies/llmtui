@@ -2,16 +2,16 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::widgets::TableState;
 use tracing::debug;
 
-use super::rpc_workers::handle_rpc_workers_key;
 use super::helpers::{
-    execute_confirmation, handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle,
-    mark_settings_dirty, sync_global_settings, TextEditor,
+    TextEditor, execute_confirmation, handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle,
+    mark_settings_dirty, sync_global_settings,
 };
 use super::panel::{
     handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key,
     handle_settings_key, handle_system_prompt_presets_key,
 };
 use super::readme::{fetch_and_store_readme, fetch_readme_for_selected, handle_readme_key};
+use super::rpc_workers::handle_rpc_workers_key;
 
 fn picker_nav_up(selected: &mut usize) {
     *selected = selected.saturating_sub(1);
@@ -90,7 +90,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         app.ui.global_mode = GlobalMode::DashboardUrl {
             host: app.settings.host.clone(),
             port: app.config.default.ws_server_port.to_string(),
-            auth_key: app.config.default.ws_server_auth_key.clone().unwrap_or_default(),
+            auth_key: app
+                .config
+                .default
+                .ws_server_auth_key
+                .clone()
+                .unwrap_or_default(),
             ws_enabled: app.config.default.ws_server_enabled,
             tls_enabled: app.config.default.ws_server_tls_enabled,
         };
@@ -105,7 +110,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 execute_confirmation(app, kind_copy).await;
                 if matches!(kind_copy, ConfirmationKind::DeleteBackend) {
                     let new_entries = app.fetch_backend_picker_entries();
-                    if let GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode {
+                    if let GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode
+                    {
                         *entries = new_entries;
                         if *selected >= entries.len() {
                             *selected = entries.len().saturating_sub(1);
@@ -179,9 +185,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Ctrl+G: GGUF filename explanation (global, works from any panel)
     if key.code == KeyCode::Char('g') && key.modifiers.contains(KeyModifiers::CONTROL) {
         let filename = match &app.models_mode {
-            ModelsMode::List => {
-                app.selected_model().map(|m| m.display_name.clone())
-            }
+            ModelsMode::List => app.selected_model().map(|m| m.display_name.clone()),
             ModelsMode::Search { results, .. } => {
                 if let Some(idx) = app.search.search_results_idx {
                     if idx < results.len() {
@@ -193,11 +197,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     None
                 }
             }
-            ModelsMode::Files { files, selected_idx, .. } => {
-                selected_idx.and_then(|idx| {
-                    files.get(idx).map(|(f, _, _)| f.clone())
-                })
-            }
+            ModelsMode::Files {
+                files,
+                selected_idx,
+                ..
+            } => selected_idx.and_then(|idx| files.get(idx).map(|(f, _, _)| f.clone())),
             ModelsMode::BenchTune => None,
         };
         if let Some(fn_name) = filename {
@@ -307,25 +311,53 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
             KeyCode::Char(c) => {
-                TextEditor { buffer, cursor: cursor_pos }.insert_char(c);
+                TextEditor {
+                    buffer,
+                    cursor: cursor_pos,
+                }
+                .insert_char(c);
             }
             KeyCode::Backspace => {
-                TextEditor { buffer, cursor: cursor_pos }.backspace();
+                TextEditor {
+                    buffer,
+                    cursor: cursor_pos,
+                }
+                .backspace();
             }
             KeyCode::Delete => {
-                TextEditor { buffer, cursor: cursor_pos }.delete();
+                TextEditor {
+                    buffer,
+                    cursor: cursor_pos,
+                }
+                .delete();
             }
             KeyCode::Left => {
-                TextEditor { buffer, cursor: cursor_pos }.move_left();
+                TextEditor {
+                    buffer,
+                    cursor: cursor_pos,
+                }
+                .move_left();
             }
             KeyCode::Right => {
-                TextEditor { buffer, cursor: cursor_pos }.move_right();
+                TextEditor {
+                    buffer,
+                    cursor: cursor_pos,
+                }
+                .move_right();
             }
             KeyCode::Home => {
-                TextEditor { buffer, cursor: cursor_pos }.home();
+                TextEditor {
+                    buffer,
+                    cursor: cursor_pos,
+                }
+                .home();
             }
             KeyCode::End => {
-                TextEditor { buffer, cursor: cursor_pos }.end();
+                TextEditor {
+                    buffer,
+                    cursor: cursor_pos,
+                }
+                .end();
             }
             _ => {}
         }
@@ -352,10 +384,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Enter => {
                 if *editing {
                     if *selected_field == 0i32
-                        && let Ok(p) = edit_buffer.parse::<u16>() {
-                            app.config.default.ws_server_port = p;
-                            port.clone_from(edit_buffer);
-                        }
+                        && let Ok(p) = edit_buffer.parse::<u16>()
+                    {
+                        app.config.default.ws_server_port = p;
+                        port.clone_from(edit_buffer);
+                    }
                     if *selected_field == 1i32 {
                         app.config.default.ws_server_auth_key = if edit_buffer.is_empty() {
                             None
@@ -455,22 +488,46 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
             KeyCode::Char(c) if *editing => {
-                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.insert_char(c);
+                TextEditor {
+                    buffer: edit_buffer,
+                    cursor: edit_cursor_pos,
+                }
+                .insert_char(c);
             }
             KeyCode::Backspace if *editing => {
-                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.backspace();
+                TextEditor {
+                    buffer: edit_buffer,
+                    cursor: edit_cursor_pos,
+                }
+                .backspace();
             }
             KeyCode::Left if *editing => {
-                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.move_left();
+                TextEditor {
+                    buffer: edit_buffer,
+                    cursor: edit_cursor_pos,
+                }
+                .move_left();
             }
             KeyCode::Right if *editing => {
-                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.move_right();
+                TextEditor {
+                    buffer: edit_buffer,
+                    cursor: edit_cursor_pos,
+                }
+                .move_right();
             }
             KeyCode::Home if *editing => {
-                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.home();
+                TextEditor {
+                    buffer: edit_buffer,
+                    cursor: edit_cursor_pos,
+                }
+                .home();
             }
             KeyCode::End if *editing => {
-                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.end();
+                TextEditor {
+                    buffer: edit_buffer,
+                    cursor: edit_cursor_pos,
+                }
+                .end();
             }
             _ => {}
         }
@@ -612,10 +669,18 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
             KeyCode::Char(c) if *editing => {
-                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.insert_char(c);
+                TextEditor {
+                    buffer: edit_buffer,
+                    cursor: edit_cursor_pos,
+                }
+                .insert_char(c);
             }
             KeyCode::Backspace if *editing => {
-                TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.backspace();
+                TextEditor {
+                    buffer: edit_buffer,
+                    cursor: edit_cursor_pos,
+                }
+                .backspace();
                 return;
             }
             _ => {}
@@ -640,7 +705,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             KeyCode::Enter => {
                 let host_val = crate::models::format_host(host);
-                let mut url = format!("{}://{}:{}/dashboard", if *tls_enabled { "https" } else { "http" }, host_val, port);
+                let mut url = format!(
+                    "{}://{}:{}/dashboard",
+                    if *tls_enabled { "https" } else { "http" },
+                    host_val,
+                    port
+                );
                 if !auth_key.is_empty() {
                     url.push_str(&format!("?auth={}", auth_key));
                 }
@@ -838,12 +908,14 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .model_states
                 .values()
                 .any(|s| matches!(s, crate::models::ModelState::Benchmarking));
-            if is_benchmarking && app.server_mode == crate::models::ServerMode::Bench
-                && let Some(handle) = app.server.server_handle.take() {
-                    app.add_log("Stopping benchmark...", crate::config::LogLevel::Info);
-                    app.pending.pending_kill = Some(handle);
-                    return;
-                }
+            if is_benchmarking
+                && app.server_mode == crate::models::ServerMode::Bench
+                && let Some(handle) = app.server.server_handle.take()
+            {
+                app.add_log("Stopping benchmark...", crate::config::LogLevel::Info);
+                app.pending.pending_kill = Some(handle);
+                return;
+            }
         }
         KeyCode::Tab => {
             if app.ui.global_mode == GlobalMode::Normal {
@@ -1177,7 +1249,11 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
         if *editing {
             match key.code {
                 KeyCode::Enter => {
-                    TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.insert_newline();
+                    TextEditor {
+                        buffer: edit_buffer,
+                        cursor: edit_cursor_pos,
+                    }
+                    .insert_newline();
                 }
                 KeyCode::Char('s')
                     if key
@@ -1210,10 +1286,18 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.add_log(log_msg, log_level);
                 }
                 KeyCode::Char(c) => {
-                    TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.insert_char(c);
+                    TextEditor {
+                        buffer: edit_buffer,
+                        cursor: edit_cursor_pos,
+                    }
+                    .insert_char(c);
                 }
                 KeyCode::Backspace => {
-                    TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.backspace();
+                    TextEditor {
+                        buffer: edit_buffer,
+                        cursor: edit_cursor_pos,
+                    }
+                    .backspace();
                 }
                 KeyCode::Esc => {
                     *editing = false;
@@ -1341,7 +1425,9 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     && !*editing_param =>
             {
                 if *selected_idx < config.params_to_test.len() {
-                    let is_spec_off = config.params_to_test.iter()
+                    let is_spec_off = config
+                        .params_to_test
+                        .iter()
                         .find(|p| p.name == "spec_type")
                         .map(|p| p.min as usize == 0)
                         .unwrap_or(true);
@@ -1457,7 +1543,9 @@ fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                 }
             }
-KeyCode::Char('+') if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() => {
+            KeyCode::Char('+')
+                if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() =>
+            {
                 let current_idx = if *editing_param_field < -1 {
                     (*editing_param_field + 2) as usize
                 } else {
@@ -1466,14 +1554,17 @@ KeyCode::Char('+') if *editing_param && !config.params_to_test[*selected_idx].va
                 let variants = &config.params_to_test[*selected_idx].variants;
                 *editing_param_field = -(((current_idx + 1) % variants.len()) as i32 + 2);
             }
-            KeyCode::Char('-') if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() => {
+            KeyCode::Char('-')
+                if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() =>
+            {
                 let current_idx = if *editing_param_field < -1 {
                     (*editing_param_field + 2) as usize
                 } else {
                     0
                 };
                 let variants = &config.params_to_test[*selected_idx].variants;
-                *editing_param_field = -(((current_idx + variants.len() - 1) % variants.len()) as i32 + 2);
+                *editing_param_field =
+                    -(((current_idx + variants.len() - 1) % variants.len()) as i32 + 2);
             }
             KeyCode::Char(' ') => {
                 if *editing_prompt {
@@ -1488,7 +1579,9 @@ KeyCode::Char('+') if *editing_param && !config.params_to_test[*selected_idx].va
                         app.edit.edit_cursor_pos += 1;
                     }
                 } else if *selected_idx < config.params_to_test.len() {
-                    let is_spec_off = config.params_to_test.iter()
+                    let is_spec_off = config
+                        .params_to_test
+                        .iter()
                         .find(|p| p.name == "spec_type")
                         .map(|p| p.min as usize == 0)
                         .unwrap_or(true);
@@ -1498,12 +1591,20 @@ KeyCode::Char('+') if *editing_param && !config.params_to_test[*selected_idx].va
                     }
                 }
             }
-            KeyCode::Char(c) if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() => {
+            KeyCode::Char(c)
+                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() =>
+            {
                 if "0123456789.-eE".contains(c) {
-                    TextEditor { buffer: param_edit_buffer, cursor: param_edit_cursor_pos }.insert_char(c);
+                    TextEditor {
+                        buffer: param_edit_buffer,
+                        cursor: param_edit_cursor_pos,
+                    }
+                    .insert_char(c);
                 }
             }
-            KeyCode::Char(c) if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() => {
+            KeyCode::Char(c)
+                if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() =>
+            {
                 if c.is_ascii_digit() {
                     let idx = c.to_digit(10).unwrap() as usize;
                     let variants = &config.params_to_test[*selected_idx].variants;
@@ -1524,13 +1625,16 @@ KeyCode::Char('+') if *editing_param && !config.params_to_test[*selected_idx].va
                     if c.is_ascii_digit() {
                         app.edit.n_predict_edit_buffer.push(c);
                     }
-                } else if app.edit.editing_iters
-                    && c.is_ascii_digit() {
-                        app.edit.iters_edit_buffer.push(c);
-                    }
+                } else if app.edit.editing_iters && c.is_ascii_digit() {
+                    app.edit.iters_edit_buffer.push(c);
+                }
             }
             KeyCode::Backspace if *editing_param => {
-                TextEditor { buffer: param_edit_buffer, cursor: param_edit_cursor_pos }.backspace();
+                TextEditor {
+                    buffer: param_edit_buffer,
+                    cursor: param_edit_cursor_pos,
+                }
+                .backspace();
             }
             KeyCode::Backspace => {
                 if *editing_prompt {
@@ -1556,9 +1660,9 @@ KeyCode::Char('+') if *editing_param && !config.params_to_test[*selected_idx].va
                 if *param_edit_cursor_pos < param_edit_buffer.len()
                     && let Some((byte_pos, _ch)) =
                         param_edit_buffer.char_indices().nth(*param_edit_cursor_pos)
-                    {
-                        param_edit_buffer.remove(byte_pos);
-                    }
+                {
+                    param_edit_buffer.remove(byte_pos);
+                }
             }
             KeyCode::Delete => {
                 if *editing_prompt {
@@ -1574,10 +1678,9 @@ KeyCode::Char('+') if *editing_param && !config.params_to_test[*selected_idx].va
                     if !app.edit.n_predict_edit_buffer.is_empty() {
                         app.edit.n_predict_edit_buffer.pop();
                     }
-                } else if app.edit.editing_iters
-                    && !app.edit.iters_edit_buffer.is_empty() {
-                        app.edit.iters_edit_buffer.pop();
-                    }
+                } else if app.edit.editing_iters && !app.edit.iters_edit_buffer.is_empty() {
+                    app.edit.iters_edit_buffer.pop();
+                }
             }
             KeyCode::Enter => {
                 if *editing_param {
@@ -1998,9 +2101,10 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     if let ModelsMode::Search { results, .. } = &app.models_mode
         && let Some(idx) = app.search.search_results_idx
-            && let Some(r) = results.get(idx) {
-                fetch_readme_for_selected(app, r.model_id.clone()).await;
-            }
+        && let Some(r) = results.get(idx)
+    {
+        fetch_readme_for_selected(app, r.model_id.clone()).await;
+    }
 }
 
 async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
@@ -2076,9 +2180,9 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
             } = &app.models_mode
             {
                 selected_idx.and_then(|idx| {
-                    files
-                        .get(idx)
-                        .map(|(f, s, u): &(_, _, _)| (model_id.clone(), f.clone(), u.clone(), *s, model_id.clone()))
+                    files.get(idx).map(|(f, s, u): &(_, _, _)| {
+                        (model_id.clone(), f.clone(), u.clone(), *s, model_id.clone())
+                    })
                 })
             } else {
                 None
@@ -2149,21 +2253,21 @@ fn handle_bench_tune_output_key(app: &mut App, key: crossterm::event::KeyEvent) 
         }
         KeyCode::Right => {
             if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view
-                && let Some(result) = app.bench_tune.bench_tune_results.get(result_idx) {
-                    let max_iter_idx = result.outputs.len().saturating_sub(1);
-                    if app.bench_tune.bench_tune_output_index < max_iter_idx {
-                        app.bench_tune.bench_tune_output_index += 1;
-                        app.bench_tune.bench_tune_output_scroll = 0;
-                        app.bench_tune.bench_tune_output_h_scroll = 0;
-                    } else if result_idx < app.bench_tune.bench_tune_results.len().saturating_sub(1)
-                    {
-                        result_idx += 1;
-                        app.bench_tune.bench_tune_output_view = Some(result_idx);
-                        app.bench_tune.bench_tune_output_index = 0;
-                        app.bench_tune.bench_tune_output_scroll = 0;
-                        app.bench_tune.bench_tune_output_h_scroll = 0;
-                    }
+                && let Some(result) = app.bench_tune.bench_tune_results.get(result_idx)
+            {
+                let max_iter_idx = result.outputs.len().saturating_sub(1);
+                if app.bench_tune.bench_tune_output_index < max_iter_idx {
+                    app.bench_tune.bench_tune_output_index += 1;
+                    app.bench_tune.bench_tune_output_scroll = 0;
+                    app.bench_tune.bench_tune_output_h_scroll = 0;
+                } else if result_idx < app.bench_tune.bench_tune_results.len().saturating_sub(1) {
+                    result_idx += 1;
+                    app.bench_tune.bench_tune_output_view = Some(result_idx);
+                    app.bench_tune.bench_tune_output_index = 0;
+                    app.bench_tune.bench_tune_output_scroll = 0;
+                    app.bench_tune.bench_tune_output_h_scroll = 0;
                 }
+            }
         }
         KeyCode::Left => {
             if let Some(mut result_idx) = app.bench_tune.bench_tune_output_view {
@@ -2212,11 +2316,12 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Enter => {
             let result_idx = app.bench_tune.bench_tune_result_row;
             if let Some(result) = app.bench_tune.bench_tune_results.get(result_idx)
-                && !result.outputs.is_empty() {
-                    app.bench_tune.bench_tune_output_view = Some(result_idx);
-                    app.bench_tune.bench_tune_output_index = 0;
-                    app.bench_tune.bench_tune_output_scroll = 0;
-                }
+                && !result.outputs.is_empty()
+            {
+                app.bench_tune.bench_tune_output_view = Some(result_idx);
+                app.bench_tune.bench_tune_output_index = 0;
+                app.bench_tune.bench_tune_output_scroll = 0;
+            }
         }
         KeyCode::Down => {
             let len = app.bench_tune.bench_tune_results.len();
@@ -2285,10 +2390,25 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.ui.global_mode = GlobalMode::DashboardPicker {
                         enabled: app.config.default.ws_server_enabled,
                         port: app.config.default.ws_server_port.to_string(),
-                        auth_key: app.config.default.ws_server_auth_key.clone().unwrap_or_default(),
+                        auth_key: app
+                            .config
+                            .default
+                            .ws_server_auth_key
+                            .clone()
+                            .unwrap_or_default(),
                         tls_enabled: app.config.default.ws_server_tls_enabled,
-                        tls_cert: app.config.default.ws_server_tls_cert.clone().unwrap_or_default(),
-                        tls_key: app.config.default.ws_server_tls_key.clone().unwrap_or_default(),
+                        tls_cert: app
+                            .config
+                            .default
+                            .ws_server_tls_cert
+                            .clone()
+                            .unwrap_or_default(),
+                        tls_key: app
+                            .config
+                            .default
+                            .ws_server_tls_key
+                            .clone()
+                            .unwrap_or_default(),
                         selected_field: -1,
                         editing: false,
                         edit_buffer: String::new(),

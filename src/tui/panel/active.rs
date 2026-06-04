@@ -23,10 +23,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     // but only if it's actually in a non-available state.
     if loaded_models.is_empty()
         && let Some(m) = app.selected_model()
-            && let Some(state) = app.model_states.get(&m.display_name)
-                && !matches!(state, ModelState::Available) {
-                    loaded_models.push((m.display_name.clone(), state.clone()));
-                }
+        && let Some(state) = app.model_states.get(&m.display_name)
+        && !matches!(state, ModelState::Available)
+    {
+        loaded_models.push((m.display_name.clone(), state.clone()));
+    }
 
     let mut title_spans = if loaded_models.len() == 1 {
         vec![Span::raw(crate::t!("panel.title.active_active"))]
@@ -300,7 +301,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(" ]", Style::default().fg(Color::White)),
                     Span::styled("  [ ", Style::default().fg(Color::White)),
                     Span::styled("Decoded: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(format!("{}", app.metrics.decoded_tokens), Style::default().fg(Color::Cyan)),
+                    Span::styled(
+                        format!("{}", app.metrics.decoded_tokens),
+                        Style::default().fg(Color::Cyan),
+                    ),
                     Span::styled("  ", Style::default().fg(Color::White)),
                     Span::styled("Gen: ", Style::default().fg(Color::Yellow)),
                     Span::styled(format!("{:.1}", app.metrics.gen_tps), gen_tps_style),

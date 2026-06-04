@@ -28,7 +28,8 @@ pub fn handle_log_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.log.log_scroll_offset += 1;
             // Get inner height (approximate, since we don't have layout here)
             // But we can just use the total lines check
-            app.log.log_follow = app.log.log_scroll_offset >= app.log.log_total_lines.saturating_sub(5);
+            app.log.log_follow =
+                app.log.log_scroll_offset >= app.log.log_total_lines.saturating_sub(5);
         }
         KeyCode::PageUp => {
             app.log.log_scroll_offset = app.log.log_scroll_offset.saturating_sub(15);

@@ -177,13 +177,14 @@ pub fn detect_amd_gfx_targets() -> Vec<String> {
                 for line in props.lines() {
                     if line.starts_with("gfx_target_version")
                         && let Some(val_str) = line.split_whitespace().last()
-                            && let Ok(val) = val_str.parse::<u32>()
-                            && let Some(gfx) = gfx_target_to_string(val) {
-                                if !targets.contains(&gfx) {
-                                    targets.push(gfx);
-                                }
-                                break;
-                            }
+                        && let Ok(val) = val_str.parse::<u32>()
+                        && let Some(gfx) = gfx_target_to_string(val)
+                    {
+                        if !targets.contains(&gfx) {
+                            targets.push(gfx);
+                        }
+                        break;
+                    }
                 }
             }
         }

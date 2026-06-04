@@ -46,8 +46,12 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     progress,
                     current_params: _,
                 } => {
-                    let progress_str =
-                        crate::t_fmt!("status.bench_tune_progress", current, total, format!("{:.0}", progress));
+                    let progress_str = crate::t_fmt!(
+                        "status.bench_tune_progress",
+                        current,
+                        total,
+                        format!("{:.0}", progress)
+                    );
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
                         Style::default().fg(Color::Yellow),
@@ -59,7 +63,12 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     elapsed,
                 } => {
                     let elapsed_str = format!("{}s", elapsed.as_secs());
-                    let progress_str = crate::t_fmt!("status.bench_tune_complete", total_tests, successful_tests, elapsed_str);
+                    let progress_str = crate::t_fmt!(
+                        "status.bench_tune_complete",
+                        total_tests,
+                        successful_tests,
+                        elapsed_str
+                    );
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
                         Style::default().fg(Color::Green),
@@ -72,7 +81,13 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     elapsed,
                 } => {
                     let elapsed_str = format!("{}s", elapsed.as_secs());
-                    let progress_str = crate::t_fmt!("status.bench_tune_partial", total_tests, successful_tests, failed_tests, elapsed_str);
+                    let progress_str = crate::t_fmt!(
+                        "status.bench_tune_partial",
+                        total_tests,
+                        successful_tests,
+                        failed_tests,
+                        elapsed_str
+                    );
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
                         Style::default().fg(Color::Yellow),
@@ -85,7 +100,13 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     elapsed,
                 } => {
                     let elapsed_str = format!("{}s", elapsed.as_secs());
-                    let progress_str = crate::t_fmt!("status.bench_tune_cancelled", total_tests, successful_tests, failed_tests, elapsed_str);
+                    let progress_str = crate::t_fmt!(
+                        "status.bench_tune_cancelled",
+                        total_tests,
+                        successful_tests,
+                        failed_tests,
+                        elapsed_str
+                    );
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
                         Style::default().fg(Color::Yellow),

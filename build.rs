@@ -111,7 +111,8 @@ fn count_struct_fields(src_dir: &Path, file: &str, struct_name: &str) -> usize {
         .lines()
         .position(|l| {
             l.trim().starts_with(&format!("pub struct {}", struct_name))
-                || l.trim().starts_with(&format!("pub struct  {}", struct_name))
+                || l.trim()
+                    .starts_with(&format!("pub struct  {}", struct_name))
         })
         .unwrap_or_else(|| {
             eprintln!("WARNING: Could not find struct {} in {}", struct_name, file);

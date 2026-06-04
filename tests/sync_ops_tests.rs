@@ -109,5 +109,3 @@ fn repo_name_with_extra_suffix_different_size() {
         "unsloth/Qwen3.6-27B-MTP-GGUF"
     ));
 }
-
-

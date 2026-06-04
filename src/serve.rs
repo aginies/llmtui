@@ -180,13 +180,14 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     // Auto-enable MTP if supported by model and not explicitly enabled in config
     if settings.spec_type.is_empty()
         && let Ok(meta) = crate::models::GgufMetadata::from_path(&model_path)
-            && meta.arch == "mtp" {
-                tracing::info!("Auto-enabling MTP (Multi-Token Prediction) for model");
-                settings.spec_type = "draft-mtp".to_string();
-                if settings.draft_tokens == 0 {
-                    settings.draft_tokens = meta.draft_tokens;
-                }
-            }
+        && meta.arch == "mtp"
+    {
+        tracing::info!("Auto-enabling MTP (Multi-Token Prediction) for model");
+        settings.spec_type = "draft-mtp".to_string();
+        if settings.draft_tokens == 0 {
+            settings.draft_tokens = meta.draft_tokens;
+        }
+    }
 
     // WebSocket settings: CLI flags take precedence, then config.yaml
     let ws_enable = opts.ws_enable || config.default.ws_server_enabled;
@@ -322,8 +323,9 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     );
 
     // Set LD_LIBRARY_PATH so the binary can find its shared libraries
-    let bin_dir = binary.parent()
-        .context("Backend binary path has no parent directory. Use a full path for --backend-binary.")?;
+    let bin_dir = binary.parent().context(
+        "Backend binary path has no parent directory. Use a full path for --backend-binary.",
+    )?;
     if let Ok(current) = std::env::var("LD_LIBRARY_PATH") {
         cmd.env(
             "LD_LIBRARY_PATH",

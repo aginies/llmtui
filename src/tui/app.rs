@@ -232,7 +232,9 @@ impl App {
                 continue;
             }
 
-            if now.duration_since(state.last_tick) >= std::time::Duration::from_millis(Self::SCROLL_TICK_MS) {
+            if now.duration_since(state.last_tick)
+                >= std::time::Duration::from_millis(Self::SCROLL_TICK_MS)
+            {
                 // Handle window resize where the new visible width is smaller (max_offset shrinks)
                 if state.offset > state.max_offset {
                     state.offset = state.max_offset;
@@ -277,18 +279,20 @@ impl App {
         for model in &self.models {
             let key = model.display_name.clone();
             let max_offset = model.display_name.chars().count().saturating_sub(20);
-            self.ui.text_scrolls.insert(key, TextScrollState {
-                offset: 0,
-                last_tick: Instant::now(),
-                direction: 1,
-                hold_count: 0,
-                max_offset,
-                visible: false,
-            });
+            self.ui.text_scrolls.insert(
+                key,
+                TextScrollState {
+                    offset: 0,
+                    last_tick: Instant::now(),
+                    direction: 1,
+                    hold_count: 0,
+                    max_offset,
+                    visible: false,
+                },
+            );
         }
     }
-
- }
+}
 
 #[cfg(test)]
 mod tests {

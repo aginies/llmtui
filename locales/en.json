@@ -263,7 +263,7 @@
   "dialog.yarn.title": " Yarn RoPE Params ",
   "dialog.yarn.help": " [↑/↓] Select  [↵] Edit  [⎋] Done  [Space] Enable/Disable Yarn RoPE ",
   "dialog.yarn.label": "Yarn RoPE",
-  "dialog.yarn.effective_context": "  Effective context: {}",
+  "dialog.yarn.effective_context": "  Effective context:",
   "dialog.spec.title": " Speculative Decoding Type ",
   "dialog.spec.help": " [↑/↓] Select  [↵] Apply  [⎋] Cancel ",
   "async.not_enough_disk": "Not enough disk space to download {}: need {} but only {} available",

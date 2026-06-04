@@ -20,8 +20,7 @@ use crate::tui::app::ActivePanel;
 pub use presets::PresetStore;
 
 /// Default system prompt used when no preset is selected.
-pub const DEFAULT_SYSTEM_PROMPT: &str =
-    "You are an expert software developer. Write clean, well-documented code. Explain your reasoning and suggest improvements.";
+pub const DEFAULT_SYSTEM_PROMPT: &str = "You are an expert software developer. Write clean, well-documented code. Explain your reasoning and suggest improvements.";
 
 /// Resolve the base config directory with a safe fallback chain.
 ///
@@ -385,30 +384,83 @@ impl ModelOverride {
         // the override value (even None) is explicitly set by the user.
 
         // Scalar Copy fields: base.f = self.f.unwrap_or(base.f)
-        apply_scalar!(self, base,
-            context_length, batch_size, ubatch_size, keep, swa_full, mlock, mmap,
-            numa, uniform_cache, kv_cache_offload, threads, threads_batch, parallel,
-            split_mode, main_gpu, fit, embedding, flash_attn, jinja, expert_count,
-            seed, temperature, top_k, top_p, min_p, typical_p,
-            mirostat, mirostat_lr, mirostat_ent, ignore_eos,
-            repeat_penalty, repeat_last_n,
-            dry_multiplier, dry_base, dry_allowed_length, dry_penalty_last_n,
-            rope_scaling, rope_scale, rope_freq_base, rope_freq_scale, rope_yarn_enabled,
-            cache_prompt, cache_reuse, webui, cache_type,
-            draft_tokens, gpu_layers_mode,
+        apply_scalar!(
+            self,
+            base,
+            context_length,
+            batch_size,
+            ubatch_size,
+            keep,
+            swa_full,
+            mlock,
+            mmap,
+            numa,
+            uniform_cache,
+            kv_cache_offload,
+            threads,
+            threads_batch,
+            parallel,
+            split_mode,
+            main_gpu,
+            fit,
+            embedding,
+            flash_attn,
+            jinja,
+            expert_count,
+            seed,
+            temperature,
+            top_k,
+            top_p,
+            min_p,
+            typical_p,
+            mirostat,
+            mirostat_lr,
+            mirostat_ent,
+            ignore_eos,
+            repeat_penalty,
+            repeat_last_n,
+            dry_multiplier,
+            dry_base,
+            dry_allowed_length,
+            dry_penalty_last_n,
+            rope_scaling,
+            rope_scale,
+            rope_freq_base,
+            rope_freq_scale,
+            rope_yarn_enabled,
+            cache_prompt,
+            cache_reuse,
+            webui,
+            cache_type,
+            draft_tokens,
+            gpu_layers_mode,
         );
 
         // Cloneable fields: if let Some(v) = &self.f { base.f = v.clone(); }
-        apply_clone!(self, base,
-            system_prompt, system_prompt_preset_name, tensor_split, rpc,
-            samplers, spec_type, tags,
+        apply_clone!(
+            self,
+            base,
+            system_prompt,
+            system_prompt_preset_name,
+            tensor_split,
+            rpc,
+            samplers,
+            spec_type,
+            tags,
         );
 
         // Option<T> fields: if let Some(v) = &self.f { base.f = Some(v.clone()); }
-        apply_option!(self, base,
-            lora, lora_scaled, chat_template, chat_template_kwargs,
-            llama_cpp_version_cpu, llama_cpp_version_vulkan,
-            llama_cpp_version_rocm, llama_cpp_version_rocm_lemonade,
+        apply_option!(
+            self,
+            base,
+            lora,
+            lora_scaled,
+            chat_template,
+            chat_template_kwargs,
+            llama_cpp_version_cpu,
+            llama_cpp_version_vulkan,
+            llama_cpp_version_rocm,
+            llama_cpp_version_rocm_lemonade,
             llama_cpp_version_cuda,
         );
 
@@ -936,9 +988,7 @@ impl Default for Config {
 
 impl Config {
     pub fn config_path() -> PathBuf {
-        config_base_dir()
-            .join("llm-manager")
-            .join("config.yaml")
+        config_base_dir().join("llm-manager").join("config.yaml")
     }
 
     /// Validate config values and return a list of warnings for invalid entries.
@@ -995,33 +1045,37 @@ impl Config {
 
         // Path validation
         if let Some(lora) = &default.lora
-            && !lora.exists() {
-                warnings.push(format!("lora path {} does not exist", lora.display()));
-            }
+            && !lora.exists()
+        {
+            warnings.push(format!("lora path {} does not exist", lora.display()));
+        }
         if let Some((lora, _)) = &default.lora_scaled
-            && !lora.exists() {
-                warnings.push(format!("lora path {} does not exist", lora.display()));
-            }
+            && !lora.exists()
+        {
+            warnings.push(format!("lora path {} does not exist", lora.display()));
+        }
 
         // Model override validation
         for model_name in self.model_overrides.keys() {
             if let Some(override_settings) = self.model_overrides.get(model_name.as_str()) {
                 if let Some(lora) = &override_settings.lora
-                    && !lora.exists() {
-                        warnings.push(format!(
-                            "model '{}' lora path {} does not exist",
-                            model_name,
-                            lora.display()
-                        ));
-                    }
+                    && !lora.exists()
+                {
+                    warnings.push(format!(
+                        "model '{}' lora path {} does not exist",
+                        model_name,
+                        lora.display()
+                    ));
+                }
                 if let Some((lora, _)) = &override_settings.lora_scaled
-                    && !lora.exists() {
-                        warnings.push(format!(
-                            "model '{}' lora path {} does not exist",
-                            model_name,
-                            lora.display()
-                        ));
-                    }
+                    && !lora.exists()
+                {
+                    warnings.push(format!(
+                        "model '{}' lora path {} does not exist",
+                        model_name,
+                        lora.display()
+                    ));
+                }
             }
         }
 

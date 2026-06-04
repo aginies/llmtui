@@ -8,7 +8,9 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use super::{ActivePanel, GlobalMode, LoadingPhase, ResizeState, SettingsRenderCache, TextScrollState};
+use super::{
+    ActivePanel, GlobalMode, LoadingPhase, ResizeState, SettingsRenderCache, TextScrollState,
+};
 
 type SpawnTaskHandle = tokio::task::JoinHandle<
     Result<(String, ServerHandle, String, crate::models::ModelSettings), String>,
@@ -159,7 +161,8 @@ pub struct SearchState {
     pub pending_search_load: Option<(String, u32)>,
     pub search_loading: bool,
     pub search_input: Option<String>,
-    pub gguf_naming_cache: std::collections::HashMap<String, crate::tui::gguf_naming::GgufExplanation>,
+    pub gguf_naming_cache:
+        std::collections::HashMap<String, crate::tui::gguf_naming::GgufExplanation>,
 }
 
 pub struct UIState {

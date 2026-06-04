@@ -258,31 +258,29 @@ struct QuantProviderInfo {
     pub link: &'static str,
 }
 
-static QUANT_PROVIDERS: LazyLock<HashMap<&'static str, QuantProviderInfo>> =
-    LazyLock::new(|| {
-        [
-            (
-                "UD",
-                QuantProviderInfo {
-                    label: "Unsloth Dynamic 2.0",
-                    description:
-                        "Dynamic bit-allocation: KL-divergence calibrated, keeps sensitive \
+static QUANT_PROVIDERS: LazyLock<HashMap<&'static str, QuantProviderInfo>> = LazyLock::new(|| {
+    [
+        (
+            "UD",
+            QuantProviderInfo {
+                label: "Unsloth Dynamic 2.0",
+                description: "Dynamic bit-allocation: KL-divergence calibrated, keeps sensitive \
                         layers at higher precision",
-                    link: "https://unsloth.ai/docs/basics/unsloth-dynamic-2.0-ggufs",
-                },
-            ),
-            (
-                "H",
-                QuantProviderInfo {
-                    label: "HuggingFace",
-                    description: "Standard HuggingFace quantization",
-                    link: "https://huggingface.co/docs/transformers.js/models-converter",
-                },
-            ),
-        ]
-        .into_iter()
-        .collect()
-    });
+                link: "https://unsloth.ai/docs/basics/unsloth-dynamic-2.0-ggufs",
+            },
+        ),
+        (
+            "H",
+            QuantProviderInfo {
+                label: "HuggingFace",
+                description: "Standard HuggingFace quantization",
+                link: "https://huggingface.co/docs/transformers.js/models-converter",
+            },
+        ),
+    ]
+    .into_iter()
+    .collect()
+});
 
 /// Quantization level description (shared across all families).
 struct QuantLevelInfo {
@@ -291,20 +289,54 @@ struct QuantLevelInfo {
 
 static QUANT_LEVELS: LazyLock<HashMap<u32, QuantLevelInfo>> = LazyLock::new(|| {
     [
-        (2, QuantLevelInfo { description: "2-bit quantization — aggressive compression, largest quality loss" }),
-        (3, QuantLevelInfo { description: "3-bit quantization — high compression, noticeable quality loss" }),
-        (4, QuantLevelInfo { description: "4-bit quantization — balanced compression and quality, widely used" }),
-        (5, QuantLevelInfo { description: "5-bit quantization — good quality with moderate compression" }),
-        (6, QuantLevelInfo { description: "6-bit quantization — high quality with moderate compression" }),
-        (7, QuantLevelInfo { description: "7-bit quantization — near-lossless quality" }),
-        (8, QuantLevelInfo { description: "8-bit quantization — nearly indistinguishable from FP16" }),
+        (
+            2,
+            QuantLevelInfo {
+                description: "2-bit quantization — aggressive compression, largest quality loss",
+            },
+        ),
+        (
+            3,
+            QuantLevelInfo {
+                description: "3-bit quantization — high compression, noticeable quality loss",
+            },
+        ),
+        (
+            4,
+            QuantLevelInfo {
+                description: "4-bit quantization — balanced compression and quality, widely used",
+            },
+        ),
+        (
+            5,
+            QuantLevelInfo {
+                description: "5-bit quantization — good quality with moderate compression",
+            },
+        ),
+        (
+            6,
+            QuantLevelInfo {
+                description: "6-bit quantization — high quality with moderate compression",
+            },
+        ),
+        (
+            7,
+            QuantLevelInfo {
+                description: "7-bit quantization — near-lossless quality",
+            },
+        ),
+        (
+            8,
+            QuantLevelInfo {
+                description: "8-bit quantization — nearly indistinguishable from FP16",
+            },
+        ),
     ]
     .into_iter()
     .collect()
 });
 
-const QUANTIZATION_COMMON_LINK: &str =
-    "https://github.com/ggml-org/llama.cpp/discussions/2094";
+const QUANTIZATION_COMMON_LINK: &str = "https://github.com/ggml-org/llama.cpp/discussions/2094";
 
 /// Improved Quantization (IQ) format info.
 /// IQ formats use mixed-precision internally, not simple bit depths.
@@ -336,9 +368,27 @@ struct SizeVariantInfo {
 
 static SIZE_VARIANTS: LazyLock<HashMap<char, SizeVariantInfo>> = LazyLock::new(|| {
     [
-        ('S', SizeVariantInfo { label: "Small", description: "Most aggressive quantization, smallest file size (S < M < L)" }),
-        ('M', SizeVariantInfo { label: "Medium", description: "Balanced between quality and size" }),
-        ('L', SizeVariantInfo { label: "Large", description: "Least aggressive quantization, largest file size, best quality" }),
+        (
+            'S',
+            SizeVariantInfo {
+                label: "Small",
+                description: "Most aggressive quantization, smallest file size (S < M < L)",
+            },
+        ),
+        (
+            'M',
+            SizeVariantInfo {
+                label: "Medium",
+                description: "Balanced between quality and size",
+            },
+        ),
+        (
+            'L',
+            SizeVariantInfo {
+                label: "Large",
+                description: "Least aggressive quantization, largest file size, best quality",
+            },
+        ),
     ]
     .into_iter()
     .collect()
@@ -396,7 +446,10 @@ fn extract_param_info(stem: &str) -> (Option<String>, Option<String>) {
         let after_dash = &stem[a_pos + 1..];
         if after_dash.starts_with('A') && after_dash.len() >= 2 {
             let active_part = &after_dash[1..];
-            if active_part.chars().take(active_part.len() - 1).all(|c| c.is_ascii_digit())
+            if active_part
+                .chars()
+                .take(active_part.len() - 1)
+                .all(|c| c.is_ascii_digit())
                 && active_part.ends_with('B')
             {
                 let total_str = &stem[..a_pos];
@@ -485,7 +538,8 @@ fn extract_quant_scheme(stem: &str) -> (Option<u32>, bool, Option<char>, Option<
                 if let Some(k_pos) = upper.find("_K") {
                     let after_k = &upper[k_pos + 2..];
                     let after_k = after_k.strip_prefix('_').unwrap_or(after_k);
-                    if !after_k.is_empty() && after_k.chars().next().unwrap().is_ascii_alphabetic() {
+                    if !after_k.is_empty() && after_k.chars().next().unwrap().is_ascii_alphabetic()
+                    {
                         size_variant = after_k.chars().next();
                     }
                 }
@@ -531,7 +585,8 @@ fn build_quant_segments(
         segments.push(GgufSegment {
             label: "K".to_string(),
             value: "K-quant".to_string(),
-            description: "Block-wise quantization with double-quantized scales for better quality".to_string(),
+            description: "Block-wise quantization with double-quantized scales for better quality"
+                .to_string(),
             link: QUANTIZATION_COMMON_LINK,
         });
     }
@@ -574,7 +629,12 @@ fn strip_quant_suffix(stem: &str) -> String {
         }
         if (upper == "UD" || upper == "H") && i + 1 < parts.len() {
             let next_upper = parts[i + 1].to_uppercase();
-            if next_upper.starts_with('Q') && next_upper.chars().nth(1).map_or(false, |c| c.is_ascii_digit()) {
+            if next_upper.starts_with('Q')
+                && next_upper
+                    .chars()
+                    .nth(1)
+                    .map_or(false, |c| c.is_ascii_digit())
+            {
                 if i > 0 {
                     return parts[..i].join("-");
                 }
@@ -740,10 +800,7 @@ pub fn get_explanation(
 }
 
 /// Pre-populate the cache with explanations for multiple filenames.
-pub fn populate_cache(
-    filenames: &[&str],
-    cache: &mut HashMap<String, GgufExplanation>,
-) {
+pub fn populate_cache(filenames: &[&str], cache: &mut HashMap<String, GgufExplanation>) {
     for filename in filenames {
         let key = extract_stem(filename);
         if !cache.contains_key(&key) {
@@ -760,7 +817,9 @@ pub fn display_explanation(explanation: &GgufExplanation) {
     println!("{:<15} {:<12} {}", "Segment", "Value", "Description");
     println!("{}", "─".repeat(80));
 
-    let max_label = explanation.segments.iter()
+    let max_label = explanation
+        .segments
+        .iter()
         .map(|s| s.label.len())
         .max()
         .unwrap_or(7);
@@ -783,13 +842,16 @@ fn main() {
 
     if args.len() < 2 {
         println!("Usage: {} <filename.gguf>", args[0]);
-        println!("
+        println!(
+            "
 Examples:
   {} Qwen3.6-35B-A3B-UD-Q5_K_S.gguf
   {} llama-3.1-8B-Instruct-Q4_K_M.gguf
   {} mistral-7b-v0.3-Q8_0.gguf
   {} Qwen3.5-4B-UD-IQ3_XXS.gguf
-", args[0], args[0], args[0], args[0]);
+",
+            args[0], args[0], args[0], args[0]
+        );
         std::process::exit(1);
     }
 
@@ -920,10 +982,7 @@ mod tests {
         let exp1 = get_explanation("Qwen3.6-35B-A3B-UD-Q5_K_S.gguf", &mut cache);
         assert!(!cache.is_empty());
         let exp2 = get_explanation("Qwen3.6-35B-A3B-UD-Q5_K_S.gguf", &mut cache);
-        assert_eq!(
-            cache.get("Qwen3.6-35B-A3B-UD-Q5_K_S").unwrap(),
-            &exp2
-        );
+        assert_eq!(cache.get("Qwen3.6-35B-A3B-UD-Q5_K_S").unwrap(), &exp2);
         assert_eq!(exp1.model_family, exp2.model_family);
     }
 

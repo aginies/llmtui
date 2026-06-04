@@ -22,19 +22,20 @@ pub fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.download.download_progress[idx].status =
                     crate::models::DownloadStatus::Cancelled;
                 if let Some(ref path) = dest
-                    && path.exists() {
-                        if let Err(e) = std::fs::remove_file(path) {
-                            app.add_log(
-                                format!("Failed to remove temp file {}: {}", path.display(), e),
-                                crate::config::LogLevel::Warning,
-                            );
-                        } else {
-                            app.add_log(
-                                format!("Removed temp file: {}", path.display()),
-                                crate::config::LogLevel::Info,
-                            );
-                        }
+                    && path.exists()
+                {
+                    if let Err(e) = std::fs::remove_file(path) {
+                        app.add_log(
+                            format!("Failed to remove temp file {}: {}", path.display(), e),
+                            crate::config::LogLevel::Warning,
+                        );
+                    } else {
+                        app.add_log(
+                            format!("Removed temp file: {}", path.display()),
+                            crate::config::LogLevel::Info,
+                        );
                     }
+                }
                 app.download.download_progress.remove(idx);
                 app.download.downloading = !app.download.download_progress.is_empty();
                 if !app.download.downloading {

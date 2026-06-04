@@ -94,11 +94,8 @@ pub fn render_all(
     let help_line = if app.settings_state.help_visible && !editing {
         let fields = settings::filtered_fields(app.settings_state.expert_mode);
         if let Some(field) = fields.get(selected) {
-            if !field.help_text.is_empty() {
-                Some(field.help_text.to_string())
-            } else {
-                None
-            }
+            let help = crate::tui::i18n::field_help(&field.id);
+            if !help.is_empty() { Some(help) } else { None }
         } else {
             None
         }
@@ -184,9 +181,7 @@ fn render_settings(
                 .bg(Color::Yellow)
                 .add_modifier(Modifier::BOLD)
         } else if visually_disabled {
-            Style::default()
-                .fg(Color::Gray)
-                .add_modifier(Modifier::DIM)
+            Style::default().fg(Color::Gray).add_modifier(Modifier::DIM)
         } else if dirty {
             Style::default().fg(Color::Red)
         } else {
@@ -198,10 +193,7 @@ fn render_settings(
                 if *total_count == selected { "> " } else { "  " },
                 indicator_style,
             ),
-            Span::styled(
-                format!("{}: ", field.name()),
-                name_style,
-            ),
+            Span::styled(format!("{}: ", field.name()), name_style),
             Span::styled(display, final_val_style),
         ]));
         *total_count += 1;

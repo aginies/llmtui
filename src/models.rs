@@ -255,7 +255,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
             api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
- 
+
             spec_type: dp.spec_type,
             draft_tokens: dp.draft_tokens,
             tags: dp.tags,
@@ -264,15 +264,15 @@ impl From<crate::config::DefaultParams> for ModelSettings {
 }
 
 /// How to handle GPU layer offloading.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Hash)]
-#[derive(Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Hash, Default,
+)]
 pub enum GpuLayersMode {
     #[default]
     Auto,
     Specific(u32),
     All,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DownloadStatus {
@@ -841,8 +841,8 @@ pub struct ModelSettings {
     /// Number of draft tokens for MTP.
     pub draft_tokens: u32,
     /// Tags for the model.
-   pub tags: Vec<String>,
-    }
+    pub tags: Vec<String>,
+}
 
 impl Default for ModelSettings {
     fn default() -> Self {
@@ -1492,8 +1492,7 @@ pub enum BenchTuneStatus {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum BenchTuneMode {
     /// Runtime-only mode: sends all params in /completion request body, no server restarts
     RuntimeOnly,
@@ -1501,7 +1500,6 @@ pub enum BenchTuneMode {
     #[default]
     Full,
 }
-
 
 /// Progress status for benchmark tuning
 #[derive(Debug, Clone)]
@@ -1678,7 +1676,7 @@ impl BenchTuneConfig {
                         "ngram-cache".to_string(),
                     ],
                 },
-    BenchTuneParam {
+                BenchTuneParam {
                     name: "draft_tokens".to_string(),
                     min: 0.0,
                     max: 8.0,
@@ -1853,123 +1851,123 @@ mod field_count_tests {
     /// in src/models.rs:665 and all locations listed there.
     #[test]
     fn test_model_settings_field_count() {
-    // This test uses reflection-like field access to verify the count.
-    // If a field is added/removed, the tuple size changes and the
-    // expected count assertion fails.
-    let s = ModelSettings::default();
-    let field_count = count_model_settings_fields(&s);
-    assert_eq!(
-        field_count, 75,
-        "ModelSettings has {} fields (expected 75). \
+        // This test uses reflection-like field access to verify the count.
+        // If a field is added/removed, the tuple size changes and the
+        // expected count assertion fails.
+        let s = ModelSettings::default();
+        let field_count = count_model_settings_fields(&s);
+        assert_eq!(
+            field_count, 75,
+            "ModelSettings has {} fields (expected 75). \
         Update the checklist at src/models.rs:665 and all locations listed there.",
-        field_count
-    );
-}
+            field_count
+        );
+    }
 
-/// Count fields in ModelSettings by forcing reference to each one.
-/// This is a compile-time guarantee: if a field is removed, the
-/// function won't compile. If a field is added, the count changes.
-#[allow(clippy::too_many_lines)]
-fn count_model_settings_fields(s: &ModelSettings) -> usize {
-    let _ = (
-        &s.context_length,
-        &s.threads,
-        &s.threads_batch,
-        &s.batch_size,
-        &s.ubatch_size,
-        &s.parallel,
-        &s.max_concurrent_predictions,
-        &s.uniform_cache,
-        &s.kv_cache_offload,
-        &s.cache_type_k,
-        &s.cache_type_v,
-        &s.keep,
-        &s.swa_full,
-        &s.mlock,
-        &s.mmap,
-        &s.numa,
-        &s.system_prompt,
-        &s.system_prompt_preset_name,
-        &s.gpu_layers_mode,
-        &s.split_mode,
-        &s.tensor_split,
-        &s.main_gpu,
-        &s.fit,
-        &s.lora,
-        &s.lora_scaled,
-        &s.rpc,
-        &s.embedding,
-        &s.flash_attn,
-        &s.expert_count,
-        &s.jinja,
-        &s.chat_template,
-        &s.chat_template_kwargs,
-        &s.seed,
-        &s.temperature,
-        &s.top_k,
-        &s.top_p,
-        &s.min_p,
-        &s.typical_p,
-        &s.mirostat,
-        &s.mirostat_lr,
-        &s.mirostat_ent,
-        &s.ignore_eos,
-        &s.samplers,
-        &s.repeat_penalty,
-        &s.repeat_last_n,
-        &s.presence_penalty,
-        &s.frequency_penalty,
-        &s.dry_multiplier,
-        &s.dry_base,
-        &s.dry_allowed_length,
-        &s.dry_penalty_last_n,
-        &s.rope_scaling,
-        &s.rope_scale,
-        &s.rope_freq_base,
-        &s.rope_freq_scale,
-        &s.rope_yarn_enabled,
-        &s.host,
-        &s.port,
-        &s.timeout,
-        &s.cache_prompt,
-        &s.cache_reuse,
-        &s.webui,
-        &s.max_tokens,
-        &s.cache_type,
-        &s.backend,
-        &s.llama_cpp_version_cpu,
-        &s.llama_cpp_version_vulkan,
-        &s.llama_cpp_version_rocm,
-        &s.llama_cpp_version_rocm_lemonade,
-        &s.llama_cpp_version_cuda,
-        &s.api_endpoint_enabled,
-        &s.api_endpoint_port,
-        &s.spec_type,
-        &s.draft_tokens,
-        &s.tags,
-    );
-    75
-}
+    /// Count fields in ModelSettings by forcing reference to each one.
+    /// This is a compile-time guarantee: if a field is removed, the
+    /// function won't compile. If a field is added, the count changes.
+    #[allow(clippy::too_many_lines)]
+    fn count_model_settings_fields(s: &ModelSettings) -> usize {
+        let _ = (
+            &s.context_length,
+            &s.threads,
+            &s.threads_batch,
+            &s.batch_size,
+            &s.ubatch_size,
+            &s.parallel,
+            &s.max_concurrent_predictions,
+            &s.uniform_cache,
+            &s.kv_cache_offload,
+            &s.cache_type_k,
+            &s.cache_type_v,
+            &s.keep,
+            &s.swa_full,
+            &s.mlock,
+            &s.mmap,
+            &s.numa,
+            &s.system_prompt,
+            &s.system_prompt_preset_name,
+            &s.gpu_layers_mode,
+            &s.split_mode,
+            &s.tensor_split,
+            &s.main_gpu,
+            &s.fit,
+            &s.lora,
+            &s.lora_scaled,
+            &s.rpc,
+            &s.embedding,
+            &s.flash_attn,
+            &s.expert_count,
+            &s.jinja,
+            &s.chat_template,
+            &s.chat_template_kwargs,
+            &s.seed,
+            &s.temperature,
+            &s.top_k,
+            &s.top_p,
+            &s.min_p,
+            &s.typical_p,
+            &s.mirostat,
+            &s.mirostat_lr,
+            &s.mirostat_ent,
+            &s.ignore_eos,
+            &s.samplers,
+            &s.repeat_penalty,
+            &s.repeat_last_n,
+            &s.presence_penalty,
+            &s.frequency_penalty,
+            &s.dry_multiplier,
+            &s.dry_base,
+            &s.dry_allowed_length,
+            &s.dry_penalty_last_n,
+            &s.rope_scaling,
+            &s.rope_scale,
+            &s.rope_freq_base,
+            &s.rope_freq_scale,
+            &s.rope_yarn_enabled,
+            &s.host,
+            &s.port,
+            &s.timeout,
+            &s.cache_prompt,
+            &s.cache_reuse,
+            &s.webui,
+            &s.max_tokens,
+            &s.cache_type,
+            &s.backend,
+            &s.llama_cpp_version_cpu,
+            &s.llama_cpp_version_vulkan,
+            &s.llama_cpp_version_rocm,
+            &s.llama_cpp_version_rocm_lemonade,
+            &s.llama_cpp_version_cuda,
+            &s.api_endpoint_enabled,
+            &s.api_endpoint_port,
+            &s.spec_type,
+            &s.draft_tokens,
+            &s.tags,
+        );
+        75
+    }
 
-/// Verify that is_dirty() uses derived PartialEq (compiler-enforced).
-/// This test confirms that two identical settings are not dirty,
-/// and two different settings are dirty.
-#[test]
-fn test_is_dirty_uses_derived_eq() {
-    let s1 = ModelSettings::default();
-    let s2 = ModelSettings::default();
-    let s3 = s1.clone();
+    /// Verify that is_dirty() uses derived PartialEq (compiler-enforced).
+    /// This test confirms that two identical settings are not dirty,
+    /// and two different settings are dirty.
+    #[test]
+    fn test_is_dirty_uses_derived_eq() {
+        let s1 = ModelSettings::default();
+        let s2 = ModelSettings::default();
+        let s3 = s1.clone();
 
-    // Identical settings should not be dirty
-    assert!(!s1.is_dirty(&s2));
-    assert!(!s1.is_dirty(&s3));
+        // Identical settings should not be dirty
+        assert!(!s1.is_dirty(&s2));
+        assert!(!s1.is_dirty(&s3));
 
-    // Derived PartialEq must match is_dirty
-    assert_eq!(s1 != s2, s1.is_dirty(&s2));
-    assert_eq!(s1 != s3, s1.is_dirty(&s3));
-}
+        // Derived PartialEq must match is_dirty
+        assert_eq!(s1 != s2, s1.is_dirty(&s2));
+        assert_eq!(s1 != s3, s1.is_dirty(&s3));
+    }
 
-   /// Verify DefaultParams and ModelSettings share the same field set
+    /// Verify DefaultParams and ModelSettings share the same field set
     /// via the From<DefaultParams> for ModelSettings implementation.
     #[test]
     fn test_from_default_params_completeness() {
@@ -1985,4 +1983,4 @@ fn test_is_dirty_uses_derived_eq() {
         // so we just verify it was mapped correctly
         assert_eq!(ms.backend, dp.backend);
     }
-    }
+}

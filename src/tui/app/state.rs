@@ -77,30 +77,31 @@ impl App {
         if self.loading.loading_phases.contains(&LoadingTensors) {
             // Parse "loading tensor X of Y" or "loading tensor X out of Y" pattern
             if upper.contains("LOADING TENSOR")
-                && let Some(pos) = msg.to_lowercase().find("loading tensor") {
-                    let rest = &msg[pos + "loading tensor".len()..];
-                    let parts: Vec<&str> = rest.split_whitespace().collect();
-                    if parts.len() >= 3 {
-                        if let Ok(n) = parts[0].parse::<u32>() {
-                            self.loading.load_progress.tensors_loaded = n;
-                        }
-                        // "of Y" or "out of Y" — Y is at index 2 or 4
-                        let total_idx = if parts.len() >= 5 && parts[2].to_lowercase() == "out" {
-                            4
-                        } else if parts.len() >= 3 && parts[1].to_lowercase() == "of" {
-                            2
-                        } else {
-                            usize::MAX
-                        };
-                        if total_idx != usize::MAX
-                            && let Ok(total) = parts[total_idx]
-                                .trim_end_matches(|c: char| !c.is_ascii_digit())
-                                .parse::<u32>()
-                            {
-                                self.loading.load_progress.tensors_total = Some(total);
-                            }
+                && let Some(pos) = msg.to_lowercase().find("loading tensor")
+            {
+                let rest = &msg[pos + "loading tensor".len()..];
+                let parts: Vec<&str> = rest.split_whitespace().collect();
+                if parts.len() >= 3 {
+                    if let Ok(n) = parts[0].parse::<u32>() {
+                        self.loading.load_progress.tensors_loaded = n;
+                    }
+                    // "of Y" or "out of Y" — Y is at index 2 or 4
+                    let total_idx = if parts.len() >= 5 && parts[2].to_lowercase() == "out" {
+                        4
+                    } else if parts.len() >= 3 && parts[1].to_lowercase() == "of" {
+                        2
+                    } else {
+                        usize::MAX
+                    };
+                    if total_idx != usize::MAX
+                        && let Ok(total) = parts[total_idx]
+                            .trim_end_matches(|c: char| !c.is_ascii_digit())
+                            .parse::<u32>()
+                    {
+                        self.loading.load_progress.tensors_total = Some(total);
                     }
                 }
+            }
             // Count dots from progress lines like "................................"
             // Only use dot-counting as fallback when we haven't seen an explicit tensor count yet
             if self.loading.load_progress.tensors_total.is_none() {
@@ -314,20 +315,21 @@ impl App {
 
     pub fn handle_server_exit(&mut self) {
         if let Some(rx) = &mut self.server.server_exit_rx
-            && let Ok(()) = rx.try_recv() {
-                self.server.server_handle = None;
-                self.loading.loading_phases.clear();
-                self.loading.last_active_phase = None;
-                self.loading.loading_progress = 0.0;
-                self.loading.load_progress = Default::default();
+            && let Ok(()) = rx.try_recv()
+        {
+            self.server.server_handle = None;
+            self.loading.loading_phases.clear();
+            self.loading.last_active_phase = None;
+            self.loading.loading_progress = 0.0;
+            self.loading.load_progress = Default::default();
 
-                if !self.bench_tune.bench_tune_running {
-                    for state in self.model_states.values_mut() {
-                        *state = crate::models::ModelState::Available;
-                    }
-                    self.ui.needs_redraw = true;
+            if !self.bench_tune.bench_tune_running {
+                for state in self.model_states.values_mut() {
+                    *state = crate::models::ModelState::Available;
                 }
+                self.ui.needs_redraw = true;
             }
+        }
     }
 
     fn trim_log(&mut self) {

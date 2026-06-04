@@ -132,8 +132,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // ── Field-specific handlers (match on field id) ─────────────────────────
 
     // System Prompt: open picker modal on Enter
-    if field_id == Some("system_prompt_preset_name") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("system_prompt_preset_name") && key.code == KeyCode::Enter {
         app.picker.prompt_picker_entries = app
             .config
             .merged_presets()
@@ -158,8 +157,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Keep in memory (mlock): toggle on Enter
-    if field_id == Some("mlock") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("mlock") && key.code == KeyCode::Enter {
         app.settings.mlock = !app.settings.mlock;
         mark_settings_dirty(app, true);
         return;
@@ -220,24 +218,21 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Flash Attention: toggle on Enter
-    if field_id == Some("flash_attn") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("flash_attn") && key.code == KeyCode::Enter {
         app.settings.flash_attn = !app.settings.flash_attn;
         mark_settings_dirty(app, true);
         return;
     }
 
     // Fit: toggle on Enter
-    if field_id == Some("fit") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("fit") && key.code == KeyCode::Enter {
         app.settings.fit = !app.settings.fit;
         mark_settings_dirty(app, true);
         return;
     }
 
     // KV Cache Offload: toggle on Enter
-    if field_id == Some("kv_cache_offload") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("kv_cache_offload") && key.code == KeyCode::Enter {
         app.settings.kv_cache_offload = !app.settings.kv_cache_offload;
         mark_settings_dirty(app, true);
         return;
@@ -258,24 +253,21 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Unified KV: toggle on Enter
-    if field_id == Some("uniform_cache") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("uniform_cache") && key.code == KeyCode::Enter {
         app.settings.uniform_cache = !app.settings.uniform_cache;
         mark_settings_dirty(app, true);
         return;
     }
 
     // SWA Full Cache: toggle on Enter
-    if field_id == Some("swa_full") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("swa_full") && key.code == KeyCode::Enter {
         app.settings.swa_full = !app.settings.swa_full;
         mark_settings_dirty(app, true);
         return;
     }
 
     // Max Concurrent Pred: Enter with empty buffer opens picker modal
-    if field_id == Some("max_concurrent_predictions") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("max_concurrent_predictions") && key.code == KeyCode::Enter {
         let current = app
             .settings
             .max_concurrent_predictions
@@ -287,8 +279,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Tags: open tags modal on Enter
-    if field_id == Some("tags") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("tags") && key.code == KeyCode::Enter {
         app.edit.tags_editing = true;
         app.edit.tags_insert_mode = true;
         app.edit.tags_edit_buffer = String::new();
@@ -298,16 +289,14 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Yarn RoPE: toggle on Enter
-    if field_id == Some("rope_yarn_enabled") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("rope_yarn_enabled") && key.code == KeyCode::Enter {
         app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
         mark_settings_dirty(app, false);
         return;
     }
 
     // Yarn Params: open modal on Enter
-    if field_id == Some("yarn_params") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("yarn_params") && key.code == KeyCode::Enter {
         app.ui.global_mode = GlobalMode::YarnRoPESettings {
             scale: format!("{:.2}", app.settings.rope_scale),
             freq_base: format!("{:.2}", app.settings.rope_freq_base),
@@ -322,8 +311,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Spec type: open picker on Enter
-    if field_id == Some("is_mtp") && key.code == KeyCode::Enter
-    {
+    if field_id == Some("is_mtp") && key.code == KeyCode::Enter {
         let entries = vec![
             "Off".to_string(),
             "draft-mtp".to_string(),

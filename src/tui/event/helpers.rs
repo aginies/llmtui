@@ -7,7 +7,8 @@ pub struct TextEditor<'a> {
 
 impl TextEditor<'_> {
     pub fn insert_char(&mut self, c: char) {
-        let byte_pos = self.buffer
+        let byte_pos = self
+            .buffer
             .char_indices()
             .nth(*self.cursor)
             .map(|(i, _)| i)
@@ -17,7 +18,8 @@ impl TextEditor<'_> {
     }
 
     pub fn insert_newline(&mut self) {
-        let byte_pos = self.buffer
+        let byte_pos = self
+            .buffer
             .char_indices()
             .nth(*self.cursor)
             .map(|(i, _)| i)
@@ -31,7 +33,8 @@ impl TextEditor<'_> {
             return;
         }
         let char_pos = *self.cursor - 1;
-        let byte_pos = self.buffer
+        let byte_pos = self
+            .buffer
             .char_indices()
             .nth(char_pos)
             .map(|(i, _)| i)
@@ -49,7 +52,8 @@ impl TextEditor<'_> {
         if *self.cursor >= self.buffer.chars().count() {
             return;
         }
-        let byte_pos = self.buffer
+        let byte_pos = self
+            .buffer
             .char_indices()
             .nth(*self.cursor)
             .map(|(i, _)| i)

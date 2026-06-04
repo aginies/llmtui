@@ -59,11 +59,7 @@ fn extract_version_number(tag: &str) -> u64 {
 fn compare_versions<'a>(a: &'a str, b: &'a str) -> &'a str {
     let a_num = extract_version_number(a);
     let b_num = extract_version_number(b);
-    if a_num >= b_num {
-        a
-    } else {
-        b
-    }
+    if a_num >= b_num { a } else { b }
 }
 
 /// Map a backend to the GitHub repo and asset name pattern to search for.
@@ -72,8 +68,12 @@ fn resolve_backend_key(backend: &crate::models::Backend) -> Option<(&'static str
     match backend {
         // Linux x64 backends from ggml-org/llama.cpp
         crate::models::Backend::Cpu => Some(("ggml-org/llama.cpp", "bin-ubuntu-x64.tar.gz")),
-        crate::models::Backend::Vulkan => Some(("ggml-org/llama.cpp", "bin-ubuntu-vulkan-x64.tar.gz")),
-        crate::models::Backend::Rocm => Some(("ggml-org/llama.cpp", "bin-ubuntu-rocm-7.2-x64.tar.gz")),
+        crate::models::Backend::Vulkan => {
+            Some(("ggml-org/llama.cpp", "bin-ubuntu-vulkan-x64.tar.gz"))
+        }
+        crate::models::Backend::Rocm => {
+            Some(("ggml-org/llama.cpp", "bin-ubuntu-rocm-7.2-x64.tar.gz"))
+        }
         // Linux ARM64
         crate::models::Backend::CpuArm64 => Some(("ggml-org/llama.cpp", "bin-ubuntu-arm64.tar.gz")),
         // ROCm Lemonade (separate repo)
@@ -82,9 +82,13 @@ fn resolve_backend_key(backend: &crate::models::Backend) -> Option<(&'static str
         crate::models::Backend::Cuda => Some(("ai-dock/llama.cpp-cuda", "cuda-12.8")),
         // Windows CPU/Vulkan
         crate::models::Backend::CpuWindows => Some(("ggml-org/llama.cpp", "bin-win-cpu-x64.zip")),
-        crate::models::Backend::VulkanWindows => Some(("ggml-org/llama.cpp", "bin-win-vulkan-x64.zip")),
+        crate::models::Backend::VulkanWindows => {
+            Some(("ggml-org/llama.cpp", "bin-win-vulkan-x64.zip"))
+        }
         // Windows HIP (AMD)
-        crate::models::Backend::HipWindows => Some(("ggml-org/llama.cpp", "bin-win-hip-radeon-x64.zip")),
+        crate::models::Backend::HipWindows => {
+            Some(("ggml-org/llama.cpp", "bin-win-hip-radeon-x64.zip"))
+        }
         // Windows CUDA (different CUDA versions)
         crate::models::Backend::CudaWindows12_4 => Some(("ai-dock/llama.cpp-cuda", "cuda-12.4")),
         crate::models::Backend::CudaWindows13_1 => Some(("ai-dock/llama.cpp-cuda", "cuda-13.1")),
@@ -114,10 +118,7 @@ pub async fn search_models(
     let resp = reqwest::get(&url).await?.error_for_status()?;
     let models: Vec<serde_json::Value> = resp.json().await?;
 
-    let query_words: Vec<String> = query
-        .split_whitespace()
-        .map(|w| w.to_lowercase())
-        .collect();
+    let query_words: Vec<String> = query.split_whitespace().map(|w| w.to_lowercase()).collect();
     let raw_ids: Vec<String> = models
         .iter()
         .filter_map(|m| m.get("id").and_then(|v| v.as_str()))
@@ -575,9 +576,7 @@ pub async fn resolve_backend_binary(
                     tracing::info!("  -> using latest from GitHub: {}", available);
                     available
                 }
-                (None, None) => {
-                    default_tag("ggml-org/llama.cpp").to_string()
-                }
+                (None, None) => default_tag("ggml-org/llama.cpp").to_string(),
             }
         }
     };
@@ -734,7 +733,10 @@ pub async fn resolve_backend_binary(
     } else {
         let resp = client
             .get(&download_url)
-            .header("User-Agent", concat!("llm-manager/", env!("CARGO_PKG_VERSION")))
+            .header(
+                "User-Agent",
+                concat!("llm-manager/", env!("CARGO_PKG_VERSION")),
+            )
             .send()
             .await?
             .error_for_status()?;
@@ -894,13 +896,12 @@ where
 /// Iterates through the last 100 releases and returns the first tag whose
 /// release assets contain a file whose name includes `asset_pattern`.
 /// Falls back to the provided default tag if no match is found.
-async fn latest_release_with_asset(
-    repo: &str,
-    asset_pattern: &str,
-    fallback: &str,
-) -> String {
+async fn latest_release_with_asset(repo: &str, asset_pattern: &str, fallback: &str) -> String {
     let client = reqwest::Client::new();
-    let url = format!("https://api.github.com/repos/{}/releases?per_page=100", repo);
+    let url = format!(
+        "https://api.github.com/repos/{}/releases?per_page=100",
+        repo
+    );
     latest_release_with_asset_inner(&client, &url, asset_pattern, fallback).await
 }
 

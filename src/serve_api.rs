@@ -83,11 +83,13 @@ async fn proxy_streaming(
         axum::http::Method::POST => state.client.post(&url),
         axum::http::Method::PUT => state.client.put(&url),
         axum::http::Method::DELETE => state.client.delete(&url),
-        _ => return (
-            StatusCode::METHOD_NOT_ALLOWED,
-            Json(serde_json::json!({"error": "Method not supported"})),
-        )
-            .into_response(),
+        _ => {
+            return (
+                StatusCode::METHOD_NOT_ALLOWED,
+                Json(serde_json::json!({"error": "Method not supported"})),
+            )
+                .into_response();
+        }
     };
 
     const HOP_BY_HOP: &[&str] = &[
@@ -126,9 +128,8 @@ async fn proxy_streaming(
 
             if is_sse {
                 let mut response = axum::response::Response::new(Body::from_stream(
-                    resp.bytes_stream().map(|result| {
-                        result.map_err(std::io::Error::other)
-                    }),
+                    resp.bytes_stream()
+                        .map(|result| result.map_err(std::io::Error::other)),
                 ));
                 *response.status_mut() = status;
                 for (name, value) in headers.iter() {

@@ -1,7 +1,5 @@
 use crate::config::Profile;
-use crate::models::{
-    CacheQuantType, GpuLayersMode, Mirostat, ModelSettings, NumMode, SplitMode,
-};
+use crate::models::{CacheQuantType, GpuLayersMode, Mirostat, ModelSettings, NumMode, SplitMode};
 use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
@@ -29,6 +27,7 @@ pub struct SettingField {
     pub is_expert: bool,
     pub is_ultra: bool,
     pub is_enabled: Option<fn(&ModelSettings) -> bool>,
+    #[allow(dead_code)]
     pub help_text: &'static str,
 }
 
@@ -82,7 +81,7 @@ macro_rules! make_field_fn {
             adjust: AdjustFn,
             apply_edit: ApplyEditFn,
             ctrl_e_toggle: CtrlEToggleFn,
-            help_text: &'static str,
+            _help_text: &'static str,
         ) -> SettingField {
             SettingField {
                 id,
@@ -96,7 +95,7 @@ macro_rules! make_field_fn {
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
-                help_text,
+                help_text: "",
             }
         }
     };
@@ -109,7 +108,7 @@ macro_rules! make_field_fn {
             dirty: DirtyFn,
             adjust: AdjustFn,
             apply_edit: ApplyEditFn,
-            help_text: &'static str,
+            _help_text: &'static str,
         ) -> SettingField {
             SettingField {
                 id,
@@ -123,7 +122,7 @@ macro_rules! make_field_fn {
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
-                help_text,
+                help_text: "",
             }
         }
     };
@@ -204,10 +203,14 @@ fn toggle_max_concurrent_predictions(settings: &mut ModelSettings) {
         .map_or(Some(1), |_| None);
 }
 fn toggle_cache_type_k(settings: &mut ModelSettings) {
-    settings.cache_type_k = settings.cache_type_k.map_or(Some(CacheQuantType::F16), |_| None);
+    settings.cache_type_k = settings
+        .cache_type_k
+        .map_or(Some(CacheQuantType::F16), |_| None);
 }
 fn toggle_cache_type_v(settings: &mut ModelSettings) {
-    settings.cache_type_v = settings.cache_type_v.map_or(Some(CacheQuantType::F16), |_| None);
+    settings.cache_type_v = settings
+        .cache_type_v
+        .map_or(Some(CacheQuantType::F16), |_| None);
 }
 fn toggle_expert_count(settings: &mut ModelSettings) {
     settings.expert_count = match settings.expert_count {
@@ -227,35 +230,45 @@ fn toggle_frequency_penalty(settings: &mut ModelSettings) {
 
 macro_rules! diff_int {
     ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
-        if let Some(v) = $s.$field && v != $c.$field {
+        if let Some(v) = $s.$field
+            && v != $c.$field
+        {
             $parts.push(format!("{}={}", $label, v));
         }
     };
 }
 macro_rules! diff_float {
     ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
-        if let Some(v) = $s.$field && (v - $c.$field).abs() > 0.001 {
+        if let Some(v) = $s.$field
+            && (v - $c.$field).abs() > 0.001
+        {
             $parts.push(format!("{}={:.2}", $label, v));
         }
     };
 }
 macro_rules! diff_bool {
     ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
-        if let Some(v) = $s.$field && v != $c.$field {
+        if let Some(v) = $s.$field
+            && v != $c.$field
+        {
             $parts.push(format!("{}={}", $label, v));
         }
     };
 }
 macro_rules! diff_string {
     ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
-        if let Some(v) = &$s.$field && v != &$c.$field {
+        if let Some(v) = &$s.$field
+            && v != &$c.$field
+        {
             $parts.push(format!("{}={}", $label, v));
         }
     };
 }
 macro_rules! diff_enum {
     ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
-        if let Some(ref v) = $s.$field && *v != $c.$field {
+        if let Some(ref v) = $s.$field
+            && *v != $c.$field
+        {
             $parts.push(format!("{}={}", $label, v));
         }
     };
@@ -538,13 +551,16 @@ pub fn all_fields() -> Vec<SettingField> {
             "Offload KV cache to RAM when GPU memory is full. Allows larger batch sizes and contexts at the cost of some speed. Useful when VRAM is limited but you still want longer conversations.",
         ),
         // ── Cache type fields ──────────────────────────────────────────────────
-
         {
             let mut f = expert_field(
                 "cache_type_k",
                 "Cache Type K",
                 "GPU Offload",
-                |s| s.cache_type_k.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
+                |s| {
+                    s.cache_type_k
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| "Disabled".to_string())
+                },
                 |s, c| s.cache_type_k != c.cache_type_k,
                 |s, delta, _| {
                     let mut val = s.cache_type_k.unwrap_or(CacheQuantType::F16);
@@ -566,7 +582,11 @@ pub fn all_fields() -> Vec<SettingField> {
                 "cache_type_v",
                 "Cache Type V",
                 "GPU Offload",
-                |s| s.cache_type_v.map(|v| v.to_string()).unwrap_or_else(|| "Disabled".to_string()),
+                |s| {
+                    s.cache_type_v
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| "Disabled".to_string())
+                },
                 |s, c| s.cache_type_v != c.cache_type_v,
                 |s, delta, _| {
                     let mut val = s.cache_type_v.unwrap_or(CacheQuantType::F16);
@@ -1270,11 +1290,29 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_string!(parts, s, current, tensor_split, "tensor_split");
     diff_string!(parts, s, current, rpc, "rpc");
     diff_option!(parts, s, current, chat_template, "chat_template");
-    diff_option!(parts, s, current, chat_template_kwargs, "chat_template_kwargs");
+    diff_option!(
+        parts,
+        s,
+        current,
+        chat_template_kwargs,
+        "chat_template_kwargs"
+    );
     diff_option!(parts, s, current, llama_cpp_version_cpu, "llama_cpp_cpu");
-    diff_option!(parts, s, current, llama_cpp_version_vulkan, "llama_cpp_vulkan");
+    diff_option!(
+        parts,
+        s,
+        current,
+        llama_cpp_version_vulkan,
+        "llama_cpp_vulkan"
+    );
     diff_option!(parts, s, current, llama_cpp_version_rocm, "llama_cpp_rocm");
-    diff_option!(parts, s, current, llama_cpp_version_rocm_lemonade, "llama_cpp_rocm_lemonade");
+    diff_option!(
+        parts,
+        s,
+        current,
+        llama_cpp_version_rocm_lemonade,
+        "llama_cpp_rocm_lemonade"
+    );
     diff_option!(parts, s, current, llama_cpp_version_cuda, "llama_cpp_cuda");
     diff_string!(parts, s, current, spec_type, "spec_type");
 
@@ -1289,7 +1327,9 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_option!(parts, s, current, cache_type_v, "cache_type_v");
 
     // ── Special (custom display) ──────────────────────────────────────────
-    if let Some(v) = s.gpu_layers_mode && v != current.gpu_layers_mode {
+    if let Some(v) = s.gpu_layers_mode
+        && v != current.gpu_layers_mode
+    {
         let display = match v {
             crate::models::GpuLayersMode::Auto => "Auto".to_string(),
             crate::models::GpuLayersMode::Specific(n) => n.to_string(),

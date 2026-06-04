@@ -1,10 +1,10 @@
 use ratatui::{
     Frame,
     layout::Rect,
+    prelude::Stylize,
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    prelude::Stylize,
 };
 
 use super::info;
@@ -82,7 +82,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         } else {
             1
         };
-      let help_line_count = help_line_count.clamp(1, 6);
+        let help_line_count = help_line_count.clamp(1, 6);
 
         // visible lines = available height minus help box
         let visible_lines: Vec<Line<'static>> = settings_lines
@@ -326,7 +326,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         false,
         server_running,
     );
-      settings_helper::add_setting(
+    settings_helper::add_setting(
         &mut lines,
         &mut count,
         &app.settings,
@@ -433,12 +433,13 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    let (all_lines, _count, settings_height, _selected_line_idx, help_line) = settings::render_all(app, area, false);
+    let (all_lines, _count, settings_height, _selected_line_idx, help_line) =
+        settings::render_all(app, area, false);
 
-   let available_height = area.height.saturating_sub(2);
+    let available_height = area.height.saturating_sub(2);
     let start_idx = app.settings_state.settings_scroll_offset;
 
-   let inner = block.inner(area);
+    let inner = block.inner(area);
 
     // Always draw outer block first (green border)
     f.render_widget(Paragraph::new(vec![]).block(block), area);
@@ -591,7 +592,10 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                     let pairs = info::render_model_lines(model, cached_meta);
                     let value_width = width.saturating_sub(7);
                     let path_str = model.path.to_string_lossy().to_string();
-                    let max_offset = path_str.chars().count().saturating_sub(value_width as usize);
+                    let max_offset = path_str
+                        .chars()
+                        .count()
+                        .saturating_sub(value_width as usize);
                     let state = app.ui.text_scrolls.entry(key.clone()).or_insert_with(|| {
                         crate::tui::app::TextScrollState {
                             offset: 0,
@@ -665,7 +669,11 @@ pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static
 
 /// Convert ModelInfoPairs into 2-column Lines.
 /// Path is rendered full-width on its own line.
-fn render_model_info_lines(pairs: &[ModelInfoPair], width: u16, state: Option<&crate::tui::app::TextScrollState>) -> Vec<Line<'static>> {
+fn render_model_info_lines(
+    pairs: &[ModelInfoPair],
+    width: u16,
+    state: Option<&crate::tui::app::TextScrollState>,
+) -> Vec<Line<'static>> {
     if pairs.is_empty() {
         return empty_info();
     }

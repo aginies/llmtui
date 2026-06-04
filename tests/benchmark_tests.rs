@@ -282,7 +282,7 @@ fn generate_combinations_expert_count_six_values() {
 
 #[test]
 fn generate_combinations_repeat_penalty_three_values() {
-  let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
+    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
     // Enable only repeat_penalty (1.0 to 1.5 step 0.1 = 6 values)
     if let Some(p) = config
         .params_to_test

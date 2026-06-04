@@ -116,7 +116,12 @@ impl App {
             }
         }
         self.add_log(
-            crate::t_fmt!("async.model_deleted", path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()),
+            crate::t_fmt!(
+                "async.model_deleted",
+                path.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default()
+            ),
             crate::config::LogLevel::Info,
         );
         self.ui.needs_redraw = true;
@@ -152,30 +157,31 @@ impl App {
     pub async fn poll_backend_resolution(&mut self) {
         if let Some(handle) = &self.pending.backend_resolve_handle
             && handle.is_finished()
-                && let Some(handle) = self.pending.backend_resolve_handle.take() {
-                    match handle.await {
-                        Ok(Ok(path)) => {
-                            self.add_log(
-                                crate::t_fmt!("async.backend_ready", path.display()),
-                                crate::config::LogLevel::Info,
-                            );
-                        }
-                        Ok(Err(e)) => {
-                            self.add_log(
-                                crate::t_fmt!("async.backend_install_failed", e),
-                                crate::config::LogLevel::Error,
-                            );
-                        }
-                        Err(e) => {
-                            self.add_log(
-                                crate::t_fmt!("async.backend_task_panic", e),
-                                crate::config::LogLevel::Error,
-                            );
-                        }
-                    }
-                    self.pending.backend_resolving = false;
-                    self.ui.needs_redraw = true;
+            && let Some(handle) = self.pending.backend_resolve_handle.take()
+        {
+            match handle.await {
+                Ok(Ok(path)) => {
+                    self.add_log(
+                        crate::t_fmt!("async.backend_ready", path.display()),
+                        crate::config::LogLevel::Info,
+                    );
                 }
+                Ok(Err(e)) => {
+                    self.add_log(
+                        crate::t_fmt!("async.backend_install_failed", e),
+                        crate::config::LogLevel::Error,
+                    );
+                }
+                Err(e) => {
+                    self.add_log(
+                        crate::t_fmt!("async.backend_task_panic", e),
+                        crate::config::LogLevel::Error,
+                    );
+                }
+            }
+            self.pending.backend_resolving = false;
+            self.ui.needs_redraw = true;
+        }
     }
 
     pub fn poll_download_progress(&mut self) {
@@ -211,16 +217,21 @@ impl App {
                             };
                             download_logs.push(crate::t_fmt!(
                                 "async.downloading_progress",
-                                name, new_pct, format!("{:.1}", total_mib), format!("{:.2}", speed_mib)
+                                name,
+                                new_pct,
+                                format!("{:.1}", total_mib),
+                                format!("{:.2}", speed_mib)
                             ));
                         }
                     }
                     self.download.download_progress[idx] = state;
                 } else {
                     if state.model_id == "llama-server" {
-                        download_logs.push(crate::t!("async.starting_backend_download").to_string());
+                        download_logs
+                            .push(crate::t!("async.starting_backend_download").to_string());
                     } else {
-                        download_logs.push(crate::t_fmt!("async.starting_download", state.filename));
+                        download_logs
+                            .push(crate::t_fmt!("async.starting_download", state.filename));
                     }
                     self.download.download_progress.push(state);
                 }
@@ -307,12 +318,13 @@ impl App {
                         );
                         if let Some(ref dest) = state.dest
                             && dest.exists()
-                                && let Err(e) = std::fs::remove_file(dest) {
-                                    self.add_log(
-                                        crate::t_fmt!("async.remove_temp_failed", dest.display(), e),
-                                        crate::config::LogLevel::Warning,
-                                    );
-                                }
+                            && let Err(e) = std::fs::remove_file(dest)
+                        {
+                            self.add_log(
+                                crate::t_fmt!("async.remove_temp_failed", dest.display(), e),
+                                crate::config::LogLevel::Warning,
+                            );
+                        }
                     }
                     _ => {}
                 }
@@ -354,7 +366,11 @@ impl App {
                 if line.contains("n_decoded =")
                     && let Some(decoded_part) = line.split("n_decoded =").last()
                 {
-                    let val_str = decoded_part.split(',').next().unwrap_or(decoded_part).trim();
+                    let val_str = decoded_part
+                        .split(',')
+                        .next()
+                        .unwrap_or(decoded_part)
+                        .trim();
                     if let Ok(tokens) = val_str.parse::<u64>() {
                         self.metrics.decoded_tokens = tokens;
                     }
@@ -743,16 +759,18 @@ impl App {
                 let settings_for_result = settings_clone.clone();
                 let exit_tx_clone = exit_tx.clone();
                 let handle = tokio::spawn(async move {
-                    crate::backend::server::spawn_server(crate::backend::server::SpawnServerRequest {
-                        config: &config_clone,
-                        model: model_clone.as_ref(),
-                        settings: &settings_clone,
-                        log_tx: tx_clone,
-                        progress_tx: download_tx_clone,
-                        server_mode: server_mode_clone,
-                        router_max_models: router_max_models_clone,
-                        exit_tx: exit_tx_clone,
-                    })
+                    crate::backend::server::spawn_server(
+                        crate::backend::server::SpawnServerRequest {
+                            config: &config_clone,
+                            model: model_clone.as_ref(),
+                            settings: &settings_clone,
+                            log_tx: tx_clone,
+                            progress_tx: download_tx_clone,
+                            server_mode: server_mode_clone,
+                            router_max_models: router_max_models_clone,
+                            exit_tx: exit_tx_clone,
+                        },
+                    )
                     .await
                     .map(|(handle, cmd)| (display_name, handle, cmd, settings_for_result))
                 });
@@ -800,7 +818,10 @@ impl App {
                     let task_port = port;
                     let task_pid = pid;
                     let metrics_model_name = self.server.metrics_model_name.clone();
-                    self.add_log(crate::t!("async.starting_metrics"), crate::config::LogLevel::Info);
+                    self.add_log(
+                        crate::t!("async.starting_metrics"),
+                        crate::config::LogLevel::Info,
+                    );
                     let _task_handle = tokio::spawn(Self::metrics_polling_task(
                         task_host,
                         task_port,
@@ -945,11 +966,18 @@ impl App {
                 Ok((results, display_name, bench_config)) => match results {
                     Ok(bench_results) => {
                         self.add_log(
-                            crate::t_fmt!("async.benchmark_completed", display_name, bench_results.len()),
+                            crate::t_fmt!(
+                                "async.benchmark_completed",
+                                display_name,
+                                bench_results.len()
+                            ),
                             crate::config::LogLevel::Info,
                         );
                         if bench_results.is_empty() {
-                            self.add_log(crate::t!("async.benchmark_no_results"), crate::config::LogLevel::Warning);
+                            self.add_log(
+                                crate::t!("async.benchmark_no_results"),
+                                crate::config::LogLevel::Warning,
+                            );
                         } else {
                             let output_dir = crate::config::Config::config_path()
                                 .parent()
@@ -982,13 +1010,14 @@ impl App {
                         self.bench_tune.bench_tune_results = sorted_results;
                         self.bench_tune.bench_tune_running = false;
 
-                        let model_display_name = self
-                            .selected_model()
-                            .map(|m| m.display_name.clone());
+                        let model_display_name =
+                            self.selected_model().map(|m| m.display_name.clone());
 
                         if let Some(model_display_name) = model_display_name {
-                            self.model_states
-                                .insert(model_display_name.clone(), crate::models::ModelState::Available);
+                            self.model_states.insert(
+                                model_display_name.clone(),
+                                crate::models::ModelState::Available,
+                            );
                         }
 
                         if let Some(handle) = &self.server.server_handle {
@@ -1079,8 +1108,7 @@ impl App {
                         )
                         .await
                         {
-                            let err_msg =
-                                crate::t_fmt!("async.load_failed", model_name_err, e);
+                            let err_msg = crate::t_fmt!("async.load_failed", model_name_err, e);
                             if let Some(tx) = log_tx {
                                 let _ = tx.send(err_msg.clone()).await;
                             } else {
@@ -1104,110 +1132,110 @@ impl App {
         if !matches!(
             self.ui.global_mode,
             super::types::GlobalMode::Confirmation { .. }
-        )
-            && let Some((model_name, model_path)) = self.pending.pending_api_unload.take()
-                && let Some(handle) = &self.server.server_handle
+        ) && let Some((model_name, model_path)) = self.pending.pending_api_unload.take()
+            && let Some(handle) = &self.server.server_handle
+        {
+            let server_mode = self.server_mode;
+            let handle_clone = handle.clone();
             {
-                let server_mode = self.server_mode;
-                let handle_clone = handle.clone();
-                {
-                    let mut lock = self.server.metrics_model_name.lock().unwrap();
-                    if lock.as_deref() == Some(&model_name) {
-                        *lock = None;
-                    }
+                let mut lock = self.server.metrics_model_name.lock().unwrap();
+                if lock.as_deref() == Some(&model_name) {
+                    *lock = None;
                 }
-                let host = handle.host.clone();
-                let port = handle.port;
-                let model_name_clone = model_name.clone();
-                let model_path_clone = model_path.clone();
-                if server_mode == crate::models::ServerMode::Normal {
-                    self.add_log(
-                        crate::t_fmt!("async.unloading", model_name_clone),
-                        crate::config::LogLevel::Info,
-                    );
-                    self.pending.pending_kill = Some(handle_clone);
-                } else {
-                    self.add_log(
-                        crate::t_fmt!("async.send_unload", model_name_clone),
-                        crate::config::LogLevel::Info,
-                    );
-                    let kill_tx = self.server.spawn_log_tx.clone();
-                    let kill_tx2 = kill_tx.clone();
-                    let server_clone = self.server.server_handle.clone();
-                    let host_clone = host.clone();
-                    let port_clone = port;
-                    let model_name_task = model_name_clone.clone();
-                    let loaded_names_clone = self.server.loaded_model_names.clone();
-                    self.background_tasks.insert(
-                        format!("api_unload_{}", model_name_task),
-                        tokio::spawn(async move {
-                            if let Err(e) = crate::backend::server::unload_model(
-                                &host,
-                                port,
-                                &model_name_clone,
-                                model_path_clone.as_deref(),
-                            )
-                            .await
-                            {
-                                if let Some(tx) = kill_tx {
-                                    let _ = tx
-                                        .send(crate::t_fmt!("async.unload_failed", e))
-                                        .await;
-                                }
-                                return;
-                            }
-                            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-
-                            let mut should_stop = false;
-
-                            if let Ok(loaded) =
-                                crate::backend::server::list_models(&host_clone, port_clone).await
-                            {
-                                if loaded.is_empty() {
-                                    should_stop = true;
-                                } else {
-                                    if let Some(tx) = kill_tx.clone() {
-                                        let _ = tx
-                                            .send(crate::t_fmt!("async.models_still_loaded", loaded.len()))
-                                            .await;
-                                    }
-                                }
-                            }
-
-                            if !should_stop {
-                                let loaded_names =
-                                    loaded_names_clone.lock().unwrap_or_else(|e| e.into_inner());
-                                if loaded_names.is_empty() {
-                                    should_stop = true;
-                                }
-                            }
-
-                            if should_stop {
-                                if let Some(tx) = kill_tx {
-                                    let _ = tx
-                                        .send("No models left, stopping router...".to_string())
-                                        .await;
-                                }
-                                if let Some(server) = server_clone {
-                                    let _ = crate::backend::server::kill_server(server).await;
-                                    if let Some(tx) = kill_tx2 {
-                                        let _ = tx.send("Server stopped".to_string()).await;
-                                    }
-                                }
-                            }
-                        }),
-                    );
-                }
-                self.server
-                    .loaded_model_names
-                    .lock()
-                    .unwrap()
-                    .retain(|n| n != &model_name);
-                self.metrics.ctx_used = 0;
-                self.model_states
-                    .insert(model_name, crate::models::ModelState::Available);
-                self.ui.needs_redraw = true;
             }
+            let host = handle.host.clone();
+            let port = handle.port;
+            let model_name_clone = model_name.clone();
+            let model_path_clone = model_path.clone();
+            if server_mode == crate::models::ServerMode::Normal {
+                self.add_log(
+                    crate::t_fmt!("async.unloading", model_name_clone),
+                    crate::config::LogLevel::Info,
+                );
+                self.pending.pending_kill = Some(handle_clone);
+            } else {
+                self.add_log(
+                    crate::t_fmt!("async.send_unload", model_name_clone),
+                    crate::config::LogLevel::Info,
+                );
+                let kill_tx = self.server.spawn_log_tx.clone();
+                let kill_tx2 = kill_tx.clone();
+                let server_clone = self.server.server_handle.clone();
+                let host_clone = host.clone();
+                let port_clone = port;
+                let model_name_task = model_name_clone.clone();
+                let loaded_names_clone = self.server.loaded_model_names.clone();
+                self.background_tasks.insert(
+                    format!("api_unload_{}", model_name_task),
+                    tokio::spawn(async move {
+                        if let Err(e) = crate::backend::server::unload_model(
+                            &host,
+                            port,
+                            &model_name_clone,
+                            model_path_clone.as_deref(),
+                        )
+                        .await
+                        {
+                            if let Some(tx) = kill_tx {
+                                let _ = tx.send(crate::t_fmt!("async.unload_failed", e)).await;
+                            }
+                            return;
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+                        let mut should_stop = false;
+
+                        if let Ok(loaded) =
+                            crate::backend::server::list_models(&host_clone, port_clone).await
+                        {
+                            if loaded.is_empty() {
+                                should_stop = true;
+                            } else {
+                                if let Some(tx) = kill_tx.clone() {
+                                    let _ = tx
+                                        .send(crate::t_fmt!(
+                                            "async.models_still_loaded",
+                                            loaded.len()
+                                        ))
+                                        .await;
+                                }
+                            }
+                        }
+
+                        if !should_stop {
+                            let loaded_names =
+                                loaded_names_clone.lock().unwrap_or_else(|e| e.into_inner());
+                            if loaded_names.is_empty() {
+                                should_stop = true;
+                            }
+                        }
+
+                        if should_stop {
+                            if let Some(tx) = kill_tx {
+                                let _ = tx
+                                    .send("No models left, stopping router...".to_string())
+                                    .await;
+                            }
+                            if let Some(server) = server_clone {
+                                let _ = crate::backend::server::kill_server(server).await;
+                                if let Some(tx) = kill_tx2 {
+                                    let _ = tx.send("Server stopped".to_string()).await;
+                                }
+                            }
+                        }
+                    }),
+                );
+            }
+            self.server
+                .loaded_model_names
+                .lock()
+                .unwrap()
+                .retain(|n| n != &model_name);
+            self.metrics.ctx_used = 0;
+            self.model_states
+                .insert(model_name, crate::models::ModelState::Available);
+            self.ui.needs_redraw = true;
+        }
     }
 
     pub async fn start_pending_kill(&mut self) {
@@ -1423,11 +1451,16 @@ impl App {
                 if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
                     crate::backend::tls::load_tls_config(cert, key).await.ok()
                 } else {
-                    self.add_log(crate::t!("async.tls_generating"), crate::config::LogLevel::Info);
+                    self.add_log(
+                        crate::t!("async.tls_generating"),
+                        crate::config::LogLevel::Info,
+                    );
                     match crate::backend::tls::ensure_tls_certs() {
                         Ok((cert, key)) => {
-                            self.config.default.ws_server_tls_cert = Some(cert.to_string_lossy().to_string());
-                            self.config.default.ws_server_tls_key = Some(key.to_string_lossy().to_string());
+                            self.config.default.ws_server_tls_cert =
+                                Some(cert.to_string_lossy().to_string());
+                            self.config.default.ws_server_tls_key =
+                                Some(key.to_string_lossy().to_string());
                             self.server.running_ws_tls_cert_path =
                                 Some(cert.to_string_lossy().to_string());
                             self.server.running_ws_tls_key_path =
@@ -1489,7 +1522,10 @@ impl App {
             self.server.running_ws_auth = None;
             self.server.running_ws_tls = None;
             if !enabled {
-                self.add_log(crate::t!("async.dashboard_disabled"), crate::config::LogLevel::Info);
+                self.add_log(
+                    crate::t!("async.dashboard_disabled"),
+                    crate::config::LogLevel::Info,
+                );
             }
         }
 
@@ -1517,7 +1553,12 @@ impl App {
                         None => String::new(),
                     };
                     self.add_log(
-                        crate::t_fmt!("async.dashboard_enabled", self.settings.host, port, auth_param),
+                        crate::t_fmt!(
+                            "async.dashboard_enabled",
+                            self.settings.host,
+                            port,
+                            auth_param
+                        ),
                         crate::config::LogLevel::Info,
                     );
                 }
@@ -1588,7 +1629,10 @@ impl App {
             self.server.running_api_server_port = None;
             self.server.running_api_model = None;
             if !enabled {
-                self.add_log(crate::t!("async.api_disabled"), crate::config::LogLevel::Info);
+                self.add_log(
+                    crate::t!("async.api_disabled"),
+                    crate::config::LogLevel::Info,
+                );
             }
         }
 

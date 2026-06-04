@@ -211,7 +211,7 @@
   "dialog.tags.title": " Éditeur de tags ",
   "dialog.unload.message": "Décharger",
   "dialog.unload.title": "Décharger le modèle ?",
-  "dialog.yarn.effective_context": "  Contexte effectif : {}",
+  "dialog.yarn.effective_context": "  Contexte effectif :",
   "dialog.yarn.help": " [↑/↓] Sélectionner  [↵] Modifier  [⎋] Terminé  [Espace] Activer/Désactiver YaRN RoPE ",
   "dialog.yarn.label": "YaRN RoPE",
   "dialog.yarn.title": " Paramètres YaRN RoPE ",

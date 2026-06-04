@@ -3,16 +3,14 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::config_base_dir;
 use crate::config::Profile;
 use crate::config::builtin_profiles;
+use crate::config::config_base_dir;
 use crate::config::store::{load_all_from_dir, move_to_unused, save_yaml};
 
 /// Directory for per-profile YAML configs.
 pub fn profiles_config_dir() -> PathBuf {
-    config_base_dir()
-        .join("llm-manager")
-        .join("profiles")
+    config_base_dir().join("llm-manager").join("profiles")
 }
 
 /// Directory for unused (deleted) profile configs.

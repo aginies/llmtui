@@ -208,7 +208,10 @@ pub fn build_server_cmd(
             &mut cmd,
             &mut parts,
             "--override-kv",
-            format!("{}.expert_used_count=int:int:{}", arch, settings.expert_count),
+            format!(
+                "{}.expert_used_count=int:int:{}",
+                arch, settings.expert_count
+            ),
         );
     }
 
@@ -232,11 +235,12 @@ pub fn build_server_cmd(
         let mut merged = serde_json::Map::new();
         if let Some(ref kwargs) = settings.chat_template_kwargs
             && let Ok(obj) = serde_json::from_str::<serde_json::Value>(kwargs)
-                && let serde_json::Value::Object(map) = obj {
-                    for (k, v) in map {
-                        merged.insert(k, v);
-                    }
-                }
+            && let serde_json::Value::Object(map) = obj
+        {
+            for (k, v) in map {
+                merged.insert(k, v);
+            }
+        }
         merged.insert(
             "system_prompt".to_string(),
             serde_json::Value::String(settings.system_prompt.clone()),
@@ -406,12 +410,7 @@ pub fn build_server_cmd(
                 format!("{}.context_length=int:{}", meta.arch, effective_ctx),
             );
             let orig_ctx = meta.n_ctx_train;
-            push_arg(
-                &mut cmd,
-                &mut parts,
-                "--yarn-orig-ctx",
-                orig_ctx,
-            );
+            push_arg(&mut cmd, &mut parts, "--yarn-orig-ctx", orig_ctx);
         }
     }
 
@@ -477,9 +476,7 @@ pub struct SpawnServerRequest<'a> {
     pub exit_tx: mpsc::Sender<()>,
 }
 
-pub async fn spawn_server(
-    req: SpawnServerRequest<'_>,
-) -> Result<(ServerHandle, String), String> {
+pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, String), String> {
     let SpawnServerRequest {
         config,
         model,
@@ -781,7 +778,10 @@ pub async fn get_metrics(
         .await
         .map_err(|e| format!("Failed to read metrics: {}", e))?;
 
-    let mut m = ServerMetrics { loaded: true, ..Default::default() };
+    let mut m = ServerMetrics {
+        loaded: true,
+        ..Default::default()
+    };
 
     let mut ctx_max_slots = 0u32;
     let mut ctx_used_slots = 0u32;
@@ -1003,17 +1003,25 @@ fn get_nvidia_vram_metrics() -> Result<(u64, u64), String> {
             let used = match parts[0].trim().parse::<u64>() {
                 Ok(v) => v,
                 Err(_) => {
-                    warn!("nvidia-smi: failed to parse used memory from '{}'", parts[0]);
+                    warn!(
+                        "nvidia-smi: failed to parse used memory from '{}'",
+                        parts[0]
+                    );
                     continue;
                 }
-            } * 1024 * 1024;
+            } * 1024
+                * 1024;
             let total = match parts[1].trim().parse::<u64>() {
                 Ok(v) => v,
                 Err(_) => {
-                    warn!("nvidia-smi: failed to parse total memory from '{}'", parts[1]);
+                    warn!(
+                        "nvidia-smi: failed to parse total memory from '{}'",
+                        parts[1]
+                    );
                     continue;
                 }
-            } * 1024 * 1024;
+            } * 1024
+                * 1024;
             total_used += used;
             total_total += total;
         }
@@ -1114,15 +1122,14 @@ fn get_amdgpu_vram_metrics() -> Result<(u64, u64), String> {
 /// Cross-platform: Get RAM (RSS) and CPU usage for a PID.
 /// Uses a persistent System instance so sysinfo can compute accurate
 /// CPU deltas across calls (first call on a fresh instance is always 0).
-fn get_process_metrics(
-    pid: u32,
-) -> Result<(u64, f64), String> {
+fn get_process_metrics(pid: u32) -> Result<(u64, f64), String> {
     use std::sync::{LazyLock, Mutex};
     use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 
     static SYS: LazyLock<Mutex<System>> = LazyLock::new(|| {
         Mutex::new(System::new_with_specifics(
-            RefreshKind::everything().with_processes(ProcessRefreshKind::nothing().with_cpu().with_memory()),
+            RefreshKind::everything()
+                .with_processes(ProcessRefreshKind::nothing().with_cpu().with_memory()),
         ))
     });
 

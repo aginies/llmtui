@@ -12,7 +12,12 @@ mod hints;
 mod overlays;
 mod status;
 
-fn render_scrollbar(f: &mut Frame, area: ratatui::layout::Rect, total_items: usize, scroll_offset: usize) {
+fn render_scrollbar(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    total_items: usize,
+    scroll_offset: usize,
+) {
     let scrollbar_area = ratatui::layout::Rect {
         x: area.right().saturating_sub(1),
         y: area.top(),
@@ -181,7 +186,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
             f.render_widget(paragraph, area);
 
             if profile_lines.len() > available_height as usize {
-                render_scrollbar(f, area, profile_lines.len(), app.picker.profiles_scroll_offset);
+                render_scrollbar(
+                    f,
+                    area,
+                    profile_lines.len(),
+                    app.picker.profiles_scroll_offset,
+                );
             }
         }
         ActivePanel::SystemPromptPresets => {
@@ -218,7 +228,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
             f.render_widget(paragraph, area);
 
             if preset_lines.len() > available_height as usize {
-                render_scrollbar(f, area, preset_lines.len(), app.picker.system_prompt_presets_scroll_offset);
+                render_scrollbar(
+                    f,
+                    area,
+                    preset_lines.len(),
+                    app.picker.system_prompt_presets_scroll_offset,
+                );
             }
         }
         _ => {

@@ -44,7 +44,10 @@ fn default_params_repeat_penalty() {
 #[test]
 fn default_params_system_prompt() {
     let dp = DefaultParams::default();
-    assert_eq!(dp.system_prompt, "You are an expert software developer. Write clean, well-documented code. Explain your reasoning and suggest improvements.");
+    assert_eq!(
+        dp.system_prompt,
+        "You are an expert software developer. Write clean, well-documented code. Explain your reasoning and suggest improvements."
+    );
     assert_eq!(dp.system_prompt_preset_name, "Coder");
 }
 
@@ -211,7 +214,10 @@ fn model_override_apply_gpu_layers_specific() {
         ..Default::default()
     };
     override_settings.apply(&mut settings);
-    assert!(matches!(settings.gpu_layers_mode, GpuLayersMode::Specific(20)));
+    assert!(matches!(
+        settings.gpu_layers_mode,
+        GpuLayersMode::Specific(20)
+    ));
 }
 
 // ── Config validation ──────────────────────────────────────────
@@ -606,12 +612,12 @@ fn config_default_empty_model_overrides() {
         model_overrides: ModelConfigStore::new(),
         profiles: ProfileStore::new(),
         system_prompt_presets: PresetStore::new(),
-          rpc_workers: Vec::new(),
-            search_limit: 50,
-            active_panel: ActivePanel::Models,
-            left_pct: 55,
-            language: "en".to_string(),
-        };
+        rpc_workers: Vec::new(),
+        search_limit: 50,
+        active_panel: ActivePanel::Models,
+        left_pct: 55,
+        language: "en".to_string(),
+    };
     // Store is initialized successfully (may contain existing configs on disk)
     let _keys = config.model_overrides.keys();
 }

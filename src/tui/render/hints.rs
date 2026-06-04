@@ -19,7 +19,10 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
     let r = Style::default().fg(Color::Red);
 
     // Backend picker has its own hint rendering
-    if matches!(app.ui.global_mode, crate::tui::app::GlobalMode::BackendPicker { .. }) {
+    if matches!(
+        app.ui.global_mode,
+        crate::tui::app::GlobalMode::BackendPicker { .. }
+    ) {
         return vec![
             Span::styled(crate::t!("hints.del"), r),
             Span::raw(HINT_SEP),
@@ -42,10 +45,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 Span::styled(crate::t!("hints.readme"), y),
                 Span::raw(HINT_SEP),
                 Span::styled("sort:", c),
-                Span::styled(
-                    sort_by.label(),
-                    Style::default().fg(Color::Magenta),
-                ),
+                Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)),
             ];
             if *loading {
                 parts.push(Span::raw(HINT_SEP));
@@ -91,7 +91,6 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 parts.push(Span::styled(hint_about(), c));
                 parts
             } else {
-                
                 match app.ui.active_panel {
                     ActivePanel::Models => {
                         vec![

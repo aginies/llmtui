@@ -3,23 +3,19 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::config_base_dir;
 use crate::config::SystemPromptPreset;
 use crate::config::builtin_system_prompt_presets;
+use crate::config::config_base_dir;
 use crate::config::store::{load_all_from_dir, move_to_unused, save_yaml};
 
 /// Directory for per-preset YAML configs.
 pub fn presets_config_dir() -> PathBuf {
-    config_base_dir()
-        .join("llm-manager")
-        .join("presets")
+    config_base_dir().join("llm-manager").join("presets")
 }
 
 /// Directory for unused (deleted) preset configs.
 pub fn unused_presets_dir() -> PathBuf {
-    config_base_dir()
-        .join("llm-manager")
-        .join("unused_presets")
+    config_base_dir().join("llm-manager").join("unused_presets")
 }
 
 /// System prompt preset store — manages per-preset YAML configs.

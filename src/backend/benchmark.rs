@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, watch};
 
-use crate::backend::server::{spawn_server, SpawnServerRequest};
+use crate::backend::server::{SpawnServerRequest, spawn_server};
 use crate::models::{
     BenchTuneConfig, BenchTuneMetrics, BenchTuneMode, BenchTuneParamValue, BenchTuneResult,
     BenchTuneStatus, DiscoveredModel, ModelSettings, ServerMode,
@@ -412,7 +412,8 @@ async fn run_iteration_loop(
                     0.0
                 };
                 let iter_combined_tps = if res.total_time.as_secs_f64() > 0.0 {
-                    ((res.prompt_tokens + res.generation_tokens) as f64) / res.total_time.as_secs_f64()
+                    ((res.prompt_tokens + res.generation_tokens) as f64)
+                        / res.total_time.as_secs_f64()
                 } else {
                     0.0
                 };
@@ -1047,14 +1048,16 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     let min_first_token = min_val(&first_token);
 
     // Per-parameter impact analysis
-    let param_names = [("temperature", "Temperature"),
+    let param_names = [
+        ("temperature", "Temperature"),
         ("top_p", "Top-P"),
         ("top_k", "Top-K"),
         ("repeat_penalty", "Repeat Penalty"),
         ("flash_attn", "Flash Attention"),
         ("threads", "Threads"),
         ("batch_size", "Batch Size"),
-        ("expert_count", "Experts")];
+        ("expert_count", "Experts"),
+    ];
 
     let impact_data: Vec<(String, String, f64)> = param_names
         .iter()
@@ -1507,10 +1510,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .replace("__MIN_GEN__", &format!("{:.1}", min_gen_tps))
         .replace("__MAX_GEN__", &format!("{:.1}", best_gen_tps))
         .replace("__AVG_PROMPT_TPS__", &format!("{:.1}", avg_prompt_tps))
-        .replace(
-            "__MED_PROMPT_TPS__",
-            &format!("{:.1}", median(&prompt_tps)),
-        )
+        .replace("__MED_PROMPT_TPS__", &format!("{:.1}", median(&prompt_tps)))
         .replace("__PROMPT_STD__", &format!("{:.1}", prompt_std))
         .replace("__MIN_PROMPT__", &format!("{:.1}", min_prompt_tps))
         .replace("__MAX_PROMPT__", &format!("{:.1}", best_prompt_tps))

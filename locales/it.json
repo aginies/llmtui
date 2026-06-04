@@ -211,7 +211,7 @@
   "dialog.tags.title": " Tags Editor ",
   "dialog.unload.message": "Unload",
   "dialog.unload.title": "Unload Model?",
-  "dialog.yarn.effective_context": "  Effective context: {}",
+  "dialog.yarn.effective_context": "  Contesto effettivo:",
   "dialog.yarn.help": " [↑/↓] Select  [↵] Edit  [⎋] Done  [Space] Enable/Disable Yarn RoPE ",
   "dialog.yarn.label": "Yarn RoPE",
   "dialog.yarn.title": " Yarn RoPE Params ",

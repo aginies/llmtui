@@ -14,7 +14,10 @@ impl App {
         Ok(())
     }
 
-    pub fn discover_models(dirs: &[PathBuf], downloads: &[crate::models::DownloadState]) -> Vec<crate::models::DiscoveredModel> {
+    pub fn discover_models(
+        dirs: &[PathBuf],
+        downloads: &[crate::models::DownloadState],
+    ) -> Vec<crate::models::DiscoveredModel> {
         let mut models = Vec::new();
 
         // Build a map of filename -> expected total_bytes from active downloads
@@ -27,31 +30,33 @@ impl App {
         for dir in dirs {
             crate::backend::hub::walk_dir_recursive(dir, 0, 10, &mut |entry| {
                 let path = entry.path();
-                if path.is_file() && path.extension().map(|e| e == "gguf").unwrap_or(false)
-                    && let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        let name = name.to_string();
-                        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                if path.is_file()
+                    && path.extension().map(|e| e == "gguf").unwrap_or(false)
+                    && let Some(name) = path.file_name().and_then(|n| n.to_str())
+                {
+                    let name = name.to_string();
+                    let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
 
-                        // Skip files that are currently being downloaded (partial downloads)
-                        if let Some(&expected) = expected_sizes.get(name.as_str()) {
-                            if size != expected {
-                                return;
-                            }
+                    // Skip files that are currently being downloaded (partial downloads)
+                    if let Some(&expected) = expected_sizes.get(name.as_str()) {
+                        if size != expected {
+                            return;
                         }
-
-                        let display_name = path
-                            .strip_prefix(dir)
-                            .ok()
-                            .and_then(|p| p.to_str())
-                            .unwrap_or(&name)
-                            .to_string();
-                        models.push(crate::models::DiscoveredModel {
-                            path,
-                            name,
-                            file_size: size,
-                            display_name,
-                        });
                     }
+
+                    let display_name = path
+                        .strip_prefix(dir)
+                        .ok()
+                        .and_then(|p| p.to_str())
+                        .unwrap_or(&name)
+                        .to_string();
+                    models.push(crate::models::DiscoveredModel {
+                        path,
+                        name,
+                        file_size: size,
+                        display_name,
+                    });
+                }
             });
         }
         models.sort_by(|a, b| a.name.cmp(&b.name));

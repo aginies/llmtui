@@ -34,9 +34,15 @@ impl App {
                 Line::from(crate::t!("panel.help.models.search_mode")),
                 Line::from(vec![
                     Span::styled("↵", y),
-                    Span::raw(format!("  {}", crate::t!("panel.help.models.search_execute"))),
+                    Span::raw(format!(
+                        "  {}",
+                        crate::t!("panel.help.models.search_execute")
+                    )),
                 ]),
-                Line::from(vec![Span::styled("⎋", y), Span::raw(format!("  {}", crate::t!("panel.help.models.search_exit")))]),
+                Line::from(vec![
+                    Span::styled("⎋", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.search_exit"))),
+                ]),
                 Line::from(vec![
                     Span::styled("l", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.models.view_files"))),
@@ -45,7 +51,10 @@ impl App {
                     Span::styled("S", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.models.cycle_sort"))),
                 ]),
-                Line::from(vec![Span::styled("B", y), Span::raw(format!("  {}", crate::t!("panel.help.models.back_page")))]),
+                Line::from(vec![
+                    Span::styled("B", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.back_page"))),
+                ]),
                 Line::from(vec![
                     Span::styled("Down at bottom", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.models.load_more"))),
@@ -94,7 +103,10 @@ impl App {
                     Span::styled("↵", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.log.expand"))),
                 ]),
-                Line::from(vec![Span::styled("⎋", y), Span::raw(format!("  {}", crate::t!("panel.help.log.collapse")))]),
+                Line::from(vec![
+                    Span::styled("⎋", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.log.collapse"))),
+                ]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Shift+a", y),
@@ -111,7 +123,10 @@ impl App {
                         Span::styled("j / k", y),
                         Span::raw(format!("  {}", crate::t!("panel.help.server.select"))),
                     ]),
-                    Line::from(vec![Span::styled("↵", y), Span::raw(format!("  {}", crate::t!("panel.help.server.toggle")))]),
+                    Line::from(vec![
+                        Span::styled("↵", y),
+                        Span::raw(format!("  {}", crate::t!("panel.help.server.toggle"))),
+                    ]),
                     Line::from(vec![
                         Span::styled("Left / Right", y),
                         Span::raw(format!("  {}", crate::t!("panel.help.server.adjust"))),
@@ -131,7 +146,10 @@ impl App {
                     ]),
                     Line::from(vec![
                         Span::styled("Threads Batch", y),
-                        Span::raw(format!("  {}", crate::t!("panel.help.server.threads_batch_desc"))),
+                        Span::raw(format!(
+                            "  {}",
+                            crate::t!("panel.help.server.threads_batch_desc")
+                        )),
                     ]),
                     Line::from(vec![
                         Span::styled("Mode", y),
@@ -139,7 +157,10 @@ impl App {
                     ]),
                     Line::from(vec![
                         Span::styled("API Endpoint", y),
-                        Span::raw(format!("  {}", crate::t!("panel.help.server.api_endpoint_desc"))),
+                        Span::raw(format!(
+                            "  {}",
+                            crate::t!("panel.help.server.api_endpoint_desc")
+                        )),
                     ]),
                     Line::from(vec![
                         Span::styled("API Port", y),
@@ -148,7 +169,10 @@ impl App {
                     Line::from(""),
                     Line::from(vec![
                         Span::styled("⇥ Panels", y),
-                        Span::raw(format!("  {}", crate::t!("panel.help.server.switch_panels"))),
+                        Span::raw(format!(
+                            "  {}",
+                            crate::t!("panel.help.server.switch_panels")
+                        )),
                     ]),
                     Line::from(vec![
                         Span::styled("Shift+a", y),
@@ -165,16 +189,30 @@ impl App {
                     Span::styled("j / k", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.llm.navigate"))),
                 ]),
-                Line::from(vec![Span::styled("↵", y), Span::raw(format!("  {}", crate::t!("panel.help.llm.apply")))]),
+                Line::from(vec![
+                    Span::styled("↵", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.apply"))),
+                ]),
                 Line::from(vec![
                     Span::styled("Left / Right", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.llm.adjust"))),
                 ]),
                 Line::from(vec![
                     Span::styled("0-9, -, .", y),
-                    Span::raw(format!("  {}  ·  ^F7/8/9 {}", crate::t!("panel.help.llm.type_numeric").split("·").next().unwrap_or("").trim(), crate::t!("panel.help.llm.navigate"))),
+                    Span::raw(format!(
+                        "  {}  ·  ^F7/8/9 {}",
+                        crate::t!("panel.help.llm.type_numeric")
+                            .split("·")
+                            .next()
+                            .unwrap_or("")
+                            .trim(),
+                        crate::t!("panel.help.llm.navigate")
+                    )),
                 ]),
-                Line::from(vec![Span::styled("⎋", y), Span::raw(format!("  {}", crate::t!("panel.help.llm.cancel_edit")))]),
+                Line::from(vec![
+                    Span::styled("⎋", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.cancel_edit"))),
+                ]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("^S", y),
@@ -200,7 +238,10 @@ impl App {
                 ]),
                 Line::from(vec![
                     Span::styled("Prompt", y),
-                    Span::raw(format!("  {}", crate::t!("field.help.system_prompt_preset_name"))),
+                    Span::raw(format!(
+                        "  {}",
+                        crate::t!("field.help.system_prompt_preset_name")
+                    )),
                 ]),
                 Line::from(vec![
                     Span::styled("Keep in memory", y),
@@ -240,7 +281,10 @@ impl App {
                 ]),
                 Line::from(vec![
                     Span::styled("Max Concurrent Pred", y),
-                    Span::raw(format!("  {}", crate::t!("field.help.max_concurrent_predictions"))),
+                    Span::raw(format!(
+                        "  {}",
+                        crate::t!("field.help.max_concurrent_predictions")
+                    )),
                 ]),
                 Line::from(vec![
                     Span::styled("Cache Reuse", y),
@@ -451,7 +495,10 @@ impl App {
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("⇥ Panels", y),
-                    Span::raw(format!("  {}", crate::t!("panel.help.server.switch_panels"))),
+                    Span::raw(format!(
+                        "  {}",
+                        crate::t!("panel.help.server.switch_panels")
+                    )),
                 ]),
                 Line::from(vec![
                     Span::styled("Shift+a", y),
@@ -465,33 +512,43 @@ impl App {
                 Line::from(""),
                 Line::from("Displays file name, size, architecture, layers, and training context."),
                 Line::from(""),
-                Line::from(vec![Span::styled("^G", y), Span::raw("  GGUF filename explanation (works from any panel)")]),
-                Line::from(""),
                 Line::from(vec![
-                    Span::styled("--- GGUF Naming Reference ---", y)],
-                ),
+                    Span::styled("^G", y),
+                    Span::raw("  GGUF filename explanation (works from any panel)"),
+                ]),
+                Line::from(""),
+                Line::from(vec![Span::styled("--- GGUF Naming Reference ---", y)]),
                 Line::from(vec![
                     Span::styled("Q4/Q5/Q6/Q8", y),
-                    Span::raw("  Quantization bit depth (4-8 bits)")]),
+                    Span::raw("  Quantization bit depth (4-8 bits)"),
+                ]),
                 Line::from(vec![
                     Span::styled("K", y),
-                    Span::raw("  K-quant: block-wise quantization with double-quantized scales")]),
+                    Span::raw("  K-quant: block-wise quantization with double-quantized scales"),
+                ]),
                 Line::from(vec![
                     Span::styled("S/M/L", y),
-                    Span::raw("  Size variant: Small < Medium < Large (quality vs file size)")]),
+                    Span::raw("  Size variant: Small < Medium < Large (quality vs file size)"),
+                ]),
                 Line::from(vec![
                     Span::styled("UD", y),
-                    Span::raw("  Unsloth Dynamic 2.0: KL-divergence calibrated quantization")]),
+                    Span::raw("  Unsloth Dynamic 2.0: KL-divergence calibrated quantization"),
+                ]),
                 Line::from(vec![
                     Span::styled("35B", y),
-                    Span::raw("  Total parameters (e.g., 35 Billion)")]),
+                    Span::raw("  Total parameters (e.g., 35 Billion)"),
+                ]),
                 Line::from(vec![
                     Span::styled("A3B", y),
-                    Span::raw("  Active parameters in MoE (only 3B computed per token)")]),
+                    Span::raw("  Active parameters in MoE (only 3B computed per token)"),
+                ]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("⇥ Panels", y),
-                    Span::raw(format!("  {}", crate::t!("panel.help.server.switch_panels"))),
+                    Span::raw(format!(
+                        "  {}",
+                        crate::t!("panel.help.server.switch_panels")
+                    )),
                 ]),
                 Line::from(vec![
                     Span::styled("Shift+a", y),
@@ -529,13 +586,22 @@ impl App {
                 Line::from(""),
                 Line::from(crate::t!("panel.help.presets.description")),
                 Line::from(""),
-                Line::from(vec![Span::styled("j / k", y), Span::raw(format!("  {}", crate::t!("panel.help.presets.select")))]),
-                Line::from(vec![Span::styled("↵", y), Span::raw(format!("  {}", crate::t!("panel.help.presets.apply")))]),
+                Line::from(vec![
+                    Span::styled("j / k", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.presets.select"))),
+                ]),
+                Line::from(vec![
+                    Span::styled("↵", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.presets.apply"))),
+                ]),
                 Line::from(vec![
                     Span::styled("e", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.presets.edit"))),
                 ]),
-                Line::from(vec![Span::styled("n", y), Span::raw(format!("  {}", crate::t!("panel.help.presets.create")))]),
+                Line::from(vec![
+                    Span::styled("n", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.presets.create"))),
+                ]),
                 Line::from(vec![
                     Span::styled("⎋", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.profiles.back"))),
@@ -552,13 +618,19 @@ impl App {
                 ]),
                 Line::from(vec![
                     Span::styled("h / l", y),
-                    Span::raw(format!("  {}", crate::t!("panel.help.readme.scroll_horizontal"))),
+                    Span::raw(format!(
+                        "  {}",
+                        crate::t!("panel.help.readme.scroll_horizontal")
+                    )),
                 ]),
                 Line::from(vec![
                     Span::styled("↵", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.readme.expand"))),
                 ]),
-                Line::from(vec![Span::styled("⎋", y), Span::raw(format!("  {}", crate::t!("panel.help.readme.collapse")))]),
+                Line::from(vec![
+                    Span::styled("⎋", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.readme.collapse"))),
+                ]),
             ],
             ActivePanel::Downloads => vec![
                 Line::from(Span::styled(crate::t!("panel.title.downloads"), y)),
@@ -580,7 +652,10 @@ impl App {
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("⇥ Panels", y),
-                    Span::raw(format!("  {}", crate::t!("panel.help.server.switch_panels"))),
+                    Span::raw(format!(
+                        "  {}",
+                        crate::t!("panel.help.server.switch_panels")
+                    )),
                 ]),
             ],
         }

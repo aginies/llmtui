@@ -145,20 +145,22 @@ pub fn format_bench_params(params: &BenchTuneParamValue, verbose: bool) -> Vec<S
         });
     }
     if let Some(ref v) = params.spec_type
-        && !v.is_empty() {
-            parts.push(if verbose {
-                format!("  spec_type: {}", v)
-            } else {
-                format!("spec={}", v)
-            });
-        }
+        && !v.is_empty()
+    {
+        parts.push(if verbose {
+            format!("  spec_type: {}", v)
+        } else {
+            format!("spec={}", v)
+        });
+    }
     if let Some(v) = params.draft_tokens
-        && v > 0 {
-            parts.push(if verbose {
-                format!("  draft_tokens: {}", v)
-            } else {
-                format!("draft={}", v)
-            });
-        }
+        && v > 0
+    {
+        parts.push(if verbose {
+            format!("  draft_tokens: {}", v)
+        } else {
+            format!("draft={}", v)
+        });
+    }
     parts
 }

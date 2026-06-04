@@ -33,9 +33,10 @@ pub(crate) fn load_all_from_dir<T: DeserializeOwned + std::fmt::Debug>(
                 None => continue,
             };
             if let Ok(content) = std::fs::read_to_string(&path)
-                && let Ok(item) = serde_yaml::from_str::<T>(&content) {
-                    map.insert(name, item);
-                }
+                && let Ok(item) = serde_yaml::from_str::<T>(&content)
+            {
+                map.insert(name, item);
+            }
         }
     }
     map
@@ -52,7 +53,11 @@ pub(crate) fn save_yaml<T: serde::Serialize + std::fmt::Debug>(
     let path = active_dir.join(format!("{}.yaml", name));
     if let Some(parent) = path.parent() {
         if let Err(e) = std::fs::create_dir_all(parent) {
-            warn!("Failed to create config directory {}: {}", parent.display(), e);
+            warn!(
+                "Failed to create config directory {}: {}",
+                parent.display(),
+                e
+            );
             return;
         }
     }
@@ -71,7 +76,11 @@ pub(crate) fn save_yaml<T: serde::Serialize + std::fmt::Debug>(
     let unused_path = unused_dir.join(format!("{}.yaml", name));
     if let Err(e) = std::fs::remove_file(&unused_path) {
         if e.kind() != std::io::ErrorKind::NotFound {
-            warn!("Failed to remove unused config {}: {}", unused_path.display(), e);
+            warn!(
+                "Failed to remove unused config {}: {}",
+                unused_path.display(),
+                e
+            );
         }
     }
 }
@@ -82,11 +91,20 @@ pub(crate) fn move_to_unused(name: &str, active_dir: &Path, unused_dir: &Path) {
     let dest = unused_dir.join(format!("{}.yaml", name));
     if src.exists() {
         if let Err(e) = std::fs::create_dir_all(unused_dir) {
-            warn!("Failed to create unused config directory {}: {}", unused_dir.display(), e);
+            warn!(
+                "Failed to create unused config directory {}: {}",
+                unused_dir.display(),
+                e
+            );
             return;
         }
         if let Err(e) = std::fs::rename(&src, &dest) {
-            warn!("Failed to move config to unused ({} -> {}): {}", src.display(), dest.display(), e);
+            warn!(
+                "Failed to move config to unused ({} -> {}): {}",
+                src.display(),
+                dest.display(),
+                e
+            );
         }
     }
 }
