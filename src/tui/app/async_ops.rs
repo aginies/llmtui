@@ -1512,7 +1512,6 @@ impl App {
                     self.server.running_ws_port = Some(port);
                     self.server.running_ws_auth = auth_key.clone();
                     self.server.running_ws_tls = Some(tls_enabled);
-                    let protocol = if tls_enabled { "https" } else { "http" };
                     let auth_param = match &auth_key {
                         Some(a) => format!("?auth={}", urlencoding::encode(a)),
                         None => String::new(),

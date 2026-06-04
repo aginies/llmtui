@@ -80,10 +80,6 @@ pub fn t(key: &str) -> &'static str {
     Box::leak(key.to_string().into_boxed_str())
 }
 
-pub fn field_help(field_id: &str) -> String {
-    t(&format!("field.help.{}", field_id)).to_string()
-}
-
 #[macro_export]
 macro_rules! t {
     ($key:expr) => {
