@@ -150,8 +150,6 @@ impl App {
                 model_n_ctx_train: 0,
                 model_n_head: 0,
                 model_n_kv_head: 0,
-                moe_total_experts: 0,
-                moe_used_experts: 0,
                 vram_estimate: 0,
                 health_poll_handle: None,
                 loading_completion_rx: None,

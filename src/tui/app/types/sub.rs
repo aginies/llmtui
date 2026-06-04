@@ -126,8 +126,6 @@ pub struct LoadingState {
     pub model_n_ctx_train: u32,
     pub model_n_head: u32,
     pub model_n_kv_head: u32,
-    pub moe_total_experts: u32,
-    pub moe_used_experts: u32,
     pub vram_estimate: u64,
     pub health_poll_handle: Option<tokio::task::JoinHandle<()>>,
     pub loading_completion_rx: Option<tokio::sync::mpsc::Receiver<()>>,
