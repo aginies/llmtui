@@ -41,6 +41,7 @@
 - **Local Model Filter** — quickly find models with `f`
 - **About box** — application info and GPLv3 license link (`A`)
 - **Dashboard URL modal** — copy dashboard URL to clipboard with `Ctrl+U`
+- **Multi-language UI** — switch between English, French, and Italian with `Ctrl+L`. Locale files are in `locales/`. Missing translations fall back to English.
 
 ## Prerequisites
 

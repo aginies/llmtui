@@ -266,7 +266,7 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | `Ctrl+H` | Panel-specific help |
 | `Ctrl+K` | CmdLine overlay |
 | `Ctrl+Alt+K` | Kill llama-server |
-| `Ctrl+L` | Focus Log panel |
+| `Ctrl+L` | Cycle UI language (en → fr → it → en) |
 | `Ctrl+S` | Save settings / Cycle search sort (in search) |
 | `Ctrl+R` | Reset settings (in LLM Settings) / Fetch README (in search) |
 | `Ctrl+E` | Toggle field enabled/disabled (in LLM Settings: Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, Flash Attention, Unified KV, Keep in memory, Fit, MTP, Ignore EOS, Yarn RoPE, Active Experts, SWA Full Cache) |

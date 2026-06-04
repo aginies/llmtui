@@ -66,7 +66,7 @@ The TUI is divided into several panels:
 - **Log panel** (bottom) — live output from llama.cpp
 - **Download panel** — appears when downloading files
 
-Use `Tab` to cycle between panels, and `Ctrl+H` for panel-specific help.
+Use `Tab` to cycle between panels, and `Ctrl+H` for panel-specific help. Press `Ctrl+L` to cycle the UI language (English → French → Italian → English). Translations are stored as JSON files in `locales/`.
 
 ## Searching for Models
 

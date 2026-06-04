@@ -22,6 +22,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - **GGUF file browser** — list and select specific GGUF files for a model
 - **Log panel** — expand/collapse with Enter/Esc, follow mode with `f`
 - **About Box** — application info and GPLv3 license link (`A`)
+- **Multi-language UI** — switch between English, French, and Italian with `Ctrl+L` (locale files in `locales/`)
 - **HuggingFace URL links** — navigate to model pages from Model Info
 - **CmdLine overlay** — full-screen view of the computed llama-server command line (`Ctrl+K`)
 - **Export to script** — write the llama-server command to `/tmp/test_llamaserver.sh` from the CmdLine overlay (`e`)
@@ -108,6 +109,16 @@ models_dirs:
 ```
 
 ### Configuration layout
+
+llm-manager uses XDG directories:
+
+```
+~/.config/llm-manager/              # Config
+```
+
+UI translations are stored as JSON files in the `locales/` directory alongside the binary or in the project root. Supported languages: **en** (English), **fr** (French), **it** (Italian). Cycle languages with `Ctrl+L`. Missing translations fall back to English. To add a new language, copy `locales/en.json` to `locales/<code>.json` and translate all values.
+
+#### Configuration layout
 
 llm-manager uses XDG directories:
 
@@ -256,6 +267,7 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `⌃P` (Ctrl+P) — Open Profile Picker modal (select from built-in or user profiles)
 - `⌃S` (Ctrl+S) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created) / Save settings
 - `⌃B` (Ctrl+B) — Back one page in search results
+- `⌃L` (Ctrl+L) — Cycle UI language (en → fr → it → en)
 - `↓` at bottom — Load more search results (infinite scroll)
 - `⌃⌥K` (Ctrl+Alt+K) — Kill llama-server process forcefully
 - `g` / `G` — Jump to top/bottom of log panel
