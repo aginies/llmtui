@@ -3,6 +3,13 @@ use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 
 /// Download state codes (stored as AtomicU8 for lock-free access)
+///
+/// NOTE: Pause only takes effect between chunks, not mid-chunk.
+/// The download loop checks the state after writing each chunk to disk.
+/// When paused, it polls the state every 100ms via `stream.next().await`.
+/// For finer-grained control (mid-chunk pause), consider using
+/// `tokio::sync::watch` instead of `AtomicU8`.
+pub const DOWNLOAD_STATE_PAUSING: u8 = 4;
 pub const DOWNLOAD_STATE_PAUSED: u8 = 2;
 pub const DOWNLOAD_STATE_CANCELLED: u8 = 3;
 
@@ -319,6 +326,13 @@ pub async fn download_file(
             drop(file);
             let _ = tokio::fs::remove_file(dest).await;
             return Err(anyhow::anyhow!("Download cancelled"));
+        }
+        if state == DOWNLOAD_STATE_PAUSING {
+            download_state.store(DOWNLOAD_STATE_PAUSED, std::sync::atomic::Ordering::Relaxed);
+            progress.status = crate::models::DownloadStatus::Paused;
+            let _ = tx.send(progress.clone());
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            continue;
         }
         if state == DOWNLOAD_STATE_PAUSED {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;

@@ -372,6 +372,7 @@
   "download.title": " Downloading ({}) ",
   "download.count": " {} Downloads ({}) ",
   "download.status.downloading": "Downloading...",
+  "download.status.pausing": "Pausing...",
   "download.status.paused": "Paused",
   "download.status.complete": "Complete",
   "download.status.cancelled": "Cancelled",

@@ -59,6 +59,7 @@ pub fn render_download_panel(
                 crate::models::DownloadStatus::Downloading => {
                     crate::t!("download.status.downloading")
                 }
+                crate::models::DownloadStatus::Pausing => crate::t!("download.status.pausing"),
                 crate::models::DownloadStatus::Paused => crate::t!("download.status.paused"),
                 crate::models::DownloadStatus::Complete => crate::t!("download.status.complete"),
                 crate::models::DownloadStatus::Cancelled => crate::t!("download.status.cancelled"),
@@ -67,6 +68,7 @@ pub fn render_download_panel(
 
             let status_color = match &d.status {
                 crate::models::DownloadStatus::Downloading => Color::Yellow,
+                crate::models::DownloadStatus::Pausing => Color::Yellow,
                 crate::models::DownloadStatus::Paused => Color::White,
                 crate::models::DownloadStatus::Complete => Color::Green,
                 crate::models::DownloadStatus::Cancelled => Color::Red,

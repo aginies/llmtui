@@ -17,6 +17,9 @@ pub fn handle_downloads_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 if let Some(token) = app.download.download_progress[idx].cancel_token.as_ref() {
                     token.store(true, std::sync::atomic::Ordering::Relaxed);
                 }
+                if let Some(arc) = &app.download.download_progress[idx].download_state_arc {
+                    arc.store(3u8, std::sync::atomic::Ordering::Relaxed);
+                }
                 app.download.download_progress[idx].download_state = 3;
                 app.download.download_progress[idx].cancelled = true;
                 app.download.download_progress[idx].status =

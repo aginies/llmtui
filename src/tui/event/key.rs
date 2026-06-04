@@ -211,14 +211,15 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 };
                 if is_downloading {
                     if let Some(state) = app.download.download_progress.get_mut(idx) {
-                        state.status = crate::models::DownloadStatus::Paused;
+                        state.status = crate::models::DownloadStatus::Pausing;
+                        state.download_state = 4;
                         state.bytes_per_second = 0.0;
                         if let Some(arc) = &state.download_state_arc {
-                            arc.store(2u8, std::sync::atomic::Ordering::Relaxed);
+                            arc.store(4u8, std::sync::atomic::Ordering::Relaxed);
                         }
                     }
                     app.add_log(
-                        format!("Paused download of {}", filename),
+                        format!("Pausing download of {}", filename),
                         crate::config::LogLevel::Info,
                     );
                 } else if !filename.is_empty() {

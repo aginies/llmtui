@@ -277,6 +277,7 @@ pub enum GpuLayersMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DownloadStatus {
     Downloading,
+    Pausing,
     Paused,
     Complete,
     Error(String),

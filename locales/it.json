@@ -234,6 +234,7 @@
   "download.status.cancelled": "Annullato",
   "download.status.complete": "Completato",
   "download.status.downloading": "Download in corso...",
+  "download.status.pausing": "Pausa in corso...",
   "download.status.paused": "In pausa",
   "download.title": " Download ({}) ",
   "field.help.backend_version": "Seleziona il backend llama.cpp (CPU / Vulkan / ROCm / CUDA). Premi Invio per aprire il selettore versione. Backend diversi supportano GPU diverse e funzionalità diverse.",
