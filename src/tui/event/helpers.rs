@@ -1,6 +1,13 @@
 use crate::tui::app::scheduler::PendingEvent;
 use crate::tui::app::{ActivePanel, App, ConfirmationKind};
 
+pub fn picker_nav_up(selected: &mut usize) {
+    *selected = selected.saturating_sub(1);
+}
+pub fn picker_nav_down(selected: &mut usize, len: usize) {
+    *selected = (*selected + 1).min(len.saturating_sub(1));
+}
+
 pub struct TextEditor<'a> {
     pub buffer: &'a mut String,
     pub cursor: &'a mut usize,

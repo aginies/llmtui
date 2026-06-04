@@ -10,16 +10,6 @@
 
 ---
 
-### 2. key.rs is 2459 lines of nested match statements
-
-**File:** `src/tui/event/key.rs`
-
-**Problem:** The key handler is one massive function with deeply nested mode checks. Adding a new overlay mode requires editing this file.
-
-**Proposed:** Extract each overlay handler into its own function (already partially done with `handle_prompt_picker_key`, `handle_bench_tune_setup_key`, etc.). Route overlay dispatch through a lookup table or trait-based dispatcher.
-
----
-
 ### 4. Log-based parsing is fragile
 
 **File:** `src/tui/app/state.rs:39-192`

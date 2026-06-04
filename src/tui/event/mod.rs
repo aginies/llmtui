@@ -1,6 +1,7 @@
 mod helpers;
 mod key;
 mod mouse;
+mod overlay;
 mod panel;
 mod readme;
 mod rpc_workers;

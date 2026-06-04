@@ -3,61 +3,32 @@ use ratatui::widgets::TableState;
 use tracing::debug;
 
 use super::helpers::{
-    TextEditor, execute_confirmation, handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle,
-    mark_settings_dirty, sync_global_settings,
+    handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle,
+    mark_settings_dirty, sync_global_settings, TextEditor, picker_nav_up, picker_nav_down,
 };
+use super::overlay::OverlayRegistry;
 use super::panel::{
     handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key,
     handle_settings_key, handle_system_prompt_presets_key,
 };
 use super::readme::{fetch_and_store_readme, fetch_readme_for_selected, handle_readme_key};
-use super::rpc_workers::handle_rpc_workers_key;
+
 use crate::tui::app::scheduler::PendingEvent;
 
-fn picker_nav_up(selected: &mut usize) {
-    *selected = selected.saturating_sub(1);
-}
-fn picker_nav_down(selected: &mut usize, len: usize) {
-    *selected = (*selected + 1).min(len.saturating_sub(1));
-}
 use crate::backend::hub;
 use crate::models::SearchSort;
 use crate::tui::app::{ActivePanel, App, ConfirmationKind, GlobalMode, ModelsMode};
 use crate::tui::settings;
-use arboard;
+
+
+static OVERLAY_REGISTRY: std::sync::LazyLock<OverlayRegistry> =
+    std::sync::LazyLock::new(OverlayRegistry::new);
 
 pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     debug!("Key: {:?}", key);
 
-    // Skip all if in CmdLine overlay
-    if matches!(app.ui.global_mode, GlobalMode::CmdLine { .. }) {
-        match key.code {
-            KeyCode::Esc => {
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Char('e') => {
-                if let GlobalMode::CmdLine { cmd_line } = &app.ui.global_mode {
-                    let script =
-                        format!("#!/bin/bash\n# Exported from llm-manager\n\n{}\n", cmd_line);
-                    if let Err(e) = std::fs::write("/tmp/test_llamaserver.sh", &script) {
-                        app.add_log(
-                            format!("Failed to write script: {}", e),
-                            crate::config::LogLevel::Error,
-                        );
-                    } else {
-                        app.add_log(
-                            "Wrote server command to /tmp/test_llamaserver.sh",
-                            crate::config::LogLevel::Info,
-                        );
-                    }
-                }
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // In search mode, "/" always opens the search input modal (before any overlay handler)
+    // Global shortcuts that CREATE overlays (before overlay dispatch)
+    // "/" in search mode opens search input
     if matches!(app.ui.global_mode, GlobalMode::Normal)
         && matches!(app.models_mode, ModelsMode::Search { .. })
         && key.code == KeyCode::Char('/')
@@ -75,18 +46,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // GGUF naming overlay
-    if matches!(app.ui.global_mode, GlobalMode::GgufNaming { .. }) {
-        match key.code {
-            KeyCode::Esc | KeyCode::Enter => {
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // Dashboard URL modal (Ctrl+U)
+    // Ctrl+U: open DashboardUrl modal
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
         app.ui.global_mode = GlobalMode::DashboardUrl {
             host: app.settings.host.clone(),
@@ -100,67 +60,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             ws_enabled: app.config.default.ws_server_enabled,
             tls_enabled: app.config.default.ws_server_tls_enabled,
         };
-        return;
-    }
-
-    // Skip all if in confirmation dialog
-    if let GlobalMode::Confirmation {
-        selected,
-        kind,
-        display_name,
-        detail,
-    } = &app.ui.global_mode
-    {
-        match key.code {
-            KeyCode::Char('y') => {
-                let kind_copy = *kind;
-                let display_name_copy = display_name.clone();
-                let detail_copy = detail.clone();
-                execute_confirmation(app, kind_copy, display_name_copy, detail_copy).await;
-                if matches!(kind_copy, ConfirmationKind::DeleteBackend) {
-                    let new_entries = app.fetch_backend_picker_entries();
-                    if let GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode
-                    {
-                        *entries = new_entries;
-                        if *selected >= entries.len() {
-                            *selected = entries.len().saturating_sub(1);
-                        }
-                    }
-                }
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Char('n') | KeyCode::Esc => {
-                app.pending.pending_api_unload = None;
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Enter => {
-                if *selected {
-                    let display_name_copy = display_name.clone();
-                    let detail_copy = detail.clone();
-                    execute_confirmation(app, *kind, display_name_copy, detail_copy).await;
-                } else {
-                    app.pending.pending_api_unload = None;
-                }
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Tab | KeyCode::Left | KeyCode::Right => {
-                app.ui.global_mode = GlobalMode::Confirmation {
-                    selected: !*selected,
-                    kind: *kind,
-                    display_name: display_name.clone(),
-                    detail: detail.clone(),
-                };
-            }
-            KeyCode::Char('h')
-                if key
-                    .modifiers
-                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
-            {
-                app.pending.pending_api_unload = None;
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            _ => {}
-        }
         return;
     }
 
@@ -266,479 +165,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Skip all if in RpcManager overlay
-    if matches!(app.ui.global_mode, GlobalMode::RpcManager) {
-        handle_rpc_workers_key(app, key);
-        return;
-    }
+    // Dispatch to overlay handler if an overlay is active
+    // (when no overlay matches, dispatch returns without doing anything, flow continues)
+    OVERLAY_REGISTRY.dispatch(app, key).await;
 
-    // Skip all if in About overlay
-    if let GlobalMode::About = &app.ui.global_mode {
-        app.ui.global_mode = GlobalMode::Normal;
-        return;
-    }
-
-    // Skip all if in SearchInput overlay
-    if let GlobalMode::SearchInput { buffer, cursor_pos } = &mut app.ui.global_mode {
-        match key.code {
-            KeyCode::Esc => {
-                app.ui.global_mode = GlobalMode::Normal;
-                return;
-            }
-            KeyCode::Enter => {
-                let query = buffer.clone();
-                app.ui.global_mode = GlobalMode::Normal;
-                // Keep the search input for next time
-                app.search.search_input = Some(query.clone());
-
-                // Update the query in Search mode so highlighting works
-                if let ModelsMode::Search {
-                    query: q,
-                    page,
-                    has_more,
-                    ..
-                } = &mut app.models_mode
-                {
-                    *q = query.clone();
-                    *page = 0;
-                    *has_more = true;
-                }
-
-                if query.is_empty() {
-                    return;
-                }
-                app.add_log(
-                    format!("Searching for '{}'...", query),
-                    crate::config::LogLevel::Info,
-                );
-                let _ = app
-                    .pending_tx
-                    .send(PendingEvent::Search {
-                        query: query.clone(),
-                        offset: 0,
-                    })
-                    .await;
-                app.search.search_table_state = TableState::default();
-                app.search.search_results_idx = None;
-                return;
-            }
-            KeyCode::Char(c) => {
-                TextEditor {
-                    buffer,
-                    cursor: cursor_pos,
-                }
-                .insert_char(c);
-            }
-            KeyCode::Backspace => {
-                TextEditor {
-                    buffer,
-                    cursor: cursor_pos,
-                }
-                .backspace();
-            }
-            KeyCode::Delete => {
-                TextEditor {
-                    buffer,
-                    cursor: cursor_pos,
-                }
-                .delete();
-            }
-            KeyCode::Left => {
-                TextEditor {
-                    buffer,
-                    cursor: cursor_pos,
-                }
-                .move_left();
-            }
-            KeyCode::Right => {
-                TextEditor {
-                    buffer,
-                    cursor: cursor_pos,
-                }
-                .move_right();
-            }
-            KeyCode::Home => {
-                TextEditor {
-                    buffer,
-                    cursor: cursor_pos,
-                }
-                .home();
-            }
-            KeyCode::End => {
-                TextEditor {
-                    buffer,
-                    cursor: cursor_pos,
-                }
-                .end();
-            }
-            _ => {}
-        }
-        app.search.search_input = Some(buffer.clone());
-        return;
-    }
-
-    // Skip all if in DashboardPicker overlay
-    if let GlobalMode::DashboardPicker {
-        enabled,
-        port,
-        auth_key,
-        tls_enabled,
-        tls_cert,
-        tls_key,
-        selected_field,
-        editing,
-        edit_buffer,
-        edit_cursor_pos,
-        ..
-    } = &mut app.ui.global_mode
-    {
-        match key.code {
-            KeyCode::Enter => {
-                if *editing {
-                    if *selected_field == 0i32
-                        && let Ok(p) = edit_buffer.parse::<u16>()
-                    {
-                        app.config.default.ws_server_port = p;
-                        port.clone_from(edit_buffer);
-                    }
-                    if *selected_field == 1i32 {
-                        app.config.default.ws_server_auth_key = if edit_buffer.is_empty() {
-                            None
-                        } else {
-                            Some(edit_buffer.clone())
-                        };
-                        auth_key.clone_from(edit_buffer);
-                    }
-                    if *selected_field == 2i32 {
-                        *tls_enabled = !*tls_enabled;
-                        app.config.default.ws_server_tls_enabled = *tls_enabled;
-                    }
-                    if *selected_field == 3i32 {
-                        app.config.default.ws_server_tls_cert = if edit_buffer.is_empty() {
-                            None
-                        } else {
-                            Some(edit_buffer.clone())
-                        };
-                        tls_cert.clone_from(edit_buffer);
-                    }
-                    if *selected_field == 4i32 {
-                        app.config.default.ws_server_tls_key = if edit_buffer.is_empty() {
-                            None
-                        } else {
-                            Some(edit_buffer.clone())
-                        };
-                        tls_key.clone_from(edit_buffer);
-                    }
-                    *editing = false;
-                    super::helpers::sync_global_settings(app);
-                    return;
-                }
-                if *selected_field == -1 {
-                    *enabled = !*enabled;
-                    app.config.default.ws_server_enabled = *enabled;
-                    super::helpers::sync_global_settings(app);
-                    return;
-                }
-                if *selected_field == 0i32 {
-                    edit_buffer.clone_from(port);
-                    *editing = true;
-                    *edit_cursor_pos = edit_buffer.chars().count();
-                    return;
-                }
-                if *selected_field == 1i32 {
-                    edit_buffer.clone_from(auth_key);
-                    *editing = true;
-                    *edit_cursor_pos = edit_buffer.chars().count();
-                    return;
-                }
-                if *selected_field == 2i32 {
-                    *tls_enabled = !*tls_enabled;
-                    app.config.default.ws_server_tls_enabled = *tls_enabled;
-                    super::helpers::sync_global_settings(app);
-                    return;
-                }
-                if *selected_field == 3i32 {
-                    edit_buffer.clone_from(tls_cert);
-                    *editing = true;
-                    *edit_cursor_pos = edit_buffer.chars().count();
-                    return;
-                }
-                if *selected_field == 4i32 {
-                    edit_buffer.clone_from(tls_key);
-                    *editing = true;
-                    *edit_cursor_pos = edit_buffer.chars().count();
-                    return;
-                }
-            }
-            KeyCode::Up | KeyCode::Char('k') => {
-                if !*editing {
-                    *selected_field = if *selected_field <= -1 {
-                        4
-                    } else {
-                        *selected_field - 1
-                    };
-                }
-                return;
-            }
-            KeyCode::Down | KeyCode::Char('j') => {
-                if !*editing {
-                    *selected_field = if *selected_field >= 4 {
-                        -1
-                    } else {
-                        *selected_field + 1
-                    };
-                }
-                return;
-            }
-            KeyCode::Esc => {
-                if *editing {
-                    *editing = false;
-                    edit_buffer.clear();
-                } else {
-                    app.ui.global_mode = GlobalMode::Normal;
-                }
-                return;
-            }
-            KeyCode::Char(c) if *editing => {
-                TextEditor {
-                    buffer: edit_buffer,
-                    cursor: edit_cursor_pos,
-                }
-                .insert_char(c);
-            }
-            KeyCode::Backspace if *editing => {
-                TextEditor {
-                    buffer: edit_buffer,
-                    cursor: edit_cursor_pos,
-                }
-                .backspace();
-            }
-            KeyCode::Left if *editing => {
-                TextEditor {
-                    buffer: edit_buffer,
-                    cursor: edit_cursor_pos,
-                }
-                .move_left();
-            }
-            KeyCode::Right if *editing => {
-                TextEditor {
-                    buffer: edit_buffer,
-                    cursor: edit_cursor_pos,
-                }
-                .move_right();
-            }
-            KeyCode::Home if *editing => {
-                TextEditor {
-                    buffer: edit_buffer,
-                    cursor: edit_cursor_pos,
-                }
-                .home();
-            }
-            KeyCode::End if *editing => {
-                TextEditor {
-                    buffer: edit_buffer,
-                    cursor: edit_cursor_pos,
-                }
-                .end();
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // Skip all if in SpecTypePicker overlay
-    if let GlobalMode::SpecTypePicker { entries, selected } = &mut app.ui.global_mode {
-        match key.code {
-            KeyCode::Enter => {
-                let selected_entry = entries[*selected].clone();
-                app.settings.spec_type = if selected_entry == "Off" {
-                    String::new()
-                } else {
-                    selected_entry
-                };
-                mark_settings_dirty(app, false);
-                app.ui.global_mode = GlobalMode::Normal;
-                return;
-            }
-            KeyCode::Up => {
-                *selected = selected.saturating_sub(1);
-                return;
-            }
-            KeyCode::Down => {
-                *selected = (*selected + 1).min(entries.len().saturating_sub(1));
-                return;
-            }
-            KeyCode::Esc => {
-                app.ui.global_mode = GlobalMode::Normal;
-                return;
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // Skip all if in YarnRoPESettings overlay
-    if let GlobalMode::YarnRoPESettings {
-        scale,
-        freq_base,
-        freq_scale,
-        selected_field,
-        editing,
-        edit_buffer,
-        edit_cursor_pos,
-        ..
-    } = &mut app.ui.global_mode
-    {
-        match key.code {
-            KeyCode::Enter => {
-                if *editing {
-                    // Apply the value
-                    match *selected_field {
-                        0i32 => {
-                            if let Ok(p) = edit_buffer.parse::<f32>() {
-                                app.settings.rope_scale = p;
-                            }
-                            scale.clone_from(edit_buffer);
-                        }
-                        1i32 => {
-                            if let Ok(p) = edit_buffer.parse::<f32>() {
-                                app.settings.rope_freq_base = p;
-                            }
-                            freq_base.clone_from(edit_buffer);
-                        }
-                        2i32 => {
-                            if let Ok(p) = edit_buffer.parse::<f32>() {
-                                app.settings.rope_freq_scale = p;
-                            }
-                            freq_scale.clone_from(edit_buffer);
-                        }
-                        _ => {}
-                    }
-                    *editing = false;
-                    return;
-                }
-                if *selected_field == -1 {
-                    app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
-                    *editing = true;
-                    *selected_field = -1;
-                    edit_buffer.clone_from(&format!("{}", app.settings.rope_yarn_enabled));
-                    *edit_cursor_pos = edit_buffer.chars().count();
-                    return;
-                }
-                if *selected_field == 0i32 {
-                    edit_buffer.clone_from(scale);
-                    *editing = true;
-                    *edit_cursor_pos = edit_buffer.chars().count();
-                    return;
-                }
-                if *selected_field == 1i32 {
-                    edit_buffer.clone_from(freq_base);
-                    *editing = true;
-                    *edit_cursor_pos = edit_buffer.chars().count();
-                    return;
-                }
-                if *selected_field == 2i32 {
-                    edit_buffer.clone_from(freq_scale);
-                    *editing = true;
-                    *edit_cursor_pos = edit_buffer.chars().count();
-                    return;
-                }
-            }
-            KeyCode::Char(' ') => {
-                if *selected_field == -1 {
-                    app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
-                    return;
-                }
-                return;
-            }
-            KeyCode::Up | KeyCode::Char('k') => {
-                if !*editing {
-                    *selected_field = if *selected_field <= -1 {
-                        2
-                    } else {
-                        *selected_field - 1
-                    };
-                }
-                return;
-            }
-            KeyCode::Down | KeyCode::Char('j') => {
-                if !*editing {
-                    *selected_field = if *selected_field >= 2 {
-                        -1
-                    } else {
-                        *selected_field + 1
-                    };
-                }
-                return;
-            }
-            KeyCode::Esc => {
-                if *editing {
-                    *editing = false;
-                    edit_buffer.clear();
-                } else {
-                    app.ui.global_mode = GlobalMode::Normal;
-                }
-                return;
-            }
-            KeyCode::Char(c) if *editing => {
-                TextEditor {
-                    buffer: edit_buffer,
-                    cursor: edit_cursor_pos,
-                }
-                .insert_char(c);
-            }
-            KeyCode::Backspace if *editing => {
-                TextEditor {
-                    buffer: edit_buffer,
-                    cursor: edit_cursor_pos,
-                }
-                .backspace();
-                return;
-            }
-            _ => {}
-        }
-        return;
-    }
-    super::helpers::sync_global_settings(app);
-
-    // Handle DashboardUrl overlay
-    if let GlobalMode::DashboardUrl {
-        host,
-        port,
-        auth_key,
-        tls_enabled,
-        ..
-    } = &app.ui.global_mode
-    {
-        match key.code {
-            KeyCode::Esc => {
-                app.ui.global_mode = GlobalMode::Normal;
-                return;
-            }
-            KeyCode::Enter => {
-                let host_val = crate::models::format_host(host);
-                let mut url = format!(
-                    "{}://{}:{}/dashboard",
-                    if *tls_enabled { "https" } else { "http" },
-                    host_val,
-                    port
-                );
-                if !auth_key.is_empty() {
-                    url.push_str(&format!("?auth={}", auth_key));
-                }
-                let cb = arboard::Clipboard::new();
-                if let Ok(mut cb) = cb {
-                    let _ = cb.set().text(&url);
-                }
-                app.ui.global_mode = GlobalMode::Normal;
-                return;
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // Skip all if in tags modal
+    // Tags modal (not a GlobalMode variant — handled separately)
     if app.edit.tags_editing {
         super::panel::tags::handle_tags_key(app, key);
         return;
@@ -757,93 +188,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Skip all if in host picker
-    if let GlobalMode::HostPicker { entries, selected } = &mut app.ui.global_mode {
-        match key.code {
-            KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
-            KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
-            KeyCode::Enter => {
-                if *selected < entries.len() {
-                    let (ip, _) = entries[*selected].clone();
-                    app.settings.host = ip;
-                    app.ui.global_mode = GlobalMode::Normal;
-                    sync_global_settings(app);
-                }
-            }
-            KeyCode::Char('d') => {
-                *entries = App::fetch_host_picker_entries();
-                *selected = 0;
-            }
-            KeyCode::Esc => {
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Char('h')
-                if key
-                    .modifiers
-                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
-            {
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // Profile picker
-    if let GlobalMode::ProfilePicker {
-        entries, selected, ..
-    } = &mut app.ui.global_mode
-    {
-        match key.code {
-            KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
-            KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
-            KeyCode::Enter => {
-                if *selected < entries.len() {
-                    let name = entries[*selected].0.clone();
-                    let profile = app
-                        .config
-                        .merged_profiles()
-                        .into_iter()
-                        .find(|p| p.name == name);
-                    if let Some(profile) = profile {
-                        app.apply_profile(&profile);
-                    }
-                }
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Esc => {
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // Prompt picker
-    if let GlobalMode::PromptPicker { .. } = &mut app.ui.global_mode {
-        handle_prompt_picker_key(app, key);
-        return;
-    }
-
-    // BenchTune Setup
-    if let GlobalMode::BenchTuneSetup { .. } = &mut app.ui.global_mode {
-        handle_bench_tune_setup_key(app, key).await;
-        return;
-    }
-
-    // Skip all if in backend picker
-    if let GlobalMode::BackendPicker { .. } = &mut app.ui.global_mode {
-        handle_backend_picker_key(app, key);
-        return;
-    }
-
-    // Skip all if in max concurrent picker
-    if matches!(app.ui.global_mode, GlobalMode::MaxConcurrentPicker { .. }) {
-        handle_max_concurrent_picker_key(app, key);
-        return;
-    }
-
-    // Handle normal mode
+    // ── Normal mode key handling ──────────────────────────────────
     match key.code {
         KeyCode::Char('p') => {
             if !app.download.download_progress.is_empty()
@@ -894,7 +239,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('c')
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             let loaded_count = app
                 .model_states
@@ -938,7 +283,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             if app.ui.global_mode == GlobalMode::Normal {
                 if key
                     .modifiers
-                    .contains(crossterm::event::KeyModifiers::SHIFT)
+                    .contains(KeyModifiers::SHIFT)
                 {
                     app.focus_prev();
                 } else {
@@ -950,10 +295,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('h')
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL)
+                .contains(KeyModifiers::CONTROL)
                 && !key
                     .modifiers
-                    .contains(crossterm::event::KeyModifiers::SHIFT) =>
+                    .contains(KeyModifiers::SHIFT) =>
         {
             app.ui.panel_help = !app.ui.panel_help;
             if app.ui.panel_help {
@@ -988,7 +333,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Left
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::SHIFT) =>
+                .contains(KeyModifiers::SHIFT) =>
         {
             app.ui.left_pct = app.ui.left_pct.saturating_sub(1).max(20);
             return;
@@ -996,7 +341,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Right
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::SHIFT) =>
+                .contains(KeyModifiers::SHIFT) =>
         {
             app.ui.left_pct = app.ui.left_pct.saturating_add(1).min(80);
             return;
@@ -1004,7 +349,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::F(7)
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             handle_fkey_show(app, 0, ActivePanel::Models, false);
             return;
@@ -1012,7 +357,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::F(8)
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             handle_fkey_show(app, 1, ActivePanel::ServerSettings, true);
             return;
@@ -1020,7 +365,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::F(9)
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             handle_fkey_show(app, 3, ActivePanel::LlmSettings, false);
             return;
@@ -1028,7 +373,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::F(10)
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             handle_fkey_show_all(app);
             return;
@@ -1040,8 +385,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('k')
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL)
-                && key.modifiers.contains(crossterm::event::KeyModifiers::ALT) =>
+                .contains(KeyModifiers::CONTROL)
+                && key.modifiers.contains(KeyModifiers::ALT) =>
         {
             if let Some(handle) = app.server.server_handle.take() {
                 let port = handle.port;
@@ -1066,7 +411,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('l')
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             app.ui.active_panel = ActivePanel::Log;
             return;
@@ -1074,7 +419,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('k')
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             let binary = app.config.llama_server.clone();
             let model = app.selected_model().cloned();
@@ -1117,6 +462,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         _ => {}
     }
+
+    // ── Mode-specific handling ────────────────────────────────────
 
     // Handle search mode first (it takes priority) - unless README panel has focus
     let is_search = matches!(app.models_mode, ModelsMode::Search { .. })
@@ -1176,7 +523,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if key.code == KeyCode::Char('s')
         && key
             .modifiers
-            .contains(crossterm::event::KeyModifiers::CONTROL)
+            .contains(KeyModifiers::CONTROL)
     {
         // Ctrl+S: sort in search mode (takes priority over save)
         if matches!(app.models_mode, ModelsMode::Search { .. }) {
@@ -1222,7 +569,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 }
 
-fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
+// ── Extracted overlay handlers (used by overlay module) ─────────
+
+pub(super) fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if let GlobalMode::PromptPicker {
         entries,
         selected,
@@ -1278,7 +627,7 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 KeyCode::Char('s')
                     if key
                         .modifiers
-                        .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                        .contains(KeyModifiers::CONTROL) =>
                 {
                     let mut saved = false;
                     if *selected < entries.len() {
@@ -1391,7 +740,7 @@ fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 }
 
-async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
+pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEvent) {
     if let GlobalMode::BenchTuneSetup {
         config,
         selected_idx,
@@ -1809,98 +1158,6 @@ async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::event::KeyEv
     }
 }
 
-fn handle_backend_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
-    if let GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode {
-        match key.code {
-            KeyCode::Esc => {
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
-            KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
-            KeyCode::Enter => {
-                let (backend, tag) = entries[*selected].clone();
-                app.settings.backend = backend;
-                app.settings.set_active_backend_version(tag.clone());
-                if !crate::backend::hub::is_backend_version_installed(backend, tag.as_deref()) {
-                    app.pending.backend_resolving = true;
-                    let tag_param = tag.clone();
-                    if app.download.download_rx.is_none() {
-                        let (tx, rx) = tokio::sync::broadcast::channel(10);
-                        app.download.download_tx = Some(tx);
-                        app.download.download_rx = Some(rx);
-                    }
-                    let (log_tx, log_rx) = tokio::sync::mpsc::channel(100);
-                    app.server.server_log_rx = Some(log_rx);
-                    let tx = app.download.download_tx.clone();
-                    let handle = tokio::spawn(async move {
-                        crate::backend::hub::resolve_backend_binary(
-                            backend,
-                            tag_param.as_deref(),
-                            Some(log_tx),
-                            tx,
-                        )
-                        .await
-                        .map_err(|e| e.to_string())
-                    });
-                    app.pending.backend_resolve_handle = Some(handle);
-                } else {
-                    app.pending.backend_resolving = false;
-                }
-                app.ui.global_mode = GlobalMode::Normal;
-                sync_global_settings(app);
-            }
-            KeyCode::Char('d') | KeyCode::Delete => {
-                if let Some((backend, Some(tag))) = entries.get(*selected) {
-                    let backend_slug = backend.slug().to_string();
-                    app.ui.global_mode = GlobalMode::Confirmation {
-                        selected: false,
-                        kind: ConfirmationKind::DeleteBackend,
-                        display_name: format!("{} ({})", backend_slug, tag),
-                        detail: Some(format!("{}:{}", backend_slug, tag)),
-                    };
-                }
-            }
-            KeyCode::Char('h')
-                if key
-                    .modifiers
-                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
-            {
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            _ => {}
-        }
-    }
-}
-
-fn handle_max_concurrent_picker_key(app: &mut App, key: crossterm::event::KeyEvent) {
-    if let GlobalMode::MaxConcurrentPicker { value } = &mut app.ui.global_mode {
-        match key.code {
-            KeyCode::Esc => {
-                app.ui.global_mode = GlobalMode::Normal;
-            }
-            KeyCode::Char(c) if c.is_ascii_digit() => {
-                if value.len() < 3 {
-                    value.push(c);
-                }
-            }
-            KeyCode::Backspace => {
-                value.pop();
-            }
-            KeyCode::Enter => {
-                if let Ok(n) = value.parse::<u32>() {
-                    let n = n.clamp(1, 10);
-                    app.settings.max_concurrent_predictions = Some(n);
-                    sync_global_settings(app);
-                    mark_settings_dirty(app, true);
-                }
-                app.ui.global_mode = GlobalMode::Normal;
-                mark_settings_dirty(app, false);
-            }
-            _ => {}
-        }
-    }
-}
-
 async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
         KeyCode::Esc => {
@@ -1911,7 +1168,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Enter | KeyCode::Char('f')
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL)
+                .contains(KeyModifiers::CONTROL)
                 || key.code == KeyCode::Enter =>
         {
             let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
@@ -1972,7 +1229,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('s')
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             if let ModelsMode::Search {
                 sort_by, results, ..
@@ -2001,7 +1258,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('B')
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             if let ModelsMode::Search { page, .. } = &app.models_mode
                 && *page > 0
@@ -2084,7 +1341,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('R')
             if key
                 .modifiers
-                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                .contains(KeyModifiers::CONTROL) =>
         {
             let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
                 app.search
