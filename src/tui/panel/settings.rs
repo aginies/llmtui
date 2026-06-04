@@ -139,6 +139,8 @@ fn render_settings(
         }
 
         let dirty = field.is_dirty(settings, cached);
+        let field_enabled = field.is_enabled.map_or(true, |f| f(settings));
+        let visually_disabled = disabled || !field_enabled;
         let display: String = if editing && *total_count == selected {
             edit_buf.to_string()
         } else if dirty {
@@ -147,15 +149,15 @@ fn render_settings(
             field.display(settings)
         };
 
-        let name_style = if disabled {
-            Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)
+        let name_style = if visually_disabled {
+            Style::default().fg(Color::Gray).add_modifier(Modifier::DIM)
         } else if dirty {
             Style::default().fg(Color::Red)
         } else {
             Style::default().fg(Color::Yellow)
         };
-        let indicator_style = if disabled {
-            Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)
+        let indicator_style = if visually_disabled {
+            Style::default().fg(Color::Gray).add_modifier(Modifier::DIM)
         } else {
             Style::default().fg(Color::Yellow)
         };
@@ -164,9 +166,9 @@ fn render_settings(
                 .fg(Color::Black)
                 .bg(Color::Yellow)
                 .add_modifier(Modifier::BOLD)
-        } else if disabled {
+        } else if visually_disabled {
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(Color::Gray)
                 .add_modifier(Modifier::DIM)
         } else if dirty {
             Style::default().fg(Color::Red)

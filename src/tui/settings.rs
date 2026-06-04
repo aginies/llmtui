@@ -42,6 +42,7 @@ pub struct SettingField {
     pub edit_kind: EditKind,
     pub is_expert: bool,
     pub is_ultra: bool,
+    pub is_enabled: Option<fn(&ModelSettings) -> bool>,
 }
 
 impl SettingField {
@@ -108,6 +109,7 @@ macro_rules! make_field_fn {
                 edit_kind,
                 is_expert: $expert,
                 is_ultra: $ultra,
+                is_enabled: None,
             }
         }
     };
@@ -134,6 +136,7 @@ macro_rules! make_field_fn {
                 edit_kind,
                 is_expert: $expert,
                 is_ultra: $ultra,
+                is_enabled: None,
             }
         }
     };
@@ -330,7 +333,14 @@ pub fn all_fields() -> Vec<SettingField> {
             "context_length",
             "Context",
             "Loading",
-            |s| s.context_length.to_string(),
+            |s| {
+                if s.rope_yarn_enabled && s.rope_scale > 1.0 {
+                    let extended = (s.context_length as f64 * s.rope_scale as f64) as u32;
+                    format!("{} ({})", s.context_length, extended)
+                } else {
+                    s.context_length.to_string()
+                }
+            },
             |s, c| s.context_length != c.context_length,
             |s, delta, ctx_limit| {
                 let mut val = (s.context_length as i32 + delta * 128).max(128) as u32;
@@ -357,25 +367,29 @@ pub fn all_fields() -> Vec<SettingField> {
             toggle_rope_yarn_enabled,
             EditKind::Toggle,
         ),
-        expert_field(
-            "yarn_params",
-            "Yarn Params",
-            "Loading",
-            |s| {
-                format!(
-                    "scale={:.2} base={:.2} scale_f={:.2}",
-                    s.rope_scale, s.rope_freq_base, s.rope_freq_scale
-                )
-            },
-            |s, c| {
-                s.rope_scale != c.rope_scale
-                    || s.rope_freq_base != c.rope_freq_base
-                    || s.rope_freq_scale != c.rope_freq_scale
-            },
-            |_, _, _| {},
-            |_, _| {},
-            EditKind::Modal,
-        ),
+        {
+            let mut f = expert_field(
+                "yarn_params",
+                "Yarn Params",
+                "Loading",
+                |s| {
+                    format!(
+                        "scale={:.2} base={:.2} scale_f={:.2}",
+                        s.rope_scale, s.rope_freq_base, s.rope_freq_scale
+                    )
+                },
+                |s, c| {
+                    s.rope_scale != c.rope_scale
+                        || s.rope_freq_base != c.rope_freq_base
+                        || s.rope_freq_scale != c.rope_freq_scale
+                },
+                |_, _, _| {},
+                |_, _| {},
+                EditKind::Modal,
+            );
+            f.is_enabled = Some(|s| s.rope_yarn_enabled);
+            f
+        },
         ultra_field(
             "threads_batch",
             "Threads Batch",
