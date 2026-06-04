@@ -1279,41 +1279,14 @@ impl App {
                 let query_clone = query.clone();
                 let offset_clone = offset;
                 let search_limit = self.config.search_limit;
-                self.add_log(
-                    format!(
-                        "Searching with limit={} offset={}...",
-                        search_limit, offset_clone
-                    ),
-                    crate::config::LogLevel::Info,
-                );
                 let search_handle = tokio::spawn(async move {
                     crate::backend::hub::search_models(&query_clone, search_limit, offset_clone)
                         .await
                 });
                 match search_handle.await {
-                    Ok(Ok((res, _, raw_ids))) => {
+                    Ok(Ok((res, _, _))) => {
                         let query_str = &query;
-                        let mut buf =
-                            format!("Search complete: {} results for '{}'", res.len(), query_str);
-                        buf.push_str(&format!("\n  RAW API returned: {}", raw_ids.join(", ")));
-                        for r in &res {
-                            let gguf_tags: Vec<String> = r
-                                .tags
-                                .iter()
-                                .filter(|t| t.starts_with("gguf:"))
-                                .cloned()
-                                .collect();
-                            buf.push_str(&format!(
-                                "\n  {} quant={} tags={} params={} cap={} ctx={}",
-                                r.model_id,
-                                r.quantization.as_deref().unwrap_or("-"),
-                                gguf_tags.join(","),
-                                r.parameters.as_deref().unwrap_or("none"),
-                                r.capabilities.join(","),
-                                r.context_length.unwrap_or(0)
-                            ));
-                        }
-                        let raw_len = raw_ids.len();
+                        let raw_len = res.len();
                         if is_append {
                             if let super::types::ModelsMode::Search {
                                 results,
@@ -1361,7 +1334,10 @@ impl App {
                                 *loading = false;
                             }
                         }
-                        self.add_log(buf, crate::config::LogLevel::Info);
+                        self.add_log(
+                            format!("Search complete: {} results for '{}'", raw_len, query_str),
+                            crate::config::LogLevel::Info,
+                        );
                     }
                     Ok(Err(e)) => {
                         self.add_log(

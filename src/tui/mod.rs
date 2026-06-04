@@ -8,6 +8,7 @@ use crate::models::BenchTuneParamValue;
 
 pub mod app;
 pub mod event;
+pub mod gguf_naming;
 pub mod panel;
 pub mod render;
 pub mod settings;

@@ -228,6 +228,11 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::GgufNaming { explanation, filename: _ } = &app.ui.global_mode {
+        render_gguf_naming_overlay(f, f.area(), explanation);
+        return true;
+    }
+
     false
 }
 
@@ -2227,6 +2232,144 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         ),
+        popup_area,
+    );
+}
+
+fn render_gguf_naming_overlay(f: &mut Frame, area: Rect, explanation: &crate::tui::gguf_naming::GgufExplanation) {
+    let title_len = explanation.model_family.chars().count().max(20) as u16;
+    let w = (title_len + 40).clamp(70, 100).min(area.width - 4);
+    let h = (explanation.segments.len() as u16 + 10).clamp(12, 35).min(area.height - 4);
+
+    let popup_area = Rect {
+        x: (area.width - w) / 2,
+        y: (area.height - h) / 2,
+        width: w,
+        height: h,
+    };
+
+    let mut lines: Vec<Line> = Vec::new();
+
+    // Title
+    lines.push(Line::from(Span::styled(
+        &explanation.model_family,
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    )));
+    lines.push(Line::from(""));
+
+    // Table header
+    let header_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+    let segment_header = "Segment";
+    let value_header = "Value";
+    let desc_header = "Description";
+
+    // Calculate column widths
+    let max_label_width = explanation.segments.iter()
+        .map(|s| s.label.chars().count())
+        .max()
+        .unwrap_or(7) as u16;
+    let max_label_width = max_label_width.max(segment_header.chars().count() as u16);
+
+    let label_w = max_label_width + 1;
+    let value_w = 10;
+    let desc_w = w - label_w - value_w - 6;
+
+    lines.push(Line::from(vec![
+        Span::styled(format!("{:<width$}", segment_header, width = label_w as usize), header_style),
+        Span::raw("  "),
+        Span::styled(format!("{:<width$}", value_header, width = value_w as usize), header_style),
+        Span::raw("  "),
+        Span::styled(desc_header, header_style),
+    ]));
+    lines.push(Line::from(Span::styled(
+        format!("{}  {}  {}", "─".repeat(label_w as usize), "─".repeat(value_w as usize), "─".repeat(desc_w as usize)),
+        Style::default().fg(Color::DarkGray),
+    )));
+
+    // Segments
+    for segment in &explanation.segments {
+        let header_spans: Vec<Span> = vec![
+            Span::styled(format!("{:<width$}", segment.label, width = label_w as usize), Style::default().fg(Color::Cyan)),
+            Span::raw("  "),
+            Span::styled(format!("{:<width$}", segment.value, width = value_w as usize), Style::default().fg(Color::White)),
+            Span::raw("  "),
+        ];
+
+        let desc_text = &segment.description;
+        let available_w = desc_w as usize;
+
+        if desc_text.width() <= available_w {
+            // Fits on one line
+            let mut combined = header_spans.clone();
+            combined.push(Span::styled(desc_text.clone(), Style::default().fg(Color::Gray)));
+            lines.push(Line::from(combined));
+        } else {
+            // Wrap description into multiple lines
+            let mut remaining: &str = desc_text;
+            let mut first_line = true;
+            while !remaining.is_empty() {
+                let mut line_spans = if first_line {
+                    header_spans.clone()
+                } else {
+                    vec![Span::raw(" ".repeat(label_w as usize + 2 + value_w as usize + 2))]
+                };
+
+                // Find how many chars fit in available_w based on display width
+                let mut display_width = 0;
+                let mut byte_count = 0;
+                for (i, ch) in remaining.char_indices() {
+                    let ch_width = ch.to_string().width();
+                    if display_width + ch_width > available_w {
+                        break;
+                    }
+                    display_width += ch_width;
+                    byte_count = i + ch.len_utf8();
+                }
+
+                if byte_count == 0 {
+                    // Single char exceeds width — force it
+                    byte_count = remaining.char_indices().next().map(|(i, _)| i + 1).unwrap_or(remaining.len());
+                }
+
+                let line_text = &remaining[..byte_count];
+                line_spans.push(Span::styled(line_text.to_string(), Style::default().fg(Color::Gray)));
+                lines.push(Line::from(line_spans));
+
+                remaining = &remaining[byte_count..];
+                if remaining.is_empty() {
+                    break;
+                }
+                // Trim leading space for continuation lines
+                if let Some((i, _)) = remaining.char_indices().next() {
+                    if remaining[i..].starts_with(' ') {
+                        remaining = &remaining[i + 1..];
+                    }
+                }
+                first_line = false;
+            }
+        }
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::styled("⎋ close", Style::default().fg(Color::Yellow)),
+    ]));
+
+    let block = Block::default()
+        .title(Span::styled(
+            " GGUF Filename Explanation  ⎋ to close ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Yellow));
+
+    f.render_widget(Clear, popup_area);
+    f.render_widget(
+        Paragraph::new(lines).block(block),
         popup_area,
     );
 }

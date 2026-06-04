@@ -52,6 +52,8 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
         }
         ModelsMode::Files { .. } => {
             vec![
+                Span::styled("^G GGUF", c),
+                Span::raw(HINT_SEP),
                 Span::styled("↵ Download", y),
                 Span::raw(HINT_SEP),
                 Span::styled("⎋ Back", c),
@@ -87,6 +89,8 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 match app.ui.active_panel {
                     ActivePanel::Models => {
                         vec![
+                            Span::styled("^G GGUF", c),
+                            Span::raw(HINT_SEP),
                             Span::styled(HINT_PANELS, c),
                             Span::raw(HINT_SEP),
                             Span::styled("f Filter", y),

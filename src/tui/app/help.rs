@@ -573,6 +573,30 @@ impl App {
                 Line::from(""),
                 Line::from("Displays file name, size, architecture, layers, and training context."),
                 Line::from(""),
+                Line::from(vec![Span::styled("^G", y), Span::raw("  GGUF filename explanation (works from any panel)")]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("--- GGUF Naming Reference ---", y)],
+                ),
+                Line::from(vec![
+                    Span::styled("Q4/Q5/Q6/Q8", y),
+                    Span::raw("  Quantization bit depth (4-8 bits)")]),
+                Line::from(vec![
+                    Span::styled("K", y),
+                    Span::raw("  K-quant: block-wise quantization with double-quantized scales")]),
+                Line::from(vec![
+                    Span::styled("S/M/L", y),
+                    Span::raw("  Size variant: Small < Medium < Large (quality vs file size)")]),
+                Line::from(vec![
+                    Span::styled("UD", y),
+                    Span::raw("  Unsloth Dynamic 2.0: KL-divergence calibrated quantization")]),
+                Line::from(vec![
+                    Span::styled("35B", y),
+                    Span::raw("  Total parameters (e.g., 35 Billion)")]),
+                Line::from(vec![
+                    Span::styled("A3B", y),
+                    Span::raw("  Active parameters in MoE (only 3B computed per token)")]),
+                Line::from(""),
                 Line::from(vec![
                     Span::styled("⇥ Panels", y),
                     Span::raw("  Switch panels"),

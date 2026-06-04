@@ -176,6 +176,7 @@ impl App {
                 pending_search_load: None,
                 search_loading: false,
                 search_input: None,
+                gguf_naming_cache: Default::default(),
             },
             ui: UIState {
                 active_panel,

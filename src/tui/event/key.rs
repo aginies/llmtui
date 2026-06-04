@@ -75,6 +75,17 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // GGUF naming overlay
+    if matches!(app.ui.global_mode, GlobalMode::GgufNaming { .. }) {
+        match key.code {
+            KeyCode::Esc | KeyCode::Enter => {
+                app.ui.global_mode = GlobalMode::Normal;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     // Dashboard URL modal (Ctrl+U)
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
         app.ui.global_mode = GlobalMode::DashboardUrl {
@@ -163,6 +174,48 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
 
         mark_settings_dirty(app, false);
+        return;
+    }
+
+    // Ctrl+G: GGUF filename explanation (global, works from any panel)
+    if key.code == KeyCode::Char('g') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        let filename = match &app.models_mode {
+            ModelsMode::List => {
+                app.selected_model().map(|m| m.display_name.clone())
+            }
+            ModelsMode::Search { results, .. } => {
+                if let Some(idx) = app.search.search_results_idx {
+                    if idx < results.len() {
+                        Some(results[idx].model_id.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            ModelsMode::Files { files, selected_idx, .. } => {
+                selected_idx.and_then(|idx| {
+                    files.get(idx).map(|(f, _, _)| f.clone())
+                })
+            }
+            ModelsMode::BenchTune => None,
+        };
+        if let Some(fn_name) = filename {
+            let explanation = crate::tui::gguf_naming::get_explanation(
+                &fn_name,
+                &mut app.search.gguf_naming_cache,
+            );
+            app.ui.global_mode = GlobalMode::GgufNaming {
+                explanation,
+                filename: fn_name,
+            };
+        } else {
+            app.add_log(
+                "No filename available for GGUF explanation",
+                crate::config::LogLevel::Warning,
+            );
+        }
         return;
     }
 

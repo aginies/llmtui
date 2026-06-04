@@ -169,6 +169,10 @@ pub enum GlobalMode {
         buffer: String,
         cursor_pos: usize,
     },
+    GgufNaming {
+        explanation: crate::tui::gguf_naming::GgufExplanation,
+        filename: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
