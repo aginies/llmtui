@@ -1552,6 +1552,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                     self.server.running_ws_port = Some(port);
                     self.server.running_ws_auth = auth_key.clone();
                     self.server.running_ws_tls = Some(tls_enabled);
+                    let protocol = if tls_enabled { "https" } else { "http" };
                     let auth_param = match &auth_key {
                         Some(a) => format!("?auth={}", urlencoding::encode(a)),
                         None => String::new(),
@@ -1559,6 +1560,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                     self.add_log(
                         crate::t_fmt!(
                             "async.dashboard_enabled",
+                            protocol,
                             self.settings.host,
                             port,
                             auth_param
