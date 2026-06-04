@@ -1,5 +1,6 @@
-use super::types::LoadingPhase::*;
-use super::types::{App, LoadingPhase};
+use super::parsing::*;
+use crate::tui::app::types::LoadingPhase::*;
+use crate::tui::app::types::{App, LoadingPhase};
 use crate::config::LogLevel;
 use crate::models::ModelState;
 use chrono::Local;
@@ -37,192 +38,140 @@ impl App {
     }
 
     fn detect_loading_phases(&mut self, msg: &str) {
-        let upper = msg.to_uppercase();
-        if self.loading.loading_phases.is_empty() {
-            // Detect server starting (first log line after spawn)
-            if upper.contains("LLAMA") || upper.contains("SERVER") || upper.contains("GGML") {
-                self.loading.loading_phases.insert(ServerStarting);
-                self.loading.last_active_phase = Some(ServerStarting);
-            }
+        if self.loading.loading_phases.is_empty() && LLAMA_START.is_match(msg) {
+            self.loading.loading_phases.insert(ServerStarting);
+            self.loading.last_active_phase = Some(ServerStarting);
         }
-        if upper.contains("LLAMA_MODEL_LOADER") || upper.contains("LOADING MODEL") {
+        if LOADING_MODEL.is_match(msg) {
             self.ui.last_error_message = None;
             self.loading.loading_phases.insert(LoadingModel);
             self.loading.last_active_phase = Some(LoadingModel);
         }
-        if upper.contains("LOADED META") || upper.contains("META DATA") {
+        if LOADED_META.is_match(msg) {
             self.ui.last_error_message = None;
             self.loading.loading_phases.insert(LoadingMeta);
             self.loading.last_active_phase = Some(LoadingMeta);
         }
-        if upper.contains("LOAD_TENSORS:") {
+        if LOAD_TENSORS.is_match(msg) {
             self.ui.last_error_message = None;
             self.loading.loading_phases.insert(LoadingTensors);
             self.loading.last_active_phase = Some(LoadingTensors);
         }
-        if upper.contains("SERVER LISTENING")
-            || upper.contains("HTTP SERVER LISTENING")
-            || upper.contains("LOAD_MODEL: INITIALIZING SLOTS")
-            || (upper.contains("SRV")
-                && upper.contains("LOAD_MODEL")
-                && upper.contains("INITIALIZING"))
-        {
+        if SERVER_LISTENING.is_match(msg) {
             self.loading.loading_phases.insert(ServerListening);
             self.loading.last_active_phase = Some(ServerListening);
         }
     }
 
     fn parse_loading_details(&mut self, msg: &str) {
-        let upper = msg.to_uppercase();
-        if self.loading.loading_phases.contains(&LoadingTensors) {
-            // Parse "loading tensor X of Y" or "loading tensor X out of Y" pattern
-            if upper.contains("LOADING TENSOR")
-                && let Some(pos) = msg.to_lowercase().find("loading tensor")
-            {
-                let rest = &msg[pos + "loading tensor".len()..];
-                let parts: Vec<&str> = rest.split_whitespace().collect();
-                if parts.len() >= 3 {
-                    if let Ok(n) = parts[0].parse::<u32>() {
-                        self.loading.load_progress.tensors_loaded = n;
-                    }
-                    // "of Y" or "out of Y" — Y is at index 2 or 4
-                    let total_idx = if parts.len() >= 5 && parts[2].to_lowercase() == "out" {
-                        4
-                    } else if parts.len() >= 3 && parts[1].to_lowercase() == "of" {
-                        2
-                    } else {
-                        usize::MAX
-                    };
-                    if total_idx != usize::MAX
-                        && let Ok(total) = parts[total_idx]
-                            .trim_end_matches(|c: char| !c.is_ascii_digit())
-                            .parse::<u32>()
-                    {
-                        self.loading.load_progress.tensors_total = Some(total);
-                    }
-                }
-            }
-            // Count dots from progress lines like "................................"
-            // Only use dot-counting as fallback when we haven't seen an explicit tensor count yet
-            if self.loading.load_progress.tensors_total.is_none() {
-                let dot_count = msg.chars().filter(|&c| c == '.').count();
-                if dot_count > 0 && dot_count <= 200 {
-                    self.loading.load_progress.tensors_loaded += dot_count as u32;
-                }
-            }
+        if !self.loading.loading_phases.contains(&LoadingTensors) {
+            return;
+        }
 
-            // Offloading N repeating layers to GPU
-            if upper.contains("OFFLOADING")
-                && upper.contains("REPEATING LAYERS")
-                && let Some(pos) = msg.find("offloading")
-            {
-                let rest = &msg[pos + "offloading".len()..];
-                if let Some(colon_pos) = rest.find(':') {
-                    let rest = rest[colon_pos + 1..].trim_start();
-                    let end = rest.find(' ').unwrap_or(rest.len());
-                    if let Ok(count) = rest[..end].trim().parse::<u32>() {
-                        self.loading.load_progress.layers_total = Some(count);
-                    }
+        // Parse "loading tensor X of Y"
+        if let Some(caps) = LOADING_TENSOR.captures(msg) {
+            if let Ok(n) = caps.get(1).unwrap().as_str().parse::<u32>() {
+                self.loading.load_progress.tensors_loaded = n;
+            }
+            if let Ok(total) = caps.get(2).unwrap().as_str().parse::<u32>() {
+                self.loading.load_progress.tensors_total = Some(total);
+            }
+            return;
+        }
+
+        // Count dots from progress lines as fallback
+        if self.loading.load_progress.tensors_total.is_none() {
+            let dot_count = msg.chars().filter(|&c| c == '.').count();
+            if dot_count > 0 && dot_count <= 200 {
+                self.loading.load_progress.tensors_loaded += dot_count as u32;
+            }
+        }
+
+        // Parse "offloading N repeating layers to GPU"
+        if let Some(caps) = OFFLOADING_LAYERS.captures(msg) {
+            if let Ok(count) = caps.get(1).unwrap().as_str().parse::<u32>() {
+                self.loading.load_progress.layers_total = Some(count);
+            }
+        }
+
+        // Parse "offloaded X/Y layers" or "offloaded X out of Y layers"
+        if let Some(caps) = OFFLOADED_LAYERS.captures(msg) {
+            if let Ok(loaded) = caps.get(1).unwrap().as_str().parse::<u32>() {
+                self.loading.load_progress.layers_loaded = Some(loaded);
+            }
+            if let Ok(total) = caps.get(2).unwrap().as_str().parse::<u32>() {
+                self.loading.load_progress.layers_total = Some(total);
+            }
+        }
+
+        // Parse buffer sizes: "Vulkan0 model buffer size = X MiB"
+        if let Some(caps) = MODEL_BUFFER_SIZE.captures(msg) {
+            let device = caps.get(1).map(|m| m.as_str().trim().to_string()).unwrap_or_default();
+            if let Ok(mib) = caps.get(2).unwrap().as_str().parse::<f64>() {
+                let exists = self
+                    .loading
+                    .load_progress
+                    .buffers
+                    .iter_mut()
+                    .find(|b| b.device == device);
+                if let Some(buf) = exists {
+                    buf.buffer_size_mib = mib;
+                } else {
+                    self.loading.load_progress.buffers.push(
+                        crate::models::GPUBuffer {
+                            device,
+                            buffer_size_mib: mib,
+                        },
+                    );
                 }
             }
+        }
 
-            // Offloaded X/Y layers to GPU
-            if upper.contains("OFFLOADED")
-                && upper.contains("LAYERS")
-                && let Some(pos) = msg.find("offloaded")
-            {
-                let rest = &msg[pos + "offloaded".len()..];
-                if let Some(slash) = rest.find('/') {
-                    let before = rest[..slash].trim();
-                    let after = rest[slash + 1..].trim();
-                    if let Ok(loaded) = before.parse::<u32>() {
-                        self.loading.load_progress.layers_loaded = Some(loaded);
-                    }
-                    if let Ok(total) = after.split_whitespace().next().unwrap_or("").parse::<u32>()
-                    {
-                        self.loading.load_progress.layers_total = Some(total);
-                    }
-                }
-                // Also handle "offloaded N layers" without Y
-                if self.loading.load_progress.layers_loaded.is_none() {
-                    let rest = rest.trim_start();
-                    let end = rest.find(' ').unwrap_or(rest.len());
-                    if let Ok(count) = rest[..end].trim().parse::<u32>() {
-                        self.loading.load_progress.layers_loaded = Some(count);
-                    }
-                }
-            }
-
-            // CPU_Mapped model buffer size = X MiB
-            // Vulkan0 model buffer size = X MiB
-            for keyword in &["model buffer size", "kv buffer size"] {
-                if let Some(pos) = msg.to_lowercase().find(keyword) {
-                    let before = &msg[..pos];
-                    let device = before.split_whitespace().last().unwrap_or("").to_string();
-                    if !device.is_empty() {
-                        let rest = &msg[pos + keyword.len()..];
-                        if let Some(eq_pos) = rest.find('=') {
-                            let after = rest[eq_pos + 1..].trim();
-                            let end = after
-                                .find(|c: char| !c.is_ascii_digit() && c != '.')
-                                .unwrap_or(after.len());
-                            if let Ok(mib) = after[..end].parse::<f64>() {
-                                let exists = self
-                                    .loading
-                                    .load_progress
-                                    .buffers
-                                    .iter_mut()
-                                    .find(|b| b.device == device);
-                                if let Some(buf) = exists {
-                                    buf.buffer_size_mib = mib;
-                                } else {
-                                    self.loading.load_progress.buffers.push(
-                                        crate::models::GPUBuffer {
-                                            device,
-                                            buffer_size_mib: mib,
-                                        },
-                                    );
-                                }
-                            }
-                        }
-                    }
+        // Parse: "kv buffer size = X MiB"
+        if let Some(caps) = KV_BUFFER_SIZE.captures(msg) {
+            if let Ok(mib) = caps.get(1).unwrap().as_str().parse::<f64>() {
+                let exists = self
+                    .loading
+                    .load_progress
+                    .buffers
+                    .iter_mut()
+                    .find(|b| b.device == "kv");
+                if let Some(buf) = exists {
+                    buf.buffer_size_mib = mib;
+                } else {
+                    self.loading.load_progress.buffers.push(
+                        crate::models::GPUBuffer {
+                            device: "kv".to_string(),
+                            buffer_size_mib: mib,
+                        },
+                    );
                 }
             }
         }
     }
 
-    fn detect_load_state(&mut self, _msg: &str) {
-        // Log-based load state detection removed.
-        // Loading completion is now detected via /health API polling.
-        // Server exit is now detected via channel-based signaling.
-        // Error detection still uses log parsing for OOM/crash detection.
-        let upper = _msg.to_uppercase();
-
-        let is_error = upper.contains("ERROR")
-            || upper.contains("FAILED TO LOAD")
-            || upper.contains("EXCEPTION")
-            || upper.contains("VK::SYSTEMERROR")
-            || upper.contains("OUTOFDEVICEMEMORY")
-            || upper.contains("OUT OF MEMORY");
-
-        if is_error {
-            let is_loading = self
-                .model_states
-                .values()
-                .any(|s| matches!(s, ModelState::Loading));
-            if is_loading {
-                let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-                let error_msg =
-                    if upper.contains("OUTOFDEVICEMEMORY") || upper.contains("OUT OF MEMORY") {
-                        format!("Last Failed to load a model (OOM - {})", timestamp)
-                    } else {
-                        format!("Last Failed to load a model ({})", timestamp)
-                    };
-
-                self.ui.last_error_message = Some(error_msg);
-                self.reset_loading_state(false);
-            }
+    fn detect_load_state(&mut self, msg: &str) {
+        if !is_loading_error(msg) {
+            return;
         }
+
+        let is_loading = self
+            .model_states
+            .values()
+            .any(|s| matches!(s, ModelState::Loading));
+        if !is_loading {
+            return;
+        }
+
+        let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
+        let error_msg = if is_oom_error(msg) {
+            format!("Last Failed to load a model (OOM - {})", timestamp)
+        } else {
+            format!("Last Failed to load a model ({})", timestamp)
+        };
+
+        self.ui.last_error_message = Some(error_msg);
+        self.reset_loading_state(false);
     }
 
     pub(crate) fn compute_progress(&mut self) {

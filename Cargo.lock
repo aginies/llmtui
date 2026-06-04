@@ -1664,6 +1664,7 @@ dependencies = [
  "rand",
  "ratatui",
  "rcgen",
+ "regex",
  "reqwest",
  "rustls",
  "rustls-pemfile",
