@@ -1300,7 +1300,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
     pub async fn process_pending_kill(&mut self, handle: ServerHandle) {
         match crate::backend::server::kill_server(handle).await {
             Ok(()) => {
-                self.add_log("Server stopped", crate::config::LogLevel::Info);
+                self.add_log(crate::t!("log.server_stopped"), crate::config::LogLevel::Info);
                 self.server.server_handle = None;
                 self.server.metrics_rx = None;
                 self.metrics = Default::default();

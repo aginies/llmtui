@@ -40,7 +40,7 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                     }
                 }
                 app.edit.editing_preset = None;
-                app.add_log("Saved preset", crate::config::LogLevel::Info);
+                app.add_log(crate::t!("presets.saved"), crate::config::LogLevel::Info);
                 if let Err(e) = app.config.save() {
                     app.add_log(
                         format!("Failed to save: {}", e),

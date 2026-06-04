@@ -108,7 +108,7 @@ impl App {
 
         // Check if selection is valid
         if selected_idx >= all_profiles.len() {
-            self.add_log("Invalid profile selection", crate::config::LogLevel::Info);
+            self.add_log(crate::t!("profiles.invalid"), crate::config::LogLevel::Info);
             return false;
         }
 

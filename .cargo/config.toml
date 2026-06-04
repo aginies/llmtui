@@ -1,0 +1,2 @@
+[env]
+LLM_MANAGER_LOCALES = { value = "locales", relative = true }

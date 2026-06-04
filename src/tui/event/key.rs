@@ -279,7 +279,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 && app.server_mode == crate::models::ServerMode::Bench
                 && let Some(handle) = app.server.server_handle.take()
             {
-                app.add_log("Stopping benchmark...", crate::config::LogLevel::Info);
+                app.add_log(crate::t!("log.stopping_benchmark"), crate::config::LogLevel::Info);
                 let _ = app
                     .pending_tx
                     .send(PendingEvent::KillHandle { handle })
@@ -407,7 +407,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     crate::config::LogLevel::Info,
                 );
             } else {
-                app.add_log("No server is running", crate::config::LogLevel::Warning);
+                app.add_log(crate::t!("log.no_server"), crate::config::LogLevel::Warning);
             }
             return;
         }
@@ -1316,7 +1316,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             String::new()
                         };
                         let offset = (*page as u32 + 1) * 50;
-                        app.add_log("Loading more results...", crate::config::LogLevel::Info);
+                        app.add_log(crate::t!("log.loading_more"), crate::config::LogLevel::Info);
                         let _ = app
                             .pending_tx
                             .send(PendingEvent::Search {
@@ -1363,7 +1363,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     format!("Fetching README for {}...", model_id),
                     crate::config::LogLevel::Info,
                 );
-                app.add_log("This may take a moment...", crate::config::LogLevel::Info);
+                app.add_log(crate::t!("log.taking_moment"), crate::config::LogLevel::Info);
                 fetch_and_store_readme(app, model_id.clone()).await;
                 if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
                     *show_readme = true;
@@ -1508,7 +1508,7 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     .unwrap_or_default();
                 let file_path = dest_dir.join(basename);
                 if file_path.exists() {
-                    app.add_log("File already downloaded", crate::config::LogLevel::Warning);
+                    app.add_log(crate::t!("log.already_downloaded"), crate::config::LogLevel::Warning);
                     return;
                 }
                 app.add_log(
