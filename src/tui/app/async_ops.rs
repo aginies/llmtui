@@ -211,7 +211,7 @@ impl App {
                             };
                             download_logs.push(crate::t_fmt!(
                                 "async.downloading_progress",
-                                name, new_pct, total_mib, speed_mib
+                                name, new_pct, format!("{:.1}", total_mib), format!("{:.2}", speed_mib)
                             ));
                         }
                     }

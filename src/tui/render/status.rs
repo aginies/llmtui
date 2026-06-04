@@ -47,7 +47,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     current_params: _,
                 } => {
                     let progress_str =
-                        crate::t_fmt!("status.bench_tune_progress", current, total, progress);
+                        crate::t_fmt!("status.bench_tune_progress", current, total, format!("{:.0}", progress));
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
                         Style::default().fg(Color::Yellow),

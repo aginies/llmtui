@@ -623,7 +623,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     } => {
                         lines.push(Line::from(crate::t_fmt!(
                             "models.benchtune_progress",
-                            current, total, p
+                            current, total, format!("{:.0}", p)
                         )));
                         lines.push(Line::from(""));
                         lines.push(Line::from(Span::styled(
