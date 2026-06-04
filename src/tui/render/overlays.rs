@@ -1324,7 +1324,12 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
     };
     let about_lines = panel::about::render_about();
     let block = Block::default()
-        .title("crate::t!(\"dialog.about.title\")")
+        .title(Span::styled(
+            crate::t!("dialog.about.title"),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ))
         .borders(Borders::ALL)
         .border_style(
             Style::default()
