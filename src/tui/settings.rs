@@ -173,6 +173,9 @@ fn toggle_kv_cache_offload(settings: &mut ModelSettings) {
 fn toggle_uniform_cache(settings: &mut ModelSettings) {
     settings.uniform_cache = !settings.uniform_cache;
 }
+fn toggle_swa_full(settings: &mut ModelSettings) {
+    settings.swa_full = !settings.swa_full;
+}
 fn toggle_mtp(settings: &mut ModelSettings) {
     if settings.spec_type.is_empty() {
         settings.spec_type = "draft-mtp".to_string();
@@ -589,6 +592,31 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_uniform_cache,
+        ),
+        expert_field(
+            "cache_reuse",
+            "Cache Reuse",
+            "Evaluation",
+            |s| s.cache_reuse.to_string(),
+            |s, c| s.cache_reuse != c.cache_reuse,
+            |s, delta, _| {
+                s.cache_reuse = (s.cache_reuse as i32 + delta * 16).max(0) as u32;
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<u32>() {
+                    s.cache_reuse = v;
+                }
+            },
+        ),
+        expert_field_with_toggle(
+            "swa_full",
+            "SWA Full Cache",
+            "Evaluation",
+            |s| s.swa_full.to_string(),
+            |s, c| s.swa_full != c.swa_full,
+            |_, _, _| {},
+            |_, _| {},
+            toggle_swa_full,
         ),
         expert_field_with_toggle(
             "max_concurrent_predictions",
