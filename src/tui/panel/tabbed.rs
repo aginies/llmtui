@@ -75,48 +75,48 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     f.render_widget(Paragraph::new(vec![]).block(block), llm_area);
 
     if let Some(ref help_text) = help_line {
-        let max_width = inner.width.saturating_sub(2);
         let help_char_len = help_text.chars().count();
-        let help_line_count = if max_width > 2 {
-            ((help_char_len as f64) / (max_width as f64)).ceil() as u16
+        let help_text_lines = if inner.width > 0 {
+            ((help_char_len as f64) / (inner.width as f64)).ceil() as u16
         } else {
             1
         };
-        let help_line_count = help_line_count.clamp(1, 6);
+        let help_area_height = help_text_lines.clamp(1, 20) + 1;
 
         // visible lines = available height minus help box
         let visible_lines: Vec<Line<'static>> = settings_lines
             .iter()
             .skip(start_idx)
-            .take((available_height as usize).saturating_sub(help_line_count as usize))
+            .take((available_height as usize).saturating_sub(help_area_height as usize))
             .cloned()
             .collect();
 
         let help_area = Rect {
             x: inner.x,
-            y: inner.y + inner.height - help_line_count,
+            y: inner.y + inner.height.saturating_sub(help_area_height),
             width: inner.width,
-            height: help_line_count,
+            height: help_area_height,
         };
         let help_block = Block::default()
             .borders(Borders::TOP)
             .border_style(Style::default().fg(Color::Gray))
             .bg(Color::Black);
+        let help_inner = help_block.inner(help_area);
         f.render_widget(help_block.clone(), help_area);
         f.render_widget(
             Paragraph::new(help_text.as_str()).wrap(ratatui::widgets::Wrap { trim: true }),
-            help_block.inner(help_area),
+            help_inner,
         );
 
         let settings_area = Rect {
             x: inner.x,
             y: inner.y,
             width: inner.width,
-            height: inner.height.saturating_sub(help_line_count),
+            height: inner.height.saturating_sub(help_area_height),
         };
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 
-        if settings_height > available_height.saturating_sub(help_line_count) as usize {
+        if settings_height > available_height.saturating_sub(help_area_height) as usize {
             let scroll_area = Rect {
                 x: settings_area.x + settings_area.width.saturating_sub(1),
                 y: settings_area.y,
@@ -445,28 +445,28 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     f.render_widget(Paragraph::new(vec![]).block(block), area);
 
     if let Some(ref help_text) = help_line {
-        let max_width = inner.width.saturating_sub(2);
+        let max_width = inner.width;
         let help_char_len = help_text.chars().count();
-        let help_line_count = if max_width > 2 {
+        let help_text_lines = if max_width > 0 {
             ((help_char_len as f64) / (max_width as f64)).ceil() as u16
         } else {
             1
         };
-        let help_line_count = help_line_count.clamp(1, 6);
+        let help_area_height = help_text_lines.clamp(1, 20) + 1;
 
         // visible lines = available height minus help box
         let visible_lines: Vec<Line> = all_lines
             .iter()
             .skip(start_idx)
-            .take((available_height as usize).saturating_sub(help_line_count as usize))
+            .take((available_height as usize).saturating_sub(help_area_height as usize))
             .cloned()
             .collect();
 
         let help_area = Rect {
             x: inner.x,
-            y: inner.y + inner.height - help_line_count,
+            y: inner.y + inner.height.saturating_sub(help_area_height),
             width: inner.width,
-            height: help_line_count,
+            height: help_area_height,
         };
         let help_block = Block::default()
             .borders(Borders::TOP)
@@ -482,11 +482,11 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
             x: inner.x,
             y: inner.y,
             width: inner.width,
-            height: inner.height.saturating_sub(help_line_count),
+            height: inner.height.saturating_sub(help_area_height),
         };
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 
-        if settings_height > available_height.saturating_sub(help_line_count) as usize {
+        if settings_height > available_height.saturating_sub(help_area_height) as usize {
             let scroll_area = Rect {
                 x: settings_area.x + settings_area.width.saturating_sub(1),
                 y: settings_area.y,
