@@ -998,9 +998,9 @@ impl Config {
         let default = &self.default;
 
         // Numeric range checks
-        if default.context_length < 512 || default.context_length > 131072 {
+        if default.context_length < 512 || default.context_length > 1048576 {
             warnings.push(format!(
-                "context_length {} is outside recommended range 512-131072",
+                "context_length {} is outside recommended range 512-1048576",
                 default.context_length
             ));
         }
