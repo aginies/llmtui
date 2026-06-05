@@ -18,8 +18,8 @@ use llm_manager::tui::i18n;
 // ── Test helpers ─────────────────────────────────────────────────
 
 fn make_app() -> App {
-    let config = Config::default();
-    let mut app = App::new(config);
+     let config = Config::default();
+     let mut app = App::new(config);
     app.loading.loading_phases.clear();
     app.loading.last_active_phase = None;
     app.loading.loading_progress = 0.0;
@@ -281,8 +281,9 @@ async fn test_ctrl_l_cycles_language() {
     let key = make_key_with_mod(KeyCode::Char('l'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
     assert_eq!(app.config.language, "fr");
-    assert_eq!(i18n::get_language(), "fr");
-}
+     assert_eq!(i18n::get_language(), "fr");
+     i18n::set_language("en");
+ }
 
 #[tokio::test]
 async fn test_ctrl_k_kills_server() {
@@ -304,7 +305,8 @@ async fn test_ctrl_k_kills_server() {
 
 #[tokio::test]
 async fn test_ctrl_k_no_server_logs_warning() {
-    let mut app = make_app();
+     let mut app = make_app();
+     i18n::set_language("en");
     let key = make_key_with_mod(
         KeyCode::Char('k'),
         KeyModifiers::CONTROL | KeyModifiers::ALT,
@@ -1008,7 +1010,7 @@ async fn test_files_enter_sets_pending_download() {
     handle_key(&mut app, key).await;
     let event = app.pending_rx.try_recv();
     assert!(event.is_ok());
-    if let Ok(llm_manager::tui::app::scheduler::PendingEvent::Download { model_id, filename, url, file_size, subdir }) = event {
+    if let Ok(llm_manager::tui::app::pending_events::PendingEvent::Download { model_id, filename, url, file_size, subdir }) = event {
         assert_eq!(model_id, "test/model");
         assert_eq!(filename, "model-q4.gguf");
         assert_eq!(url, "https://example.com/q4");
@@ -1040,7 +1042,7 @@ async fn test_files_enter_with_readme_focused_sets_pending_download() {
     handle_key(&mut app, key).await;
     let event = app.pending_rx.try_recv();
     assert!(event.is_ok());
-    if let Ok(llm_manager::tui::app::scheduler::PendingEvent::Download { model_id, filename, url, file_size, subdir }) = event {
+    if let Ok(llm_manager::tui::app::pending_events::PendingEvent::Download { model_id, filename, url, file_size, subdir }) = event {
         assert_eq!(model_id, "test/model");
         assert_eq!(filename, "model-q4.gguf");
         assert_eq!(url, "https://example.com/q4");

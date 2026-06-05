@@ -241,7 +241,7 @@ fn config_validate_context_length_too_low() {
 #[test]
 fn config_validate_context_length_too_high() {
     let mut config = Config::default();
-    config.default.context_length = 200000;
+    config.default.context_length = 2000000;
     let warnings = config.validate();
     assert!(warnings.iter().any(|w| w.contains("context_length")));
 }
