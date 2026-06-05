@@ -616,5 +616,12 @@
   "status.search": "RICERCA({})",
   "status.server": "Server",
   "status.server_panel": "SERVER",
-  "sync.reset_settings": "Reset LLM Settings to defaults"
+  "sync.reset_settings": "Reset LLM Settings to defaults",
+   "server.host_label": "localhost (127.0.0.1)",
+  "models.sort.relevance": "Rilevanza",
+  "models.sort.downloads": "Download",
+  "models.sort.likes": "Mi piace",
+  "models.sort.trending": "Tendenze",
+  "models.sort.created": "Creato",
+  "async.delete_failed": "Impossibile eliminare il file: {}"
 }

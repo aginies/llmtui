@@ -34,13 +34,13 @@ impl SearchSort {
         }
     }
 
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            SearchSort::Relevance => "Relevance",
-            SearchSort::Downloads => "Downloads",
-            SearchSort::Likes => "Likes",
-            SearchSort::Trending => "Trending",
-            SearchSort::CreatedAt => "Created",
+            SearchSort::Relevance => crate::t!("models.sort.relevance").to_string(),
+            SearchSort::Downloads => crate::t!("models.sort.downloads").to_string(),
+            SearchSort::Likes => crate::t!("models.sort.likes").to_string(),
+            SearchSort::Trending => crate::t!("models.sort.trending").to_string(),
+            SearchSort::CreatedAt => crate::t!("models.sort.created").to_string(),
         }
     }
 }
@@ -111,6 +111,96 @@ impl DownloadState {
     }
 }
 
+impl std::hash::Hash for ModelSettings {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // ── Loading ──
+        self.context_length.hash(state);
+        self.threads.hash(state);
+        self.threads_batch.hash(state);
+        self.batch_size.hash(state);
+        self.ubatch_size.hash(state);
+        self.parallel.hash(state);
+        self.max_concurrent_predictions.hash(state);
+        self.uniform_cache.hash(state);
+        self.kv_cache_offload.hash(state);
+        self.cache_type_k.hash(state);
+        self.cache_type_v.hash(state);
+        self.keep.hash(state);
+        self.swa_full.hash(state);
+        self.mlock.hash(state);
+        self.mmap.hash(state);
+        self.numa.hash(state);
+        self.system_prompt.hash(state);
+        self.system_prompt_preset_name.hash(state);
+        // ── GPU ──
+        self.gpu_layers_mode.hash(state);
+        self.split_mode.hash(state);
+        self.tensor_split.hash(state);
+        self.main_gpu.hash(state);
+        self.fit.hash(state);
+        self.lora.hash(state);
+        if let Some((path, scale)) = &self.lora_scaled {
+            path.hash(state);
+            scale.to_bits().hash(state);
+        }
+        self.rpc.hash(state);
+        self.embedding.hash(state);
+        self.flash_attn.hash(state);
+        self.expert_count.hash(state);
+        self.jinja.hash(state);
+        self.chat_template.hash(state);
+        self.chat_template_kwargs.hash(state);
+        // ── Sampling ──
+        self.seed.hash(state);
+        self.temperature.to_bits().hash(state);
+        self.top_k.hash(state);
+        self.top_p.to_bits().hash(state);
+        self.min_p.to_bits().hash(state);
+        self.typical_p.to_bits().hash(state);
+        self.mirostat.hash(state);
+        self.mirostat_lr.to_bits().hash(state);
+        self.mirostat_ent.to_bits().hash(state);
+        self.ignore_eos.hash(state);
+        self.samplers.hash(state);
+        // ── Repetition Control ──
+        self.repeat_penalty.to_bits().hash(state);
+        self.repeat_last_n.hash(state);
+        self.presence_penalty.map(|v| v.to_bits()).hash(state);
+        self.frequency_penalty.map(|v| v.to_bits()).hash(state);
+        self.dry_multiplier.to_bits().hash(state);
+        self.dry_base.to_bits().hash(state);
+        self.dry_allowed_length.hash(state);
+        self.dry_penalty_last_n.hash(state);
+        // ── RoPE ──
+        self.rope_scaling.hash(state);
+        self.rope_scale.to_bits().hash(state);
+        self.rope_freq_base.to_bits().hash(state);
+        self.rope_freq_scale.to_bits().hash(state);
+        self.rope_yarn_enabled.hash(state);
+        // ── Server ──
+        self.host.hash(state);
+        self.port.hash(state);
+        self.timeout.hash(state);
+        self.cache_prompt.hash(state);
+        self.cache_reuse.hash(state);
+        self.webui.hash(state);
+        // ── Other ──
+        self.max_tokens.hash(state);
+        self.cache_type.hash(state);
+        self.backend.hash(state);
+        self.llama_cpp_version_cpu.hash(state);
+        self.llama_cpp_version_vulkan.hash(state);
+        self.llama_cpp_version_rocm.hash(state);
+        self.llama_cpp_version_rocm_lemonade.hash(state);
+        self.llama_cpp_version_cuda.hash(state);
+        self.api_endpoint_enabled.hash(state);
+        self.api_endpoint_port.hash(state);
+        self.spec_type.hash(state);
+        self.draft_tokens.hash(state);
+        self.tags.hash(state);
+    }
+}
+
 impl ModelSettings {
     /// Get the version string for the currently active backend.
     pub fn get_active_backend_version(&self) -> Option<&String> {
@@ -169,10 +259,10 @@ pub fn clean_host(host: &str) -> String {
 }
 
 /// Format a host string for display (e.g. "" or "127.0.0.1" -> "localhost (127.0.0.1)").
-pub fn format_host(host: &str) -> &str {
+pub fn format_host(host: &str) -> String {
     match host {
-        "" | "127.0.0.1" => "localhost (127.0.0.1)",
-        _ => host,
+        "" | "127.0.0.1" => crate::t!("server.host_label").to_string(),
+        _ => host.to_string(),
     }
 }
 
@@ -510,7 +600,7 @@ impl std::fmt::Display for Mirostat {
 
 /// Sampler order string (semicolon-separated).
 /// Common types: penalties, dry, top_n_sigma, top_k, typ_p, top_p, min_p, xtc, temperature
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Samplers(pub String);
 
 impl Default for Samplers {
@@ -526,7 +616,7 @@ impl std::fmt::Display for Samplers {
 }
 
 /// Backend used to run the llama.cpp server.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum Backend {
     #[serde(rename = "cpu")]
     #[default]

@@ -616,5 +616,12 @@
   "status.search": "RECHERCHE({})",
   "status.server": "Serveur",
   "status.server_panel": "SERVEUR",
-  "sync.reset_settings": "Réinitialiser les paramètres LLM aux valeurs par défaut"
+  "sync.reset_settings": "Réinitialiser les paramètres LLM aux valeurs par défaut",
+   "server.host_label": "localhost (127.0.0.1)",
+  "models.sort.relevance": "Pertinence",
+  "models.sort.downloads": "Téléchargements",
+  "models.sort.likes": "J'aime",
+  "models.sort.trending": "Tendance",
+  "models.sort.created": "Créé",
+  "async.delete_failed": "Échec de la suppression du fichier : {}"
 }

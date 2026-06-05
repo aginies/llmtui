@@ -148,11 +148,12 @@ pub async fn process_pending_download(
 
     pub async fn process_pending_deletion(&mut self, path: PathBuf) {
         let path_clone = path.clone();
-        tokio::spawn(async move {
-            if let Err(e) = tokio::fs::remove_file(&path_clone).await {
-                tracing::warn!("Failed to delete file: {}", e);
-            }
-        });
+        if let Err(e) = tokio::fs::remove_file(&path_clone).await {
+            self.add_log(
+                crate::t_fmt!("async.delete_failed", e),
+                crate::config::LogLevel::Warning,
+            );
+        }
         // Find the model by path to get its display_name for config key
         let model_key = self
             .models

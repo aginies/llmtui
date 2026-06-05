@@ -60,41 +60,7 @@ impl App {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
         let mut h = DefaultHasher::new();
-        self.settings.context_length.hash(&mut h);
-        self.settings.system_prompt_preset_name.hash(&mut h);
-        self.settings.mlock.hash(&mut h);
-        self.settings.gpu_layers_mode.hash(&mut h);
-        self.settings.flash_attn.hash(&mut h);
-        self.settings.fit.hash(&mut h);
-        self.settings.kv_cache_offload.hash(&mut h);
-        self.settings.cache_type_k.hash(&mut h);
-        self.settings.cache_type_v.hash(&mut h);
-        self.settings.expert_count.hash(&mut h);
-        self.settings.batch_size.hash(&mut h);
-        self.settings.uniform_cache.hash(&mut h);
-        self.settings.max_concurrent_predictions.hash(&mut h);
-        self.settings.seed.hash(&mut h);
-        self.settings.temperature.to_bits().hash(&mut h);
-        self.settings.top_k.hash(&mut h);
-        self.settings.top_p.to_bits().hash(&mut h);
-        self.settings.min_p.to_bits().hash(&mut h);
-        self.settings.max_tokens.hash(&mut h);
-        self.settings.repeat_penalty.to_bits().hash(&mut h);
-        self.settings.repeat_last_n.hash(&mut h);
-        self.settings
-            .presence_penalty
-            .map(|v| v.to_bits())
-            .hash(&mut h);
-        self.settings
-            .frequency_penalty
-            .map(|v| v.to_bits())
-            .hash(&mut h);
-        self.settings.keep.hash(&mut h);
-        self.settings.mmap.hash(&mut h);
-        self.settings.numa.hash(&mut h);
-        self.settings.threads.hash(&mut h);
-        self.settings.threads_batch.hash(&mut h);
-        self.settings.get_active_backend_version().hash(&mut h);
+        self.settings.hash(&mut h);
         self.settings_state.settings_edit_buffer.hash(&mut h);
         self.settings_state.expert_mode.hash(&mut h);
         h.finish()

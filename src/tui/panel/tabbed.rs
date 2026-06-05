@@ -221,7 +221,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         &mut selected_content_line,
         0,
         "Host",
-        host_val,
+        &host_val,
         selected,
         "",
         false,

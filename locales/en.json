@@ -614,5 +614,12 @@
   "gguf.unknown_family": "Unknown model family -- using generic GGUF naming conventions",
   "cmdline.export": "Exported command to /tmp/test_llamaserver.sh",
   "cmdline.export_failed": "Failed to export command: {}",
-  "cmdline.export_success": "Command exported to /tmp/test_llamaserver.sh"
+   "cmdline.export_success": "Command exported to /tmp/test_llamaserver.sh",
+   "server.host_label": "localhost (127.0.0.1)",
+  "models.sort.relevance": "Relevance",
+  "models.sort.downloads": "Downloads",
+  "models.sort.likes": "Likes",
+  "models.sort.trending": "Trending",
+  "models.sort.created": "Created",
+  "async.delete_failed": "Failed to delete file: {}"
 }
