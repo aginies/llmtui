@@ -447,12 +447,19 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     // Wait for either llama-server, API server, or Ctrl+C
     let status = loop {
         select! {
-            status = child.wait() => {
+            exit_result = child.wait() => {
                 // llama-server exited — gracefully shut down API server
                 if let Some((_, _, tx)) = &mut api_server_handle {
                     let _ = tx.send(true);
                 }
-                break status.context("Failed to wait for llama-server")?;
+                break exit_result.unwrap_or_else(|e| {
+                    tracing::error!("Failed to wait for llama-server: {}", e);
+                    std::process::Command::new("sh")
+                        .arg("-c")
+                        .arg("exit 1")
+                        .status()
+                        .expect("failed to get exit status")
+                });
             }
             _ = async {
                 let (_, rx, _) = api_server_handle.as_mut().unwrap();
@@ -462,7 +469,14 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 if let Some((_, _, tx)) = &mut api_server_handle {
                     let _ = tx.send(true);
                 }
-                break child.wait().await.context("Failed to wait for llama-server")?;
+                break child.wait().await.unwrap_or_else(|e| {
+                    tracing::error!("Failed to wait for llama-server: {}", e);
+                    std::process::Command::new("sh")
+                        .arg("-c")
+                        .arg("exit 1")
+                        .status()
+                        .expect("failed to get exit status")
+                });
             }
             _ = signal::ctrl_c() => {
                 info!("Received SIGINT, shutting down llama-server...");
