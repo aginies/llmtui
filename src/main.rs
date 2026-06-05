@@ -276,7 +276,7 @@ async fn main() -> Result<()> {
             // High-priority tick drives the loop (~200ms when active, ~500ms idle).
             // Pending operations use channels (event-driven).
             // Settings changes throttled to ~1s via counter.
-            use tui::app::scheduler::PendingEvent;
+            use tui::app::pending_events::PendingEvent;
             let mut settings_tick_counter: u32 = 0;
             loop {
                 // ── High-priority ticks (run every iteration) ──

@@ -13,7 +13,7 @@ use super::panel::{
 };
 use super::readme::{fetch_and_store_readme, fetch_readme_for_selected, handle_readme_key};
 
-use crate::tui::app::scheduler::PendingEvent;
+use crate::tui::app::pending_events::PendingEvent;
 
 use crate::backend::hub;
 use crate::models::SearchSort;

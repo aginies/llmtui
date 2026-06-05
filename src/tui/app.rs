@@ -4,7 +4,7 @@ pub mod metadata;
 pub mod panels;
 pub mod pickers;
 pub mod profiles;
-pub mod scheduler;
+pub mod pending_events;
 pub mod state;
 pub mod sync_ops;
 pub mod types;

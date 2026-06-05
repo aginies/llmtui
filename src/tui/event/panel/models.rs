@@ -1,6 +1,6 @@
 use crossterm::event::KeyCode;
 
-use crate::tui::app::scheduler::PendingEvent;
+use crate::tui::app::pending_events::PendingEvent;
 use crate::tui::app::{App, GlobalMode, LoadingPhase, ModelsMode};
 
 pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {

@@ -254,7 +254,7 @@ pub struct App {
     pub edit: EditState,
 
     // ── Scheduler ────────────────────────────────────────────
-    pub pending_tx: tokio::sync::mpsc::Sender<super::scheduler::PendingEvent>,
-    pub pending_rx: tokio::sync::mpsc::Receiver<super::scheduler::PendingEvent>,
+    pub pending_tx: tokio::sync::mpsc::Sender<super::pending_events::PendingEvent>,
+    pub pending_rx: tokio::sync::mpsc::Receiver<super::pending_events::PendingEvent>,
     pub server_ready: bool,
 }

@@ -1,4 +1,4 @@
-use crate::tui::app::scheduler::PendingEvent;
+use crate::tui::app::pending_events::PendingEvent;
 use crate::tui::app::{ActivePanel, App, ConfirmationKind};
 
 pub fn picker_nav_up(selected: &mut usize) {

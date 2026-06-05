@@ -5,7 +5,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::widgets::TableState;
 
 use super::super::helpers::TextEditor;
-use crate::tui::app::scheduler::PendingEvent;
+use crate::tui::app::pending_events::PendingEvent;
 use crate::tui::app::{App, GlobalMode, ModelsMode};
 
 use super::OverlayHandler;
