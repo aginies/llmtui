@@ -167,6 +167,8 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         name: name.clone(),
         file_size: std::fs::metadata(&model_path).map(|m| m.len()).unwrap_or(0),
         display_name: display_name.clone(),
+        pipeline_tag: None,
+        capabilities: vec![],
     };
 
     // Build settings: start with defaults, apply model override, then profile override

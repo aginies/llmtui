@@ -358,9 +358,14 @@ pub async fn process_pending_download(
                                 crate::t_fmt!("async.download_complete", state.filename),
                                 crate::config::LogLevel::Info,
                             );
+                            let search_results: &Vec<crate::models::SearchResult> = match &self.models_mode {
+                                crate::tui::app::ModelsMode::Search { results, .. } => results,
+                                _ => &Vec::new(),
+                            };
                             self.models = Self::discover_models(
                                 &self.config.models_dirs,
                                 &self.download.download_progress,
+                                search_results,
                             );
                         }
                     }

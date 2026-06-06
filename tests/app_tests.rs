@@ -97,12 +97,16 @@ fn app_get_filtered_model_indices_no_filter() {
             name: "model-a".into(),
             file_size: 1000,
             display_name: "a".into(),
+            pipeline_tag: None,
+            capabilities: vec![],
         },
         DiscoveredModel {
             path: "/b.gguf".into(),
             name: "model-b".into(),
             file_size: 2000,
             display_name: "b".into(),
+            pipeline_tag: None,
+            capabilities: vec![],
         },
     ];
     let indices = app.get_filtered_model_indices();
@@ -119,12 +123,16 @@ fn app_get_filtered_model_indices_case_insensitive() {
             name: "Qwen2.5-7B".into(),
             file_size: 1000,
             display_name: "Qwen2.5-7B".into(),
+            pipeline_tag: None,
+            capabilities: vec![],
         },
         DiscoveredModel {
             path: "/b.gguf".into(),
             name: "Llama3-8B".into(),
             file_size: 2000,
             display_name: "Llama3-8B".into(),
+            pipeline_tag: None,
+            capabilities: vec![],
         },
     ];
     app.search.local_filter = "qwen".into();
@@ -141,6 +149,8 @@ fn app_get_filtered_model_indices_no_match() {
         name: "model-a".into(),
         file_size: 1000,
         display_name: "a".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }];
     app.search.local_filter = "nonexistent".into();
     let indices = app.get_filtered_model_indices();
@@ -209,6 +219,8 @@ fn app_selected_model_returns_some() {
         name: "test".into(),
         file_size: 1000,
         display_name: "test".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }];
     app.selected_model_idx = Some(0);
     assert!(app.selected_model().is_some());

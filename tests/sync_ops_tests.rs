@@ -13,6 +13,8 @@ fn make_discovered(name: &str) -> DiscoveredModel {
         name: name.to_string(),
         file_size: 0,
         display_name: name.to_string(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }
 }
 

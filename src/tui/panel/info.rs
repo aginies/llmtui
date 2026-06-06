@@ -66,14 +66,6 @@ pub fn render_model_lines(
             });
         }
 
-        if !meta.capabilities.is_empty() {
-            pairs.push(ModelInfoPair {
-                label: "Capabilities".to_string(),
-                value: meta.capabilities.join(", "),
-                value_style: Color::Green,
-            });
-        }
-
         if !meta.quantization.is_empty() {
             pairs.push(ModelInfoPair {
                 label: "Quant".to_string(),
@@ -106,20 +98,37 @@ pub fn render_model_lines(
             });
         }
 
-        if meta.vocab_size > 0 {
-            pairs.push(ModelInfoPair {
-                label: "Vocab".to_string(),
-                value: format!("{} tokens", meta.vocab_size),
-                value_style: Color::White,
-            });
-        }
-
         // Show n_ctx_train from GGUF as "Context".
         if meta.n_ctx_train > 0 {
             pairs.push(ModelInfoPair {
                 label: "Context".to_string(),
                 value: format!("{} tokens", meta.n_ctx_train),
                 value_style: Color::White,
+            });
+        }
+
+        let mut all_capabilities: Vec<String> = meta.capabilities.clone();
+        if let Some(pipeline) = crate::models::arch_to_pipeline_tag(&meta.arch) {
+            let pipeline_str = pipeline.to_string();
+            if !all_capabilities.contains(&pipeline_str) {
+                all_capabilities.push(pipeline_str);
+            }
+        }
+        for cap in &model.capabilities {
+            if !all_capabilities.contains(cap) {
+                all_capabilities.push(cap.clone());
+            }
+        }
+        if let Some(ref pipeline_tag) = model.pipeline_tag {
+            if !all_capabilities.contains(pipeline_tag) {
+                all_capabilities.push(pipeline_tag.clone());
+            }
+        }
+        if !all_capabilities.is_empty() {
+            pairs.push(ModelInfoPair {
+                label: "Capabilities".to_string(),
+                value: all_capabilities.join(", "),
+                value_style: Color::Green,
             });
         }
     }

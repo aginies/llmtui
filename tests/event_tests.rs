@@ -392,6 +392,8 @@ async fn test_confirmation_y_confirms_delete() {
         name: "test".into(),
         file_size: 1000,
         display_name: "test".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }];
     app.selected_model_idx = Some(0);
     app.ui.global_mode = GlobalMode::Confirmation {
@@ -1712,6 +1714,8 @@ async fn test_ctrl_s_saves_settings() {
         name: "test".into(),
         file_size: 1000,
         display_name: "test".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }];
     app.selected_model_idx = Some(0);
     app.model_settings_cache = app.settings.clone();

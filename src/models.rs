@@ -967,6 +967,8 @@ pub struct DiscoveredModel {
     pub name: String,
     pub file_size: u64,
     pub display_name: String, // path relative to model_dir for display
+    pub pipeline_tag: Option<String>,
+    pub capabilities: Vec<String>,
 }
 
 /// Parsed GGUF metadata for a model, cached to avoid re-parsing the file.
@@ -984,7 +986,6 @@ pub struct GgufMetadata {
     pub domain: String,
     pub capabilities: Vec<String>,
     pub tokenizer: String,
-    pub vocab_size: u32,
     pub draft_tokens: u32,
 }
 
@@ -1039,12 +1040,6 @@ impl GgufMetadata {
         meta.n_ctx_train = get_num_with_fallback("context_length");
         meta.n_head = get_num_with_fallback("attention.head_count");
         meta.n_kv_head = get_num_with_fallback("attention.head_count_kv");
-
-        if let Some(value) = model_data.metadata().get("tokenizer.ggml.tokens")
-            && let Some(arr) = value.as_array()
-        {
-            meta.vocab_size = arr.len() as u32;
-        }
 
         if meta.arch == "mtp" {
             meta.draft_tokens = extract_num("mtp.draft_tokens").unwrap_or(0) as u32;
@@ -1102,6 +1097,31 @@ impl GgufMetadata {
         meta.model_parameters = model_data.model_parameters();
 
         Ok(meta)
+    }
+}
+
+/// Map a GGUF architecture string to a HuggingFace pipeline tag.
+/// Returns None for architectures with no well-known mapping.
+pub fn arch_to_pipeline_tag(arch: &str) -> Option<&'static str> {
+    match arch {
+        "llama" | "mpt" | "falcon" | "gpt-neox" | "gptj" | "qwen" | "qwen2" | "qwen3"
+        | "qwen2_vl" | "qwen3_vl" | "mistral" | "starcoder2" | "baichuan" | "gemma"
+        | "gemma3" | "cohere" | "deepseek" | "deepseek2" | "phi" | "phi3" | "phi3small"
+        | "jais" | "stable-lm" | "stablelm2" | "llama-moe" | "qwen2_moe"
+        | "olmo" | "olmo2" | "sonar" | "mamba" | "mamba_ssm" | "minicpm" | "minicpm3"
+        | "minicpmo" | "nemo" | "chameleon" | "internlm2" | "exaone" | "dbrx" => {
+            Some("text-generation")
+        }
+        "bert" | "nomic-bert" | "roformer" | "deberta-v2" | "deberta" => {
+            Some("feature-extraction")
+        }
+        "resnet" | "vit" | "segformer" => Some("image-classification"),
+        "whisper" => Some("automatic-speech-recognition"),
+        "stable-diffusion" => Some("text-to-image"),
+        "bark" => Some("text-to-audio"),
+        "speech-to-text" => Some("speech-to-text"),
+        "text-to-speech" => Some("text-to-speech"),
+        _ => None,
     }
 }
 

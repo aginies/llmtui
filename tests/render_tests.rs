@@ -129,6 +129,8 @@ fn test_confirmation_delete_renders() {
         name: "test".into(),
         file_size: 1000,
         display_name: "test".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }];
     app.selected_model_idx = Some(0);
     app.ui.global_mode = GlobalMode::Confirmation {
@@ -262,12 +264,16 @@ fn test_models_panel_renders() {
             name: "model1".into(),
             file_size: 1000,
             display_name: "Model 1".into(),
+            pipeline_tag: None,
+            capabilities: vec![],
         },
         DiscoveredModel {
             path: "/model2.gguf".into(),
             name: "model2".into(),
             file_size: 2000,
             display_name: "Model 2".into(),
+            pipeline_tag: None,
+            capabilities: vec![],
         },
     ];
     let _terminal = make_terminal(&mut app);
@@ -452,6 +458,8 @@ fn test_model_list_with_loaded_model_shows_status() {
         name: "loaded".into(),
         file_size: 1000,
         display_name: "Loaded".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }];
     app.model_states.insert(
         "loaded.gguf".into(),
@@ -472,6 +480,8 @@ fn test_model_list_with_failed_model_shows_error() {
         name: "failed".into(),
         file_size: 1000,
         display_name: "Failed".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }];
     app.model_states.insert(
         "failed.gguf".into(),
@@ -491,6 +501,8 @@ fn test_model_list_with_loading_model_shows_progress() {
         name: "loading".into(),
         file_size: 1000,
         display_name: "Loading".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }];
     app.model_states
         .insert("loading.gguf".into(), ModelState::Loading);

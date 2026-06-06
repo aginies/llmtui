@@ -19,6 +19,8 @@ fn make_model(path: &str, name: &str, display: &str) -> DiscoveredModel {
         name: name.into(),
         file_size: 4_000_000_000,
         display_name: display.into(),
+        pipeline_tag: None,
+        capabilities: vec![],
     }
 }
 

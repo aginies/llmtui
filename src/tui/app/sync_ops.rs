@@ -17,6 +17,7 @@ impl App {
     pub fn discover_models(
         dirs: &[PathBuf],
         downloads: &[crate::models::DownloadState],
+        search_results: &[crate::models::SearchResult],
     ) -> Vec<crate::models::DiscoveredModel> {
         let mut models = Vec::new();
 
@@ -49,11 +50,23 @@ impl App {
                         .and_then(|p| p.to_str())
                         .unwrap_or(&name)
                         .to_string();
+
+                    // Try to match with search results to get pipeline_tag and capabilities
+                    let (pipeline_tag, capabilities) = search_results
+                        .iter()
+                        .find(|r| display_name.starts_with(&r.model_id))
+                        .map(|r| {
+                            (r.pipeline_tag.clone(), r.capabilities.clone())
+                        })
+                        .unwrap_or((None, Vec::new()));
+
                     models.push(crate::models::DiscoveredModel {
                         path,
                         name,
                         file_size: size,
                         display_name,
+                        pipeline_tag,
+                        capabilities,
                     });
                 }
             });
