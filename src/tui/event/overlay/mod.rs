@@ -81,12 +81,13 @@ impl OverlayRegistry {
         Self { handlers }
     }
 
-    pub async fn dispatch(&self, app: &mut App, key: KeyEvent) {
+    pub async fn dispatch(&self, app: &mut App, key: KeyEvent) -> bool {
         for handler in &self.handlers {
             if handler.can_handle(&app.ui.global_mode) {
                 handler.handle(app, key).await;
-                return;
+                return true;
             }
         }
+        false
     }
 }

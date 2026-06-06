@@ -175,7 +175,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // Dispatch to overlay handler if an overlay is active
     // (when no overlay matches, dispatch returns without doing anything, flow continues)
-    OVERLAY_REGISTRY.dispatch(app, key).await;
+    if OVERLAY_REGISTRY.dispatch(app, key).await {
+        return;
+    }
 
     // Tags modal (not a GlobalMode variant — handled separately)
     if app.edit.tags_editing {
