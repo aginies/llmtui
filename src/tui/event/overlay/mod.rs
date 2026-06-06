@@ -15,6 +15,7 @@ mod dashboard_url;
 mod gguf_naming;
 mod host_picker;
 mod max_concurrent_picker;
+mod onboarding;
 mod profile_picker;
 mod prompt_picker;
 mod rpc_manager;
@@ -32,6 +33,7 @@ pub use dashboard_url::DashboardUrlHandler;
 pub use gguf_naming::GgufNamingHandler;
 pub use host_picker::HostPickerHandler;
 pub use max_concurrent_picker::MaxConcurrentPickerHandler;
+pub use onboarding::OnboardingHandler;
 pub use profile_picker::ProfilePickerHandler;
 pub use prompt_picker::PromptPickerHandler;
 pub use rpc_manager::RpcManagerHandler;
@@ -58,6 +60,7 @@ impl OverlayRegistry {
     pub fn new() -> Self {
         let mut handlers: Vec<Box<dyn OverlayHandler + Send + Sync>> = Vec::new();
 
+        handlers.push(Box::new(OnboardingHandler));
         handlers.push(Box::new(CmdLineHandler));
         handlers.push(Box::new(AboutHandler));
         handlers.push(Box::new(SearchInputHandler));

@@ -175,6 +175,9 @@ pub enum GlobalMode {
         explanation: crate::tui::gguf_naming::GgufExplanation,
         filename: String,
     },
+    Onboarding {
+        step: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -9,6 +9,7 @@ use crate::tui::app::{ActivePanel, App, ModelsMode};
 use crate::tui::panel;
 
 mod hints;
+mod onboarding;
 mod overlays;
 mod status;
 

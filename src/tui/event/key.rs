@@ -165,6 +165,14 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Ctrl+O: show onboarding wizard (re-triggerable)
+    if key.code == KeyCode::Char('o') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        app.config.onboarding_complete = false;
+        app.config.save().ok();
+        app.ui.global_mode = GlobalMode::Onboarding { step: 0 };
+        return;
+    }
+
     // Dispatch to overlay handler if an overlay is active
     // (when no overlay matches, dispatch returns without doing anything, flow continues)
     OVERLAY_REGISTRY.dispatch(app, key).await;

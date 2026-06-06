@@ -8,6 +8,7 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use super::App;
+use super::onboarding;
 use crate::backend::hardware::{GpuVendor, detect_gpu_models, detect_gpu_vendors};
 use crate::tui::app::{ConfirmationKind, GlobalMode};
 use crate::tui::format_bench_params;
@@ -249,6 +250,11 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     } = &app.ui.global_mode
     {
         render_gguf_naming_overlay(f, f.area(), explanation);
+        return true;
+    }
+
+    if let GlobalMode::Onboarding { step } = &app.ui.global_mode {
+        onboarding::render_onboarding(f, f.area(), app, *step);
         return true;
     }
 

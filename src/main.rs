@@ -16,7 +16,7 @@ use tracing::info;
 use crate::backend::server;
 use crate::config::Config;
 use crate::models::Backend;
-use crate::tui::app::App;
+use crate::tui::app::{App, GlobalMode};
 use tracing_subscriber::prelude::*;
 
 #[derive(Parser)]
@@ -246,6 +246,9 @@ async fn main() -> Result<()> {
             if !app.models.is_empty() {
                 app.selected_model_idx = Some(0);
                 app.on_model_selection_change();
+            }
+            if !app.config.onboarding_complete {
+                app.ui.global_mode = GlobalMode::Onboarding { step: 0 };
             }
 
             // WebSocket metrics channel

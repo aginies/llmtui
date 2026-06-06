@@ -114,6 +114,9 @@ pub struct Config {
     /// UI language (en, fr, it). Falls back to en.
     #[serde(default = "default_language")]
     pub language: String,
+    /// Whether the first-launch onboarding wizard has been completed.
+    #[serde(default = "default_onboarding")]
+    pub onboarding_complete: bool,
 }
 
 fn default_language() -> String {
@@ -122,6 +125,10 @@ fn default_language() -> String {
 
 fn default_left_pct() -> u16 {
     55
+}
+
+fn default_onboarding() -> bool {
+    false
 }
 
 fn default_search_limit() -> u32 {
@@ -983,6 +990,7 @@ impl Default for Config {
             active_panel: ActivePanel::Models,
             left_pct: 55,
             language: default_language(),
+            onboarding_complete: false,
         }
     }
 }
