@@ -42,13 +42,13 @@ pub fn get_free_space_bytes(path: &std::path::Path) -> u64 {
     }
 }
 
-fn default_tag(repo: &str) -> String {
-    if repo.contains("lemonade") {
-        "b1273".to_string()
-    } else if repo.contains("cuda") {
-        "b9279".to_string()
-    } else {
-        "b4100".to_string()
+fn default_tag(backend: &crate::models::Backend) -> String {
+    match backend {
+        crate::models::Backend::RocmLemonade => "b1273".to_string(),
+        crate::models::Backend::Cuda
+        | crate::models::Backend::CudaWindows12_4
+        | crate::models::Backend::CudaWindows13_1 => "b9279".to_string(),
+        _ => "b4100".to_string(),
     }
 }
 
@@ -97,8 +97,12 @@ fn resolve_backend_key(backend: &crate::models::Backend) -> Option<(&'static str
             Some(("ggml-org/llama.cpp", "bin-win-hip-radeon-x64.zip"))
         }
         // Windows CUDA (different CUDA versions)
-        crate::models::Backend::CudaWindows12_4 => Some(("ai-dock/llama.cpp-cuda", "cuda-12.4")),
-        crate::models::Backend::CudaWindows13_1 => Some(("ai-dock/llama.cpp-cuda", "cuda-13.1")),
+        crate::models::Backend::CudaWindows12_4 => {
+            Some(("ggml-org/llama.cpp", "bin-win-cuda-12.4-x64.zip"))
+        }
+        crate::models::Backend::CudaWindows13_1 => {
+            Some(("ggml-org/llama.cpp", "bin-win-cuda-13.1-x64.zip"))
+        }
         // macOS (no Vulkan/CUDA; only CPU)
         crate::models::Backend::CpuMacosArm64 => Some(("ggml-org/llama.cpp", "macos-arm64.tar.gz")),
         crate::models::Backend::CpuMacosX64 => Some(("ggml-org/llama.cpp", "macos-x64.tar.gz")),
@@ -228,8 +232,16 @@ pub async fn search_models(
 
 /// List all GGUF files for a model.
 pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)>> {
-    let url = format!("https://huggingface.co/api/models/{}/tree/main", model_id);
-    let resp = reqwest::get(&url).await?.error_for_status()?;
+    let branch = "main";
+    let url = format!("https://huggingface.co/api/models/{}/tree/{}", model_id, branch);
+    let resp = reqwest::get(&url).await;
+    let resp = match resp {
+        Ok(r) => r.error_for_status(),
+        Err(_) => {
+            let url2 = format!("https://huggingface.co/api/models/{}/tree/master", model_id);
+            Ok(reqwest::get(&url2).await?.error_for_status()?)
+        }
+    }?;
     let files: Vec<serde_json::Value> = resp.json().await?;
 
     let mut gguf_files = Vec::new();
@@ -247,7 +259,7 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
                 .and_then(|u| u.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| {
-                    format!("https://huggingface.co/{model_id}/resolve/main/{path}")
+                    format!("https://huggingface.co/{model_id}/resolve/{}/{}", branch, path)
                 });
             gguf_files.push((path.to_string(), size, lfs_url));
         }
@@ -262,13 +274,25 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
 
 /// Fetch the README for a model from HuggingFace.
 pub async fn fetch_readme(model_id: &str) -> Result<String> {
-    let url = format!("https://huggingface.co/{}/raw/main/README.md", model_id);
+    let branch = "main";
+    let url = format!("https://huggingface.co/{}/raw/{}/README.md", model_id, branch);
     let resp = reqwest::Client::new()
         .get(&url)
         .header("User-Agent", super::USER_AGENT)
         .send()
-        .await?
-        .error_for_status()?;
+        .await;
+    let resp = match resp {
+        Ok(r) => r.error_for_status(),
+        Err(_) => {
+            let url2 = format!("https://huggingface.co/{}/raw/master/README.md", model_id);
+            Ok(reqwest::Client::new()
+                .get(&url2)
+                .header("User-Agent", super::USER_AGENT)
+                .send()
+                .await?
+                .error_for_status()?)
+        }
+    }?;
     let text = resp.text().await?;
     Ok(text)
 }
@@ -486,13 +510,13 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
                 ("cpu", Some("arm64")) => crate::models::Backend::CpuArm64,
                 ("macos", Some("arm64")) => crate::models::Backend::CpuMacosArm64,
                 ("macos", Some("x64")) => crate::models::Backend::CpuMacosX64,
+                ("win", Some("cpu")) => crate::models::Backend::CpuWindows,
+                ("win", Some("vulkan")) => crate::models::Backend::VulkanWindows,
+                ("win", Some("hip")) => crate::models::Backend::HipWindows,
                 ("cpu", _) => crate::models::Backend::Cpu,
                 ("vulkan", _) => crate::models::Backend::Vulkan,
                 ("rocm", _) => crate::models::Backend::Rocm,
                 ("cuda", _) => crate::models::Backend::Cuda,
-                ("win-cpu", _) => crate::models::Backend::CpuWindows,
-                ("win-vulkan", _) => crate::models::Backend::VulkanWindows,
-                ("win-hip", _) => crate::models::Backend::HipWindows,
                 _ => continue,
             };
 
@@ -563,7 +587,7 @@ pub async fn resolve_backend_binary(
                     repo,
                     pattern
                 );
-                let available = latest_release_with_asset(repo, pattern, &default_tag(repo)).await;
+                let available = latest_release_with_asset(repo, pattern, &default_tag(&backend)).await;
                 tracing::info!("  -> latest available from GitHub: {}", available);
                 Some(available)
             } else {
@@ -590,7 +614,7 @@ pub async fn resolve_backend_binary(
                     tracing::info!("  -> using latest from GitHub: {}", available);
                     available
                 }
-                (None, None) => default_tag("ggml-org/llama.cpp").to_string(),
+                (None, None) => default_tag(&backend).to_string(),
             }
         }
     };

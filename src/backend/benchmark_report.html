@@ -165,7 +165,7 @@ __WINNER__
 </div>
 <div class="summary-card">
 <div class="value">__AVG_FT__</div>
-<div class="label">Avg First Token</div>
+<div class="label">Avg Prompt Processing</div>
 <div class="stats">Std: __FT_STD__ &middot; Range: [__MIN_FT__, __MAX_FT__]</div>
 </div>
 <div class="summary-card best-card">
@@ -199,7 +199,7 @@ __IMPACT_HTML__
 <option value="0">Sort: Gen t/s (desc)</option>
 <option value="1">Sort: Prompt t/s (desc)</option>
 <option value="2">Sort: Latency (asc)</option>
-<option value="3">Sort: First Token (asc)</option>
+<option value="3">Sort: Prompt Processing (asc)</option>
 </select>
 <button onclick="exportCSV()" class="primary">&#128190; Export CSV</button>
 </div>
@@ -288,8 +288,8 @@ function renderTable() {
     const genMax = Math.max(...DATA.map(d => d.generation_tps));
     const latMin = Math.min(...DATA.map(d => d.latency_per_token));
     const latMax = Math.max(...DATA.map(d => d.latency_per_token));
-    const ftMin = Math.min(...DATA.map(d => d.first_token_time));
-    const ftMax = Math.max(...DATA.map(d => d.first_token_time));
+    const ftMin = Math.min(...DATA.map(d => d.prompt_processing_time));
+    const ftMax = Math.max(...DATA.map(d => d.prompt_processing_time));
 
     displayOrder.forEach((idx, rank) => {
         const d = DATA[idx];
@@ -299,7 +299,7 @@ function renderTable() {
 
         const genColor = getMetricColor(d.generation_tps, genMin, genMax, false);
         const latColor = getMetricColor(d.latency_per_token, latMin, latMax, true);
-        const ftColor = getMetricColor(d.first_token_time, ftMin, ftMax, true);
+        const ftColor = getMetricColor(d.prompt_processing_time, ftMin, ftMax, true);
 
         const cells = [
             `<td>${rank + 1}</td>`,
@@ -316,7 +316,7 @@ function renderTable() {
             `<td class="col-gen-tps" style="color:${genColor};font-weight:bold;">${formatNum(d.generation_tps)}</td>`,
             `<td class="col-prompt-tps">${formatNum(d.prompt_tps)}</td>`,
             `<td class="col-latency" style="color:${latColor}">${formatNum(d.latency_per_token)}</td>`,
-            `<td class="col-first-token" style="color:${ftColor}">${formatNum(d.first_token_time)}</td>`,
+            `<td class="col-first-token" style="color:${ftColor}">${formatNum(d.prompt_processing_time)}</td>`,
             `<td class="col-combined">${formatNum(d.combined_tps)}</td>`,
             `<td class="col-consistency"><span class="consistency-stars">${consistencyStars(d.consistency)}</span></td>`,
         ];
@@ -333,13 +333,13 @@ function renderTable() {
                 <div class="detail-item"><div class="dl">Gen t/s</div><div class="dv" style="color:#3fb950">${formatNum(d.generation_tps)}</div></div>
                 <div class="detail-item"><div class="dl">Prompt t/s</div><div class="dv">${formatNum(d.prompt_tps)}</div></div>
                 <div class="detail-item"><div class="dl">Latency/token</div><div class="dv">${formatNum(d.latency_per_token)}ms</div></div>
-                <div class="detail-item"><div class="dl">First Token</div><div class="dv">${formatNum(d.first_token_time)}ms</div></div>
+                <div class="detail-item"><div class="dl">Prompt Processing</div><div class="dv">${formatNum(d.prompt_processing_time)}ms</div></div>
                 <div class="detail-item"><div class="dl">Combined t/s</div><div class="dv">${formatNum(d.combined_tps)}</div></div>
                 <div class="detail-item"><div class="dl">Consistency</div><div class="dv"><span class="consistency-stars">${consistencyStars(d.consistency)}</span></div></div>
             </div>
             <h3 style="color:#58a6ff;margin:10px 0 5px;font-size:1em;">Per-Iteration Metrics</h3>
             <table class="iteration-table"><thead><tr><th>Iter</th><th>Gen t/s</th><th>Latency (ms)</th><th>First Tok (ms)</th></tr></thead><tbody>
-            ${d.per_iteration_metrics.map((m, mi) => `<tr><td>${mi + 1}</td><td>${formatNum(m.generation_tps)}</td><td>${formatNum(m.latency_per_token)}</td><td>${formatNum(m.first_token_time)}</td></tr>`).join('')}
+            ${d.per_iteration_metrics.map((m, mi) => `<tr><td>${mi + 1}</td><td>${formatNum(m.generation_tps)}</td><td>${formatNum(m.latency_per_token)}</td><td>${formatNum(m.prompt_processing_time)}</td></tr>`).join('')}
             </tbody></table>
             ${outputsHtml}
         </td>`;
@@ -379,7 +379,7 @@ function filterTable() {
 function sortTable(col) {
     if (currentSort.col === col) { currentSort.asc = !currentSort.asc; }
     else { currentSort.col = col; currentSort.asc = col <= 1; }
-    const keys = [null, 'generation_tps', 'prompt_tps', 'latency_per_token', 'first_token_time'];
+    const keys = [null, 'generation_tps', 'prompt_tps', 'latency_per_token', 'prompt_processing_time'];
     const key = keys[col];
     if (!key) return;
     displayOrder.sort((a, b) => {
@@ -491,7 +491,7 @@ new Chart(scatter2Ctx, {
         maintainAspectRatio: false,
         plugins: {
             legend: { display: false },
-            title: { display: true, text: 'Throughput vs First Token Latency', color: '#c9d1d9' },
+            title: { display: true, text: 'Throughput vs Prompt Processing Time', color: '#c9d1d9' },
             tooltip: {
                 backgroundColor: '#161b22',
                 titleColor: '#58a6ff',
@@ -508,7 +508,7 @@ new Chart(scatter2Ctx, {
         },
         scales: {
             x: { title: { display: true, text: 'Gen t/s', color: '#8b949e' }, grid: { color: '#21262d' }, ticks: { color: '#8b949e' } },
-            y: { title: { display: true, text: 'First Token (ms)', color: '#8b949e' }, grid: { color: '#21262d' }, ticks: { color: '#8b949e' }, reverse: true }
+            y: { title: { display: true, text: 'Prompt Processing (ms)', color: '#8b949e' }, grid: { color: '#21262d' }, ticks: { color: '#8b949e' }, reverse: true }
         }
     }
 });

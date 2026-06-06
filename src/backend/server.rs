@@ -103,7 +103,7 @@ pub fn build_server_cmd(
         "--threads-batch",
         settings.threads_batch,
     );
-    let effective_ctx = (settings.context_length as f32 * settings.rope_scale) as u32;
+    let effective_ctx = (settings.context_length as f64 * settings.rope_scale as f64) as u32;
     push_arg(&mut cmd, &mut parts, "--ctx-size", effective_ctx);
     push_arg(&mut cmd, &mut parts, "--ubatch-size", settings.ubatch_size);
     if let Some(n) = settings.max_concurrent_predictions {

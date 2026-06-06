@@ -2180,11 +2180,11 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
-                    "first_token",
+                    "prompt_processing",
                     Style::default().fg(Color::Green),
                 )),
                 Cell::from(Span::styled(
-                    format!("{:.2} ms", metrics_for_output.first_token_time),
+                    format!("{:.2} ms", metrics_for_output.prompt_processing_time),
                     Style::default().fg(Color::Cyan),
                 )),
             ]),

@@ -22,7 +22,7 @@ struct BenchAccumulator {
     total_prompt_time: Duration,
     total_generation_time: Duration,
     total_time: Duration,
-    first_token_times: Vec<u128>,
+    prompt_processing_times: Vec<u128>,
     outputs: Vec<String>,
     per_iteration_metrics: Vec<BenchTuneMetrics>,
     base_settings: Option<ModelSettings>,
@@ -36,7 +36,7 @@ fn build_bench_result(acc: BenchAccumulator) -> BenchTuneResult {
         total_prompt_time,
         total_generation_time,
         total_time,
-        first_token_times,
+        prompt_processing_times,
         outputs,
         per_iteration_metrics,
         base_settings,
@@ -65,8 +65,8 @@ fn build_bench_result(acc: BenchAccumulator) -> BenchTuneResult {
         0.0
     };
 
-    let avg_first_token_time = if !first_token_times.is_empty() {
-        first_token_times.iter().sum::<u128>() as f64 / first_token_times.len() as f64
+    let avg_prompt_processing_time = if !prompt_processing_times.is_empty() {
+        prompt_processing_times.iter().sum::<u128>() as f64 / prompt_processing_times.len() as f64
     } else {
         0.0
     };
@@ -78,7 +78,7 @@ fn build_bench_result(acc: BenchAccumulator) -> BenchTuneResult {
             generation_tps,
             combined_tps,
             latency_per_token: avg_latency_per_token,
-            first_token_time: avg_first_token_time,
+            prompt_processing_time: avg_prompt_processing_time,
         },
         outputs,
         per_iteration_metrics,
@@ -377,7 +377,7 @@ async fn run_iteration_loop(
     let mut total_prompt_time = Duration::ZERO;
     let mut total_generation_time = Duration::ZERO;
     let mut total_time = Duration::ZERO;
-    let mut first_token_times = Vec::new();
+    let mut prompt_processing_times = Vec::new();
     let mut outputs = Vec::new();
     let mut per_iteration_metrics = Vec::new();
 
@@ -398,7 +398,7 @@ async fn run_iteration_loop(
                 total_prompt_time += res.prompt_time;
                 total_generation_time += res.generation_time;
                 total_time += res.total_time;
-                first_token_times.push(res.first_token_time);
+                prompt_processing_times.push(res.prompt_processing_time);
                 outputs.push(res.content.clone());
 
                 let iter_prompt_tps = if res.prompt_time.as_secs_f64() > 0.0 {
@@ -428,7 +428,7 @@ async fn run_iteration_loop(
                     generation_tps: iter_gen_tps,
                     combined_tps: iter_combined_tps,
                     latency_per_token: iter_latency,
-                    first_token_time: res.first_token_time as f64,
+                    prompt_processing_time: res.prompt_processing_time as f64,
                 });
 
                 if num_iterations > 1 {
@@ -473,7 +473,7 @@ async fn run_iteration_loop(
         total_prompt_time,
         total_generation_time,
         total_time,
-        first_token_times,
+        prompt_processing_times,
         outputs,
         per_iteration_metrics,
         base_settings: None,
@@ -752,7 +752,7 @@ async fn send_inference_request(
         prompt_time: Duration::from_millis(prompt_time_ms as u64),
         generation_time: Duration::from_millis(generation_time_ms as u64),
         total_time,
-        first_token_time: prompt_time_ms as u128,
+        prompt_processing_time: prompt_time_ms as u128,
         content: json["content"].as_str().unwrap_or("").to_string(),
     })
 }
@@ -856,7 +856,7 @@ pub async fn save_results(
             r.metrics.prompt_tps,
             r.metrics.generation_tps,
             r.metrics.latency_per_token,
-            r.metrics.first_token_time
+            r.metrics.prompt_processing_time
         ));
     }
 
@@ -902,14 +902,9 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
             } else {
                 config.model_path.display().to_string()
             };
-            let file_size_mb = results
-                .first()
-                .and_then(|r| {
-                    r.base_settings.as_ref().map(|_s| {
-                        // We don't have file_size in settings, use a placeholder
-                        0u64
-                    })
-                })
+            let file_size_mb = std::fs::metadata(&config.model_path)
+                .ok()
+                .map(|m| m.len() / 1_048_576)
                 .unwrap_or(0);
             (model_name, file_size_mb, s.clone())
         })
@@ -991,7 +986,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .iter()
         .map(|r| r.metrics.latency_per_token)
         .collect();
-    let first_token: Vec<f64> = results.iter().map(|r| r.metrics.first_token_time).collect();
+    let first_token: Vec<f64> = results.iter().map(|r| r.metrics.prompt_processing_time).collect();
 
     let gen_tps_sorted = gen_tps.clone();
     let latency_sorted = latency.clone();
@@ -1173,7 +1168,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .map(|r| r.metrics.latency_per_token)
         .collect();
     let scatter_first_token: Vec<f64> =
-        results.iter().map(|r| r.metrics.first_token_time).collect();
+        results.iter().map(|r| r.metrics.prompt_processing_time).collect();
 
     let param_headers: Vec<String> = vec![
         "Temp".to_string(),
@@ -1238,7 +1233,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                 "generation_tps": r.metrics.generation_tps,
                 "combined_tps": r.metrics.combined_tps,
                 "latency_per_token": r.metrics.latency_per_token,
-                "first_token_time": r.metrics.first_token_time,
+                "prompt_processing_time": r.metrics.prompt_processing_time,
                 "consistency": consistency_data[i],
                 "outputs": r.outputs,
                 "per_iteration_metrics": r.per_iteration_metrics.iter().map(|m| {
@@ -1247,7 +1242,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                         "generation_tps": m.generation_tps,
                         "combined_tps": m.combined_tps,
                         "latency_per_token": m.latency_per_token,
-                        "first_token_time": m.first_token_time,
+                        "prompt_processing_time": m.prompt_processing_time,
                     })
                 }).collect::<Vec<_>>(),
                 "server_command": r.server_command.as_deref().unwrap_or("-"),
@@ -1369,7 +1364,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                 d["generation_tps"].as_f64().unwrap_or(0.0),
                 d["prompt_tps"].as_f64().unwrap_or(0.0),
                 d["latency_per_token"].as_f64().unwrap_or(0.0),
-                d["first_token_time"].as_f64().unwrap_or(0.0),
+                d["prompt_processing_time"].as_f64().unwrap_or(0.0),
                 d["combined_tps"].as_f64().unwrap_or(0.0),
                 d["consistency"].as_f64().unwrap_or(1.0)
             )
@@ -1433,7 +1428,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
 <div class="winner-params">Temp: {:.2} &middot; Top-P: {:.2} &middot; Top-K: {} &middot; RepPen: {:.2} &middot; FA: {} &middot; Threads: {} &middot; Batch: {} &middot; Exp: {} &middot; Spec: {} &middot; Draft: {}</div>
 </div>
 </div>"#,
-                m.generation_tps, m.prompt_tps, m.latency_per_token, m.first_token_time,
+                m.generation_tps, m.prompt_tps, m.latency_per_token, m.prompt_processing_time,
                 rp.temperature, rp.top_p, rp.top_k, rp.repeat_penalty,
                 if rp.flash_attn { "ON" } else { "OFF" }, rp.threads,
                 rp.batch_size, rp.expert_count,
@@ -1586,6 +1581,6 @@ struct InferenceResult {
     prompt_time: Duration,
     generation_time: Duration,
     total_time: Duration,
-    first_token_time: u128, // milliseconds
+    prompt_processing_time: u128, // milliseconds
     content: String,
 }

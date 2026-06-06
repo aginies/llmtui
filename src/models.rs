@@ -1570,7 +1570,7 @@ pub struct BenchTuneMetrics {
     pub generation_tps: f64,
     pub combined_tps: f64,
     pub latency_per_token: f64,
-    pub first_token_time: f64,
+    pub prompt_processing_time: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
