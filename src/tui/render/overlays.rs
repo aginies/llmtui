@@ -270,12 +270,6 @@ fn render_confirmation(
     display_name: &str,
     detail: Option<&str>,
 ) {
-    let popup_area = Rect {
-        x: area.width.saturating_sub(50) / 2,
-        y: area.height.saturating_sub(8) / 2,
-        width: 50,
-        height: 8,
-    };
     let (title, text_lines) = match kind {
         ConfirmationKind::Exit => {
             let loaded_count = app
@@ -370,16 +364,6 @@ fn render_confirmation(
             )
         }
     };
-    let block = Block::default()
-        .title(title)
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(
-            if kind == ConfirmationKind::Delete || kind == ConfirmationKind::DeleteBackend {
-                Color::Red
-            } else {
-                Color::Yellow
-            },
-        ));
     let mut lines = text_lines;
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
@@ -401,6 +385,24 @@ fn render_confirmation(
             }),
         ),
     ]));
+    let w = 70u16;
+    let h = (lines.len() + 2) as u16;
+    let popup_area = Rect {
+        x: area.width.saturating_sub(w) / 2,
+        y: area.height.saturating_sub(h) / 2,
+        width: w,
+        height: h,
+    };
+    let block = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(
+            if kind == ConfirmationKind::Delete || kind == ConfirmationKind::DeleteBackend {
+                Color::Red
+            } else {
+                Color::Yellow
+            },
+        ));
     f.render_widget(Clear, popup_area);
     f.render_widget(
         Paragraph::new(lines)
