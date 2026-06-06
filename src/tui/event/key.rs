@@ -1629,6 +1629,13 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.server.metrics_rx = None;
                 app.metrics = Default::default();
             }
+            // Clean up orphaned task handle so tokio can drop it
+            if app.server.bench_tune_task_handle.take().is_some() {
+                app.add_log(
+                    "BenchTune: task handle cleaned up",
+                    crate::config::LogLevel::Info,
+                );
+            }
             // Don't abort the task — let it finish gracefully and send Cancelled status
             // Keep bench_tune_running = true so the app knows the task is still finishing up
             app.models_mode = ModelsMode::List;
@@ -1751,8 +1758,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .saturating_sub(1);
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.settings_state.server_settings_selected_idx =
-                (app.settings_state.server_settings_selected_idx + 1).min(7);
+            app.settings_state.server_settings_selected_idx += 1;
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.settings_state.server_settings_selected_idx {
