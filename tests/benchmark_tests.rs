@@ -391,7 +391,7 @@ fn bench_tune_metrics_serializable() {
         generation_tps: 25.3,
         combined_tps: 30.0,
         latency_per_token: 39.5,
-        first_token_time: 150.0,
+        prompt_processing_time: 150.0,
     };
     let json = serde_json::to_string(&m).expect("should serialize");
     assert!(json.contains("50.5"));
@@ -424,7 +424,7 @@ fn bench_tune_result_serializable() {
             generation_tps: 25.0,
             combined_tps: 30.0,
             latency_per_token: 40.0,
-            first_token_time: 100.0,
+            prompt_processing_time: 100.0,
         },
         outputs: vec!["Hello world".into()],
         per_iteration_metrics: vec![],

@@ -281,10 +281,10 @@ async fn test_ctrl_l_cycles_language() {
     app.config.language = "en".to_string();
     let key = make_key_with_mod(KeyCode::Char('l'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
-    assert_eq!(app.config.language, "fr");
-     assert_eq!(i18n::get_language(), "fr");
-     i18n::set_language("en");
-  }
+   assert_eq!(app.config.language, "fr");
+    assert_eq!(i18n::get_language(), "fr");
+    i18n::set_language("en");
+}
 
 #[tokio::test]
 async fn test_ctrl_k_kills_server() {
@@ -1480,7 +1480,7 @@ async fn test_bench_tune_down_moves_result_row() {
                 generation_tps: 0.0,
                 combined_tps: 0.0,
                 latency_per_token: 0.0,
-                first_token_time: 0.0,
+                prompt_processing_time: 0.0,
             },
             outputs: vec![],
             per_iteration_metrics: vec![],
@@ -1506,7 +1506,7 @@ async fn test_bench_tune_down_moves_result_row() {
                 generation_tps: 0.0,
                 combined_tps: 0.0,
                 latency_per_token: 0.0,
-                first_token_time: 0.0,
+                prompt_processing_time: 0.0,
             },
             outputs: vec![],
             per_iteration_metrics: vec![],
@@ -1544,7 +1544,7 @@ async fn test_bench_tune_up_decreases_result_row() {
                 generation_tps: 0.0,
                 combined_tps: 0.0,
                 latency_per_token: 0.0,
-                first_token_time: 0.0,
+                prompt_processing_time: 0.0,
             },
             outputs: vec![],
             per_iteration_metrics: vec![],
@@ -1570,7 +1570,7 @@ async fn test_bench_tune_up_decreases_result_row() {
                 generation_tps: 0.0,
                 combined_tps: 0.0,
                 latency_per_token: 0.0,
-                first_token_time: 0.0,
+                prompt_processing_time: 0.0,
             },
             outputs: vec![],
             per_iteration_metrics: vec![],
@@ -1607,7 +1607,7 @@ async fn test_bench_tune_enter_opens_output_view() {
             generation_tps: 0.0,
             combined_tps: 0.0,
             latency_per_token: 0.0,
-            first_token_time: 0.0,
+            prompt_processing_time: 0.0,
         },
         outputs: vec!["output1".into()],
         per_iteration_metrics: vec![],

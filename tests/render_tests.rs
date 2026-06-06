@@ -558,7 +558,7 @@ fn test_model_list_with_bench_tune_mode() {
             generation_tps: 0.0,
             combined_tps: 0.0,
             latency_per_token: 0.0,
-            first_token_time: 0.0,
+            prompt_processing_time: 0.0,
         },
         outputs: vec![],
         per_iteration_metrics: vec![],
