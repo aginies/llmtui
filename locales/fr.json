@@ -652,5 +652,13 @@
   "onboarding.step6.keys": "`^F9` Basculer panneau · `j/k` Naviguer · `↵` Modifier · `^S` Sauvegarder · `^R` Réinitialiser · `^E` Expert",
   "onboarding.step7.title": "Prêt à l'emploi",
   "onboarding.step7.description": "Vous connaissez maintenant les bases. Naviguez entre les panneaux, chargez des modèles et commencez à discuter. Utilisez les raccourcis ci-dessous. Appuyez sur Ctrl+O à tout moment pour rejouer cette visite.",
-  "onboarding.step7.keys": "`^F7` Modèles · `^F8` Serveur · `^F9` LLM · `/` Rechercher · `^O` Rejouer · `^L` Langue · `^X` Expert · `^G` GGUF"
+  "onboarding.step7.keys": "`^F7` Modèles · `^F8` Serveur · `^F9` LLM · `/` Rechercher · `^O` Rejouer · `^L` Langue · `^X` Expert · `^G` GGUF",
+  "config.unknown_field": "Champ de configuration inconnu : {field}",
+  "config.range_warning": "{field} {value} hors de la plage recommandée {min}-{max}",
+  "config.path_missing": "Le chemin n'existe pas : {path}",
+  "config.port_conflict": "Conflit de port : {port} utilisé par plusieurs services",
+  "config.inconsistency": "Le paramètre {field} peut poser des problèmes : {reason}",
+  "config.memory_warning": "Forte consommation mémoire attendue : {field}={value}",
+  "config.port_privileged": "Le port {port} est privilégié (< 1024)",
+  "config.validation_warning": "Avertissements de validation de configuration : {} problème(s) trouvé(s)"
 }

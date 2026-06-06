@@ -29,6 +29,19 @@ impl App {
             "Starting llm-manager...",
             crate::config::LogLevel::Info,
         ));
+
+        // Log validation warnings before moving config
+        let validation_warnings = config.validate();
+        for w in &validation_warnings {
+            log.push_back(LogEntry::new(
+                format!("Config: {}", w.message),
+                match w.severity {
+                    crate::config::ValidationSeverity::Warning => crate::config::LogLevel::Warning,
+                    crate::config::ValidationSeverity::Error => crate::config::LogLevel::Error,
+                },
+            ));
+        }
+
         let settings: crate::models::ModelSettings =
             crate::models::ModelSettings::from_config(&config);
         let settings_clone = settings.clone();
@@ -311,6 +324,7 @@ mod tests {
             active_panel: types::ActivePanel::Models,
             left_pct: 55,
             language: "en".to_string(),
+            onboarding_complete: false,
         };
         let mut app = App::new(config);
         app.loading.loading_phases.clear();

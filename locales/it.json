@@ -652,5 +652,13 @@
   "onboarding.step6.keys": "`^F9` Mostra/nascondi · `j/k` Naviga · `↵` Modifica · `^S` Salva · `^R` Reset · `^E` Expert",
   "onboarding.step7.title": "Pronto all'uso",
   "onboarding.step7.description": "Ora conosci le basi. Naviga tra i pannelli, carica modelli e inizia a chattare. Usa i tasti rapidi sotto. Premi Ctrl+O in qualsiasi momento per ripetere questo tour.",
-  "onboarding.step7.keys": "`^F7` Modelli · `^F8` Server · `^F9` LLM · `/` Cerca · `^O` Ripeti · `^L` Lingua · `^X` Expert · `^G` GGUF"
+  "onboarding.step7.keys": "`^F7` Modelli · `^F8` Server · `^F9` LLM · `/` Cerca · `^O` Ripeti · `^L` Lingua · `^X` Expert · `^G` GGUF",
+  "config.unknown_field": "Campo di configurazione sconosciuto: {field}",
+  "config.range_warning": "{field} {value} fuori dall'intervallo consigliato {min}-{max}",
+  "config.path_missing": "Il percorso non esiste: {path}",
+  "config.port_conflict": "Conflitto porta: {port} utilizzata da più servizi",
+  "config.inconsistency": "L'impostazione {field} potrebbe causare problemi: {reason}",
+  "config.memory_warning": "Elevato utilizzo memoria previsto: {field}={value}",
+  "config.port_privileged": "La porta {port} è privilegiata (< 1024)",
+  "config.validation_warning": "Avvisi di validazione configurazione: {} problema(i) trovato(i)"
 }

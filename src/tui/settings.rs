@@ -735,8 +735,8 @@ pub fn all_fields() -> Vec<SettingField> {
                     ((s.temperature * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 2.0);
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.temperature = (v as f32 / 100.0).clamp(0.0, 2.0);
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.temperature = v.clamp(0.0, 2.0);
                 }
             },
             "Sampling temperature. Controls creativity: 0 = deterministic (most predictable), 0.7 = balanced, 1.0+ = creative. Lower values produce more focused, factual outputs. Typical: 0.7-0.9 for general use.",
@@ -767,8 +767,8 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.top_p = ((s.top_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.top_p = (v as f32 / 100.0).clamp(0.0, 1.0);
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.top_p = v.clamp(0.0, 1.0);
                 }
             },
             "Nucleus sampling: only consider tokens whose cumulative probability reaches p. Smaller top-p (e.g., 0.9) is more conservative, larger (e.g., 0.95-0.99) allows more variety. Often preferred over top-k. Typical: 0.9-0.95.",
@@ -783,8 +783,8 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.min_p = ((s.min_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.min_p = (v as f32 / 100.0).clamp(0.0, 1.0);
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.min_p = v.clamp(0.0, 1.0);
                 }
             },
             "Minimum probability threshold relative to the most likely token. Tokens below min_p * max_prob are excluded. A filter that's more principled than top-k/top-p for controlling diversity. Typical: 0.01-0.1.",
@@ -799,8 +799,8 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.typical_p = ((s.typical_p * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.typical_p = (v as f32 / 100.0).clamp(0.0, 1.0);
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.typical_p = v.clamp(0.0, 1.0);
                 }
             },
             "Locally typical sampling (typ_p). Controls diversity by keeping tokens with typical probability mass. Values near 1.0 = no effect, 0.1-0.5 = moderate diversity. Typical: 1.0 (off).",
@@ -838,8 +838,8 @@ pub fn all_fields() -> Vec<SettingField> {
                     ((s.mirostat_lr * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.mirostat_lr = (v as f32 / 100.0).clamp(0.0, 1.0);
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.mirostat_lr = v.clamp(0.0, 1.0);
                 }
             },
             "Mirostat learning rate (eta). Controls how quickly the temperature adapts. Smaller = smoother adjustments. Typical: 0.1.",
@@ -855,8 +855,8 @@ pub fn all_fields() -> Vec<SettingField> {
                     ((s.mirostat_ent * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.mirostat_ent = (v as f32 / 100.0).clamp(0.0, 10.0);
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.mirostat_ent = v.clamp(0.0, 10.0);
                 }
             },
             "Mirostat target entropy. Controls the diversity of output. Higher = more diverse. Typical: 5.0.",
@@ -916,8 +916,8 @@ pub fn all_fields() -> Vec<SettingField> {
                     ((s.repeat_penalty * 100.0 + delta as f32 * 5.0) / 100.0).clamp(1.0, 2.0);
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.repeat_penalty = (v as f32 / 100.0).clamp(0.0, 2.0);
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.repeat_penalty = v.clamp(0.0, 2.0);
                 }
             },
             "Controls repetition penalty (1.0 = no penalty, 1.1 = mild, 1.2 = strong). Higher values discourage the model from repeating phrases. Typical: 1.05-1.15 for most use cases.",
@@ -964,8 +964,8 @@ pub fn all_fields() -> Vec<SettingField> {
                     Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.presence_penalty = Some((v as f32 / 100.0).clamp(0.0, 1.0));
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.presence_penalty = Some(v.clamp(0.0, 1.0));
                 }
             },
             toggle_presence_penalty,
@@ -997,8 +997,8 @@ pub fn all_fields() -> Vec<SettingField> {
                     Some(((current * 100.0 + delta as f32 * 5.0) / 100.0).clamp(-2.0, 2.0));
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.frequency_penalty = Some((v as f32 / 100.0).clamp(0.0, 1.0));
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.frequency_penalty = Some(v.clamp(0.0, 1.0));
                 }
             },
             toggle_frequency_penalty,
@@ -1016,8 +1016,8 @@ pub fn all_fields() -> Vec<SettingField> {
                     ((s.dry_multiplier * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.dry_multiplier = (v as f32 / 100.0).clamp(0.0, 10.0);
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.dry_multiplier = v.clamp(0.0, 10.0);
                 }
             },
             "DRY (Don't Repeat Yourself) multiplier. Scales the penalty for repetition. Higher values = stronger anti-repetition. Typical: 1.75.",
@@ -1032,8 +1032,8 @@ pub fn all_fields() -> Vec<SettingField> {
                 s.dry_base = ((s.dry_base * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
             },
             |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.dry_base = (v as f32 / 100.0).clamp(0.0, 10.0);
+                if let Ok(v) = buf.parse::<f32>() {
+                    s.dry_base = v.clamp(0.0, 10.0);
                 }
             },
             "DRY penalty base (log scale). Controls the strength of the repetition penalty. Typical: 1.0 (log2) or 0.0 (linear).",

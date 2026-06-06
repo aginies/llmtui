@@ -1000,68 +1000,400 @@ impl Config {
         config_base_dir().join("llm-manager").join("config.yaml")
     }
 
+    /// Known top-level config keys.
+    fn config_keys() -> &'static [&'static str] {
+        &[
+            "models_dirs", "llama_server", "default", "model_overrides", "profiles",
+            "system_prompt_presets", "rpc_workers", "search_limit", "active_panel",
+            "left_pct", "language", "onboarding_complete",
+        ]
+    }
+
+    /// Known DefaultParams keys.
+    fn default_params_keys() -> &'static [&'static str] {
+        &[
+            "context_length", "threads", "threads_batch", "batch_size", "ubatch_size",
+            "cache_type_k", "cache_type_v", "keep", "swa_full", "mlock", "mmap", "numa",
+            "uniform_cache", "kv_cache_offload", "parallel", "max_concurrent_predictions",
+            "system_prompt", "system_prompt_preset_name", "gpu_layers", "gpu_layers_mode",
+            "split_mode", "tensor_split", "main_gpu", "fit", "lora", "lora_scaled", "rpc",
+            "embedding", "flash_attn", "jinja", "chat_template", "chat_template_kwargs",
+            "expert_count", "seed", "temperature", "top_k", "top_p", "min_p", "typical_p",
+            "mirostat", "mirostat_lr", "mirostat_ent", "ignore_eos", "samplers",
+            "repeat_penalty", "repeat_last_n", "presence_penalty", "frequency_penalty",
+            "dry_multiplier", "dry_base", "dry_allowed_length", "dry_penalty_last_n",
+            "rope_scaling", "rope_scale", "rope_freq_base", "rope_freq_scale",
+            "rope_yarn_enabled", "host", "port", "timeout", "cache_prompt", "cache_reuse",
+            "webui", "ws_server_enabled", "ws_server_port", "ws_server_auth_key",
+            "ws_server_tls_enabled", "ws_server_tls_cert", "ws_server_tls_key",
+            "router_max_models", "server_mode", "max_tokens", "cache_type", "backend",
+            "platform", "llama_cpp_version_cpu", "llama_cpp_version_vulkan",
+            "llama_cpp_version_rocm", "llama_cpp_version_rocm_lemonade",
+            "llama_cpp_version_cuda", "api_endpoint_enabled", "api_endpoint_port",
+            "spec_type", "draft_tokens", "tags",
+        ]
+    }
+
+    /// Known ModelOverride keys.
+    fn model_override_keys() -> &'static [&'static str] {
+        &[
+            "context_length", "batch_size", "ubatch_size", "cache_type_k", "cache_type_v",
+            "keep", "swa_full", "mlock", "mmap", "numa", "uniform_cache", "system_prompt",
+            "system_prompt_preset_name", "max_concurrent_predictions", "threads",
+            "threads_batch", "parallel", "gpu_layers", "split_mode", "tensor_split",
+            "main_gpu", "fit", "lora", "lora_scaled", "rpc", "embedding", "kv_cache_offload",
+            "flash_attn", "jinja", "chat_template", "chat_template_kwargs", "expert_count",
+            "gpu_layers_mode", "seed", "temperature", "top_k", "top_p", "min_p", "typical_p",
+            "mirostat", "mirostat_lr", "mirostat_ent", "ignore_eos", "samplers",
+            "repeat_penalty", "repeat_last_n", "presence_penalty", "frequency_penalty",
+            "dry_multiplier", "dry_base", "dry_allowed_length", "dry_penalty_last_n",
+            "rope_scaling", "rope_scale", "rope_freq_base", "rope_freq_scale",
+            "rope_yarn_enabled", "cache_prompt", "cache_reuse", "webui", "max_tokens",
+            "cache_type", "llama_cpp_version_cpu", "llama_cpp_version_vulkan",
+            "llama_cpp_version_rocm", "llama_cpp_version_rocm_lemonade",
+            "llama_cpp_version_cuda", "spec_type", "draft_tokens", "tags",
+        ]
+    }
+
+    /// Known RpcWorker keys.
+    fn rpc_worker_keys() -> &'static [&'static str] {
+        &["selected", "name", "ip", "port"]
+    }
+
+    /// Validate unknown YAML keys against known field lists.
+    pub fn validate_unknown_fields(value: &serde_yaml::Value) -> Vec<ValidationWarning> {
+        let mut warnings = Vec::new();
+        Self::check_unknown_fields(value, "", Self::config_keys(), &mut warnings);
+        warnings
+    }
+
+    fn check_unknown_fields(
+        value: &serde_yaml::Value,
+        prefix: &str,
+        known_keys: &'static [&'static str],
+        warnings: &mut Vec<ValidationWarning>,
+    ) {
+        if let serde_yaml::Value::Mapping(map) = value {
+            for key in map.keys() {
+                if let Some(key_str) = key.as_str() {
+                    if !known_keys.contains(&key_str) {
+                        let field = if prefix.is_empty() {
+                            key_str.to_string()
+                        } else {
+                            format!("{}.{}", prefix, key_str)
+                        };
+                        warnings.push(ValidationWarning {
+                            field,
+                            message: format!("Unknown config field: {}", key_str),
+                            severity: ValidationSeverity::Warning,
+                        });
+                    }
+                }
+            }
+
+            // Recurse into nested structures
+            for (key, val) in map {
+                if let Some(key_str) = key.as_str() {
+                    let new_prefix = if prefix.is_empty() {
+                        key_str.to_string()
+                    } else {
+                        format!("{}.{}", prefix, key_str)
+                    };
+
+                    match key_str {
+                        "default" => {
+                            Self::check_unknown_fields(val, &new_prefix, Self::default_params_keys(), warnings);
+                        }
+                        "model_overrides" => {
+                            if let serde_yaml::Value::Mapping(overrides) = val {
+                                for (override_key, override_val) in overrides {
+                                    if let Some(k) = override_key.as_str() {
+                                        let override_prefix = format!("{}.{}", new_prefix, k);
+                                        Self::check_unknown_fields(
+                                            override_val,
+                                            &override_prefix,
+                                            Self::model_override_keys(),
+                                            warnings,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        "rpc_workers" => {
+                            if let serde_yaml::Value::Sequence(items) = val {
+                                for item in items {
+                                    Self::check_unknown_fields(item, &new_prefix, Self::rpc_worker_keys(), warnings);
+                                }
+                            }
+                        }
+                        _ => {
+                            Self::check_unknown_fields(val, &new_prefix, known_keys, warnings);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Validate config values and return a list of warnings for invalid entries.
-    pub fn validate(&self) -> Vec<String> {
+    pub fn validate(&self) -> Vec<ValidationWarning> {
         let mut warnings = Vec::new();
         let default = &self.default;
 
         // Numeric range checks
         if default.context_length < 512 || default.context_length > 1048576 {
-            warnings.push(format!(
-                "context_length {} is outside recommended range 512-1048576",
-                default.context_length
-            ));
+            warnings.push(ValidationWarning {
+                field: "default.context_length".to_string(),
+                message: format!(
+                    "context_length {} is outside recommended range 512-1048576",
+                    default.context_length
+                ),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.threads == 0 {
+            warnings.push(ValidationWarning {
+                field: "default.threads".to_string(),
+                message: "threads must be greater than 0".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
         }
         if default.temperature < 0.0 || default.temperature > 2.0 {
-            warnings.push(format!(
-                "temperature {} is outside recommended range 0.0-2.0",
-                default.temperature
-            ));
+            warnings.push(ValidationWarning {
+                field: "default.temperature".to_string(),
+                message: format!(
+                    "temperature {} is outside recommended range 0.0-2.0",
+                    default.temperature
+                ),
+                severity: ValidationSeverity::Warning,
+            });
         }
-        if (default.top_p < 0.0 || default.top_p > 1.0) && default.top_p != 0.0 {
-            warnings.push(format!(
-                "top_p {} is outside recommended range 0.0-1.0",
-                default.top_p
-            ));
+        if default.top_k < 0 {
+            warnings.push(ValidationWarning {
+                field: "default.top_k".to_string(),
+                message: "top_k must be >= 0".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
         }
-        if (default.repeat_penalty < 0.0 || default.repeat_penalty > 3.0)
-            && default.repeat_penalty != 1.0
-        {
-            warnings.push(format!(
-                "repeat_penalty {} is outside recommended range 0.0-3.0",
-                default.repeat_penalty
-            ));
+        if default.top_p < 0.0 || default.top_p > 1.0 {
+            warnings.push(ValidationWarning {
+                field: "default.top_p".to_string(),
+                message: format!(
+                    "top_p {} is outside recommended range 0.0-1.0",
+                    default.top_p
+                ),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.min_p < 0.0 || default.min_p > 1.0 {
+            warnings.push(ValidationWarning {
+                field: "default.min_p".to_string(),
+                message: format!(
+                    "min_p {} is outside recommended range 0.0-1.0",
+                    default.min_p
+                ),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.typical_p < 0.0 || default.typical_p > 1.0 {
+            warnings.push(ValidationWarning {
+                field: "default.typical_p".to_string(),
+                message: format!(
+                    "typical_p {} is outside recommended range 0.0-1.0",
+                    default.typical_p
+                ),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.repeat_penalty < 0.0 || default.repeat_penalty > 3.0 {
+            warnings.push(ValidationWarning {
+                field: "default.repeat_penalty".to_string(),
+                message: format!(
+                    "repeat_penalty {} is outside recommended range 0.0-3.0",
+                    default.repeat_penalty
+                ),
+                severity: ValidationSeverity::Warning,
+            });
         }
         if default.mirostat_lr < 0.0 || default.mirostat_lr > 1.0 {
-            warnings.push(format!(
-                "mirostat_lr {} is outside recommended range 0.0-1.0",
-                default.mirostat_lr
-            ));
+            warnings.push(ValidationWarning {
+                field: "default.mirostat_lr".to_string(),
+                message: format!(
+                    "mirostat_lr {} is outside recommended range 0.0-1.0",
+                    default.mirostat_lr
+                ),
+                severity: ValidationSeverity::Warning,
+            });
         }
         if default.mirostat_ent < 0.0 || default.mirostat_ent > 10.0 {
-            warnings.push(format!(
-                "mirostat_ent {} is outside recommended range 0.0-10.0",
-                default.mirostat_ent
-            ));
+            warnings.push(ValidationWarning {
+                field: "default.mirostat_ent".to_string(),
+                message: format!(
+                    "mirostat_ent {} is outside recommended range 0.0-10.0",
+                    default.mirostat_ent
+                ),
+                severity: ValidationSeverity::Warning,
+            });
         }
-
+        if default.dry_multiplier < 0.0 {
+            warnings.push(ValidationWarning {
+                field: "default.dry_multiplier".to_string(),
+                message: "dry_multiplier must be >= 0".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.dry_base <= 0.0 {
+            warnings.push(ValidationWarning {
+                field: "default.dry_base".to_string(),
+                message: "dry_base must be > 0".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.rope_scale <= 0.0 {
+            warnings.push(ValidationWarning {
+                field: "default.rope_scale".to_string(),
+                message: "rope_scale must be > 0".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.rope_freq_scale <= 0.0 {
+            warnings.push(ValidationWarning {
+                field: "default.rope_freq_scale".to_string(),
+                message: "rope_freq_scale must be > 0".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.port == 0 {
+            warnings.push(ValidationWarning {
+                field: "default.port".to_string(),
+                message: "port must be between 1 and 65535".to_string(),
+                severity: ValidationSeverity::Error,
+            });
+        }
+        if default.port < 1024 {
+            warnings.push(ValidationWarning {
+                field: "default.port".to_string(),
+                message: format!(
+                    "port {} is a privileged port (< 1024)",
+                    default.port
+                ),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.api_endpoint_port == 0 {
+            warnings.push(ValidationWarning {
+                field: "default.api_endpoint_port".to_string(),
+                message: "api_endpoint_port must be between 1 and 65535".to_string(),
+                severity: ValidationSeverity::Error,
+            });
+        }
+        if default.ws_server_port == 0 {
+            warnings.push(ValidationWarning {
+                field: "default.ws_server_port".to_string(),
+                message: "ws_server_port must be between 1 and 65535".to_string(),
+                severity: ValidationSeverity::Error,
+            });
+        }
         if default.timeout < 1 {
-            warnings.push(format!(
-                "timeout {} must be at least 1 second",
-                default.timeout
-            ));
+            warnings.push(ValidationWarning {
+                field: "default.timeout".to_string(),
+                message: "timeout must be at least 1 second".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.router_max_models == 0 {
+            warnings.push(ValidationWarning {
+                field: "default.router_max_models".to_string(),
+                message: "router_max_models must be >= 1".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if let Some(max_tokens) = default.max_tokens {
+            if max_tokens == 0 {
+                warnings.push(ValidationWarning {
+                    field: "default.max_tokens".to_string(),
+                    message: "max_tokens must be > 0".to_string(),
+                    severity: ValidationSeverity::Warning,
+                });
+            } else if max_tokens > 65536 {
+                warnings.push(ValidationWarning {
+                    field: "default.max_tokens".to_string(),
+                    message: format!(
+                        "max_tokens {} is very large (> 65536)",
+                        max_tokens
+                    ),
+                    severity: ValidationSeverity::Warning,
+                });
+            }
+        }
+        if default.context_length > 262144 {
+            warnings.push(ValidationWarning {
+                field: "default.context_length".to_string(),
+                message: format!(
+                    "context_length {} may cause high memory usage",
+                    default.context_length
+                ),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.threads_batch > default.batch_size && default.batch_size > 0 {
+            warnings.push(ValidationWarning {
+                field: "default.threads_batch".to_string(),
+                message: "threads_batch should not exceed batch_size".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
         }
 
         // Path validation
         if let Some(lora) = &default.lora
             && !lora.exists()
         {
-            warnings.push(format!("lora path {} does not exist", lora.display()));
+            warnings.push(ValidationWarning {
+                field: "default.lora".to_string(),
+                message: format!("lora path does not exist: {}", lora.display()),
+                severity: ValidationSeverity::Warning,
+            });
         }
         if let Some((lora, _)) = &default.lora_scaled
             && !lora.exists()
         {
-            warnings.push(format!("lora path {} does not exist", lora.display()));
+            warnings.push(ValidationWarning {
+                field: "default.lora_scaled".to_string(),
+                message: format!("lora path does not exist: {}", lora.display()),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if let Some(cert) = &default.ws_server_tls_cert
+            && !cert.is_empty()
+            && !std::path::Path::new(cert).exists()
+        {
+            warnings.push(ValidationWarning {
+                field: "default.ws_server_tls_cert".to_string(),
+                message: format!("TLS cert path does not exist: {}", cert),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if let Some(key) = &default.ws_server_tls_key
+            && !key.is_empty()
+            && !std::path::Path::new(key).exists()
+        {
+            warnings.push(ValidationWarning {
+                field: "default.ws_server_tls_key".to_string(),
+                message: format!("TLS key path does not exist: {}", key),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if self.llama_server.is_absolute()
+            && !self.llama_server.exists()
+        {
+            warnings.push(ValidationWarning {
+                field: "llama_server".to_string(),
+                message: format!(
+                    "llama_server binary not found: {}",
+                    self.llama_server.display()
+                ),
+                severity: ValidationSeverity::Warning,
+            });
         }
 
         // Model override validation
@@ -1070,21 +1402,97 @@ impl Config {
                 if let Some(lora) = &override_settings.lora
                     && !lora.exists()
                 {
-                    warnings.push(format!(
-                        "model '{}' lora path {} does not exist",
-                        model_name,
-                        lora.display()
-                    ));
+                    warnings.push(ValidationWarning {
+                        field: format!("model_overrides.{}.lora", model_name),
+                        message: format!(
+                            "lora path does not exist: {}",
+                            lora.display()
+                        ),
+                        severity: ValidationSeverity::Warning,
+                    });
                 }
                 if let Some((lora, _)) = &override_settings.lora_scaled
                     && !lora.exists()
                 {
-                    warnings.push(format!(
-                        "model '{}' lora path {} does not exist",
-                        model_name,
-                        lora.display()
-                    ));
+                    warnings.push(ValidationWarning {
+                        field: format!("model_overrides.{}.lora_scaled", model_name),
+                        message: format!(
+                            "lora path does not exist: {}",
+                            lora.display()
+                        ),
+                        severity: ValidationSeverity::Warning,
+                    });
                 }
+            }
+        }
+
+        // Cross-field validation
+        if default.port == default.api_endpoint_port {
+            warnings.push(ValidationWarning {
+                field: "default.port".to_string(),
+                message: format!(
+                    "port conflict: server port and API endpoint port both set to {}",
+                    default.port
+                ),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.port == default.ws_server_port {
+            warnings.push(ValidationWarning {
+                field: "default.port".to_string(),
+                message: format!(
+                    "port conflict: server port and WS server port both set to {}",
+                    default.port
+                ),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.api_endpoint_port == default.ws_server_port {
+            warnings.push(ValidationWarning {
+                field: "default.api_endpoint_port".to_string(),
+                message: format!(
+                    "port conflict: API endpoint port and WS server port both set to {}",
+                    default.api_endpoint_port
+                ),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if matches!(default.server_mode, crate::models::ServerMode::Router)
+            && default.router_max_models < 2
+        {
+            warnings.push(ValidationWarning {
+                field: "default.router_max_models".to_string(),
+                message: "router_max_models should be >= 2 for Router mode".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if !default.spec_type.is_empty() && default.draft_tokens == 0 {
+            warnings.push(ValidationWarning {
+                field: "default.spec_type".to_string(),
+                message: "spec_type is set but draft_tokens is 0".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        if default.ws_server_tls_enabled {
+            if let Some(cert) = &default.ws_server_tls_cert
+                && !cert.is_empty()
+                && !std::path::Path::new(cert).exists()
+            {
+                warnings.push(ValidationWarning {
+                    field: "default.ws_server_tls_cert".to_string(),
+                    message: format!("TLS cert path does not exist: {}", cert),
+                    severity: ValidationSeverity::Warning,
+                });
+            }
+            if let Some(key) = &default.ws_server_tls_key
+                && !key.is_empty()
+                && !std::path::Path::new(key).exists()
+            {
+                warnings.push(ValidationWarning {
+                    field: "default.ws_server_tls_key".to_string(),
+                    message: format!("TLS key path does not exist: {}", key),
+                    severity: ValidationSeverity::Warning,
+                });
             }
         }
 
@@ -1156,15 +1564,34 @@ impl Config {
 
     fn load_impl(path: &PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
+
+        // Phase 1: Parse as Value to check for unknown fields
+        let parsed: serde_yaml::Value = serde_yaml::from_str(&content)
+            .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
+        let mut warnings = Self::validate_unknown_fields(&parsed);
+
+        // Phase 2: Deserialize normally (serde_yaml ignores unknown fields)
         let config: Config = serde_yaml::from_str(&content)
             .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
         let config = Self::normalize_config(config);
         let config = config.auto_detect_platform();
-        let warnings = config.validate();
+
+        // Phase 3: Value validation
+        warnings.extend(config.validate());
+
+        // Log warnings
         if !warnings.is_empty() {
             eprintln!("Config validation warnings:");
             for warning in &warnings {
-                eprintln!("  - {}", warning);
+                eprintln!(
+                    "  [{}] {}: {}",
+                    match warning.severity {
+                        ValidationSeverity::Warning => "WARN",
+                        ValidationSeverity::Error => "ERROR",
+                    },
+                    warning.field,
+                    warning.message
+                );
             }
         }
         Ok(config)
@@ -1183,7 +1610,37 @@ impl Config {
 
     pub fn load_from(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         if path.exists() {
-            Self::load_impl(&path)
+            let content = std::fs::read_to_string(&path)?;
+
+            // Phase 1: Parse as Value to check for unknown fields
+            let parsed: serde_yaml::Value = serde_yaml::from_str(&content)
+                .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
+            let mut warnings = Self::validate_unknown_fields(&parsed);
+
+            // Phase 2: Deserialize normally
+            let config: Config = serde_yaml::from_str(&content)
+                .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
+            let config = Self::normalize_config(config);
+            let config = config.auto_detect_platform();
+
+            // Phase 3: Value validation
+            warnings.extend(config.validate());
+
+            if !warnings.is_empty() {
+                eprintln!("Config validation warnings:");
+                for warning in &warnings {
+                    eprintln!(
+                        "  [{}] {}: {}",
+                        match warning.severity {
+                            ValidationSeverity::Warning => "WARN",
+                            ValidationSeverity::Error => "ERROR",
+                        },
+                        warning.field,
+                        warning.message
+                    );
+                }
+            }
+            Ok(config)
         } else {
             Err(format!("Config file not found: {}", path.display()).into())
         }
@@ -1245,6 +1702,19 @@ pub enum LogLevel {
     Info,
     Warning,
     Error,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValidationSeverity {
+    Warning,
+    Error,
+}
+
+#[derive(Debug, Clone)]
+pub struct ValidationWarning {
+    pub field: String,
+    pub message: String,
+    pub severity: ValidationSeverity,
 }
 
 impl LogLevel {

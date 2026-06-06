@@ -277,13 +277,14 @@ async fn test_f10_all_panels_visible() {
 #[tokio::test]
 async fn test_ctrl_l_cycles_language() {
     let mut app = make_app();
+    i18n::set_language("en");
     app.config.language = "en".to_string();
     let key = make_key_with_mod(KeyCode::Char('l'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
     assert_eq!(app.config.language, "fr");
      assert_eq!(i18n::get_language(), "fr");
      i18n::set_language("en");
- }
+  }
 
 #[tokio::test]
 async fn test_ctrl_k_kills_server() {

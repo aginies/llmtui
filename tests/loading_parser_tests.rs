@@ -23,6 +23,7 @@ fn make_app() -> App {
         active_panel: llm_manager::tui::app::types::ActivePanel::Models,
         left_pct: 55,
         language: "en".to_string(),
+        onboarding_complete: false,
     };
     let mut app = App::new(config);
     app.loading.loading_phases.clear();

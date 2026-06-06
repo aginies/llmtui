@@ -650,5 +650,13 @@
   "onboarding.step6.keys": "`^F9` Toggle panel · `j/k` Navigate · `↵` Edit value · `^S` Save · `^R` Reset · `^E` Expert mode",
   "onboarding.step7.title": "Ready to Go",
   "onboarding.step7.description": "You now know the basics. Navigate panels, load models, and start chatting. Use the shortcuts below to get around. Press Ctrl+O anytime to replay this tour.",
-  "onboarding.step7.keys": "`^F7` Models · `^F8` Server · `^F9` LLM · `/` Search · `^O` Replay tour · `^L` Language · `^X` Expert · `^G` GGUF info"
+  "onboarding.step7.keys": "`^F7` Models · `^F8` Server · `^F9` LLM · `/` Search · `^O` Replay tour · `^L` Language · `^X` Expert · `^G` GGUF info",
+  "config.unknown_field": "Unknown config field: {field}",
+  "config.range_warning": "{field} {value} outside recommended range {min}-{max}",
+  "config.path_missing": "Path does not exist: {path}",
+  "config.port_conflict": "Port conflict: {port} used by multiple services",
+  "config.inconsistency": "{field} setting may cause issues: {reason}",
+  "config.memory_warning": "High memory usage expected: {field}={value}",
+  "config.port_privileged": "Port {port} is privileged (< 1024)",
+  "config.validation_warning": "Config validation warnings: {} issue(s) found"
 }

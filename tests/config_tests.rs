@@ -235,7 +235,7 @@ fn config_validate_context_length_too_low() {
     let mut config = Config::default();
     config.default.context_length = 256;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.contains("context_length")));
+    assert!(warnings.iter().any(|w| w.message.contains("context_length")));
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn config_validate_context_length_too_high() {
     let mut config = Config::default();
     config.default.context_length = 2000000;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.contains("context_length")));
+    assert!(warnings.iter().any(|w| w.message.contains("context_length")));
 }
 
 #[test]
@@ -251,7 +251,7 @@ fn config_validate_temperature_out_of_range() {
     let mut config = Config::default();
     config.default.temperature = 3.0;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.contains("temperature")));
+    assert!(warnings.iter().any(|w| w.message.contains("temperature")));
 }
 
 #[test]
@@ -259,7 +259,7 @@ fn config_validate_top_p_out_of_range() {
     let mut config = Config::default();
     config.default.top_p = 1.5;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.contains("top_p")));
+    assert!(warnings.iter().any(|w| w.message.contains("top_p")));
 }
 
 #[test]
@@ -267,7 +267,7 @@ fn config_validate_repeat_penalty_out_of_range() {
     let mut config = Config::default();
     config.default.repeat_penalty = 5.0;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.contains("repeat_penalty")));
+    assert!(warnings.iter().any(|w| w.message.contains("repeat_penalty")));
 }
 
 #[test]
@@ -275,7 +275,7 @@ fn config_validate_mirostat_lr_out_of_range() {
     let mut config = Config::default();
     config.default.mirostat_lr = 2.0;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.contains("mirostat_lr")));
+    assert!(warnings.iter().any(|w| w.message.contains("mirostat_lr")));
 }
 
 #[test]
@@ -283,7 +283,7 @@ fn config_validate_mirostat_ent_out_of_range() {
     let mut config = Config::default();
     config.default.mirostat_ent = 15.0;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.contains("mirostat_ent")));
+    assert!(warnings.iter().any(|w| w.message.contains("mirostat_ent")));
 }
 
 #[test]
@@ -291,7 +291,7 @@ fn config_validate_timeout_too_low() {
     let mut config = Config::default();
     config.default.timeout = 0;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.contains("timeout")));
+    assert!(warnings.iter().any(|w| w.message.contains("timeout")));
 }
 
 // ── Builtin profiles ───────────────────────────────────────────
@@ -618,6 +618,7 @@ fn config_default_empty_model_overrides() {
         active_panel: ActivePanel::Models,
         left_pct: 55,
         language: "en".to_string(),
+        onboarding_complete: false,
     };
     // Store is initialized successfully (may contain existing configs on disk)
     let _keys = config.model_overrides.keys();
