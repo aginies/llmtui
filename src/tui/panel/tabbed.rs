@@ -682,7 +682,7 @@ fn render_model_info_lines(
 
     // First pair (path) spans full width
     if let Some(first) = pairs.first() {
-        let label = format!("{}: ", first.label);
+        let label = format!("{}: ", crate::t!(first.label));
         let value = first.value.clone();
         let value_width = width.saturating_sub(label.len() as u16 + 1);
         let value_display = crate::tui::panel::models::scroll_text(&value, value_width, state);
@@ -699,8 +699,8 @@ fn render_model_info_lines(
 
         if let Some(right) = chunk.get(1) {
             // Two columns: pad left label to align with right label
-            let left_label = format!("{}: ", left.label);
-            let right_label = format!("{}: ", right.label);
+            let left_label = format!("{}: ", crate::t!(left.label));
+            let right_label = format!("{}: ", crate::t!(right.label));
 
             lines.push(Line::from(vec![
                 Span::styled(
@@ -720,7 +720,7 @@ fn render_model_info_lines(
             ]));
         } else {
             // Single item in last row
-            let label = format!("{}: ", left.label);
+            let label = format!("{}: ", crate::t!(left.label));
             lines.push(Line::from(vec![
                 Span::styled(label, Style::default().fg(Color::Yellow)),
                 Span::styled(left.value.clone(), Style::default().fg(left.value_style)),

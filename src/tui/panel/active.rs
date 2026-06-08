@@ -499,17 +499,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
-                    " (no active model loaded)",
+                    crate::t!("active.no_model_loaded"),
                     Style::default().fg(Color::DarkGray),
                 ),
             ]));
         } else {
             lines.push(Line::from(vec![Span::styled(
-                " No active model ",
+                crate::t!("active.no_model"),
                 Style::default().fg(Color::DarkGray),
             )]));
             lines.push(Line::from(vec![Span::styled(
-                " (select a model and press Enter to load)",
+                crate::t!("active.no_model_hint"),
                 Style::default().fg(Color::DarkGray),
             )]));
         }

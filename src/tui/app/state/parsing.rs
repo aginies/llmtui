@@ -12,19 +12,22 @@ pub static LLAMA_START: LazyLock<Regex> = LazyLock::new(|| {
     compile(r"(?i)(llama.*server|ggml\s+version)")
 });
 
-/// Matches model loader start: "llama_model_loader"
+/// Matches model loader start: "llama_model_loader" (old format)
+/// or "load_model: loading model" (new format)
 pub static LOADING_MODEL: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)llama_model_loader")
+    compile(r"(?i)(llama_model_loader|load_model:\s*loading\s*model)")
 });
 
-/// Matches metadata loaded: "loaded X meta", "meta data"
+/// Matches metadata loaded: "loaded X meta data" (old format)
+/// or "Loaded meta data with N key-value pairs" (new format)
+/// or "fitting params to device memory" (new format)
 pub static LOADED_META: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)(loaded\s+\d+\s+meta|meta\s+data)")
+    compile(r"(?i)(loaded\s+\d+\s+meta data|Loaded meta data with|fitting params to device memory)")
 });
 
-/// Matches tensor loading start: "load tensors:"
+/// Matches tensor loading start: "load tensors:" or "loading model tensors"
 pub static LOAD_TENSORS: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)load tensors:")
+    compile(r"(?i)(load\s*tensors:|load_tensors:|loading model tensors)")
 });
 
 /// Matches "server listening on" or "http server listening"

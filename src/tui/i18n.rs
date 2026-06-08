@@ -172,22 +172,17 @@ mod tests {
     #[test]
     fn test_embedded_translations_exist() {
         // Ensure that English translations are correctly embedded and retrieved
-        set_language("en");
-        assert_eq!(t("panel.title.models_active"), " MODELS (F7) [^F7] ");
+        let en_map = TRANSLATIONS.get("en").expect("English translations not found");
+        assert_eq!(*en_map.get("panel.title.models_active").unwrap(), " MODELS (F7) [^F7] ");
 
         // Ensure French translations are loaded and distinct
-        set_language("fr");
-        let fr_val = t("panel.title.models_active");
-        assert_ne!(fr_val, "panel.title.models_active");
+        let fr_map = TRANSLATIONS.get("fr").expect("French translations not found");
+        let fr_val = *fr_map.get("panel.title.models_active").unwrap();
         assert_ne!(fr_val, " MODELS (F7) [^F7] ");
 
         // Ensure Italian translations are loaded and distinct
-        set_language("it");
-        let it_val = t("panel.title.models_active");
-        assert_ne!(it_val, "panel.title.models_active");
+        let it_map = TRANSLATIONS.get("it").expect("Italian translations not found");
+        let it_val = *it_map.get("panel.title.models_active").unwrap();
         assert_ne!(it_val, " MODELS (F7) [^F7] ");
-
-        // Reset to default (English)
-        set_language("en");
     }
 }

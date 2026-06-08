@@ -165,6 +165,7 @@ impl App {
                 load_progress: Default::default(),
                 last_spinner_time: None,
                 loading_spinner: 0,
+                tensor_start_time: None,
                 model_total_layers: 0,
                 model_hidden_size: 0,
                 model_n_ctx_train: 0,

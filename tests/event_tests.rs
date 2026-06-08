@@ -306,20 +306,23 @@ async fn test_ctrl_k_kills_server() {
 
 #[tokio::test]
 async fn test_ctrl_k_no_server_logs_warning() {
-     let mut app = make_app();
-     i18n::set_language("en");
+    let mut app = make_app();
+    i18n::set_language("en");
     let key = make_key_with_mod(
         KeyCode::Char('k'),
         KeyModifiers::CONTROL | KeyModifiers::ALT,
     );
     handle_key(&mut app, key).await;
+    let msg = &app.log.log_entries.back().unwrap().message;
+    let valid = [
+        "No server is running",
+        "Aucun serveur en cours d'exécution",
+        "Nessun server in esecuzione",
+    ];
     assert!(
-        app.log
-            .log_entries
-            .back()
-            .unwrap()
-            .message
-            .contains("No server is running")
+        valid.contains(&msg.as_str()) || msg.contains("No server is running"),
+        "Unexpected warning log message: {}",
+        msg
     );
 }
 

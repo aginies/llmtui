@@ -435,6 +435,7 @@
   "active.starting_test": "Starting first test...",
   "active.no_model": " No active model ",
   "active.no_model_hint": " (select a model and press Enter to load)",
+  "active.no_model_loaded": " (no active model loaded)",
   "info.path": "Path",
   "info.size": "Size",
   "info.arch": "Arch",
@@ -658,5 +659,16 @@
   "config.inconsistency": "{field} setting may cause issues: {reason}",
   "config.memory_warning": "High memory usage expected: {field}={value}",
   "config.port_privileged": "Port {port} is privileged (< 1024)",
-  "config.validation_warning": "Config validation warnings: {} issue(s) found"
+  "config.validation_warning": "Config validation warnings: {} issue(s) found",
+  "model_info.path": "Path",
+  "model_info.size": "Size",
+  "model_info.arch": "Arch",
+  "model_info.mtp": "MTP",
+  "model_info.domain": "Domain",
+  "model_info.quant": "Quant",
+  "model_info.format": "Format",
+  "model_info.parameters": "Parameters",
+  "model_info.tokenizer": "Tokenizer",
+  "model_info.context": "Context",
+  "model_info.capabilities": "Capabilities"
 }

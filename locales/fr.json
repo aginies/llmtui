@@ -17,6 +17,7 @@
   "active.model": " Modèle:  ",
   "active.no_model": " Aucun modèle actif ",
   "active.no_model_hint": " (sélectionnez un modèle et appuyez sur Entrée pour charger)",
+  "active.no_model_loaded": " (aucun modèle actif chargé)",
   "active.progress": " Progression: ",
   "active.results": " Résultats: ",
   "active.starting_test": "Démarrage du premier test...",
@@ -660,5 +661,16 @@
   "config.inconsistency": "Le paramètre {field} peut poser des problèmes : {reason}",
   "config.memory_warning": "Forte consommation mémoire attendue : {field}={value}",
   "config.port_privileged": "Le port {port} est privilégié (< 1024)",
-  "config.validation_warning": "Avertissements de validation de configuration : {} problème(s) trouvé(s)"
+  "config.validation_warning": "Avertissements de validation de configuration : {} problème(s) trouvé(s)",
+  "model_info.path": "Chemin",
+  "model_info.size": "Taille",
+  "model_info.arch": "Arch.",
+  "model_info.mtp": "MTP",
+  "model_info.domain": "Domaine",
+  "model_info.quant": "Quant.",
+  "model_info.format": "Format",
+  "model_info.parameters": "Paramètres",
+  "model_info.tokenizer": "Tokenizer",
+  "model_info.context": "Contexte",
+  "model_info.capabilities": "Capabilités"
 }

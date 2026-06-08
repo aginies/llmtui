@@ -3,9 +3,10 @@ use ratatui::style::Color;
 use crate::tui::format_size;
 
 /// A single key-value pair for model info, rendered in two columns.
+/// `label` is an i18n key resolved at render time.
 #[derive(Clone, Debug)]
 pub struct ModelInfoPair {
-    pub label: String,
+    pub label: &'static str,
     pub value: String,
     pub value_style: Color,
 }
@@ -28,13 +29,13 @@ pub fn render_model_lines(
     let size = format_size(model.file_size);
 
     pairs.push(ModelInfoPair {
-        label: "Path".to_string(),
+        label: "model_info.path",
         value: path,
         value_style: Color::White,
     });
 
     pairs.push(ModelInfoPair {
-        label: "Size".to_string(),
+        label: "model_info.size",
         value: size,
         value_style: Color::White,
     });
@@ -44,7 +45,7 @@ pub fn render_model_lines(
     if let Some(meta) = cached {
         if !meta.arch.is_empty() {
             pairs.push(ModelInfoPair {
-                label: "Arch".to_string(),
+                label: "model_info.arch",
                 value: meta.arch.clone(),
                 value_style: Color::Cyan,
             });
@@ -52,7 +53,7 @@ pub fn render_model_lines(
 
         if meta.arch == "mtp" {
             pairs.push(ModelInfoPair {
-                label: "MTP".to_string(),
+                label: "model_info.mtp",
                 value: format!("{} drafts", meta.draft_tokens),
                 value_style: Color::Magenta,
             });
@@ -60,7 +61,7 @@ pub fn render_model_lines(
 
         if !meta.domain.is_empty() {
             pairs.push(ModelInfoPair {
-                label: "Domain".to_string(),
+                label: "model_info.domain",
                 value: meta.domain.clone(),
                 value_style: Color::White,
             });
@@ -68,7 +69,7 @@ pub fn render_model_lines(
 
         if !meta.quantization.is_empty() {
             pairs.push(ModelInfoPair {
-                label: "Quant".to_string(),
+                label: "model_info.quant",
                 value: meta.quantization.clone(),
                 value_style: Color::Cyan,
             });
@@ -76,7 +77,7 @@ pub fn render_model_lines(
 
         if !meta.file_type.is_empty() {
             pairs.push(ModelInfoPair {
-                label: "Format".to_string(),
+                label: "model_info.format",
                 value: meta.file_type.clone(),
                 value_style: Color::White,
             });
@@ -84,7 +85,7 @@ pub fn render_model_lines(
 
         if !meta.model_parameters.is_empty() {
             pairs.push(ModelInfoPair {
-                label: "Parameters".to_string(),
+                label: "model_info.parameters",
                 value: meta.model_parameters.clone(),
                 value_style: Color::White,
             });
@@ -92,7 +93,7 @@ pub fn render_model_lines(
 
         if !meta.tokenizer.is_empty() {
             pairs.push(ModelInfoPair {
-                label: "Tokenizer".to_string(),
+                label: "model_info.tokenizer",
                 value: meta.tokenizer.clone(),
                 value_style: Color::Cyan,
             });
@@ -101,7 +102,7 @@ pub fn render_model_lines(
         // Show n_ctx_train from GGUF as "Context".
         if meta.n_ctx_train > 0 {
             pairs.push(ModelInfoPair {
-                label: "Context".to_string(),
+                label: "model_info.context",
                 value: format!("{} tokens", meta.n_ctx_train),
                 value_style: Color::White,
             });
@@ -125,7 +126,7 @@ pub fn render_model_lines(
             }
         if !all_capabilities.is_empty() {
             pairs.push(ModelInfoPair {
-                label: "Capabilities".to_string(),
+                label: "model_info.capabilities",
                 value: all_capabilities.join(", "),
                 value_style: Color::Green,
             });

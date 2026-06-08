@@ -1509,12 +1509,12 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                 if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
                     crate::backend::tls::load_tls_config(cert, key).await.ok()
                 } else {
-                    self.add_log(
-                        crate::t!("async.tls_generating"),
-                        crate::config::LogLevel::Info,
-                    );
                     match crate::backend::tls::ensure_tls_certs() {
                         Ok((cert, key)) => {
+                            self.add_log(
+                                crate::t!("async.tls_generating"),
+                                crate::config::LogLevel::Info,
+                            );
                             self.config.default.ws_server_tls_cert =
                                 Some(cert.to_string_lossy().to_string());
                             self.config.default.ws_server_tls_key =

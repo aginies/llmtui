@@ -61,9 +61,33 @@ impl App {
             self.loading.loading_phases.insert(LoadingTensors);
             self.loading.last_active_phase = Some(LoadingTensors);
         }
+        // Detect tensor loading from "loading tensor X of Y" lines (new llama.cpp
+        // format may not have a dedicated "load tensors:" line). This must come
+        // after LOAD_TENSORS so it overwrites last_active_phase when tensor lines
+        // arrive before any meta line (preventing LOADING_MODEL from stealing focus).
+        if LOADING_TENSOR.is_match(msg) {
+            self.ui.last_error_message = None;
+            self.loading.loading_phases.insert(LoadingTensors);
+            self.loading.last_active_phase = Some(LoadingTensors);
+            if self.loading.tensor_start_time.is_none() {
+                self.loading.tensor_start_time = Some(tokio::time::Instant::now());
+            }
+        }
         if SERVER_LISTENING.is_match(msg) {
             self.loading.loading_phases.insert(ServerListening);
             self.loading.last_active_phase = Some(ServerListening);
+        }
+        // New format fallback: if LoadingMeta was detected but LoadingTensors
+        // was never triggered by a regex (old "load tensors:" line), enter it now.
+        // This handles the new llama.cpp format where tensor loading starts
+        // immediately after meta loading with no dedicated log line.
+        if self.loading.loading_phases.contains(&LoadingMeta)
+            && !self.loading.loading_phases.contains(&LoadingTensors)
+        {
+            self.loading.loading_phases.insert(LoadingTensors);
+            self.loading.last_active_phase = Some(LoadingTensors);
+            self.loading.tensor_start_time =
+                Some(tokio::time::Instant::now());
         }
     }
 
@@ -84,10 +108,13 @@ impl App {
         }
 
         // Count dots from progress lines as fallback
-        if self.loading.load_progress.tensors_total.is_none() {
+        let is_dot_fallback = self.loading.load_progress.tensors_total.is_none();
+
+        if is_dot_fallback {
             let dot_count = msg.chars().filter(|&c| c == '.').count();
-            if dot_count > 0 && dot_count <= 200 {
+            if dot_count > 0 && dot_count <= 200 && !msg.to_lowercase().contains("take a while") {
                 self.loading.load_progress.tensors_loaded += dot_count as u32;
+                self.loading.load_progress.tensors_total = Some(100);
             }
         }
 
@@ -242,6 +269,20 @@ impl App {
                                 / estimated_total)
                                 .min(0.95);
                         }
+                        // Fallback: time-based interpolation when no layer/tensor data available
+                        // (new llama.cpp format without per-tensor progress output)
+                        // Offset compensates for LoadingTensors' 0.70 weight vs LoadingMeta's
+                        // 0.07 weight — LoadingTensors starts at ~5% fraction so its progress
+                        // contribution matches LoadingMeta at 50%, ensuring smooth transition.
+                        if tensor_fraction == 0.0 {
+                            if let Some(start_time) = self.loading.tensor_start_time {
+                                let elapsed = start_time.elapsed().as_secs_f32();
+                                let raw_fraction = (elapsed / 30.0).min(0.95);
+                                // 0.05 offset: LoadingMeta fraction (0.5) * meta_weight (0.07) /
+                                // tensor_weight (0.70) = 0.05 — same progress contribution
+                                tensor_fraction = (raw_fraction + 0.05).min(0.95);
+                            }
+                        }
                         tensor_fraction
                     }
                     ServerListening => 0.8,
@@ -273,6 +314,7 @@ impl App {
             self.loading.last_active_phase = None;
             self.loading.loading_progress = 0.0;
             self.loading.load_progress = Default::default();
+            self.loading.tensor_start_time = None;
 
             if !self.bench_tune.bench_tune_running {
                 for state in self.model_states.values_mut() {
@@ -302,6 +344,7 @@ impl App {
         self.loading.last_active_phase = None;
         self.loading.loading_progress = 0.0;
         self.loading.load_progress = Default::default();
+        self.loading.tensor_start_time = None;
         self.loading.last_spinner_time = None;
         self.loading.loading_spinner = 0;
         if let Some(h) = self.loading.health_poll_handle.take() {

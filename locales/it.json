@@ -17,6 +17,7 @@
   "active.model": " Modello:  ",
   "active.no_model": " Nessun modello attivo ",
   "active.no_model_hint": " (seleziona un modello e premi Invio per caricare)",
+  "active.no_model_loaded": " (nessun modello attivo caricato)",
   "active.progress": " Avanzamento: ",
   "active.results": " Risultati: ",
   "active.starting_test": "Avvio del primo test...",
@@ -660,5 +661,16 @@
   "config.inconsistency": "L'impostazione {field} potrebbe causare problemi: {reason}",
   "config.memory_warning": "Elevato utilizzo memoria previsto: {field}={value}",
   "config.port_privileged": "La porta {port} è privilegiata (< 1024)",
-  "config.validation_warning": "Avvisi di validazione configurazione: {} problema(i) trovato(i)"
+  "config.validation_warning": "Avvisi di validazione configurazione: {} problema(i) trovato(i)",
+  "model_info.path": "Percorso",
+  "model_info.size": "Dimensione",
+  "model_info.arch": "Arch.",
+  "model_info.mtp": "MTP",
+  "model_info.domain": "Dominio",
+  "model_info.quant": "Quant.",
+  "model_info.format": "Formato",
+  "model_info.parameters": "Parametri",
+  "model_info.tokenizer": "Tokenizer",
+  "model_info.context": "Contesto",
+  "model_info.capabilities": "Capacità"
 }
