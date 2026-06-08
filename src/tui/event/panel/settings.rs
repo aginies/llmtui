@@ -226,10 +226,26 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Auto Chat Template: toggle on Enter
-    if field_id == Some("auto_chat_template") && key.code == KeyCode::Enter {
-        app.settings.auto_chat_template = !app.settings.auto_chat_template;
-        mark_settings_dirty(app, true);
+    // Chat Template: open picker on Enter
+    if field_id == Some("chat_template") && key.code == KeyCode::Enter {
+        let entries: Vec<String> = crate::models::get_available_chat_templates();
+        let current = app.settings.chat_template.as_deref();
+        let current_auto = app.settings.auto_chat_template;
+        let selected = if current_auto {
+            0 // "Auto (detect)" is first
+        } else if current.is_none() {
+            entries.len() - 1 // "None" is last
+        } else if let Some(template) = current {
+            entries.iter().position(|e| e == template).unwrap_or(0)
+        } else {
+            0
+        };
+        app.ui.global_mode = GlobalMode::ChatTemplatePicker {
+            entries,
+            selected,
+            edit_buffer: app.settings.chat_template.clone().unwrap_or_default(),
+        };
+        mark_settings_dirty(app, false);
         return;
     }
 

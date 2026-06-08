@@ -160,6 +160,16 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::ChatTemplatePicker {
+        entries,
+        selected,
+        edit_buffer,
+    } = &app.ui.global_mode
+    {
+        render_chat_template_picker(f, f.area(), app, entries, *selected, edit_buffer);
+        return true;
+    }
+
     if let GlobalMode::DashboardPicker {
         enabled,
         port,
@@ -2804,6 +2814,78 @@ fn render_spec_type_picker(
             Block::default()
                 .title(Span::styled(
                     crate::t!("dialog.spec.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        ),
+        picker_area,
+    );
+}
+
+fn render_chat_template_picker(
+    f: &mut Frame,
+    area: Rect,
+    _app: &App,
+    entries: &[String],
+    selected: usize,
+    edit_buffer: &str,
+) {
+    let w = 55u16;
+    let h = (entries.len() as u16) + 8;
+    let picker_area = Rect {
+        x: (area.width - w) / 2,
+        y: (area.height - h) / 2,
+        width: w,
+        height: h,
+    };
+    let mut picker_lines: Vec<Line> = vec![
+        Line::from(Span::styled(
+            crate::t!("dialog.chat_template.title"),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            crate::t!("dialog.chat_template.help"),
+            Style::default().fg(Color::Yellow),
+        )),
+        Line::from(""),
+    ];
+
+    for (i, entry) in entries.iter().enumerate() {
+        let marker = if i == selected { "> " } else { "  " };
+        let style = if i == selected {
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        picker_lines.push(Line::from(vec![
+            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(entry, style),
+        ]));
+    }
+
+    if selected == entries.len() - 1 && entries.last() == Some(&"Custom...".to_string()) {
+        picker_lines.push(Line::from(""));
+        picker_lines.push(Line::from(Span::styled(
+            format!("Custom: {}", edit_buffer),
+            Style::default().fg(Color::Cyan),
+        )));
+    }
+
+    f.render_widget(Clear, picker_area);
+    f.render_widget(
+        Paragraph::new(picker_lines).block(
+            Block::default()
+                .title(Span::styled(
+                    crate::t!("dialog.chat_template.title"),
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),

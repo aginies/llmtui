@@ -1222,6 +1222,57 @@ pub fn arch_to_chat_template(arch: &str) -> Option<&'static str> {
     }
 }
 
+/// Return all available chat templates for the picker.
+/// First entry is "Auto (detect)", last entry is "None", second-to-last is "Custom...".
+/// Middle entries are the auto-mapped template names from `arch_to_chat_template`.
+pub fn get_available_chat_templates() -> Vec<String> {
+    let mut templates = vec![
+        "Auto (detect)".to_string(),
+    ];
+    let mut seen = std::collections::HashSet::new();
+    // Collect all unique template names from arch_to_chat_template
+    let archs = vec![
+        "llama", "llama-moe", "llama4", "mistral", "mistral3", "mistral4",
+        "qwen", "qwen2", "qwen2moe", "qwen3", "qwen3moe", "qwen3next", "qwen35",
+        "qwen35moe", "qwen2vl", "qwen3vl", "qwen3vlmoe",
+        "gemma", "gemma2", "gemma3", "gemma3n", "gemma4", "gemma4-assistant",
+        "phi2", "phi3", "phimoe", "phi4",
+        "cohere", "cohere2",
+        "deepseek", "deepseek2", "deepseek2-ocr", "deepseek32",
+        "internlm2", "glm4", "glm4moe", "chatglm",
+        "exaone", "exaone4", "exaone-moe",
+        "minicpm", "minicpm3", "minicpmo",
+        "falcon", "falcon-h1", "falcon3",
+        "rwkv6", "rwkv6qwen2", "rwkv7", "arwkv7",
+        "granite", "granitehybrid", "granitemoe",
+        "hunyuan-dense", "hunyuan-moe", "hunyuan_vl",
+        "olmo", "olmo2", "olmoe", "sonar", "mamba", "mamba2", "mamba_ssm",
+        "dbrx", "starcoder", "starcoder2", "baichuan", "gpt-neox", "gptj",
+        "mpt", "jais", "jais2", "stablelm", "chameleon", "nemo", "nemotron",
+        "nemotron_h", "nemotron_h_moe", "plamo", "plamo2", "plamo3",
+        "ernie4_5", "ernie4_5-moe", "mini-max-m2", "talkie", "apertus",
+        "arcee", "arctic", "jamba", "lfm2", "lfm2moe", "llada", "llada-moe",
+        "maincoder", "mellum", "mimo2", "refact", "rnd1", "smallthinker",
+        "xverse", "gpt2", "codeshell", "cogvlm", "deci", "dots1", "dream",
+        "app", "step35", "smollm3",
+        "megrez", "yandex",
+        "bailing", "bailingmoe", "bailingmoe2", "bailing2", "bailing-think",
+        "kimi-k2", "seed_oss", "grok", "solar-open", "gpt-oss",
+        "pangu-embedded", "gigachat",
+        "stable-diffusion",
+    ];
+    for arch in &archs {
+        if let Some(template) = arch_to_chat_template(arch) {
+            if seen.insert(template.to_string()) {
+                templates.push(template.to_string());
+            }
+        }
+    }
+    templates.push("Custom...".to_string());
+    templates.push("None".to_string());
+    templates
+}
+
 /// Metrics reported by the llama.cpp server.
 #[derive(Debug, Clone)]
 pub struct ServerMetrics {

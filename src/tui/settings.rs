@@ -432,15 +432,27 @@ pub fn all_fields() -> Vec<SettingField> {
             "Lock model weights in RAM (mlock). Prevents the OS from swapping model weights to disk. Slows model load time but ensures faster inference once loaded. Useful for repeated use.",
         ),
         expert_field_with_toggle(
-            "auto_chat_template",
-            "Auto Chat Template",
+            "chat_template",
+            "Chat Template",
             "Loading",
-            |s| s.auto_chat_template.to_string(),
-            |s, c| s.auto_chat_template != c.auto_chat_template,
+            |s| {
+                if s.auto_chat_template {
+                    "Auto (detect)".to_string()
+                } else if let Some(ref t) = s.chat_template {
+                    if t.contains('\n') || t.len() > 40 {
+                        format!("Custom ({})", t.len())
+                    } else {
+                        t.clone()
+                    }
+                } else {
+                    "None".to_string()
+                }
+            },
+            |s, c| s.auto_chat_template != c.auto_chat_template || s.chat_template != c.chat_template,
             |_, _, _| {},
             |_, _| {},
             toggle_auto_chat_template,
-            "Auto-select chat template from GGUF architecture metadata. When enabled, llama.cpp uses a built-in template matching the model family (e.g., llama, qwen2). Requires jinja=true. Toggle on/off with Enter.",
+            "Select chat template: Auto (detect) uses GGUF architecture metadata, specific template names use llama.cpp built-in templates, Custom enters a Jinja template string, None disables template. Press Enter to open picker.",
         ),
         expert_field(
             "numa",

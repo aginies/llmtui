@@ -178,6 +178,11 @@ pub enum GlobalMode {
     Onboarding {
         step: usize,
     },
+    ChatTemplatePicker {
+        entries: Vec<String>,
+        selected: usize,
+        edit_buffer: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
