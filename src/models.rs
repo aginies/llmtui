@@ -1105,11 +1105,16 @@ impl GgufMetadata {
 pub fn arch_to_pipeline_tag(arch: &str) -> Option<&'static str> {
     match arch {
         "llama" | "mpt" | "falcon" | "gpt-neox" | "gptj" | "qwen" | "qwen2" | "qwen3"
-        | "qwen2_vl" | "qwen3_vl" | "mistral" | "starcoder2" | "baichuan" | "gemma"
-        | "gemma3" | "cohere" | "deepseek" | "deepseek2" | "phi" | "phi3" | "phi3small"
-        | "jais" | "stable-lm" | "stablelm2" | "llama-moe" | "qwen2_moe"
-        | "olmo" | "olmo2" | "sonar" | "mamba" | "mamba_ssm" | "minicpm" | "minicpm3"
-        | "minicpmo" | "nemo" | "chameleon" | "internlm2" | "exaone" | "dbrx" => {
+        | "qwen3_5_moe" | "qwen2_vl" | "qwen3_vl" | "mistral" | "starcoder2" | "baichuan"
+        | "gemma" | "gemma3" | "gemma4" | "cohere" | "deepseek" | "deepseek2" | "deepseek3"
+        | "phi" | "phi3" | "phi3small" | "phi4" | "jais" | "stable-lm" | "stablelm2"
+        | "llama-moe" | "qwen2_moe" | "olmo" | "olmo2" | "sonar" | "mamba" | "mamba_ssm"
+        | "minicpm" | "minicpm3" | "minicpmo" | "nemo" | "chameleon" | "internlm2"
+        | "exaone" | "exaone-moe" | "dbrx" | "rwkv-world" | "falcon3" | "megrez" | "yandex"
+        | "bailing" | "bailing-think" | "bailing2" | "granite" | "hunyuan-moe"
+        | "hunyuan-dense" | "hunyuan-vl" | "kimi-k2" | "seed_oss" | "grok-2"
+        | "solar-open" | "gpt-oss" | "smolvlm" | "pangu-embedded" | "llama4"
+        | "gigachat" => {
             Some("text-generation")
         }
         "bert" | "nomic-bert" | "roformer" | "deberta-v2" | "deberta" => {
@@ -1121,6 +1126,46 @@ pub fn arch_to_pipeline_tag(arch: &str) -> Option<&'static str> {
         "bark" => Some("text-to-audio"),
         "speech-to-text" => Some("speech-to-text"),
         "text-to-speech" => Some("text-to-speech"),
+        _ => None,
+    }
+}
+
+/// Map a GGUF architecture string to a llama.cpp built-in chat template name.
+/// Returns None for architectures with no well-known mapping.
+/// User-specified chat_template in settings always takes priority over this.
+pub fn arch_to_chat_template(arch: &str) -> Option<&'static str> {
+    match arch {
+        "llama" | "llama-moe" => Some("llama3"),
+        "mistral" => Some("mistral-v1"),
+        "qwen" | "qwen2" | "qwen2_moe" | "qwen3" | "qwen3_5_moe" | "qwen2_vl" | "qwen3_vl"
+        | "gpt-neox" | "gptj" | "starcoder2" | "olmo" | "olmo2" | "mpt" | "jais"
+        | "stable-lm" | "stablelm2" | "dbrx" | "nemo" | "chameleon" | "sonar"
+        | "mamba" | "mamba_ssm" | "baichuan" => Some("chatml"),
+        "gemma" | "gemma3" | "gemma4" => Some("gemma"),
+        "phi" | "phi3" | "phi3small" => Some("phi3"),
+        "phi4" => Some("phi4"),
+        "cohere" => Some("command-r"),
+        "deepseek" => Some("deepseek"),
+        "deepseek2" | "deepseek3" => Some("deepseek3"),
+        "internlm2" => Some("chatglm4"),
+        "exaone" | "exaone-moe" => Some("exaone3"),
+        "minicpm" | "minicpm3" | "minicpmo" => Some("minicpm"),
+        "falcon" | "falcon3" => Some("chatml"),
+        "rwkv-world" => Some("rwkv-world"),
+        "megrez" => Some("megrez"),
+        "yandex" => Some("yandex"),
+        "bailing" | "bailing-think" | "bailing2" => Some("bailing"),
+        "granite" => Some("granite"),
+        "hunyuan-moe" | "hunyuan-dense" | "hunyuan-vl" => Some("hunyuan-dense"),
+        "kimi-k2" => Some("kimi-k2"),
+        "seed_oss" => Some("seed_oss"),
+        "grok-2" => Some("grok-2"),
+        "solar-open" => Some("solar-open"),
+        "gpt-oss" => Some("gpt-oss"),
+        "smolvlm" => Some("smolvlm"),
+        "pangu-embedded" => Some("pangu-embedded"),
+        "llama4" => Some("llama4"),
+        "gigachat" => Some("gigachat"),
         _ => None,
     }
 }

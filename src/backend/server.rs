@@ -226,7 +226,18 @@ pub fn build_server_cmd(
         push_flag(&mut cmd, &mut parts, "--jinja");
     }
 
-    if let Some(ref template) = settings.chat_template {
+    // Auto-select chat template from arch if not explicitly set in settings
+    let chat_template = settings.chat_template.as_deref().or_else(|| {
+        let arch = gguf_meta
+            .as_ref()
+            .ok()
+            .and_then(|opt| opt.as_ref())
+            .map(|m| m.arch.as_str())
+            .unwrap_or("llama");
+        crate::models::arch_to_chat_template(arch)
+    });
+
+    if let Some(template) = chat_template {
         push_arg(&mut cmd, &mut parts, "--chat-template", template);
     }
 
