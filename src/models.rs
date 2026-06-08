@@ -1101,71 +1101,119 @@ impl GgufMetadata {
 }
 
 /// Map a GGUF architecture string to a HuggingFace pipeline tag.
+/// Uses exact GGUF arch names as reported in general.architecture metadata.
 /// Returns None for architectures with no well-known mapping.
 pub fn arch_to_pipeline_tag(arch: &str) -> Option<&'static str> {
     match arch {
-        "llama" | "mpt" | "falcon" | "gpt-neox" | "gptj" | "qwen" | "qwen2" | "qwen3"
-        | "qwen3_5_moe" | "qwen2_vl" | "qwen3_vl" | "mistral" | "starcoder2" | "baichuan"
-        | "gemma" | "gemma3" | "gemma4" | "cohere" | "deepseek" | "deepseek2" | "deepseek3"
-        | "phi" | "phi3" | "phi3small" | "phi4" | "jais" | "stable-lm" | "stablelm2"
-        | "llama-moe" | "qwen2_moe" | "olmo" | "olmo2" | "sonar" | "mamba" | "mamba_ssm"
-        | "minicpm" | "minicpm3" | "minicpmo" | "nemo" | "chameleon" | "internlm2"
-        | "exaone" | "exaone-moe" | "dbrx" | "rwkv-world" | "falcon3" | "megrez" | "yandex"
-        | "bailing" | "bailing-think" | "bailing2" | "granite" | "hunyuan-moe"
-        | "hunyuan-dense" | "hunyuan-vl" | "kimi-k2" | "seed_oss" | "grok-2"
-        | "solar-open" | "gpt-oss" | "smolvlm" | "pangu-embedded" | "llama4"
-        | "gigachat" => {
+        // Text generation
+        "llama" | "llama-moe" | "qwen" | "qwen2" | "qwen2moe" | "qwen3" | "qwen3moe"
+        | "qwen3next" | "qwen35" | "qwen35moe" | "qwen2vl" | "qwen3vl" | "qwen3vlmoe"
+        | "mistral" | "mistral3" | "mistral4" | "gemma" | "gemma2" | "gemma3" | "gemma3n"
+        | "gemma4" | "gemma4-assistant" | "gemma-embedding" | "cohere" | "cohere2"
+        | "deepseek" | "deepseek2" | "deepseek2-ocr" | "deepseek32" | "phi2" | "phi3"
+        | "phimoe" | "phi4" | "jais" | "jais2" | "stablelm" | "llama4" | "olmo" | "olmo2"
+        | "olmoe" | "sonar" | "mamba" | "mamba2" | "minicpm" | "minicpm3" | "minicpmo"
+        | "nemo" | "nemotron" | "nemotron_h" | "nemotron_h_moe" | "chameleon"
+        | "internlm2" | "glm4" | "glm4moe" | "chatglm" | "exaone" | "exaone4"
+        | "exaone-moe" | "dbrx" | "starcoder" | "starcoder2" | "baichuan" | "falcon"
+        | "falcon-h1" | "falcon3" | "megrez" | "yandex" | "bailing" | "bailingmoe"
+        | "bailingmoe2" | "bailing2" | "bailing-think" | "granite" | "granitehybrid"
+        | "granitemoe" | "hunyuan-dense" | "hunyuan-moe" | "hunyuan_vl" | "kimi-k2"
+        | "seed_oss" | "grok" | "solar-open" | "gpt-oss" | "smollm3" | "pangu-embedded"
+        | "rwkv6" | "rwkv6qwen2" | "rwkv7" | "arwkv7" | "mpt" | "gpt-neox" | "gptj"
+        | "plamo" | "plamo2" | "plamo3" | "orion" | "openchat" | "vicuna" | "zephyr"
+        | "monarch" | "step35" | "ernie4_5" | "ernie4_5-moe" | "mini-max-m2" | "talkie"
+        | "apertus" | "arcee" | "arctic" | "jamba" | "lfm2" | "lfm2moe" | "llada"
+        | "llada-moe" | "maincoder" | "mellum" | "mimo2" | "refact" | "rnd1"
+        | "smallthinker" | "xverse" | "gpt2" | "codeshell" | "cogvlm" | "deci"
+        | "dots1" | "dream" | "app" | "mamba_ssm" => {
             Some("text-generation")
         }
-        "bert" | "nomic-bert" | "roformer" | "deberta-v2" | "deberta" => {
+        // Feature extraction
+        "bert" | "nomic-bert" | "nomic-bert-moe" | "roformer" | "deberta-v2"
+        | "deberta" | "modern-bert" | "neo-bert" | "jina-bert-v2" | "jina-bert-v3"
+        | "eurobert" | "t5" | "t5encoder" => {
             Some("feature-extraction")
         }
-        "resnet" | "vit" | "segformer" => Some("image-classification"),
+        // Image classification
+        "resnet" | "vit" | "segformer" | "clip" => Some("image-classification"),
+        // Audio
         "whisper" => Some("automatic-speech-recognition"),
-        "stable-diffusion" => Some("text-to-image"),
-        "bark" => Some("text-to-audio"),
+        "bark" | "wavtokenizer-dec" => Some("text-to-audio"),
+        // Text-to-speech
         "speech-to-text" => Some("speech-to-text"),
         "text-to-speech" => Some("text-to-speech"),
+        // Text-to-image
+        "stable-diffusion" => Some("text-to-image"),
         _ => None,
     }
 }
 
 /// Map a GGUF architecture string to a llama.cpp built-in chat template name.
+/// Uses exact GGUF arch names as reported in general.architecture metadata.
 /// Returns None for architectures with no well-known mapping.
 /// User-specified chat_template in settings always takes priority over this.
 pub fn arch_to_chat_template(arch: &str) -> Option<&'static str> {
     match arch {
+        // Llama family
         "llama" | "llama-moe" => Some("llama3"),
-        "mistral" => Some("mistral-v1"),
-        "qwen" | "qwen2" | "qwen2_moe" | "qwen3" | "qwen3_5_moe" | "qwen2_vl" | "qwen3_vl"
-        | "gpt-neox" | "gptj" | "starcoder2" | "olmo" | "olmo2" | "mpt" | "jais"
-        | "stable-lm" | "stablelm2" | "dbrx" | "nemo" | "chameleon" | "sonar"
-        | "mamba" | "mamba_ssm" | "baichuan" => Some("chatml"),
-        "gemma" | "gemma3" | "gemma4" => Some("gemma"),
-        "phi" | "phi3" | "phi3small" => Some("phi3"),
+        "llama4" => Some("llama4"),
+        // Mistral family
+        "mistral" | "mistral3" | "mistral4" => Some("mistral-v1"),
+        // Qwen family
+        "qwen" | "qwen2" | "qwen2moe" | "qwen3" | "qwen3moe" | "qwen3next" | "qwen35"
+        | "qwen35moe" | "qwen2vl" | "qwen3vl" | "qwen3vlmoe" => Some("chatml"),
+        // Gemma family
+        "gemma" | "gemma2" | "gemma3" | "gemma3n" | "gemma4" | "gemma4-assistant" => Some("gemma"),
+        // Phi family
+        "phi2" | "phi3" | "phimoe" => Some("phi3"),
         "phi4" => Some("phi4"),
-        "cohere" => Some("command-r"),
-        "deepseek" => Some("deepseek"),
-        "deepseek2" | "deepseek3" => Some("deepseek3"),
-        "internlm2" => Some("chatglm4"),
-        "exaone" | "exaone-moe" => Some("exaone3"),
+        // Cohere
+        "cohere" | "cohere2" => Some("command-r"),
+        // DeepSeek
+        "deepseek" | "deepseek2" | "deepseek2-ocr" => Some("deepseek"),
+        "deepseek32" => Some("deepseek3"),
+        // ChatGLM family
+        "internlm2" | "glm4" | "glm4moe" | "chatglm" => Some("chatglm4"),
+        // Exaone family
+        "exaone" => Some("exaone3"),
+        "exaone4" => Some("exaone4"),
+        "exaone-moe" => Some("exaone-moe"),
+        // MiniCPM family
         "minicpm" | "minicpm3" | "minicpmo" => Some("minicpm"),
-        "falcon" | "falcon3" => Some("chatml"),
-        "rwkv-world" => Some("rwkv-world"),
+        // Falcon family
+        "falcon" | "falcon-h1" | "falcon3" => Some("chatml"),
+        // RWKV family
+        "rwkv6" | "rwkv6qwen2" | "rwkv7" | "arwkv7" => Some("rwkv-world"),
+        // Granite family
+        "granite" | "granitehybrid" | "granitemoe" => Some("granite"),
+        // Hunyuan family
+        "hunyuan-dense" | "hunyuan-moe" | "hunyuan_vl" => Some("hunyuan-dense"),
+        // Other text generation models -> chatml
+        "olmo" | "olmo2" | "olmoe" | "sonar" | "mamba" | "mamba2" | "mamba_ssm"
+        | "dbrx" | "starcoder" | "starcoder2" | "baichuan" | "gpt-neox" | "gptj"
+        | "mpt" | "jais" | "jais2" | "stablelm" | "chameleon" | "nemo" | "nemotron"
+        | "nemotron_h" | "nemotron_h_moe" | "plamo" | "plamo2" | "plamo3"
+        | "ernie4_5" | "ernie4_5-moe" | "mini-max-m2" | "talkie" | "apertus"
+        | "arcee" | "arctic" | "jamba" | "lfm2" | "lfm2moe" | "llada" | "llada-moe"
+        | "maincoder" | "mellum" | "mimo2" | "refact" | "rnd1" | "smallthinker"
+        | "xverse" | "gpt2" | "codeshell" | "cogvlm" | "deci" | "dots1" | "dream"
+        | "app" | "step35" | "smollm3" => Some("chatml"),
+        // Specialized templates
         "megrez" => Some("megrez"),
         "yandex" => Some("yandex"),
-        "bailing" | "bailing-think" | "bailing2" => Some("bailing"),
-        "granite" => Some("granite"),
-        "hunyuan-moe" | "hunyuan-dense" | "hunyuan-vl" => Some("hunyuan-dense"),
+        "bailing" | "bailingmoe" | "bailingmoe2" | "bailing2" | "bailing-think" => Some("bailing"),
         "kimi-k2" => Some("kimi-k2"),
         "seed_oss" => Some("seed_oss"),
-        "grok-2" => Some("grok-2"),
+        "grok" => Some("grok-2"),
         "solar-open" => Some("solar-open"),
         "gpt-oss" => Some("gpt-oss"),
-        "smolvlm" => Some("smolvlm"),
         "pangu-embedded" => Some("pangu-embedded"),
-        "llama4" => Some("llama4"),
         "gigachat" => Some("gigachat"),
+        // These templates are available but not auto-mapped (need manual config)
+        // "llama2", "llama2-sys", "llama2-sys-bos", "llama2-sys-strip"
+        // "vicuna", "vicuna-orca", "zephyr", "monarch", "orion", "openchat"
+        // "chatglm3", "glmedge"
         _ => None,
     }
 }
