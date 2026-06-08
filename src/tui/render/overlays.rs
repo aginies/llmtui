@@ -720,13 +720,6 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
         height: h,
     };
     let mut modal_lines: Vec<Line> = Vec::new();
-    modal_lines.push(Line::from(Span::styled(
-        crate::t!("dialog.tags.title"),
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    )));
-    modal_lines.push(Line::from(""));
     if app.edit.tags_insert_mode {
         modal_lines.push(Line::from(Span::styled(
             crate::t!("dialog.tags.add_help"),
@@ -1514,13 +1507,6 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
         ctx_len
     };
     let mut picker_lines: Vec<Line> = Vec::new();
-    picker_lines.push(Line::from(Span::styled(
-        crate::t!("dialog.max_concurrent.title"),
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    )));
-    picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::raw(crate::t!(
         "dialog.max_concurrent.divides"
     ))]));
@@ -1597,13 +1583,6 @@ fn render_dashboard_picker(
         height: h,
     };
     let mut picker_lines: Vec<Line> = Vec::new();
-    picker_lines.push(Line::from(Span::styled(
-        crate::t!("dialog.dashboard.title"),
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    )));
-    picker_lines.push(Line::from(""));
     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
         Span::styled(enabled_marker, Style::default().fg(Color::Yellow)),
@@ -2657,13 +2636,6 @@ fn render_yarn_rope_picker(
     };
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            crate::t!("dialog.yarn.title"),
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from(Span::styled(
             crate::t!("dialog.yarn.help"),
             Style::default()
                 .fg(Color::Yellow)
@@ -2783,13 +2755,6 @@ fn render_spec_type_picker(
     };
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            crate::t!("dialog.spec.title"),
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from(Span::styled(
             crate::t!("dialog.profile_picker.help"),
             Style::default().fg(Color::Yellow),
         )),
@@ -2846,13 +2811,6 @@ fn render_chat_template_picker(
     };
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            crate::t!("dialog.chat_template.title"),
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from(Span::styled(
             crate::t!("dialog.chat_template.help"),
             Style::default().fg(Color::Yellow),
         )),
@@ -2908,13 +2866,6 @@ fn render_chat_template_file_picker(
         height: h,
     };
     let mut picker_lines: Vec<Line> = vec![
-        Line::from(Span::styled(
-            crate::t!("dialog.chat_template.file.title"),
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
         Line::from(Span::styled(
             crate::t!("dialog.chat_template.file.help"),
             Style::default().fg(Color::Yellow),
