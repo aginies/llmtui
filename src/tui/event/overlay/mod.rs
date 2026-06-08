@@ -35,7 +35,6 @@ pub use cmd_line::CmdLineHandler;
 pub use confirmation::ConfirmationHandler;
 pub use dashboard_picker::DashboardPickerHandler;
 pub use dashboard_url::DashboardUrlHandler;
-pub use directory_picker::DirectoryPickerHandler;
 pub use gguf_naming::GgufNamingHandler;
 pub use host_picker::HostPickerHandler;
 pub use max_concurrent_picker::MaxConcurrentPickerHandler;
@@ -73,7 +72,6 @@ impl OverlayRegistry {
         handlers.push(Box::new(DashboardPickerHandler));
         handlers.push(Box::new(SpecTypePickerHandler));
         handlers.push(Box::new(ChatTemplatePickerHandler));
-        handlers.push(Box::new(DirectoryPickerHandler));
         handlers.push(Box::new(ChatTemplateFilePickerHandler));
         handlers.push(Box::new(YarnRoPESettingsHandler));
         handlers.push(Box::new(DashboardUrlHandler));

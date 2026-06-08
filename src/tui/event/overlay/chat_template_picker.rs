@@ -45,9 +45,17 @@ impl OverlayHandler for ChatTemplatePickerHandler {
                             }
                             "Browse directory..." => {
                                 let base_path = super::directory_picker::default_chat_templates_dir();
-                                let dirs = super::directory_picker::list_directories(&base_path);
-                                app.ui.global_mode = GlobalMode::DirectoryPicker {
-                                    entries: dirs,
+                                let files = super::directory_picker::load_jinja_files_recursive(&base_path);
+                                if files.is_empty() {
+                                    app.add_log(
+                                        crate::t!("log.no_jinja_files"),
+                                        crate::config::LogLevel::Warning,
+                                    );
+                                    app.ui.global_mode = GlobalMode::Normal;
+                                    return;
+                                }
+                                app.ui.global_mode = GlobalMode::ChatTemplateFilePicker {
+                                    entries: files,
                                     selected: 0,
                                 };
                                 return;

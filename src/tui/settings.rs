@@ -440,7 +440,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     "Auto (detect)".to_string()
                 } else if let Some(ref t) = s.chat_template {
                     if t.ends_with(".jinja") {
-                        format!("Custom: {}", std::path::Path::new(t).file_name().unwrap_or_default().to_string_lossy())
+                        format!("Custom: {}", t)
                     } else {
                         t.clone()
                     }

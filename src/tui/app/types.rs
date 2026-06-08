@@ -186,10 +186,6 @@ pub enum GlobalMode {
         entries: Vec<(String, String)>, // (display_name, full_path)
         selected: usize,
     },
-    DirectoryPicker {
-        entries: Vec<(String, String)>, // (display_name, full_path)
-        selected: usize,
-    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
