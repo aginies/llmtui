@@ -51,7 +51,9 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         detail,
     } = &app.ui.global_mode
     {
-        render_confirmation(f, f.area(), app, *selected, *kind, display_name, detail.as_deref());
+        if f.area().height >= 8 {
+            render_confirmation(f, f.area(), app, *selected, *kind, display_name, detail.as_deref());
+        }
         return true;
     }
 
@@ -283,6 +285,7 @@ fn render_confirmation(
                     Line::from(""),
                     Line::from(vec![
                         Span::raw(crate::t!("dialog.exit.message")),
+                        Span::raw(" "),
                         Span::styled(
                             format!("{}", loaded_count),
                             Style::default()
@@ -309,6 +312,7 @@ fn render_confirmation(
                     Line::from(""),
                     Line::from(vec![
                         Span::raw(crate::t!("dialog.delete.message")),
+                        Span::raw(" "),
                         Span::styled(
                             display_name,
                             Style::default()
@@ -329,6 +333,7 @@ fn render_confirmation(
                     Line::from(""),
                     Line::from(vec![
                         Span::raw(crate::t!("dialog.unload.message")),
+                        Span::raw(" "),
                         Span::styled(
                             display_name,
                             Style::default()
@@ -352,6 +357,7 @@ fn render_confirmation(
                     Line::from(""),
                     Line::from(vec![
                         Span::raw(crate::t!("dialog.delete_backend.message")),
+                        Span::raw(" "),
                         Span::styled(
                             display,
                             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
