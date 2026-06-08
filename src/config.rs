@@ -1522,6 +1522,11 @@ impl Config {
             }
         }
 
+        // Resolve system_prompt from preset name (after all overrides)
+        if let Some(preset) = self.system_prompt_presets.get(&settings.system_prompt_preset_name) {
+            settings.system_prompt = preset.content.clone();
+        }
+
         settings
     }
 
