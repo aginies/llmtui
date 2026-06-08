@@ -226,30 +226,23 @@ pub fn build_server_cmd(
         push_flag(&mut cmd, &mut parts, "--jinja");
     }
 
-    // Auto-select chat template from arch if auto_chat_template is enabled and no explicit template
-    let chat_template: Option<String> = if settings.auto_chat_template {
-        settings.chat_template.as_deref().or_else(|| {
-            let arch = gguf_meta
-                .as_ref()
-                .ok()
-                .and_then(|opt| opt.as_ref())
-                .map(|m| m.arch.as_str())
-                .unwrap_or("llama");
-            crate::models::arch_to_chat_template(arch)
-        })
-        .map(|s| s.to_string())
-    } else if let Some(ref t) = settings.chat_template {
+    // Apply chat template: file path, built-in name, or auto-detect from arch
+    if let Some(ref t) = settings.chat_template {
         if t.ends_with(".jinja") {
-            std::fs::read_to_string(t).ok()
+            push_arg(&mut cmd, &mut parts, "--chat-template-file", t);
         } else {
-            Some(t.clone())
+            push_arg(&mut cmd, &mut parts, "--chat-template", t);
         }
-    } else {
-        None
-    };
-
-    if let Some(template) = chat_template {
-        push_arg(&mut cmd, &mut parts, "--chat-template", &template);
+    } else if settings.auto_chat_template {
+        let arch = gguf_meta
+            .as_ref()
+            .ok()
+            .and_then(|opt| opt.as_ref())
+            .map(|m| m.arch.as_str())
+            .unwrap_or("llama");
+        if let Some(template) = crate::models::arch_to_chat_template(arch) {
+            push_arg(&mut cmd, &mut parts, "--chat-template", template);
+        }
     }
 
     // Inject system prompt via chat template kwargs when it is not empty
