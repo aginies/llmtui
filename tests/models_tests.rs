@@ -100,7 +100,6 @@ fn search_sort_next_cycles_through_all() {
 
 #[test]
 fn search_sort_label_all() {
-    i18n::reset_language();
     assert_eq!(SearchSort::Relevance.label(), "Relevance");
     assert_eq!(SearchSort::Downloads.label(), "Downloads");
     assert_eq!(SearchSort::Likes.label(), "Likes");
