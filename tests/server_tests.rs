@@ -435,6 +435,54 @@ fn test_build_server_cmd_display_contains_settings() {
     assert!(display.contains("--ctx-size"));
 }
 
+#[test]
+fn test_build_server_cmd_includes_system_prompt() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/test.gguf", "test", "Test");
+    let config = make_config();
+
+    // 1. Test default system prompt (which used to be skipped)
+    let settings = make_settings(); // contains default prompt
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
+    assert!(display.contains("--chat-template-kwargs"));
+    assert!(display.contains("system_prompt"));
+    assert!(display.contains("expert software developer"));
+
+    // 2. Test empty system prompt
+    let mut settings_empty = make_settings();
+    settings_empty.system_prompt = String::new();
+    let (_cmd, display_empty) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings_empty,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
+    assert!(!display_empty.contains("system_prompt"));
+
+    // 3. Test custom system prompt
+    let mut settings_custom = make_settings();
+    settings_custom.system_prompt = "You are a custom AI.".to_string();
+    let (_cmd, display_custom) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings_custom,
+        &config,
+        ServerMode::Normal,
+        0,
+    );
+    assert!(display_custom.contains("--chat-template-kwargs"));
+    assert!(display_custom.contains("You are a custom AI."));
+}
+
 // ── build_bench_cmd ─────────────────────────────────────────────
 
 #[test]

@@ -5,7 +5,7 @@ use tokio::process::Command;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
-use crate::config::{Config, DEFAULT_SYSTEM_PROMPT};
+use crate::config::Config;
 use crate::models::{
     DiscoveredModel, ModelSettings, RopeScaling, ServerMetrics, clean_host, strip_gguf,
 };
@@ -230,8 +230,8 @@ pub fn build_server_cmd(
         push_arg(&mut cmd, &mut parts, "--chat-template", template);
     }
 
-    // Inject system prompt via chat template kwargs when it differs from default
-    if settings.system_prompt != DEFAULT_SYSTEM_PROMPT {
+    // Inject system prompt via chat template kwargs when it is not empty
+    if !settings.system_prompt.is_empty() {
         let mut merged = serde_json::Map::new();
         if let Some(ref kwargs) = settings.chat_template_kwargs
             && let Ok(obj) = serde_json::from_str::<serde_json::Value>(kwargs)
