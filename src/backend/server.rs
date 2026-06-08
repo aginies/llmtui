@@ -500,7 +500,7 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
     // BenchTune mode is handled separately in app.process_pending_spawn()
     // and should never reach this function.
     if server_mode == crate::models::ServerMode::BenchTune {
-        unreachable!("BenchTune mode must be handled before calling spawn_server")
+        return Err("BenchTune mode is not supported in spawn_server".to_string());
     }
 
     // Resolve the backend binary (downloads if needed)
@@ -753,7 +753,10 @@ pub async fn get_metrics(
         format!("http://{}:{}/metrics", host, port)
     };
 
-    let mut resp = reqwest::get(&url)
+    let client = reqwest::Client::new();
+    let mut resp = client
+        .get(&url)
+        .send()
         .await
         .map_err(|e| format!("Failed to get metrics: {}", e))?;
 
@@ -763,7 +766,9 @@ pub async fn get_metrics(
         && model_name.is_some()
     {
         url = format!("http://{}:{}/metrics", host, port);
-        resp = reqwest::get(&url)
+        resp = client
+            .get(&url)
+            .send()
             .await
             .map_err(|e| format!("Failed to get metrics: {}", e))?;
     }
@@ -777,10 +782,7 @@ pub async fn get_metrics(
         .await
         .map_err(|e| format!("Failed to read metrics: {}", e))?;
 
-    let mut m = ServerMetrics {
-        loaded: true,
-        ..Default::default()
-    };
+    let mut m = ServerMetrics::default();
 
     let mut ctx_max_slots = 0u32;
     let mut ctx_used_slots = 0u32;
@@ -896,7 +898,9 @@ pub async fn get_metrics(
                     ctx_used_global = ctx_used_global.max((val * ctx_max_global as f64) as u32);
                 }
             }
-            _ => {}
+            _ => {
+                tracing::debug!("Unknown metric: {}", name);
+            }
         }
     }
 
@@ -974,6 +978,8 @@ pub async fn get_metrics(
                 m.cpu_usage = cpu;
             }
         }
+
+    m.loaded = ctx_max_global > 0 || vram_used_global > 0;
 
     Ok(m)
 }

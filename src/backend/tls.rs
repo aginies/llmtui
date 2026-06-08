@@ -31,6 +31,14 @@ fn server_key_path() -> PathBuf {
     tls_dir().join("server-key.pem")
 }
 
+/// TLS version file path — triggers regeneration when bumped.
+fn tls_version_path() -> PathBuf {
+    tls_dir().join("version")
+}
+
+/// TLS version string stored in the version file.
+const TLS_VERSION: &str = "1";
+
 /// Load TLS config from PEM files.
 pub async fn load_tls_config(
     cert_path: &str,
@@ -97,14 +105,40 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
     let ca_key_path = ca_key_path();
     let server_cert_path = server_cert_path();
     let server_key_path = server_key_path();
+    let version_path = tls_version_path();
 
-    // If server cert already exists, return it
-    if server_cert_path.exists() && server_key_path.exists() {
+    // If server cert exists AND version matches, return it
+    let version_matches = version_path.exists()
+        && std::fs::read_to_string(&version_path).ok().as_deref() == Some(TLS_VERSION);
+    if server_cert_path.exists()
+        && server_key_path.exists()
+        && version_matches
+    {
         return Ok((server_cert_path, server_key_path));
     }
 
     // Create TLS directory
     std::fs::create_dir_all(tls_dir())?;
+
+    // Check CA expiry if CA already exists
+    if ca_path.exists() && ca_key_path.exists() {
+        let ca_pem = std::fs::read_to_string(&ca_path)?;
+        let (_, cert) = x509_parser::parse_x509_certificate(ca_pem.as_bytes())?;
+        let not_after = cert.validity().not_after;
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let expiry_secs = not_after.timestamp() as u64;
+        let six_months = 183 * 24 * 3600;
+        if expiry_secs > now_secs && expiry_secs - now_secs < six_months {
+            let days_left = (expiry_secs - now_secs) / 86400;
+            info!(
+                "CA certificate expires in {} days. Consider regenerating TLS certs.",
+                days_left
+            );
+        }
+    }
 
     // Generate or load CA
     let (ca_cert_pem, ca_key_pem) = if ca_path.exists() && ca_key_path.exists() {
@@ -123,6 +157,9 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
     let (server_cert, server_key) = generate_server_cert(&ca_cert_pem, &ca_key_pem)?;
     std::fs::write(&server_cert_path, &server_cert)?;
     std::fs::write(&server_key_path, &server_key)?;
+
+    // Write version file
+    std::fs::write(&version_path, TLS_VERSION)?;
 
     info!(
         "Generated self-signed TLS certificates in {}",
