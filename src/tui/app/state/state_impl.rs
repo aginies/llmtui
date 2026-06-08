@@ -38,6 +38,10 @@ impl App {
     }
 
     fn detect_loading_phases(&mut self, msg: &str) {
+        // All 5 regex-detected phases found — no new phases can ever be added
+        if self.loading.loading_phases.len() >= 5 {
+            return;
+        }
         if self.loading.loading_phases.is_empty() && LLAMA_START.is_match(msg) {
             self.loading.loading_phases.insert(ServerStarting);
             self.loading.last_active_phase = Some(ServerStarting);

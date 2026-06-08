@@ -57,29 +57,28 @@ pub static KV_BUFFER_SIZE: LazyLock<Regex> = LazyLock::new(|| {
     compile(r"(?i)kv buffer size\s*=\s*([\d.]+)\s*MiB")
 });
 
-// ── Error detection patterns ──────────────────────────────────────
-
-pub static ERROR_OOM: LazyLock<Regex> =
-    LazyLock::new(|| compile(r"(?i)(out\s+of\s+(device\s+)?memory|outof(devic)?memory|vk\s*outofmemory)"));
-
-pub static ERROR_GENERIC: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)(error|failed\s+to\s+load|exception|vk::systemerror)")
-});
-
-fn normalize(msg: &str) -> String {
-    msg.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c.is_ascii_whitespace() { c } else { ' ' })
-        .collect()
-}
+// ── Error detection ───────────────────────────────────────────────
 
 /// Detects whether a log line indicates a loading error.
 pub fn is_loading_error(msg: &str) -> bool {
-    let n = normalize(msg);
-    ERROR_OOM.is_match(&n) || ERROR_GENERIC.is_match(&n)
+    let lower = msg.to_lowercase();
+    lower.contains("out of memory")
+        || lower.contains("out_of_memory")
+        || lower.contains("out_of_device_memory")
+        || lower.contains("outofmemory")
+        || lower.contains("outofdevicememory")
+        || lower.contains("error")
+        || lower.contains("failed to load")
+        || lower.contains("exception")
+        || lower.contains("vk::systemerror")
 }
 
 /// Detects whether the error is specifically an OOM.
 pub fn is_oom_error(msg: &str) -> bool {
-    let n = normalize(msg);
-    ERROR_OOM.is_match(&n)
+    let lower = msg.to_lowercase();
+    lower.contains("out of memory")
+        || lower.contains("out_of_memory")
+        || lower.contains("out_of_device_memory")
+        || lower.contains("outofmemory")
+        || lower.contains("outofdevicememory")
 }
