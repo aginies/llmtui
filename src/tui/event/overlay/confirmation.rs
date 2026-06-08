@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct ConfirmationHandler;
 
 impl OverlayHandler for ConfirmationHandler {
-    fn name(&self) -> &'static str {
-        "Confirmation"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::Confirmation { .. })
     }

@@ -10,10 +10,6 @@ use super::OverlayHandler;
 pub struct GgufNamingHandler;
 
 impl OverlayHandler for GgufNamingHandler {
-    fn name(&self) -> &'static str {
-        "GgufNaming"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::GgufNaming { .. })
     }

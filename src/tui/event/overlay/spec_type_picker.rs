@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct SpecTypePickerHandler;
 
 impl OverlayHandler for SpecTypePickerHandler {
-    fn name(&self) -> &'static str {
-        "SpecTypePicker"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::SpecTypePicker { .. })
     }

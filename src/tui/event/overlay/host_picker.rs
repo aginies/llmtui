@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct HostPickerHandler;
 
 impl OverlayHandler for HostPickerHandler {
-    fn name(&self) -> &'static str {
-        "HostPicker"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::HostPicker { .. })
     }

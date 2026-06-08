@@ -10,10 +10,6 @@ use super::OverlayHandler;
 pub struct BenchTuneSetupHandler;
 
 impl OverlayHandler for BenchTuneSetupHandler {
-    fn name(&self) -> &'static str {
-        "BenchTuneSetup"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::BenchTuneSetup { .. })
     }

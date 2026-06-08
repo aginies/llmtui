@@ -13,10 +13,6 @@ use super::OverlayHandler;
 pub struct SearchInputHandler;
 
 impl OverlayHandler for SearchInputHandler {
-    fn name(&self) -> &'static str {
-        "SearchInput"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::SearchInput { .. })
     }

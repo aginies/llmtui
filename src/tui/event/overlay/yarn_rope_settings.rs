@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct YarnRoPESettingsHandler;
 
 impl OverlayHandler for YarnRoPESettingsHandler {
-    fn name(&self) -> &'static str {
-        "YarnRoPESettings"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::YarnRoPESettings { .. })
     }

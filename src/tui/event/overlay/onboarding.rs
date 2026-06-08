@@ -12,10 +12,6 @@ const TOTAL_STEPS: usize = 8;
 pub struct OnboardingHandler;
 
 impl OverlayHandler for OnboardingHandler {
-    fn name(&self) -> &'static str {
-        "Onboarding"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::Onboarding { .. })
     }

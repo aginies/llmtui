@@ -10,10 +10,6 @@ use super::OverlayHandler;
 pub struct AboutHandler;
 
 impl OverlayHandler for AboutHandler {
-    fn name(&self) -> &'static str {
-        "About"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::About)
     }

@@ -10,10 +10,6 @@ use super::OverlayHandler;
 pub struct RpcManagerHandler;
 
 impl OverlayHandler for RpcManagerHandler {
-    fn name(&self) -> &'static str {
-        "RpcManager"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::RpcManager)
     }

@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct MaxConcurrentPickerHandler;
 
 impl OverlayHandler for MaxConcurrentPickerHandler {
-    fn name(&self) -> &'static str {
-        "MaxConcurrentPicker"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::MaxConcurrentPicker { .. })
     }

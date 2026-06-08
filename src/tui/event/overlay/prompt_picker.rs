@@ -10,10 +10,6 @@ use super::OverlayHandler;
 pub struct PromptPickerHandler;
 
 impl OverlayHandler for PromptPickerHandler {
-    fn name(&self) -> &'static str {
-        "PromptPicker"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::PromptPicker { .. })
     }

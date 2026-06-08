@@ -10,10 +10,6 @@ use super::OverlayHandler;
 pub struct CmdLineHandler;
 
 impl OverlayHandler for CmdLineHandler {
-    fn name(&self) -> &'static str {
-        "CmdLine"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::CmdLine { .. })
     }

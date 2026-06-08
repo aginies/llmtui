@@ -4,7 +4,6 @@
 //! Backend platform detection, VRAM estimation, quantization bytes, and domain types.
 
 use llm_manager::models::*;
-use llm_manager::tui::i18n;
 
 // ── strip_gguf ──────────────────────────────────────────────────
 

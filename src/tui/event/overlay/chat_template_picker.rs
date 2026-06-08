@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct ChatTemplatePickerHandler;
 
 impl OverlayHandler for ChatTemplatePickerHandler {
-    fn name(&self) -> &'static str {
-        "ChatTemplatePicker"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::ChatTemplatePicker { .. })
     }

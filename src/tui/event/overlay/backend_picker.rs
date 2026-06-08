@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct BackendPickerHandler;
 
 impl OverlayHandler for BackendPickerHandler {
-    fn name(&self) -> &'static str {
-        "BackendPicker"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::BackendPicker { .. })
     }

@@ -47,8 +47,6 @@ pub use spec_type_picker::SpecTypePickerHandler;
 pub use yarn_rope_settings::YarnRoPESettingsHandler;
 
 pub trait OverlayHandler {
-    #[allow(dead_code)]
-    fn name(&self) -> &'static str;
     fn can_handle(&self, mode: &GlobalMode) -> bool;
     fn handle<'a>(
         &'a self,

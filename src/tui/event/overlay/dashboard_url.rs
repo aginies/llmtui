@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct DashboardUrlHandler;
 
 impl OverlayHandler for DashboardUrlHandler {
-    fn name(&self) -> &'static str {
-        "DashboardUrl"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::DashboardUrl { .. })
     }

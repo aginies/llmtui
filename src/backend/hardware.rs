@@ -379,20 +379,6 @@ pub fn detect_gpu_models_macos() -> Vec<Option<String>> {
     models
 }
 
-/// Detect GPU vendors on Linux (wrapper for cfg visibility).
-#[cfg(target_os = "linux")]
-#[allow(dead_code)]
-pub fn detect_gpu_vendors_linux() -> Vec<GpuVendor> {
-    detect_gpu_vendors_linux_impl()
-}
-
-/// Detect GPU models on Linux (wrapper for cfg visibility).
-#[cfg(target_os = "linux")]
-#[allow(dead_code)]
-pub fn detect_gpu_models_linux() -> Vec<Option<String>> {
-    detect_gpu_models_linux_impl()
-}
-
 /// Detect GPU vendors using platform-specific methods.
 #[cfg(target_os = "linux")]
 pub fn detect_gpu_vendors() -> Vec<GpuVendor> {

@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct DashboardPickerHandler;
 
 impl OverlayHandler for DashboardPickerHandler {
-    fn name(&self) -> &'static str {
-        "DashboardPicker"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::DashboardPicker { .. })
     }

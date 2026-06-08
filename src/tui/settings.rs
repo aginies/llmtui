@@ -27,8 +27,6 @@ pub struct SettingField {
     pub is_expert: bool,
     pub is_ultra: bool,
     pub is_enabled: Option<fn(&ModelSettings) -> bool>,
-    #[allow(dead_code)]
-    pub help_text: &'static str,
 }
 
 impl SettingField {
@@ -95,7 +93,6 @@ macro_rules! make_field_fn {
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
-                help_text: "",
             }
         }
     };
@@ -122,7 +119,6 @@ macro_rules! make_field_fn {
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
-                help_text: "",
             }
         }
     };

@@ -11,10 +11,6 @@ use super::OverlayHandler;
 pub struct ProfilePickerHandler;
 
 impl OverlayHandler for ProfilePickerHandler {
-    fn name(&self) -> &'static str {
-        "ProfilePicker"
-    }
-
     fn can_handle(&self, mode: &GlobalMode) -> bool {
         matches!(mode, GlobalMode::ProfilePicker { .. })
     }
