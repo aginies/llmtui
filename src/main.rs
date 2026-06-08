@@ -229,6 +229,12 @@ async fn main() -> Result<()> {
                 std::fs::create_dir_all(dir)?;
             }
 
+            // Ensure chat templates directory exists
+            let chat_templates_dir = crate::config::config_base_dir()
+                .join("llm-manager")
+                .join("chat_templates");
+            std::fs::create_dir_all(&chat_templates_dir).ok();
+
             // Discover models asynchronously
             let models_dirs = config.models_dirs.clone();
             let models =
