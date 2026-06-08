@@ -113,7 +113,6 @@ impl OverlayHandler for DashboardPickerHandler {
                             edit_buffer.clone_from(tls_key);
                             *editing = true;
                             *edit_cursor_pos = edit_buffer.chars().count();
-                            return;
                         }
                     }
                     KeyCode::Up | KeyCode::Char('k') => {
@@ -124,7 +123,6 @@ impl OverlayHandler for DashboardPickerHandler {
                                 *selected_field - 1
                             };
                         }
-                        return;
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
                         if !*editing {
@@ -134,7 +132,6 @@ impl OverlayHandler for DashboardPickerHandler {
                                 *selected_field + 1
                             };
                         }
-                        return;
                     }
                     KeyCode::Esc => {
                         if *editing {
@@ -143,7 +140,6 @@ impl OverlayHandler for DashboardPickerHandler {
                         } else {
                             app.ui.global_mode = GlobalMode::Normal;
                         }
-                        return;
                     }
                     KeyCode::Char(c) if *editing => {
                         TextEditor {

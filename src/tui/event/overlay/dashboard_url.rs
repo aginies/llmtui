@@ -36,7 +36,6 @@ impl OverlayHandler for DashboardUrlHandler {
                 match key.code {
                     KeyCode::Esc => {
                         app.ui.global_mode = GlobalMode::Normal;
-                        return;
                     }
                     KeyCode::Enter => {
                         let host_val = crate::models::format_host(host);
@@ -54,7 +53,6 @@ impl OverlayHandler for DashboardUrlHandler {
                             let _ = cb.set().text(&url);
                         }
                         app.ui.global_mode = GlobalMode::Normal;
-                        return;
                     }
                     _ => {}
                 }

@@ -36,19 +36,15 @@ impl OverlayHandler for SpecTypePickerHandler {
                         };
                         mark_settings_dirty(app, false);
                         app.ui.global_mode = GlobalMode::Normal;
-                        return;
                     }
                     KeyCode::Up => {
                         *selected = selected.saturating_sub(1);
-                        return;
                     }
                     KeyCode::Down => {
                         *selected = (*selected + 1).min(entries.len().saturating_sub(1));
-                        return;
                     }
                     KeyCode::Esc => {
                         app.ui.global_mode = GlobalMode::Normal;
-                        return;
                     }
                     _ => {}
                 }

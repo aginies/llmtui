@@ -26,6 +26,7 @@ pub struct ServeOptions {
     pub tls_enable: bool,
     pub tls_cert: Option<String>,
     pub tls_key: Option<String>,
+    pub log_file: Option<String>,
 }
 
 async fn start_metrics_polling_task(
@@ -339,9 +340,28 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
 
     // Spawn the process
     info!("Command: {}", cmd_display);
+
+    let (stdout_file, stderr_file) = if let Some(path) = &opts.log_file {
+        let path = PathBuf::from(path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .expect("Failed to open log file for llama-server output");
+        info!("llama-server output logging to: {}", path.display());
+        let stdout = file.try_clone().expect("Failed to clone file handle");
+        let stderr = file.try_clone().expect("Failed to clone file handle");
+        (std::process::Stdio::from(stdout), std::process::Stdio::from(stderr))
+    } else {
+        (std::process::Stdio::inherit(), std::process::Stdio::inherit())
+    };
+
     let mut child = cmd
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
+        .stdout(stdout_file)
+        .stderr(stderr_file)
         .spawn()
         .context(format!("Failed to spawn llama-server.\n\n  Command that was attempted:\n    {}\n\n  Check that the binary exists and is executable.", cmd_display))?;
 

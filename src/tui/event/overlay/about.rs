@@ -24,11 +24,10 @@ impl OverlayHandler for AboutHandler {
         key: KeyEvent,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
-            if let GlobalMode::About = &app.ui.global_mode {
-                if let KeyCode::Esc = key.code {
+            if let GlobalMode::About = &app.ui.global_mode
+                && let KeyCode::Esc = key.code {
                     app.ui.global_mode = GlobalMode::Normal;
                 }
-            }
         })
     }
 }

@@ -1165,15 +1165,12 @@ pub async fn load_model(host: &str, port: u16, model_id: &str) -> Result<(), Str
 
     // Verify server is in router mode
     let props_url = format!("http://{}:{}/props", host, port);
-    if let Ok(res) = client.get(&props_url).send().await {
-        if res.status().is_success() {
-            if let Ok(json) = res.json::<serde_json::Value>().await {
-                if json.get("role").and_then(|r| r.as_str()) != Some("router") {
+    if let Ok(res) = client.get(&props_url).send().await
+        && res.status().is_success()
+            && let Ok(json) = res.json::<serde_json::Value>().await
+                && json.get("role").and_then(|r| r.as_str()) != Some("router") {
                     return Err("Server is not in router mode. Start with --models-max to enable router mode.".to_string());
                 }
-            }
-        }
-    }
 
     let url = format!("http://{}:{}/models/load", host, port);
     let body = serde_json::json!({ "model": model_id });

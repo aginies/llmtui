@@ -166,6 +166,7 @@ async fn main() -> Result<()> {
                 tls_enable,
                 tls_cert,
                 tls_key,
+                log_file: log_file.clone(),
             })
             .await?;
             Ok(())

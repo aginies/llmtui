@@ -119,11 +119,10 @@ pub fn render_model_lines(
                 all_capabilities.push(cap.clone());
             }
         }
-        if let Some(ref pipeline_tag) = model.pipeline_tag {
-            if !all_capabilities.contains(pipeline_tag) {
+        if let Some(ref pipeline_tag) = model.pipeline_tag
+            && !all_capabilities.contains(pipeline_tag) {
                 all_capabilities.push(pipeline_tag.clone());
             }
-        }
         if !all_capabilities.is_empty() {
             pairs.push(ModelInfoPair {
                 label: "Capabilities".to_string(),

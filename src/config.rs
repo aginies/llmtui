@@ -1075,8 +1075,8 @@ impl Config {
     ) {
         if let serde_yaml::Value::Mapping(map) = value {
             for key in map.keys() {
-                if let Some(key_str) = key.as_str() {
-                    if !known_keys.contains(&key_str) {
+                if let Some(key_str) = key.as_str()
+                    && !known_keys.contains(&key_str) {
                         let field = if prefix.is_empty() {
                             key_str.to_string()
                         } else {
@@ -1088,7 +1088,6 @@ impl Config {
                             severity: ValidationSeverity::Warning,
                         });
                     }
-                }
             }
 
             // Recurse into nested structures

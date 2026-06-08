@@ -88,11 +88,10 @@ impl App {
         }
 
         // Parse "offloading N repeating layers to GPU"
-        if let Some(caps) = OFFLOADING_LAYERS.captures(msg) {
-            if let Ok(count) = caps.get(1).unwrap().as_str().parse::<u32>() {
+        if let Some(caps) = OFFLOADING_LAYERS.captures(msg)
+            && let Ok(count) = caps.get(1).unwrap().as_str().parse::<u32>() {
                 self.loading.load_progress.layers_total = Some(count);
             }
-        }
 
         // Parse "offloaded X/Y layers" or "offloaded X out of Y layers"
         if let Some(caps) = OFFLOADED_LAYERS.captures(msg) {
@@ -128,8 +127,8 @@ impl App {
         }
 
         // Parse: "kv buffer size = X MiB"
-        if let Some(caps) = KV_BUFFER_SIZE.captures(msg) {
-            if let Ok(mib) = caps.get(1).unwrap().as_str().parse::<f64>() {
+        if let Some(caps) = KV_BUFFER_SIZE.captures(msg)
+            && let Ok(mib) = caps.get(1).unwrap().as_str().parse::<f64>() {
                 let exists = self
                     .loading
                     .load_progress
@@ -147,7 +146,6 @@ impl App {
                     );
                 }
             }
-        }
     }
 
     fn detect_load_state(&mut self, msg: &str) {

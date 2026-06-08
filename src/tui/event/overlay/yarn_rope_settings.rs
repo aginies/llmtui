@@ -87,14 +87,12 @@ impl OverlayHandler for YarnRoPESettingsHandler {
                             edit_buffer.clone_from(freq_scale);
                             *editing = true;
                             *edit_cursor_pos = edit_buffer.chars().count();
-                            return;
                         }
                     }
                     KeyCode::Char(' ') => {
                         if *selected_field == -1 {
                             app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
                         }
-                        return;
                     }
                     KeyCode::Up | KeyCode::Char('k') => {
                         if !*editing {
@@ -104,7 +102,6 @@ impl OverlayHandler for YarnRoPESettingsHandler {
                                 *selected_field - 1
                             };
                         }
-                        return;
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
                         if !*editing {
@@ -114,7 +111,6 @@ impl OverlayHandler for YarnRoPESettingsHandler {
                                 *selected_field + 1
                             };
                         }
-                        return;
                     }
                     KeyCode::Esc => {
                         if *editing {
@@ -123,7 +119,6 @@ impl OverlayHandler for YarnRoPESettingsHandler {
                         } else {
                             app.ui.global_mode = GlobalMode::Normal;
                         }
-                        return;
                     }
                     KeyCode::Char(c) if *editing => {
                         TextEditor {
@@ -138,7 +133,6 @@ impl OverlayHandler for YarnRoPESettingsHandler {
                             cursor: edit_cursor_pos,
                         }
                         .backspace();
-                        return;
                     }
                     _ => {}
                 }

@@ -136,7 +136,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )));
-        let key_spans = highlight_keys(&keys_text);
+        let key_spans = highlight_keys(keys_text);
         if !key_spans.is_empty() {
             lines.push(Line::from(key_spans));
         }
