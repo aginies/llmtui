@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::models::{ModelState, strip_gguf};
-use crate::tui::app::{App, LoadingPhase};
+use crate::tui::app::App;
 use crate::tui::format_size;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
@@ -451,10 +451,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                 let phase = app
                     .loading
-                    .loading_phases
-                    .iter()
-                    .next()
-                    .map(|p: &LoadingPhase| p.label())
+                    .last_active_phase
+                    .map(|p| p.label())
                     .unwrap_or("Loading...");
                 let detail = detail_parts.join(", ");
                 lines.push(Line::from(vec![

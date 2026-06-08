@@ -141,6 +141,7 @@ impl App {
                 self.loading.loading_phases.clear();
                 self.loading.last_active_phase = None;
                 self.loading.load_progress = Default::default();
+                self.loading.phase_start_time = None;
             }
         } else {
             let default_params = self.config.default.clone();
@@ -154,6 +155,7 @@ impl App {
             self.loading.loading_progress = 0.0;
             self.loading.loading_phases.clear();
             self.loading.last_active_phase = None;
+            self.loading.phase_start_time = None;
         }
         self.ui.needs_redraw = true;
     }

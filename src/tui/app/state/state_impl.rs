@@ -9,15 +9,9 @@ impl App {
     pub fn add_log(&mut self, message: impl Into<String>, level: LogLevel) {
         let msg = message.into();
         self.log_message(&msg, level);
-        self.update_spinner();
         self.detect_loading_phases(&msg);
         self.parse_loading_details(&msg);
         self.detect_load_state(&msg);
-        let previous_progress = self.loading.loading_progress;
-        self.compute_progress();
-        self.loading.progress_target = self.loading.loading_progress;
-        self.loading.loading_progress =
-            previous_progress * 0.85 + self.loading.progress_target * 0.15;
         self.trim_log();
         self.log
             .log_entries
@@ -32,16 +26,12 @@ impl App {
         }
     }
 
-    fn update_spinner(&mut self) {
-        self.loading.last_spinner_time = Some(tokio::time::Instant::now());
-        self.loading.loading_spinner = 0;
-    }
-
     fn detect_loading_phases(&mut self, msg: &str) {
         // All 5 regex-detected phases found — no new phases can ever be added
         if self.loading.loading_phases.len() >= 5 {
             return;
         }
+        let old_phase = self.loading.last_active_phase;
         if self.loading.loading_phases.is_empty() && LLAMA_START.is_match(msg) {
             self.loading.loading_phases.insert(ServerStarting);
             self.loading.last_active_phase = Some(ServerStarting);
@@ -64,6 +54,9 @@ impl App {
         if SERVER_LISTENING.is_match(msg) {
             self.loading.loading_phases.insert(ServerListening);
             self.loading.last_active_phase = Some(ServerListening);
+        }
+        if self.loading.last_active_phase != old_phase {
+            self.loading.phase_start_time = Some(tokio::time::Instant::now());
         }
     }
 
@@ -198,13 +191,13 @@ impl App {
             return;
         }
 
-        // Spinner interpolation for ServerStarting (works even as the only active phase)
+        // Time interpolation for ServerStarting (works even as the only active phase)
         if self.loading.loading_phases.contains(&ServerStarting)
             && self.loading.loading_phases.len() == 1
             && self.loading.last_active_phase == Some(ServerStarting)
         {
-            if let Some(last_spinner) = self.loading.last_spinner_time {
-                let elapsed = last_spinner.elapsed();
+            if let Some(start) = self.loading.phase_start_time {
+                let elapsed = start.elapsed();
                 phase_progress =
                     (elapsed.as_millis() as f32 / 2000.0).min(1.0) * PHASE_WEIGHTS[0].1;
             }
@@ -217,7 +210,21 @@ impl App {
                     .map(|(_, w)| w)
                     .sum();
 
-                let phase_fraction = match phase {
+                // Time-based fallback: fraction increases over time so progress never stalls
+                let time_fraction = if let Some(start) = self.loading.phase_start_time {
+                    let elapsed = start.elapsed().as_secs_f32();
+                    let duration = match phase {
+                        LoadingModel | LoadingMeta => 1.0,
+                        LoadingTensors => 30.0,
+                        ServerListening => 2.0,
+                        Complete | ServerStarting => f32::MAX,
+                    };
+                    (elapsed / duration).min(0.95)
+                } else {
+                    0.0
+                };
+
+                let data_fraction = match phase {
                     LoadingModel => 0.5,
                     LoadingMeta => 0.5,
                     LoadingTensors => {
@@ -249,6 +256,8 @@ impl App {
                     ServerStarting => 0.0,
                 };
 
+                let phase_fraction = time_fraction.max(data_fraction);
+
                 phase_progress = cumulative_before
                     + phase_fraction
                         * PHASE_WEIGHTS
@@ -260,7 +269,7 @@ impl App {
         }
 
         if phase_progress > 0.0 {
-            self.loading.loading_progress = phase_progress;
+            self.loading.loading_progress = phase_progress.max(self.loading.loading_progress);
         }
     }
 
@@ -273,6 +282,9 @@ impl App {
             self.loading.last_active_phase = None;
             self.loading.loading_progress = 0.0;
             self.loading.load_progress = Default::default();
+            self.loading.last_spinner_time = None;
+            self.loading.loading_spinner = 0;
+            self.loading.phase_start_time = None;
 
             if !self.bench_tune.bench_tune_running {
                 for state in self.model_states.values_mut() {
@@ -304,6 +316,7 @@ impl App {
         self.loading.load_progress = Default::default();
         self.loading.last_spinner_time = None;
         self.loading.loading_spinner = 0;
+        self.loading.phase_start_time = None;
         if let Some(h) = self.loading.health_poll_handle.take() {
             h.abort();
         }
@@ -346,6 +359,16 @@ impl App {
                 self.loading.last_spinner_time = Some(tokio::time::Instant::now());
             }
         }
+    }
+
+    pub fn tick_loading_progress(&mut self) {
+        if !self.is_loading() {
+            return;
+        }
+        let previous = self.loading.loading_progress;
+        self.compute_progress();
+        let target = self.loading.loading_progress;
+        self.loading.loading_progress = previous * 0.8 + target * 0.2;
     }
 
     pub fn is_loading(&self) -> bool {

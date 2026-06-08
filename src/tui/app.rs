@@ -165,6 +165,7 @@ impl App {
                 load_progress: Default::default(),
                 last_spinner_time: None,
                 loading_spinner: 0,
+                phase_start_time: None,
                 model_total_layers: 0,
                 model_hidden_size: 0,
                 model_n_ctx_train: 0,
@@ -339,6 +340,7 @@ mod tests {
             buffers: vec![],
         };
         app.loading.last_spinner_time = None;
+        app.loading.phase_start_time = None;
         app
     }
 

@@ -125,6 +125,7 @@ pub struct LoadingState {
     pub load_progress: LoadProgress,
     pub last_spinner_time: Option<tokio::time::Instant>,
     pub loading_spinner: usize,
+    pub phase_start_time: Option<tokio::time::Instant>,
     pub model_total_layers: u32,
     pub model_hidden_size: u32,
     pub model_n_ctx_train: u32,
