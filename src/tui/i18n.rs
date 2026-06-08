@@ -5,8 +5,28 @@ use std::sync::LazyLock;
 pub static TRANSLATIONS: LazyLock<HashMap<String, HashMap<&'static str, &'static str>>> =
     LazyLock::new(|| {
         let mut translations = HashMap::new();
-        let locale_dir = locale_dir();
 
+        // 1. Load embedded translations at compile-time as default fallback
+        let embedded_locales: &[(&str, &str)] = &[
+            ("en", include_str!("../../locales/en.json")),
+            ("fr", include_str!("../../locales/fr.json")),
+            ("it", include_str!("../../locales/it.json")),
+        ];
+
+        for (lang, json_content) in embedded_locales {
+            if let Ok(parsed) = serde_json::from_str::<HashMap<String, String>>(json_content) {
+                let mut static_map = HashMap::new();
+                for (k, v) in parsed {
+                    let k_str: &'static str = String::leak(k);
+                    let v_str: &'static str = String::leak(v);
+                    static_map.insert(k_str, v_str);
+                }
+                translations.insert(lang.to_string(), static_map);
+            }
+        }
+
+        // 2. Load filesystem translations to override or add custom languages
+        let locale_dir = locale_dir();
         if let Ok(entries) = fs::read_dir(&locale_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -147,5 +167,27 @@ mod tests {
         assert_eq!(get_language(), "fr");
         set_language("en");
         assert_eq!(get_language(), "en");
+    }
+
+    #[test]
+    fn test_embedded_translations_exist() {
+        // Ensure that English translations are correctly embedded and retrieved
+        set_language("en");
+        assert_eq!(t("panel.title.models_active"), " MODELS (F7) [^F7] ");
+
+        // Ensure French translations are loaded and distinct
+        set_language("fr");
+        let fr_val = t("panel.title.models_active");
+        assert_ne!(fr_val, "panel.title.models_active");
+        assert_ne!(fr_val, " MODELS (F7) [^F7] ");
+
+        // Ensure Italian translations are loaded and distinct
+        set_language("it");
+        let it_val = t("panel.title.models_active");
+        assert_ne!(it_val, "panel.title.models_active");
+        assert_ne!(it_val, " MODELS (F7) [^F7] ");
+
+        // Reset to default (English)
+        set_language("en");
     }
 }

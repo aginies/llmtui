@@ -98,6 +98,49 @@ fn main() {
         );
         std::process::exit(1);
     }
+
+    // Copy locales directory to the output directory so translations are
+    // available next to the built binary at runtime.
+    // OUT_DIR is like target/release/build/llm-manager-xxx/, so parent().parent()
+    // gives us target/release/ where the binary lands.
+    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let locales_src = Path::new(&crate_dir).join("locales");
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let locales_dst = Path::new(&out_dir)
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("OUT_DIR should have two parents")
+        .join("locales");
+
+    // Debug: write to a file to trace execution
+    let _ = fs::write("/tmp/build-debug.log", format!(
+        "locales_src={:?} out_dir={} locales_dst={:?} is_dir={}\n",
+        locales_src, out_dir, locales_dst, locales_src.is_dir()
+    ));
+
+    if locales_src.is_dir() {
+        copy_dir_recursive(&locales_src, &locales_dst).unwrap_or_else(|e| {
+            eprintln!("build.rs: failed to copy locales: {}", e);
+            std::process::exit(1);
+        });
+        println!("cargo:rerun-if-changed=locales");
+    }
+}
+
+/// Recursively copy a directory from `src` to `dst`.
+fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        if path.is_dir() {
+            copy_dir_recursive(&path, &dst_path)?;
+        } else {
+            fs::copy(&path, &dst_path)?;
+        }
+    }
+    Ok(())
 }
 
 /// Count the number of `pub field_name: Type` lines within a struct body.
