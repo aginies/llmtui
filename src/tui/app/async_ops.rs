@@ -64,7 +64,7 @@ impl App {
         );
     }
 
-pub async fn process_pending_download(
+   pub async fn process_pending_download(
         &mut self,
         model_id: String,
         filename: String,
@@ -360,7 +360,7 @@ pub async fn process_pending_download(
                             );
                             let search_results: &Vec<crate::models::SearchResult> = match &self.models_mode {
                                 crate::tui::app::ModelsMode::Search { results, .. } => results,
-                                _ => &Vec::new(),
+                                _ => &Vec::<crate::models::SearchResult>::new(),
                             };
                             self.models = Self::discover_models(
                                 &self.config.models_dirs,
