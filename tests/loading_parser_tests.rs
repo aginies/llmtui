@@ -385,38 +385,7 @@ fn test_dot_fallback_progress() {
     let dots = ".".repeat(10);
     app.add_log(&dots, llm_manager::config::LogLevel::Info);
     assert_eq!(app.loading.load_progress.tensors_loaded, 10);
-    assert_eq!(app.loading.load_progress.tensors_total, Some(100));
-}
-
-#[test]
-fn test_dot_fallback_ignores_take_a_while() {
-    let mut app = make_app();
-    app.loading.loading_phases.insert(LoadingPhase::LoadingTensors);
-    app.loading.last_active_phase = Some(LoadingPhase::LoadingTensors);
-
-    // The take a while string has dots, but they should be ignored
-    app.add_log("load_tensors: loading model tensors, this can take a while...", llm_manager::config::LogLevel::Info);
-    assert_eq!(app.loading.load_progress.tensors_loaded, 0);
     assert_eq!(app.loading.load_progress.tensors_total, None);
-}
-
-#[test]
-fn test_new_llama_cpp_formats() {
-    let mut app = make_app();
-
-    // Test "load_tensors: loading model tensors, this can take a while..."
-    app.add_log("load_tensors: loading model tensors, this can take a while...", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingTensors));
-
-    let mut app2 = make_app();
-    // Test "load_tensors:"
-    app2.add_log("load_tensors:", llm_manager::config::LogLevel::Info);
-    assert!(app2.loading.loading_phases.contains(&LoadingPhase::LoadingTensors));
-
-    let mut app3 = make_app();
-    // Test "loading model tensors"
-    app3.add_log("loading model tensors", llm_manager::config::LogLevel::Info);
-    assert!(app3.loading.loading_phases.contains(&LoadingPhase::LoadingTensors));
 }
 
 #[test]
@@ -460,87 +429,5 @@ fn test_phases_not_reset_on_new_lines() {
     // All phases should be present
     assert!(app.loading.loading_phases.contains(&LoadingPhase::ServerStarting));
     assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingMeta));
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingTensors));
-}
-
-// ── New llama.cpp format tests ────────────────────────────────────
-
-#[test]
-fn test_new_format_loading_model() {
-    let mut app = make_app();
-    let msg = "srv load_model: loading model '/path/to/model.gguf'";
-    app.add_log(msg, llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingModel));
-}
-
-#[test]
-fn test_new_format_loading_meta_fitting_params() {
-    let mut app = make_app();
-    let msg = "common_init_result: fitting params to device memory ...";
-    app.add_log(msg, llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingMeta));
-}
-
-#[test]
-fn test_new_format_loading_meta_loaded_meta_data() {
-    let mut app = make_app();
-    let msg = "llama_model_loader: Loaded meta data with 423 key-value pairs and 629 tensors from";
-    app.add_log(msg, llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingMeta));
-}
-
-#[test]
-fn test_new_format_loading_tensors_inferred() {
-    let mut app = make_app();
-    // Simulate new format sequence: LoadingModel → LoadingMeta → (inferred LoadingTensors)
-    app.add_log("srv load_model: loading model '/path/to/model.gguf'", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingModel));
-    assert!(!app.loading.loading_phases.contains(&LoadingPhase::LoadingTensors));
-
-    app.add_log("common_init_result: fitting params to device memory ...", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingMeta));
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingTensors));
-}
-
-#[test]
-fn test_new_format_server_listening_initializing_slots() {
-    let mut app = make_app();
-    let msg = "srv load_model: initializing slots, n_slots = 4";
-    app.add_log(msg, llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::ServerListening));
-}
-
-#[test]
-fn test_new_format_full_sequence() {
-    let mut app = make_app();
-    // Simulate the full new format sequence from the user's log
-    app.add_log("llama_server: n_parallel is set to auto", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::ServerStarting));
-
-    app.add_log("srv load_model: loading model '/path/to/model.gguf'", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingModel));
-
-    app.add_log("common_init_result: fitting params to device memory ...", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingMeta));
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingTensors));
-
-    app.add_log("srv load_model: initializing slots, n_slots = 4", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::ServerListening));
-}
-
-#[test]
-fn test_old_format_still_works() {
-    let mut app = make_app();
-    // Verify old format still works alongside new format
-    app.add_log("llama server starting on port 49222", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::ServerStarting));
-
-    app.add_log("llama_model_loader: - arch: llama  vocab: tokenizer", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingModel));
-
-    app.add_log("llama_model_loader: loaded 423 meta data", llm_manager::config::LogLevel::Info);
-    assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingMeta));
-
-    app.add_log("llama_model_loader: load tensors:", llm_manager::config::LogLevel::Info);
     assert!(app.loading.loading_phases.contains(&LoadingPhase::LoadingTensors));
 }
