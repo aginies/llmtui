@@ -59,6 +59,14 @@ N-gram mapping with k-nearest neighbors.
 - **Performance:** Variable, depends on text patterns
 - **Complexity:** Higher memory usage
 
+### ngram-map-k4v
+
+N-gram mapping with k-nearest neighbors (4th variant).
+
+- **Best for:** Models with specific n-gram patterns
+- **Performance:** Better than ngram-map-k for certain models
+- **Complexity:** Higher memory usage
+
 ### ngram-mod
 
 Modified n-gram speculative decoding.

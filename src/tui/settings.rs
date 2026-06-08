@@ -436,7 +436,11 @@ pub fn all_fields() -> Vec<SettingField> {
                     "Auto (detect)".to_string()
                 } else if let Some(ref t) = s.chat_template {
                     if t.ends_with(".jinja") {
-                        format!("Custom: {}", t)
+                        let filename = std::path::Path::new(t)
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or(t);
+                        format!("Custom: {}", filename)
                     } else {
                         t.clone()
                     }
@@ -1312,7 +1316,15 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_string!(parts, s, current, system_prompt_preset_name, "preset");
     diff_string!(parts, s, current, tensor_split, "tensor_split");
     diff_string!(parts, s, current, rpc, "rpc");
-    diff_option!(parts, s, current, chat_template, "chat_template");
+    if s.chat_template != current.chat_template {
+        if let Some(ref v) = s.chat_template {
+            let filename = std::path::Path::new(v)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(v);
+            parts.push(format!("chat_template={}", filename));
+        }
+    }
     diff_option!(
         parts,
         s,
