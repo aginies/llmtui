@@ -74,9 +74,66 @@ cargo run -- --config /path/to/config.yaml
 | `frequency_penalty` | null | Frequency penalty |
 | `max_tokens` | null | Maximum generation tokens (unlimited if null) |
 | `seed` | -1 | Random seed (-1 = random) |
-| `backend` | auto-detected | Default backend (auto-detected: Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel; falls back to cpu). Options: `cpu`, `vulkan`, `rocm`, `rocm-lemonade`, `cuda` |
+| `backend` | auto-detected | Default backend (auto-detected: Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel; falls back to cpu). Options: `cpu`, `vulkan`, `rocm`, `rocm-lemonade`, `cuda`, `cpu_arm64`, `win_cpu`, `win_vulkan`, `win_cuda_12_4`, `win_cuda_13_1`, `win_hip`, `macos_arm64`, `macos_x64` |
 
-Additional advanced parameters are available including RoPE scaling, DRY sampling, NUMA optimization, cache quantization, speculative decoding, chat templates, and more. These can be configured via the LLM Settings panel or per-model config files.
+### Advanced Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `swa_full` | false | Full-size SWA cache |
+| `numa` | none | NUMA optimization mode |
+| `uniform_cache` | true | Unified KV cache across sequences |
+| `parallel` | 1 | Max concurrent predictions |
+| `max_concurrent_predictions` | null | Max requests in flight |
+| `gpu_layers` | -1 | GPU layers (-1 = all) |
+| `gpu_layers_mode` | Auto | GPU layers distribution mode |
+| `split_mode` | layer | Split mode for multi-GPU |
+| `tensor_split` | (empty) | Tensor split across GPUs |
+| `main_gpu` | 0 | Main GPU ID |
+| `fit` | true | Fit GPU layers automatically |
+| `embedding` | false | Enable embedding mode |
+| `jinja` | true | Use Jinja chat template |
+| `chat_template` | null | Custom chat template string |
+| `expert_count` | -1 | Expert count for MoE models |
+| `mirostat` | off | Mirostat mode (off, 1, 2) |
+| `mirostat_lr` | 0.1 | Mirostat learning rate |
+| `mirostat_ent` | 5.0 | Mirostat entropy |
+| `ignore_eos` | false | Ignore EOS token |
+| `samplers` | penalties;dry;top_n_sigma;top_k;typ_p;top_p;min_p;xtc;temperature | Sampler chain |
+| `dry_multiplier` | 0.0 | DRY sampling multiplier |
+| `dry_base` | 1.75 | DRY sampling base |
+| `dry_allowed_length` | 2 | DRY allowed repetition length |
+| `dry_penalty_last_n` | -1 | DRY last N tokens |
+| `rope_scaling` | none | RoPE scaling type (none, linear, yarn) |
+| `rope_scale` | 1.0 | RoPE scale factor |
+| `rope_freq_base` | 0.0 | RoPE frequency base (0 = auto) |
+| `rope_freq_scale` | 1.0 | RoPE frequency scale |
+| `rope_yarn_enabled` | false | Enable RoPE Yarn |
+| `cache_prompt` | true | Cache prompt tokens |
+| `cache_reuse` | 0 | Cache reuse length in tokens |
+| `cache_type` | f16 | KV cache quantization type |
+| `cache_type_k` | null | KV cache quantization type (K) |
+| `cache_type_v` | null | KV cache quantization type (V) |
+| `spec_type` | (empty) | Speculative decoding type (e.g. "draft-mtp", "ngram-simple") |
+| `draft_tokens` | 0 | Number of draft tokens for MTP |
+| `host` | 127.0.0.1 | Server bind address |
+| `port` | 8080 | Server port |
+| `timeout` | 600 | Server timeout in seconds |
+| `webui` | false | Enable web UI |
+| `ws_server_enabled` | false | Enable WebSocket server |
+| `ws_server_port` | 49223 | WebSocket server port |
+| `ws_server_auth_key` | null | WebSocket server auth key |
+| `ws_server_tls_enabled` | true | WebSocket server TLS |
+| `ws_server_tls_cert` | null | WebSocket server TLS cert path |
+| `ws_server_tls_key` | null | WebSocket server TLS key path |
+| `router_max_models` | 4 | Max models in router mode |
+| `server_mode` | Normal | Server mode (Normal, Router, Bench, BenchTune) |
+| `api_endpoint_enabled` | false | Enable built-in API endpoint |
+| `api_endpoint_port` | 49222 | Built-in API endpoint port |
+| `platform` | null | Platform override (linux, windows, macos) |
+| `tags` | (empty) | Model tags for filtering |
+
+These can be configured via the LLM Settings panel, per-model config files, or directly in `config.yaml`.
 
 ## Profiles
 
@@ -84,13 +141,15 @@ Profiles are named presets of settings. The built-in profiles are:
 
 | Profile | Description | Key Settings |
 |---------|-------------|--------------|
-| Qwen | Optimized for Qwen models (dense) | temp: 0.7, top-k: 20, context: 131072 |
-| Qwen-MoE | Optimized for Qwen MoE models (35B-A3B) | temp: 0.8, top-k: 20, context: 131072 |
-| Qwen-Coding | Optimized for Qwen models in coding mode | temp: 0.6, top-k: 20, context: 131072 |
-| Gemma | Optimized for Gemma 2/4 models | temp: 1.0, min-p: 0.1, context: 131072 |
+| Qwen | Optimized for Qwen models (dense) | temp: 0.7, top-k: 20, presence-penalty: 0.0 |
+| Qwen-MoE | Optimized for Qwen MoE models (35B-A3B) | temp: 0.8, top-k: 20, presence-penalty: 1.5 |
+| Qwen-Coding | Optimized for Qwen models in coding mode | temp: 0.6, top-k: 20, presence-penalty: 0.0 |
+| Gemma | Optimized for Gemma 2/4 models | temp: 1.0, min-p: 0.1, top-k: 65 |
 | Llama | Optimized for Llama 3.1/3.3 models | temp: 0.7, top-p: 0.9, repeat-penalty: 1.1 |
 | Mistral | Optimized for Mistral 7B/NeMo models | temp: 0.7, top-k: 50, top-p: 0.9 |
 | Phi | Optimized for Phi 3.5 Mini models | temp: 0.7, top-k: 50, top-p: 0.9, repeat-penalty: 1.1 |
+
+All profiles also set `context_length: 131072`, `top_p: 0.95`, `max_tokens: 4096`, and `uniform_cache: true`. Qwen, Qwen-MoE, Qwen-Coding, Gemma, Llama, and Mistral also set `jinja: true` (Phi does not).
 
 User-defined profiles are stored as individual YAML files in `~/.config/llm-manager/profiles/<name>.yaml`. Built-in profiles are auto-merged on load.
 
@@ -105,7 +164,7 @@ System prompt presets define the initial system prompt. Built-in presets:
 | Thinker | Analytical and thoughtful |
 | Mathematician | Expert in mathematics |
 
-User-defined presets are stored as individual YAML files in `~/.config/llm-manager/presets/<name>.yaml`. Built-in presets are auto-merged on load.
+The default preset is `Coder`. User-defined presets are stored as individual YAML files in `~/.config/llm-manager/presets/<name>.yaml`. Built-in presets are auto-merged on load.
 
 ## Backend Binaries
 
@@ -153,7 +212,7 @@ Assets are selected based on the detected platform. Linux examples:
 - **ROCm Lemonade:** `llama-{tag}-ubuntu-rocm-{gfx}-x64.zip` (auto-detects GPU architecture)
 - **CUDA:** `llama.cpp-{tag}-cuda-12.8-amd64.tar.gz`
 
-Windows assets use `*.zip` (e.g. `llama-{tag}-bin-win-cpu-x64.zip`). macOS assets use `*-macos-arm64.tar.gz` or `*-macos-x64.tar.gz`.
+Windows assets use `*.zip` (e.g. `llama-{tag}-bin-win-cpu-x64.zip`). macOS assets use `llama-{tag}-bin-macos-arm64.tar.gz` or `llama-{tag}-bin-macos-x64.tar.gz`.
 
 ## Serve Mode
 
@@ -181,9 +240,8 @@ You can start a model directly from the command line without the TUI:
 | `--tls-enable` | Enable TLS for WebSocket dashboard |
 | `--tls-cert` | Path to TLS certificate file |
 | `--tls-key` | Path to TLS private key file |
-| `--threads` | CPU threads |
-| `--context` | Context length |
-| `--gpu-layers` | Number of GPU layers |
+
+Note: `--threads`, `--context`, and `--gpu-layers` are not CLI flags. They are configured via `config.yaml` (`default` section) or per-model override files.
 
 ### API Proxy
 
@@ -203,7 +261,7 @@ The API proxy explicitly handles the following endpoints, while all other paths 
 | `/v1/models` | GET | List models |
 | `/api/status` | GET | Server status (pid, uptime, loaded models) |
 
-The following endpoints are automatically proxied to llama-server (not explicitly handled):
+The following endpoints are forwarded to llama-server (llama-server built-in endpoints, not explicitly handled by llm-manager):
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
