@@ -163,10 +163,19 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     if let GlobalMode::ChatTemplatePicker {
         entries,
         selected,
-        edit_buffer,
     } = &app.ui.global_mode
     {
-        render_chat_template_picker(f, f.area(), app, entries, *selected, edit_buffer);
+        render_chat_template_picker(f, f.area(), app, entries, *selected);
+        return true;
+    }
+
+    if let GlobalMode::DirectoryPicker { entries, selected } = &app.ui.global_mode {
+        render_directory_picker(f, f.area(), app, entries, *selected);
+        return true;
+    }
+
+    if let GlobalMode::ChatTemplateFilePicker { entries, selected } = &app.ui.global_mode {
+        render_chat_template_file_picker(f, f.area(), app, entries, *selected);
         return true;
     }
 
@@ -2831,7 +2840,6 @@ fn render_chat_template_picker(
     _app: &App,
     entries: &[String],
     selected: usize,
-    edit_buffer: &str,
 ) {
     let w = 55u16;
     let h = (entries.len() as u16) + 8;
@@ -2856,7 +2864,7 @@ fn render_chat_template_picker(
         Line::from(""),
     ];
 
-    for (i, entry) in entries.iter().enumerate() {
+   for (i, entry) in entries.iter().enumerate() {
         let marker = if i == selected { "> " } else { "  " };
         let style = if i == selected {
             Style::default()
@@ -2872,12 +2880,74 @@ fn render_chat_template_picker(
         ]));
     }
 
-    if selected == entries.len() - 1 && entries.last() == Some(&"Custom...".to_string()) {
-        picker_lines.push(Line::from(""));
+   f.render_widget(Clear, picker_area);
+    f.render_widget(
+        Paragraph::new(picker_lines).block(
+            Block::default()
+                .title(Span::styled(
+                    crate::t!("dialog.chat_template.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        ),
+        picker_area,
+    );
+}
+
+fn render_chat_template_file_picker(
+    f: &mut Frame,
+    area: Rect,
+    _app: &App,
+    entries: &[(String, String)],
+    selected: usize,
+) {
+    let w = 60u16;
+    let h = (entries.len() as u16) + 6;
+    let picker_area = Rect {
+        x: (area.width - w) / 2,
+        y: (area.height - h) / 2,
+        width: w,
+        height: h,
+    };
+    let mut picker_lines: Vec<Line> = vec![
+        Line::from(Span::styled(
+            crate::t!("dialog.chat_template.file.title"),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            crate::t!("dialog.chat_template.file.help"),
+            Style::default().fg(Color::Yellow),
+        )),
+        Line::from(""),
+    ];
+
+    if entries.is_empty() {
         picker_lines.push(Line::from(Span::styled(
-            format!("Custom: {}", edit_buffer),
-            Style::default().fg(Color::Cyan),
+            crate::t!("dialog.chat_template.file.empty"),
+            Style::default().fg(Color::Red),
         )));
+    } else {
+        for (i, (name, _path)) in entries.iter().enumerate() {
+            let marker = if i == selected { "> " } else { "  " };
+            let style = if i == selected {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            picker_lines.push(Line::from(vec![
+                Span::styled(marker, Style::default().fg(Color::Yellow)),
+                Span::styled(name, style),
+            ]));
+        }
     }
 
     f.render_widget(Clear, picker_area);
@@ -2885,7 +2955,77 @@ fn render_chat_template_picker(
         Paragraph::new(picker_lines).block(
             Block::default()
                 .title(Span::styled(
-                    crate::t!("dialog.chat_template.title"),
+                    crate::t!("dialog.chat_template.file.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        ),
+        picker_area,
+    );
+}
+
+fn render_directory_picker(
+    f: &mut Frame,
+    area: Rect,
+    _app: &App,
+    entries: &[(String, String)],
+    selected: usize,
+) {
+    let w = 60u16;
+    let h = (entries.len() as u16) + 6;
+    let picker_area = Rect {
+        x: (area.width - w) / 2,
+        y: (area.height - h) / 2,
+        width: w,
+        height: h,
+    };
+    let mut picker_lines: Vec<Line> = vec![
+        Line::from(Span::styled(
+            crate::t!("dialog.directory.title"),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            crate::t!("dialog.directory.help"),
+            Style::default().fg(Color::Yellow),
+        )),
+        Line::from(""),
+    ];
+
+    if entries.is_empty() {
+        picker_lines.push(Line::from(Span::styled(
+            crate::t!("dialog.directory.empty"),
+            Style::default().fg(Color::Red),
+        )));
+    } else {
+        for (i, (name, _path)) in entries.iter().enumerate() {
+            let marker = if i == selected { "> " } else { "  " };
+            let style = if i == selected {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            picker_lines.push(Line::from(vec![
+                Span::styled(marker, Style::default().fg(Color::Yellow)),
+                Span::styled(name, style),
+            ]));
+        }
+    }
+
+    f.render_widget(Clear, picker_area);
+    f.render_widget(
+        Paragraph::new(picker_lines).block(
+            Block::default()
+                .title(Span::styled(
+                    crate::t!("dialog.directory.title"),
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),

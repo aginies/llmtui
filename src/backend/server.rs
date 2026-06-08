@@ -227,7 +227,7 @@ pub fn build_server_cmd(
     }
 
     // Auto-select chat template from arch if auto_chat_template is enabled and no explicit template
-    let chat_template = if settings.auto_chat_template {
+    let chat_template: Option<String> = if settings.auto_chat_template {
         settings.chat_template.as_deref().or_else(|| {
             let arch = gguf_meta
                 .as_ref()
@@ -237,12 +237,19 @@ pub fn build_server_cmd(
                 .unwrap_or("llama");
             crate::models::arch_to_chat_template(arch)
         })
+        .map(|s| s.to_string())
+    } else if let Some(ref t) = settings.chat_template {
+        if t.ends_with(".jinja") {
+            std::fs::read_to_string(t).ok()
+        } else {
+            Some(t.clone())
+        }
     } else {
-        settings.chat_template.as_deref()
+        None
     };
 
     if let Some(template) = chat_template {
-        push_arg(&mut cmd, &mut parts, "--chat-template", template);
+        push_arg(&mut cmd, &mut parts, "--chat-template", &template);
     }
 
     // Inject system prompt via chat template kwargs when it is not empty

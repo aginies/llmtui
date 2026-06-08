@@ -181,7 +181,14 @@ pub enum GlobalMode {
     ChatTemplatePicker {
         entries: Vec<String>,
         selected: usize,
-        edit_buffer: String,
+    },
+    ChatTemplateFilePicker {
+        entries: Vec<(String, String)>, // (display_name, full_path)
+        selected: usize,
+    },
+    DirectoryPicker {
+        entries: Vec<(String, String)>, // (display_name, full_path)
+        selected: usize,
     },
 }
 

@@ -236,14 +236,17 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         } else if current.is_none() {
             entries.len() - 1 // "None" is last
         } else if let Some(template) = current {
-            entries.iter().position(|e| e == template).unwrap_or(0)
+            if template.ends_with(".jinja") {
+                entries.len() - 2 // "Browse directory..." is second to last (before "None")
+            } else {
+                entries.iter().position(|e| e == template).unwrap_or(0)
+            }
         } else {
             0
         };
         app.ui.global_mode = GlobalMode::ChatTemplatePicker {
             entries,
             selected,
-            edit_buffer: app.settings.chat_template.clone().unwrap_or_default(),
         };
         mark_settings_dirty(app, false);
         return;

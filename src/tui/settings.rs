@@ -439,8 +439,8 @@ pub fn all_fields() -> Vec<SettingField> {
                 if s.auto_chat_template {
                     "Auto (detect)".to_string()
                 } else if let Some(ref t) = s.chat_template {
-                    if t.contains('\n') || t.len() > 40 {
-                        format!("Custom ({})", t.len())
+                    if t.ends_with(".jinja") {
+                        format!("Custom: {}", std::path::Path::new(t).file_name().unwrap_or_default().to_string_lossy())
                     } else {
                         t.clone()
                     }
@@ -452,7 +452,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_auto_chat_template,
-            "Select chat template: Auto (detect) uses GGUF architecture metadata, specific template names use llama.cpp built-in templates, Custom enters a Jinja template string, None disables template. Press Enter to open picker.",
+            "Select chat template: Auto (detect) uses GGUF architecture metadata, specific template names use llama.cpp built-in templates, Browse directory picks a .jinja file from any directory, None disables template. Press Enter to open picker.",
         ),
         expert_field(
             "numa",

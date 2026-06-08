@@ -28,7 +28,7 @@ impl OverlayHandler for ChatTemplatePickerHandler {
             if let GlobalMode::ChatTemplatePicker {
                 entries,
                 selected,
-                edit_buffer,
+                ..
             } = &mut app.ui.global_mode
             {
                 match key.code {
@@ -43,14 +43,14 @@ impl OverlayHandler for ChatTemplatePickerHandler {
                                 app.settings.auto_chat_template = false;
                                 app.settings.chat_template = None;
                             }
-                            "Custom..." => {
-                                app.settings.auto_chat_template = false;
-                                app.settings.chat_template =
-                                    if edit_buffer.is_empty() {
-                                        None
-                                    } else {
-                                        Some(edit_buffer.clone())
-                                    };
+                            "Browse directory..." => {
+                                let base_path = super::directory_picker::default_chat_templates_dir();
+                                let dirs = super::directory_picker::list_directories(&base_path);
+                                app.ui.global_mode = GlobalMode::DirectoryPicker {
+                                    entries: dirs,
+                                    selected: 0,
+                                };
+                                return;
                             }
                             _ => {
                                 app.settings.auto_chat_template = false;
