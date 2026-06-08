@@ -258,6 +258,7 @@
   "field.help.dry_penalty_last_n": "How many tokens to consider for DRY penalty (0 = all). Larger values catch longer repetition patterns. Typical: -1 (all) or 128.",
   "field.help.expert_count": "Number of MoE (Mixture of Experts) experts to activate per token. -1 = auto (all active). Reducing this speeds up inference for MoE models like Mixtral but may reduce quality. Typical: 2-8 for Mixtral.",
   "field.help.fit": "Automatically adjust arguments to fit device memory. Toggle on/off with Enter.",
+  "field.help.auto_chat_template": "Seleziona automaticamente il template di chat dai metadati dell'architettura GGUF. Quando abilitato, llama.cpp usa un template integrato che corrisponde alla famiglia del modello (es. llama, qwen2). Richiede jinja=true. Attiva/disattiva con Invio.",
   "field.help.flash_attn": "Enable Flash Attention (flash-attn) for faster inference. Requires compatible GPU (Ampere+ / Ada). Significantly speeds up long-context inference. Only works with certain GGUF formats.",
   "field.help.frequency_penalty": "Penalizes tokens based on how often they appear in the text (+) or rewards them (-). Positive values reduce word repetition, negative values encourage denser language. Typical: 0.0 (off).",
   "field.help.gpu_layers_mode": "How many model layers to offload to GPU. Arrow keys cycle: Auto → 1 → 2 → ... → N → All → Auto. Auto lets llama.cpp decide based on VRAM. All loads every layer (999). Specific number sets exact offload count.",

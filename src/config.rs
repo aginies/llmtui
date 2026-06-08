@@ -222,6 +222,7 @@ pub struct ModelOverride {
     pub kv_cache_offload: Option<bool>,
     pub flash_attn: Option<bool>,
     pub jinja: Option<bool>,
+    pub auto_chat_template: Option<bool>,
     pub chat_template: Option<String>,
     pub chat_template_kwargs: Option<String>,
     pub expert_count: Option<i32>,
@@ -343,6 +344,7 @@ impl ModelOverride {
             kv_cache_offload: Some(s.kv_cache_offload),
             flash_attn: Some(s.flash_attn),
             jinja: Some(s.jinja),
+            auto_chat_template: Some(s.auto_chat_template),
             chat_template: s.chat_template.clone(),
             chat_template_kwargs: s.chat_template_kwargs.clone(),
             expert_count: Some(s.expert_count),
@@ -414,6 +416,7 @@ impl ModelOverride {
             embedding,
             flash_attn,
             jinja,
+            auto_chat_template,
             expert_count,
             seed,
             temperature,
@@ -685,6 +688,8 @@ pub struct DefaultParams {
     #[serde(default)]
     pub jinja: bool,
     #[serde(default)]
+    pub auto_chat_template: bool,
+    #[serde(default)]
     pub chat_template: Option<String>,
     #[serde(default)]
     pub chat_template_kwargs: Option<String>,
@@ -883,6 +888,7 @@ impl Default for DefaultParams {
             embedding: false,
             flash_attn: true,
             jinja: true,
+            auto_chat_template: false,
             chat_template: None,
             chat_template_kwargs: None,
             expert_count: -1,

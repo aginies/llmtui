@@ -167,6 +167,9 @@ fn toggle_mlock(settings: &mut ModelSettings) {
 fn toggle_flash_attn(settings: &mut ModelSettings) {
     settings.flash_attn = !settings.flash_attn;
 }
+fn toggle_auto_chat_template(settings: &mut ModelSettings) {
+    settings.auto_chat_template = !settings.auto_chat_template;
+}
 
 fn toggle_fit(settings: &mut ModelSettings) {
     settings.fit = !settings.fit;
@@ -427,6 +430,17 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _| {},
             toggle_mlock,
             "Lock model weights in RAM (mlock). Prevents the OS from swapping model weights to disk. Slows model load time but ensures faster inference once loaded. Useful for repeated use.",
+        ),
+        expert_field_with_toggle(
+            "auto_chat_template",
+            "Auto Chat Template",
+            "Loading",
+            |s| s.auto_chat_template.to_string(),
+            |s, c| s.auto_chat_template != c.auto_chat_template,
+            |_, _, _| {},
+            |_, _| {},
+            toggle_auto_chat_template,
+            "Auto-select chat template from GGUF architecture metadata. When enabled, llama.cpp uses a built-in template matching the model family (e.g., llama, qwen2). Requires jinja=true. Toggle on/off with Enter.",
         ),
         expert_field(
             "numa",
@@ -1281,6 +1295,7 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_bool!(parts, s, current, embedding, "embedding");
     diff_bool!(parts, s, current, flash_attn, "flash_attn");
     diff_bool!(parts, s, current, jinja, "jinja");
+    diff_bool!(parts, s, current, auto_chat_template, "auto_chat_template");
     diff_bool!(parts, s, current, ignore_eos, "ignore_eos");
     diff_bool!(parts, s, current, rope_yarn_enabled, "yarn_enabled");
     diff_bool!(parts, s, current, cache_prompt, "cache_prompt");

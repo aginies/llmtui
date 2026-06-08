@@ -254,6 +254,10 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.gpu_layers_mode"))),
                 ]),
                 Line::from(vec![
+                    Span::styled("Auto Chat Template", y),
+                    Span::raw(format!("  {}", crate::t!("field.help.auto_chat_template"))),
+                ]),
+                Line::from(vec![
                     Span::styled("Flash Attention", y),
                     Span::raw(format!("  {}", crate::t!("field.help.flash_attn"))),
                 ]),

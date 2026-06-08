@@ -148,6 +148,7 @@ impl std::hash::Hash for ModelSettings {
         self.flash_attn.hash(state);
         self.expert_count.hash(state);
         self.jinja.hash(state);
+        self.auto_chat_template.hash(state);
         self.chat_template.hash(state);
         self.chat_template_kwargs.hash(state);
         // ── Sampling ──
@@ -303,6 +304,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             flash_attn: dp.flash_attn,
             expert_count: dp.expert_count,
             jinja: dp.jinja,
+            auto_chat_template: dp.auto_chat_template,
             chat_template: dp.chat_template,
             chat_template_kwargs: dp.chat_template_kwargs,
             seed: dp.seed,
@@ -833,6 +835,8 @@ pub struct ModelSettings {
     pub expert_count: i32,
     /// Use Jinja template engine for chat.
     pub jinja: bool,
+    /// Auto-select chat template from GGUF architecture.
+    pub auto_chat_template: bool,
     /// Custom chat template string.
     pub chat_template: Option<String>,
     /// JSON string for --chat-template-kwargs (e.g. {"enable_thinking": false}).

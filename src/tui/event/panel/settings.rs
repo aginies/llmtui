@@ -226,6 +226,13 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Auto Chat Template: toggle on Enter
+    if field_id == Some("auto_chat_template") && key.code == KeyCode::Enter {
+        app.settings.auto_chat_template = !app.settings.auto_chat_template;
+        mark_settings_dirty(app, true);
+        return;
+    }
+
     // Fit: toggle on Enter
     if field_id == Some("fit") && key.code == KeyCode::Enter {
         app.settings.fit = !app.settings.fit;
