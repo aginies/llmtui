@@ -935,7 +935,7 @@ fn render_bench_tune_setup(
     editing_prompt: bool,
 ) {
     let w = 90u16;
-    let h = 30u16;
+    let h = (30.min(area.height - 4)) as u16;
     let popup_area = Rect {
         x: (area.width.saturating_sub(w)) / 2,
         y: (area.height.saturating_sub(h)) / 2,
@@ -1460,7 +1460,7 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
 
 fn render_about_overlay(f: &mut Frame, area: Rect) {
     let w = (area.width as f64 * 0.6).clamp(50.0, 70.0) as u16;
-    let h = 16;
+    let h = 16.min(area.height - 4);
     let about_area = Rect {
         x: (area.width.saturating_sub(w)) / 2,
         y: (area.height.saturating_sub(h)) / 2,
@@ -1492,7 +1492,7 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
 
 fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &str) {
     let w = 55u16;
-    let h = 10u16;
+    let h = (10.min(area.height - 4)).max(8) as u16;
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -1575,7 +1575,7 @@ fn render_dashboard_picker(
     edit_buffer: &str,
 ) {
     let w = 60u16;
-    let h = 19u16;
+    let h = (19.min(area.height - 4)) as u16;
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -1730,7 +1730,7 @@ fn render_dashboard_url(
     };
     f.render_widget(Clear, modal_area);
     let w = 60u16;
-    let h = 18u16;
+    let h = (18.min(area.height - 4)) as u16;
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -2361,7 +2361,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
 
 fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usize) {
     let w: u16 = 60;
-    let h: u16 = 7;
+    let h: u16 = (7.min(area.height - 4)).max(8);
     let popup_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -2626,8 +2626,8 @@ fn render_yarn_rope_picker(
     edit_buffer: &str,
     edit_cursor_pos: usize,
 ) {
-    let w: u16 = 60;
-    let h: u16 = 14;
+   let w: u16 = 60;
+    let h: u16 = (14.min(area.height - 4)).max(8);
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -2746,7 +2746,7 @@ fn render_spec_type_picker(
     selected: usize,
 ) {
     let w = 50u16;
-    let h = (entries.len() as u16) + 6;
+    let h = (entries.len() as u16 + 6).min(area.height - 4);
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -2802,7 +2802,7 @@ fn render_chat_template_picker(
     selected: usize,
 ) {
     let w = 55u16;
-    let h = (entries.len() as u16) + 8;
+    let h = (entries.len() as u16 + 8).min(area.height - 4);
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -2858,7 +2858,7 @@ fn render_chat_template_file_picker(
     selected: usize,
 ) {
     let w = 60u16;
-    let h = (entries.len() as u16) + 6;
+    let h = (entries.len() as u16 + 6).min(area.height - 4);
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
