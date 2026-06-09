@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
 };
 
 const TOTAL_STEPS: usize = 8;
@@ -148,7 +148,8 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
             title, step_indicator
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow));
+        .border_style(Style::default().fg(Color::Yellow))
+        .border_type(BorderType::Double);
 
     f.render_widget(ratatui::widgets::Clear, popup_area);
     f.render_widget(

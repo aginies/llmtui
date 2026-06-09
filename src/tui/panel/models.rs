@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, List, ListItem, Paragraph, Row, Table, TableState},
+    widgets::{Block, BorderType, Borders, Cell, List, ListItem, Paragraph, Row, Table, TableState},
 };
 
 use crate::models::SearchSort;
@@ -32,15 +32,16 @@ pub fn render_download_panel(
         crate::t_fmt!("download.count", count, total_speed_str)
     };
 
-    let border_color = if is_focused {
-        Color::Green
+    let (border_type, border_color) = if is_focused {
+        (BorderType::Thick, Color::Green)
     } else {
-        Color::DarkGray
+        (BorderType::Plain, Color::DarkGray)
     };
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
+        .border_style(Style::default().fg(border_color))
+        .border_type(border_type);
 
     // Show all active downloads in a table
     let rows: Vec<Row> = downloads
@@ -244,15 +245,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 crate::t!("panel.title.models").to_string()
             };
 
-            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
-                Color::Green
+            let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let (border_type, border_color) = if is_models_focused {
+                (BorderType::Thick, Color::Green)
             } else {
-                Color::Yellow
+                (BorderType::Plain, Color::Yellow)
             };
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(border_color));
+                .border_style(Style::default().fg(border_color))
+                .border_type(border_type);
 
             let inner_area = block.inner(area);
             f.render_widget(block, area);
@@ -391,15 +394,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     results.len()
                 )
             };
-            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
-                Color::Green
+            let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let (border_type, border_color) = if is_models_focused {
+                (BorderType::Thick, Color::Green)
             } else {
-                Color::DarkGray
+                (BorderType::Plain, Color::DarkGray)
             };
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(border_color));
+                .border_style(Style::default().fg(border_color))
+                .border_type(border_type);
 
             let headers = vec![
                 Cell::from(crate::t!("models.search_headers.model")).style(
@@ -536,15 +541,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             ..
         } => {
             let title = crate::t_fmt!("models.gguf_files", model_id);
-            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
-                Color::Green
+            let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let (border_type, border_color) = if is_models_focused {
+                (BorderType::Thick, Color::Green)
             } else {
-                Color::DarkGray
+                (BorderType::Plain, Color::DarkGray)
             };
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(border_color));
+                .border_style(Style::default().fg(border_color))
+                .border_type(border_type);
 
             let inner_area = block.inner(area);
             f.render_widget(block, area);
@@ -620,15 +627,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         }
         ModelsMode::BenchTune => {
             let title = crate::t!("panel.title.bench_tune").to_string();
-            let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Models {
-                Color::Green
+            let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let (border_type, border_color) = if is_models_focused {
+                (BorderType::Thick, Color::Green)
             } else {
-                Color::Yellow
+                (BorderType::Plain, Color::Yellow)
             };
             let block = Block::default()
                 .title(title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(border_color));
+                .border_style(Style::default().fg(border_color))
+                .border_type(border_type);
 
             let inner_area = block.inner(area);
             f.render_widget(block, area);

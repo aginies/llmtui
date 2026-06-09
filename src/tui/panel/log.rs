@@ -3,7 +3,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
+    widgets::{Block, BorderType, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
 };
 
 use crate::tui::app::App;
@@ -28,15 +28,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             " Log - Manual "
         }
     };
-    let border_color = if app.ui.active_panel == crate::tui::app::ActivePanel::Log {
-        Color::Green
+    let is_log_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Log;
+    let (border_type, border_color) = if is_log_focused {
+        (BorderType::Thick, Color::Green)
     } else {
-        Color::DarkGray
+        (BorderType::Plain, Color::DarkGray)
     };
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
+        .border_style(Style::default().fg(border_color))
+        .border_type(border_type);
 
     let mut lines: Vec<Line> = Vec::new();
     for e in &app.log.log_entries {

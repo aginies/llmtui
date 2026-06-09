@@ -3,7 +3,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, Paragraph},
 };
 
 use crate::models::{ModelState, strip_gguf};
@@ -53,16 +53,40 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         title_spans.push(Span::styled(" ]", Style::default().fg(Color::White)));
     }
 
+    let is_active_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ActiveModel;
+    let (border_type, border_color) = if is_active_focused {
+        (BorderType::Thick, Color::Green)
+    } else {
+        (BorderType::Plain, Color::DarkGray)
+    };
+
+    let mut title_with_bar = title_spans.clone();
+    if app.metrics.total_vram_used > 0 && app.metrics.gpu_mem_total > 0 {
+        let pct = app.metrics.total_vram_used as f64 / app.metrics.gpu_mem_total as f64;
+        let bar_width = 12usize;
+        let filled = (pct * bar_width as f64) as usize;
+        let bar = format!(
+            " [{}{}] {:.0}%]",
+            "█".repeat(filled),
+            "░".repeat(bar_width.saturating_sub(filled)),
+            pct * 100.0
+        );
+        let bar_color = if pct < 0.7 {
+            Color::Green
+        } else if pct < 0.9 {
+            Color::Yellow
+        } else {
+            Color::Red
+        };
+        title_with_bar.push(Span::raw(" "));
+        title_with_bar.push(Span::styled(bar, Style::default().fg(bar_color)));
+    }
+
     let block = Block::default()
-        .title(Line::from(title_spans))
+        .title(Line::from(title_with_bar))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(
-            if app.ui.active_panel == crate::tui::app::ActivePanel::ActiveModel {
-                Color::Green
-            } else {
-                Color::DarkGray
-            },
-        ));
+        .border_style(Style::default().fg(border_color))
+        .border_type(border_type);
 
     let mut lines = Vec::new();
 

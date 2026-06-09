@@ -4,7 +4,7 @@ use ratatui::{
     prelude::*,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, Paragraph},
 };
 
 /// Markdown renderer for TUI display.
@@ -441,7 +441,8 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     let block = Block::default()
         .title(crate::t!("panel.title.readme"))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
+        .border_style(Style::default().fg(border_color))
+        .border_type(BorderType::Rounded);
     let wrap = ratatui::widgets::Wrap { trim: true };
     let paragraph = Paragraph::new(visible_lines).block(block).wrap(wrap);
     f.render_widget(paragraph, area);

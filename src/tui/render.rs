@@ -2,7 +2,7 @@ use ratatui::{
     Frame,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, BorderType, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 
 use crate::tui::app::{ActivePanel, App, ModelsMode};
@@ -182,7 +182,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
             let block = Block::default()
                 .title(crate::t!("panel.title.profiles"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow));
+                .border_style(Style::default().fg(Color::Yellow))
+                .border_type(BorderType::Rounded);
             let paragraph = Paragraph::new(visible_lines).block(block);
             f.render_widget(paragraph, area);
 
@@ -224,7 +225,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
             let block = Block::default()
                 .title(crate::t!("panel.title.presets"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow));
+                .border_style(Style::default().fg(Color::Yellow))
+                .border_type(BorderType::Rounded);
             let paragraph = Paragraph::new(visible_lines).block(block);
             f.render_widget(paragraph, area);
 

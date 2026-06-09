@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
 };
 
 use crate::tui::app::App;
@@ -24,14 +24,20 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
         Span::styled(" — ", Style::default().fg(Color::DarkGray)),
         Span::styled("⎋ to close", Style::default().fg(Color::DarkGray)),
     ]))
-    .block(Block::default().borders(Borders::ALL).title(" "))
+    .block(Block::default()
+        .borders(Borders::ALL)
+        .title(" ")
+        .border_type(BorderType::Rounded))
     .style(Style::default().fg(Color::White));
     f.render_widget(title, chunks[0]);
 
     // Scrollable content
     let lines = app.panel_help_lines();
     let paragraph = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title(" "))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title(" ")
+            .border_type(BorderType::Rounded))
         .wrap(Wrap { trim: true })
         .scroll((app.ui.panel_help_offset as u16, 0));
     f.render_widget(paragraph, chunks[1]);

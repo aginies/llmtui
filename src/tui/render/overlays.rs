@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
+    widgets::{Block, BorderType, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -39,7 +39,8 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         let block = Block::default()
             .title(" CmdLine — ⎋ to close  e to export ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow));
+            .border_style(Style::default().fg(Color::Yellow))
+            .border_type(BorderType::Double);
         f.render_widget(Paragraph::new(text).block(block), area);
         return true;
     }
@@ -422,7 +423,8 @@ fn render_confirmation(
             } else {
                 Color::Yellow
             },
-        ));
+        ))
+        .border_type(BorderType::Double);
     f.render_widget(Clear, popup_area);
     f.render_widget(
         Paragraph::new(lines)
@@ -787,7 +789,8 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(Color::Yellow))
+                .border_type(BorderType::Double),
         ),
         modal_area,
     );
@@ -956,7 +959,8 @@ fn render_bench_tune_setup(
                 .add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow));
+        .border_style(Style::default().fg(Color::Yellow))
+        .border_type(BorderType::Double);
     let inner_area = block.inner(popup_area);
     f.render_widget(Clear, popup_area);
     f.render_widget(block, popup_area);
@@ -1067,7 +1071,8 @@ fn render_bench_tune_setup(
                         Color::Green
                     } else {
                         Color::DarkGray
-                    })),
+                    }))
+                    .border_type(BorderType::Double),
             )
             .wrap(Wrap { trim: true }),
         regions[3],
@@ -1443,7 +1448,8 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
-        );
+        )
+        .border_type(BorderType::Double);
     f.render_widget(Clear, rpc_area);
     f.render_widget(Paragraph::new(visible_lines).block(block), rpc_area);
     if worker_lines.len() > available_height as usize {
@@ -1480,7 +1486,8 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
-        );
+        )
+        .border_type(BorderType::Double);
     f.render_widget(Clear, about_area);
     f.render_widget(
         Paragraph::new(about_lines)
@@ -1706,7 +1713,8 @@ fn render_dashboard_picker(
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(Color::Yellow))
+                .border_type(BorderType::Double),
         ),
         picker_area,
     );
@@ -1863,9 +1871,10 @@ fn render_dashboard_url(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
-                ))
+             ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(Color::Yellow))
+                .border_type(BorderType::Double),
         ),
         picker_area,
     );
@@ -2127,12 +2136,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                         .add_modifier(Modifier::BOLD),
                 )),
             ]))
-            .block(
-                Block::default()
-                    .title(crate::t!("dialog.bench_result.parameters"))
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
-            );
+          .block(
+               Block::default()
+                   .title(crate::t!("dialog.bench_result.parameters"))
+                   .borders(Borders::ALL)
+                   .border_style(Style::default().fg(Color::Cyan))
+                   .border_type(BorderType::Double),
+           );
         let output_idx = app
             .bench_tune
             .bench_tune_output_index
@@ -2213,7 +2223,8 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                         result.outputs.len()
                     ))
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
+                    .border_style(Style::default().fg(Color::Cyan))
+                    .border_type(BorderType::Double),
             );
         let output_lines: Vec<Line> = if !result.outputs.is_empty() {
             result.outputs[output_idx]
@@ -2284,7 +2295,8 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             let command_block = Block::default()
                 .title(crate::t!("dialog.bench_result.server_cmd"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow));
+                .border_style(Style::default().fg(Color::Yellow))
+                .border_type(BorderType::Double);
             f.render_widget(
                 Paragraph::new(cmd_text.to_string())
                     .block(command_block)
@@ -2304,7 +2316,8 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             let output_block = Block::default()
                 .title(crate::t!("dialog.bench_result.output"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan));
+                .border_style(Style::default().fg(Color::Cyan))
+                .border_type(BorderType::Double);
             if !output_lines.is_empty() {
                 let scroll = app.bench_tune.bench_tune_output_scroll as u16;
                 f.render_widget(
@@ -2408,11 +2421,12 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
     ];
     f.render_widget(Clear, popup_area);
     f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
+    Paragraph::new(picker_lines).block(
+             Block::default()
                 .title(crate::t!("panel.title.search_input"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(Color::Yellow))
+                .border_type(BorderType::Double),
         ),
         popup_area,
     );
@@ -2586,7 +2600,8 @@ fn render_gguf_naming_overlay(
                 .add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow));
+        .border_style(Style::default().fg(Color::Yellow))
+        .border_type(BorderType::Double);
 
     f.render_widget(Clear, popup_area);
     f.render_widget(Paragraph::new(lines).block(block), popup_area);
@@ -2902,13 +2917,14 @@ fn render_chat_template_file_picker(
             Block::default()
                 .title(Span::styled(
                     crate::t!("dialog.chat_template.file.title"),
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
-      ),
+                      Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow))
+                    .border_type(BorderType::Double),
+            ),
         picker_area,
     );
 }

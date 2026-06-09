@@ -4,7 +4,7 @@ use ratatui::{
     prelude::Stylize,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, Paragraph},
 };
 
 use super::info;
@@ -66,7 +66,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let available_height = llm_area.height.saturating_sub(2);
     let start_idx = app.settings_state.settings_scroll_offset;
 
-    let border_color = if is_focused {
+    let _border_color = if is_focused {
         Color::Green
     } else {
         Color::DarkGray
@@ -77,6 +77,12 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     } else {
         crate::t!("panel.title.llm_active").to_string()
     };
+    let is_llm_focused = app.ui.active_panel == crate::tui::app::ActivePanel::LlmSettings;
+    let (border_type, border_color) = if is_llm_focused {
+        (BorderType::Thick, Color::Green)
+    } else {
+        (BorderType::Plain, Color::DarkGray)
+    };
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(title),
@@ -86,7 +92,8 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
             ),
         ]))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
+        .border_style(Style::default().fg(border_color))
+        .border_type(border_type);
 
     let inner = block.inner(llm_area);
 
@@ -122,6 +129,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         let help_block = Block::default()
             .borders(Borders::TOP)
             .border_style(Style::default().fg(Color::Gray))
+            .border_type(BorderType::Rounded)
             .bg(Color::Black);
         let help_inner = help_block.inner(help_area);
         f.render_widget(help_block.clone(), help_area);
@@ -198,7 +206,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     }
 
     let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
-    let border_color = if server_running {
+    let _border_color = if server_running {
         Color::DarkGray
     } else if is_focused {
         Color::Green
@@ -411,10 +419,17 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     } else {
         crate::t!("panel.title.server_active")
     };
+    let is_server_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
+    let (border_type, border_color) = if is_server_focused {
+        (BorderType::Thick, Color::Green)
+    } else {
+        (BorderType::Plain, Color::DarkGray)
+    };
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
+        .border_style(Style::default().fg(border_color))
+        .border_type(border_type);
 
     let paragraph = Paragraph::new(visible_lines).block(block);
     f.render_widget(paragraph, area);
@@ -436,11 +451,11 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
 }
 
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
-    let is_focused = app.ui.active_panel == ActivePanel::LlmSettings;
-    let border_color = if is_focused {
-        Color::Green
+    let is_llm_focused = app.ui.active_panel == ActivePanel::LlmSettings;
+    let (border_type, border_color) = if is_llm_focused {
+        (BorderType::Thick, Color::Green)
     } else {
-        Color::DarkGray
+        (BorderType::Plain, Color::DarkGray)
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = crate::t!("panel.title.llm_active");
@@ -453,7 +468,8 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
             ),
         ]))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
+        .border_style(Style::default().fg(border_color))
+        .border_type(border_type);
 
     let (all_lines, _count, settings_height, _selected_line_idx, help_line) =
         settings::render_all(app, area, false);
@@ -496,6 +512,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         let help_block = Block::default()
             .borders(Borders::TOP)
             .border_style(Style::default().fg(Color::Gray))
+            .border_type(BorderType::Rounded)
             .bg(Color::Black);
         f.render_widget(help_block.clone(), help_area);
         f.render_widget(
@@ -686,7 +703,8 @@ pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static
     let block = Block::default()
         .title(crate::t!("panel.title.model_info_active"))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray));
+        .border_style(Style::default().fg(Color::DarkGray))
+        .border_type(BorderType::Rounded);
 
     let paragraph = Paragraph::new(lines).block(block);
     f.render_widget(paragraph, area);
