@@ -900,6 +900,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                     task_pid,
                     metrics_model_name,
                     metrics_tx,
+                    self.server.spawn_log_tx.clone(),
                 ));
                 self.server.metrics_task_handle = Some(_task_handle);
                 let sync_host = host.clone();
@@ -947,6 +948,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
         pid: u32,
         metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
         metrics_tx: tokio::sync::mpsc::Sender<crate::models::ServerMetrics>,
+        log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     ) {
         let mut consecutive_failures: u32 = 0;
         let max_failures: u32 = 15;
@@ -962,18 +964,26 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                 Err(_) => {
                     consecutive_failures += 1;
                     if consecutive_failures >= max_failures {
-                        tracing::warn!(
-                            "Metrics polling aborted after {} consecutive failures (server likely dead)",
-                            max_failures
-                        );
+                        if let Some(tx) = log_tx {
+                            let _ = tx.send(
+                                format!(
+                                    "Metrics polling aborted after {} consecutive failures (server likely dead)",
+                                    max_failures
+                                ),
+                            ).await;
+                        }
                         break;
                     }
                     if consecutive_failures % 5 == 1 {
-                        tracing::warn!(
-                            "Metrics polling: server unreachable (attempt {}/{})",
-                            consecutive_failures,
-                            max_failures
-                        );
+                        if let Some(tx) = &log_tx {
+                            let _ = tx.send(
+                                format!(
+                                    "Metrics polling: server unreachable (attempt {}/{})",
+                                    consecutive_failures,
+                                    max_failures
+                                ),
+                            ).await;
+                        }
                     }
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                     continue;
