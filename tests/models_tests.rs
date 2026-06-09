@@ -275,9 +275,8 @@ fn mirostat_default_is_off() {
 fn samplers_default_contains_expected_order() {
     let s = Samplers::default();
     let parts: Vec<&str> = s.0.split(';').collect();
-    assert!(parts.contains(&"penalties"));
-    assert!(parts.contains(&"dry"));
     assert!(parts.contains(&"top_k"));
+    assert!(parts.contains(&"top_p"));
     assert!(parts.contains(&"temperature"));
 }
 

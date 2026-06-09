@@ -607,7 +607,7 @@ pub struct Samplers(pub String);
 
 impl Default for Samplers {
     fn default() -> Self {
-        Self("penalties;dry;top_n_sigma;top_k;typ_p;top_p;min_p;xtc;temperature".to_string())
+        Self("top_k;top_p;temperature".to_string())
     }
 }
 
