@@ -328,15 +328,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                     let status_text = match model_state {
                         Some(crate::models::ModelState::Loaded { .. }) => {
-                            crate::t!("models.list_status.loaded")
+                            Some(crate::t!("models.list_status.loaded"))
                         }
                         Some(crate::models::ModelState::Loading) => {
-                            crate::t!("models.list_status.loading")
+                            Some(crate::t!("models.list_status.loading"))
                         }
                         Some(crate::models::ModelState::Benchmarking) => {
-                            crate::t!("models.list_status.benchmarking")
+                            Some(crate::t!("models.list_status.benchmarking"))
                         }
-                        _ => crate::t!("models.list_status.available"),
+                        _ => None,
                     };
 
                     let settings = app.config.resolve_settings(
@@ -352,7 +352,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let name_width = table_area
                         .width
                         .saturating_sub(2)
-                        .saturating_sub(status_text.chars().count() as u16)
+                        .saturating_sub(status_text.as_ref().map_or(0, |s| s.chars().count()) as u16)
                         .saturating_sub(context_str.chars().count() as u16 + 4);
                     let max_offset = model
                         .display_name
@@ -381,8 +381,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     } else {
                         match model_state {
                             Some(crate::models::ModelState::Loaded { .. }) => {
-                                Style::default().fg(Color::Green)
-                            }
+                                 Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                             }
                             Some(crate::models::ModelState::Loading)
                             | Some(crate::models::ModelState::Benchmarking) => {
                                 Style::default().fg(Color::Yellow)
@@ -404,7 +404,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                     Row::new(vec![
                         Cell::from(Line::from(Span::styled(name_display, name_style))),
-                        Cell::from(status_text).style(status_style),
+                        Cell::from(status_text.clone().unwrap_or_default()).style(status_style),
                         Cell::from(ratatui::text::Text::from(context_str)
                             .alignment(ratatui::layout::Alignment::Right))
                             .style(Style::default().fg(Color::Cyan)),

@@ -677,33 +677,70 @@ impl App {
                         let port = handle.port;
                         let pid = handle.pid;
 
-                        // Cleanup stale "Loading" entries (like "llama-server") before updating
-                        let to_update: Vec<String> = self
-                            .model_states
-                            .iter()
-                            .filter(|(_, s)| matches!(s, crate::models::ModelState::Loading))
-                            .map(|(n, _)| n.clone())
-                            .collect();
+                        // Determine which model to mark as Loaded.
+                        // Prefer the model from the /models API response, fall back to spawned_model_name.
+                        let target_model = {
+                            // Try to find a loaded model from the API that matches a Loading model
+                            let mut found = None;
+                            if let Some(rx) = &mut self.server.sync_rx {
+                                while let Ok(models) = rx.try_recv() {
+                                    for (id, status, _) in models {
+                                        let status_lower = status.to_lowercase();
+                                        if status_lower == "loaded" || status_lower == "ready" {
+                                            // Find a model in Loading state that matches this API response
+                                            let name = self.model_states.iter().find_map(|(name, s)| {
+                                                if matches!(s, crate::models::ModelState::Loading) {
+                                                    if id == *name {
+                                                        return Some(name.clone());
+                                                    }
+                                                }
+                                                None
+                                            });
+                                            if let Some(name) = name {
+                                                found = Some(name);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if found.is_some() {
+                                        break;
+                                    }
+                                }
+                            }
+                            found
+                        };
 
-                        // Explicitly remove all Loading entries first to ensure no duplicates or stale names persist
+                        // If API didn't give us a match, use spawned_model_name as fallback
+                        let target_model = target_model.or_else(|| {
+                            self.server
+                                .spawned_model_name
+                                .as_ref()
+                                .and_then(|name| {
+                                    if self.model_states.get(name).map_or(false, |s| matches!(s, crate::models::ModelState::Loading)) {
+                                        Some(name.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                        });
+
+                        // Clear all Loading states first
                         self.model_states
                             .retain(|_, s| !matches!(s, crate::models::ModelState::Loading));
 
-                        for name in to_update {
-                            // If it's a real model name (not a generic server process name), mark as Loaded
-                            if name != "llama-server" && name != "Router" {
-                                self.model_states.insert(
-                                    name.clone(),
-                                    crate::models::ModelState::Loaded { port, pid },
-                                );
-                                let mut loaded = self
-                                    .server
-                                    .loaded_model_names
-                                    .lock()
-                                    .unwrap_or_else(|e| e.into_inner());
-                                if !loaded.contains(&name) {
-                                    loaded.push(name);
-                                }
+                        // Only mark the specific model as Loaded
+                        if let Some(name) = target_model {
+                            self.model_states.insert(
+                                name.clone(),
+                                crate::models::ModelState::Loaded { port, pid },
+                            );
+                            let mut loaded = self
+                                .server
+                                .loaded_model_names
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner());
+                            if !loaded.contains(&name) {
+                                loaded.push(name);
                             }
                         }
                     }

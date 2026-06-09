@@ -456,7 +456,7 @@
    "models.list_headers.model": "Modello",
    "models.list_headers.status": "Stato",
    "models.list_headers.context": "  Ctx",
-   "models.list_status.loaded": "caricato",
+   "models.list_status.loaded": "[caricato]",
    "models.list_status.loading": "caricamento",
    "models.list_status.benchmarking": "benchmark",
    "models.list_status.available": "disponibile",
