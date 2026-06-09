@@ -43,6 +43,9 @@ pub fn render_download_panel(
         .border_style(Style::default().fg(border_color))
         .border_type(border_type);
 
+    f.render_widget(block.clone(), area);
+    let inner = block.inner(area);
+
     // Show all active downloads in a table
     let rows: Vec<Row> = downloads
         .iter()
@@ -129,17 +132,16 @@ pub fn render_download_panel(
         Constraint::Ratio(1, 10),
     ];
 
-    let table = Table::new(rows, widths)
-        .header(Row::new(headers))
-        .block(block)
-        .row_highlight_style(
+           let table = Table::new(rows, widths)
+                .header(Row::new(headers))
+                .row_highlight_style(
             Style::default()
                 .bg(Color::DarkGray)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">> ");
 
-    f.render_stateful_widget(table, area, scroll_state);
+    f.render_stateful_widget(table, inner, scroll_state);
 }
 
 fn format_speed(bytes_per_second: f64) -> String {
@@ -257,7 +259,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .border_style(Style::default().fg(border_color))
                 .border_type(border_type);
 
-         let inner_area = block.inner(area);
+           f.render_widget(block.clone(), area);
+
+            let inner_area = block.inner(area);
             let (table_area, filter_area) =
                 if app.search.filtering_local || !app.search.local_filter.is_empty() {
                     let chunks = ratatui::layout::Layout::default()
@@ -271,7 +275,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             if let Some(fa) = filter_area {
                 let filter_inner = ratatui::layout::Rect {
-                    x: fa.x + 2,
+                    x: fa.x + 1,
                     y: fa.y,
                     width: fa.width.saturating_sub(2),
                     height: fa.height,
@@ -377,11 +381,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                     let name_width = table_area
                         .width
-                        .saturating_sub(2)
                         .saturating_sub(status_text.as_ref().map_or(0, |s| s.chars().count()) as u16)
                         .saturating_sub(context_str.chars().count() as u16 + 4)
                         .saturating_sub(params_width)
-                        .saturating_sub(6);
+                        .saturating_sub(4);
                     let max_offset = filename
                         .chars()
                         .count()
@@ -466,7 +469,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             let table = Table::new(rows, widths)
                 .header(Row::new(headers))
-                .block(block)
                 .row_highlight_style(
                     Style::default()
                         .fg(Color::Black)
