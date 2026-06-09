@@ -440,7 +440,7 @@ pub fn all_fields() -> Vec<SettingField> {
                             .file_name()
                             .and_then(|n| n.to_str())
                             .unwrap_or(t);
-                        format!("Custom: {}", filename)
+                        filename.to_string()
                     } else {
                         t.clone()
                     }
@@ -452,7 +452,7 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _, _| {},
             |_, _| {},
             toggle_auto_chat_template,
-            "Select chat template: Auto (detect) uses GGUF architecture metadata, specific template names use llama.cpp built-in templates, Browse directory picks a .jinja file from any directory, None disables template. Press Enter to open picker.",
+            "Select chat template: Auto (detect) uses GGUF architecture metadata, specific template names use llama.cpp built-in templates, Select a Template file picks a .jinja file from any directory, None disables template. Press Enter to open picker.",
         ),
         expert_field(
             "numa",

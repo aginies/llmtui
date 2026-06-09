@@ -101,7 +101,7 @@
   "field.help.main_gpu": "Index of the main GPU (0-based). Handles initial model loading and some computations. Typical: 0 for single GPU, 0 for primary in multi-GPU setups.",
   "field.help.fit": "Automatically adjust arguments to fit device memory. Toggle on/off with Enter.",
   "field.help.auto_chat_template": "Auto-select chat template from GGUF architecture metadata. When enabled, llama.cpp uses a built-in template matching the model family (e.g., llama, qwen2). Requires jinja=true. Toggle on/off with Enter.",
-  "field.help.chat_template": "Select chat template: Auto (detect) uses GGUF architecture metadata, specific template names use llama.cpp built-in templates, Browse directory scans ~/.config/llm-manager/chat_templates/ and all subdirectories for .jinja files, None disables template. Press Enter to open picker.",
+  "field.help.chat_template": "Select chat template: Auto (detect) uses GGUF architecture metadata, specific template names use llama.cpp built-in templates, Select a Template file scans ~/.config/llm-manager/chat_templates/ and all subdirectories for .jinja files, None disables template. Press Enter to open picker.",
   "dialog.chat_template.title": "Chat Template",
   "dialog.chat_template.help": "Enter to select  Esc to cancel  Up/Down to navigate",
   "dialog.chat_template.file.title": "Select .jinja File",

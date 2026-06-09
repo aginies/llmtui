@@ -259,7 +259,7 @@
   "field.help.expert_count": "Nombre d'experts MoE (Mixture of Experts) à activer par token. -1 = auto (tous actifs). Réduire cela accélère l'inférence pour les modèles MoE comme Mixtral mais peut réduire la qualité. Typique : 2-8 pour Mixtral.",
   "field.help.fit": "Ajuster automatiquement les arguments pour correspondre à la mémoire du périphérique. Basculer activé/désactivé avec Entrée.",
   "field.help.auto_chat_template": "Auto-sélection du template de chat à partir des métadonnées d'architecture GGUF. Activé, llama.cpp utilise un template intégré correspondant à la famille du modèle (ex: llama, qwen2). Nécessite jinja=true. Basculer activé/désactivé avec Entrée.",
-  "field.help.chat_template": "Sélectionner le template de chat : Auto (détecter) utilise les métadonnées d'architecture GGUF, les noms de templates spécifiques utilisent les templates intégrés de llama.cpp, Parcourir le répertoire analyse ~/.config/llm-manager/chat_templates/ et tous ses sous-répertoires pour les fichiers .jinja, Aucun désactive le template. Appuyez sur Entrée pour ouvrir le sélecteur.",
+  "field.help.chat_template": "Sélectionner le template de chat : Auto (détecter) utilise les métadonnées d'architecture GGUF, les noms de templates spécifiques utilisent les templates intégrés de llama.cpp, Sélectionner un fichier de template analyse ~/.config/llm-manager/chat_templates/ et tous ses sous-répertoires pour les fichiers .jinja, Aucun désactive le template. Appuyez sur Entrée pour ouvrir le sélecteur.",
   "dialog.chat_template.title": "Template de Chat",
   "dialog.chat_template.help": "Entrée pour sélectionner  Échap pour annuler  Haut/Bas pour naviguer",
   "dialog.chat_template.file.title": "Sélectionner fichier .jinja",

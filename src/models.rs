@@ -1268,7 +1268,7 @@ pub fn get_available_chat_templates() -> Vec<String> {
             }
         }
     }
-    templates.push("Browse directory...".to_string());
+    templates.push("Select a Template file...".to_string());
     templates.push("None".to_string());
     templates
 }

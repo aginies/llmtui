@@ -39,7 +39,7 @@ impl OverlayHandler for ChatTemplatePickerHandler {
                                 app.settings.auto_chat_template = false;
                                 app.settings.chat_template = None;
                             }
-                            "Browse directory..." => {
+                            "Select a Template file..." => {
                                 let base_path = super::directory_picker::default_chat_templates_dir();
                                 let files = super::directory_picker::load_jinja_files_recursive(&base_path);
                                 if files.is_empty() {

@@ -237,7 +237,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             entries.len() - 1 // "None" is last
         } else if let Some(template) = current {
             if template.ends_with(".jinja") {
-                entries.len() - 2 // "Browse directory..." is second to last (before "None")
+                entries.len() - 2 // "Select a Template file..." is second to last (before "None")
             } else {
                 entries.iter().position(|e| e == template).unwrap_or(0)
             }
