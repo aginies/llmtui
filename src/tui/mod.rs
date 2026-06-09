@@ -47,6 +47,19 @@ pub fn format_number(n: u64) -> String {
     }
 }
 
+/// Format context length in K units, showing extended size when YARN is enabled.
+pub fn format_context_k(context_length: u32, rope_yarn_enabled: bool, rope_scale: f32) -> String {
+    if context_length == 0 {
+        return "N/A".to_string();
+    }
+    let effective = if rope_yarn_enabled && rope_scale > 1.0 {
+        (context_length as f64 * rope_scale as f64) as u32
+    } else {
+        context_length
+    };
+    format_number(effective as u64)
+}
+
 /// Render a vertical scrollbar on the right edge of an area.
 ///
 /// `top_offset` and `height_offset` allow adjusting the scrollbar position

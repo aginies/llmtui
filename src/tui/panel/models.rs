@@ -3,12 +3,12 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Cell, List, ListItem, Paragraph, Row, Table, TableState},
+    widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState},
 };
 
 use crate::models::SearchSort;
 use crate::tui::app::{App, ModelsMode};
-use crate::tui::{format_number, format_size};
+use crate::tui::{format_context_k, format_number, format_size};
 
 const MARQUEE_SUFFIX: &str = "\u{25B6}";
 
@@ -257,10 +257,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .border_style(Style::default().fg(border_color))
                 .border_type(border_type);
 
-            let inner_area = block.inner(area);
-            f.render_widget(block, area);
-
-            let (list_area, filter_area) =
+         let inner_area = block.inner(area);
+            let (table_area, filter_area) =
                 if app.search.filtering_local || !app.search.local_filter.is_empty() {
                     let chunks = ratatui::layout::Layout::default()
                         .direction(ratatui::layout::Direction::Vertical)
@@ -272,10 +270,16 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 };
 
             if let Some(fa) = filter_area {
+                let filter_inner = ratatui::layout::Rect {
+                    x: fa.x + 2,
+                    y: fa.y,
+                    width: fa.width.saturating_sub(2),
+                    height: fa.height,
+                };
                 let filter_text = if app.search.filtering_local {
                     Line::from(vec![
                         Span::styled(
-                            " Filter: ",
+                            "Filter: ",
                             Style::default()
                                 .fg(Color::Yellow)
                                 .add_modifier(Modifier::BOLD),
@@ -288,15 +292,33 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     ])
                 } else {
                     Line::from(vec![
-                        Span::styled(" Filter: ", Style::default().fg(Color::DarkGray)),
+                        Span::styled("Filter: ", Style::default().fg(Color::DarkGray)),
                         Span::styled(&app.search.local_filter, Style::default().fg(Color::Cyan)),
                     ])
                 };
-                f.render_widget(ratatui::widgets::Paragraph::new(filter_text), fa);
+                f.render_widget(ratatui::widgets::Paragraph::new(filter_text), filter_inner);
             }
 
+            let headers = vec![
+                Cell::from(crate::t!("models.list_headers.model")).style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Cell::from(crate::t!("models.list_headers.status")).style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Cell::from(crate::t!("models.list_headers.context")).style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ];
+
             let filtered_indices = app.get_filtered_model_indices();
-            let list_items: Vec<ListItem> = filtered_indices
+            let rows: Vec<Row> = filtered_indices
                 .iter()
                 .map(|&idx| {
                     let model = &app.models[idx];
@@ -304,18 +326,34 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let model_state = app.model_states.get(&model.display_name);
                     let is_selected = Some(idx) == app.selected_model_idx;
 
-                    let selector = if is_selected { "> " } else { "  " };
-                    let status = match model_state {
-                        Some(crate::models::ModelState::Loaded { .. }) => "[loaded] ",
-                        Some(crate::models::ModelState::Loading) => "[loading] ",
-                        Some(crate::models::ModelState::Benchmarking) => "[benchmarking] ",
-                        _ => "",
+                    let status_text = match model_state {
+                        Some(crate::models::ModelState::Loaded { .. }) => {
+                            crate::t!("models.list_status.loaded")
+                        }
+                        Some(crate::models::ModelState::Loading) => {
+                            crate::t!("models.list_status.loading")
+                        }
+                        Some(crate::models::ModelState::Benchmarking) => {
+                            crate::t!("models.list_status.benchmarking")
+                        }
+                        _ => crate::t!("models.list_status.available"),
                     };
 
-                    let name_width = list_area
+                    let settings = app.config.resolve_settings(
+                        Some(model.display_name.as_str()),
+                        None,
+                    );
+                    let context_str = format_context_k(
+                        settings.context_length,
+                        settings.rope_yarn_enabled,
+                        settings.rope_scale,
+                    );
+
+                    let name_width = table_area
                         .width
                         .saturating_sub(2)
-                        .saturating_sub(status.len() as u16);
+                        .saturating_sub(status_text.chars().count() as u16)
+                        .saturating_sub(context_str.chars().count() as u16 + 4);
                     let max_offset = model
                         .display_name
                         .chars()
@@ -353,21 +391,49 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         }
                     };
 
-                    ListItem::new(Line::from(vec![
-                        Span::styled(selector, Style::default().fg(Color::Yellow)),
-                        Span::styled(status, Style::default().fg(Color::Yellow)),
-                        Span::styled(name_display, name_style),
-                    ]))
+                    let status_style = match model_state {
+                        Some(crate::models::ModelState::Loaded { .. }) => {
+                            Style::default().fg(Color::Green)
+                        }
+                        Some(crate::models::ModelState::Loading)
+                        | Some(crate::models::ModelState::Benchmarking) => {
+                            Style::default().fg(Color::Yellow)
+                        }
+                        _ => Style::default().fg(Color::Gray),
+                    };
+
+                    Row::new(vec![
+                        Cell::from(Line::from(Span::styled(name_display, name_style))),
+                        Cell::from(status_text).style(status_style),
+                        Cell::from(ratatui::text::Text::from(context_str)
+                            .alignment(ratatui::layout::Alignment::Right))
+                            .style(Style::default().fg(Color::Cyan)),
+                    ])
                 })
                 .collect();
 
-            app.ui.list_state.select(
+            let widths = [
+               Constraint::Percentage(79),
+                Constraint::Percentage(11),
+                Constraint::Percentage(10),
+            ];
+
+            let table = Table::new(rows, widths)
+                .header(Row::new(headers))
+                .block(block)
+                .row_highlight_style(
+                    Style::default()
+                        .fg(Color::Black)
+                        .bg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                )
+                .highlight_symbol("> ");
+
+            app.ui.models_table_state.select(
                 app.selected_model_idx
                     .and_then(|idx| filtered_indices.iter().position(|&i| i == idx)),
             );
-
-            let list = List::new(list_items);
-            f.render_stateful_widget(list, list_area, &mut app.ui.list_state);
+            f.render_stateful_widget(table, table_area, &mut app.ui.models_table_state);
         }
         ModelsMode::Search {
             query,

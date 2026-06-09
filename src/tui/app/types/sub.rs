@@ -3,7 +3,7 @@ use crate::config::LogEntry;
 use crate::models::Backend;
 use crate::models::{BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress};
 
-use ratatui::widgets::{ListState, TableState};
+use ratatui::widgets::TableState;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -170,7 +170,7 @@ pub struct UIState {
     pub panel_help: bool,
     pub panel_help_offset: usize,
     pub last_error_message: Option<String>,
-    pub list_state: ListState,
+    pub models_table_state: TableState,
     pub resize_state: Option<ResizeState>,
     pub left_pct: u16,
     pub needs_full_redraw: bool,

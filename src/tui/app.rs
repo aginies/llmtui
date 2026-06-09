@@ -201,7 +201,7 @@ impl App {
                 panel_help: false,
                 panel_help_offset: 0,
                 last_error_message: None,
-                list_state: Default::default(),
+                models_table_state: Default::default(),
                 resize_state: None,
                 left_pct,
                 needs_full_redraw: false,
