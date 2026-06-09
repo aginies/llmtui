@@ -349,13 +349,13 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         settings.rope_scale,
                     );
 
+                    let filename = model.display_name.rsplit('/').next().unwrap_or(&model.display_name);
                     let name_width = table_area
                         .width
                         .saturating_sub(2)
                         .saturating_sub(status_text.as_ref().map_or(0, |s| s.chars().count()) as u16)
                         .saturating_sub(context_str.chars().count() as u16 + 4);
-                    let max_offset = model
-                        .display_name
+                    let max_offset = filename
                         .chars()
                         .count()
                         .saturating_sub(name_width as usize);
@@ -372,7 +372,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.max_offset = max_offset;
                     state.visible = true;
 
-                    let name_display = scroll_text(&model.display_name, name_width, Some(state));
+                    let name_display = scroll_text(filename, name_width, Some(state));
                     let name_style = if is_selected {
                         Style::default()
                             .fg(Color::Black)
