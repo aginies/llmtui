@@ -315,6 +315,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
+                Cell::from("Qual").style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Cell::from(crate::t!("models.list_headers.context")).style(
                     Style::default()
                         .fg(Color::Yellow)
@@ -355,6 +360,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     );
 
                     let filename = model.display_name.rsplit('/').next().unwrap_or(&model.display_name);
+                    let display_name = filename.strip_suffix(".gguf").unwrap_or(filename);
                     
                     // Extract params string from cached metadata
                     let path_key = model.path.to_string_lossy().to_string();
@@ -374,7 +380,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .saturating_sub(2)
                         .saturating_sub(status_text.as_ref().map_or(0, |s| s.chars().count()) as u16)
                         .saturating_sub(context_str.chars().count() as u16 + 4)
-                        .saturating_sub(params_width);
+                        .saturating_sub(params_width)
+                        .saturating_sub(6);
                     let max_offset = filename
                         .chars()
                         .count()
@@ -392,7 +399,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.max_offset = max_offset;
                     state.visible = true;
 
-                    let name_display = scroll_text(filename, name_width, Some(state));
+                    let name_display = scroll_text(display_name, name_width, Some(state));
                     let name_style = if is_selected {
                         Style::default()
                             .fg(Color::Black)
@@ -433,10 +440,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         Style::default().fg(Color::White)
                     };
 
+                    let quality_cell = app.search.gguf_metadata_cache.get(&path_key)
+                        .map(|meta| quality_dot(meta.quality_rank))
+                        .unwrap_or_else(|| quality_dot(0));
+
                     Row::new(vec![
                         Cell::from(Line::from(Span::styled(name_display, name_style))),
                         Cell::from(status_text.clone().unwrap_or_default()).style(status_style),
                         Cell::from(params_str).style(params_style),
+                        Cell::from(quality_cell),
                         Cell::from(ratatui::text::Text::from(context_str)
                             .alignment(ratatui::layout::Alignment::Right))
                             .style(Style::default().fg(Color::Cyan)),
@@ -444,10 +456,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .collect();
 
-            let widths = [
-               Constraint::Percentage(65),
+         let widths = [
+               Constraint::Percentage(52),
                 Constraint::Percentage(11),
                 Constraint::Percentage(10),
+                Constraint::Length(4),
                 Constraint::Percentage(10),
             ];
 
@@ -1171,5 +1184,18 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             f.render_widget(paragraph, inner_area);
         }
     }
+}
+
+/// Return a colored emoji dot for the quality rank.
+/// Emoji colors are baked into the glyph so they survive row highlights.
+fn quality_dot(rank: u8) -> Cell<'static> {
+    let dot = match rank {
+        4 => "\u{1F7E9}", // green circle
+        3 => "\u{1F7E2}", // green circle (dark)
+        2 => "\u{1F7E1}", // yellow circle
+        1 => "\u{1F7E0}", // orange/red circle
+        _ => "\u{26AB}",  // black circle
+    };
+    Cell::from(dot)
 }
 

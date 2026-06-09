@@ -991,6 +991,7 @@ pub struct GgufMetadata {
     pub capabilities: Vec<String>,
     pub tokenizer: String,
     pub draft_tokens: u32,
+    pub quality_rank: u8,
 }
 
 impl GgufMetadata {
@@ -1055,9 +1056,12 @@ impl GgufMetadata {
                 1 => "F16".to_string(),
                 2 => "Q4_0".to_string(),
                 3 => "Q4_1".to_string(),
+                4 => "Q4_1 (F16)".to_string(),
+                5 => "Q4_1 (F16)".to_string(),
+                6 => "Q5_0".to_string(),
                 7 => "Q8_0".to_string(),
                 8 => "Q5_0".to_string(),
-                9 => "Q5_1".to_string(),
+                9 => "Q8_1".to_string(),
                 10 => "Q2_K".to_string(),
                 11 => "Q3_K_S".to_string(),
                 12 => "Q3_K_M".to_string(),
@@ -1075,7 +1079,20 @@ impl GgufMetadata {
                 24 => "IQ3_S".to_string(),
                 25 => "IQ2_S".to_string(),
                 26 => "IQ4_XS".to_string(),
+                27 => "F64".to_string(),
+                29 => "IQ1_M".to_string(),
+                30 => "BF16".to_string(),
+                34 => "TQ1_0".to_string(),
+                35 => "TQ2_0".to_string(),
+                39 => "MXFP4".to_string(),
                 _ => format!("Unknown ({})", v),
+            };
+            meta.quality_rank = match v {
+                0 | 1 | 7 | 9 => 4,
+                6 | 8 | 16 | 17 | 18 => 3,
+                14 | 15 | 23 | 26 => 2,
+                11 | 12 | 13 | 21 | 24 => 1,
+                _ => 0,
             };
         }
 

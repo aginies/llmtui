@@ -403,6 +403,7 @@
    "models.list_headers.status": "Status",
   "models.list_headers.context": "  Ctx",
     "models.list_headers.params": "Params",
+    "models.list_headers.quality": "Qual",
     "models.list_status.loaded": "[loaded]",
    "models.list_status.loading": "loading",
    "models.list_status.benchmarking": "benchmarking",

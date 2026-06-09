@@ -457,6 +457,7 @@
    "models.list_headers.status": "Stato",
    "models.list_headers.context": "  Ctx",
     "models.list_headers.params": "Params",
+    "models.list_headers.quality": "Qual",
     "models.list_status.loaded": "[caricato]",
    "models.list_status.loading": "caricamento",
    "models.list_status.benchmarking": "benchmark",

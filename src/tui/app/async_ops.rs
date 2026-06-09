@@ -382,6 +382,7 @@ impl App {
                                 search_results,
                             );
                             self.precache_all_metadata_bg();
+                            self.precache_all_metadata_bg();
                         }
                     }
                     crate::models::DownloadStatus::Error(e) => {
