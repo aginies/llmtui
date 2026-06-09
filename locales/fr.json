@@ -375,6 +375,7 @@
   "hints.sep": "  ",
   "hints.stop": "⎋ Arrêter",
   "hints.toggle": "↵ Basculer",
+  "hints.toggle_field": "^E Act/Des",
   "hints.top_bottom": "g/Haut/Bas",
   "hints.unsaved": "*non enregistré*",
   "hints.view_output": "↵ Voir la sortie",

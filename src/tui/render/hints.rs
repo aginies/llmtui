@@ -74,7 +74,9 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                     Span::raw(HINT_SEP),
                     Span::styled(crate::t!("hints.reset"), y),
                     Span::raw(HINT_SEP),
-                    Span::styled(crate::t!("hints.toggle"), y),
+               Span::styled(crate::t!("hints.toggle"), y),
+                    Span::raw(HINT_SEP),
+                    Span::styled(crate::t!("hints.toggle_field"), y),
                     Span::raw(HINT_SEP),
                 ];
                 if app.is_settings_dirty() {

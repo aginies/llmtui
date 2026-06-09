@@ -574,6 +574,7 @@
   "hints.collapse": "⎋ Collapse",
   "hints.top_bottom": "g/G top/bottom",
   "hints.toggle": "↵ Toggle",
+  "hints.toggle_field": "^E En/Dis",
   "hints.apply": "↵ Apply",
   "hints.save_profile": "s Save",
   "hints.done": "⎋ Done",

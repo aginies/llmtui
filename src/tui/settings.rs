@@ -919,7 +919,7 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             |s, c| s.max_tokens != c.max_tokens,
             |s, delta, _| {
-                let current = s.max_tokens.unwrap_or(2048);
+                let current = s.max_tokens.unwrap_or(0);
                 s.max_tokens = Some((current as i32 + delta * 16).max(16) as u32);
             },
             |s, buf| {
