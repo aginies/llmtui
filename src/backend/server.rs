@@ -24,7 +24,12 @@ fn push_arg(cmd: &mut Command, parts: &mut Vec<String>, name: &str, value: impl 
     let val_str = value.to_string();
     cmd.arg(name).arg(&val_str);
     parts.push(name.to_string());
-    parts.push(val_str);
+    // Quote values that may contain spaces for shell safety
+    if val_str.contains(' ') || val_str.contains(';') || val_str.contains('"') {
+        parts.push(format!("\"{}\"", val_str.replace('\\', "\\\\").replace('"', "\\\"")));
+    } else {
+        parts.push(val_str);
+    }
 }
 
 /// Helper: add a flag (argument without value) to both the Command and display parts.

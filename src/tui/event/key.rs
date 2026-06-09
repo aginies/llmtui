@@ -439,10 +439,22 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .modifiers
                 .contains(KeyModifiers::CONTROL) =>
         {
-            let binary = app.config.llama_server.clone();
+            let version_param = app.settings.get_active_backend_version().map(|s| s.as_str());
+            let binary_path = match hub::resolve_backend_binary(
+                app.settings.backend,
+                version_param,
+                None,
+                None,
+            ).await {
+                Ok(path) => path,
+                Err(e) => {
+                    app.add_log(format!("Failed to resolve llama-server binary: {}", e), crate::config::LogLevel::Error);
+                    return;
+                }
+            };
             let model = app.selected_model().cloned();
             let (_cmd, cmd_line) = crate::backend::server::build_server_cmd(
-                &binary,
+                &binary_path,
                 model.as_ref(),
                 &app.settings,
                 &app.config,

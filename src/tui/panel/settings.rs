@@ -167,6 +167,8 @@ fn render_settings(
             Style::default().fg(Color::Gray).add_modifier(Modifier::DIM)
         } else if dirty {
             Style::default().fg(Color::Red)
+        } else if field.is_expert {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM)
         } else {
             Style::default().fg(Color::Yellow)
         };
