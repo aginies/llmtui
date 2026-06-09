@@ -377,7 +377,7 @@
   "hints.toggle": "↵ Basculer",
   "hints.toggle_field": "^E Act/Des",
   "hints.top_bottom": "g/Haut/Bas",
-  "hints.unsaved": "*non enregistré*",
+  "hints.unsaved_watermark": "PAS SAUVÉ",
   "hints.view_output": "↵ Voir la sortie",
   "info.arch": "Architecture",
   "info.capabilities": "Capacités",

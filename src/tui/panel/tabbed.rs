@@ -2,7 +2,7 @@ use ratatui::{
     Frame,
     layout::Rect,
     prelude::Stylize,
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
@@ -14,6 +14,25 @@ use crate::tui::app::{ActivePanel, App};
 use crate::tui::settings as settings_helper;
 
 const SERVER_SETTINGS_HEIGHT: u16 = 8;
+
+/// Render a vertical "UNSAVED" watermark in red, dimmed, behind the settings content.
+fn render_unsaved_watermark(f: &mut Frame, area: Rect, app: &App) {
+    if !app.is_settings_dirty() {
+        return;
+    }
+
+    let watermark = crate::t!("hints.unsaved_watermark");
+    let lines: Vec<Line> = watermark
+        .chars()
+        .map(|c| Line::from(vec![Span::styled(
+            format!("{} ", c),
+            Style::default().fg(Color::Red).add_modifier(Modifier::DIM),
+        )]))
+        .collect();
+
+    let paragraph = Paragraph::new(lines);
+    f.render_widget(paragraph, area);
+}
 
 pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     if area.height < 2 || area.width < 10 {
@@ -73,6 +92,9 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Always draw outer block first (green border)
     f.render_widget(Paragraph::new(vec![]).block(block), llm_area);
+
+    // Render UNSAVED watermark behind content
+    render_unsaved_watermark(f, llm_area, app);
 
     if let Some(ref help_text) = help_line {
         let help_char_len = help_text.chars().count();
@@ -443,6 +465,9 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Always draw outer block first (green border)
     f.render_widget(Paragraph::new(vec![]).block(block), area);
+
+    // Render UNSAVED watermark behind content
+    render_unsaved_watermark(f, area, app);
 
     if let Some(ref help_text) = help_line {
         let max_width = inner.width;

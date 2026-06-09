@@ -377,7 +377,7 @@
   "hints.toggle": "↵ Toggle",
   "hints.toggle_field": "^E Att/Dis",
   "hints.top_bottom": "g/Su/Giù",
-  "hints.unsaved": "*non salvato*",
+  "hints.unsaved_watermark": "NON SALVATO",
   "hints.view_output": "↵ Vedi output",
   "info.arch": "Architettura",
   "info.capabilities": "Capacità",

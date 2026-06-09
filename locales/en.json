@@ -562,7 +562,7 @@
   "hints.download": "↵ Download",
   "hints.back": "⎋ Back",
   "hints.save": "^S Save",
-  "hints.unsaved": "*unsaved*",
+  "hints.unsaved_watermark": "UNSAVED",
   "hints.expert": "^X eXpert",
   "hints.profiles": "^P Profiles",
   "hints.filter": "f Filter",

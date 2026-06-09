@@ -79,11 +79,6 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                     Span::styled(crate::t!("hints.toggle_field"), y),
                     Span::raw(HINT_SEP),
                 ];
-                if app.is_settings_dirty() {
-                    parts.push(Span::raw(HINT_SEP));
-                    parts.push(Span::styled(crate::t!("hints.unsaved"), r));
-                    parts.push(Span::raw(HINT_SEP));
-                }
                 parts.push(Span::styled(crate::t!("hints.expert"), y));
                 parts.push(Span::raw(HINT_SEP));
                 parts.push(Span::styled(crate::t!("hints.profiles"), y));
