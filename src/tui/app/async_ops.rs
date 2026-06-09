@@ -184,6 +184,20 @@ impl App {
                 self.on_model_selection_change();
             }
         }
+        // Remove parent directory if it's now empty
+        if let Some(parent) = path.parent() {
+            if let Ok(mut entries) = tokio::fs::read_dir(parent).await {
+                let has_files = entries.next_entry().await.unwrap_or(None).is_some();
+                if !has_files {
+                    if let Err(e) = tokio::fs::remove_dir(parent).await {
+                        self.add_log(
+                            crate::t_fmt!("async.dir_delete_failed", e),
+                            crate::config::LogLevel::Warning,
+                        );
+                    }
+                }
+            }
+        }
         self.add_log(
             crate::t_fmt!(
                 "async.model_deleted",

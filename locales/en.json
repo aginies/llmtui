@@ -292,6 +292,7 @@
   "async.not_enough_disk": "Not enough disk space to download {}: need {} but only {} available",
   "async.config_save_failed": "Failed to save config after deletion: {}",
   "async.backend_delete_failed": "Failed to delete backend: {}",
+   "async.dir_delete_failed": "Failed to remove empty directory {}: {}",
   "async.downloading": "Downloading {}...",
   "async.model_deleted": "Model deleted: {}",
   "async.backend_deleted": "Deleted backend {} ({})",
