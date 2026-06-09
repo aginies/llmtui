@@ -1,6 +1,27 @@
 use super::types::App;
+use super::pending_events::PendingEvent;
 
 impl App {
+    /// Spawn background task to parse GGUF metadata for all models.
+    /// Non-blocking — cache fills in while user sees the app.
+    pub fn precache_all_metadata_bg(&self) {
+        let models: Vec<_> = self
+            .models
+            .iter()
+            .map(|m| m.path.to_string_lossy().to_string())
+            .collect();
+        let tx = self.pending_tx.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut results = Vec::new();
+            for path_str in models {
+                if let Ok(meta) = crate::models::GgufMetadata::from_path(&std::path::Path::new(&path_str)) {
+                    results.push((path_str, meta));
+                }
+            }
+            let _ = tx.try_send(PendingEvent::PrecacheMetadata { metadata: results });
+        });
+    }
+
     /// Compute VRAM estimate from model file size and current settings.
     pub fn update_vram_estimate(&mut self) {
         if let Some(model) = self.selected_model() {

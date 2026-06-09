@@ -310,6 +310,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
+                Cell::from(crate::t!("models.list_headers.params")).style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Cell::from(crate::t!("models.list_headers.context")).style(
                     Style::default()
                         .fg(Color::Yellow)
@@ -350,16 +355,31 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     );
 
                     let filename = model.display_name.rsplit('/').next().unwrap_or(&model.display_name);
+                    
+                    // Extract params string from cached metadata
+                    let path_key = model.path.to_string_lossy().to_string();
+                    let params_str = app.search.gguf_metadata_cache.get(&path_key)
+                        .map(|meta| {
+                            let mut p = meta.model_parameters.clone();
+                            if meta.arch.contains("moe") && !p.is_empty() {
+                                p = format!("{} (MoE)", p);
+                            }
+                            p
+                        })
+                        .unwrap_or_default();
+                    let params_width = params_str.chars().count() as u16 + 2;
+
                     let name_width = table_area
                         .width
                         .saturating_sub(2)
                         .saturating_sub(status_text.as_ref().map_or(0, |s| s.chars().count()) as u16)
-                        .saturating_sub(context_str.chars().count() as u16 + 4);
+                        .saturating_sub(context_str.chars().count() as u16 + 4)
+                        .saturating_sub(params_width);
                     let max_offset = filename
                         .chars()
                         .count()
                         .saturating_sub(name_width as usize);
-                    let state = app.ui.text_scrolls.entry(key).or_insert_with(|| {
+                    let state = app.ui.text_scrolls.entry(key.clone()).or_insert_with(|| {
                         crate::tui::app::TextScrollState {
                             offset: 0,
                             last_tick: std::time::Instant::now(),
@@ -402,9 +422,21 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         _ => Style::default().fg(Color::Gray),
                     };
 
+                    let is_moe = app.search.gguf_metadata_cache.get(&path_key)
+                        .map(|m| m.arch.contains("moe"))
+                        .unwrap_or(false);
+                   let params_style = if params_str.is_empty() {
+                        Style::default().fg(Color::DarkGray)
+                    } else if is_moe {
+                        Style::default().fg(Color::Magenta)
+                    } else {
+                        Style::default().fg(Color::White)
+                    };
+
                     Row::new(vec![
                         Cell::from(Line::from(Span::styled(name_display, name_style))),
                         Cell::from(status_text.clone().unwrap_or_default()).style(status_style),
+                        Cell::from(params_str).style(params_style),
                         Cell::from(ratatui::text::Text::from(context_str)
                             .alignment(ratatui::layout::Alignment::Right))
                             .style(Style::default().fg(Color::Cyan)),
@@ -413,8 +445,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .collect();
 
             let widths = [
-               Constraint::Percentage(79),
+               Constraint::Percentage(65),
                 Constraint::Percentage(11),
+                Constraint::Percentage(10),
                 Constraint::Percentage(10),
             ];
 
@@ -1139,3 +1172,4 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         }
     }
 }
+

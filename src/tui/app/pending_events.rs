@@ -5,7 +5,7 @@
 /// drains and processes them.
 
 use crate::models::Backend;
-use crate::models::{DiscoveredModel, ModelSettings};
+use crate::models::{DiscoveredModel, GgufMetadata, ModelSettings};
 use std::path::PathBuf;
 
 /// Represents a pending user action that needs processing in the main loop.
@@ -36,5 +36,9 @@ pub enum PendingEvent {
     Search {
         query: String,
         offset: u32,
+    },
+    /// Background GGUF metadata parsing results.
+    PrecacheMetadata {
+        metadata: Vec<(String, GgufMetadata)>,
     },
 }

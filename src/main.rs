@@ -250,6 +250,7 @@ async fn main() -> Result<()> {
             let mut app = App::new(std::mem::take(&mut config));
             app.models = models;
             app.init_scrolls_for_models();
+            app.precache_all_metadata_bg();
             if !app.models.is_empty() {
                 app.selected_model_idx = Some(0);
                 app.on_model_selection_change();
@@ -325,6 +326,11 @@ async fn main() -> Result<()> {
                         }
                         PendingEvent::Search { query, offset } => {
                             app.drain_pending_search(query, offset).await;
+                        }
+                        PendingEvent::PrecacheMetadata { metadata } => {
+                            for (key, meta) in metadata {
+                                app.search.gguf_metadata_cache.insert(key, meta);
+                            }
                         }
                     }
                 }
