@@ -42,6 +42,8 @@ impl OverlayHandler for ConfirmationHandler {
                                     *selected = entries.len().saturating_sub(1);
                                 }
                             }
+                            // Stay on backend picker view after deletion
+                            return;
                         }
                         app.ui.global_mode = GlobalMode::Normal;
                     }
