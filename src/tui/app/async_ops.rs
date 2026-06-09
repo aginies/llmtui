@@ -1585,6 +1585,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
 
         if self.ws_server_handle.is_some() && (!enabled || settings_changed) {
             let handle = self.ws_server_handle.take().unwrap();
+            let _ = self.ws_shutdown_tx.take().map(|tx| tx.send(true));
             crate::backend::ws_server::stop_ws_server(handle);
             self.server.running_ws_port = None;
             self.server.running_ws_auth = None;
@@ -1601,12 +1602,15 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
             let (tx, rx) = tokio::sync::broadcast::channel(64);
             let ws_rx = std::sync::Arc::new(rx);
             let _host = self.settings.host.clone();
+            let (ws_shutdown_tx, ws_shutdown_rx) = tokio::sync::watch::channel(false);
+            self.ws_shutdown_tx = Some(ws_shutdown_tx);
             match crate::backend::ws_server::start_ws_server(
                 port,
                 ws_rx,
                 auth_key.clone(),
                 tls_cfg,
                 _host,
+                ws_shutdown_rx,
             )
             .await
             {

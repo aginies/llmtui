@@ -249,6 +249,7 @@ pub struct App {
     pub server_mode: crate::models::ServerMode,
     pub router_max_models: u32,
     pub ws_server_handle: Option<tokio::task::JoinHandle<()>>,
+    pub ws_shutdown_tx: Option<tokio::sync::watch::Sender<bool>>,
     pub background_tasks: HashMap<String, tokio::task::JoinHandle<()>>,
 
     // Sub-structs

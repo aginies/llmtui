@@ -411,6 +411,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     };
 
     // Start WebSocket dashboard server
+    let (ws_shutdown_tx, ws_shutdown_rx) = tokio::sync::watch::channel(false);
     let ws_server_handle = if ws_enable {
         let (tx, rx) = tokio::sync::broadcast::channel(64);
         let ws_rx = std::sync::Arc::new(rx);
@@ -421,6 +422,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             ws_auth.clone(),
             tls_config.clone(),
             host_str.clone(),
+            ws_shutdown_rx.clone(),
         )
         .await?;
 
@@ -446,7 +448,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let server_port_clone = settings.port;
         let pid_clone = server_pid;
         let cmd_display_clone = cmd_display.clone();
-        let shutdown_rx_clone = shutdown_rx.clone();
+        let ws_shutdown_rx_clone = ws_shutdown_rx.clone();
         tokio::spawn(async move {
             start_metrics_polling_task(
                 host_clone,
@@ -456,7 +458,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 settings_clone,
                 cmd_display_clone,
                 tx,
-                shutdown_rx_clone,
+                ws_shutdown_rx_clone,
             )
             .await;
         });
@@ -470,7 +472,8 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     let status = loop {
         select! {
             exit_result = child.wait() => {
-                // llama-server exited — gracefully shut down API server
+                // llama-server exited — gracefully shut down API server and WS server
+                let _ = ws_shutdown_tx.send(true);
                 if let Some((_, _, tx)) = &mut api_server_handle {
                     let _ = tx.send(true);
                 }
@@ -488,6 +491,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 let _ = rx.await;
             }, if api_server_handle.is_some() => {
                 // API server exited — gracefully shut down, then wait for llama-server
+                let _ = ws_shutdown_tx.send(true);
                 if let Some((_, _, tx)) = &mut api_server_handle {
                     let _ = tx.send(true);
                 }
@@ -503,6 +507,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             _ = signal::ctrl_c() => {
                 info!("Received SIGINT, shutting down llama-server...");
                 let _ = child.kill().await;
+                let _ = ws_shutdown_tx.send(true);
                 if let Some((_, _, tx)) = &mut api_server_handle {
                     let _ = tx.send(true);
                 }

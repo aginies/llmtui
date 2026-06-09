@@ -63,6 +63,7 @@ impl App {
             server_mode,
             router_max_models,
             ws_server_handle: None,
+            ws_shutdown_tx: None,
             background_tasks: Default::default(),
             pending_tx,
             pending_rx,

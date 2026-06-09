@@ -26,6 +26,7 @@ pub async fn start_ws_server(
     auth_key: Option<String>,
     tls_config: Option<axum_server::tls_rustls::RustlsConfig>,
     host: String,
+    mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
 ) -> Result<JoinHandle<()>> {
     let state = WsAppState {
         metrics_rx,
@@ -47,9 +48,17 @@ pub async fn start_ws_server(
                 .parse()
                 .map_err(|e| anyhow!("Invalid bind address {addr} for TLS: {e}"))?;
             let tls_listener = axum_server::bind_rustls(socket_addr, tls_cfg);
+            let shutdown_fut = async move {
+                let _ = shutdown_rx.wait_for(|v| *v).await;
+            };
             let handle = tokio::spawn(async move {
-                if let Err(e) = tls_listener.serve(app.into_make_service()).await {
-                    error!("WebSocket server error: {e}");
+                tokio::select! {
+                    result = tls_listener.serve(app.into_make_service()) => {
+                        if let Err(e) = result {
+                            error!("WebSocket server error: {e}");
+                        }
+                    }
+                    _ = shutdown_fut => {},
                 }
             });
             info!("WebSocket server listening on https://{addr}");
@@ -60,9 +69,11 @@ pub async fn start_ws_server(
                 .await
                 .with_context(|| format!("Failed to bind WebSocket server to {addr}"))?;
             let handle = tokio::spawn(async move {
-                if let Err(e) = axum::serve(listener, app).await {
-                    error!("WebSocket server error: {e}");
-                }
+                let _ = axum::serve(listener, app)
+                    .with_graceful_shutdown(async move {
+                        let _ = shutdown_rx.wait_for(|v| *v).await;
+                    })
+                    .await;
             });
             info!("WebSocket server listening on http://{addr}");
             Ok(handle)

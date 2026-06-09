@@ -468,6 +468,7 @@ async fn main() -> Result<()> {
             if let Some(task) = app.server.api_proxy_handle.take() {
                 task.abort();
             }
+            let _ = app.ws_shutdown_tx.take().map(|tx| tx.send(true));
             if let Some(handle) = app.ws_server_handle.take() {
                 backend::ws_server::stop_ws_server(handle);
             }
