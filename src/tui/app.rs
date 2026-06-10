@@ -183,6 +183,8 @@ impl App {
                 backend_resolving: false,
                 backend_resolve_handle: None,
                 active_model_hint_dirty: true,
+                metrics_model_name_cache: None,
+                metrics_model_name_last: None,
             },
             active_model_hint: None,
             search: SearchState {
@@ -218,6 +220,8 @@ impl App {
                 needs_full_redraw: false,
                 needs_redraw: true,
                 text_scrolls: Default::default(),
+                metrics_changed: false,
+                last_ws_broadcast: None,
             },
             edit: EditState {
                 edit_cursor_pos: 0,

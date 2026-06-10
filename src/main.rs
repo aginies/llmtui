@@ -290,21 +290,23 @@ async fn main() -> Result<()> {
             use tui::app::pending_events::PendingEvent;
             let mut settings_tick_counter: u32 = 0;
             loop {
-                // ── High-priority ticks (run every iteration) ──
-                app.tick_download_progress();
-                app.tick_bench_tune_progress();
-                app.tick_server_logs();
-                app.tick_metrics();
-                app.tick_sync();
-                app.tick_spinner();
-                app.tick_loading_progress();
-                app.tick_text_scrolls();
-                app.tick_settings_help();
-                app.tick_metrics_model_name();
-                app.tick_backend_resolution().await;
-                app.tick_loading_completion().await;
-                app.tick_server_exit();
-                app.tick_completed_downloads();
+                // ── High-priority ticks (skipped when truly idle) ──
+                if !app.is_truly_idle() {
+                    app.tick_download_progress();
+                    app.tick_bench_tune_progress();
+                    app.tick_server_logs();
+                    app.tick_metrics();
+                    app.tick_sync();
+                    app.tick_spinner();
+                    app.tick_loading_progress();
+                    app.tick_text_scrolls();
+                    app.tick_settings_help();
+                    app.tick_metrics_model_name();
+                    app.tick_backend_resolution().await;
+                    app.tick_loading_completion().await;
+                    app.tick_server_exit();
+                    app.tick_completed_downloads();
+                }
 
                 // ── Drain pending event channel ──
                 while let Ok(event) = app.pending_rx.try_recv() {
@@ -356,49 +358,66 @@ async fn main() -> Result<()> {
                     app.process_pending_kill(handle).await;
                 }
 
-                // ── WebSocket metrics broadcast ──
+                // ── WebSocket metrics broadcast (throttled) ──
                 if let Some(tx) = &app.server.metrics_tx {
-                    let loaded_model_name = {
-                        let names = app
-                            .server
-                            .loaded_model_names
-                            .lock()
-                            .unwrap_or_else(|e| e.into_inner());
-                        names.first().cloned()
-                    };
-
-                    let model_name = loaded_model_name
-                        .as_deref()
-                        .or(app.server.spawned_model_name.as_deref())
-                        .unwrap_or("");
-
-                    let state = if !model_name.is_empty() {
-                        if app.is_model_loaded(model_name) {
-                            "loaded"
-                        } else if app.is_loading() {
-                            "loading"
-                        } else {
-                            "unloaded"
+                    // Only broadcast when metrics changed and throttle interval passed
+                    let should_broadcast = if app.ui.metrics_changed {
+                        match app.ui.last_ws_broadcast {
+                            Some(last) => last.elapsed() >= std::time::Duration::from_millis(500),
+                            None => true,
                         }
                     } else {
-                        "unloaded"
+                        false
                     };
 
-                    let settings = app
-                        .server
-                        .spawned_settings
-                        .as_ref()
-                        .unwrap_or(&app.settings);
+                    if should_broadcast {
+                        let loaded_model_name = {
+                            let names = app
+                                .server
+                                .loaded_model_names
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner());
+                            names.first().cloned()
+                        };
 
-                    if let Err(e) = tx.send(crate::models::WsMetrics::from_metrics(
-                        &app.metrics,
-                        model_name,
-                        state,
-                        settings,
-                        app.server.cmd_display.as_deref(),
-                    )) {
-                        tracing::debug!("Failed to send metrics to ws: {e}");
+                        let model_name = loaded_model_name
+                            .as_deref()
+                            .or(app.server.spawned_model_name.as_deref())
+                            .unwrap_or("");
+
+                        let state = if !model_name.is_empty() {
+                            if app.is_model_loaded(model_name) {
+                                "loaded"
+                            } else if app.is_loading() {
+                                "loading"
+                            } else {
+                                "unloaded"
+                            }
+                        } else {
+                            "unloaded"
+                        };
+
+                        let settings = app
+                            .server
+                            .spawned_settings
+                            .as_ref()
+                            .unwrap_or(&app.settings);
+
+                        if let Err(e) = tx.send(crate::models::WsMetrics::from_metrics(
+                            &app.metrics,
+                            model_name,
+                            state,
+                            settings,
+                            app.server.cmd_display.as_deref(),
+                        )) {
+                            tracing::debug!("Failed to send metrics to ws: {e}");
+                        }
+                        app.ui.last_ws_broadcast = Some(std::time::Instant::now());
+                        app.ui.metrics_changed = false;
                     }
+                } else {
+                    // No WS server, clear the flag to avoid stale state
+                    app.ui.metrics_changed = false;
                 }
 
                 // ── Settings change tick (throttled to ~1s) ──
@@ -415,8 +434,10 @@ async fn main() -> Result<()> {
                 }
 
                 // ── Event poll (drives tick frequency) ──
-                let poll_timeout = if app.download.downloading || app.server.server_handle.is_some()
-                {
+                // 3-tier timeout: idle (1s), normal with server (200ms), no server (500ms)
+                let poll_timeout = if app.is_truly_idle() {
+                    std::time::Duration::from_millis(1000)
+                } else if app.download.downloading || app.server.server_handle.is_some() {
                     std::time::Duration::from_millis(200)
                 } else {
                     std::time::Duration::from_millis(500)

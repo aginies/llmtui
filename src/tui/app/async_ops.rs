@@ -627,6 +627,7 @@ impl App {
 
                 if any_changed {
                     self.ui.needs_redraw = true;
+                    self.ui.metrics_changed = true;
                 }
             }
         }
@@ -1525,6 +1526,14 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
     }
 
     pub fn tick_metrics_model_name(&mut self) {
+        // Debounce: skip mutex acquisition if cached value unchanged and recent
+        if self.pending.metrics_model_name_cache.is_some()
+            && let Some(ref last) = self.pending.metrics_model_name_last
+            && last.elapsed() < std::time::Duration::from_millis(200)
+        {
+            return;
+        }
+
         let active_loaded_model = if let Some(model) = self.selected_model() {
             if self.is_model_loaded(&model.display_name) {
                 Some(model.display_name.clone())
@@ -1546,6 +1555,11 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                 .unwrap_or_else(|e| e.into_inner());
             lock.first().cloned()
         };
+
+        // Update cache
+        self.pending.metrics_model_name_cache.clone_from(&active_loaded_model);
+        self.pending.metrics_model_name_last = Some(std::time::Instant::now());
+
         let mut lock = self
             .server
             .metrics_model_name

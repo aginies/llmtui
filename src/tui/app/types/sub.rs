@@ -151,6 +151,10 @@ pub struct PendingOperations {
     pub backend_resolve_handle: Option<tokio::task::JoinHandle<Result<PathBuf, String>>>,
     /// Dirty flag for active_model_hint — set to true when model_states changes.
     pub active_model_hint_dirty: bool,
+    /// Cached metrics model name for debouncing.
+    pub metrics_model_name_cache: Option<String>,
+    /// Last time metrics model name was updated.
+    pub metrics_model_name_last: Option<std::time::Instant>,
 }
 
 pub struct SearchState {
@@ -192,6 +196,10 @@ pub struct UIState {
     pub needs_full_redraw: bool,
     pub needs_redraw: bool,
     pub text_scrolls: HashMap<String, TextScrollState>,
+    /// Flag set by tick_metrics when metrics changed, consumed by WS broadcast.
+    pub metrics_changed: bool,
+    /// Last time WS metrics were broadcast.
+    pub last_ws_broadcast: Option<std::time::Instant>,
 }
 
 pub struct EditState {

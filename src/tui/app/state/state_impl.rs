@@ -394,4 +394,50 @@ impl App {
             self.settings_state.help_visible = true;
         }
     }
+
+    /// Returns true when the app is in a stable idle state with no pending
+    /// work that requires a fast event loop. Used to increase the poll
+    /// timeout and reduce idle CPU usage.
+    pub fn is_truly_idle(&self) -> bool {
+        // Active operations that require fast polling
+        if self.download.downloading {
+            return false;
+        }
+        if self.is_loading() {
+            return false;
+        }
+        if self.bench_tune.bench_tune_running {
+            return false;
+        }
+        if self.server.spawn_task_handle.is_some() {
+            return false;
+        }
+        if self.server.bench_tune_task_handle.is_some() {
+            return false;
+        }
+        if self.pending.pending_kill.is_some() {
+            return false;
+        }
+        if self.pending.pending_api_load.is_some() {
+            return false;
+        }
+        if self.pending.pending_api_unload.is_some() {
+            return false;
+        }
+        if self.pending.backend_resolving {
+            return false;
+        }
+        if self.pending.backend_resolve_handle.is_some() {
+            return false;
+        }
+        // Active text scrolls need their tick interval
+        if self.ui.text_scrolls.values().any(|s| s.visible && s.max_offset > 0) {
+            return false;
+        }
+        // Confirmation dialogs need responsive input
+        if matches!(self.ui.global_mode, crate::tui::app::GlobalMode::Confirmation { .. }) {
+            return false;
+        }
+        true
+    }
 }
