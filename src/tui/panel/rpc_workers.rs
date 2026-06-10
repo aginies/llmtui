@@ -42,7 +42,7 @@ pub fn render_all<'a>(
             ));
             spans.push(Span::raw(after));
         } else {
-            spans.push(Span::raw(edit_content));
+            spans.push(Span::raw(edit_content.to_string()));
         }
         if edit_cursor_pos == edit_content.chars().count() {
             spans.push(Span::styled(

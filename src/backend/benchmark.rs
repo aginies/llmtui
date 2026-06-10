@@ -15,6 +15,30 @@ const HEALTH_CHECK_INTERVAL_MS: u64 = 500;
 const HEALTH_CHECK_LOG_INTERVAL: u32 = 10;
 const REQUEST_TIMEOUT_SECS: u64 = 120;
 
+/// Wait for the server to become healthy.
+/// Returns true if health check passes, false on timeout.
+async fn wait_for_server_ready(
+    host: &str,
+    port: u16,
+    log_tx: &mpsc::Sender<String>,
+) -> bool {
+    for i in 0..HEALTH_CHECK_ITERATIONS {
+        if crate::backend::server::check_health(host, port).await {
+            return true;
+        }
+        if i % HEALTH_CHECK_LOG_INTERVAL == 0 && i > 0 {
+            let _ = log_tx
+                .send(format!(
+                    "  ... still waiting ({:.0}s)...",
+                    i as f32 * (HEALTH_CHECK_INTERVAL_MS as f32 / 1000.0)
+                ))
+                .await;
+        }
+        tokio::time::sleep(Duration::from_millis(HEALTH_CHECK_INTERVAL_MS)).await;
+    }
+    false
+}
+
 struct BenchAccumulator {
     params: BenchTuneParamValue,
     total_prompt_tokens: u64,
@@ -164,32 +188,22 @@ pub async fn run_bench_tune(
         };
 
         // Wait for server to be ready
-        for i in 0..HEALTH_CHECK_ITERATIONS {
-            if *cancel_rx.borrow() {
-                let _ = crate::backend::server::kill_server(server_handle).await;
-                let elapsed = start_time.elapsed();
-                progress_tx
-                    .send(BenchTuneStatus::Cancelled {
-                        total_tests,
-                        successful_tests: results.len(),
-                        failed_tests: failed_tests.len(),
-                        elapsed,
-                    })
-                    .await?;
-                return Ok(results);
-            }
-            if crate::backend::server::check_health(host, server_handle.port).await {
-                break;
-            }
-            if i % HEALTH_CHECK_LOG_INTERVAL == 0 && i > 0 {
-                let _ = log_tx
-                    .send(format!(
-                        "  ... still waiting ({:.0}s)...",
-                        i as f32 * (HEALTH_CHECK_INTERVAL_MS as f32 / 1000.0)
-                    ))
-                    .await;
-            }
-            tokio::time::sleep(Duration::from_millis(HEALTH_CHECK_INTERVAL_MS)).await;
+        if *cancel_rx.borrow() {
+            let _ = crate::backend::server::kill_server(server_handle).await;
+            let elapsed = start_time.elapsed();
+            progress_tx
+                .send(BenchTuneStatus::Cancelled {
+                    total_tests,
+                    successful_tests: results.len(),
+                    failed_tests: failed_tests.len(),
+                    elapsed,
+                })
+                .await?;
+            return Ok(results);
+        }
+        if !wait_for_server_ready(host, server_handle.port, &log_tx).await {
+            let _ = crate::backend::server::kill_server(server_handle).await;
+            return Err("Server failed to become healthy".into());
         }
 
         let server_port = server_handle.port;
@@ -613,8 +627,6 @@ async fn run_bench_tune_single_test(
         exit_tx,
     })
     .await?;
-    // Wait for server to be ready
-    let mut ready = false;
     let host = if server_handle.host == "0.0.0.0" {
         "127.0.0.1"
     } else {
@@ -628,23 +640,7 @@ async fn run_bench_tune_single_test(
         ))
         .await;
 
-    for i in 0..HEALTH_CHECK_ITERATIONS {
-        if crate::backend::server::check_health(host, server_handle.port).await {
-            ready = true;
-            break;
-        }
-        if i % HEALTH_CHECK_LOG_INTERVAL == 0 && i > 0 {
-            let _ = log_tx
-                .send(format!(
-                    "  ... still waiting ({:.0}s)...",
-                    i as f32 * (HEALTH_CHECK_INTERVAL_MS as f32 / 1000.0)
-                ))
-                .await;
-        }
-        tokio::time::sleep(Duration::from_millis(HEALTH_CHECK_INTERVAL_MS)).await;
-    }
-
-    if !ready {
+    if !wait_for_server_ready(host, server_handle.port, &log_tx).await {
         let _ = log_tx
             .send("Error: Server health check timed out".to_string())
             .await;

@@ -126,7 +126,14 @@ pub async fn search_models(
     );
     // println!("Search URL: {}", url);
 
-    let resp = reqwest::get(&url).await?.error_for_status()?;
+    let resp = reqwest::Client::builder()
+        .user_agent(super::USER_AGENT)
+        .build()
+        .unwrap()
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?;
     let models: Vec<serde_json::Value> = resp.json().await?;
 
     let query_words: Vec<String> = query.split_whitespace().map(|w| w.to_lowercase()).collect();
@@ -237,14 +244,19 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
         "https://huggingface.co/api/models/{}/tree/{}",
         model_id, branch
     );
-    let resp = reqwest::get(&url).await;
+   let client = reqwest::Client::builder()
+        .user_agent(super::USER_AGENT)
+        .build()
+        .unwrap();
+    let resp = client.get(&url).send().await;
     let resp = match resp {
         Ok(r) => r.error_for_status(),
         Err(_) => {
             let url2 = format!("https://huggingface.co/api/models/{}/tree/master", model_id);
-            Ok(reqwest::get(&url2).await?.error_for_status()?)
+            Ok(client.get(&url2).send().await?.error_for_status()?)
         }
-    }?;
+    };
+    let resp = resp?;
     let files: Vec<serde_json::Value> = resp.json().await?;
 
     let mut gguf_files = Vec::new();

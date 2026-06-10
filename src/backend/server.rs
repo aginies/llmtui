@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::process::Stdio;
+use std::sync::LazyLock;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::mpsc;
@@ -9,6 +10,16 @@ use crate::config::Config;
 use crate::models::{
     DiscoveredModel, ModelSettings, RopeScaling, ServerMetrics, clean_host, strip_gguf,
 };
+
+/// Client for health checks (short timeout).
+static HEALTH_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(1))
+        .build()
+        .unwrap()
+});
+
+static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
 /// Manages a single llama.cpp server process.
 #[derive(Clone)]
@@ -741,12 +752,8 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
 pub async fn check_health(host: &str, port: u16) -> bool {
     let host = clean_host(host);
     let url = format!("http://{}:{}/health", host, port);
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(1))
-        .build()
-        .unwrap_or_default();
 
-    match client.get(&url).send().await {
+    match HEALTH_CLIENT.get(&url).send().await {
         Ok(resp) => resp.status().is_success(),
         Err(_) => false,
     }
@@ -778,8 +785,7 @@ pub async fn get_metrics(
         format!("http://{}:{}/metrics", host, port)
     };
 
-    let client = reqwest::Client::new();
-    let mut resp = client
+    let mut resp = HTTP_CLIENT
         .get(&url)
         .send()
         .await
@@ -791,7 +797,7 @@ pub async fn get_metrics(
         && model_name.is_some()
     {
         url = format!("http://{}:{}/metrics", host, port);
-        resp = client
+        resp = HTTP_CLIENT
             .get(&url)
             .send()
             .await
@@ -1186,12 +1192,10 @@ fn get_process_metrics(pid: u32) -> Result<(u64, f64), String> {
 /// Uses the canonical `/models/load` endpoint with the `"model"` JSON field.
 /// Model is identified by its display_name (matches the `--alias` registered in llama.cpp).
 pub async fn load_model(host: &str, port: u16, model_id: &str) -> Result<(), String> {
-    let client = reqwest::Client::new();
     let host = clean_host(host);
 
-    // Verify server is in router mode
     let props_url = format!("http://{}:{}/props", host, port);
-    if let Ok(res) = client.get(&props_url).send().await
+    if let Ok(res) = HTTP_CLIENT.get(&props_url).send().await
         && res.status().is_success()
         && let Ok(json) = res.json::<serde_json::Value>().await
         && json.get("role").and_then(|r| r.as_str()) != Some("router")
@@ -1205,7 +1209,7 @@ pub async fn load_model(host: &str, port: u16, model_id: &str) -> Result<(), Str
     let url = format!("http://{}:{}/models/load", host, port);
     let body = serde_json::json!({ "model": model_id });
 
-    match client.post(&url).json(&body).send().await {
+    match HTTP_CLIENT.post(&url).json(&body).send().await {
         Ok(res) if res.status().is_success() => Ok(()),
         Ok(res) => {
             let status = res.status();
@@ -1224,11 +1228,10 @@ pub async fn list_models(
     host: &str,
     port: u16,
 ) -> Result<Vec<(String, String, Option<String>)>, String> {
-    let client = reqwest::Client::new();
     let host = clean_host(host);
     let url = format!("http://{}:{}/models", host, port);
 
-    let res = client
+    let res = HTTP_CLIENT
         .get(&url)
         .send()
         .await
@@ -1273,12 +1276,11 @@ pub async fn list_models(
 /// Unload a model via the llama-server Router API.
 /// Uses the canonical `/models/unload` endpoint with the `"model"` JSON field.
 pub async fn unload_model(host: &str, port: u16, model_id: &str) -> Result<(), String> {
-    let client = reqwest::Client::new();
     let host = clean_host(host);
     let url = format!("http://{}:{}/models/unload", host, port);
     let body = serde_json::json!({ "model": model_id });
 
-    match client.post(&url).json(&body).send().await {
+    match HTTP_CLIENT.post(&url).json(&body).send().await {
         Ok(res) if res.status().is_success() => Ok(()),
         Ok(res) => {
             let status = res.status();
