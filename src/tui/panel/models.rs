@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Rect},
+    layout::{Alignment, Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState},
@@ -341,15 +341,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Cell::from(if *sort_by == ListSort::Context {
-                    if sort_ascending { "Ctx \u{2191}" } else { "Ctx \u{2193}" }
+                Cell::from(Line::from(if *sort_by == ListSort::Context {
+                    if sort_ascending { " Ctx \u{2191}" } else { " Ctx \u{2193}" }
                 } else {
                     crate::t!("models.list_headers.context")
-                }).style(
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                }).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)).alignment(Alignment::Center)),
             ];
 
             let filtered_indices = app.get_filtered_model_indices();
