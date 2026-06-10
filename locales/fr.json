@@ -448,6 +448,7 @@
   "models.gguf_files": " {} - Fichiers GGUF ",
   "models.gguf_headers.file": "Fichier",
   "models.gguf_headers.size": "Taille",
+  "panel.help.models.quality_legend": "Points de qualité (🟢 Meilleur, 🟡 Élevé, 🟠 Moyen, 🔴 Faible, ⚫ Inconnu)",
   "models.loading_more": "Chargement de plus de résultats...",
   "models.no_more": "Aucun autre résultat",
   "models.no_results": "Aucun résultat trouvé pour cette requête.",

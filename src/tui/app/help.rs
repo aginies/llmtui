@@ -34,6 +34,10 @@ impl App {
                     Span::styled("^S", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.models.cycle_list_sort"))),
                 ]),
+                Line::from(vec![
+                    Span::styled("^H", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.quality_legend"))),
+                ]),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.models.search_mode")),
                 Line::from(vec![

@@ -414,6 +414,7 @@
   "models.list_sort.qual": "Qual",
   "models.list_sort.context": "Context",
   "panel.help.models.cycle_list_sort": "Cycle list sort (Name/Status/Params/Qual/Context)",
+  "panel.help.models.quality_legend": "Quality dots (🟢 Best, 🟡 High, 🟠 Medium, 🔴 Low, ⚫ Unknown)",
   "models.loading_more": "Loading more results...",
   "models.no_results": "No results found for this query.",
   "models.no_more": "No more results",

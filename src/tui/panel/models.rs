@@ -1262,12 +1262,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 /// Return a colored emoji dot for the quality rank.
 /// Emoji colors are baked into the glyph so they survive row highlights.
 fn quality_dot(rank: u8) -> Cell<'static> {
-    let dot = match rank {
-        4 => "\u{1F7E9}", // green circle
-        3 => "\u{1F7E2}", // green circle (dark)
-        2 => "\u{1F7E1}", // yellow circle
-        1 => "\u{1F7E0}", // orange/red circle
-        _ => "\u{26AB}",  // black circle
+  let dot = match rank {
+        4 => "\u{1F7E2}", // green circle - best
+        3 => "\u{1F7E1}", // yellow circle - high
+        2 => "\u{1F7E0}", // orange circle - medium
+        1 => "\u{1F534}", // red circle - low
+        _ => "\u{26AB}",  // black circle - unknown
     };
     Cell::from(dot)
 }
