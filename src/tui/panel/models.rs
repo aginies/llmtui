@@ -183,20 +183,35 @@ fn format_time_remaining(total_secs: u64) -> String {
 pub fn scroll_text(
     text: &str,
     max_width: u16,
-    state: Option<&crate::tui::app::TextScrollState>,
+    state: &mut crate::tui::app::TextScrollState,
 ) -> String {
-    let char_len = text.chars().count();
-    if char_len <= max_width as usize {
-        return text.to_string();
+    state.max_offset = text.chars().count().saturating_sub(max_width as usize);
+
+    // Short text: no scrolling needed
+    if state.max_offset == 0 {
+        state.cached_output = Some(text.to_string());
+        state.cached_width = max_width;
+        return state.cached_output.as_ref().unwrap().clone();
     }
-    let max_offset = char_len - max_width as usize;
-    let offset = state.map_or(0, |s| s.offset.min(max_offset));
+
+    // Use cache if width and offset haven't changed
+    if state.cached_width == max_width && state.cached_offset == state.offset {
+        if let Some(ref cached) = state.cached_output {
+            return cached.clone();
+        }
+    }
+
+    let offset = state.offset.min(state.max_offset);
     let mut char_indices_iter = text.char_indices();
     let start_byte = char_indices_iter.nth(offset).map_or(0, |(i, _)| i);
     let end_byte = char_indices_iter
         .nth(max_width as usize)
         .map_or(text.len(), |(i, _)| i);
-    format!("{}{}", &text[start_byte..end_byte], MARQUEE_SUFFIX)
+    let result = format!("{}{}", &text[start_byte..end_byte], MARQUEE_SUFFIX);
+    state.cached_output = Some(result.clone());
+    state.cached_width = max_width;
+    state.cached_offset = state.offset;
+    result
 }
 
 /// Highlight occurrences matched by `compiled` within `text`.
@@ -454,12 +469,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             hold_count: 0,
                             max_offset,
                             visible: false,
+                            cached_output: None,
+                            cached_width: 0,
+                            cached_offset: 0,
                         }
                     });
                     state.max_offset = max_offset;
                     state.visible = true;
 
-                    let name_display = scroll_text(display_name, name_width, Some(state));
+                    let name_display = scroll_text(display_name, name_width, state);
                     let name_style = if is_selected {
                         Style::default()
                             .fg(Color::Black)
@@ -641,11 +659,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             hold_count: 0,
                             max_offset,
                             visible: false,
+                            cached_output: None,
+                            cached_width: 0,
+                            cached_offset: 0,
                         }
                     });
                     state.max_offset = max_offset;
                     state.visible = true;
-                    let scrolled_raw = scroll_text(&result.model_id, col_width, Some(state));
+                    let scrolled_raw = scroll_text(&result.model_id, col_width, state);
                     let scrolled_lower = scrolled_raw.to_lowercase();
                     let highlighted =
                         highlight_query(&scrolled_raw, &scrolled_lower, query_regex.as_ref());
@@ -762,11 +783,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             hold_count: 0,
                             max_offset,
                             visible: false,
+                            cached_output: None,
+                            cached_width: 0,
+                            cached_offset: 0,
                         }
                     });
                     state.max_offset = max_offset;
                     state.visible = true;
-                    let scrolled_raw = scroll_text(name, available, Some(state));
+                    let scrolled_raw = scroll_text(name, available, state);
                     let highlighted = highlight_query(&scrolled_raw, "", None);
                     let mut name_spans: Vec<Span> = vec![marker_span];
                     name_spans.extend(highlighted.spans.iter().cloned());

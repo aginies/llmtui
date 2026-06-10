@@ -333,6 +333,9 @@ impl App {
                     hold_count: 0,
                     max_offset,
                     visible: false,
+                    cached_output: None,
+                    cached_width: 0,
+                    cached_offset: 0,
                 },
             );
         }

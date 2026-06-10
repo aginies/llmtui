@@ -207,6 +207,12 @@ pub struct TextScrollState {
     pub hold_count: u8,
     pub max_offset: usize,
     pub visible: bool,
+    /// Cached scrolled text output.
+    pub cached_output: Option<String>,
+    /// Width used for the cached output.
+    pub cached_width: u16,
+    /// Offset used for the cached output.
+    pub cached_offset: usize,
 }
 
 /// Phase of model loading.

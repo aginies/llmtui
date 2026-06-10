@@ -648,11 +648,14 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                             hold_count: 0,
                             max_offset,
                             visible: false,
+                            cached_output: None,
+                            cached_width: 0,
+                            cached_offset: 0,
                         }
                     });
                     state.max_offset = max_offset;
                     state.visible = true;
-                    let mut lines = render_model_info_lines(&pairs, width, Some(state));
+                    let mut lines = render_model_info_lines(&pairs, width, state);
                     // Hint when GGUF metadata was not available.
                     if cached_meta.is_none() {
                         lines.push(Line::from(vec![Span::styled(
@@ -717,7 +720,7 @@ pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static
 fn render_model_info_lines(
     pairs: &[ModelInfoPair],
     width: u16,
-    state: Option<&crate::tui::app::TextScrollState>,
+    state: &mut crate::tui::app::TextScrollState,
 ) -> Vec<Line<'static>> {
     if pairs.is_empty() {
         return empty_info();
