@@ -871,7 +871,7 @@ pub async fn save_results(
     // Also save full results as YAML with outputs
     let yaml_filename = format!("benchmark_{}.yaml", timestamp);
     let yaml_filepath = output_dir.join(&yaml_filename);
-    let yaml_content = serde_yaml::to_string(&results)?;
+    let yaml_content = serde_yml::to_string(&results)?;
     tokio::fs::write(&yaml_filepath, yaml_content).await?;
 
     // Generate HTML report

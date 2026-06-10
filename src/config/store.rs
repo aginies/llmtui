@@ -34,7 +34,7 @@ pub(crate) fn load_all_from_dir<T: DeserializeOwned + std::fmt::Debug>(
                 None => continue,
             };
             if let Ok(content) = std::fs::read_to_string(&path)
-                && let Ok(item) = serde_yaml::from_str::<T>(&content)
+                && let Ok(item) = serde_yml::from_str::<T>(&content)
             {
                 map.insert(name, item);
             }
@@ -61,7 +61,7 @@ pub(crate) fn save_yaml<T: serde::Serialize + std::fmt::Debug>(
             );
             return;
         }
-    let content = match serde_yaml::to_string(item) {
+    let content = match serde_yml::to_string(item) {
         Ok(c) => c,
         Err(e) => {
             warn!("Failed to serialize config '{}': {}", name, e);

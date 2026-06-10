@@ -1079,19 +1079,19 @@ impl Config {
     }
 
     /// Validate unknown YAML keys against known field lists.
-    pub fn validate_unknown_fields(value: &serde_yaml::Value) -> Vec<ValidationWarning> {
+    pub fn validate_unknown_fields(value: &serde_yml::Value) -> Vec<ValidationWarning> {
         let mut warnings = Vec::new();
         Self::check_unknown_fields(value, "", Self::config_keys(), &mut warnings);
         warnings
     }
 
     fn check_unknown_fields(
-        value: &serde_yaml::Value,
+        value: &serde_yml::Value,
         prefix: &str,
         known_keys: &'static [&'static str],
         warnings: &mut Vec<ValidationWarning>,
     ) {
-        if let serde_yaml::Value::Mapping(map) = value {
+        if let serde_yml::Value::Mapping(map) = value {
             for key in map.keys() {
                 if let Some(key_str) = key.as_str()
                     && !known_keys.contains(&key_str) {
@@ -1122,7 +1122,7 @@ impl Config {
                             Self::check_unknown_fields(val, &new_prefix, Self::default_params_keys(), warnings);
                         }
                         "model_overrides" => {
-                            if let serde_yaml::Value::Mapping(overrides) = val {
+                            if let serde_yml::Value::Mapping(overrides) = val {
                                 for (override_key, override_val) in overrides {
                                     if let Some(k) = override_key.as_str() {
                                         let override_prefix = format!("{}.{}", new_prefix, k);
@@ -1137,7 +1137,7 @@ impl Config {
                             }
                         }
                         "rpc_workers" => {
-                            if let serde_yaml::Value::Sequence(items) = val {
+                            if let serde_yml::Value::Sequence(items) = val {
                                 for item in items {
                                     Self::check_unknown_fields(item, &new_prefix, Self::rpc_worker_keys(), warnings);
                                 }
@@ -1588,12 +1588,12 @@ impl Config {
         let content = std::fs::read_to_string(path)?;
 
         // Phase 1: Parse as Value to check for unknown fields
-        let parsed: serde_yaml::Value = serde_yaml::from_str(&content)
+        let parsed: serde_yml::Value = serde_yml::from_str(&content)
             .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
         let mut warnings = Self::validate_unknown_fields(&parsed);
 
         // Phase 2: Deserialize normally (serde_yaml ignores unknown fields)
-        let config: Config = serde_yaml::from_str(&content)
+        let config: Config = serde_yml::from_str(&content)
             .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
         let config = Self::normalize_config(config);
         let config = config.auto_detect_platform();
@@ -1635,12 +1635,12 @@ impl Config {
             let content = std::fs::read_to_string(&path)?;
 
             // Phase 1: Parse as Value to check for unknown fields
-            let parsed: serde_yaml::Value = serde_yaml::from_str(&content)
+            let parsed: serde_yml::Value = serde_yml::from_str(&content)
                 .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
             let mut warnings = Self::validate_unknown_fields(&parsed);
 
             // Phase 2: Deserialize normally
-            let config: Config = serde_yaml::from_str(&content)
+            let config: Config = serde_yml::from_str(&content)
                 .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
             let config = Self::normalize_config(config);
             let config = config.auto_detect_platform();
@@ -1687,7 +1687,7 @@ impl Config {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let content = serde_yaml::to_string(self)?;
+        let content = serde_yml::to_string(self)?;
         std::fs::write(&path, content)?;
         // Persist model configs to individual YAML files
         let entries: Vec<(String, ModelOverride)> = self
