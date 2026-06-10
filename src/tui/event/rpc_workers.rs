@@ -169,7 +169,7 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.picker.editing_rpc_worker = Some(app.picker.rpc_workers_selected_idx);
                     app.settings_state.settings_edit_buffer =
                         format!("{}, {}, {}", worker.name, worker.ip, worker.port);
-                    app.edit.edit_cursor_pos = app.settings_state.settings_edit_buffer.len();
+                    app.edit.edit_cursor_pos = app.settings_state.settings_edit_buffer.chars().count();
                 }
             }
             KeyCode::Char('d') => {

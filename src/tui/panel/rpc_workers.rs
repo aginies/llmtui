@@ -31,15 +31,18 @@ pub fn render_all<'a>(
         lines.push(Line::from(""));
 
         let mut spans = Vec::new();
-        for (j, ch) in edit_content.chars().enumerate() {
-            if j == edit_cursor_pos {
-                spans.push(Span::styled(
-                    ch.to_string(),
-                    Style::default().fg(Color::Black).bg(Color::Yellow),
-                ));
-            } else {
-                spans.push(Span::raw(ch.to_string()));
-            }
+        if let Some(c) = edit_content.chars().nth(edit_cursor_pos) {
+            let before: String = edit_content.chars().take(edit_cursor_pos).collect();
+            let after: String = edit_content.chars().skip(edit_cursor_pos + 1).collect();
+
+            spans.push(Span::raw(before));
+            spans.push(Span::styled(
+                c.to_string(),
+                Style::default().fg(Color::Black).bg(Color::Yellow),
+            ));
+            spans.push(Span::raw(after));
+        } else {
+            spans.push(Span::raw(edit_content));
         }
         if edit_cursor_pos == edit_content.chars().count() {
             spans.push(Span::styled(
