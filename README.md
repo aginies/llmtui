@@ -48,9 +48,17 @@ cargo build --release
 
 ## Usage
 
+Two subcommands are available: `tui` (terminal UI) and `serve` (headless server).
+
 ```bash
-cargo run
+# Start the TUI (default mode)
+llm-manager tui
+
+# Start the TUI with custom options
+llm-manager tui --models-dir /path/to/models --backend vulkan --config /path/to/config.yaml
 ```
+
+### Build script
 
 ### Build script
 
@@ -225,11 +233,14 @@ The Server Settings panel (top-right) shows server configuration:
 | API Endpoint | Enable API proxy — `↵` toggles (disabled while server is running) |
 | RPC Workers | Open the distributed inference manager window — press `↵` |
 | API Port | Port for the API proxy server (default: 49222) |
-| Dashboard | WebSocket dashboard server — `↵` opens configuration picker |
+| Dashboard | WebSocket dashboard server — `↵` opens configuration picker (enabled, port, auth key, TLS) |
+| Language | UI language — `↵` cycles between en/fr/it |
 
 When API Endpoint is enabled, a proxy server starts on port `49222` that forwards requests to the running llama-server instance, exposing the full llama.cpp API (see Serve mode above).
 
 Router mode allows loading multiple models simultaneously. The server starts without a model, then loads via `/load` API. The `Max Concurrent Predictions` setting limits how many models can be loaded at once.
+
+> **Note:** Router mode is still WIP. It is not reachable via the Mode cycling key; it must be enabled through config.yaml (`default.server_mode: router`).
 
 > **Note:** The Server Settings panel is hidden when a server is already running. Press `F2` to toggle Server Settings only when no server is active.
 
@@ -248,14 +259,15 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `↵` (Enter) — Load model / Download selected / Expand log / Apply profile / Edit setting / Select GGUF files (in search)
 - `f` — Filter local models list / Toggle Follow mode (in Log panel)
 - `⎋` (Esc) — Back / Exit search / Collapse log / Clear local filter / Close modals
-- `⇥` (Tab) — Switch active panels
+- `⇥` (Tab) — Switch active panels (next)
+- `⇧⇥` (Shift+Tab) — Switch active panels (previous)
 - `t` — Switch settings tab / Open tags modal (in LLM Settings)
 - `/` — Search models on HuggingFace (opens search input modal)
 - `l` — Load selected model / `u` — Unload selected model
 - `d` — Delete model (in Models panel) / Delete backend version (in backend picker)
 - `D` — Delete selected backend version (in LLM Settings)
 - `A` — About box (license and version info)
-- `E` — Toggle expert mode (in LLM Settings)
+- `⌃X` (Ctrl+X) — Toggle expert mode (in LLM Settings)
 - `I` — Open Info panel
 - `Y` — Edit YaRN RoPE parameters (rope_scale, rope_freq_base, rope_freq_scale)
 - `N` — New preset (in System Prompt Presets) / Next Benchmark result
@@ -265,7 +277,7 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `⌃D` (Ctrl+D) — Delete model (with confirmation)
 - `p` — Open Profiles panel / Pause or resume download / Previous Benchmark result (context-sensitive)
 - `⌃P` (Ctrl+P) — Open Profile Picker modal (select from built-in or user profiles)
-- `⌃S` (Ctrl+S) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created) / Save settings
+- `⌃S` (Ctrl+S) — Cycle search sort (Relevance/Downloads/Likes/Trending/Created) / Cycle local models sort / Save settings
 - `⌃B` (Ctrl+B) — Back one page in search results
 - `⌃L` (Ctrl+L) — Cycle UI language (en → fr → it → en)
 - `↓` at bottom — Load more search results (infinite scroll)
@@ -274,8 +286,12 @@ The System Prompt Presets panel contains named system prompts for different use 
 - `PageUp` / `PageDown` — Scroll fast in logs, README, and Benchmark Output
 - `⌃R` (Ctrl+R) — Fetch README for selected model (in search) / Reset LLM settings (in LLM Settings)
 - `⌃E` (Ctrl+E) — Toggle enabled/disabled for specific settings
+- `⌃O` (Ctrl+O) — Re-trigger onboarding wizard
 - `⌃⇟` / `⌃⇞` (Ctrl+PgDn/PgUp) — Jump 10 settings down/up
 - `Shift+←` / `Shift+→` — Resize horizontal panel split (20%-80%)
+- `0-9, -, .` — Type numeric values directly (in LLM Settings)
+- `Right` — View README (in search/files mode)
+- `Esc` (in BenchTune) — Cancel benchmark tuning
 - `F1`–`F6` — Focus/toggle individual panels (Models, Server, Info, Settings, Active, Log)
 - `F9` / `F10` / `Ctrl+F10` — Show all panels
 - `Ctrl+F7` — Focus Models panel
@@ -436,7 +452,7 @@ The LLM Settings panel (28 standard fields in 6 groups, 55 total in expert mode)
 
 **Backend (22-23):** Tags (semicolon-separated), LLama.cpp Version (per-backend: CPU / Vulkan / ROCm / ROCm Lemonade / CUDA)
 
-**Additional settings:** threads_batch, batch_size, ubatch_size, parallel, keep, swa_full, mmap, numa (None/Distribute/Isolate/Numactl), reasoning_mode (Default/Gemma), split_mode (None/Layer/Row/Tensor), tensor_split, main_gpu, fit, embedding, expert_count, jinja, chat_template, chat_template_kwargs, typical_p, mirostat (Off/1/2), mirostat_lr, mirostat_ent, ignore_eos, samplers (semicolon-separated order), repeat_penalty, repeat_last_n, presence_penalty, frequency_penalty
+**Additional settings:** threads_batch, batch_size, ubatch_size, parallel, keep, swa_full, mmap, numa (None/Distribute/Isolate/Numactl), split_mode (None/Layer/Row/Tensor), tensor_split, main_gpu, fit, embedding, expert_count, jinja, auto_chat_template, chat_template, chat_template_kwargs, typical_p, mirostat (Off/1/2), mirostat_lr, mirostat_ent, ignore_eos, samplers (semicolon-separated order), repeat_penalty, repeat_last_n, presence_penalty, frequency_penalty, lora, lora_scaled, webui
 
 **Speculative decoding:** Spec Type (Off, draft-mtp, draft-simple, draft-eagle3, ngram variants), Spec Draft N Max (0-16)
 

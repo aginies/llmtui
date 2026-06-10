@@ -49,3 +49,7 @@ Within each step:
 - `Esc` / `q` — skip and close
 
 A progress bar at the top shows your position in the tour. Key shortcuts are highlighted in yellow within each step's text.
+
+## Re-trigger Onboarding
+
+Press `Ctrl+O` from any panel to reopen the onboarding wizard at any time.

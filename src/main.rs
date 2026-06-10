@@ -251,6 +251,7 @@ async fn main() -> Result<()> {
             app.models = models;
             app.init_scrolls_for_models();
             app.precache_all_metadata_bg();
+            app.rebuild_downloaded_set();
             if !app.models.is_empty() {
                 app.selected_model_idx = Some(0);
                 app.on_model_selection_change();

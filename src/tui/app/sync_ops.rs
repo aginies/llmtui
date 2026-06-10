@@ -298,45 +298,112 @@ impl App {
     }
 }
 
-/// Normalize separator characters for comparison (dashes and underscores).
-fn normalize_separators(s: &str) -> String {
-    s.replace('_', "-")
-}
-
-/// Check if a model (identified by HF model_id) is already downloaded locally.
-/// Matches by comparing the HF repo name against local filenames, case-insensitively.
-/// Checks all prefixes of the repo name to handle cases where the repo name has
-/// extra components not present in the local filename (e.g. "Qwen3.6-27B-MTP-GGUF"
-/// vs local "Qwen3.6-27B-Q3_K_S.gguf").
-pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: &str) -> bool {
-    let repo_name = model_id
-        .rsplit('/')
-        .next()
-        .unwrap_or(model_id)
-        .to_lowercase();
-    let repo_normalized = normalize_separators(&repo_name);
-    let repo_parts: Vec<&str> = repo_normalized.split('-').collect();
-
-    models.iter().any(|m| {
-        let mut local = m.name.to_lowercase();
-        if let Some(stripped) = local.strip_suffix(".gguf") {
-            local = stripped.to_string();
-        }
-        let local_normalized = normalize_separators(&local);
-
-        // Check exact match first
-        if local_normalized == repo_normalized {
+/// Check if a given suffix on a normalized GGUF filename corresponds to a valid quantization format
+/// (e.g. "-q4_k_m", "-iq3_xxs", "-fp16", "-bf16", "-f32").
+fn is_quantization_suffix(suffix: &str) -> bool {
+    if !suffix.starts_with('-') {
+        return false;
+    }
+    let rest = &suffix[1..];
+    
+    if rest.starts_with('q') {
+        let after_q = &rest[1..];
+        if after_q.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
             return true;
         }
+    }
+    if rest.starts_with("iq") {
+        let after_iq = &rest[2..];
+        if after_iq.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            return true;
+        }
+    }
+    if rest.starts_with("fp") {
+        let after_fp = &rest[2..];
+        if after_fp.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            return true;
+        }
+    }
+    if rest.starts_with("bf") {
+        let after_bf = &rest[2..];
+        if after_bf.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            return true;
+        }
+    }
+    if rest.starts_with('f') {
+        let after_f = &rest[1..];
+        if after_f.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            return true;
+        }
+    }
+    false
+}
 
-        // Check if local starts with any prefix of the repo name (minimum 8 chars to avoid false positives)
-        for i in 1..=repo_parts.len() {
-            let prefix = repo_parts[..i].join("-");
-            if prefix.len() >= 8 && local_normalized.starts_with(&format!("{}-", prefix)) {
+/// Check if a model (identified by HF model_id like "unsloth/Qwen3.5-4B-MTP-GGUF")
+/// is already downloaded locally by comparing it against our list of discovered models
+/// using normalized names, handling separators and common HF repository suffixes.
+pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: &str) -> bool {
+    let repo_parts: Vec<&str> = model_id.split('/').collect();
+    let (repo_author, repo_model_name) = if repo_parts.len() > 1 {
+        (Some(repo_parts[0]), repo_parts[1])
+    } else {
+        (None, model_id)
+    };
+
+    let mut expected_prefix = repo_model_name.to_lowercase().replace('_', "-");
+    
+    if expected_prefix.ends_with("-gguf") {
+        expected_prefix = expected_prefix.strip_suffix("-gguf").unwrap().to_string();
+    }
+    if expected_prefix.ends_with("-mtp") {
+        expected_prefix = expected_prefix.strip_suffix("-mtp").unwrap().to_string();
+    }
+
+    for model in models {
+        // Direct match: if the file is in a subdirectory that exactly starts with model_id,
+        // it was downloaded specifically for this model.
+        let display_name_lower = model.display_name.to_lowercase().replace('_', "-");
+        let model_id_lower = model_id.to_lowercase().replace('_', "-");
+        if display_name_lower.starts_with(&model_id_lower) {
+            if display_name_lower.len() == model_id_lower.len() {
+                return true;
+            }
+            if let Some(next_char) = display_name_lower[model_id_lower.len()..].chars().next() {
+                if next_char == '/' {
+                    return true;
+                }
+            }
+        }
+
+        let local_parts: Vec<&str> = model.display_name.split('/').collect();
+        let local_author = if local_parts.len() > 1 {
+            Some(local_parts[0])
+        } else {
+            None
+        };
+
+        // If both authors are specified, they must match (case-insensitively)
+        if let (Some(ra), Some(la)) = (repo_author, local_author) {
+            if ra.to_lowercase() != la.to_lowercase() {
+                continue;
+            }
+        }
+
+        let mut local_name = model.name.to_lowercase().replace('_', "-");
+        if local_name.ends_with(".gguf") {
+            local_name = local_name.strip_suffix(".gguf").unwrap().to_string();
+        }
+        
+        if local_name.starts_with(&expected_prefix) {
+            if local_name.len() == expected_prefix.len() {
+                return true;
+            }
+            let suffix = &local_name[expected_prefix.len()..];
+            if is_quantization_suffix(suffix) {
                 return true;
             }
         }
-        false
-    })
+    }
+    false
 }
 

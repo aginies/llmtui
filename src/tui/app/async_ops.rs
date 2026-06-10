@@ -1463,10 +1463,9 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                         ..
                     } = &mut self.models_mode
                     {
-                        let models = self.models.clone();
                         for r in res {
                             let downloaded =
-                                super::sync_ops::model_is_downloaded(&models, &r.model_id);
+                                super::sync_ops::model_is_downloaded(&self.models, &r.model_id);
                             results.push(crate::models::SearchResult { downloaded, ..r });
                         }
                         if raw_len < self.config.search_limit as usize {
@@ -1482,12 +1481,11 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                         ..
                     } = &mut self.models_mode
                     {
-                        let models = self.models.clone();
                         *results = res
                             .into_iter()
                             .map(|r| {
                                 let downloaded = super::sync_ops::model_is_downloaded(
-                                    &models,
+                                    &self.models,
                                     &r.model_id,
                                 );
                                 crate::models::SearchResult { downloaded, ..r }

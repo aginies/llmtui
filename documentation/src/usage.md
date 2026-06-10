@@ -136,10 +136,11 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 | **Backend** | auto-detected | Acceleration backend: auto-detected based on GPU (Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel). Options: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU), `rocm-lemonade` (AMD optimized), `cuda` (NVIDIA CUDA 12.8). Shows the currently selected version. |
 | **Threads** | (physical cores) | CPU threads for generation. Set to your physical core count for best performance. |
 | **Threads Batch** | 8 | CPU threads for batch processing (prompt evaluation). |
-| **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models, *Work In Progress — not yet selectable in TUI*), `Bench` (run llama-bench), or `BenchTune` (parameter auto-tuning). |
+| **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models, *Work In Progress — not reachable via cycling key, enable via config.yaml*), `Bench` (run llama-bench), or `BenchTune` (parameter auto-tuning). |
 | **API Endpoint** | false | Enable the API proxy server (see Serve Mode). |
 | **Dashboard** | false | WebSocket dashboard server (port 49223). Press `Enter` to configure (enabled, port, auth key, TLS). |
 | **RPC Workers** | None | Open a dedicated window to manage distributed inference nodes (IP:Port). |
+| **Language** | en | UI language. Press `Enter` to cycle between English, French, and Italian. |
 
 > **Note:** The Server Settings panel is hidden when a server is already running. Press `F2` to toggle Server Settings only when no server is active.
 
@@ -267,13 +268,14 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | `Ctrl+K` | CmdLine overlay |
 | `Ctrl+Alt+K` | Kill llama-server |
 | `Ctrl+L` | Cycle UI language (en → fr → it → en) |
-| `Ctrl+S` | Save settings / Cycle search sort (in search) |
+| `Ctrl+S` | Save settings / Cycle search sort (in search) / Cycle local models sort (in list) |
 | `Ctrl+R` | Reset settings (in LLM Settings) / Fetch README (in search) |
 | `Ctrl+E` | Toggle field enabled/disabled (in LLM Settings: Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, Flash Attention, Unified KV, Keep in memory, Fit, MTP, Ignore EOS, Yarn RoPE, Active Experts, SWA Full Cache) |
 | `Ctrl+G` | Show GGUF filename explanation (global, works from any panel) |
 | `Ctrl+X` | Toggle expert mode (in LLM Settings) |
 | `Ctrl+P` | Open Profile Picker modal (in LLM Settings) |
 | `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
+| `Ctrl+O` | Re-trigger onboarding wizard |
 | `Ctrl+B` | Back one page in search |
 | `g` / `G` | Jump to top/bottom of log |
 | `PageUp` / `PageDown` | Fast scroll (logs, profiles, presets, benchmarks) |
@@ -293,6 +295,9 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | `Alt+C` | Edit chat template kwargs / Cancel confirmation |
 | `y` | Confirm destructive action |
 | `Ctrl+h` | Cancel confirmation dialog |
+| `0-9, -, .` | Type numeric values directly (in LLM Settings) |
+| `Right` | View README (in search/files mode) |
+| `Esc` (in BenchTune) | Cancel benchmark tuning |
 
 ## Log Panel
 
@@ -448,7 +453,7 @@ Each backend has its own independently configurable llama.cpp version. Switching
 | Mode | Description |
 |------|-------------|
 | **Normal** | Single model via CLI (default) |
-| **Router** | Multiple models via API, loads via `/load` endpoint *(Work In Progress — not yet selectable in TUI)* |
+| **Router (WIP)** | Multiple models via API, loads via `/load` endpoint *(Work In Progress — not yet selectable in TUI; enable via config.yaml `default.server_mode: router`)* |
 | **Bench** | GPU benchmarking mode (runs llama-bench) |
 | **BenchTune** | Parameter auto-tuning mode |
 
