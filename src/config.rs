@@ -1093,59 +1093,57 @@ impl Config {
     ) {
         if let serde_yml::Value::Mapping(map) = value {
             for key in map.keys() {
-                if let Some(key_str) = key.as_str()
-                    && !known_keys.contains(&key_str) {
-                        let field = if prefix.is_empty() {
-                            key_str.to_string()
-                        } else {
-                            format!("{}.{}", prefix, key_str)
-                        };
-                        warnings.push(ValidationWarning {
-                            field,
-                            message: format!("Unknown config field: {}", key_str),
-                            severity: ValidationSeverity::Warning,
-                        });
-                    }
-            }
-
-            // Recurse into nested structures
-            for (key, val) in map {
-                if let Some(key_str) = key.as_str() {
-                    let new_prefix = if prefix.is_empty() {
+                let key_str = key.as_str();
+                if !known_keys.contains(&key_str) {
+                    let field = if prefix.is_empty() {
                         key_str.to_string()
                     } else {
                         format!("{}.{}", prefix, key_str)
                     };
+                    warnings.push(ValidationWarning {
+                        field,
+                        message: format!("Unknown config field: {}", key_str),
+                        severity: ValidationSeverity::Warning,
+                    });
+                }
+            }
 
-                    match key_str {
-                        "default" => {
-                            Self::check_unknown_fields(val, &new_prefix, Self::default_params_keys(), warnings);
-                        }
-                        "model_overrides" => {
-                            if let serde_yml::Value::Mapping(overrides) = val {
-                                for (override_key, override_val) in overrides {
-                                    if let Some(k) = override_key.as_str() {
-                                        let override_prefix = format!("{}.{}", new_prefix, k);
-                                        Self::check_unknown_fields(
-                                            override_val,
-                                            &override_prefix,
-                                            Self::model_override_keys(),
-                                            warnings,
-                                        );
-                                    }
-                                }
+            // Recurse into nested structures
+            for (key, val) in map {
+                let key_str = key.as_str();
+                let new_prefix = if prefix.is_empty() {
+                    key_str.to_string()
+                } else {
+                    format!("{}.{}", prefix, key_str)
+                };
+
+                match key_str {
+                    "default" => {
+                        Self::check_unknown_fields(val, &new_prefix, Self::default_params_keys(), warnings);
+                    }
+                    "model_overrides" => {
+                        if let serde_yml::Value::Mapping(overrides) = val {
+                            for (override_key, override_val) in overrides {
+                                let k = override_key.as_str();
+                                let override_prefix = format!("{}.{}", new_prefix, k);
+                                Self::check_unknown_fields(
+                                    override_val,
+                                    &override_prefix,
+                                    Self::model_override_keys(),
+                                    warnings,
+                                );
                             }
                         }
-                        "rpc_workers" => {
-                            if let serde_yml::Value::Sequence(items) = val {
-                                for item in items {
-                                    Self::check_unknown_fields(item, &new_prefix, Self::rpc_worker_keys(), warnings);
-                                }
+                    }
+                    "rpc_workers" => {
+                        if let serde_yml::Value::Sequence(items) = val {
+                            for item in items {
+                                Self::check_unknown_fields(item, &new_prefix, Self::rpc_worker_keys(), warnings);
                             }
                         }
-                        _ => {
-                            Self::check_unknown_fields(val, &new_prefix, known_keys, warnings);
-                        }
+                    }
+                    _ => {
+                        Self::check_unknown_fields(val, &new_prefix, known_keys, warnings);
                     }
                 }
             }

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 /// Load all YAML configs from a directory into a HashMap keyed by filename stem.
-pub(crate) fn load_all_from_dir<T: DeserializeOwned + std::fmt::Debug>(
+pub(crate) fn load_all_from_dir<T: DeserializeOwned + std::fmt::Debug + 'static>(
     dir: &Path,
 ) -> HashMap<String, T> {
     let mut map = HashMap::new();
@@ -102,7 +102,7 @@ pub(crate) struct NamedStore<T: Clone + Serialize + for<'de> Deserialize<'de> + 
     cache: HashMap<String, T>,
 }
 
-impl<T: Clone + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + NamedItem> NamedStore<T> {
+impl<T: Clone + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + NamedItem + 'static> NamedStore<T> {
     pub fn new(dir: PathBuf, unused_dir: PathBuf) -> Self {
         let cache = load_all_from_dir(&dir);
         Self { dir, unused_dir, cache }

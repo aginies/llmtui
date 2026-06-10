@@ -27,7 +27,7 @@ pulldown-cmark = "0.12"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "net", "process", "sync", "time", "signal", "io-util"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
-serde_yml = "0.0.4"
+serde_yml = "0.0.13"
 clap = { version = "4", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
