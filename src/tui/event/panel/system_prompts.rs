@@ -28,10 +28,9 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
                 // Save
-                if let Some(preset_name) = app.edit.editing_preset {
-                    // We need the name from the merged list
+                if let Some(preset_idx) = app.edit.editing_preset {
                     let all_presets = app.config.merged_presets();
-                    if let Some(preset) = all_presets.get(preset_name)
+                    if let Some(preset) = all_presets.get(preset_idx)
                         && let Some(mut p) =
                             app.config.system_prompt_presets.get(&preset.name).cloned()
                     {

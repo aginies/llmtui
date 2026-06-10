@@ -370,8 +370,9 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     sync_global_settings(app);
                 }
                 mark_settings_dirty(app, true);
+            } else {
+                mark_settings_dirty(app, false);
             }
-            mark_settings_dirty(app, false);
         }
         KeyCode::Right => {
             if let Some(f) = field {

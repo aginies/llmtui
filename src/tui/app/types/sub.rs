@@ -12,10 +12,10 @@ use super::{
     ActivePanel, GlobalMode, LoadingPhase, ResizeState, SettingsRenderCache, TextScrollState,
 };
 
-type SpawnTaskHandle = tokio::task::JoinHandle<
+pub type SpawnTaskHandle = tokio::task::JoinHandle<
     Result<(String, ServerHandle, String, crate::models::ModelSettings), String>,
 >;
-type BenchTuneTaskHandle = tokio::task::JoinHandle<(
+pub type BenchTuneTaskHandle = tokio::task::JoinHandle<(
     Result<Vec<BenchTuneResult>, String>,
     String,
     BenchTuneConfig,

@@ -4,14 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8};
 
-type SpawnTaskHandle = tokio::task::JoinHandle<
-    Result<(String, ServerHandle, String, crate::models::ModelSettings), String>,
->;
-type BenchTuneTaskHandle = tokio::task::JoinHandle<(
-    Result<Vec<crate::models::BenchTuneResult>, String>,
-    String,
-    crate::models::BenchTuneConfig,
-)>;
+use super::types::sub::{BenchTuneTaskHandle, SpawnTaskHandle};
 
 const DOWNLOAD_PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_millis(1000);
 
@@ -381,7 +374,6 @@ impl App {
                                 &self.download.download_progress,
                                 search_results,
                             );
-                            self.precache_all_metadata_bg();
                             self.precache_all_metadata_bg();
                         }
                     }

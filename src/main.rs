@@ -251,7 +251,6 @@ async fn main() -> Result<()> {
             app.models = models;
             app.init_scrolls_for_models();
             app.precache_all_metadata_bg();
-            app.precache_all_metadata_bg();
             if !app.models.is_empty() {
                 app.selected_model_idx = Some(0);
                 app.on_model_selection_change();
@@ -439,14 +438,10 @@ async fn main() -> Result<()> {
                                 mouse,
                                 ratatui::layout::Rect::new(0, 0, size.width, size.height),
                             );
-                            match mouse.kind {
-                                crossterm::event::MouseEventKind::Down(_)
-                                | crossterm::event::MouseEventKind::ScrollUp
-                                | crossterm::event::MouseEventKind::ScrollDown => {}
-                                _ => {}
-                            }
                         }
-                        crossterm::event::Event::Resize(_, _) => {}
+                        crossterm::event::Event::Resize(_, _) => {
+                            app.ui.needs_redraw = true;
+                        }
                         _ => {}
                     }
                     if matches!(

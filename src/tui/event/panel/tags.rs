@@ -140,7 +140,7 @@ pub fn handle_tags_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.edit.tags_insert_mode = true;
                 app.edit.tags_selected_idx = None;
             }
-            app.settings_state.settings_edit_buffer.clear();
+            app.edit.tags_edit_buffer.clear();
         }
         _ => {}
     }
