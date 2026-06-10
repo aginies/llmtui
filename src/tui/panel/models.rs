@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState},
 };
 
+use regex::Regex;
 use crate::models::{ListSort, SearchSort};
 use crate::tui::app::{App, ModelsMode};
 use crate::tui::{format_context_k, format_number, format_size};
@@ -184,60 +185,54 @@ pub fn scroll_text(
     max_width: u16,
     state: Option<&crate::tui::app::TextScrollState>,
 ) -> String {
-    if text.chars().count() <= max_width as usize {
+    let char_len = text.chars().count();
+    if char_len <= max_width as usize {
         return text.to_string();
     }
-    let chars: Vec<char> = text.chars().collect();
-    let max_offset = chars.len() - max_width as usize;
+    let max_offset = char_len - max_width as usize;
     let offset = state.map_or(0, |s| s.offset.min(max_offset));
-    let start = offset;
-    let end = start + max_width as usize;
-    let visible: String = chars[start..end].iter().collect();
-    format!("{}{}", visible, MARQUEE_SUFFIX)
+    let start_byte = text.char_indices().nth(offset).map_or(0, |(i, _)| i);
+    let end_byte = text.char_indices().nth(offset + max_width as usize)
+        .map_or(text.len(), |(i, _)| i);
+    format!("{}{}", &text[start_byte..end_byte], MARQUEE_SUFFIX)
 }
 
-/// Highlight occurrences of each word in `query` within `text` (case-insensitive).
-fn highlight_query(text: &str, query: &str) -> Line<'static> {
-    let words: Vec<String> = query.split_whitespace().map(|w| w.to_lowercase()).collect();
-    if words.is_empty() || text.is_empty() {
+/// Highlight occurrences matched by `compiled` within `text`.
+/// `lower_text` is the case-folded version of `text` used for matching.
+fn highlight_query(text: &str, lower_text: &str, compiled: Option<&Regex>) -> Line<'static> {
+    if compiled.is_none() || text.is_empty() {
         return Line::from(text.to_string());
     }
-    let lower_text = text.to_lowercase();
-    let pattern = words.join("|");
-    let regex = regex::Regex::new(&pattern).ok().map(|r| {
-        let mut spans = Vec::new();
-        for cap in r.captures_iter(&lower_text) {
-            let start = cap.get(0).unwrap().start();
-            let end = cap.get(0).unwrap().end();
-            spans.push((start, end));
-        }
-        spans
-    });
+    let highlights = compiled.unwrap().captures_iter(lower_text)
+        .filter_map(|cap| {
+            let m = cap.get(0)?;
+            Some((m.start(), m.end()))
+        })
+        .collect::<Vec<(usize, usize)>>();
     let mut spans = Vec::new();
     let mut start = 0;
-    if let Some(highlights) = regex {
-        for (hstart, hend) in &highlights {
-            if *hstart > start {
-                spans.push(Span::styled(
-                    text[start..*hstart].to_string(),
-                    Style::default(),
-                ));
-            }
+    for (hstart, hend) in &highlights {
+        if *hstart > start {
             spans.push(Span::styled(
-                text[*hstart..*hend].to_string(),
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ));
-            start = *hend;
-        }
-        if start < text.len() {
-            spans.push(Span::styled(
-                text[start..text.len()].to_string(),
+                text[start..*hstart].to_string(),
                 Style::default(),
             ));
         }
-    } else {
+        spans.push(Span::styled(
+            text[*hstart..*hend].to_string(),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ));
+        start = *hend;
+    }
+    if start < text.len() {
+        spans.push(Span::styled(
+            text[start..text.len()].to_string(),
+            Style::default(),
+        ));
+    }
+    if spans.is_empty() {
         spans.push(Span::styled(text.to_string(), Style::default()));
     }
     Line::from(spans)
@@ -353,6 +348,13 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 }).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)).alignment(Alignment::Center)),
             ];
 
+            let ctx_cache: std::collections::HashMap<&str, (u32, bool, f32)> = app.models.iter()
+                .map(|m| {
+                    let s = app.config.resolve_settings(Some(m.display_name.as_str()), None);
+                    (m.display_name.as_str(), (s.context_length, s.rope_yarn_enabled, s.rope_scale))
+                })
+                .collect();
+
             let filtered_indices = app.get_filtered_model_indices();
 
             let status_priority = |state: Option<&crate::models::ModelState>| -> u8 {
@@ -379,8 +381,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         prio_b.cmp(&prio_a)
                     }
                     ListSort::Params => {
-                        let meta_a = app.search.gguf_metadata_cache.get(&model_a.path.to_string_lossy().to_string());
-                        let meta_b = app.search.gguf_metadata_cache.get(&model_b.path.to_string_lossy().to_string());
+                        let ka = &*model_a.path.to_string_lossy();
+                        let kb = &*model_b.path.to_string_lossy();
+                        let meta_a = app.search.gguf_metadata_cache.get(ka);
+                        let meta_b = app.search.gguf_metadata_cache.get(kb);
                         let val_a = meta_a.map(|m| {
                             let trimmed = m.model_parameters.trim();
                             let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
@@ -394,16 +398,22 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
                     }
                     ListSort::Qual => {
-                        let meta_a = app.search.gguf_metadata_cache.get(&model_a.path.to_string_lossy().to_string());
-                        let meta_b = app.search.gguf_metadata_cache.get(&model_b.path.to_string_lossy().to_string());
+                        let ka = &*model_a.path.to_string_lossy();
+                        let kb = &*model_b.path.to_string_lossy();
+                        let meta_a = app.search.gguf_metadata_cache.get(ka);
+                        let meta_b = app.search.gguf_metadata_cache.get(kb);
                         let rank_a = meta_a.map(|m| m.quality_rank).unwrap_or(0);
                         let rank_b = meta_b.map(|m| m.quality_rank).unwrap_or(0);
                         rank_b.cmp(&rank_a)
                     }
                     ListSort::Context => {
-                        let settings_a = app.config.resolve_settings(Some(model_a.display_name.as_str()), None);
-                        let settings_b = app.config.resolve_settings(Some(model_b.display_name.as_str()), None);
-                        settings_b.context_length.cmp(&settings_a.context_length)
+                        let ctx_a = ctx_cache.get(model_a.display_name.as_str())
+                            .map(|(c, _, _)| *c)
+                            .unwrap_or(0);
+                        let ctx_b = ctx_cache.get(model_b.display_name.as_str())
+                            .map(|(c, _, _)| *c)
+                            .unwrap_or(0);
+                        ctx_b.cmp(&ctx_a)
                     }
                 }
             });
@@ -429,30 +439,29 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         _ => None,
                     };
 
-                    let settings = app.config.resolve_settings(
-                        Some(model.display_name.as_str()),
-                        None,
-                    );
+                    let (context_length, rope_yarn_enabled, rope_scale) = ctx_cache
+                        .get(model.display_name.as_str())
+                        .copied()
+                        .unwrap_or((0, false, 0.0));
                     let context_str = format_context_k(
-                        settings.context_length,
-                        settings.rope_yarn_enabled,
-                        settings.rope_scale,
+                        context_length,
+                        rope_yarn_enabled,
+                        rope_scale,
                     );
 
                     let filename = model.display_name.rsplit('/').next().unwrap_or(&model.display_name);
                     let display_name = filename.strip_suffix(".gguf").unwrap_or(filename);
-                    
-                    // Extract params string from cached metadata
-                    let path_key = model.path.to_string_lossy().to_string();
-                    let params_str = app.search.gguf_metadata_cache.get(&path_key)
-                        .map(|meta| {
-                            let mut p = meta.model_parameters.clone();
-                            if meta.arch.contains("moe") && !p.is_empty() {
-                                p = format!("{} (MoE)", p);
-                            }
-                            p
-                        })
-                        .unwrap_or_default();
+
+                    // Fetch metadata once, reuse for params / moe / quality
+                    let path_key = model.path.to_string_lossy();
+                    let meta = app.search.gguf_metadata_cache.get(path_key.as_ref());
+                    let params_str = meta.map(|m| {
+                        let mut p = m.model_parameters.clone();
+                        if m.arch.contains("moe") && !p.is_empty() {
+                            p = format!("{} (MoE)", p);
+                        }
+                        p
+                    }).unwrap_or_default();
                     let params_width = params_str.chars().count() as u16 + 2;
 
                     let name_width = table_area
@@ -508,9 +517,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         _ => Style::default().fg(Color::Gray),
                     };
 
-                    let is_moe = app.search.gguf_metadata_cache.get(&path_key)
-                        .map(|m| m.arch.contains("moe"))
-                        .unwrap_or(false);
+                    let is_moe = meta.map(|m| m.arch.contains("moe")).unwrap_or(false);
                    let params_style = if params_str.is_empty() {
                         Style::default().fg(Color::DarkGray)
                     } else if is_moe {
@@ -519,8 +526,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         Style::default().fg(Color::White)
                     };
 
-                    let quality_cell = app.search.gguf_metadata_cache.get(&path_key)
-                        .map(|meta| quality_dot(meta.quality_rank))
+                    let quality_cell = meta.map(|m| quality_dot(m.quality_rank))
                         .unwrap_or_else(|| quality_dot(0));
 
                     Row::new(vec![
@@ -629,6 +635,16 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 ),
             ];
 
+            let query_regex = if query.trim().is_empty() {
+                None
+            } else {
+                let pattern: String = query.split_whitespace()
+                    .map(|w| w.to_lowercase())
+                    .collect::<Vec<_>>()
+                    .join("|");
+                Regex::new(&pattern).ok()
+            };
+
             let mut rows: Vec<Row> = results
                 .iter()
                 .map(|result| {
@@ -654,12 +670,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.max_offset = max_offset;
                     state.visible = true;
                     let scrolled_raw = scroll_text(&result.model_id, col_width, Some(state));
-                    let highlighted = highlight_query(&scrolled_raw, query);
+                    let scrolled_lower = scrolled_raw.to_lowercase();
+                    let highlighted = highlight_query(&scrolled_raw, &scrolled_lower, query_regex.as_ref());
 
-                    let is_downloaded = crate::tui::app::sync_ops::model_dir_has_contents(
-                        &app.config.models_dirs,
-                        &result.model_id,
-                    );
+                    let is_downloaded = result.downloaded;
                     let marker = if is_downloaded { "✓" } else { " " };
                     let marker_span =
                         Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));
@@ -776,7 +790,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.max_offset = max_offset;
                     state.visible = true;
                     let scrolled_raw = scroll_text(name, available, Some(state));
-                    let highlighted = highlight_query(&scrolled_raw, "");
+                    let highlighted = highlight_query(&scrolled_raw, "", None);
                     let mut name_spans: Vec<Span> = vec![marker_span];
                     name_spans.extend(highlighted.spans.iter().cloned());
                     Row::new(vec![
@@ -912,89 +926,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         }
 
                         if !app.bench_tune.bench_tune_results.is_empty() {
-                            lines.push(Line::from(""));
-                            lines.push(Line::from(Span::styled(
-                                " Benchmark results (sorted by generation speed):",
-                                Style::default().add_modifier(Modifier::BOLD),
-                            )));
-                            lines.push(Line::from(Span::styled(
-                                " (Press [↵] to view details of selected result)",
-                                Style::default().fg(Color::DarkGray),
-                            )));
-                            lines.push(Line::from(""));
-
-                            use ratatui::widgets::{Cell, Row};
-
-                            let header = Row::new(vec![
-                                Cell::from(" # "),
-                                Cell::from("Gen t/s"),
-                                Cell::from("Inf t/s"),
-                                Cell::from("Params"),
-                            ])
-                            .style(
-                                Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
-                            );
-
-                            let mut rows = Vec::new();
-                            for (i, result) in app.bench_tune.bench_tune_results.iter().enumerate()
-                            {
-                                let p_str = crate::tui::format_bench_params(&result.params, false)
-                                    .join(",");
-
-                                let mut style = Style::default().fg(Color::White);
-                                if i == 0 {
-                                    style = style.fg(Color::Green);
-                                }
-
-                                rows.push(
-                                    Row::new(vec![
-                                        Cell::from(format!(" {:<2} ", i + 1)),
-                                        Cell::from(format!("{:.2}", result.metrics.generation_tps)),
-                                        Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
-                                        Cell::from(p_str),
-                                    ])
-                                    .style(style),
-                                );
-                            }
-
-                            app.bench_tune
-                                .bench_tune_table_state
-                                .select(Some(app.bench_tune.bench_tune_result_row));
-
-                            let table = ratatui::widgets::Table::new(
-                                rows,
-                                [
-                                    ratatui::layout::Constraint::Length(4),
-                                    ratatui::layout::Constraint::Length(10),
-                                    ratatui::layout::Constraint::Length(10),
-                                    ratatui::layout::Constraint::Fill(1),
-                                ],
-                            )
-                            .header(header)
-                            .block(Block::default().borders(Borders::NONE))
-                            .row_highlight_style(
-                                Style::default()
-                                    .bg(Color::Rgb(60, 60, 60))
-                                    .add_modifier(Modifier::BOLD),
-                            )
-                            .highlight_symbol("> ");
-
-                            let header_height = lines.len() as u16;
-                            let table_area = Rect {
-                                x: inner_area.x,
-                                y: inner_area.y + header_height,
-                                width: inner_area.width,
-                                height: inner_area.height.saturating_sub(header_height),
-                            };
-
-                            f.render_widget(Paragraph::new(lines.clone()), inner_area);
-                            f.render_stateful_widget(
-                                table,
-                                table_area,
-                                &mut app.bench_tune.bench_tune_table_state,
-                            );
+                            render_benchtune_results_table(f, inner_area, app, &mut lines);
                             return;
                         }
                     }
@@ -1038,89 +970,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         )));
 
                         if !app.bench_tune.bench_tune_results.is_empty() {
-                            lines.push(Line::from(""));
-                            lines.push(Line::from(Span::styled(
-                                " Benchmark results (sorted by generation speed):",
-                                Style::default().add_modifier(Modifier::BOLD),
-                            )));
-                            lines.push(Line::from(Span::styled(
-                                " (Press [↵] to view details of selected result)",
-                                Style::default().fg(Color::DarkGray),
-                            )));
-                            lines.push(Line::from(""));
-
-                            use ratatui::widgets::{Cell, Row};
-
-                            let header = Row::new(vec![
-                                Cell::from(" # "),
-                                Cell::from("Gen t/s"),
-                                Cell::from("Inf t/s"),
-                                Cell::from("Params"),
-                            ])
-                            .style(
-                                Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
-                            );
-
-                            let mut rows = Vec::new();
-                            for (i, result) in app.bench_tune.bench_tune_results.iter().enumerate()
-                            {
-                                let p_str = crate::tui::format_bench_params(&result.params, false)
-                                    .join(",");
-
-                                let mut style = Style::default().fg(Color::White);
-                                if i == 0 {
-                                    style = style.fg(Color::Green);
-                                }
-
-                                rows.push(
-                                    Row::new(vec![
-                                        Cell::from(format!(" {:<2} ", i + 1)),
-                                        Cell::from(format!("{:.2}", result.metrics.generation_tps)),
-                                        Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
-                                        Cell::from(p_str),
-                                    ])
-                                    .style(style),
-                                );
-                            }
-
-                            app.bench_tune
-                                .bench_tune_table_state
-                                .select(Some(app.bench_tune.bench_tune_result_row));
-
-                            let table = ratatui::widgets::Table::new(
-                                rows,
-                                [
-                                    ratatui::layout::Constraint::Length(4),
-                                    ratatui::layout::Constraint::Length(10),
-                                    ratatui::layout::Constraint::Length(10),
-                                    ratatui::layout::Constraint::Fill(1),
-                                ],
-                            )
-                            .header(header)
-                            .block(Block::default().borders(Borders::NONE))
-                            .row_highlight_style(
-                                Style::default()
-                                    .bg(Color::Rgb(60, 60, 60))
-                                    .add_modifier(Modifier::BOLD),
-                            )
-                            .highlight_symbol("> ");
-
-                            let header_height = lines.len() as u16;
-                            let table_area = Rect {
-                                x: inner_area.x,
-                                y: inner_area.y + header_height,
-                                width: inner_area.width,
-                                height: inner_area.height.saturating_sub(header_height),
-                            };
-
-                            f.render_widget(Paragraph::new(lines.clone()), inner_area);
-                            f.render_stateful_widget(
-                                table,
-                                table_area,
-                                &mut app.bench_tune.bench_tune_table_state,
-                            );
+                            render_benchtune_results_table(f, inner_area, app, &mut lines);
                             return;
                         }
                     }
@@ -1164,89 +1014,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         )));
 
                         if !app.bench_tune.bench_tune_results.is_empty() {
-                            lines.push(Line::from(""));
-                            lines.push(Line::from(Span::styled(
-                                " Benchmark results (sorted by generation speed):",
-                                Style::default().add_modifier(Modifier::BOLD),
-                            )));
-                            lines.push(Line::from(Span::styled(
-                                " (Press [↵] to view details of selected result)",
-                                Style::default().fg(Color::DarkGray),
-                            )));
-                            lines.push(Line::from(""));
-
-                            use ratatui::widgets::{Cell, Row};
-
-                            let header = Row::new(vec![
-                                Cell::from(" # "),
-                                Cell::from("Gen t/s"),
-                                Cell::from("Inf t/s"),
-                                Cell::from("Params"),
-                            ])
-                            .style(
-                                Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
-                            );
-
-                            let mut rows = Vec::new();
-                            for (i, result) in app.bench_tune.bench_tune_results.iter().enumerate()
-                            {
-                                let p_str = crate::tui::format_bench_params(&result.params, false)
-                                    .join(",");
-
-                                let mut style = Style::default().fg(Color::White);
-                                if i == 0 {
-                                    style = style.fg(Color::Green);
-                                }
-
-                                rows.push(
-                                    Row::new(vec![
-                                        Cell::from(format!(" {:<2} ", i + 1)),
-                                        Cell::from(format!("{:.2}", result.metrics.generation_tps)),
-                                        Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
-                                        Cell::from(p_str),
-                                    ])
-                                    .style(style),
-                                );
-                            }
-
-                            app.bench_tune
-                                .bench_tune_table_state
-                                .select(Some(app.bench_tune.bench_tune_result_row));
-
-                            let table = ratatui::widgets::Table::new(
-                                rows,
-                                [
-                                    ratatui::layout::Constraint::Length(4),
-                                    ratatui::layout::Constraint::Length(10),
-                                    ratatui::layout::Constraint::Length(10),
-                                    ratatui::layout::Constraint::Fill(1),
-                                ],
-                            )
-                            .header(header)
-                            .block(Block::default().borders(Borders::NONE))
-                            .row_highlight_style(
-                                Style::default()
-                                    .bg(Color::Rgb(60, 60, 60))
-                                    .add_modifier(Modifier::BOLD),
-                            )
-                            .highlight_symbol("> ");
-
-                            let header_height = lines.len() as u16;
-                            let table_area = Rect {
-                                x: inner_area.x,
-                                y: inner_area.y + header_height,
-                                width: inner_area.width,
-                                height: inner_area.height.saturating_sub(header_height),
-                            };
-
-                            f.render_widget(Paragraph::new(lines.clone()), inner_area);
-                            f.render_stateful_widget(
-                                table,
-                                table_area,
-                                &mut app.bench_tune.bench_tune_table_state,
-                            );
+                            render_benchtune_results_table(f, inner_area, app, &mut lines);
                             return;
                         }
                     }
@@ -1275,5 +1043,78 @@ fn quality_dot(rank: u8) -> Cell<'static> {
         _ => "\u{26AB}",  // black circle - unknown
     };
     Cell::from(dot)
+}
+
+/// Render the benchmark results table.
+/// Adds header lines to `lines`, then renders paragraph + table in `inner_area`.
+fn render_benchtune_results_table(
+    f: &mut Frame,
+    inner_area: Rect,
+    app: &mut App,
+    lines: &mut Vec<Line<'static>>,
+) {
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        " Benchmark results (sorted by generation speed):",
+        Style::default().add_modifier(Modifier::BOLD),
+    )));
+    lines.push(Line::from(Span::styled(
+        " (Press [↵] to view details of selected result)",
+        Style::default().fg(Color::DarkGray),
+    )));
+    lines.push(Line::from(""));
+
+    let mut rows = Vec::new();
+    for (i, result) in app.bench_tune.bench_tune_results.iter().enumerate() {
+        let p_str = crate::tui::format_bench_params(&result.params, false).join(",");
+        let style = if i == 0 {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        rows.push(Row::new(vec![
+            Cell::from(format!(" {:<2} ", i + 1)),
+            Cell::from(format!("{:.2}", result.metrics.generation_tps)),
+            Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
+            Cell::from(p_str),
+        ]).style(style));
+    }
+
+    app.bench_tune.bench_tune_table_state
+        .select(Some(app.bench_tune.bench_tune_result_row));
+
+    let header = Row::new(vec![
+        Cell::from(" # "),
+        Cell::from("Gen t/s"),
+        Cell::from("Inf t/s"),
+        Cell::from("Params"),
+    ]).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+
+    let table = ratatui::widgets::Table::new(
+        rows,
+        [
+            ratatui::layout::Constraint::Length(4),
+            ratatui::layout::Constraint::Length(10),
+            ratatui::layout::Constraint::Length(10),
+            ratatui::layout::Constraint::Fill(1),
+        ],
+    )
+    .header(header)
+    .block(Block::default().borders(Borders::NONE))
+    .row_highlight_style(
+        Style::default().bg(Color::Rgb(60, 60, 60)).add_modifier(Modifier::BOLD),
+    )
+    .highlight_symbol("> ");
+
+    let header_height = lines.len() as u16;
+    let table_area = Rect {
+        x: inner_area.x,
+        y: inner_area.y + header_height,
+        width: inner_area.width,
+        height: inner_area.height.saturating_sub(header_height),
+    };
+
+    f.render_widget(Paragraph::new(lines.clone()), inner_area);
+    f.render_stateful_widget(table, table_area, &mut app.bench_tune.bench_tune_table_state);
 }
 

@@ -331,8 +331,10 @@ fn get_sorted_indices(app: &App, filtered: &[usize]) -> Vec<usize> {
                 prio_b.cmp(&prio_a)
             }
             ListSort::Params => {
-                let meta_a = app.search.gguf_metadata_cache.get(&model_a.path.to_string_lossy().to_string());
-                let meta_b = app.search.gguf_metadata_cache.get(&model_b.path.to_string_lossy().to_string());
+                let ka = &*model_a.path.to_string_lossy();
+                let kb = &*model_b.path.to_string_lossy();
+                let meta_a = app.search.gguf_metadata_cache.get(ka);
+                let meta_b = app.search.gguf_metadata_cache.get(kb);
                 let val_a = meta_a.map(|m| {
                     let trimmed = m.model_parameters.trim();
                     let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
@@ -346,8 +348,10 @@ fn get_sorted_indices(app: &App, filtered: &[usize]) -> Vec<usize> {
                 val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
             }
             ListSort::Qual => {
-                let meta_a = app.search.gguf_metadata_cache.get(&model_a.path.to_string_lossy().to_string());
-                let meta_b = app.search.gguf_metadata_cache.get(&model_b.path.to_string_lossy().to_string());
+                let ka = &*model_a.path.to_string_lossy();
+                let kb = &*model_b.path.to_string_lossy();
+                let meta_a = app.search.gguf_metadata_cache.get(ka);
+                let meta_b = app.search.gguf_metadata_cache.get(kb);
                 let rank_a = meta_a.map(|m| m.quality_rank).unwrap_or(0);
                 let rank_b = meta_b.map(|m| m.quality_rank).unwrap_or(0);
                 rank_b.cmp(&rank_a)

@@ -170,15 +170,12 @@ impl App {
     }
 
     pub fn get_filtered_model_indices(&self) -> Vec<usize> {
-        self.models
-            .iter()
-            .enumerate()
-            .filter(|(_, m)| {
-                self.search.local_filter.is_empty()
-                    || m.display_name
-                        .to_lowercase()
-                        .contains(&self.search.local_filter.to_lowercase())
-            })
+        let filter = self.search.local_filter.to_lowercase();
+        if filter.is_empty() {
+            return (0..self.models.len()).collect();
+        }
+        self.models.iter().enumerate()
+            .filter(|(_, m)| m.display_name.to_lowercase().contains(&filter))
             .map(|(i, _)| i)
             .collect()
     }
@@ -226,14 +223,3 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
     })
 }
 
-/// Check if a model has been downloaded by verifying that
-/// models_dir/<model_id>/ exists and is non-empty.
-pub fn model_dir_has_contents(models_dirs: &[PathBuf], model_id: &str) -> bool {
-    for dir in models_dirs {
-        let model_dir = dir.join(model_id);
-        if let Ok(mut entries) = std::fs::read_dir(&model_dir) {
-            return entries.next().is_some();
-        }
-    }
-    false
-}
