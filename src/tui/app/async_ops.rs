@@ -676,6 +676,7 @@ impl App {
                     self.ui.needs_redraw = true;
 
                     if let Some(handle) = &self.server.server_handle {
+                        let host = handle.host.clone();
                         let port = handle.port;
                         let pid = handle.pid;
 
@@ -745,9 +746,26 @@ impl App {
                                 loaded.push(name);
                             }
                         }
-                    }
 
-                    self.metrics.ctx_used = 0;
+                        // Fetch fresh metrics after a brief delay. The periodic poll runs every 5s
+                        // and may have stale 0 values from during the loading phase.
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                        if let Ok(mut fresh) =
+                            crate::backend::server::get_metrics(&host, port, None, Some(pid)).await
+                        {
+                            if self.server.spawned_context_length > 0 {
+                                fresh.ctx_max = self.server.spawned_context_length;
+                            }
+                            fresh.total_vram_used = fresh.gpu_mem_used;
+                            fresh.ctx_used = 0;
+                            self.metrics = fresh;
+                            self.ui.needs_redraw = true;
+                        } else {
+                            self.metrics.ctx_used = 0;
+                        }
+                    } else {
+                        self.metrics.ctx_used = 0;
+                    }
                 }
             }
             return;
