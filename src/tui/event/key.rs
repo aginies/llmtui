@@ -579,11 +579,13 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.search.search_results_idx = None;
                 }
             }
+            app.invalidate_list_caches();
             return;
         }
         // List mode sort
         else if let ModelsMode::List { sort_by } = &mut app.models_mode {
             *sort_by = sort_by.next();
+            app.invalidate_list_caches();
         }
         app.save_model_settings();
         return;
@@ -1197,6 +1199,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Esc => {
             app.models_mode = ModelsMode::List { sort_by: crate::models::ListSort::Name };
             app.ui.panel_visibility |= (1 << 4) | (1 << 5);
+            app.invalidate_list_caches();
             return;
         }
         KeyCode::Enter | KeyCode::Char('f')
@@ -1449,6 +1452,7 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 ..
             } = std::mem::replace(&mut app.models_mode, ModelsMode::List { sort_by: crate::models::ListSort::Name })
             {
+                app.invalidate_list_caches();
                 let current_idx = app.search.search_results_idx;
                 let should_reset =
                     current_idx.is_some() && current_idx.unwrap() >= previous_results.len();
@@ -1763,6 +1767,18 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.picker.rpc_workers_selected_idx = 0;
                     app.picker.editing_rpc_worker = None;
                 }
+                8 => {
+                    let current = crate::tui::i18n::get_language();
+                    let next = match current.as_str() {
+                        "fr" => "it",
+                        "it" => "en",
+                        _ => "fr",
+                    };
+                    crate::tui::i18n::set_language(next);
+                    app.config.language = next.to_string();
+                    app.config.save().ok();
+                    app.add_log(format!("Language changed to {}", next.to_uppercase()), crate::config::LogLevel::Info);
+                }
                 _ => {}
             }
             sync_global_settings(app);
@@ -1774,7 +1790,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .saturating_sub(1);
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.settings_state.server_settings_selected_idx += 1;
+            app.settings_state.server_settings_selected_idx =
+                (app.settings_state.server_settings_selected_idx + 1).min(8);
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.settings_state.server_settings_selected_idx {
