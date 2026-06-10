@@ -25,13 +25,11 @@ impl App {
         }
 
         // 3. Right Panel (README / Settings / Profiles / Presets)
-        let is_search = matches!(self.models_mode, ModelsMode::Search { .. });
-        let is_files = matches!(self.models_mode, ModelsMode::Files { .. });
-        let is_bench_tune = matches!(self.models_mode, ModelsMode::BenchTune);
-        let show_readme = match &self.models_mode {
-            ModelsMode::Search { show_readme, .. } => *show_readme,
-            ModelsMode::Files { .. } => true,
-            _ => false,
+        let (is_search, is_files, is_bench_tune, show_readme) = match &self.models_mode {
+            ModelsMode::Search { show_readme, .. } => (true, false, false, *show_readme),
+            ModelsMode::Files { .. } => (false, true, false, true),
+            ModelsMode::BenchTune => (false, false, true, false),
+            _ => (false, false, false, false),
         };
 
         if self.ui.active_panel == ActivePanel::Profiles {
@@ -64,9 +62,10 @@ impl App {
         visible
     }
 
-    pub fn focus_next(&mut self) {
+    fn focus_direction(&mut self, forward: bool) {
         let visible = self.get_visible_panels();
-        if visible.is_empty() {
+        let len = visible.len();
+        if len == 0 {
             return;
         }
 
@@ -74,21 +73,19 @@ impl App {
             .iter()
             .position(|&p| p == self.ui.active_panel)
             .unwrap_or(0);
-        let next_idx = (current_idx + 1) % visible.len();
+        let next_idx = if forward {
+            (current_idx + 1) % len
+        } else {
+            (current_idx + len - 1) % len
+        };
         self.ui.active_panel = visible[next_idx];
     }
 
-    pub fn focus_prev(&mut self) {
-        let visible = self.get_visible_panels();
-        if visible.is_empty() {
-            return;
-        }
+    pub fn focus_next(&mut self) {
+        self.focus_direction(true);
+    }
 
-        let current_idx = visible
-            .iter()
-            .position(|&p| p == self.ui.active_panel)
-            .unwrap_or(0);
-        let prev_idx = (current_idx + visible.len() - 1) % visible.len();
-        self.ui.active_panel = visible[prev_idx];
+    pub fn focus_prev(&mut self) {
+        self.focus_direction(false);
     }
 }
