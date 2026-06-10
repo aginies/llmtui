@@ -166,6 +166,8 @@ impl App {
             );
         }
         self.models.retain(|m| m.path != path);
+        self.invalidate_list_caches();
+        self.rebuild_downloaded_set();
         if let Some(idx) = self.selected_model_idx {
             if idx >= self.models.len() && !self.models.is_empty() {
                 self.selected_model_idx = Some(self.models.len() - 1);
@@ -375,6 +377,8 @@ impl App {
                                 search_results,
                             );
                             self.precache_all_metadata_bg();
+                            self.invalidate_list_caches();
+                            self.rebuild_downloaded_set();
                         }
                     }
                     crate::models::DownloadStatus::Error(e) => {
@@ -566,6 +570,7 @@ impl App {
         }
         if sync_updated {
             self.ui.needs_redraw = true;
+            self.pending.active_model_hint_dirty = true;
         }
     }
 
@@ -738,6 +743,7 @@ impl App {
                                 loaded.push(name);
                             }
                         }
+                        self.pending.active_model_hint_dirty = true;
 
                         // Fetch fresh metrics after a brief delay. The periodic poll runs every 5s
                         // and may have stale 0 values from during the loading phase.
@@ -835,6 +841,7 @@ impl App {
                 crate::models::ModelState::Loading
             };
             self.model_states.insert(m.display_name.clone(), state);
+            self.pending.active_model_hint_dirty = true;
         }
         self.add_log(
             crate::t_fmt!("async.loading_model", display_name),
@@ -1157,11 +1164,12 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                         let model_display_name =
                             self.selected_model().map(|m| m.display_name.clone());
 
-                        if let Some(model_display_name) = model_display_name {
+                         if let Some(model_display_name) = model_display_name {
                             self.model_states.insert(
                                 model_display_name.clone(),
                                 crate::models::ModelState::Available,
                             );
+                            self.pending.active_model_hint_dirty = true;
                         }
 
                         if let Some(handle) = &self.server.server_handle
@@ -1196,6 +1204,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                                     error: e.to_string(),
                                 },
                             );
+                            self.pending.active_model_hint_dirty = true;
                         }
                         self.ui.needs_redraw = true;
                     }

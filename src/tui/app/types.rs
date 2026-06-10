@@ -37,6 +37,7 @@ pub struct SettingsRenderCache {
     pub hash: u64,
     pub selected: usize,
     pub lines: Vec<Line<'static>>,
+    pub selected_content_line: usize,
 }
 
 /// Which panel has focus.
@@ -264,6 +265,10 @@ pub struct App {
     pub search: SearchState,
     pub ui: UIState,
     pub edit: EditState,
+
+    // ── Performance hints ────────────────────────────────────
+    /// Cached first non-Available model state to avoid scanning model_states every render.
+    pub active_model_hint: Option<(String, crate::models::ModelState)>,
 
     // ── Scheduler ────────────────────────────────────────────
     pub pending_tx: tokio::sync::mpsc::Sender<super::pending_events::PendingEvent>,

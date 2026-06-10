@@ -11,13 +11,32 @@ use crate::tui::app::App;
 use crate::tui::format_size;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
-    // Get the actually loaded model(s) or the one currently being loaded
-    let mut loaded_models = Vec::new();
-    for (name, state) in &app.model_states {
-        if !matches!(state, ModelState::Available) {
-            loaded_models.push((name.clone(), state.clone()));
+    // Use cached hint instead of scanning model_states every render.
+    let mut loaded_models = if app.pending.active_model_hint_dirty {
+        app.pending.active_model_hint_dirty = false;
+        let mut result = Vec::new();
+        for (name, state) in &app.model_states {
+            if !matches!(state, ModelState::Available) {
+                result.push((name.clone(), state.clone()));
+                break;
+            }
         }
-    }
+        app.active_model_hint = result.first().cloned();
+        result
+    } else if let Some(hint) = &app.active_model_hint {
+        vec![hint.clone()]
+    } else {
+        // Fallback scan if hint is not yet set
+        let mut result = Vec::new();
+        for (name, state) in &app.model_states {
+            if !matches!(state, ModelState::Available) {
+                result.push((name.clone(), state.clone()));
+                break;
+            }
+        }
+        app.active_model_hint = result.first().cloned();
+        result
+    };
 
     // If no model is active in app.model_states, fallback to selected model
     // but only if it's actually in a non-available state.

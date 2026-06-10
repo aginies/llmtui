@@ -17,58 +17,42 @@ pub fn render_all(
     let cached = &app.model_settings_cache;
     let selected = app.settings_state.settings_selected_idx;
 
-    let mut selected_content_line = 0;
-    let mut total_count = 0;
-
     let edit_buf = &app.settings_state.settings_edit_buffer;
     let editing = !edit_buf.is_empty();
     let hash = app.settings_fingerprint();
 
-    // Cache hit with same selection: track cached total_count, but render_settings
-    // always runs after (setting selected_content_line correctly).
-    let mut cache_hit_total_count = 0;
-    if let Some(c) = &app.settings_state.settings_render_cache
-        && c.hash == hash
-        && c.selected == selected
-    {
-        cache_hit_total_count = c.lines.len();
-    }
-
-    // Build lines -- render_settings sets selected_content_line for the current selection.
-    // Always runs, regardless of cache hit state.
-    let mut lines = Vec::new();
-    let mut selected_line_idx = 0;
-    let fields = settings::filtered_fields(app.settings_state.expert_mode);
-    render_settings(
-        &mut lines,
-        &mut total_count,
-        &mut selected_line_idx,
-        &mut selected_content_line,
-        &fields,
-        settings,
-        cached,
-        selected,
-        edit_buf,
-        editing,
-        disabled,
-    );
-
-    // On cache hit, use cached lines (faster). On miss, update cache.
-    let (lines_to_return, final_total_count) = if let Some(c) =
+    let (lines_to_return, final_total_count, selected_content_line) = if let Some(c) =
         &app.settings_state.settings_render_cache
         && c.hash == hash
         && c.selected == selected
     {
-        // Cache hit: use cached total_count
-        (c.lines.clone(), cache_hit_total_count.max(total_count))
+        (c.lines.clone(), c.lines.len(), c.selected_content_line)
     } else {
-        // Cache miss: store and use built lines
+        let mut lines = Vec::new();
+        let mut total_count = 0;
+        let mut selected_line_idx = 0;
+        let mut selected_content_line = 0;
+        let fields = settings::filtered_fields(app.settings_state.expert_mode);
+        render_settings(
+            &mut lines,
+            &mut total_count,
+            &mut selected_line_idx,
+            &mut selected_content_line,
+            &fields,
+            settings,
+            cached,
+            selected,
+            edit_buf,
+            editing,
+            disabled,
+        );
         app.settings_state.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
             hash,
             selected,
             lines: lines.clone(),
+            selected_content_line,
         });
-        (lines, total_count)
+        (lines, total_count, selected_content_line)
     };
 
     let settings_height = lines_to_return.len();

@@ -10,6 +10,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             KeyCode::Esc => {
                 app.search.filtering_local = false;
                 app.search.local_filter.clear();
+                app.invalidate_list_caches();
                 app.on_model_selection_change();
             }
             KeyCode::Enter => {
@@ -17,10 +18,12 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             KeyCode::Char(c) => {
                 app.search.local_filter.push(c);
+                app.invalidate_list_caches();
                 app.on_model_selection_change();
             }
             KeyCode::Backspace => {
                 app.search.local_filter.pop();
+                app.invalidate_list_caches();
                 app.on_model_selection_change();
             }
             _ => {}
@@ -42,8 +45,12 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         KeyCode::Up | KeyCode::Char('k') => {
-            let filtered = app.get_filtered_model_indices();
-            let sorted = get_sorted_indices(app, &filtered);
+            let sorted = if let ModelsMode::List { .. } = &app.models_mode {
+                app.get_sorted_model_indices().to_vec()
+            } else {
+                let filtered = app.get_filtered_model_indices();
+                get_sorted_indices(app, &filtered)
+            };
             if let Some(idx) = app.selected_model_idx {
                 if let Some(pos) = sorted.iter().position(|&i| i == idx) {
                     if pos > 0 {
@@ -60,8 +67,12 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            let filtered = app.get_filtered_model_indices();
-            let sorted = get_sorted_indices(app, &filtered);
+            let sorted = if let ModelsMode::List { .. } = &app.models_mode {
+                app.get_sorted_model_indices().to_vec()
+            } else {
+                let filtered = app.get_filtered_model_indices();
+                get_sorted_indices(app, &filtered)
+            };
             if let Some(idx) = app.selected_model_idx {
                 if let Some(pos) = sorted.iter().position(|&i| i == idx) {
                     if pos + 1 < sorted.len() {

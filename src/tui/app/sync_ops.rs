@@ -1,4 +1,6 @@
 use super::types::App;
+use super::types::ModelsMode;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 impl App {
@@ -178,6 +180,121 @@ impl App {
             .filter(|(_, m)| m.display_name.to_lowercase().contains(&filter))
             .map(|(i, _)| i)
             .collect()
+    }
+
+    pub fn get_sorted_model_indices(&mut self) -> &[usize] {
+        // Ensure ctx_cache is populated (needed for ListSort::Context)
+        let _ = self.get_ctx_cache();
+        let sort_by = match &self.models_mode {
+            ModelsMode::List { sort_by } => *sort_by,
+            _ => return &[],
+        };
+        let filter = self.search.local_filter.to_lowercase();
+
+        if self.search.list_sort_version == 0
+            || self.search.last_list_sort_by != sort_by
+            || self.search.last_list_filter != filter
+        {
+            let mut sorted: Vec<usize> = self.get_filtered_model_indices();
+            self.sort_model_indices(&mut sorted, sort_by);
+            self.search.list_sorted_indices = sorted;
+            self.search.list_sort_version = 1;
+            self.search.last_list_sort_by = sort_by;
+            self.search.last_list_filter = filter;
+        }
+        &self.search.list_sorted_indices
+    }
+
+    fn sort_model_indices(&self, indices: &mut [usize], sort_by: crate::models::ListSort) {
+        indices.sort_by(|&a, &b| {
+            let model_a = &self.models[a];
+            let model_b = &self.models[b];
+            match sort_by {
+                crate::models::ListSort::Name => {
+                    model_a.display_name.cmp(&model_b.display_name)
+                }
+                crate::models::ListSort::Status => {
+                    let state_a = self.model_states.get(&model_a.display_name);
+                    let state_b = self.model_states.get(&model_b.display_name);
+                    let prio_a = match state_a {
+                        Some(crate::models::ModelState::Loaded { .. }) => 3,
+                        Some(crate::models::ModelState::Loading) => 2,
+                        Some(crate::models::ModelState::Benchmarking) => 1,
+                        _ => 0,
+                    };
+                    let prio_b = match state_b {
+                        Some(crate::models::ModelState::Loaded { .. }) => 3,
+                        Some(crate::models::ModelState::Loading) => 2,
+                        Some(crate::models::ModelState::Benchmarking) => 1,
+                        _ => 0,
+                    };
+                    prio_b.cmp(&prio_a)
+                }
+                crate::models::ListSort::Params => {
+                    let ka = &*model_a.path.to_string_lossy();
+                    let kb = &*model_b.path.to_string_lossy();
+                    let meta_a = self.search.gguf_metadata_cache.get(ka);
+                    let meta_b = self.search.gguf_metadata_cache.get(kb);
+                    let val_a = meta_a.map(|m| {
+                        let trimmed = m.model_parameters.trim();
+                        let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
+                        num_str.parse::<f64>().unwrap_or(0.0)
+                    }).unwrap_or(0.0);
+                    let val_b = meta_b.map(|m| {
+                        let trimmed = m.model_parameters.trim();
+                        let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
+                        num_str.parse::<f64>().unwrap_or(0.0)
+                    }).unwrap_or(0.0);
+                    val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
+                }
+                crate::models::ListSort::Qual => {
+                    let ka = &*model_a.path.to_string_lossy();
+                    let kb = &*model_b.path.to_string_lossy();
+                    let meta_a = self.search.gguf_metadata_cache.get(ka);
+                    let meta_b = self.search.gguf_metadata_cache.get(kb);
+                    let rank_a = meta_a.map(|m| m.quality_rank).unwrap_or(0);
+                    let rank_b = meta_b.map(|m| m.quality_rank).unwrap_or(0);
+                    rank_b.cmp(&rank_a)
+                }
+                crate::models::ListSort::Context => {
+                    let ctx_a = self.search.ctx_cache.get(&model_a.display_name)
+                        .map(|(c, _, _)| *c)
+                        .unwrap_or(0);
+                    let ctx_b = self.search.ctx_cache.get(&model_b.display_name)
+                        .map(|(c, _, _)| *c)
+                        .unwrap_or(0);
+                    ctx_b.cmp(&ctx_a)
+                }
+            }
+        });
+    }
+
+    pub fn get_ctx_cache(&mut self) -> HashMap<String, (u32, bool, f32)> {
+        if self.search.ctx_cache_version == 0 {
+            let mut cache: HashMap<String, (u32, bool, f32)> =
+                HashMap::with_capacity(self.models.len());
+            for model in &self.models {
+                let s = self.config.resolve_settings(Some(model.display_name.as_str()), None);
+                cache.insert(
+                    model.display_name.clone(),
+                    (s.context_length, s.rope_yarn_enabled, s.rope_scale),
+                );
+            }
+            self.search.ctx_cache = cache.clone();
+            self.search.ctx_cache_version = 1;
+        }
+        self.search.ctx_cache.clone()
+    }
+
+    pub fn invalidate_list_caches(&mut self) {
+        self.search.list_sort_version = 0;
+        self.search.ctx_cache_version = 0;
+    }
+
+    pub fn rebuild_downloaded_set(&mut self) {
+        self.search.downloaded_filenames = self.models.iter()
+            .map(|m| m.name.to_lowercase())
+            .collect();
     }
 }
 

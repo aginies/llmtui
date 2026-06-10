@@ -4,6 +4,7 @@ use crate::models::Backend;
 use crate::models::{BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress};
 
 use ratatui::widgets::TableState;
+use regex::Regex;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -145,9 +146,11 @@ pub struct PendingOperations {
     /// Kill handle — kept as field because the main loop needs to take() it
     /// for the async kill operation.
     pub pending_kill: Option<ServerHandle>,
-    /// Backend resolution state — moved here from old PendingOperations.
+   /// Backend resolution state — moved here from old PendingOperations.
     pub backend_resolving: bool,
     pub backend_resolve_handle: Option<tokio::task::JoinHandle<Result<PathBuf, String>>>,
+    /// Dirty flag for active_model_hint — set to true when model_states changes.
+    pub active_model_hint_dirty: bool,
 }
 
 pub struct SearchState {
@@ -161,6 +164,19 @@ pub struct SearchState {
     pub search_input: Option<String>,
     pub gguf_naming_cache:
         std::collections::HashMap<String, crate::tui::gguf_naming::GgufExplanation>,
+    // ── Cache for query regex (search mode) ──
+    pub search_query_regex: Option<Regex>,
+    pub last_search_query: String,
+    // ── Cache for sorted model indices (list mode) ──
+    pub list_sorted_indices: Vec<usize>,
+    pub list_sort_version: u64,
+    pub last_list_sort_by: crate::models::ListSort,
+    pub last_list_filter: String,
+    // ── Cache for context settings map (list mode) ──
+    pub ctx_cache: HashMap<String, (u32, bool, f32)>,
+    pub ctx_cache_version: u64,
+    // ── Cache for downloaded filenames (files mode) ──
+    pub downloaded_filenames: std::collections::HashSet<String>,
 }
 
 pub struct UIState {

@@ -15,7 +15,7 @@ pub use types::*;
 use crate::config::Config;
 use crate::config::LogEntry;
 use crate::config::physical_cores;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 // Import App from types submodule for impl block
 pub use types::App;
@@ -176,13 +176,15 @@ impl App {
                 health_poll_handle: None,
                 loading_completion_rx: None,
             },
-            pending: PendingOperations {
+           pending: PendingOperations {
                 pending_api_load: None,
                 pending_api_unload: None,
                 pending_kill: None,
                 backend_resolving: false,
                 backend_resolve_handle: None,
+                active_model_hint_dirty: true,
             },
+            active_model_hint: None,
             search: SearchState {
                 local_filter: String::new(),
                 filtering_local: false,
@@ -193,7 +195,16 @@ impl App {
                 gguf_metadata_cache: Default::default(),
                 search_input: None,
                 gguf_naming_cache: Default::default(),
-            },
+                search_query_regex: None,
+                last_search_query: String::new(),
+                list_sorted_indices: Vec::new(),
+                list_sort_version: 0,
+                last_list_sort_by: crate::models::ListSort::Name,
+                last_list_filter: String::new(),
+          ctx_cache: HashMap::new(),
+            ctx_cache_version: 0,
+            downloaded_filenames: std::collections::HashSet::new(),
+        },
             ui: UIState {
                 active_panel,
                 global_mode: types::GlobalMode::Normal,

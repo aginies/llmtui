@@ -180,7 +180,7 @@ fn format_time_remaining(total_secs: u64) -> String {
     }
 }
 
-pub fn scroll_text(
+  pub fn scroll_text(
     text: &str,
     max_width: u16,
     state: Option<&crate::tui::app::TextScrollState>,
@@ -191,8 +191,9 @@ pub fn scroll_text(
     }
     let max_offset = char_len - max_width as usize;
     let offset = state.map_or(0, |s| s.offset.min(max_offset));
-    let start_byte = text.char_indices().nth(offset).map_or(0, |(i, _)| i);
-    let end_byte = text.char_indices().nth(offset + max_width as usize)
+    let mut char_indices_iter = text.char_indices();
+    let start_byte = char_indices_iter.nth(offset).map_or(0, |(i, _)| i);
+    let end_byte = char_indices_iter.nth(max_width as usize)
         .map_or(text.len(), |(i, _)| i);
     format!("{}{}", &text[start_byte..end_byte], MARQUEE_SUFFIX)
 }
@@ -348,75 +349,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 }).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)).alignment(Alignment::Center)),
             ];
 
-            let ctx_cache: std::collections::HashMap<&str, (u32, bool, f32)> = app.models.iter()
-                .map(|m| {
-                    let s = app.config.resolve_settings(Some(m.display_name.as_str()), None);
-                    (m.display_name.as_str(), (s.context_length, s.rope_yarn_enabled, s.rope_scale))
-                })
-                .collect();
-
-            let filtered_indices = app.get_filtered_model_indices();
-
-            let status_priority = |state: Option<&crate::models::ModelState>| -> u8 {
-                match state {
-                    Some(crate::models::ModelState::Loaded { .. }) => 3,
-                    Some(crate::models::ModelState::Loading) => 2,
-                    Some(crate::models::ModelState::Benchmarking) => 1,
-                    _ => 0,
-                }
-            };
-
-            let mut sorted_indices = filtered_indices.clone();
-            let sort_by = *sort_by;
-            sorted_indices.sort_by(|&a, &b| {
-                let model_a = &app.models[a];
-                let model_b = &app.models[b];
-                match sort_by {
-                    ListSort::Name => model_a.display_name.cmp(&model_b.display_name),
-                    ListSort::Status => {
-                        let state_a = app.model_states.get(&model_a.display_name);
-                        let state_b = app.model_states.get(&model_b.display_name);
-                        let prio_a = status_priority(state_a);
-                        let prio_b = status_priority(state_b);
-                        prio_b.cmp(&prio_a)
-                    }
-                    ListSort::Params => {
-                        let ka = &*model_a.path.to_string_lossy();
-                        let kb = &*model_b.path.to_string_lossy();
-                        let meta_a = app.search.gguf_metadata_cache.get(ka);
-                        let meta_b = app.search.gguf_metadata_cache.get(kb);
-                        let val_a = meta_a.map(|m| {
-                            let trimmed = m.model_parameters.trim();
-                            let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
-                            num_str.parse::<f64>().unwrap_or(0.0)
-                        }).unwrap_or(0.0);
-                        let val_b = meta_b.map(|m| {
-                            let trimmed = m.model_parameters.trim();
-                            let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
-                            num_str.parse::<f64>().unwrap_or(0.0)
-                        }).unwrap_or(0.0);
-                        val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
-                    }
-                    ListSort::Qual => {
-                        let ka = &*model_a.path.to_string_lossy();
-                        let kb = &*model_b.path.to_string_lossy();
-                        let meta_a = app.search.gguf_metadata_cache.get(ka);
-                        let meta_b = app.search.gguf_metadata_cache.get(kb);
-                        let rank_a = meta_a.map(|m| m.quality_rank).unwrap_or(0);
-                        let rank_b = meta_b.map(|m| m.quality_rank).unwrap_or(0);
-                        rank_b.cmp(&rank_a)
-                    }
-                    ListSort::Context => {
-                        let ctx_a = ctx_cache.get(model_a.display_name.as_str())
-                            .map(|(c, _, _)| *c)
-                            .unwrap_or(0);
-                        let ctx_b = ctx_cache.get(model_b.display_name.as_str())
-                            .map(|(c, _, _)| *c)
-                            .unwrap_or(0);
-                        ctx_b.cmp(&ctx_a)
-                    }
-                }
-            });
+            let ctx_cache = app.get_ctx_cache();
+            let sorted_indices = app.get_sorted_model_indices().to_vec();
 
             let rows: Vec<Row> = sorted_indices
                 .iter()
@@ -637,12 +571,16 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             let query_regex = if query.trim().is_empty() {
                 None
-            } else {
+            } else if app.search.last_search_query != *query {
                 let pattern: String = query.split_whitespace()
                     .map(|w| w.to_lowercase())
                     .collect::<Vec<_>>()
                     .join("|");
-                Regex::new(&pattern).ok()
+                app.search.search_query_regex = Regex::new(&pattern).ok();
+                app.search.last_search_query = query.clone();
+                app.search.search_query_regex.as_ref()
+            } else {
+                app.search.search_query_regex.as_ref()
             };
 
             let mut rows: Vec<Row> = results
@@ -671,7 +609,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.visible = true;
                     let scrolled_raw = scroll_text(&result.model_id, col_width, Some(state));
                     let scrolled_lower = scrolled_raw.to_lowercase();
-                    let highlighted = highlight_query(&scrolled_raw, &scrolled_lower, query_regex.as_ref());
+                    let highlighted = highlight_query(&scrolled_raw, &scrolled_lower, query_regex);
 
                     let is_downloaded = result.downloaded;
                     let marker = if is_downloaded { "✓" } else { " " };
@@ -765,10 +703,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .iter()
                 .map(|(filename, size, _url): &(_, _, _)| {
                     let name = filename.rsplit('/').next().unwrap_or(filename);
-                    let is_downloaded = app
-                        .models
-                        .iter()
-                        .any(|m| m.name.to_lowercase() == name.to_lowercase());
+                    let is_downloaded = app.search.downloaded_filenames.contains(&name.to_lowercase());
                     let marker = if is_downloaded { "✓" } else { " " };
                     let marker_span =
                         Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));

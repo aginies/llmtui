@@ -347,6 +347,7 @@ impl App {
             self.model_states
                 .insert(name.clone(), ModelState::Failed { error });
         }
+        self.pending.active_model_hint_dirty = true;
     }
 
     pub fn tick_spinner(&mut self) {
