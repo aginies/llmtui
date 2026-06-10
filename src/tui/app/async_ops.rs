@@ -379,6 +379,13 @@ impl App {
                             self.precache_all_metadata_bg();
                             self.invalidate_list_caches();
                             self.rebuild_downloaded_set();
+                            // Refresh downloaded flags in cached search results
+                            if let crate::tui::app::ModelsMode::Search { results, .. } = &mut self.models_mode {
+                                for result in results.iter_mut() {
+                                    result.downloaded = super::sync_ops::model_is_downloaded(&self.models, &result.model_id);
+                                }
+                            }
+                            self.ui.needs_redraw = true;
                         }
                     }
                     crate::models::DownloadStatus::Error(e) => {
