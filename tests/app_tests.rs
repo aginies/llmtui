@@ -22,7 +22,7 @@ fn app_new_initial_state() {
     let app = App::new(config);
     assert!(app.models.is_empty());
     assert!(app.selected_model_idx.is_none());
-    assert!(matches!(app.models_mode, ModelsMode::List));
+    assert!(matches!(app.models_mode, ModelsMode::List { .. }));
     assert!(app.search.local_filter.is_empty());
     assert!(!app.search.filtering_local);
     assert!(!app.log.log_expanded);

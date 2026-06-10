@@ -2,38 +2,17 @@ use ratatui::{
     Frame,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, BorderType, Borders, Paragraph},
 };
 
 use crate::tui::app::{ActivePanel, App, ModelsMode};
 use crate::tui::panel;
+use crate::tui::render_vertical_scrollbar;
 
 mod hints;
 mod onboarding;
 mod overlays;
 mod status;
-
-fn render_scrollbar(
-    f: &mut Frame,
-    area: ratatui::layout::Rect,
-    total_items: usize,
-    scroll_offset: usize,
-) {
-    let scrollbar_area = ratatui::layout::Rect {
-        x: area.right().saturating_sub(1),
-        y: area.top(),
-        width: 1,
-        height: area.height,
-    };
-    let mut scrollbar_state = ScrollbarState::new(total_items).position(scroll_offset);
-    f.render_stateful_widget(
-        Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .begin_symbol(Some("↑"))
-            .end_symbol(Some("↓")),
-        scrollbar_area,
-        &mut scrollbar_state,
-    );
-}
 
 pub fn render(f: &mut Frame, app: &mut App) {
     if overlays::render_overlays(f, app) {
@@ -188,11 +167,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
             f.render_widget(paragraph, area);
 
             if profile_lines.len() > available_height as usize {
-                render_scrollbar(
+                render_vertical_scrollbar(
                     f,
                     area,
                     profile_lines.len(),
                     app.picker.profiles_scroll_offset,
+                    1,
+                    2,
                 );
             }
         }
@@ -231,11 +212,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
             f.render_widget(paragraph, area);
 
             if preset_lines.len() > available_height as usize {
-                render_scrollbar(
+                render_vertical_scrollbar(
                     f,
                     area,
                     preset_lines.len(),
                     app.picker.system_prompt_presets_scroll_offset,
+                    1,
+                    2,
                 );
             }
         }

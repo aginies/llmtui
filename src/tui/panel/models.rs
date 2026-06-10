@@ -203,37 +203,42 @@ fn highlight_query(text: &str, query: &str) -> Line<'static> {
         return Line::from(text.to_string());
     }
     let lower_text = text.to_lowercase();
-    // Build a set of character positions that match any query word
-    let mut highlight = vec![false; text.len()];
-    for word in &words {
-        let mut pos = 0;
-        while let Some(idx) = lower_text[pos..].find(word) {
-            let start = pos + idx;
-            let end = start + word.len();
-            for flag in highlight.iter_mut().skip(start).take(end - start) {
-                *flag = true;
-            }
-            pos = end;
+    let pattern = words.join("|");
+    let regex = regex::Regex::new(&pattern).ok().map(|r| {
+        let mut spans = Vec::new();
+        for cap in r.captures_iter(&lower_text) {
+            let start = cap.get(0).unwrap().start();
+            let end = cap.get(0).unwrap().end();
+            spans.push((start, end));
         }
-    }
+        spans
+    });
     let mut spans = Vec::new();
     let mut start = 0;
-    let mut in_highlight = highlight[0];
-    for i in 1..=text.len() {
-        if i == text.len() || highlight[i] != in_highlight {
-            let style = if in_highlight {
+    if let Some(highlights) = regex {
+        for (hstart, hend) in &highlights {
+            if *hstart > start {
+                spans.push(Span::styled(
+                    text[start..*hstart].to_string(),
+                    Style::default(),
+                ));
+            }
+            spans.push(Span::styled(
+                text[*hstart..*hend].to_string(),
                 Style::default()
                     .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            };
-            spans.push(Span::styled(text[start..i].to_string(), style));
-            start = i;
-            if i < text.len() {
-                in_highlight = highlight[i];
-            }
+                    .add_modifier(Modifier::BOLD),
+            ));
+            start = *hend;
         }
+        if start < text.len() {
+            spans.push(Span::styled(
+                text[start..text.len()].to_string(),
+                Style::default(),
+            ));
+        }
+    } else {
+        spans.push(Span::styled(text.to_string(), Style::default()));
     }
     Line::from(spans)
 }

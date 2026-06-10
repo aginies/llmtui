@@ -575,7 +575,7 @@ async fn test_esc_exits_search_returns_to_list() {
     make_search_mode(&mut app);
     let key = make_key(KeyCode::Esc);
     handle_key(&mut app, key).await;
-    assert!(matches!(app.models_mode, ModelsMode::List));
+    assert!(matches!(app.models_mode, ModelsMode::List { .. }));
 }
 
 #[tokio::test]
@@ -1456,7 +1456,7 @@ async fn test_bench_tune_esc_stops_server() {
     assert!(app.server.server_handle.is_none());
     // bench_tune_running stays true — task is still finishing up
     assert!(app.bench_tune.bench_tune_running);
-    assert!(matches!(app.models_mode, ModelsMode::List));
+    assert!(matches!(app.models_mode, ModelsMode::List { .. }));
 }
 
 #[tokio::test]

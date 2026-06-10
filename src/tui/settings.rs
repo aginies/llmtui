@@ -991,7 +991,7 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<f32>() {
-                    s.presence_penalty = Some(v.clamp(0.0, 1.0));
+                    s.presence_penalty = Some(v.clamp(-2.0, 2.0));
                 }
             },
             toggle_presence_penalty,
@@ -1024,7 +1024,7 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             |s, buf| {
                 if let Ok(v) = buf.parse::<f32>() {
-                    s.frequency_penalty = Some(v.clamp(0.0, 1.0));
+                    s.frequency_penalty = Some(v.clamp(-2.0, 2.0));
                 }
             },
             toggle_frequency_penalty,

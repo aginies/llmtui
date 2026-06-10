@@ -288,7 +288,20 @@ impl App {
         }
     }
 
+    pub fn cleanup_text_scrolls(&mut self) {
+        let model_names: std::collections::HashSet<&str> =
+            self.models.iter().map(|m| m.display_name.as_str()).collect();
+        self.ui.text_scrolls.retain(|key, state| {
+            if !state.visible {
+                model_names.contains(key.as_str())
+            } else {
+                true
+            }
+        });
+    }
+
     pub fn init_scrolls_for_models(&mut self) {
+        self.cleanup_text_scrolls();
         use std::time::Instant;
         for model in &self.models {
             let key = model.display_name.clone();
