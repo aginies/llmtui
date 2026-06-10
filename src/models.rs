@@ -1118,16 +1118,19 @@ impl GgufMetadata {
                 27 => "F64".to_string(),
                 29 => "IQ1_M".to_string(),
                 30 => "BF16".to_string(),
+                31 => "IQ2_L".to_string(),
+                32 => "IQ3_L".to_string(),
+                33 => "IQ4_M".to_string(),
                 34 => "TQ1_0".to_string(),
                 35 => "TQ2_0".to_string(),
                 39 => "MXFP4".to_string(),
                 _ => format!("Unknown ({})", v),
             };
             meta.quality_rank = match v {
-                0 | 1 | 7 | 9 => 4,
+                0 | 1 | 7 | 9 | 30 | 27 => 4,
                 6 | 8 | 16 | 17 | 18 => 3,
-                14 | 15 | 23 | 26 => 2,
-                11 | 12 | 13 | 21 | 24 => 1,
+                2 | 3 | 4 | 5 | 14 | 15 | 23 | 26 | 33 | 32 | 24 | 31 => 2,
+                11 | 12 | 13 | 21 | 10 | 19 | 20 | 22 | 25 | 29 => 1,
                 _ => 0,
             };
         }
