@@ -154,12 +154,24 @@ impl Profile {
     }
 }
 
+impl crate::config::store::NamedItem for Profile {
+    fn name(&self) -> &str {
+        &self.name
+    }
+}
+
 /// A named system prompt preset.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemPromptPreset {
     pub name: String,
     pub description: String,
     pub content: String,
+}
+
+impl crate::config::store::NamedItem for SystemPromptPreset {
+    fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 /// Built-in system prompt presets.
@@ -988,7 +1000,7 @@ impl Default for Config {
             ],
             llama_server: "llama-server".into(),
             default: DefaultParams::default(),
-            model_overrides: ModelConfigStore::new(vec![]),
+            model_overrides: ModelConfigStore::new(),
             profiles: Default::default(),
             system_prompt_presets: Default::default(),
             rpc_workers: Vec::new(),

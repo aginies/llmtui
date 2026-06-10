@@ -610,7 +610,7 @@ fn config_default_empty_model_overrides() {
         models_dirs: vec![],
         llama_server: std::path::PathBuf::new(),
         default: DefaultParams::default(),
-        model_overrides: ModelConfigStore::new(vec![]),
+        model_overrides: ModelConfigStore::new(),
         profiles: ProfileStore::new(),
         system_prompt_presets: PresetStore::new(),
         rpc_workers: Vec::new(),
@@ -743,7 +743,7 @@ fn key_display_roundtrip() {
 
 #[test]
 fn model_config_store_keys_return_display_names() {
-    let mut store = ModelConfigStore::new(vec![]);
+    let mut store = ModelConfigStore::new();
     store.save("subdir/model", &ModelOverride::default());
     let keys = store.keys();
     assert!(keys.contains(&"subdir/model".to_string()));
@@ -751,7 +751,7 @@ fn model_config_store_keys_return_display_names() {
 
 #[test]
 fn model_config_store_get_by_display_name() {
-    let mut store = ModelConfigStore::new(vec![]);
+    let mut store = ModelConfigStore::new();
     let override_ = ModelOverride {
         context_length: Some(4096),
         ..Default::default()
@@ -764,7 +764,7 @@ fn model_config_store_get_by_display_name() {
 
 #[test]
 fn model_config_store_get_miss() {
-    let store = ModelConfigStore::new(vec![]);
+    let store = ModelConfigStore::new();
     let retrieved = store.get("nonexistent/model");
     assert!(retrieved.is_none());
 }

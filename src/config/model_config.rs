@@ -47,12 +47,11 @@ pub fn display_from_key(key: &str) -> String {
 pub struct ModelConfigStore {
     models_dir: PathBuf,
     unused_dir: PathBuf,
-    model_dirs: Vec<PathBuf>,
     cache: HashMap<String, ModelOverride>,
 }
 
 impl ModelConfigStore {
-    pub fn new(model_dirs: Vec<PathBuf>) -> Self {
+    pub fn new() -> Self {
         let models_dir = models_config_dir();
         let unused_dir = unused_config_dir();
         let cache = load_all_from_dir(&models_dir);
@@ -60,7 +59,6 @@ impl ModelConfigStore {
         Self {
             models_dir,
             unused_dir,
-            model_dirs,
             cache,
         }
     }
@@ -99,6 +97,6 @@ impl ModelConfigStore {
 
 impl Default for ModelConfigStore {
     fn default() -> Self {
-        Self::new(vec![])
+        Self::new()
     }
 }
