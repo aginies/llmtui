@@ -312,8 +312,17 @@ async fn main() -> Result<()> {
                 // ── Drain pending event channel ──
                 while let Ok(event) = app.pending_rx.try_recv() {
                     match event {
-                        PendingEvent::Download { model_id, filename, url, file_size, subdir } => {
-                            app.process_pending_download(model_id, filename, url, file_size, subdir).await;
+                        PendingEvent::Download {
+                            model_id,
+                            filename,
+                            url,
+                            file_size,
+                            subdir,
+                        } => {
+                            app.process_pending_download(
+                                model_id, filename, url, file_size, subdir,
+                            )
+                            .await;
                         }
                         PendingEvent::Deletion { path } => {
                             app.process_pending_deletion(path).await;
@@ -341,14 +350,16 @@ async fn main() -> Result<()> {
                 // ── Spawn / bench result checks ──
                 if let Some(handle) = &app.server.spawn_task_handle
                     && handle.is_finished()
-                        && let Some(handle) = app.server.spawn_task_handle.take() {
-                            app.tick_spawn_result(handle).await;
-                        }
+                    && let Some(handle) = app.server.spawn_task_handle.take()
+                {
+                    app.tick_spawn_result(handle).await;
+                }
                 if let Some(handle) = &app.server.bench_tune_task_handle
                     && handle.is_finished()
-                        && let Some(handle) = app.server.bench_tune_task_handle.take() {
-                            app.tick_bench_tune_result(handle).await;
-                        }
+                    && let Some(handle) = app.server.bench_tune_task_handle.take()
+                {
+                    app.tick_bench_tune_result(handle).await;
+                }
 
                 // ── Conditional API operations ──
                 app.try_execute_api_load();

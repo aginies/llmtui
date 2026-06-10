@@ -1,8 +1,8 @@
 use super::parsing::*;
-use crate::tui::app::types::LoadingPhase::*;
-use crate::tui::app::types::{App, LoadingPhase};
 use crate::config::LogLevel;
 use crate::models::ModelState;
+use crate::tui::app::types::LoadingPhase::*;
+use crate::tui::app::types::{App, LoadingPhase};
 use chrono::Local;
 
 impl App {
@@ -86,9 +86,10 @@ impl App {
 
         // Parse "offloading N repeating layers to GPU"
         if let Some(caps) = OFFLOADING_LAYERS.captures(msg)
-            && let Ok(count) = caps.get(1).unwrap().as_str().parse::<u32>() {
-                self.loading.load_progress.layers_total = Some(count);
-            }
+            && let Ok(count) = caps.get(1).unwrap().as_str().parse::<u32>()
+        {
+            self.loading.load_progress.layers_total = Some(count);
+        }
 
         // Parse "offloaded X/Y layers" or "offloaded X out of Y layers"
         if let Some(caps) = OFFLOADED_LAYERS.captures(msg) {
@@ -102,7 +103,10 @@ impl App {
 
         // Parse buffer sizes: "Vulkan0 model buffer size = X MiB"
         if let Some(caps) = MODEL_BUFFER_SIZE.captures(msg) {
-            let device = caps.get(1).map(|m| m.as_str().trim().to_string()).unwrap_or_default();
+            let device = caps
+                .get(1)
+                .map(|m| m.as_str().trim().to_string())
+                .unwrap_or_default();
             if let Ok(mib) = caps.get(2).unwrap().as_str().parse::<f64>() {
                 let exists = self
                     .loading
@@ -113,36 +117,39 @@ impl App {
                 if let Some(buf) = exists {
                     buf.buffer_size_mib = mib;
                 } else {
-                    self.loading.load_progress.buffers.push(
-                        crate::models::GPUBuffer {
+                    self.loading
+                        .load_progress
+                        .buffers
+                        .push(crate::models::GPUBuffer {
                             device,
                             buffer_size_mib: mib,
-                        },
-                    );
+                        });
                 }
             }
         }
 
         // Parse: "kv buffer size = X MiB"
         if let Some(caps) = KV_BUFFER_SIZE.captures(msg)
-            && let Ok(mib) = caps.get(1).unwrap().as_str().parse::<f64>() {
-                let exists = self
-                    .loading
+            && let Ok(mib) = caps.get(1).unwrap().as_str().parse::<f64>()
+        {
+            let exists = self
+                .loading
+                .load_progress
+                .buffers
+                .iter_mut()
+                .find(|b| b.device == "kv");
+            if let Some(buf) = exists {
+                buf.buffer_size_mib = mib;
+            } else {
+                self.loading
                     .load_progress
                     .buffers
-                    .iter_mut()
-                    .find(|b| b.device == "kv");
-                if let Some(buf) = exists {
-                    buf.buffer_size_mib = mib;
-                } else {
-                    self.loading.load_progress.buffers.push(
-                        crate::models::GPUBuffer {
-                            device: "kv".to_string(),
-                            buffer_size_mib: mib,
-                        },
-                    );
-                }
+                    .push(crate::models::GPUBuffer {
+                        device: "kv".to_string(),
+                        buffer_size_mib: mib,
+                    });
             }
+        }
     }
 
     fn detect_load_state(&mut self, msg: &str) {
@@ -431,11 +438,19 @@ impl App {
             return false;
         }
         // Active text scrolls need their tick interval
-        if self.ui.text_scrolls.values().any(|s| s.visible && s.max_offset > 0) {
+        if self
+            .ui
+            .text_scrolls
+            .values()
+            .any(|s| s.visible && s.max_offset > 0)
+        {
             return false;
         }
         // Confirmation dialogs need responsive input
-        if matches!(self.ui.global_mode, crate::tui::app::GlobalMode::Confirmation { .. }) {
+        if matches!(
+            self.ui.global_mode,
+            crate::tui::app::GlobalMode::Confirmation { .. }
+        ) {
             return false;
         }
         true

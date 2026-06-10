@@ -116,12 +116,13 @@ fn repo_name_with_extra_suffix_different_size() {
 fn prevent_false_positives() {
     // Should NOT match if authors are different and specified
     let mut local_model_with_author = make_discovered("qwen3.5-4b-instruct-q4_k_m.gguf");
-    local_model_with_author.display_name = "Qwen/Qwen3.5-4B-Instruct/qwen3.5-4b-instruct-q4_k_m.gguf".to_string();
+    local_model_with_author.display_name =
+        "Qwen/Qwen3.5-4B-Instruct/qwen3.5-4b-instruct-q4_k_m.gguf".to_string();
     let models = vec![local_model_with_author];
-    
+
     // Different author and base vs Instruct: titan0115/Qwen3.5-4B vs Qwen/Qwen3.5-4B-Instruct
     assert!(!model_is_downloaded(&models, "titan0115/Qwen3.5-4B"));
-    
+
     // Correct author and same variant should match
     assert!(model_is_downloaded(&models, "Qwen/Qwen3.5-4B-Instruct"));
 }
@@ -131,7 +132,7 @@ fn subdirectory_prefix_match() {
     let mut local_model = make_discovered("Qwen3.5-4B-UD-IQ3_XXS.gguf");
     local_model.display_name = "unsloth/Qwen3.5-4B-MTP-GGUF/Qwen3.5-4B-UD-IQ3_XXS.gguf".to_string();
     let models = vec![local_model];
-    
+
     // Should match because the file is in the exact directory matching the model_id
     assert!(model_is_downloaded(&models, "unsloth/Qwen3.5-4B-MTP-GGUF"));
 }

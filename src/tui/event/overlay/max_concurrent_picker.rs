@@ -1,9 +1,9 @@
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use super::super::helpers::{sync_global_settings, mark_settings_dirty};
+use super::super::helpers::{mark_settings_dirty, sync_global_settings};
 use crate::tui::app::{App, GlobalMode};
 
 use super::OverlayHandler;

@@ -448,7 +448,9 @@ pub fn all_fields() -> Vec<SettingField> {
                     "None".to_string()
                 }
             },
-            |s, c| s.auto_chat_template != c.auto_chat_template || s.chat_template != c.chat_template,
+            |s, c| {
+                s.auto_chat_template != c.auto_chat_template || s.chat_template != c.chat_template
+            },
             |_, _, _| {},
             |_, _| {},
             toggle_auto_chat_template,

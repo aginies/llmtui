@@ -121,7 +121,10 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             crate::config::LogLevel::Info,
                         );
                         if let Some(h) = app.server.server_handle.take() {
-                            let _ = app.pending_tx.send(PendingEvent::KillHandle { handle: h }).await;
+                            let _ = app
+                                .pending_tx
+                                .send(PendingEvent::KillHandle { handle: h })
+                                .await;
                         }
                     }
 
@@ -150,14 +153,15 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
                         if app.server_mode == crate::models::ServerMode::Router {
                             // Router mode: start server without a model, then load via /load API
-                            let _ = app.pending_tx.send(PendingEvent::Spawn {
-                                model: None,
-                                settings: settings.clone(),
-                            }).await;
+                            let _ = app
+                                .pending_tx
+                                .send(PendingEvent::Spawn {
+                                    model: None,
+                                    settings: settings.clone(),
+                                })
+                                .await;
                             // Queue the load so it triggers once server is ready
-                            app.pending.pending_api_load = Some(
-                                model.display_name.clone(),
-                            );
+                            app.pending.pending_api_load = Some(model.display_name.clone());
                             app.loading.loading_phases =
                                 std::iter::once(LoadingPhase::ServerStarting).collect();
                             app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
@@ -168,10 +172,13 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             );
                         } else {
                             // Normal mode: start server WITH the specific model directly
-                            let _ = app.pending_tx.send(PendingEvent::Spawn {
-                                model: Some(model.clone()),
-                                settings,
-                            }).await;
+                            let _ = app
+                                .pending_tx
+                                .send(PendingEvent::Spawn {
+                                    model: Some(model.clone()),
+                                    settings,
+                                })
+                                .await;
                             app.loading.loading_phases =
                                 std::iter::once(LoadingPhase::ServerStarting).collect();
                             app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
@@ -205,9 +212,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         }
 
                         app.ui.last_error_message = None;
-                        app.pending.pending_api_load = Some(
-                            model.display_name.clone(),
-                        );
+                        app.pending.pending_api_load = Some(model.display_name.clone());
                         app.loading.loading_phases =
                             std::iter::once(LoadingPhase::LoadingModel).collect();
                         app.loading.last_active_phase = Some(LoadingPhase::LoadingModel);
@@ -232,9 +237,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         display_name: model.display_name.clone(),
                         detail: Some(model.path.to_string_lossy().to_string()),
                     };
-                    app.pending.pending_api_unload = Some(
-                        model.display_name.clone(),
-                    );
+                    app.pending.pending_api_unload = Some(model.display_name.clone());
                 } else {
                     app.add_log(
                         format!("{} is not loaded", model.display_name),
@@ -346,17 +349,27 @@ fn get_sorted_indices(app: &App, filtered: &[usize]) -> Vec<usize> {
                 let kb = &*model_b.path.to_string_lossy();
                 let meta_a = app.search.gguf_metadata_cache.get(ka);
                 let meta_b = app.search.gguf_metadata_cache.get(kb);
-                let val_a = meta_a.map(|m| {
-                    let trimmed = m.model_parameters.trim();
-                    let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
-                    num_str.parse::<f64>().unwrap_or(0.0)
-                }).unwrap_or(0.0);
-                let val_b = meta_b.map(|m| {
-                    let trimmed = m.model_parameters.trim();
-                    let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
-                    num_str.parse::<f64>().unwrap_or(0.0)
-                }).unwrap_or(0.0);
-                val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
+                let val_a = meta_a
+                    .map(|m| {
+                        let trimmed = m.model_parameters.trim();
+                        let num_str = trimmed
+                            .trim_end_matches(|c: char| c == 'B' || c == 'b')
+                            .trim();
+                        num_str.parse::<f64>().unwrap_or(0.0)
+                    })
+                    .unwrap_or(0.0);
+                let val_b = meta_b
+                    .map(|m| {
+                        let trimmed = m.model_parameters.trim();
+                        let num_str = trimmed
+                            .trim_end_matches(|c: char| c == 'B' || c == 'b')
+                            .trim();
+                        num_str.parse::<f64>().unwrap_or(0.0)
+                    })
+                    .unwrap_or(0.0);
+                val_b
+                    .partial_cmp(&val_a)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             }
             ListSort::Qual => {
                 let ka = &*model_a.path.to_string_lossy();
@@ -368,8 +381,12 @@ fn get_sorted_indices(app: &App, filtered: &[usize]) -> Vec<usize> {
                 rank_b.cmp(&rank_a)
             }
             ListSort::Context => {
-                let settings_a = app.config.resolve_settings(Some(model_a.display_name.as_str()), None);
-                let settings_b = app.config.resolve_settings(Some(model_b.display_name.as_str()), None);
+                let settings_a = app
+                    .config
+                    .resolve_settings(Some(model_a.display_name.as_str()), None);
+                let settings_b = app
+                    .config
+                    .resolve_settings(Some(model_b.display_name.as_str()), None);
                 settings_b.context_length.cmp(&settings_a.context_length)
             }
         }

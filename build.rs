@@ -113,10 +113,16 @@ fn main() {
         .join("locales");
 
     // Debug: write to a file to trace execution
-    let _ = fs::write("/tmp/build-debug.log", format!(
-        "locales_src={:?} out_dir={} locales_dst={:?} is_dir={}\n",
-        locales_src, out_dir, locales_dst, locales_src.is_dir()
-    ));
+    let _ = fs::write(
+        "/tmp/build-debug.log",
+        format!(
+            "locales_src={:?} out_dir={} locales_dst={:?} is_dir={}\n",
+            locales_src,
+            out_dir,
+            locales_dst,
+            locales_src.is_dir()
+        ),
+    );
 
     if locales_src.is_dir() {
         copy_dir_recursive(&locales_src, &locales_dst).unwrap_or_else(|e| {

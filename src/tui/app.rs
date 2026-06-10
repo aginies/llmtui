@@ -2,9 +2,9 @@ pub mod async_ops;
 pub mod help;
 pub mod metadata;
 pub mod panels;
+pub mod pending_events;
 pub mod pickers;
 pub mod profiles;
-pub mod pending_events;
 pub mod state;
 pub mod sync_ops;
 pub mod types;
@@ -53,7 +53,9 @@ impl App {
             config,
             models: Vec::new(),
             selected_model_idx: None,
-            models_mode: types::ModelsMode::List { sort_by: crate::models::ListSort::Name },
+            models_mode: types::ModelsMode::List {
+                sort_by: crate::models::ListSort::Name,
+            },
             settings: settings_clone,
             model_settings_cache: settings.clone(),
             model_states: Default::default(),
@@ -176,7 +178,7 @@ impl App {
                 health_poll_handle: None,
                 loading_completion_rx: None,
             },
-           pending: PendingOperations {
+            pending: PendingOperations {
                 pending_api_load: None,
                 pending_api_unload: None,
                 pending_kill: None,
@@ -201,10 +203,10 @@ impl App {
                 list_sort_version: 0,
                 last_list_sort_by: crate::models::ListSort::Name,
                 last_list_filter: String::new(),
-          ctx_cache: HashMap::new(),
-            ctx_cache_version: 0,
-            downloaded_filenames: std::collections::HashSet::new(),
-        },
+                ctx_cache: HashMap::new(),
+                ctx_cache_version: 0,
+                downloaded_filenames: std::collections::HashSet::new(),
+            },
             ui: UIState {
                 active_panel,
                 global_mode: types::GlobalMode::Normal,
@@ -302,8 +304,11 @@ impl App {
     }
 
     pub fn cleanup_text_scrolls(&mut self) {
-        let model_names: std::collections::HashSet<&str> =
-            self.models.iter().map(|m| m.display_name.as_str()).collect();
+        let model_names: std::collections::HashSet<&str> = self
+            .models
+            .iter()
+            .map(|m| m.display_name.as_str())
+            .collect();
         self.ui.text_scrolls.retain(|key, state| {
             if !state.visible {
                 model_names.contains(key.as_str())

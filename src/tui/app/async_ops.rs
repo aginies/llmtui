@@ -23,8 +23,7 @@ impl App {
         }
         self.download.download_progress[idx].download_state = 3;
         self.download.download_progress[idx].cancelled = true;
-        self.download.download_progress[idx].status =
-            crate::models::DownloadStatus::Cancelled;
+        self.download.download_progress[idx].status = crate::models::DownloadStatus::Cancelled;
         if let Some(ref path) = dest
             && path.exists()
         {
@@ -57,7 +56,7 @@ impl App {
         );
     }
 
-   pub async fn process_pending_download(
+    pub async fn process_pending_download(
         &mut self,
         model_id: String,
         filename: String,
@@ -67,77 +66,77 @@ impl App {
     ) {
         let models_dirs = &self.config.models_dirs;
         // Use the first directory as the download destination, stored under model_id subdirectory
-            let models_dir = models_dirs.first().cloned().unwrap_or_default();
-            let dest_dir = models_dir.join(&subdir);
-            let basename = std::path::Path::new(&filename)
-                .file_name()
-                .unwrap_or_default();
-            let dest = dest_dir.join(basename);
-            // Create the model_id subdirectory if it doesn't exist
-            tokio::fs::create_dir_all(&dest_dir).await.ok();
-            let free_space = crate::backend::hub::get_free_space_bytes(&models_dir);
-            if file_size > free_space {
-                self.add_log(
-                    crate::t_fmt!(
-                        "async.not_enough_disk",
-                        filename,
-                        crate::tui::format_size(file_size),
-                        crate::tui::format_size(free_space)
-                    ),
-                    crate::config::LogLevel::Warning,
-                );
-                return;
-            }
-            let model_id_clone = model_id.clone();
-            let filename_clone = filename.clone();
-            let url_clone = download_url.clone();
-            let cancelled = Arc::new(AtomicBool::new(false));
-            let cancelled_clone = cancelled.clone();
+        let models_dir = models_dirs.first().cloned().unwrap_or_default();
+        let dest_dir = models_dir.join(&subdir);
+        let basename = std::path::Path::new(&filename)
+            .file_name()
+            .unwrap_or_default();
+        let dest = dest_dir.join(basename);
+        // Create the model_id subdirectory if it doesn't exist
+        tokio::fs::create_dir_all(&dest_dir).await.ok();
+        let free_space = crate::backend::hub::get_free_space_bytes(&models_dir);
+        if file_size > free_space {
             self.add_log(
-                crate::t_fmt!("async.downloading", model_id),
-                crate::config::LogLevel::Info,
+                crate::t_fmt!(
+                    "async.not_enough_disk",
+                    filename,
+                    crate::tui::format_size(file_size),
+                    crate::tui::format_size(free_space)
+                ),
+                crate::config::LogLevel::Warning,
             );
-            let tx = self.ensure_download_channel();
-            let tx_clone = tx.clone();
-            let cancelled_for_state = cancelled_clone.clone();
-            let download_state = Arc::new(AtomicU8::new(1));
-            let download_state_clone = download_state.clone();
-            let dest_path = dest.clone();
-            self.download.download_progress.last_mut().and_then(|d| {
-                d.dest = Some(dest_path.clone());
-                None::<()>
-            });
-
-            tokio::spawn(async move {
-                let mut state = crate::models::DownloadState::new(
-                    model_id_clone.clone(),
-                    filename_clone.clone(),
-                    0,
-                );
-                state.cancel_token = Some(cancelled_for_state);
-                state.download_state = 1;
-                state.dest = Some(dest_path);
-                state.download_state_arc = Some(download_state_clone.clone());
-                let result = crate::backend::hub::download_file(
-                    &model_id_clone,
-                    &filename_clone,
-                    &url_clone,
-                    &dest,
-                    &mut state,
-                    download_state_clone,
-                    tx_clone,
-                )
-                .await;
-                if let Err(e) = result {
-                    state.status = crate::models::DownloadStatus::Error(e.to_string());
-                    let _ = tx.send(state);
-                }
-            });
-            self.download.downloading = true;
-            self.cancelled = Some(cancelled);
-            self.download.download_scroll_state.select(Some(0));
-            self.ui.needs_redraw = true;
+            return;
         }
+        let model_id_clone = model_id.clone();
+        let filename_clone = filename.clone();
+        let url_clone = download_url.clone();
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let cancelled_clone = cancelled.clone();
+        self.add_log(
+            crate::t_fmt!("async.downloading", model_id),
+            crate::config::LogLevel::Info,
+        );
+        let tx = self.ensure_download_channel();
+        let tx_clone = tx.clone();
+        let cancelled_for_state = cancelled_clone.clone();
+        let download_state = Arc::new(AtomicU8::new(1));
+        let download_state_clone = download_state.clone();
+        let dest_path = dest.clone();
+        self.download.download_progress.last_mut().and_then(|d| {
+            d.dest = Some(dest_path.clone());
+            None::<()>
+        });
+
+        tokio::spawn(async move {
+            let mut state = crate::models::DownloadState::new(
+                model_id_clone.clone(),
+                filename_clone.clone(),
+                0,
+            );
+            state.cancel_token = Some(cancelled_for_state);
+            state.download_state = 1;
+            state.dest = Some(dest_path);
+            state.download_state_arc = Some(download_state_clone.clone());
+            let result = crate::backend::hub::download_file(
+                &model_id_clone,
+                &filename_clone,
+                &url_clone,
+                &dest,
+                &mut state,
+                download_state_clone,
+                tx_clone,
+            )
+            .await;
+            if let Err(e) = result {
+                state.status = crate::models::DownloadStatus::Error(e.to_string());
+                let _ = tx.send(state);
+            }
+        });
+        self.download.downloading = true;
+        self.cancelled = Some(cancelled);
+        self.download.download_scroll_state.select(Some(0));
+        self.ui.needs_redraw = true;
+    }
 
     pub async fn process_pending_deletion(&mut self, path: PathBuf) {
         let path_clone = path.clone();
@@ -205,7 +204,11 @@ impl App {
         self.ui.needs_redraw = true;
     }
 
-    pub fn process_pending_backend_deletion(&mut self, backend: crate::models::Backend, tag: String) {
+    pub fn process_pending_backend_deletion(
+        &mut self,
+        backend: crate::models::Backend,
+        tag: String,
+    ) {
         let bin_dir = crate::backend::hub::get_backend_dir(backend, &tag);
         if bin_dir.exists() {
             if let Err(e) = std::fs::remove_dir_all(&bin_dir) {
@@ -367,10 +370,11 @@ impl App {
                                 crate::t_fmt!("async.download_complete", state.filename),
                                 crate::config::LogLevel::Info,
                             );
-                            let search_results: &Vec<crate::models::SearchResult> = match &self.models_mode {
-                                crate::tui::app::ModelsMode::Search { results, .. } => results,
-                                _ => &Vec::<crate::models::SearchResult>::new(),
-                            };
+                            let search_results: &Vec<crate::models::SearchResult> =
+                                match &self.models_mode {
+                                    crate::tui::app::ModelsMode::Search { results, .. } => results,
+                                    _ => &Vec::<crate::models::SearchResult>::new(),
+                                };
                             self.models = Self::discover_models(
                                 &self.config.models_dirs,
                                 &self.download.download_progress,
@@ -380,9 +384,14 @@ impl App {
                             self.invalidate_list_caches();
                             self.rebuild_downloaded_set();
                             // Refresh downloaded flags in cached search results
-                            if let crate::tui::app::ModelsMode::Search { results, .. } = &mut self.models_mode {
+                            if let crate::tui::app::ModelsMode::Search { results, .. } =
+                                &mut self.models_mode
+                            {
                                 for result in results.iter_mut() {
-                                    result.downloaded = super::sync_ops::model_is_downloaded(&self.models, &result.model_id);
+                                    result.downloaded = super::sync_ops::model_is_downloaded(
+                                        &self.models,
+                                        &result.model_id,
+                                    );
                                 }
                             }
                             self.ui.needs_redraw = true;
@@ -696,14 +705,18 @@ impl App {
                                         let status_lower = status.to_lowercase();
                                         if status_lower == "loaded" || status_lower == "ready" {
                                             // Find a model in Loading state that matches this API response
-                                            let name = self.model_states.iter().find_map(|(name, s)| {
-                                                if matches!(s, crate::models::ModelState::Loading) {
-                                                    if id == *name {
-                                                        return Some(name.clone());
+                                            let name =
+                                                self.model_states.iter().find_map(|(name, s)| {
+                                                    if matches!(
+                                                        s,
+                                                        crate::models::ModelState::Loading
+                                                    ) {
+                                                        if id == *name {
+                                                            return Some(name.clone());
+                                                        }
                                                     }
-                                                }
-                                                None
-                                            });
+                                                    None
+                                                });
                                             if let Some(name) = name {
                                                 found = Some(name);
                                                 break;
@@ -720,16 +733,15 @@ impl App {
 
                         // If API didn't give us a match, use spawned_model_name as fallback
                         let target_model = target_model.or_else(|| {
-                            self.server
-                                .spawned_model_name
-                                .as_ref()
-                                .and_then(|name| {
-                                    if self.model_states.get(name).map_or(false, |s| matches!(s, crate::models::ModelState::Loading)) {
-                                        Some(name.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
+                            self.server.spawned_model_name.as_ref().and_then(|name| {
+                                if self.model_states.get(name).map_or(false, |s| {
+                                    matches!(s, crate::models::ModelState::Loading)
+                                }) {
+                                    Some(name.clone())
+                                } else {
+                                    None
+                                }
+                            })
                         });
 
                         // Clear all Loading states first
@@ -866,14 +878,13 @@ impl App {
                     return;
                 }
             };
-            let bench_tune_config =
-                self.bench_tune.bench_tune_config.take().unwrap_or_else(|| {
-                    crate::models::BenchTuneConfig::new(
-                        model.path.clone(),
-                        3,
-                        crate::models::BENCHMARK_PROMPT.to_string(),
-                    )
-                });
+            let bench_tune_config = self.bench_tune.bench_tune_config.take().unwrap_or_else(|| {
+                crate::models::BenchTuneConfig::new(
+                    model.path.clone(),
+                    3,
+                    crate::models::BENCHMARK_PROMPT.to_string(),
+                )
+            });
             let (tx_tune, rx_tune) = tokio::sync::mpsc::channel(100);
             self.bench_tune.bench_tune_tx = Some(tx_tune.clone());
             self.bench_tune.bench_tune_config = Some(bench_tune_config.clone());
@@ -914,18 +925,16 @@ impl App {
             let settings_for_result = settings_clone.clone();
             let exit_tx_clone = exit_tx.clone();
             let handle = tokio::spawn(async move {
-                crate::backend::server::spawn_server(
-                    crate::backend::server::SpawnServerRequest {
-                        config: &config_clone,
-                        model: model_clone.as_ref(),
-                        settings: &settings_clone,
-                        log_tx: tx_clone,
-                        progress_tx: download_tx_clone,
-                        server_mode: server_mode_clone,
-                        router_max_models: router_max_models_clone,
-                        exit_tx: exit_tx_clone,
-                    },
-                )
+                crate::backend::server::spawn_server(crate::backend::server::SpawnServerRequest {
+                    config: &config_clone,
+                    model: model_clone.as_ref(),
+                    settings: &settings_clone,
+                    log_tx: tx_clone,
+                    progress_tx: download_tx_clone,
+                    server_mode: server_mode_clone,
+                    router_max_models: router_max_models_clone,
+                    exit_tx: exit_tx_clone,
+                })
                 .await
                 .map(|(handle, cmd)| (display_name, handle, cmd, settings_for_result))
             });
@@ -935,8 +944,8 @@ impl App {
         }
     }
 
-pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
-    match handle.await {
+    pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
+        match handle.await {
             Ok(Ok((server_display_name, server_handle, cmd, spawned_settings))) => {
                 let port = server_handle.port;
                 let pid = server_handle.pid;
@@ -950,16 +959,14 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                 self.server.spawned_settings = Some(spawned_settings.clone());
                 self.server.spawned_model_name = Some(server_display_name.clone());
                 self.server.spawned_model_state = Some("loading".to_string());
-                self.server.spawned_context_length = (spawned_settings.context_length as f32
-                    * spawned_settings.rope_scale)
-                    as u32;
+                self.server.spawned_context_length =
+                    (spawned_settings.context_length as f32 * spawned_settings.rope_scale) as u32;
                 // API endpoint (proxy) is managed by tick_api_endpoint(), which
                 // runs every loop iteration and (re)starts the proxy as needed
                 // when a model becomes available.
                 self.loading.loading_phases =
                     std::iter::once(super::types::LoadingPhase::ServerListening).collect();
-                self.loading.last_active_phase =
-                    Some(super::types::LoadingPhase::ServerListening);
+                self.loading.last_active_phase = Some(super::types::LoadingPhase::ServerListening);
                 self.server.spawned_model_state = Some("loading".to_string());
                 self.loading.progress_target = 1.0;
                 let (metrics_tx, metrics_rx) = tokio::sync::mpsc::channel(10);
@@ -1019,7 +1026,6 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
         }
     }
 
-
     async fn metrics_polling_task(
         host: String,
         port: u16,
@@ -1054,13 +1060,12 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                     }
                     if consecutive_failures % 5 == 1 {
                         if let Some(tx) = &log_tx {
-                            let _ = tx.send(
-                                format!(
+                            let _ = tx
+                                .send(format!(
                                     "Metrics polling: server unreachable (attempt {}/{})",
-                                    consecutive_failures,
-                                    max_failures
-                                ),
-                            ).await;
+                                    consecutive_failures, max_failures
+                                ))
+                                .await;
                         }
                     }
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
@@ -1122,110 +1127,106 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
 
     pub async fn tick_bench_tune_result(&mut self, handle: BenchTuneTaskHandle) {
         match handle.await {
-                Ok((results, display_name, bench_config)) => match results {
-                    Ok(bench_results) => {
+            Ok((results, display_name, bench_config)) => match results {
+                Ok(bench_results) => {
+                    self.add_log(
+                        crate::t_fmt!(
+                            "async.benchmark_completed",
+                            display_name,
+                            bench_results.len()
+                        ),
+                        crate::config::LogLevel::Info,
+                    );
+                    if bench_results.is_empty() {
                         self.add_log(
-                            crate::t_fmt!(
-                                "async.benchmark_completed",
-                                display_name,
-                                bench_results.len()
+                            crate::t!("async.benchmark_no_results"),
+                            crate::config::LogLevel::Warning,
+                        );
+                    } else {
+                        let output_dir = crate::config::Config::config_path()
+                            .parent()
+                            .unwrap()
+                            .join("benchmarks");
+                        match crate::backend::benchmark::save_results(
+                            &bench_results,
+                            &output_dir,
+                            &bench_config,
+                        )
+                        .await
+                        {
+                            Ok(()) => self.add_log(
+                                crate::t_fmt!("async.results_saved", output_dir.display()),
+                                crate::config::LogLevel::Info,
                             ),
-                            crate::config::LogLevel::Info,
-                        );
-                        if bench_results.is_empty() {
-                            self.add_log(
-                                crate::t!("async.benchmark_no_results"),
-                                crate::config::LogLevel::Warning,
-                            );
-                        } else {
-                            let output_dir = crate::config::Config::config_path()
-                                .parent()
-                                .unwrap()
-                                .join("benchmarks");
-                            match crate::backend::benchmark::save_results(
-                                &bench_results,
-                                &output_dir,
-                                &bench_config,
-                            )
-                            .await
-                            {
-                                Ok(()) => self.add_log(
-                                    crate::t_fmt!("async.results_saved", output_dir.display()),
-                                    crate::config::LogLevel::Info,
-                                ),
-                                Err(e) => self.add_log(
-                                    crate::t_fmt!("async.results_save_failed", e),
-                                    crate::config::LogLevel::Error,
-                                ),
-                            }
+                            Err(e) => self.add_log(
+                                crate::t_fmt!("async.results_save_failed", e),
+                                crate::config::LogLevel::Error,
+                            ),
                         }
-                        let mut sorted_results = bench_results;
-                        sorted_results.sort_by(|a, b| {
-                            b.metrics
-                                .generation_tps
-                                .partial_cmp(&a.metrics.generation_tps)
-                                .unwrap_or(std::cmp::Ordering::Equal)
+                    }
+                    let mut sorted_results = bench_results;
+                    sorted_results.sort_by(|a, b| {
+                        b.metrics
+                            .generation_tps
+                            .partial_cmp(&a.metrics.generation_tps)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                    self.bench_tune.bench_tune_results = sorted_results;
+                    self.bench_tune.bench_tune_running = false;
+
+                    let model_display_name = self.selected_model().map(|m| m.display_name.clone());
+
+                    if let Some(model_display_name) = model_display_name {
+                        self.model_states.insert(
+                            model_display_name.clone(),
+                            crate::models::ModelState::Available,
+                        );
+                        self.pending.active_model_hint_dirty = true;
+                    }
+
+                    if let Some(handle) = &self.server.server_handle
+                        && let Some(model) = self.selected_model()
+                    {
+                        let host = handle.host.clone();
+                        let port = handle.port;
+                        let model_name = model.display_name.clone();
+                        let task_name = format!("bench_unload_{}", model.display_name);
+                        let task_handle = tokio::spawn(async move {
+                            let _ = crate::backend::server::unload_model(&host, port, &model_name)
+                                .await;
                         });
-                        self.bench_tune.bench_tune_results = sorted_results;
-                        self.bench_tune.bench_tune_running = false;
-
-                        let model_display_name =
-                            self.selected_model().map(|m| m.display_name.clone());
-
-                         if let Some(model_display_name) = model_display_name {
-                            self.model_states.insert(
-                                model_display_name.clone(),
-                                crate::models::ModelState::Available,
-                            );
-                            self.pending.active_model_hint_dirty = true;
-                        }
-
-                        if let Some(handle) = &self.server.server_handle
-                            && let Some(model) = self.selected_model() {
-                                let host = handle.host.clone();
-                                let port = handle.port;
-                                let model_name = model.display_name.clone();
-                                let task_name = format!("bench_unload_{}", model.display_name);
-                                let task_handle = tokio::spawn(async move {
-                                    let _ = crate::backend::server::unload_model(
-                                        &host,
-                                        port,
-                                        &model_name,
-                                    )
-                                    .await;
-                                });
-                                self.background_tasks.insert(task_name, task_handle);
-                            }
-
-                        self.ui.needs_redraw = true;
+                        self.background_tasks.insert(task_name, task_handle);
                     }
-                    Err(e) => {
-                        self.add_log(
-                            crate::t_fmt!("async.benchmark_failed", e),
-                            crate::config::LogLevel::Error,
-                        );
-                        self.bench_tune.bench_tune_running = false;
-                        if let Some(model) = self.selected_model() {
-                            self.model_states.insert(
-                                model.display_name.clone(),
-                                crate::models::ModelState::Failed {
-                                    error: e.to_string(),
-                                },
-                            );
-                            self.pending.active_model_hint_dirty = true;
-                        }
-                        self.ui.needs_redraw = true;
-                    }
-                },
+
+                    self.ui.needs_redraw = true;
+                }
                 Err(e) => {
                     self.add_log(
-                        crate::t_fmt!("async.benchmark_task_panic", e),
+                        crate::t_fmt!("async.benchmark_failed", e),
                         crate::config::LogLevel::Error,
                     );
                     self.bench_tune.bench_tune_running = false;
+                    if let Some(model) = self.selected_model() {
+                        self.model_states.insert(
+                            model.display_name.clone(),
+                            crate::models::ModelState::Failed {
+                                error: e.to_string(),
+                            },
+                        );
+                        self.pending.active_model_hint_dirty = true;
+                    }
                     self.ui.needs_redraw = true;
                 }
+            },
+            Err(e) => {
+                self.add_log(
+                    crate::t_fmt!("async.benchmark_task_panic", e),
+                    crate::config::LogLevel::Error,
+                );
+                self.bench_tune.bench_tune_running = false;
+                self.ui.needs_redraw = true;
             }
+        }
     }
 
     pub fn try_execute_api_load(&mut self) {
@@ -1259,12 +1260,8 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                     let model_name_err = model_name_clone.clone();
                     self.metrics.ctx_used = 0;
                     tokio::spawn(async move {
-                        if let Err(e) = crate::backend::server::load_model(
-                            &host,
-                            port,
-                            &model_name_clone,
-                        )
-                        .await
+                        if let Err(e) =
+                            crate::backend::server::load_model(&host, port, &model_name_clone).await
                         {
                             let err_msg = crate::t_fmt!("async.load_failed", model_name_err, e);
                             if let Some(tx) = log_tx {
@@ -1278,8 +1275,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                         .insert(model_name, crate::models::ModelState::Loading);
                     self.ui.needs_redraw = true;
                 }
-            } else if self.server.spawn_task_handle.is_none()
-            {
+            } else if self.server.spawn_task_handle.is_none() {
                 self.pending.pending_api_load = None;
             }
         }
@@ -1324,12 +1320,9 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                 self.background_tasks.insert(
                     format!("api_unload_{}", model_name_task),
                     tokio::spawn(async move {
-                        if let Err(e) = crate::backend::server::unload_model(
-                            &host,
-                            port,
-                            &model_name_clone,
-                        )
-                        .await
+                        if let Err(e) =
+                            crate::backend::server::unload_model(&host, port, &model_name_clone)
+                                .await
                         {
                             if let Some(tx) = kill_tx {
                                 let _ = tx.send(crate::t_fmt!("async.unload_failed", e)).await;
@@ -1396,7 +1389,10 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
     pub async fn process_pending_kill(&mut self, handle: ServerHandle) {
         match crate::backend::server::kill_server(handle).await {
             Ok(()) => {
-                self.add_log(crate::t!("log.server_stopped"), crate::config::LogLevel::Info);
+                self.add_log(
+                    crate::t!("log.server_stopped"),
+                    crate::config::LogLevel::Info,
+                );
                 self.server.server_handle = None;
                 self.server.metrics_rx = None;
                 self.metrics = Default::default();
@@ -1448,8 +1444,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
         let offset_clone = offset;
         let search_limit = self.config.search_limit;
         let search_handle = tokio::spawn(async move {
-            crate::backend::hub::search_models(&query_clone, search_limit, offset_clone)
-                .await
+            crate::backend::hub::search_models(&query_clone, search_limit, offset_clone).await
         });
         match search_handle.await {
             Ok(Ok((res, _, _))) => {
@@ -1484,10 +1479,8 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                         *results = res
                             .into_iter()
                             .map(|r| {
-                                let downloaded = super::sync_ops::model_is_downloaded(
-                                    &self.models,
-                                    &r.model_id,
-                                );
+                                let downloaded =
+                                    super::sync_ops::model_is_downloaded(&self.models, &r.model_id);
                                 crate::models::SearchResult { downloaded, ..r }
                             })
                             .collect();
@@ -1510,9 +1503,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                     crate::t_fmt!("async.search_failed", e),
                     crate::config::LogLevel::Error,
                 );
-                if let super::types::ModelsMode::Search { loading, .. } =
-                    &mut self.models_mode
-                {
+                if let super::types::ModelsMode::Search { loading, .. } = &mut self.models_mode {
                     *loading = false;
                 }
             }
@@ -1521,9 +1512,7 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
                     crate::t_fmt!("async.search_task_error", e),
                     crate::config::LogLevel::Error,
                 );
-                if let super::types::ModelsMode::Search { loading, .. } =
-                    &mut self.models_mode
-                {
+                if let super::types::ModelsMode::Search { loading, .. } = &mut self.models_mode {
                     *loading = false;
                 }
             }
@@ -1562,7 +1551,9 @@ pub async fn tick_spawn_result(&mut self, handle: SpawnTaskHandle) {
         };
 
         // Update cache
-        self.pending.metrics_model_name_cache.clone_from(&active_loaded_model);
+        self.pending
+            .metrics_model_name_cache
+            .clone_from(&active_loaded_model);
         self.pending.metrics_model_name_last = Some(std::time::Instant::now());
 
         let mut lock = self

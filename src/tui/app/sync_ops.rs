@@ -42,9 +42,10 @@ impl App {
 
                     // Skip files that are currently being downloaded (partial downloads)
                     if let Some(&expected) = expected_sizes.get(name.as_str())
-                        && size != expected {
-                            return;
-                        }
+                        && size != expected
+                    {
+                        return;
+                    }
 
                     let display_name = path
                         .strip_prefix(dir)
@@ -57,9 +58,7 @@ impl App {
                     let (pipeline_tag, capabilities) = search_results
                         .iter()
                         .find(|r| display_name.starts_with(&r.model_id))
-                        .map(|r| {
-                            (r.pipeline_tag.clone(), r.capabilities.clone())
-                        })
+                        .map(|r| (r.pipeline_tag.clone(), r.capabilities.clone()))
                         .unwrap_or((None, Vec::new()));
 
                     models.push(crate::models::DiscoveredModel {
@@ -176,7 +175,9 @@ impl App {
         if filter.is_empty() {
             return (0..self.models.len()).collect();
         }
-        self.models.iter().enumerate()
+        self.models
+            .iter()
+            .enumerate()
             .filter(|(_, m)| m.display_name.to_lowercase().contains(&filter))
             .map(|(i, _)| i)
             .collect()
@@ -210,9 +211,7 @@ impl App {
             let model_a = &self.models[a];
             let model_b = &self.models[b];
             match sort_by {
-                crate::models::ListSort::Name => {
-                    model_a.display_name.cmp(&model_b.display_name)
-                }
+                crate::models::ListSort::Name => model_a.display_name.cmp(&model_b.display_name),
                 crate::models::ListSort::Status => {
                     let state_a = self.model_states.get(&model_a.display_name);
                     let state_b = self.model_states.get(&model_b.display_name);
@@ -235,17 +234,27 @@ impl App {
                     let kb = &*model_b.path.to_string_lossy();
                     let meta_a = self.search.gguf_metadata_cache.get(ka);
                     let meta_b = self.search.gguf_metadata_cache.get(kb);
-                    let val_a = meta_a.map(|m| {
-                        let trimmed = m.model_parameters.trim();
-                        let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
-                        num_str.parse::<f64>().unwrap_or(0.0)
-                    }).unwrap_or(0.0);
-                    let val_b = meta_b.map(|m| {
-                        let trimmed = m.model_parameters.trim();
-                        let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
-                        num_str.parse::<f64>().unwrap_or(0.0)
-                    }).unwrap_or(0.0);
-                    val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
+                    let val_a = meta_a
+                        .map(|m| {
+                            let trimmed = m.model_parameters.trim();
+                            let num_str = trimmed
+                                .trim_end_matches(|c: char| c == 'B' || c == 'b')
+                                .trim();
+                            num_str.parse::<f64>().unwrap_or(0.0)
+                        })
+                        .unwrap_or(0.0);
+                    let val_b = meta_b
+                        .map(|m| {
+                            let trimmed = m.model_parameters.trim();
+                            let num_str = trimmed
+                                .trim_end_matches(|c: char| c == 'B' || c == 'b')
+                                .trim();
+                            num_str.parse::<f64>().unwrap_or(0.0)
+                        })
+                        .unwrap_or(0.0);
+                    val_b
+                        .partial_cmp(&val_a)
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 }
                 crate::models::ListSort::Qual => {
                     let ka = &*model_a.path.to_string_lossy();
@@ -257,10 +266,16 @@ impl App {
                     rank_b.cmp(&rank_a)
                 }
                 crate::models::ListSort::Context => {
-                    let ctx_a = self.search.ctx_cache.get(&model_a.display_name)
+                    let ctx_a = self
+                        .search
+                        .ctx_cache
+                        .get(&model_a.display_name)
                         .map(|(c, _, _)| *c)
                         .unwrap_or(0);
-                    let ctx_b = self.search.ctx_cache.get(&model_b.display_name)
+                    let ctx_b = self
+                        .search
+                        .ctx_cache
+                        .get(&model_b.display_name)
                         .map(|(c, _, _)| *c)
                         .unwrap_or(0);
                     ctx_b.cmp(&ctx_a)
@@ -274,7 +289,9 @@ impl App {
             let mut cache: HashMap<String, (u32, bool, f32)> =
                 HashMap::with_capacity(self.models.len());
             for model in &self.models {
-                let s = self.config.resolve_settings(Some(model.display_name.as_str()), None);
+                let s = self
+                    .config
+                    .resolve_settings(Some(model.display_name.as_str()), None);
                 cache.insert(
                     model.display_name.clone(),
                     (s.context_length, s.rope_yarn_enabled, s.rope_scale),
@@ -292,9 +309,8 @@ impl App {
     }
 
     pub fn rebuild_downloaded_set(&mut self) {
-        self.search.downloaded_filenames = self.models.iter()
-            .map(|m| m.name.to_lowercase())
-            .collect();
+        self.search.downloaded_filenames =
+            self.models.iter().map(|m| m.name.to_lowercase()).collect();
     }
 }
 
@@ -305,34 +321,59 @@ fn is_quantization_suffix(suffix: &str) -> bool {
         return false;
     }
     let rest = &suffix[1..];
-    
+
     if rest.starts_with('q') {
         let after_q = &rest[1..];
-        if after_q.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+        if after_q
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        {
             return true;
         }
     }
     if rest.starts_with("iq") {
         let after_iq = &rest[2..];
-        if after_iq.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+        if after_iq
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        {
             return true;
         }
     }
     if rest.starts_with("fp") {
         let after_fp = &rest[2..];
-        if after_fp.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+        if after_fp
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        {
             return true;
         }
     }
     if rest.starts_with("bf") {
         let after_bf = &rest[2..];
-        if after_bf.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+        if after_bf
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        {
             return true;
         }
     }
     if rest.starts_with('f') {
         let after_f = &rest[1..];
-        if after_f.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+        if after_f
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        {
             return true;
         }
     }
@@ -351,7 +392,7 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
     };
 
     let mut expected_prefix = repo_model_name.to_lowercase().replace('_', "-");
-    
+
     if expected_prefix.ends_with("-gguf") {
         expected_prefix = expected_prefix.strip_suffix("-gguf").unwrap().to_string();
     }
@@ -393,7 +434,7 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
         if local_name.ends_with(".gguf") {
             local_name = local_name.strip_suffix(".gguf").unwrap().to_string();
         }
-        
+
         if local_name.starts_with(&expected_prefix) {
             if local_name.len() == expected_prefix.len() {
                 return true;
@@ -406,4 +447,3 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
     }
     false
 }
-

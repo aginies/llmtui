@@ -121,9 +121,10 @@ pub fn render_model_lines(
             }
         }
         if let Some(ref pipeline_tag) = model.pipeline_tag
-            && !all_capabilities.contains(pipeline_tag) {
-                all_capabilities.push(pipeline_tag.clone());
-            }
+            && !all_capabilities.contains(pipeline_tag)
+        {
+            all_capabilities.push(pipeline_tag.clone());
+        }
         if !all_capabilities.is_empty() {
             pairs.push(ModelInfoPair {
                 label: "model_info.capabilities",

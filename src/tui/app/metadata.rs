@@ -1,5 +1,5 @@
-use super::types::App;
 use super::pending_events::PendingEvent;
+use super::types::App;
 
 impl App {
     /// Spawn background task to parse GGUF metadata for all models.
@@ -14,7 +14,9 @@ impl App {
         tokio::task::spawn_blocking(move || {
             let mut results = Vec::new();
             for path_str in models {
-                if let Ok(meta) = crate::models::GgufMetadata::from_path(&std::path::Path::new(&path_str)) {
+                if let Ok(meta) =
+                    crate::models::GgufMetadata::from_path(&std::path::Path::new(&path_str))
+                {
                     results.push((path_str, meta));
                 }
             }

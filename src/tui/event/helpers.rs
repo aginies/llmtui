@@ -215,9 +215,10 @@ pub fn handle_fkey_toggle(
     }
     app.toggle_panel_visibility(panel_idx);
     if app.is_panel_visible(panel_idx)
-        && let Some(panel) = target_panel {
-            app.ui.active_panel = panel;
-        }
+        && let Some(panel) = target_panel
+    {
+        app.ui.active_panel = panel;
+    }
 }
 
 pub fn handle_fkey_show(

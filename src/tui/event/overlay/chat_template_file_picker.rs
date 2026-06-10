@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
 use super::super::helpers::mark_settings_dirty;
 use crate::config::LogLevel;
@@ -21,15 +21,13 @@ impl OverlayHandler for ChatTemplateFilePickerHandler {
         key: KeyEvent,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
-            if let GlobalMode::ChatTemplateFilePicker { entries, selected } = &mut app.ui.global_mode
+            if let GlobalMode::ChatTemplateFilePicker { entries, selected } =
+                &mut app.ui.global_mode
             {
                 match key.code {
                     KeyCode::Enter => {
                         if entries.is_empty() {
-                            app.add_log(
-                                crate::t!("log.no_jinja_files"),
-                                LogLevel::Warning,
-                            );
+                            app.add_log(crate::t!("log.no_jinja_files"), LogLevel::Warning);
                             app.ui.global_mode = GlobalMode::ChatTemplatePicker {
                                 entries: crate::models::get_available_chat_templates(),
                                 selected: 0,
@@ -60,5 +58,3 @@ impl OverlayHandler for ChatTemplateFilePickerHandler {
         })
     }
 }
-
-

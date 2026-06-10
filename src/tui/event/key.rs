@@ -3,8 +3,8 @@ use ratatui::widgets::TableState;
 use tracing::debug;
 
 use super::helpers::{
-    handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle,
-    mark_settings_dirty, sync_global_settings, TextEditor, picker_nav_up, picker_nav_down,
+    TextEditor, handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle, mark_settings_dirty,
+    picker_nav_down, picker_nav_up, sync_global_settings,
 };
 use super::overlay::OverlayRegistry;
 use super::panel::{
@@ -19,7 +19,6 @@ use crate::backend::hub;
 use crate::models::SearchSort;
 use crate::tui::app::{ActivePanel, App, ConfirmationKind, GlobalMode, ModelsMode};
 use crate::tui::settings;
-
 
 static OVERLAY_REGISTRY: std::sync::LazyLock<OverlayRegistry> =
     std::sync::LazyLock::new(OverlayRegistry::new);
@@ -254,11 +253,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
         }
-        KeyCode::Char('c')
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             let loaded_count = app
                 .model_states
                 .values()
@@ -289,7 +284,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 && app.server_mode == crate::models::ServerMode::Bench
                 && let Some(handle) = app.server.server_handle.take()
             {
-                app.add_log(crate::t!("log.stopping_benchmark"), crate::config::LogLevel::Info);
+                app.add_log(
+                    crate::t!("log.stopping_benchmark"),
+                    crate::config::LogLevel::Info,
+                );
                 let _ = app
                     .pending_tx
                     .send(PendingEvent::KillHandle { handle })
@@ -299,10 +297,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Tab => {
             if app.ui.global_mode == GlobalMode::Normal {
-                if key
-                    .modifiers
-                    .contains(KeyModifiers::SHIFT)
-                {
+                if key.modifiers.contains(KeyModifiers::SHIFT) {
                     app.focus_prev();
                 } else {
                     app.focus_next();
@@ -311,12 +306,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
         }
         KeyCode::Char('h')
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL)
-                && !key
-                    .modifiers
-                    .contains(KeyModifiers::SHIFT) =>
+            if key.modifiers.contains(KeyModifiers::CONTROL)
+                && !key.modifiers.contains(KeyModifiers::SHIFT) =>
         {
             app.ui.panel_help = !app.ui.panel_help;
             if app.ui.panel_help {
@@ -348,51 +339,27 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             handle_fkey_toggle(app, 5, Some(ActivePanel::Log), false);
             return;
         }
-        KeyCode::Left
-            if key
-                .modifiers
-                .contains(KeyModifiers::SHIFT) =>
-        {
+        KeyCode::Left if key.modifiers.contains(KeyModifiers::SHIFT) => {
             app.ui.left_pct = app.ui.left_pct.saturating_sub(1).max(20);
             return;
         }
-        KeyCode::Right
-            if key
-                .modifiers
-                .contains(KeyModifiers::SHIFT) =>
-        {
+        KeyCode::Right if key.modifiers.contains(KeyModifiers::SHIFT) => {
             app.ui.left_pct = app.ui.left_pct.saturating_add(1).min(80);
             return;
         }
-        KeyCode::F(7)
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
+        KeyCode::F(7) if key.modifiers.contains(KeyModifiers::CONTROL) => {
             handle_fkey_show(app, 0, ActivePanel::Models, false);
             return;
         }
-        KeyCode::F(8)
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
+        KeyCode::F(8) if key.modifiers.contains(KeyModifiers::CONTROL) => {
             handle_fkey_show(app, 1, ActivePanel::ServerSettings, true);
             return;
         }
-        KeyCode::F(9)
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
+        KeyCode::F(9) if key.modifiers.contains(KeyModifiers::CONTROL) => {
             handle_fkey_show(app, 3, ActivePanel::LlmSettings, false);
             return;
         }
-        KeyCode::F(10)
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
+        KeyCode::F(10) if key.modifiers.contains(KeyModifiers::CONTROL) => {
             handle_fkey_show_all(app);
             return;
         }
@@ -401,9 +368,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         }
         KeyCode::Char('k')
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL)
+            if key.modifiers.contains(KeyModifiers::CONTROL)
                 && key.modifiers.contains(KeyModifiers::ALT) =>
         {
             if let Some(handle) = app.server.server_handle.take() {
@@ -426,32 +391,28 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.log.log_expanded = false;
             return;
         }
-        KeyCode::Char('l')
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
+        KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.ui.active_panel = ActivePanel::Log;
             return;
         }
-        KeyCode::Char('k')
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
-            let version_param = app.settings.get_active_backend_version().map(|s| s.as_str());
-            let binary_path = match hub::resolve_backend_binary(
-                app.settings.backend,
-                version_param,
-                None,
-                None,
-            ).await {
-                Ok(path) => path,
-                Err(e) => {
-                    app.add_log(format!("Failed to resolve llama-server binary: {}", e), crate::config::LogLevel::Error);
-                    return;
-                }
-            };
+        KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            let version_param = app
+                .settings
+                .get_active_backend_version()
+                .map(|s| s.as_str());
+            let binary_path =
+                match hub::resolve_backend_binary(app.settings.backend, version_param, None, None)
+                    .await
+                {
+                    Ok(path) => path,
+                    Err(e) => {
+                        app.add_log(
+                            format!("Failed to resolve llama-server binary: {}", e),
+                            crate::config::LogLevel::Error,
+                        );
+                        return;
+                    }
+                };
             let model = app.selected_model().cloned();
             let (_cmd, cmd_line) = crate::backend::server::build_server_cmd(
                 &binary_path,
@@ -550,11 +511,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     }
 
     // Global shortcuts
-    if key.code == KeyCode::Char('s')
-        && key
-            .modifiers
-            .contains(KeyModifiers::CONTROL)
-    {
+    if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
         // Ctrl+S: sort in search mode (takes priority over save)
         if matches!(app.models_mode, ModelsMode::Search { .. }) {
             if let ModelsMode::Search {
@@ -660,11 +617,7 @@ pub(super) fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::Key
                     }
                     .insert_newline();
                 }
-                KeyCode::Char('s')
-                    if key
-                        .modifiers
-                        .contains(KeyModifiers::CONTROL) =>
-                {
+                KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     let mut saved = false;
                     if *selected < entries.len() {
                         let name = entries[*selected].0.clone();
@@ -903,48 +856,46 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                 }
             }
             KeyCode::Tab => {
-                if *editing_param
-                    && config.params_to_test[*selected_idx].variants.is_empty() {
-                        *editing_param_field = (*editing_param_field + 1).min(2);
-                        let p = &config.params_to_test[*selected_idx];
-                        let val = match *editing_param_field {
-                            0 => p.min,
-                            1 => p.max,
-                            2 => p.step,
-                            _ => 0.0,
-                        };
-                        param_edit_buffer.clear();
-                        if *editing_param_field == 2 {
-                            *param_edit_buffer = val.to_string();
-                        } else {
-                            *param_edit_buffer = format!("{:.2}", val);
-                        }
-                        *param_edit_cursor_pos = param_edit_buffer.len();
+                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() {
+                    *editing_param_field = (*editing_param_field + 1).min(2);
+                    let p = &config.params_to_test[*selected_idx];
+                    let val = match *editing_param_field {
+                        0 => p.min,
+                        1 => p.max,
+                        2 => p.step,
+                        _ => 0.0,
+                    };
+                    param_edit_buffer.clear();
+                    if *editing_param_field == 2 {
+                        *param_edit_buffer = val.to_string();
+                    } else {
+                        *param_edit_buffer = format!("{:.2}", val);
                     }
+                    *param_edit_cursor_pos = param_edit_buffer.len();
+                }
             }
             KeyCode::BackTab => {
-                if *editing_param
-                    && config.params_to_test[*selected_idx].variants.is_empty() {
-                        *editing_param_field = if *editing_param_field <= 0 {
-                            2
-                        } else {
-                            *editing_param_field - 1
-                        };
-                        let p = &config.params_to_test[*selected_idx];
-                        let val = match *editing_param_field {
-                            0 => p.min,
-                            1 => p.max,
-                            2 => p.step,
-                            _ => 0.0,
-                        };
-                        param_edit_buffer.clear();
-                        if *editing_param_field == 2 {
-                            *param_edit_buffer = val.to_string();
-                        } else {
-                            *param_edit_buffer = format!("{:.2}", val);
-                        }
-                        *param_edit_cursor_pos = param_edit_buffer.len();
+                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() {
+                    *editing_param_field = if *editing_param_field <= 0 {
+                        2
+                    } else {
+                        *editing_param_field - 1
+                    };
+                    let p = &config.params_to_test[*selected_idx];
+                    let val = match *editing_param_field {
+                        0 => p.min,
+                        1 => p.max,
+                        2 => p.step,
+                        _ => 0.0,
+                    };
+                    param_edit_buffer.clear();
+                    if *editing_param_field == 2 {
+                        *param_edit_buffer = val.to_string();
+                    } else {
+                        *param_edit_buffer = format!("{:.2}", val);
                     }
+                    *param_edit_cursor_pos = param_edit_buffer.len();
+                }
             }
             KeyCode::Char('+')
                 if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() =>
@@ -1197,16 +1148,15 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
 async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
         KeyCode::Esc => {
-            app.models_mode = ModelsMode::List { sort_by: crate::models::ListSort::Name };
+            app.models_mode = ModelsMode::List {
+                sort_by: crate::models::ListSort::Name,
+            };
             app.ui.panel_visibility |= (1 << 4) | (1 << 5);
             app.invalidate_list_caches();
             return;
         }
         KeyCode::Enter | KeyCode::Char('f')
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL)
-                || key.code == KeyCode::Enter =>
+            if key.modifiers.contains(KeyModifiers::CONTROL) || key.code == KeyCode::Enter =>
         {
             let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
                 app.search
@@ -1263,11 +1213,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Char('s')
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
+        KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             if let ModelsMode::Search {
                 sort_by, results, ..
             } = &mut app.models_mode
@@ -1292,11 +1238,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Char('B')
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
+        KeyCode::Char('B') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             if let ModelsMode::Search { page, .. } = &app.models_mode
                 && *page > 0
             {
@@ -1315,10 +1257,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 let _ = app
                     .pending_tx
-                    .send(PendingEvent::Search {
-                        query,
-                        offset,
-                    })
+                    .send(PendingEvent::Search { query, offset })
                     .await;
                 return;
             }
@@ -1348,10 +1287,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.add_log(crate::t!("log.loading_more"), crate::config::LogLevel::Info);
                         let _ = app
                             .pending_tx
-                            .send(PendingEvent::Search {
-                                query,
-                                offset,
-                            })
+                            .send(PendingEvent::Search { query, offset })
                             .await;
                         return;
                     }
@@ -1375,11 +1311,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             return;
         }
-        KeyCode::Char('R')
-            if key
-                .modifiers
-                .contains(KeyModifiers::CONTROL) =>
-        {
+        KeyCode::Char('R') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
                 app.search
                     .search_results_idx
@@ -1392,7 +1324,10 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     format!("Fetching README for {}...", model_id),
                     crate::config::LogLevel::Info,
                 );
-                app.add_log(crate::t!("log.taking_moment"), crate::config::LogLevel::Info);
+                app.add_log(
+                    crate::t!("log.taking_moment"),
+                    crate::config::LogLevel::Info,
+                );
                 fetch_and_store_readme(app, model_id.clone()).await;
                 if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
                     *show_readme = true;
@@ -1450,8 +1385,12 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 previous_query,
                 previous_results,
                 ..
-            } = std::mem::replace(&mut app.models_mode, ModelsMode::List { sort_by: crate::models::ListSort::Name })
-            {
+            } = std::mem::replace(
+                &mut app.models_mode,
+                ModelsMode::List {
+                    sort_by: crate::models::ListSort::Name,
+                },
+            ) {
                 app.invalidate_list_caches();
                 let current_idx = app.search.search_results_idx;
                 let should_reset =
@@ -1538,7 +1477,10 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     .unwrap_or_default();
                 let file_path = dest_dir.join(basename);
                 if file_path.exists() {
-                    app.add_log(crate::t!("log.already_downloaded"), crate::config::LogLevel::Warning);
+                    app.add_log(
+                        crate::t!("log.already_downloaded"),
+                        crate::config::LogLevel::Warning,
+                    );
                     return;
                 }
                 app.add_log(
@@ -1658,7 +1600,9 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             // Don't abort the task — let it finish gracefully and send Cancelled status
             // Keep bench_tune_running = true so the app knows the task is still finishing up
-            app.models_mode = ModelsMode::List { sort_by: crate::models::ListSort::Name };
+            app.models_mode = ModelsMode::List {
+                sort_by: crate::models::ListSort::Name,
+            };
         }
         KeyCode::Enter => {
             let result_idx = app.bench_tune.bench_tune_result_row;
@@ -1777,7 +1721,10 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     crate::tui::i18n::set_language(next);
                     app.config.language = next.to_string();
                     app.config.save().ok();
-                    app.add_log(format!("Language changed to {}", next.to_uppercase()), crate::config::LogLevel::Info);
+                    app.add_log(
+                        format!("Language changed to {}", next.to_uppercase()),
+                        crate::config::LogLevel::Info,
+                    );
                 }
                 _ => {}
             }

@@ -354,9 +354,15 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         info!("llama-server output logging to: {}", path.display());
         let stdout = file.try_clone().expect("Failed to clone file handle");
         let stderr = file.try_clone().expect("Failed to clone file handle");
-        (std::process::Stdio::from(stdout), std::process::Stdio::from(stderr))
+        (
+            std::process::Stdio::from(stdout),
+            std::process::Stdio::from(stderr),
+        )
     } else {
-        (std::process::Stdio::inherit(), std::process::Stdio::inherit())
+        (
+            std::process::Stdio::inherit(),
+            std::process::Stdio::inherit(),
+        )
     };
 
     let mut child = cmd

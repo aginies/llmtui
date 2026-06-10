@@ -1,9 +1,9 @@
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use super::super::helpers::{picker_nav_up, picker_nav_down};
+use super::super::helpers::{picker_nav_down, picker_nav_up};
 use crate::tui::app::{App, GlobalMode};
 
 use super::OverlayHandler;

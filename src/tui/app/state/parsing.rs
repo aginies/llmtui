@@ -8,24 +8,18 @@ fn compile(pattern: &str) -> Regex {
 // ── Phase detection patterns ──────────────────────────────────────
 
 /// Matches llama.cpp server startup lines: "llama server", "ggml version", etc.
-pub static LLAMA_START: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)(llama.*server|ggml\s+version)")
-});
+pub static LLAMA_START: LazyLock<Regex> =
+    LazyLock::new(|| compile(r"(?i)(llama.*server|ggml\s+version)"));
 
 /// Matches model loader start: "llama_model_loader"
-pub static LOADING_MODEL: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)llama_model_loader")
-});
+pub static LOADING_MODEL: LazyLock<Regex> = LazyLock::new(|| compile(r"(?i)llama_model_loader"));
 
 /// Matches metadata loaded: "loaded X meta", "meta data"
-pub static LOADED_META: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)(loaded\s+\d+\s+meta|meta\s+data)")
-});
+pub static LOADED_META: LazyLock<Regex> =
+    LazyLock::new(|| compile(r"(?i)(loaded\s+\d+\s+meta|meta\s+data)"));
 
 /// Matches tensor loading start: "load tensors:"
-pub static LOAD_TENSORS: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)load tensors:")
-});
+pub static LOAD_TENSORS: LazyLock<Regex> = LazyLock::new(|| compile(r"(?i)load tensors:"));
 
 /// Matches "server listening on" or "http server listening"
 pub static SERVER_LISTENING: LazyLock<Regex> = LazyLock::new(|| {
@@ -43,19 +37,19 @@ pub static OFFLOADING_LAYERS: LazyLock<Regex> =
     LazyLock::new(|| compile(r"(?i)offloading\s+(\d+)\s+repeating layers"));
 
 /// Matches "offloaded X/Y layers" or "offloaded X out of Y layers"
-pub static OFFLOADED_LAYERS: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)offloaded\s+(\d+)\s*(?:out\s+of|/)\s*(\d+)\s*layers")
-});
+pub static OFFLOADED_LAYERS: LazyLock<Regex> =
+    LazyLock::new(|| compile(r"(?i)offloaded\s+(\d+)\s*(?:out\s+of|/)\s*(\d+)\s*layers"));
 
 /// Matches "Vulkan0 model buffer size = 12345.67 MiB" or "CPU model buffer size = 12345.67 MiB"
 pub static MODEL_BUFFER_SIZE: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)((?:vulkan\d|roc\d|cuda|cpu|metal)?(?:\s*))model buffer size\s*=\s*([\d.]+)\s*MiB")
+    compile(
+        r"(?i)((?:vulkan\d|roc\d|cuda|cpu|metal)?(?:\s*))model buffer size\s*=\s*([\d.]+)\s*MiB",
+    )
 });
 
 /// Matches "kv buffer size = 1234.56 MiB"
-pub static KV_BUFFER_SIZE: LazyLock<Regex> = LazyLock::new(|| {
-    compile(r"(?i)kv buffer size\s*=\s*([\d.]+)\s*MiB")
-});
+pub static KV_BUFFER_SIZE: LazyLock<Regex> =
+    LazyLock::new(|| compile(r"(?i)kv buffer size\s*=\s*([\d.]+)\s*MiB"));
 
 // ── Error detection ───────────────────────────────────────────────
 

@@ -26,7 +26,10 @@ fn push_arg(cmd: &mut Command, parts: &mut Vec<String>, name: &str, value: impl 
     parts.push(name.to_string());
     // Quote values that may contain spaces for shell safety
     if val_str.contains(' ') || val_str.contains(';') || val_str.contains('"') {
-        parts.push(format!("\"{}\"", val_str.replace('\\', "\\\\").replace('"', "\\\"")));
+        parts.push(format!(
+            "\"{}\"",
+            val_str.replace('\\', "\\\\").replace('"', "\\\"")
+        ));
     } else {
         parts.push(val_str);
     }
@@ -421,17 +424,19 @@ pub fn build_server_cmd(
         );
     }
 
-    if settings.rope_yarn_enabled && settings.rope_scale > 1.0
-        && let Some(meta) = gguf_meta.as_ref().ok().and_then(|x| x.as_ref()) {
-            push_arg(
-                &mut cmd,
-                &mut parts,
-                "--override-kv",
-                format!("{}.context_length=int:{}", meta.arch, effective_ctx),
-            );
-            let orig_ctx = meta.n_ctx_train;
-            push_arg(&mut cmd, &mut parts, "--yarn-orig-ctx", orig_ctx);
-        }
+    if settings.rope_yarn_enabled
+        && settings.rope_scale > 1.0
+        && let Some(meta) = gguf_meta.as_ref().ok().and_then(|x| x.as_ref())
+    {
+        push_arg(
+            &mut cmd,
+            &mut parts,
+            "--override-kv",
+            format!("{}.context_length=int:{}", meta.arch, effective_ctx),
+        );
+        let orig_ctx = meta.n_ctx_train;
+        push_arg(&mut cmd, &mut parts, "--yarn-orig-ctx", orig_ctx);
+    }
 
     let resolved_host = clean_host(&settings.host);
     push_arg(&mut cmd, &mut parts, "--host", resolved_host);
@@ -990,14 +995,15 @@ pub async fn get_metrics(
 
     // Fallback for RAM and CPU using sysinfo (cross-platform)
     if let Some(p) = pid
-        && let Ok((ram, cpu)) = get_process_metrics(p) {
-            if m.ram_used == 0 {
-                m.ram_used = ram;
-            }
-            if m.cpu_usage == 0.0 {
-                m.cpu_usage = cpu;
-            }
+        && let Ok((ram, cpu)) = get_process_metrics(p)
+    {
+        if m.ram_used == 0 {
+            m.ram_used = ram;
         }
+        if m.cpu_usage == 0.0 {
+            m.cpu_usage = cpu;
+        }
+    }
 
     m.loaded = ctx_max_global > 0 || vram_used_global > 0;
 
@@ -1187,10 +1193,14 @@ pub async fn load_model(host: &str, port: u16, model_id: &str) -> Result<(), Str
     let props_url = format!("http://{}:{}/props", host, port);
     if let Ok(res) = client.get(&props_url).send().await
         && res.status().is_success()
-            && let Ok(json) = res.json::<serde_json::Value>().await
-                && json.get("role").and_then(|r| r.as_str()) != Some("router") {
-                    return Err("Server is not in router mode. Start with --models-max to enable router mode.".to_string());
-                }
+        && let Ok(json) = res.json::<serde_json::Value>().await
+        && json.get("role").and_then(|r| r.as_str()) != Some("router")
+    {
+        return Err(
+            "Server is not in router mode. Start with --models-max to enable router mode."
+                .to_string(),
+        );
+    }
 
     let url = format!("http://{}:{}/models/load", host, port);
     let body = serde_json::json!({ "model": model_id });

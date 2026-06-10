@@ -1,5 +1,5 @@
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
@@ -21,9 +21,10 @@ impl OverlayHandler for AboutHandler {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
             if let GlobalMode::About = &app.ui.global_mode
-                && let KeyCode::Esc = key.code {
-                    app.ui.global_mode = GlobalMode::Normal;
-                }
+                && let KeyCode::Esc = key.code
+            {
+                app.ui.global_mode = GlobalMode::Normal;
+            }
         })
     }
 }

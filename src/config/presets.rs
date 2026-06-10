@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-
-
 use crate::config::SystemPromptPreset;
 use crate::config::builtin_system_prompt_presets;
 use crate::config::config_base_dir;

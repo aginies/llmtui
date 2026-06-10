@@ -6,10 +6,10 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState},
 };
 
-use regex::Regex;
 use crate::models::{ListSort, SearchSort};
 use crate::tui::app::{App, ModelsMode};
 use crate::tui::{format_context_k, format_number, format_size};
+use regex::Regex;
 
 const MARQUEE_SUFFIX: &str = "\u{25B6}";
 
@@ -133,9 +133,9 @@ pub fn render_download_panel(
         Constraint::Ratio(1, 10),
     ];
 
-           let table = Table::new(rows, widths)
-                .header(Row::new(headers))
-                .row_highlight_style(
+    let table = Table::new(rows, widths)
+        .header(Row::new(headers))
+        .row_highlight_style(
             Style::default()
                 .bg(Color::DarkGray)
                 .add_modifier(Modifier::BOLD),
@@ -180,7 +180,7 @@ fn format_time_remaining(total_secs: u64) -> String {
     }
 }
 
-  pub fn scroll_text(
+pub fn scroll_text(
     text: &str,
     max_width: u16,
     state: Option<&crate::tui::app::TextScrollState>,
@@ -193,7 +193,8 @@ fn format_time_remaining(total_secs: u64) -> String {
     let offset = state.map_or(0, |s| s.offset.min(max_offset));
     let mut char_indices_iter = text.char_indices();
     let start_byte = char_indices_iter.nth(offset).map_or(0, |(i, _)| i);
-    let end_byte = char_indices_iter.nth(max_width as usize)
+    let end_byte = char_indices_iter
+        .nth(max_width as usize)
         .map_or(text.len(), |(i, _)| i);
     format!("{}{}", &text[start_byte..end_byte], MARQUEE_SUFFIX)
 }
@@ -204,7 +205,9 @@ fn highlight_query(text: &str, lower_text: &str, compiled: Option<&Regex>) -> Li
     if compiled.is_none() || text.is_empty() {
         return Line::from(text.to_string());
     }
-    let highlights = compiled.unwrap().captures_iter(lower_text)
+    let highlights = compiled
+        .unwrap()
+        .captures_iter(lower_text)
         .filter_map(|cap| {
             let m = cap.get(0)?;
             Some((m.start(), m.end()))
@@ -260,7 +263,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .border_style(Style::default().fg(border_color))
                 .border_type(border_type);
 
-           f.render_widget(block.clone(), area);
+            f.render_widget(block.clone(), area);
 
             let inner_area = block.inner(area);
             let (table_area, filter_area) =
@@ -307,46 +310,78 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let sort_ascending = sort_by.is_ascending();
             let headers = vec![
                 Cell::from(if *sort_by == ListSort::Name {
-                    if sort_ascending { "Model \u{2191}" } else { "Model \u{2193}" }
+                    if sort_ascending {
+                        "Model \u{2191}"
+                    } else {
+                        "Model \u{2193}"
+                    }
                 } else {
                     crate::t!("models.list_headers.model")
-                }).style(
+                })
+                .style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == ListSort::Status {
-                    if sort_ascending { "Status \u{2191}" } else { "Status \u{2193}" }
+                    if sort_ascending {
+                        "Status \u{2191}"
+                    } else {
+                        "Status \u{2193}"
+                    }
                 } else {
                     crate::t!("models.list_headers.status")
-                }).style(
+                })
+                .style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == ListSort::Params {
-                    if sort_ascending { "Params \u{2191}" } else { "Params \u{2193}" }
+                    if sort_ascending {
+                        "Params \u{2191}"
+                    } else {
+                        "Params \u{2193}"
+                    }
                 } else {
                     crate::t!("models.list_headers.params")
-                }).style(
+                })
+                .style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == ListSort::Qual {
-                    if sort_ascending { "Qual \u{2191}" } else { "Qual \u{2193}" }
+                    if sort_ascending {
+                        "Qual \u{2191}"
+                    } else {
+                        "Qual \u{2193}"
+                    }
                 } else {
                     crate::t!("models.list_headers.quality")
-                }).style(
+                })
+                .style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Cell::from(Line::from(if *sort_by == ListSort::Context {
-                    if sort_ascending { " Ctx \u{2191}" } else { " Ctx \u{2193}" }
-                } else {
-                    crate::t!("models.list_headers.context")
-                }).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)).alignment(Alignment::Center)),
+                Cell::from(
+                    Line::from(if *sort_by == ListSort::Context {
+                        if sort_ascending {
+                            " Ctx \u{2191}"
+                        } else {
+                            " Ctx \u{2193}"
+                        }
+                    } else {
+                        crate::t!("models.list_headers.context")
+                    })
+                    .style(
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    )
+                    .alignment(Alignment::Center),
+                ),
             ];
 
             let ctx_cache = app.get_ctx_cache();
@@ -377,37 +412,40 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .get(model.display_name.as_str())
                         .copied()
                         .unwrap_or((0, false, 0.0));
-                    let context_str = format_context_k(
-                        context_length,
-                        rope_yarn_enabled,
-                        rope_scale,
-                    );
+                    let context_str =
+                        format_context_k(context_length, rope_yarn_enabled, rope_scale);
 
-                    let filename = model.display_name.rsplit('/').next().unwrap_or(&model.display_name);
+                    let filename = model
+                        .display_name
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or(&model.display_name);
                     let display_name = filename.strip_suffix(".gguf").unwrap_or(filename);
 
                     // Fetch metadata once, reuse for params / moe / quality
                     let path_key = model.path.to_string_lossy();
                     let meta = app.search.gguf_metadata_cache.get(path_key.as_ref());
-                    let params_str = meta.map(|m| {
-                        let mut p = m.model_parameters.clone();
-                        if m.arch.contains("moe") && !p.is_empty() {
-                            p = format!("{} (MoE)", p);
-                        }
-                        p
-                    }).unwrap_or_default();
+                    let params_str = meta
+                        .map(|m| {
+                            let mut p = m.model_parameters.clone();
+                            if m.arch.contains("moe") && !p.is_empty() {
+                                p = format!("{} (MoE)", p);
+                            }
+                            p
+                        })
+                        .unwrap_or_default();
                     let params_width = params_str.chars().count() as u16 + 2;
 
-                    let name_width = table_area
-                        .width
-                        .saturating_sub(status_text.as_ref().map_or(0, |s| s.chars().count()) as u16)
-                        .saturating_sub(context_str.chars().count() as u16 + 4)
-                        .saturating_sub(params_width)
-                        .saturating_sub(4);
-                    let max_offset = filename
-                        .chars()
-                        .count()
-                        .saturating_sub(name_width as usize);
+                    let name_width =
+                        table_area
+                            .width
+                            .saturating_sub(
+                                status_text.as_ref().map_or(0, |s| s.chars().count()) as u16
+                            )
+                            .saturating_sub(context_str.chars().count() as u16 + 4)
+                            .saturating_sub(params_width)
+                            .saturating_sub(4);
+                    let max_offset = filename.chars().count().saturating_sub(name_width as usize);
                     let state = app.ui.text_scrolls.entry(key.clone()).or_insert_with(|| {
                         crate::tui::app::TextScrollState {
                             offset: 0,
@@ -429,9 +467,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             .add_modifier(Modifier::BOLD)
                     } else {
                         match model_state {
-                            Some(crate::models::ModelState::Loaded { .. }) => {
-                                 Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-                             }
+                            Some(crate::models::ModelState::Loaded { .. }) => Style::default()
+                                .fg(Color::Green)
+                                .add_modifier(Modifier::BOLD),
                             Some(crate::models::ModelState::Loading)
                             | Some(crate::models::ModelState::Benchmarking) => {
                                 Style::default().fg(Color::Yellow)
@@ -452,7 +490,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     };
 
                     let is_moe = meta.map(|m| m.arch.contains("moe")).unwrap_or(false);
-                   let params_style = if params_str.is_empty() {
+                    let params_style = if params_str.is_empty() {
                         Style::default().fg(Color::DarkGray)
                     } else if is_moe {
                         Style::default().fg(Color::Magenta)
@@ -460,7 +498,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         Style::default().fg(Color::White)
                     };
 
-                    let quality_cell = meta.map(|m| quality_dot(m.quality_rank))
+                    let quality_cell = meta
+                        .map(|m| quality_dot(m.quality_rank))
                         .unwrap_or_else(|| quality_dot(0));
 
                     Row::new(vec![
@@ -468,15 +507,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         Cell::from(status_text.clone().unwrap_or_default()).style(status_style),
                         Cell::from(params_str).style(params_style),
                         Cell::from(quality_cell),
-                        Cell::from(ratatui::text::Text::from(context_str)
-                            .alignment(ratatui::layout::Alignment::Right))
-                            .style(Style::default().fg(Color::Cyan)),
+                        Cell::from(
+                            ratatui::text::Text::from(context_str)
+                                .alignment(ratatui::layout::Alignment::Right),
+                        )
+                        .style(Style::default().fg(Color::Cyan)),
                     ])
                 })
                 .collect();
 
-         let widths = [
-               Constraint::Percentage(52),
+            let widths = [
+                Constraint::Percentage(52),
                 Constraint::Percentage(11),
                 Constraint::Percentage(10),
                 Constraint::Length(4),
@@ -572,7 +613,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let query_regex = if query.trim().is_empty() {
                 None
             } else {
-                let pattern: String = query.split_whitespace()
+                let pattern: String = query
+                    .split_whitespace()
                     .map(|w| w.to_lowercase())
                     .collect::<Vec<_>>()
                     .join("|");
@@ -605,7 +647,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.visible = true;
                     let scrolled_raw = scroll_text(&result.model_id, col_width, Some(state));
                     let scrolled_lower = scrolled_raw.to_lowercase();
-                    let highlighted = highlight_query(&scrolled_raw, &scrolled_lower, query_regex.as_ref());
+                    let highlighted =
+                        highlight_query(&scrolled_raw, &scrolled_lower, query_regex.as_ref());
 
                     let is_downloaded = result.downloaded;
                     let marker = if is_downloaded { "✓" } else { " " };
@@ -699,7 +742,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .iter()
                 .map(|(filename, size, _url): &(_, _, _)| {
                     let name = filename.rsplit('/').next().unwrap_or(filename);
-                    let is_downloaded = app.search.downloaded_filenames.contains(&name.to_lowercase());
+                    let is_downloaded = app
+                        .search
+                        .downloaded_filenames
+                        .contains(&name.to_lowercase());
                     let marker = if is_downloaded { "✓" } else { " " };
                     let marker_span =
                         Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));
@@ -966,7 +1012,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 /// Return a colored emoji dot for the quality rank.
 /// Emoji colors are baked into the glyph so they survive row highlights.
 fn quality_dot(rank: u8) -> Cell<'static> {
-  let dot = match rank {
+    let dot = match rank {
         4 => "\u{1F7E2}", // green circle - best
         3 => "\u{1F7E1}", // yellow circle - high
         2 => "\u{1F7E0}", // orange circle - medium
@@ -1003,15 +1049,19 @@ fn render_benchtune_results_table(
         } else {
             Style::default().fg(Color::White)
         };
-        rows.push(Row::new(vec![
-            Cell::from(format!(" {:<2} ", i + 1)),
-            Cell::from(format!("{:.2}", result.metrics.generation_tps)),
-            Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
-            Cell::from(p_str),
-        ]).style(style));
+        rows.push(
+            Row::new(vec![
+                Cell::from(format!(" {:<2} ", i + 1)),
+                Cell::from(format!("{:.2}", result.metrics.generation_tps)),
+                Cell::from(format!("{:.2}", result.metrics.prompt_tps)),
+                Cell::from(p_str),
+            ])
+            .style(style),
+        );
     }
 
-    app.bench_tune.bench_tune_table_state
+    app.bench_tune
+        .bench_tune_table_state
         .select(Some(app.bench_tune.bench_tune_result_row));
 
     let header = Row::new(vec![
@@ -1019,7 +1069,12 @@ fn render_benchtune_results_table(
         Cell::from("Gen t/s"),
         Cell::from("Inf t/s"),
         Cell::from("Params"),
-    ]).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+    ])
+    .style(
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    );
 
     let table = ratatui::widgets::Table::new(
         rows,
@@ -1033,7 +1088,9 @@ fn render_benchtune_results_table(
     .header(header)
     .block(Block::default().borders(Borders::NONE))
     .row_highlight_style(
-        Style::default().bg(Color::Rgb(60, 60, 60)).add_modifier(Modifier::BOLD),
+        Style::default()
+            .bg(Color::Rgb(60, 60, 60))
+            .add_modifier(Modifier::BOLD),
     )
     .highlight_symbol("> ");
 
@@ -1046,6 +1103,9 @@ fn render_benchtune_results_table(
     };
 
     f.render_widget(Paragraph::new(lines.clone()), inner_area);
-    f.render_stateful_widget(table, table_area, &mut app.bench_tune.bench_tune_table_state);
+    f.render_stateful_widget(
+        table,
+        table_area,
+        &mut app.bench_tune.bench_tune_table_state,
+    );
 }
-

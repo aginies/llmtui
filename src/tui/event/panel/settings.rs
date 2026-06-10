@@ -244,10 +244,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         } else {
             0
         };
-        app.ui.global_mode = GlobalMode::ChatTemplatePicker {
-            entries,
-            selected,
-        };
+        app.ui.global_mode = GlobalMode::ChatTemplatePicker { entries, selected };
         mark_settings_dirty(app, false);
         return;
     }

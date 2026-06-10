@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use llm_manager::config::*;
-use llm_manager::config::{key_from_display, display_from_key};
+use llm_manager::config::{display_from_key, key_from_display};
 use llm_manager::models::*;
 use llm_manager::tui::app::ActivePanel;
 
@@ -235,7 +235,11 @@ fn config_validate_context_length_too_low() {
     let mut config = Config::default();
     config.default.context_length = 256;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.message.contains("context_length")));
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.message.contains("context_length"))
+    );
 }
 
 #[test]
@@ -243,7 +247,11 @@ fn config_validate_context_length_too_high() {
     let mut config = Config::default();
     config.default.context_length = 2000000;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.message.contains("context_length")));
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.message.contains("context_length"))
+    );
 }
 
 #[test]
@@ -267,7 +275,11 @@ fn config_validate_repeat_penalty_out_of_range() {
     let mut config = Config::default();
     config.default.repeat_penalty = 5.0;
     let warnings = config.validate();
-    assert!(warnings.iter().any(|w| w.message.contains("repeat_penalty")));
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.message.contains("repeat_penalty"))
+    );
 }
 
 #[test]

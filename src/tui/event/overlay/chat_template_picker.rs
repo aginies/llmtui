@@ -1,5 +1,5 @@
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
@@ -22,9 +22,7 @@ impl OverlayHandler for ChatTemplatePickerHandler {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
             if let GlobalMode::ChatTemplatePicker {
-                entries,
-                selected,
-                ..
+                entries, selected, ..
             } = &mut app.ui.global_mode
             {
                 match key.code {
@@ -40,8 +38,10 @@ impl OverlayHandler for ChatTemplatePickerHandler {
                                 app.settings.chat_template = None;
                             }
                             "Select a Template file..." => {
-                                let base_path = super::directory_picker::default_chat_templates_dir();
-                                let files = super::directory_picker::load_jinja_files_recursive(&base_path);
+                                let base_path =
+                                    super::directory_picker::default_chat_templates_dir();
+                                let files =
+                                    super::directory_picker::load_jinja_files_recursive(&base_path);
                                 if files.is_empty() {
                                     app.add_log(
                                         crate::t!("log.no_jinja_files"),

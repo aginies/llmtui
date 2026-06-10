@@ -32,18 +32,17 @@ pub static TRANSLATIONS: LazyLock<HashMap<String, HashMap<&'static str, &'static
                 let path = entry.path();
                 if let Some(filename) = path.file_name().and_then(|n| n.to_str())
                     && let Some(lang) = filename.strip_suffix(".json")
-                        && let Ok(contents) = fs::read_to_string(&path)
-                            && let Ok(parsed) =
-                                serde_json::from_str::<HashMap<String, String>>(&contents)
-                            {
-                                let mut static_map = HashMap::new();
-                                for (k, v) in parsed {
-                                    let k_str: &'static str = String::leak(k);
-                                    let v_str: &'static str = String::leak(v);
-                                    static_map.insert(k_str, v_str);
-                                }
-                                translations.insert(lang.to_string(), static_map);
-                            }
+                    && let Ok(contents) = fs::read_to_string(&path)
+                    && let Ok(parsed) = serde_json::from_str::<HashMap<String, String>>(&contents)
+                {
+                    let mut static_map = HashMap::new();
+                    for (k, v) in parsed {
+                        let k_str: &'static str = String::leak(k);
+                        let v_str: &'static str = String::leak(v);
+                        static_map.insert(k_str, v_str);
+                    }
+                    translations.insert(lang.to_string(), static_map);
+                }
             }
         }
 
@@ -54,12 +53,13 @@ static CURRENT_LANG: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(No
 
 fn locale_dir() -> std::path::PathBuf {
     if let Ok(exe) = std::env::current_exe()
-        && let Some(dir) = exe.parent() {
-            let candidate = dir.join("locales");
-            if candidate.is_dir() {
-                return candidate;
-            }
+        && let Some(dir) = exe.parent()
+    {
+        let candidate = dir.join("locales");
+        if candidate.is_dir() {
+            return candidate;
         }
+    }
 
     if let Ok(p) = std::env::var("LLM_MANAGER_LOCALES") {
         let path = std::path::Path::new(&p);
@@ -86,14 +86,16 @@ pub fn t(key: &str) -> &'static str {
     let lang = get_language();
 
     if let Some(lang_map) = TRANSLATIONS.get(&lang)
-        && let Some(&value) = lang_map.get(key) {
-            return value;
-        }
+        && let Some(&value) = lang_map.get(key)
+    {
+        return value;
+    }
 
     if let Some(en_map) = TRANSLATIONS.get("en")
-        && let Some(&value) = en_map.get(key) {
-            return value;
-        }
+        && let Some(&value) = en_map.get(key)
+    {
+        return value;
+    }
 
     Box::leak(key.to_string().into_boxed_str())
 }
@@ -172,16 +174,25 @@ mod tests {
     #[test]
     fn test_embedded_translations_exist() {
         // Ensure that English translations are correctly embedded and retrieved
-        let en_map = TRANSLATIONS.get("en").expect("English translations not found");
-        assert_eq!(*en_map.get("panel.title.models_active").unwrap(), " MODELS (F7) [^F7] ");
+        let en_map = TRANSLATIONS
+            .get("en")
+            .expect("English translations not found");
+        assert_eq!(
+            *en_map.get("panel.title.models_active").unwrap(),
+            " MODELS (F7) [^F7] "
+        );
 
         // Ensure French translations are loaded and distinct
-        let fr_map = TRANSLATIONS.get("fr").expect("French translations not found");
+        let fr_map = TRANSLATIONS
+            .get("fr")
+            .expect("French translations not found");
         let fr_val = *fr_map.get("panel.title.models_active").unwrap();
         assert_ne!(fr_val, " MODELS (F7) [^F7] ");
 
         // Ensure Italian translations are loaded and distinct
-        let it_map = TRANSLATIONS.get("it").expect("Italian translations not found");
+        let it_map = TRANSLATIONS
+            .get("it")
+            .expect("Italian translations not found");
         let it_val = *it_map.get("panel.title.models_active").unwrap();
         assert_ne!(it_val, " MODELS (F7) [^F7] ");
     }

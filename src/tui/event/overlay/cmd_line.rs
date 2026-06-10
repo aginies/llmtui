@@ -1,5 +1,5 @@
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
@@ -27,8 +27,10 @@ impl OverlayHandler for CmdLineHandler {
                     }
                     KeyCode::Char('e') => {
                         if let GlobalMode::CmdLine { cmd_line } = &app.ui.global_mode {
-                            let script =
-                                format!("#!/bin/bash\n# Exported from llm-manager\n\n{}\n", cmd_line);
+                            let script = format!(
+                                "#!/bin/bash\n# Exported from llm-manager\n\n{}\n",
+                                cmd_line
+                            );
                             if let Err(e) = std::fs::write("/tmp/test_llamaserver.sh", &script) {
                                 app.add_log(
                                     format!("Failed to write script: {}", e),

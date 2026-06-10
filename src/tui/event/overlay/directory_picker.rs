@@ -19,12 +19,7 @@ fn collect_jinja_files(base_path: &str, dir_path: &str, files: &mut Vec<(String,
     if let Ok(entries) = std::fs::read_dir(dir_path) {
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.is_file()
-                && path
-                    .extension()
-                    .map(|e| e == "jinja")
-                    .unwrap_or(false)
-            {
+            if path.is_file() && path.extension().map(|e| e == "jinja").unwrap_or(false) {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                     let display = if dir_path == base_path {
                         name.to_string()

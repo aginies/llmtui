@@ -230,9 +230,7 @@ pub fn detect_gpu_vendors_windows() -> Vec<GpuVendor> {
         .output();
 
     let names = match output {
-        Ok(out) if out.status.success() => {
-            String::from_utf8_lossy(&out.stdout).to_string()
-        }
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).to_string(),
         _ => return Vec::new(),
     };
 
@@ -273,9 +271,7 @@ pub fn detect_gpu_models_windows() -> Vec<Option<String>> {
         .output();
 
     let names = match output {
-        Ok(out) if out.status.success() => {
-            String::from_utf8_lossy(&out.stdout).to_string()
-        }
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).to_string(),
         _ => return Vec::new(),
     };
 
@@ -300,9 +296,7 @@ pub fn detect_gpu_vendors_macos() -> Vec<GpuVendor> {
         .output();
 
     let data = match output {
-        Ok(out) if out.status.success() => {
-            String::from_utf8_lossy(&out.stdout).to_string()
-        }
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).to_string(),
         _ => return Vec::new(),
     };
 
@@ -315,7 +309,14 @@ pub fn detect_gpu_vendors_macos() -> Vec<GpuVendor> {
         let gpu_name = trimmed.split(':').nth(1).unwrap_or("").trim();
         let lower = gpu_name.to_lowercase();
 
-        if lower.contains("apple") && (lower.contains("m1") || lower.contains("m2") || lower.contains("m3") || lower.contains("m4") || lower.contains("apple gpu") || lower.contains("apple silicon")) {
+        if lower.contains("apple")
+            && (lower.contains("m1")
+                || lower.contains("m2")
+                || lower.contains("m3")
+                || lower.contains("m4")
+                || lower.contains("apple gpu")
+                || lower.contains("apple silicon"))
+        {
             if !vendors.contains(&GpuVendor::Apple) {
                 vendors.push(GpuVendor::Apple);
             }
@@ -349,9 +350,7 @@ pub fn detect_gpu_models_macos() -> Vec<Option<String>> {
         .output();
 
     let data = match output {
-        Ok(out) if out.status.success() => {
-            String::from_utf8_lossy(&out.stdout).to_string()
-        }
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).to_string(),
         _ => return Vec::new(),
     };
 
@@ -542,7 +541,14 @@ mod tests {
             }
             let gpu_name = trimmed.split(':').nth(1).unwrap_or("").trim();
             let lower = gpu_name.to_lowercase();
-            if lower.contains("apple") && (lower.contains("m1") || lower.contains("m2") || lower.contains("m3") || lower.contains("m4") || lower.contains("apple gpu") || lower.contains("apple silicon")) {
+            if lower.contains("apple")
+                && (lower.contains("m1")
+                    || lower.contains("m2")
+                    || lower.contains("m3")
+                    || lower.contains("m4")
+                    || lower.contains("apple gpu")
+                    || lower.contains("apple silicon"))
+            {
                 if !vendors.contains(&GpuVendor::Apple) {
                     vendors.push(GpuVendor::Apple);
                 }
@@ -550,7 +556,8 @@ mod tests {
                 if !vendors.contains(&GpuVendor::Nvidia) {
                     vendors.push(GpuVendor::Nvidia);
                 }
-            } else if lower.contains("amd") || lower.contains("radeon") || lower.contains("firepro") {
+            } else if lower.contains("amd") || lower.contains("radeon") || lower.contains("firepro")
+            {
                 if !vendors.contains(&GpuVendor::Amd) {
                     vendors.push(GpuVendor::Amd);
                 }

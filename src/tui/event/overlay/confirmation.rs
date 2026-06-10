@@ -1,5 +1,5 @@
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
@@ -36,7 +36,9 @@ impl OverlayHandler for ConfirmationHandler {
                         execute_confirmation(app, kind_copy, display_name_copy, detail_copy).await;
                         if matches!(kind_copy, ConfirmationKind::DeleteBackend) {
                             let new_entries = app.fetch_backend_picker_entries();
-                            if let GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode {
+                            if let GlobalMode::BackendPicker { entries, selected } =
+                                &mut app.ui.global_mode
+                            {
                                 *entries = new_entries;
                                 if *selected >= entries.len() {
                                     *selected = entries.len().saturating_sub(1);

@@ -1,9 +1,9 @@
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use super::super::helpers::{sync_global_settings, picker_nav_up, picker_nav_down};
+use super::super::helpers::{picker_nav_down, picker_nav_up, sync_global_settings};
 use crate::tui::app::{App, ConfirmationKind, GlobalMode};
 
 use super::OverlayHandler;
@@ -32,7 +32,10 @@ impl OverlayHandler for BackendPickerHandler {
                         let (backend, tag) = entries[*selected].clone();
                         app.settings.backend = backend;
                         app.settings.set_active_backend_version(tag.clone());
-                        if !crate::backend::hub::is_backend_version_installed(backend, tag.as_deref()) {
+                        if !crate::backend::hub::is_backend_version_installed(
+                            backend,
+                            tag.as_deref(),
+                        ) {
                             app.pending.backend_resolving = true;
                             let tag_param = tag.clone();
                             if app.download.download_rx.is_none() {

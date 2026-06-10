@@ -986,7 +986,10 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .iter()
         .map(|r| r.metrics.latency_per_token)
         .collect();
-    let first_token: Vec<f64> = results.iter().map(|r| r.metrics.prompt_processing_time).collect();
+    let first_token: Vec<f64> = results
+        .iter()
+        .map(|r| r.metrics.prompt_processing_time)
+        .collect();
 
     let gen_tps_sorted = gen_tps.clone();
     let latency_sorted = latency.clone();
@@ -1167,8 +1170,10 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .iter()
         .map(|r| r.metrics.latency_per_token)
         .collect();
-    let scatter_first_token: Vec<f64> =
-        results.iter().map(|r| r.metrics.prompt_processing_time).collect();
+    let scatter_first_token: Vec<f64> = results
+        .iter()
+        .map(|r| r.metrics.prompt_processing_time)
+        .collect();
 
     let param_headers: Vec<String> = vec![
         "Temp".to_string(),

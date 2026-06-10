@@ -145,7 +145,7 @@ pub struct PendingOperations {
     /// Kill handle — kept as field because the main loop needs to take() it
     /// for the async kill operation.
     pub pending_kill: Option<ServerHandle>,
-   /// Backend resolution state — moved here from old PendingOperations.
+    /// Backend resolution state — moved here from old PendingOperations.
     pub backend_resolving: bool,
     pub backend_resolve_handle: Option<tokio::task::JoinHandle<Result<PathBuf, String>>>,
     /// Dirty flag for active_model_hint — set to true when model_states changes.

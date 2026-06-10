@@ -14,9 +14,9 @@ pub mod tui;
 // Re-export key types for convenience in tests.
 pub use backend::USER_AGENT;
 pub use config::{
-    display_from_key, key_from_display, Config, DefaultParams, LogEntry, LogLevel,
-    ModelConfigStore, ModelOverride, Profile, SystemPromptPreset, builtin_profiles,
-    builtin_system_prompt_presets,
+    Config, DefaultParams, LogEntry, LogLevel, ModelConfigStore, ModelOverride, Profile,
+    SystemPromptPreset, builtin_profiles, builtin_system_prompt_presets, display_from_key,
+    key_from_display,
 };
 pub use models::*;
 pub use tui::app::{ActivePanel, App, ConfirmationKind, GlobalMode, LoadingPhase, ModelsMode};

@@ -100,13 +100,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     let bar_width = w.saturating_sub(4);
     let filled = ((step + 1) as u16 * bar_width) / TOTAL_STEPS as u16;
     let progress_bar: String = (0..bar_width)
-        .map(|i| {
-            if i < filled {
-                "█"
-            } else {
-                "░"
-            }
-        })
+        .map(|i| if i < filled { "█" } else { "░" })
         .collect();
 
     let mut lines: Vec<Line> = Vec::new();
@@ -143,10 +137,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     }
 
     let block = Block::default()
-        .title(format!(
-            " {} — {} ",
-            title, step_indicator
-        ))
+        .title(format!(" {} — {} ", title, step_indicator))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Yellow))
         .border_type(BorderType::Double);

@@ -53,7 +53,15 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     } = &app.ui.global_mode
     {
         if f.area().height >= 8 {
-            render_confirmation(f, f.area(), app, *selected, *kind, display_name, detail.as_deref());
+            render_confirmation(
+                f,
+                f.area(),
+                app,
+                *selected,
+                *kind,
+                display_name,
+                detail.as_deref(),
+            );
         }
         return true;
     }
@@ -161,11 +169,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
-    if let GlobalMode::ChatTemplatePicker {
-        entries,
-        selected,
-    } = &app.ui.global_mode
-    {
+    if let GlobalMode::ChatTemplatePicker { entries, selected } = &app.ui.global_mode {
         render_chat_template_picker(f, f.area(), app, entries, *selected);
         return true;
     }
@@ -320,46 +324,42 @@ fn render_confirmation(
                 Line::from(crate::t!("dialog.reset.message")),
             ],
         ),
-        ConfirmationKind::Delete => {
-            (
-                crate::t!("dialog.delete.title"),
-                vec![
-                    Line::from(""),
-                    Line::from(vec![
-                        Span::raw(crate::t!("dialog.delete.message")),
-                        Span::raw(" "),
-                        Span::styled(
-                            display_name,
-                            Style::default()
-                                .fg(Color::Yellow)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                        Span::raw("?"),
-                    ]),
-                    Line::from(""),
-                    Line::from(crate::t!("dialog.delete.confirm")),
-                ],
-            )
-        }
-        ConfirmationKind::Unload => {
-            (
-                crate::t!("dialog.unload.title"),
-                vec![
-                    Line::from(""),
-                    Line::from(vec![
-                        Span::raw(crate::t!("dialog.unload.message")),
-                        Span::raw(" "),
-                        Span::styled(
-                            display_name,
-                            Style::default()
-                                .fg(Color::Yellow)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                        Span::raw("?"),
-                    ]),
-                ],
-            )
-        }
+        ConfirmationKind::Delete => (
+            crate::t!("dialog.delete.title"),
+            vec![
+                Line::from(""),
+                Line::from(vec![
+                    Span::raw(crate::t!("dialog.delete.message")),
+                    Span::raw(" "),
+                    Span::styled(
+                        display_name,
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw("?"),
+                ]),
+                Line::from(""),
+                Line::from(crate::t!("dialog.delete.confirm")),
+            ],
+        ),
+        ConfirmationKind::Unload => (
+            crate::t!("dialog.unload.title"),
+            vec![
+                Line::from(""),
+                Line::from(vec![
+                    Span::raw(crate::t!("dialog.unload.message")),
+                    Span::raw(" "),
+                    Span::styled(
+                        display_name,
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw("?"),
+                ]),
+            ],
+        ),
         ConfirmationKind::DeleteBackend => {
             let display = if let Some(d) = detail {
                 d
@@ -1315,10 +1315,7 @@ fn render_bench_tune_setup(
                 } else {
                     Style::default().fg(Color::DarkGray)
                 }
-            } else if editing_param
-                && is_selected
-                && !(-1..0).contains(&editing_param_field)
-            {
+            } else if editing_param && is_selected && !(-1..0).contains(&editing_param_field) {
                 Style::default().fg(Color::Blue)
             } else {
                 Style::default().fg(Color::Gray)
@@ -1871,7 +1868,7 @@ fn render_dashboard_url(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
-             ))
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow))
                 .border_type(BorderType::Double),
@@ -2136,13 +2133,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                         .add_modifier(Modifier::BOLD),
                 )),
             ]))
-          .block(
-               Block::default()
-                   .title(crate::t!("dialog.bench_result.parameters"))
-                   .borders(Borders::ALL)
-                   .border_style(Style::default().fg(Color::Cyan))
-                   .border_type(BorderType::Double),
-           );
+            .block(
+                Block::default()
+                    .title(crate::t!("dialog.bench_result.parameters"))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Cyan))
+                    .border_type(BorderType::Double),
+            );
         let output_idx = app
             .bench_tune
             .bench_tune_output_index
@@ -2421,8 +2418,8 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
     ];
     f.render_widget(Clear, popup_area);
     f.render_widget(
-    Paragraph::new(picker_lines).block(
-             Block::default()
+        Paragraph::new(picker_lines).block(
+            Block::default()
                 .title(crate::t!("panel.title.search_input"))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow))
@@ -2578,9 +2575,10 @@ fn render_gguf_naming_overlay(
                 }
                 // Trim leading space for continuation lines
                 if let Some((i, _)) = remaining.char_indices().next()
-                    && remaining[i..].starts_with(' ') {
-                        remaining = &remaining[i + 1..];
-                    }
+                    && remaining[i..].starts_with(' ')
+                {
+                    remaining = &remaining[i + 1..];
+                }
                 first_line = false;
             }
         }
@@ -2641,7 +2639,7 @@ fn render_yarn_rope_picker(
     edit_buffer: &str,
     edit_cursor_pos: usize,
 ) {
-   let w: u16 = 60;
+    let w: u16 = 60;
     let h: u16 = (14.min(area.height - 4)).max(8);
     let picker_area = Rect {
         x: (area.width - w) / 2,
@@ -2832,7 +2830,7 @@ fn render_chat_template_picker(
         Line::from(""),
     ];
 
-   for (i, entry) in entries.iter().enumerate() {
+    for (i, entry) in entries.iter().enumerate() {
         let marker = if i == selected { "> " } else { "  " };
         let style = if i == selected {
             Style::default()
@@ -2848,7 +2846,7 @@ fn render_chat_template_picker(
         ]));
     }
 
-   f.render_widget(Clear, picker_area);
+    f.render_widget(Clear, picker_area);
     f.render_widget(
         Paragraph::new(picker_lines).block(
             Block::default()
@@ -2917,14 +2915,14 @@ fn render_chat_template_file_picker(
             Block::default()
                 .title(Span::styled(
                     crate::t!("dialog.chat_template.file.title"),
-                      Style::default()
-                            .fg(Color::Yellow)
-                            .add_modifier(Modifier::BOLD),
-                    ))
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Yellow))
-                    .border_type(BorderType::Double),
-            ),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow))
+                .border_type(BorderType::Double),
+        ),
         picker_area,
     );
 }

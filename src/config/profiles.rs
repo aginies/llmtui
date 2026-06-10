@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-
-
 use crate::config::Profile;
 use crate::config::builtin_profiles;
 use crate::config::config_base_dir;

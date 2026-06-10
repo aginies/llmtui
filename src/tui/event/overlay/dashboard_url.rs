@@ -1,8 +1,8 @@
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
-use crossterm::event::{KeyCode, KeyEvent};
 use arboard;
+use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::tui::app::{App, GlobalMode};
 

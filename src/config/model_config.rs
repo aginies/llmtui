@@ -85,11 +85,7 @@ impl ModelConfigStore {
 
     /// Get all model config display names (keys transformed back to display form).
     pub fn keys(&self) -> Vec<String> {
-        let mut keys: Vec<String> = self
-            .cache
-            .keys()
-            .map(|k| display_from_key(k))
-            .collect();
+        let mut keys: Vec<String> = self.cache.keys().map(|k| display_from_key(k)).collect();
         keys.sort();
         keys
     }

@@ -3,7 +3,6 @@
 /// Replaces the old `pending.*` Option fields with an event-driven
 /// architecture. Key handlers send events to a channel; the main loop
 /// drains and processes them.
-
 use crate::models::Backend;
 use crate::models::{DiscoveredModel, GgufMetadata, ModelSettings};
 use std::path::PathBuf;

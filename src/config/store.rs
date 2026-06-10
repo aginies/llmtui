@@ -53,14 +53,15 @@ pub(crate) fn save_yaml<T: serde::Serialize + std::fmt::Debug>(
 ) {
     let path = active_dir.join(format!("{}.yaml", name));
     if let Some(parent) = path.parent()
-        && let Err(e) = std::fs::create_dir_all(parent) {
-            warn!(
-                "Failed to create config directory {}: {}",
-                parent.display(),
-                e
-            );
-            return;
-        }
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        warn!(
+            "Failed to create config directory {}: {}",
+            parent.display(),
+            e
+        );
+        return;
+    }
     let content = match serde_yml::to_string(item) {
         Ok(c) => c,
         Err(e) => {
@@ -74,19 +75,25 @@ pub(crate) fn save_yaml<T: serde::Serialize + std::fmt::Debug>(
         return;
     }
     if let Err(e) = std::fs::rename(&tmp_path, &path) {
-        warn!("Failed to rename config file {} -> {}: {}", tmp_path.display(), path.display(), e);
+        warn!(
+            "Failed to rename config file {} -> {}: {}",
+            tmp_path.display(),
+            path.display(),
+            e
+        );
         return;
     }
 
     let unused_path = unused_dir.join(format!("{}.yaml", name));
     if let Err(e) = std::fs::remove_file(&unused_path)
-        && e.kind() != std::io::ErrorKind::NotFound {
-            warn!(
-                "Failed to remove unused config {}: {}",
-                unused_path.display(),
-                e
-            );
-        }
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        warn!(
+            "Failed to remove unused config {}: {}",
+            unused_path.display(),
+            e
+        );
+    }
 }
 
 /// Trait for items that have a name field (used for store keying).
@@ -96,16 +103,24 @@ pub(crate) trait NamedItem {
 
 /// Generic store for items keyed by name with built-in/user distinction.
 #[derive(Clone, Debug)]
-pub(crate) struct NamedStore<T: Clone + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + NamedItem> {
+pub(crate) struct NamedStore<
+    T: Clone + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + NamedItem,
+> {
     dir: PathBuf,
     unused_dir: PathBuf,
     cache: HashMap<String, T>,
 }
 
-impl<T: Clone + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + NamedItem + 'static> NamedStore<T> {
+impl<T: Clone + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + NamedItem + 'static>
+    NamedStore<T>
+{
     pub fn new(dir: PathBuf, unused_dir: PathBuf) -> Self {
         let cache = load_all_from_dir(&dir);
-        Self { dir, unused_dir, cache }
+        Self {
+            dir,
+            unused_dir,
+            cache,
+        }
     }
 
     pub fn save(&mut self, name: &str, item: &T) {

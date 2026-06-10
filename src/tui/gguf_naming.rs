@@ -499,9 +499,10 @@ fn extract_quant_provider(stem: &str) -> Option<(String, &'static QuantProviderI
                 return Some((part.to_string(), provider));
             }
         } else if upper == "H"
-            && let Some(provider) = QUANT_PROVIDERS.get("H") {
-                return Some((part.to_string(), provider));
-            }
+            && let Some(provider) = QUANT_PROVIDERS.get("H")
+        {
+            return Some((part.to_string(), provider));
+        }
     }
     None
 }
@@ -519,10 +520,11 @@ fn extract_quant_scheme(stem: &str) -> (Option<u32>, bool, Option<char>, Option<
         let upper = part.to_uppercase();
         // Match IQ1_S, IQ2_XXS, IQ3_XXS, IQ4_NL, etc. (Improved Quantization)
         if upper.starts_with("IQ")
-            && let Some(info) = IQ_QUANTS.get(upper.as_str()) {
-                iq_format = Some(info.label.to_string());
-                continue;
-            }
+            && let Some(info) = IQ_QUANTS.get(upper.as_str())
+        {
+            iq_format = Some(info.label.to_string());
+            continue;
+        }
         // Match Q4_K_S, Q5_K_M, Q8_0, Q3_K_S, etc.
         if upper.starts_with('Q') && upper.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
             // Extract digit(s) after Q
@@ -581,14 +583,15 @@ fn build_quant_segments(
     }
 
     if let Some(b) = bits
-        && let Some(level_info) = QUANT_LEVELS.get(&b) {
-            segments.push(GgufSegment {
-                label: format!("Q{}", b),
-                value: format!("{}-bit", b),
-                description: level_info.description.to_string(),
-                link: QUANTIZATION_COMMON_LINK,
-            });
-        }
+        && let Some(level_info) = QUANT_LEVELS.get(&b)
+    {
+        segments.push(GgufSegment {
+            label: format!("Q{}", b),
+            value: format!("{}-bit", b),
+            description: level_info.description.to_string(),
+            link: QUANTIZATION_COMMON_LINK,
+        });
+    }
 
     if k_quant {
         segments.push(GgufSegment {
@@ -601,19 +604,20 @@ fn build_quant_segments(
     }
 
     if let Some(sv) = size_variant
-        && let Some(sv_info) = SIZE_VARIANTS.get(&sv) {
-            let quant_label = if let Some(b) = bits {
-                format!("Q{}_", b)
-            } else {
-                String::new()
-            };
-            segments.push(GgufSegment {
-                label: format!("{}{}", quant_label, sv),
-                value: sv_info.label.to_string(),
-                description: sv_info.description.to_string(),
-                link: QUANTIZATION_COMMON_LINK,
-            });
-        }
+        && let Some(sv_info) = SIZE_VARIANTS.get(&sv)
+    {
+        let quant_label = if let Some(b) = bits {
+            format!("Q{}_", b)
+        } else {
+            String::new()
+        };
+        segments.push(GgufSegment {
+            label: format!("{}{}", quant_label, sv),
+            value: sv_info.label.to_string(),
+            description: sv_info.description.to_string(),
+            link: QUANTIZATION_COMMON_LINK,
+        });
+    }
 
     segments
 }

@@ -10,7 +10,7 @@ use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
-pub use model_config::{display_from_key, key_from_display, ModelConfigStore};
+pub use model_config::{ModelConfigStore, display_from_key, key_from_display};
 
 pub use profiles::ProfileStore;
 
@@ -1021,55 +1021,185 @@ impl Config {
     /// Known top-level config keys.
     fn config_keys() -> &'static [&'static str] {
         &[
-            "models_dirs", "llama_server", "default", "model_overrides", "profiles",
-            "system_prompt_presets", "rpc_workers", "search_limit", "active_panel",
-            "left_pct", "language", "onboarding_complete",
+            "models_dirs",
+            "llama_server",
+            "default",
+            "model_overrides",
+            "profiles",
+            "system_prompt_presets",
+            "rpc_workers",
+            "search_limit",
+            "active_panel",
+            "left_pct",
+            "language",
+            "onboarding_complete",
         ]
     }
 
     /// Known DefaultParams keys.
     fn default_params_keys() -> &'static [&'static str] {
         &[
-            "context_length", "threads", "threads_batch", "batch_size", "ubatch_size",
-            "cache_type_k", "cache_type_v", "keep", "swa_full", "mlock", "mmap", "numa",
-            "uniform_cache", "kv_cache_offload", "parallel", "max_concurrent_predictions",
-            "system_prompt", "system_prompt_preset_name", "gpu_layers", "gpu_layers_mode",
-            "split_mode", "tensor_split", "main_gpu", "fit", "lora", "lora_scaled", "rpc",
-            "embedding", "flash_attn", "jinja", "chat_template", "chat_template_kwargs",
-            "expert_count", "seed", "temperature", "top_k", "top_p", "min_p", "typical_p",
-            "mirostat", "mirostat_lr", "mirostat_ent", "ignore_eos", "samplers",
-            "repeat_penalty", "repeat_last_n", "presence_penalty", "frequency_penalty",
-            "dry_multiplier", "dry_base", "dry_allowed_length", "dry_penalty_last_n",
-            "rope_scaling", "rope_scale", "rope_freq_base", "rope_freq_scale",
-            "rope_yarn_enabled", "host", "port", "timeout", "cache_prompt", "cache_reuse",
-            "webui", "ws_server_enabled", "ws_server_port", "ws_server_auth_key",
-            "ws_server_tls_enabled", "ws_server_tls_cert", "ws_server_tls_key",
-            "router_max_models", "server_mode", "max_tokens", "cache_type", "backend",
-            "platform", "llama_cpp_version_cpu", "llama_cpp_version_vulkan",
-            "llama_cpp_version_rocm", "llama_cpp_version_rocm_lemonade",
-            "llama_cpp_version_cuda", "api_endpoint_enabled", "api_endpoint_port",
-            "spec_type", "draft_tokens", "tags",
+            "context_length",
+            "threads",
+            "threads_batch",
+            "batch_size",
+            "ubatch_size",
+            "cache_type_k",
+            "cache_type_v",
+            "keep",
+            "swa_full",
+            "mlock",
+            "mmap",
+            "numa",
+            "uniform_cache",
+            "kv_cache_offload",
+            "parallel",
+            "max_concurrent_predictions",
+            "system_prompt",
+            "system_prompt_preset_name",
+            "gpu_layers",
+            "gpu_layers_mode",
+            "split_mode",
+            "tensor_split",
+            "main_gpu",
+            "fit",
+            "lora",
+            "lora_scaled",
+            "rpc",
+            "embedding",
+            "flash_attn",
+            "jinja",
+            "chat_template",
+            "chat_template_kwargs",
+            "expert_count",
+            "seed",
+            "temperature",
+            "top_k",
+            "top_p",
+            "min_p",
+            "typical_p",
+            "mirostat",
+            "mirostat_lr",
+            "mirostat_ent",
+            "ignore_eos",
+            "samplers",
+            "repeat_penalty",
+            "repeat_last_n",
+            "presence_penalty",
+            "frequency_penalty",
+            "dry_multiplier",
+            "dry_base",
+            "dry_allowed_length",
+            "dry_penalty_last_n",
+            "rope_scaling",
+            "rope_scale",
+            "rope_freq_base",
+            "rope_freq_scale",
+            "rope_yarn_enabled",
+            "host",
+            "port",
+            "timeout",
+            "cache_prompt",
+            "cache_reuse",
+            "webui",
+            "ws_server_enabled",
+            "ws_server_port",
+            "ws_server_auth_key",
+            "ws_server_tls_enabled",
+            "ws_server_tls_cert",
+            "ws_server_tls_key",
+            "router_max_models",
+            "server_mode",
+            "max_tokens",
+            "cache_type",
+            "backend",
+            "platform",
+            "llama_cpp_version_cpu",
+            "llama_cpp_version_vulkan",
+            "llama_cpp_version_rocm",
+            "llama_cpp_version_rocm_lemonade",
+            "llama_cpp_version_cuda",
+            "api_endpoint_enabled",
+            "api_endpoint_port",
+            "spec_type",
+            "draft_tokens",
+            "tags",
         ]
     }
 
     /// Known ModelOverride keys.
     fn model_override_keys() -> &'static [&'static str] {
         &[
-            "context_length", "batch_size", "ubatch_size", "cache_type_k", "cache_type_v",
-            "keep", "swa_full", "mlock", "mmap", "numa", "uniform_cache", "system_prompt",
-            "system_prompt_preset_name", "max_concurrent_predictions", "threads",
-            "threads_batch", "parallel", "gpu_layers", "split_mode", "tensor_split",
-            "main_gpu", "fit", "lora", "lora_scaled", "rpc", "embedding", "kv_cache_offload",
-            "flash_attn", "jinja", "chat_template", "chat_template_kwargs", "expert_count",
-            "gpu_layers_mode", "seed", "temperature", "top_k", "top_p", "min_p", "typical_p",
-            "mirostat", "mirostat_lr", "mirostat_ent", "ignore_eos", "samplers",
-            "repeat_penalty", "repeat_last_n", "presence_penalty", "frequency_penalty",
-            "dry_multiplier", "dry_base", "dry_allowed_length", "dry_penalty_last_n",
-            "rope_scaling", "rope_scale", "rope_freq_base", "rope_freq_scale",
-            "rope_yarn_enabled", "cache_prompt", "cache_reuse", "webui", "max_tokens",
-            "cache_type", "llama_cpp_version_cpu", "llama_cpp_version_vulkan",
-            "llama_cpp_version_rocm", "llama_cpp_version_rocm_lemonade",
-            "llama_cpp_version_cuda", "spec_type", "draft_tokens", "tags",
+            "context_length",
+            "batch_size",
+            "ubatch_size",
+            "cache_type_k",
+            "cache_type_v",
+            "keep",
+            "swa_full",
+            "mlock",
+            "mmap",
+            "numa",
+            "uniform_cache",
+            "system_prompt",
+            "system_prompt_preset_name",
+            "max_concurrent_predictions",
+            "threads",
+            "threads_batch",
+            "parallel",
+            "gpu_layers",
+            "split_mode",
+            "tensor_split",
+            "main_gpu",
+            "fit",
+            "lora",
+            "lora_scaled",
+            "rpc",
+            "embedding",
+            "kv_cache_offload",
+            "flash_attn",
+            "jinja",
+            "chat_template",
+            "chat_template_kwargs",
+            "expert_count",
+            "gpu_layers_mode",
+            "seed",
+            "temperature",
+            "top_k",
+            "top_p",
+            "min_p",
+            "typical_p",
+            "mirostat",
+            "mirostat_lr",
+            "mirostat_ent",
+            "ignore_eos",
+            "samplers",
+            "repeat_penalty",
+            "repeat_last_n",
+            "presence_penalty",
+            "frequency_penalty",
+            "dry_multiplier",
+            "dry_base",
+            "dry_allowed_length",
+            "dry_penalty_last_n",
+            "rope_scaling",
+            "rope_scale",
+            "rope_freq_base",
+            "rope_freq_scale",
+            "rope_yarn_enabled",
+            "cache_prompt",
+            "cache_reuse",
+            "webui",
+            "max_tokens",
+            "cache_type",
+            "llama_cpp_version_cpu",
+            "llama_cpp_version_vulkan",
+            "llama_cpp_version_rocm",
+            "llama_cpp_version_rocm_lemonade",
+            "llama_cpp_version_cuda",
+            "spec_type",
+            "draft_tokens",
+            "tags",
         ]
     }
 
@@ -1119,7 +1249,12 @@ impl Config {
 
                 match key_str {
                     "default" => {
-                        Self::check_unknown_fields(val, &new_prefix, Self::default_params_keys(), warnings);
+                        Self::check_unknown_fields(
+                            val,
+                            &new_prefix,
+                            Self::default_params_keys(),
+                            warnings,
+                        );
                     }
                     "model_overrides" => {
                         if let serde_yml::Value::Mapping(overrides) = val {
@@ -1138,7 +1273,12 @@ impl Config {
                     "rpc_workers" => {
                         if let serde_yml::Value::Sequence(items) = val {
                             for item in items {
-                                Self::check_unknown_fields(item, &new_prefix, Self::rpc_worker_keys(), warnings);
+                                Self::check_unknown_fields(
+                                    item,
+                                    &new_prefix,
+                                    Self::rpc_worker_keys(),
+                                    warnings,
+                                );
                             }
                         }
                     }
@@ -1288,10 +1428,7 @@ impl Config {
         if default.port < 1024 {
             warnings.push(ValidationWarning {
                 field: "default.port".to_string(),
-                message: format!(
-                    "port {} is a privileged port (< 1024)",
-                    default.port
-                ),
+                message: format!("port {} is a privileged port (< 1024)", default.port),
                 severity: ValidationSeverity::Warning,
             });
         }
@@ -1333,10 +1470,7 @@ impl Config {
             } else if max_tokens > 65536 {
                 warnings.push(ValidationWarning {
                     field: "default.max_tokens".to_string(),
-                    message: format!(
-                        "max_tokens {} is very large (> 65536)",
-                        max_tokens
-                    ),
+                    message: format!("max_tokens {} is very large (> 65536)", max_tokens),
                     severity: ValidationSeverity::Warning,
                 });
             }
@@ -1398,9 +1532,7 @@ impl Config {
                 severity: ValidationSeverity::Warning,
             });
         }
-        if self.llama_server.is_absolute()
-            && !self.llama_server.exists()
-        {
+        if self.llama_server.is_absolute() && !self.llama_server.exists() {
             warnings.push(ValidationWarning {
                 field: "llama_server".to_string(),
                 message: format!(
@@ -1419,10 +1551,7 @@ impl Config {
                 {
                     warnings.push(ValidationWarning {
                         field: format!("model_overrides.{}.lora", model_name),
-                        message: format!(
-                            "lora path does not exist: {}",
-                            lora.display()
-                        ),
+                        message: format!("lora path does not exist: {}", lora.display()),
                         severity: ValidationSeverity::Warning,
                     });
                 }
@@ -1431,10 +1560,7 @@ impl Config {
                 {
                     warnings.push(ValidationWarning {
                         field: format!("model_overrides.{}.lora_scaled", model_name),
-                        message: format!(
-                            "lora path does not exist: {}",
-                            lora.display()
-                        ),
+                        message: format!("lora path does not exist: {}", lora.display()),
                         severity: ValidationSeverity::Warning,
                     });
                 }
@@ -1539,7 +1665,10 @@ impl Config {
         }
 
         // Resolve system_prompt from preset name (after all overrides)
-        if let Some(preset) = self.system_prompt_presets.get(&settings.system_prompt_preset_name) {
+        if let Some(preset) = self
+            .system_prompt_presets
+            .get(&settings.system_prompt_preset_name)
+        {
             settings.system_prompt = preset.content.clone();
         }
 

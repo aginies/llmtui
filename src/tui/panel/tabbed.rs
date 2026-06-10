@@ -24,10 +24,12 @@ fn render_unsaved_watermark(f: &mut Frame, area: Rect, app: &App) {
     let watermark = crate::t!("hints.unsaved_watermark");
     let lines: Vec<Line> = watermark
         .chars()
-        .map(|c| Line::from(vec![Span::styled(
-            format!("{} ", c),
-            Style::default().fg(Color::Red).add_modifier(Modifier::DIM),
-        )]))
+        .map(|c| {
+            Line::from(vec![Span::styled(
+                format!("{} ", c),
+                Style::default().fg(Color::Red).add_modifier(Modifier::DIM),
+            )])
+        })
         .collect();
 
     let paragraph = Paragraph::new(lines);

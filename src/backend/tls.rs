@@ -110,10 +110,7 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
     // If server cert exists AND version matches, return it
     let version_matches = version_path.exists()
         && std::fs::read_to_string(&version_path).ok().as_deref() == Some(TLS_VERSION);
-    if server_cert_path.exists()
-        && server_key_path.exists()
-        && version_matches
-    {
+    if server_cert_path.exists() && server_key_path.exists() && version_matches {
         return Ok((server_cert_path, server_key_path));
     }
 

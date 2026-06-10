@@ -233,7 +233,10 @@ pub async fn search_models(
 /// List all GGUF files for a model.
 pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)>> {
     let branch = "main";
-    let url = format!("https://huggingface.co/api/models/{}/tree/{}", model_id, branch);
+    let url = format!(
+        "https://huggingface.co/api/models/{}/tree/{}",
+        model_id, branch
+    );
     let resp = reqwest::get(&url).await;
     let resp = match resp {
         Ok(r) => r.error_for_status(),
@@ -259,7 +262,10 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
                 .and_then(|u| u.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| {
-                    format!("https://huggingface.co/{model_id}/resolve/{}/{}", branch, path)
+                    format!(
+                        "https://huggingface.co/{model_id}/resolve/{}/{}",
+                        branch, path
+                    )
                 });
             gguf_files.push((path.to_string(), size, lfs_url));
         }
@@ -275,7 +281,10 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
 /// Fetch the README for a model from HuggingFace.
 pub async fn fetch_readme(model_id: &str) -> Result<String> {
     let branch = "main";
-    let url = format!("https://huggingface.co/{}/raw/{}/README.md", model_id, branch);
+    let url = format!(
+        "https://huggingface.co/{}/raw/{}/README.md",
+        model_id, branch
+    );
     let resp = reqwest::Client::new()
         .get(&url)
         .header("User-Agent", super::USER_AGENT)
@@ -587,7 +596,8 @@ pub async fn resolve_backend_binary(
                     repo,
                     pattern
                 );
-                let available = latest_release_with_asset(repo, pattern, &default_tag(&backend)).await;
+                let available =
+                    latest_release_with_asset(repo, pattern, &default_tag(&backend)).await;
                 tracing::info!("  -> latest available from GitHub: {}", available);
                 Some(available)
             } else {
@@ -969,14 +979,15 @@ async fn latest_release_with_asset_inner(
                                 .unwrap_or_else(|| fallback.to_string());
                             for asset in assets {
                                 if let Some(name) = asset.get("name").and_then(|v| v.as_str())
-                                    && name.contains(asset_pattern) {
-                                        tracing::info!(
-                                            "  -> found asset '{}' in release '{}'",
-                                            name,
-                                            tag
-                                        );
-                                        return tag;
-                                    }
+                                    && name.contains(asset_pattern)
+                                {
+                                    tracing::info!(
+                                        "  -> found asset '{}' in release '{}'",
+                                        name,
+                                        tag
+                                    );
+                                    return tag;
+                                }
                             }
                         }
                     }
