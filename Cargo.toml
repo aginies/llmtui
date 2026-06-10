@@ -43,7 +43,7 @@ gguf-rs = "0.1"
 flate2 = "1"
 tar = "0.4"
 zip = "2"
-axum = { version = "0.8", features = ["ws"] }
+axum = { version = "0.8", features = ["ws", "macros"] }
 axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 tower-http = { version = "0.6", features = ["trace", "cors"] }

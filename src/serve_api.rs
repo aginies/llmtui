@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use axum::Json;
@@ -8,12 +9,18 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use futures_util::{StreamExt, stream};
+
+use futures_util::StreamExt;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
 use reqwest::Client;
+
+pub struct StatusCache {
+    pub models: usize,
+    pub cached_at: Instant,
+}
 
 #[derive(Clone)]
 pub struct ApiState {
@@ -24,6 +31,7 @@ pub struct ApiState {
     pub start_time: Instant,
     pub port: u16,
     pub client: reqwest::Client,
+    pub status_cache: Arc<RwLock<StatusCache>>,
 }
 
 fn extract_api_key(headers: &axum::http::HeaderMap) -> Option<String> {
@@ -64,19 +72,10 @@ async fn proxy_streaming(
 
     let url = format!("{}{}", state.server_url, path);
 
-    // Convert request body to a stream for reqwest
-    let body_bytes = match axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024).await {
-        Ok(b) => b,
-        Err(e) => {
-            info!("Failed to read request body for {}: {}", path, e);
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({"error": format!("Failed to read request body: {}", e)})),
-            )
-                .into_response();
-        }
-    };
-    let body_stream = stream::iter(vec![Ok::<_, reqwest::Error>(body_bytes)]);
+    // Stream request body directly to backend (no drain to memory)
+    let body_stream = req.into_body().into_data_stream().map(|r| {
+        r.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e)))
+    });
 
     let mut request_builder = match method {
         axum::http::Method::GET => state.client.get(&url),
@@ -103,12 +102,14 @@ async fn proxy_streaming(
         "upgrade",
         "host",
     ];
+    let mut filtered = axum::http::HeaderMap::new();
     for (name, value) in headers.iter() {
-        let name_str = name.as_str();
-        if !HOP_BY_HOP.contains(&name_str) && name_str != "authorization" {
-            request_builder = request_builder.header(name, value);
+        let n = name.as_str();
+        if !HOP_BY_HOP.contains(&n) && n != "authorization" {
+            filtered.insert(name, value.clone());
         }
     }
+    request_builder = request_builder.headers(filtered);
 
     let response = request_builder
         .body(reqwest::Body::wrap_stream(body_stream))
@@ -187,28 +188,45 @@ async fn health(State(state): State<ApiState>) -> impl IntoResponse {
 }
 
 /// Custom status endpoint.
+const STATUS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(5);
+
+#[axum::debug_handler]
 async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     let uptime = state.start_time.elapsed();
     let uptime_secs = uptime.as_secs();
 
-    // Try to get loaded models from llama-server
-    let loaded_models = match state
-        .client
-        .get(format!("{}/models", state.server_url))
-        .send()
-        .await
-    {
-        Ok(resp) if resp.status().is_success() => {
-            let json: serde_json::Value = match resp.json().await {
-                Ok(v) => v,
-                Err(_) => serde_json::json!([]),
+    let loaded_models = {
+        let (is_stale, cached_models) = {
+            let cache = state.status_cache.read().unwrap();
+            (cache.cached_at.elapsed() >= STATUS_CACHE_TTL, cache.models)
+        };
+        if !is_stale {
+            cached_models
+        } else {
+            let count = match state
+                .client
+                .get(format!("{}/models", state.server_url))
+                .send()
+                .await
+            {
+                Ok(resp) if resp.status().is_success() => {
+                    let val: Option<serde_json::Value> = resp.json().await.ok();
+                    let data = val.as_ref().and_then(|v| v.get("data")).and_then(|d| d.as_array());
+                    let c = data.map(|a| a.len()).unwrap_or(0);
+                    let mut cache = state.status_cache.write().unwrap();
+                    cache.models = c;
+                    cache.cached_at = Instant::now();
+                    c
+                }
+                _ => {
+                    let mut cache = state.status_cache.write().unwrap();
+                    cache.models = 0;
+                    cache.cached_at = Instant::now();
+                    0
+                }
             };
-            json.get("data")
-                .and_then(|d| d.as_array())
-                .map(|a| a.len())
-                .unwrap_or(0)
+            count
         }
-        _ => 0,
     };
 
     Json(serde_json::json!({
@@ -235,7 +253,7 @@ pub async fn start_api_server(
     let start_time = Instant::now();
     let client = Client::builder()
         .pool_max_idle_per_host(20)
-        .timeout(std::time::Duration::from_secs(300))
+        .timeout(std::time::Duration::from_secs(60))
         .build()?;
     let state = ApiState {
         server_url: format!("http://127.0.0.1:{}", server_port),
@@ -245,6 +263,10 @@ pub async fn start_api_server(
         start_time,
         port: bind.port(),
         client,
+        status_cache: Arc::new(RwLock::new(StatusCache {
+            models: 0,
+            cached_at: Instant::now() - std::time::Duration::from_secs(10),
+        })),
     };
 
     let cors = CorsLayer::new()

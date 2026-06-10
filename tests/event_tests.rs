@@ -279,10 +279,13 @@ async fn test_ctrl_l_cycles_language() {
     let mut app = make_app();
     i18n::set_language("en");
     app.config.language = "en".to_string();
+    // Ensure global state is clean before cycling
+    assert_eq!(i18n::get_language(), "en");
     let key = make_key_with_mod(KeyCode::Char('l'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
     assert_eq!(app.config.language, "fr");
     assert_eq!(i18n::get_language(), "fr");
+    // Reset for other tests
     i18n::set_language("en");
 }
 
