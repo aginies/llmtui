@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState},
 };
 
-use crate::models::SearchSort;
+use crate::models::{ListSort, SearchSort};
 use crate::tui::app::{App, ModelsMode};
 use crate::tui::{format_context_k, format_number, format_size};
 
@@ -240,7 +240,7 @@ fn highlight_query(text: &str, query: &str) -> Line<'static> {
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     match &app.models_mode {
-        ModelsMode::List => {
+        ModelsMode::List { sort_by } => {
             let title = if app.is_panel_visible(0) {
                 crate::t!("panel.title.models_active").to_string()
             } else {
@@ -303,28 +303,49 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 f.render_widget(ratatui::widgets::Paragraph::new(filter_text), filter_inner);
             }
 
+            let sort_ascending = sort_by.is_ascending();
             let headers = vec![
-                Cell::from(crate::t!("models.list_headers.model")).style(
+                Cell::from(if *sort_by == ListSort::Name {
+                    if sort_ascending { "Model \u{2191}" } else { "Model \u{2193}" }
+                } else {
+                    crate::t!("models.list_headers.model")
+                }).style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Cell::from(crate::t!("models.list_headers.status")).style(
+                Cell::from(if *sort_by == ListSort::Status {
+                    if sort_ascending { "Status \u{2191}" } else { "Status \u{2193}" }
+                } else {
+                    crate::t!("models.list_headers.status")
+                }).style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Cell::from(crate::t!("models.list_headers.params")).style(
+                Cell::from(if *sort_by == ListSort::Params {
+                    if sort_ascending { "Params \u{2191}" } else { "Params \u{2193}" }
+                } else {
+                    crate::t!("models.list_headers.params")
+                }).style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Cell::from("Qual").style(
+                Cell::from(if *sort_by == ListSort::Qual {
+                    if sort_ascending { "Qual \u{2191}" } else { "Qual \u{2193}" }
+                } else {
+                    crate::t!("models.list_headers.quality")
+                }).style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Cell::from(crate::t!("models.list_headers.context")).style(
+                Cell::from(if *sort_by == ListSort::Context {
+                    if sort_ascending { "Ctx \u{2191}" } else { "Ctx \u{2193}" }
+                } else {
+                    crate::t!("models.list_headers.context")
+                }).style(
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
@@ -332,7 +353,61 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             ];
 
             let filtered_indices = app.get_filtered_model_indices();
-            let rows: Vec<Row> = filtered_indices
+
+            let status_priority = |state: Option<&crate::models::ModelState>| -> u8 {
+                match state {
+                    Some(crate::models::ModelState::Loaded { .. }) => 3,
+                    Some(crate::models::ModelState::Loading) => 2,
+                    Some(crate::models::ModelState::Benchmarking) => 1,
+                    _ => 0,
+                }
+            };
+
+            let mut sorted_indices = filtered_indices.clone();
+            let sort_by = *sort_by;
+            sorted_indices.sort_by(|&a, &b| {
+                let model_a = &app.models[a];
+                let model_b = &app.models[b];
+                match sort_by {
+                    ListSort::Name => model_a.display_name.cmp(&model_b.display_name),
+                    ListSort::Status => {
+                        let state_a = app.model_states.get(&model_a.display_name);
+                        let state_b = app.model_states.get(&model_b.display_name);
+                        let prio_a = status_priority(state_a);
+                        let prio_b = status_priority(state_b);
+                        prio_b.cmp(&prio_a)
+                    }
+                    ListSort::Params => {
+                        let meta_a = app.search.gguf_metadata_cache.get(&model_a.path.to_string_lossy().to_string());
+                        let meta_b = app.search.gguf_metadata_cache.get(&model_b.path.to_string_lossy().to_string());
+                        let val_a = meta_a.map(|m| {
+                            let trimmed = m.model_parameters.trim();
+                            let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
+                            num_str.parse::<f64>().unwrap_or(0.0)
+                        }).unwrap_or(0.0);
+                        let val_b = meta_b.map(|m| {
+                            let trimmed = m.model_parameters.trim();
+                            let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
+                            num_str.parse::<f64>().unwrap_or(0.0)
+                        }).unwrap_or(0.0);
+                        val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
+                    }
+                    ListSort::Qual => {
+                        let meta_a = app.search.gguf_metadata_cache.get(&model_a.path.to_string_lossy().to_string());
+                        let meta_b = app.search.gguf_metadata_cache.get(&model_b.path.to_string_lossy().to_string());
+                        let rank_a = meta_a.map(|m| m.quality_rank).unwrap_or(0);
+                        let rank_b = meta_b.map(|m| m.quality_rank).unwrap_or(0);
+                        rank_b.cmp(&rank_a)
+                    }
+                    ListSort::Context => {
+                        let settings_a = app.config.resolve_settings(Some(model_a.display_name.as_str()), None);
+                        let settings_b = app.config.resolve_settings(Some(model_b.display_name.as_str()), None);
+                        settings_b.context_length.cmp(&settings_a.context_length)
+                    }
+                }
+            });
+
+            let rows: Vec<Row> = sorted_indices
                 .iter()
                 .map(|&idx| {
                     let model = &app.models[idx];
@@ -479,7 +554,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             app.ui.models_table_state.select(
                 app.selected_model_idx
-                    .and_then(|idx| filtered_indices.iter().position(|&i| i == idx)),
+                    .and_then(|idx| sorted_indices.iter().position(|&i| i == idx)),
             );
             f.render_stateful_widget(table, table_area, &mut app.ui.models_table_state);
         }

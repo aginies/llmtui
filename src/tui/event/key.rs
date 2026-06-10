@@ -91,7 +91,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Ctrl+G: GGUF filename explanation (global, works from any panel)
     if key.code == KeyCode::Char('g') && key.modifiers.contains(KeyModifiers::CONTROL) {
         let filename = match &app.models_mode {
-            ModelsMode::List => app.selected_model().map(|m| m.display_name.clone()),
+            ModelsMode::List { .. } => app.selected_model().map(|m| m.display_name.clone()),
             ModelsMode::Search { results, .. } => {
                 if let Some(idx) = app.search.search_results_idx {
                     if idx < results.len() {
@@ -580,6 +580,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
             }
             return;
+        }
+        // List mode sort
+        else if let ModelsMode::List { sort_by } = &mut app.models_mode {
+            *sort_by = sort_by.next();
         }
         app.save_model_settings();
         return;
@@ -1191,7 +1195,7 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
 async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
         KeyCode::Esc => {
-            app.models_mode = ModelsMode::List;
+            app.models_mode = ModelsMode::List { sort_by: crate::models::ListSort::Name };
             app.ui.panel_visibility |= (1 << 4) | (1 << 5);
             return;
         }
@@ -1443,7 +1447,7 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 previous_query,
                 previous_results,
                 ..
-            } = std::mem::replace(&mut app.models_mode, ModelsMode::List)
+            } = std::mem::replace(&mut app.models_mode, ModelsMode::List { sort_by: crate::models::ListSort::Name })
             {
                 let current_idx = app.search.search_results_idx;
                 let should_reset =
@@ -1650,7 +1654,7 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
             }
             // Don't abort the task — let it finish gracefully and send Cancelled status
             // Keep bench_tune_running = true so the app knows the task is still finishing up
-            app.models_mode = ModelsMode::List;
+            app.models_mode = ModelsMode::List { sort_by: crate::models::ListSort::Name };
         }
         KeyCode::Enter => {
             let result_idx = app.bench_tune.bench_tune_result_row;

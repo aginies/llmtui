@@ -3,8 +3,8 @@ use crate::config::Config;
 use crate::config::Profile;
 use crate::models::Backend;
 use crate::models::{
-    BenchTuneConfig, DiscoveredModel, ModelSettings, ModelState, SearchResult, SearchSort,
-    ServerMetrics,
+    BenchTuneConfig, DiscoveredModel, ListSort, ModelSettings, ModelState, SearchResult,
+    SearchSort, ServerMetrics,
 };
 use ratatui::layout::Rect;
 use ratatui::text::Line;
@@ -59,7 +59,7 @@ pub enum ActivePanel {
 #[derive(Debug, Clone)]
 pub enum ModelsMode {
     /// Normal mode: list of local models.
-    List,
+    List { sort_by: ListSort },
     /// Search mode: searching HuggingFace.
     Search {
         query: String,

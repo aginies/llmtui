@@ -65,7 +65,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 Span::styled(crate::t!("hints.back"), c),
             ]
         }
-        ModelsMode::List => {
+        ModelsMode::List { sort_by: _ } => {
             if app.ui.active_panel == ActivePanel::LlmSettings {
                 let mut parts = vec![
                     Span::styled(hint_nav(), c),
@@ -90,7 +90,11 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
             } else {
                 match app.ui.active_panel {
                     ActivePanel::Models => {
-                        vec![
+                        let sort_label = match &app.models_mode {
+                            ModelsMode::List { sort_by } => sort_by.label(),
+                            _ => String::new(),
+                        };
+                        let parts = vec![
                             Span::styled(crate::t!("hints.gguf"), c),
                             Span::raw(HINT_SEP),
                             Span::styled(hint_panels(), c),
@@ -101,10 +105,14 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw(HINT_SEP),
                             Span::styled(crate::t!("hints.delete"), y),
                             Span::raw(HINT_SEP),
+                            Span::styled("sort:", c),
+                            Span::styled(sort_label, Style::default().fg(Color::Magenta)),
+                            Span::raw(HINT_SEP),
                             Span::styled(crate::t!("hints.help"), c),
                             Span::raw(HINT_SEP),
                             Span::styled(hint_about(), c),
-                        ]
+                        ];
+                        parts
                     }
                     ActivePanel::Log => {
                         if app.log.log_expanded {

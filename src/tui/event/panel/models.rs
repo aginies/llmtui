@@ -1,5 +1,6 @@
 use crossterm::event::KeyCode;
 
+use crate::models::ListSort;
 use crate::tui::app::pending_events::PendingEvent;
 use crate::tui::app::{App, GlobalMode, LoadingPhase, ModelsMode};
 
@@ -29,7 +30,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     match key.code {
         KeyCode::Char('f') => {
-            if matches!(app.models_mode, ModelsMode::List) {
+            if matches!(app.models_mode, ModelsMode::List { .. }) {
                 app.search.filtering_local = true;
                 if app.selected_model_idx.is_none() {
                     let filtered = app.get_filtered_model_indices();
@@ -42,35 +43,37 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Up | KeyCode::Char('k') => {
             let filtered = app.get_filtered_model_indices();
+            let sorted = get_sorted_indices(app, &filtered);
             if let Some(idx) = app.selected_model_idx {
-                if let Some(pos) = filtered.iter().position(|&i| i == idx) {
+                if let Some(pos) = sorted.iter().position(|&i| i == idx) {
                     if pos > 0 {
-                        app.selected_model_idx = Some(filtered[pos - 1]);
+                        app.selected_model_idx = Some(sorted[pos - 1]);
                         app.on_model_selection_change();
                     }
-                } else if !filtered.is_empty() {
-                    app.selected_model_idx = Some(filtered[0]);
+                } else if !sorted.is_empty() {
+                    app.selected_model_idx = Some(sorted[0]);
                     app.on_model_selection_change();
                 }
-            } else if !filtered.is_empty() {
-                app.selected_model_idx = Some(filtered[0]);
+            } else if !sorted.is_empty() {
+                app.selected_model_idx = Some(sorted[0]);
                 app.on_model_selection_change();
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
             let filtered = app.get_filtered_model_indices();
+            let sorted = get_sorted_indices(app, &filtered);
             if let Some(idx) = app.selected_model_idx {
-                if let Some(pos) = filtered.iter().position(|&i| i == idx) {
-                    if pos + 1 < filtered.len() {
-                        app.selected_model_idx = Some(filtered[pos + 1]);
+                if let Some(pos) = sorted.iter().position(|&i| i == idx) {
+                    if pos + 1 < sorted.len() {
+                        app.selected_model_idx = Some(sorted[pos + 1]);
                         app.on_model_selection_change();
                     }
-                } else if !filtered.is_empty() {
-                    app.selected_model_idx = Some(filtered[0]);
+                } else if !sorted.is_empty() {
+                    app.selected_model_idx = Some(sorted[0]);
                     app.on_model_selection_change();
                 }
-            } else if !filtered.is_empty() {
-                app.selected_model_idx = Some(filtered[0]);
+            } else if !sorted.is_empty() {
+                app.selected_model_idx = Some(sorted[0]);
                 app.on_model_selection_change();
             }
         }
@@ -296,4 +299,65 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         _ => {}
     }
+}
+
+fn get_sorted_indices(app: &App, filtered: &[usize]) -> Vec<usize> {
+    let sort_by = match &app.models_mode {
+        ModelsMode::List { sort_by } => *sort_by,
+        _ => ListSort::Name,
+    };
+
+    let mut sorted = filtered.to_vec();
+    sorted.sort_by(|&a, &b| {
+        let model_a = &app.models[a];
+        let model_b = &app.models[b];
+        match sort_by {
+            ListSort::Name => model_a.display_name.cmp(&model_b.display_name),
+            ListSort::Status => {
+                let state_a = app.model_states.get(&model_a.display_name);
+                let state_b = app.model_states.get(&model_b.display_name);
+                let prio_a = match state_a {
+                    Some(crate::models::ModelState::Loaded { .. }) => 3,
+                    Some(crate::models::ModelState::Loading) => 2,
+                    Some(crate::models::ModelState::Benchmarking) => 1,
+                    _ => 0,
+                };
+                let prio_b = match state_b {
+                    Some(crate::models::ModelState::Loaded { .. }) => 3,
+                    Some(crate::models::ModelState::Loading) => 2,
+                    Some(crate::models::ModelState::Benchmarking) => 1,
+                    _ => 0,
+                };
+                prio_b.cmp(&prio_a)
+            }
+            ListSort::Params => {
+                let meta_a = app.search.gguf_metadata_cache.get(&model_a.path.to_string_lossy().to_string());
+                let meta_b = app.search.gguf_metadata_cache.get(&model_b.path.to_string_lossy().to_string());
+                let val_a = meta_a.map(|m| {
+                    let trimmed = m.model_parameters.trim();
+                    let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
+                    num_str.parse::<f64>().unwrap_or(0.0)
+                }).unwrap_or(0.0);
+                let val_b = meta_b.map(|m| {
+                    let trimmed = m.model_parameters.trim();
+                    let num_str = trimmed.trim_end_matches(|c: char| c == 'B' || c == 'b').trim();
+                    num_str.parse::<f64>().unwrap_or(0.0)
+                }).unwrap_or(0.0);
+                val_b.partial_cmp(&val_a).unwrap_or(std::cmp::Ordering::Equal)
+            }
+            ListSort::Qual => {
+                let meta_a = app.search.gguf_metadata_cache.get(&model_a.path.to_string_lossy().to_string());
+                let meta_b = app.search.gguf_metadata_cache.get(&model_b.path.to_string_lossy().to_string());
+                let rank_a = meta_a.map(|m| m.quality_rank).unwrap_or(0);
+                let rank_b = meta_b.map(|m| m.quality_rank).unwrap_or(0);
+                rank_b.cmp(&rank_a)
+            }
+            ListSort::Context => {
+                let settings_a = app.config.resolve_settings(Some(model_a.display_name.as_str()), None);
+                let settings_b = app.config.resolve_settings(Some(model_b.display_name.as_str()), None);
+                settings_b.context_length.cmp(&settings_a.context_length)
+            }
+        }
+    });
+    sorted
 }

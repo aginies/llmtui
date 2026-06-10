@@ -30,6 +30,10 @@ impl App {
                     Span::styled("^D / Del", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.models.delete"))),
                 ]),
+                Line::from(vec![
+                    Span::styled("^S", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.cycle_list_sort"))),
+                ]),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.models.search_mode")),
                 Line::from(vec![

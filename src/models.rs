@@ -45,6 +45,42 @@ impl SearchSort {
     }
 }
 
+/// Sort order for the local models list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ListSort {
+    Name,
+    Status,
+    Params,
+    Qual,
+    Context,
+}
+
+impl ListSort {
+    pub fn next(self) -> Self {
+        match self {
+            ListSort::Name => ListSort::Status,
+            ListSort::Status => ListSort::Params,
+            ListSort::Params => ListSort::Qual,
+            ListSort::Qual => ListSort::Context,
+            ListSort::Context => ListSort::Name,
+        }
+    }
+
+    pub fn label(self) -> String {
+        match self {
+            ListSort::Name => crate::t!("models.list_sort.name").to_string(),
+            ListSort::Status => crate::t!("models.list_sort.status").to_string(),
+            ListSort::Params => crate::t!("models.list_sort.params").to_string(),
+            ListSort::Qual => crate::t!("models.list_sort.qual").to_string(),
+            ListSort::Context => crate::t!("models.list_sort.context").to_string(),
+        }
+    }
+
+    pub fn is_ascending(self) -> bool {
+        matches!(self, ListSort::Name)
+    }
+}
+
 /// A model found via HuggingFace search.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SearchResult {

@@ -53,7 +53,7 @@ impl App {
             config,
             models: Vec::new(),
             selected_model_idx: None,
-            models_mode: types::ModelsMode::List,
+            models_mode: types::ModelsMode::List { sort_by: crate::models::ListSort::Name },
             settings: settings_clone,
             model_settings_cache: settings.clone(),
             model_states: Default::default(),

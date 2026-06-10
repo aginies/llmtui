@@ -8,7 +8,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     let mut parts = Vec::new();
 
     let mode_name = match &app.models_mode {
-        ModelsMode::List => crate::t!("status.list").to_string(),
+        ModelsMode::List { .. } => crate::t!("status.list").to_string(),
         ModelsMode::Search { results, .. } => crate::t_fmt!("status.search", results.len()),
         ModelsMode::Files { files, .. } => crate::t_fmt!("status.files", files.len()),
         ModelsMode::BenchTune => crate::t!("status.bench_tune").to_string(),
@@ -235,7 +235,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             parts.push(Span::raw(" "));
             parts.push(Span::styled(model_id, Style::default().fg(Color::Cyan)));
         }
-        ModelsMode::List => {
+        ModelsMode::List { .. } => {
             parts.push(Span::raw("  "));
             let panel_label = match app.ui.active_panel {
                 ActivePanel::Models => crate::t!("status.models"),
