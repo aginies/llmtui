@@ -197,8 +197,6 @@ impl App {
                 gguf_metadata_cache: Default::default(),
                 search_input: None,
                 gguf_naming_cache: Default::default(),
-                search_query_regex: None,
-                last_search_query: String::new(),
                 list_sorted_indices: Vec::new(),
                 list_sort_version: 0,
                 last_list_sort_by: crate::models::ListSort::Name,

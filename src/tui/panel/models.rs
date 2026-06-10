@@ -571,16 +571,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             let query_regex = if query.trim().is_empty() {
                 None
-            } else if app.search.last_search_query != *query {
+            } else {
                 let pattern: String = query.split_whitespace()
                     .map(|w| w.to_lowercase())
                     .collect::<Vec<_>>()
                     .join("|");
-                app.search.search_query_regex = Regex::new(&pattern).ok();
-                app.search.last_search_query = query.clone();
-                app.search.search_query_regex.as_ref()
-            } else {
-                app.search.search_query_regex.as_ref()
+                Regex::new(&pattern).ok()
             };
 
             let mut rows: Vec<Row> = results
@@ -609,7 +605,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.visible = true;
                     let scrolled_raw = scroll_text(&result.model_id, col_width, Some(state));
                     let scrolled_lower = scrolled_raw.to_lowercase();
-                    let highlighted = highlight_query(&scrolled_raw, &scrolled_lower, query_regex);
+                    let highlighted = highlight_query(&scrolled_raw, &scrolled_lower, query_regex.as_ref());
 
                     let is_downloaded = result.downloaded;
                     let marker = if is_downloaded { "✓" } else { " " };

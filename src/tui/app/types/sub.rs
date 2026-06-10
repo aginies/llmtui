@@ -4,7 +4,6 @@ use crate::models::Backend;
 use crate::models::{BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress};
 
 use ratatui::widgets::TableState;
-use regex::Regex;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -168,9 +167,6 @@ pub struct SearchState {
     pub search_input: Option<String>,
     pub gguf_naming_cache:
         std::collections::HashMap<String, crate::tui::gguf_naming::GgufExplanation>,
-    // ── Cache for query regex (search mode) ──
-    pub search_query_regex: Option<Regex>,
-    pub last_search_query: String,
     // ── Cache for sorted model indices (list mode) ──
     pub list_sorted_indices: Vec<usize>,
     pub list_sort_version: u64,
