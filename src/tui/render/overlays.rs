@@ -2371,7 +2371,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
 
 fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usize) {
     let w: u16 = 60;
-    let h: u16 = (7.min(area.height - 4)).max(8);
+    let h: u16 = (8.min(area.height.saturating_sub(4))).max(7);
     let popup_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
