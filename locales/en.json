@@ -539,6 +539,7 @@
   "rpc.actions": "[Space] Toggle  [e] Edit  [n] New  [d] Delete  [⎋] Back",
   "status.list": "List",
   "status.search": "Search({} results)",
+  "status.search_count": "({} results)",
   "status.files": "Files({} files)",
   "status.bench_tune": "BenchTune",
   "status.mode": "[Mode: {}] ",

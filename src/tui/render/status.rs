@@ -9,7 +9,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
 
     let mode_name = match &app.models_mode {
         ModelsMode::List { .. } => crate::t!("status.list").to_string(),
-        ModelsMode::Search { results, .. } => crate::t_fmt!("status.search", results.len()),
+        ModelsMode::Search { results, .. } => format!("{} {}", crate::t!("status.search"), crate::t_fmt!("status.search_count", results.len())),
         ModelsMode::Files { files, .. } => crate::t_fmt!("status.files", files.len()),
         ModelsMode::BenchTune => crate::t!("status.bench_tune").to_string(),
     };
