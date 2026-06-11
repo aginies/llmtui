@@ -181,7 +181,7 @@ pub async fn build_injected_prompt(
     info!("Web search: gathered context ({} chars)", search_context.len());
 
     let new_content = format!(
-        "[WEB CONTEXT]\nINSTRUCTION: Cite sources using inline markdown links in your answer. Format: [source name](URL). Place links directly after the facts they support. Do NOT include claims you cannot verify.\n\n{}\n[END WEB CONTEXT]\n\n{}\n\n---\n\n{}",
+        "[WEB CONTEXT]\nINSTRUCTION: Cite sources using inline markdown links in your answer. Format: [source name](URL). Place links directly after the facts they support. If you find PDF link, add them to the list with brief description. Do NOT include claims you cannot verify.\n\n{}\n[END WEB CONTEXT]\n\n{}\n\n---\n\n{}",
         search_context, sources_section, content
     );
 
