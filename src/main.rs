@@ -19,6 +19,10 @@ use crate::models::Backend;
 use crate::tui::app::{App, GlobalMode};
 use tracing_subscriber::prelude::*;
 
+fn install_default_crypto() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
 #[derive(Parser)]
 #[command(name = "llm-manager", about = "Manage and chat with local LLMs")]
 enum Cli {
@@ -105,6 +109,7 @@ enum Cli {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    install_default_crypto();
     let cli = Cli::parse();
 
     match cli {

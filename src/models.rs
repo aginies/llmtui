@@ -234,7 +234,9 @@ impl std::hash::Hash for ModelSettings {
         self.api_endpoint_port.hash(state);
         self.spec_type.hash(state);
         self.draft_tokens.hash(state);
-        self.tags.hash(state);
+          self.tags.hash(state);
+        self.web_search_engine.hash(state);
+        self.web_search_engine_url.hash(state);
     }
 }
 
@@ -323,9 +325,11 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             mmap: dp.mmap,
             numa: dp.numa,
             system_prompt: dp.system_prompt,
-            system_prompt_preset_name: dp.system_prompt_preset_name,
+           system_prompt_preset_name: dp.system_prompt_preset_name,
+                web_search_engine: dp.web_search_engine.clone(),
+                web_search_engine_url: dp.web_search_engine_url.clone(),
 
-            gpu_layers_mode: match dp.gpu_layers {
+                gpu_layers_mode: match dp.gpu_layers {
                 n if n < 0 => GpuLayersMode::All,
                 _ => dp.gpu_layers_mode,
             },
@@ -845,6 +849,10 @@ pub struct ModelSettings {
     pub system_prompt: String,
     /// Name of the system prompt preset currently selected.
     pub system_prompt_preset_name: String,
+    /// Web search engine name (e.g. "searxng").
+    pub web_search_engine: String,
+    /// Web search engine URL.
+    pub web_search_engine_url: String,
 
     // ── GPU ──────────────────────────────────────────────────
     /// GPU layer offloading mode.

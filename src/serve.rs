@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use tokio::select;
@@ -388,6 +389,13 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let shutdown_rx_for_api = shutdown_rx.clone();
         let host_clone = host_str.clone();
         let tls_for_api = tls_config.clone();
+        let preset_name = settings.system_prompt_preset_name.clone();
+        let search_engine = settings.web_search_engine.clone();
+        let search_engine_url = settings.web_search_engine_url.clone();
+        let web_search_enabled = config.default.web_search_enabled;
+        let web_search_api_key = config.default.web_search_api_key.clone();
+        let log_cb = Arc::new(std::sync::Mutex::new(None));
+        let log_cb_clone = log_cb.clone();
         let handle = tokio::spawn(async move {
             let _ = crate::serve_api::start_api_server(
                 addr,
@@ -398,6 +406,12 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 shutdown_rx_for_api,
                 host_clone,
                 tls_for_api,
+                preset_name,
+                search_engine,
+                search_engine_url,
+                web_search_enabled,
+                web_search_api_key,
+                log_cb_clone,
             )
             .await;
             let _ = api_done_tx.send(());

@@ -1712,6 +1712,19 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.picker.editing_rpc_worker = None;
                 }
                 8 => {
+                    app.ui.global_mode = GlobalMode::WebSearchPicker {
+                        enabled: app.config.default.web_search_enabled,
+                        engine: app.config.default.web_search_engine.clone(),
+                        engine_url: app.config.default.web_search_engine_url.clone(),
+                        api_key: app.config.default.web_search_api_key.clone(),
+                        selected_field: 0,
+                        engine_picker_selected: 0,
+                        editing: false,
+                        edit_buffer: String::new(),
+                        edit_cursor_pos: 0,
+                    };
+                }
+                9 => {
                     let current = crate::tui::i18n::get_language();
                     let next = match current.as_str() {
                         "fr" => "it",
@@ -1738,7 +1751,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.settings_state.server_settings_selected_idx =
-                (app.settings_state.server_settings_selected_idx + 1).min(8);
+                (app.settings_state.server_settings_selected_idx + 1).min(9);
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.settings_state.server_settings_selected_idx {

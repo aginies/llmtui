@@ -1827,6 +1827,20 @@ impl App {
             self.server.api_shutdown_tx = Some(api_shutdown_tx);
             let host_clone = host.clone();
             let model_name_clone = model_name.clone();
+            let preset_name = self.settings.system_prompt_preset_name.clone();
+            let search_engine = self.config.default.web_search_engine.clone();
+            let search_engine_url = self.config.default.web_search_engine_url.clone();
+            let log_tx = self.server.spawn_log_tx.clone();
+            let log_cb = Arc::new(std::sync::Mutex::new({
+                log_tx.map(|tx| {
+                    Box::new(move |msg: String| {
+                        let _ = tx.send(msg);
+                    }) as Box<dyn Fn(String) + Send + Sync>
+                })
+            }));
+            let log_cb_clone = log_cb.clone();
+            let ws_enabled = self.config.default.web_search_enabled;
+            let ws_api_key = self.config.default.web_search_api_key.clone();
             let handle = tokio::spawn(async move {
                 let _ = crate::serve_api::start_api_server(
                     addr,
@@ -1837,6 +1851,12 @@ impl App {
                     api_shutdown_rx,
                     host_clone,
                     None,
+                    preset_name,
+                    search_engine,
+                    search_engine_url,
+                    ws_enabled,
+                    ws_api_key,
+                    log_cb_clone,
                 )
                 .await;
             });

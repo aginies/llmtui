@@ -1,21 +1,25 @@
 use std::net::SocketAddr;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Mutex};
 use std::time::Instant;
 
 use axum::Json;
 use axum::Router;
-use axum::body::Body;
+use axum::body::{Body, Bytes, to_bytes};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-
 use futures_util::StreamExt;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
 use reqwest::Client;
+
+use crate::backend::web_context;
+
+
+
 
 pub struct StatusCache {
     pub models: usize,
@@ -32,6 +36,12 @@ pub struct ApiState {
     pub port: u16,
     pub client: reqwest::Client,
     pub status_cache: Arc<RwLock<StatusCache>>,
+    pub system_prompt_preset_name: String,
+    pub web_search_engine: String,
+    pub web_search_engine_url: String,
+    pub web_search_enabled: bool,
+    pub web_search_api_key: Option<String>,
+    pub log_callback: Arc<Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>>,
 }
 
 fn extract_api_key(headers: &axum::http::HeaderMap) -> Option<String> {
@@ -71,6 +81,127 @@ async fn proxy_streaming(
     let headers = req.headers().clone();
 
     let url = format!("{}{}", state.server_url, path);
+
+    // For chat completions and completions, drain body and optionally inject web search
+    if (path == "/v1/chat/completions" || path == "/v1/completions") && method == axum::http::Method::POST {
+        info!("API: proxying {} {}", method, path);
+        {
+            let cb = state.log_callback.lock().unwrap();
+            if let Some(c) = cb.as_ref() {
+                c(format!("API: proxying {} {}", method, path));
+            }
+        }
+        let body_bytes = match to_bytes(req.into_body(), 10 * 1024 * 1024).await {
+            Ok(b) => b,
+            Err(e) => {
+                info!("Failed to collect request body for {}: {}", path, e);
+                return (
+                    StatusCode::BAD_GATEWAY,
+                    Json(serde_json::json!({"error": format!("Failed to read request body: {}", e)})),
+                )
+                    .into_response();
+            }
+        };
+
+        let body_bytes = body_bytes;
+        let mut request_json: serde_json::Value = match serde_json::from_slice(&body_bytes) {
+            Ok(j) => j,
+            Err(e) => {
+                info!("Failed to parse request JSON for {}: {}", path, e);
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": format!("Invalid JSON: {}", e)})),
+                )
+                    .into_response();
+            }
+        };
+
+        info!("API: web_search_enabled={}, preset='{}', engine='{}'", 
+              state.web_search_enabled, state.system_prompt_preset_name, state.web_search_engine);
+        {
+            let cb = state.log_callback.lock().unwrap();
+            if let Some(c) = cb.as_ref() {
+                c(format!("API: web_search_enabled={}, preset='{}', engine='{}'", 
+                    state.web_search_enabled, state.system_prompt_preset_name, state.web_search_engine));
+            }
+        }
+
+        let result = web_context::build_injected_prompt(
+            &state.system_prompt_preset_name,
+            &request_json,
+            state.web_search_enabled,
+            &state.web_search_engine,
+            &state.web_search_engine_url,
+            state.web_search_api_key.as_deref().unwrap_or(""),
+            &state.log_callback,
+        ).await;
+
+        info!("API: web search performed={}, content_len={}", result.performed, result.content.len());
+        {
+            let cb = state.log_callback.lock().unwrap();
+            if let Some(c) = cb.as_ref() {
+                c(format!("API: web search performed={}, content_len={}", result.performed, result.content.len()));
+            }
+        }
+        if result.performed && !result.content.is_empty() {
+            if let Some(obj) = request_json.as_object_mut() {
+                if let Some(messages) = obj.get_mut("messages").and_then(|m| m.as_array_mut()) {
+                    if let Some(last) = messages.last_mut() {
+                        if let Some(content_val) = last.get_mut("content") {
+                            *content_val = serde_json::Value::String(result.content);
+                        }
+                    }
+                }
+            }
+        }
+
+        let modified_body = request_json.clone();
+
+        if let Some(messages) = modified_body.get("messages").and_then(|m| m.as_array()) {
+            let last_content = messages.last()
+                .and_then(|m| m.get("content").and_then(|c| c.as_str()))
+                .unwrap_or("");
+            info!("Prompt to llama-server: {} messages, last content ({} chars):\n{}", 
+                  messages.len(), last_content.len(), last_content);
+        }
+
+        let body_stream = futures_util::stream::once(async move {
+            Ok::<Bytes, std::convert::Infallible>(Bytes::from(
+                serde_json::to_vec(&modified_body).unwrap_or(body_bytes.to_vec())
+            ))
+        });
+
+        let mut request_builder = state.client.post(&url);
+
+   const HOP_BY_HOP: &[&str] = &[
+        "connection",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "te",
+        "trailer",
+        "transfer-encoding",
+        "upgrade",
+        "host",
+        "content-length",
+    ];
+    let mut filtered = axum::http::HeaderMap::new();
+    for (name, value) in headers.iter() {
+        let n = name.as_str();
+        if !HOP_BY_HOP.contains(&n) && n != "authorization" {
+            filtered.insert(name, value.clone());
+        }
+    }
+    request_builder = request_builder.headers(filtered);
+
+    let response = request_builder
+        .body(reqwest::Body::wrap_stream(body_stream))
+        .send()
+        .await;
+
+    let response = handle_response(response, &path).await;
+    return response.into_response();
+}
 
     // Stream request body directly to backend (no drain to memory)
     let body_stream = req.into_body().into_data_stream().map(|r| {
@@ -116,6 +247,14 @@ async fn proxy_streaming(
         .send()
         .await;
 
+     let response = handle_response(response, &path).await;
+    return response.into_response();
+}
+
+async fn handle_response(
+    response: Result<reqwest::Response, reqwest::Error>,
+    path: &str,
+) -> impl IntoResponse {
     match response {
         Ok(resp) => {
             let status = resp.status();
@@ -239,7 +378,7 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     }))
 }
 
-pub async fn start_api_server(
+  pub async fn start_api_server(
     addr: SocketAddr,
     api_key: Option<String>,
     server_port: u16,
@@ -248,6 +387,12 @@ pub async fn start_api_server(
     mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
     host: String,
     tls_config: Option<axum_server::tls_rustls::RustlsConfig>,
+    system_prompt_preset_name: String,
+    web_search_engine: String,
+    web_search_engine_url: String,
+    web_search_enabled: bool,
+    web_search_api_key: Option<String>,
+    log_callback: Arc<Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
@@ -256,7 +401,7 @@ pub async fn start_api_server(
         .timeout(std::time::Duration::from_secs(60))
         .build()?;
     let state = ApiState {
-        server_url: format!("http://127.0.0.1:{}", server_port),
+        server_url: format!("http://{}:{}", host, server_port),
         api_key,
         model_name,
         pid,
@@ -267,6 +412,12 @@ pub async fn start_api_server(
             models: 0,
             cached_at: Instant::now() - std::time::Duration::from_secs(10),
         })),
+        system_prompt_preset_name,
+        web_search_engine,
+        web_search_engine_url,
+        web_search_enabled,
+        web_search_api_key,
+        log_callback,
     };
 
     let cors = CorsLayer::new()

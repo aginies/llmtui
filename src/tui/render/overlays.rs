@@ -279,7 +279,203 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::WebSearchPicker {
+        enabled,
+        engine,
+        engine_url,
+        api_key,
+        selected_field,
+        engine_picker_selected,
+        editing,
+        edit_buffer,
+        edit_cursor_pos: _,
+    } = &app.ui.global_mode
+    {
+        render_web_search_picker(
+            f,
+            f.area(),
+            app,
+            *enabled,
+            engine,
+            engine_url,
+            api_key.as_deref(),
+            *selected_field,
+            *engine_picker_selected,
+            *editing,
+            edit_buffer,
+        );
+        return true;
+    }
+
     false
+}
+
+fn render_web_search_picker(
+    f: &mut Frame,
+    area: Rect,
+    _app: &App,
+    enabled: bool,
+    engine: &str,
+    engine_url: &str,
+    api_key: Option<&str>,
+    selected_field: i32,
+    engine_picker_selected: usize,
+    editing: bool,
+    edit_buffer: &str,
+) {
+    let engines = ["searxng", "duckduckgo", "brave", "google", "startpage"];
+    let w = 65u16;
+    let h = if selected_field < -1 {
+        (8.min(area.height - 4)) as u16
+    } else {
+        (15.min(area.height - 4)) as u16
+    };
+    let picker_area = Rect {
+        x: (area.width - w) / 2,
+        y: (area.height - h) / 2,
+        width: w,
+        height: h,
+    };
+    let mut picker_lines: Vec<Line> = Vec::new();
+
+    if selected_field < -1 {
+        picker_lines.push(Line::from(Span::styled(
+            crate::t!("dialog.web_search.help"),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )));
+        picker_lines.push(Line::from(""));
+        for (i, e) in engines.iter().enumerate() {
+            let marker = if i == engine_picker_selected { "> " } else { "  " };
+            let style = if i == engine_picker_selected {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            picker_lines.push(Line::from(vec![
+                Span::styled(marker, Style::default().fg(Color::Yellow)),
+                Span::styled(e.to_string(), style),
+            ]));
+        }
+        f.render_widget(Clear, picker_area);
+        f.render_widget(
+            Paragraph::new(picker_lines).block(
+                Block::default()
+                    .title(Span::styled(
+                        crate::t!("dialog.web_search.title"),
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow)),
+            ),
+            picker_area,
+        );
+        return;
+    }
+
+    let enabled_marker = if selected_field == -1 { "> " } else { "  " };
+    picker_lines.push(Line::from(vec![
+        Span::styled(enabled_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(
+            crate::t!("dialog.web_search.enabled"),
+            Style::default().fg(Color::Yellow),
+        ),
+        Span::styled(
+            if enabled {
+                crate::t!("dialog.web_search.on")
+            } else {
+                crate::t!("dialog.web_search.off")
+            },
+            Style::default()
+                .fg(if enabled {
+                    Color::Green
+                } else {
+                    Color::DarkGray
+                })
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    picker_lines.push(Line::from(""));
+    let engine_marker = if selected_field == 0 { "> " } else { "  " };
+    let engine_val = if engine_marker == "> " && editing {
+        format!("{} ({})", engine, edit_buffer)
+    } else {
+        engine.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(engine_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(
+            crate::t!("dialog.web_search.engine"),
+            Style::default().fg(Color::Yellow),
+        ),
+        Span::styled(engine_val, Style::default().fg(Color::White)),
+    ]));
+    picker_lines.push(Line::from(""));
+    let url_marker = if selected_field == 1 { "> " } else { "  " };
+    let url_val = if editing && selected_field == 1 {
+        format!("{}|", edit_buffer)
+    } else if engine_url.is_empty() {
+        crate::t!("dialog.web_search.engine_url").to_string()
+    } else {
+        engine_url.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(url_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(
+            crate::t!("dialog.web_search.engine_url"),
+            Style::default().fg(Color::Yellow),
+        ),
+        Span::styled(url_val, Style::default().fg(Color::White)),
+    ]));
+    picker_lines.push(Line::from(""));
+    let key_marker = if selected_field == 2 { "> " } else { "  " };
+    let key_val = if editing && selected_field == 2 {
+        format!("{}|", edit_buffer)
+    } else if let Some(k) = api_key {
+        if k.is_empty() {
+            String::new()
+        } else {
+            "****".to_string()
+        }
+    } else {
+        String::new()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(key_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(
+            crate::t!("dialog.web_search.api_key"),
+            Style::default().fg(Color::Yellow),
+        ),
+        Span::styled(key_val, Style::default().fg(Color::White)),
+    ]));
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(Span::styled(
+        crate::t!("dialog.web_search.help"),
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    )));
+    f.render_widget(Clear, picker_area);
+    f.render_widget(
+        Paragraph::new(picker_lines).block(
+            Block::default()
+                .title(Span::styled(
+                    crate::t!("dialog.web_search.title"),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        ),
+        picker_area,
+    );
 }
 
 fn render_confirmation(

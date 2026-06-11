@@ -373,7 +373,13 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         false,
         server_running,
     );
-    let language_val = app.config.language.to_uppercase();
+    let web_search_status = if app.config.default.web_search_enabled {
+        "Enabled"
+    } else {
+        "Disabled"
+    };
+    let web_search_engine_name = &app.config.default.web_search_engine;
+    let web_search_display = format!("Web Search ({}: {})", web_search_status, web_search_engine_name);
     settings_helper::add_setting(
         &mut lines,
         &mut count,
@@ -382,6 +388,22 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         &mut selected_line_idx,
         &mut selected_content_line,
         8,
+        "Web Search",
+        &web_search_display,
+        selected,
+        "",
+        false,
+        server_running,
+    );
+    let language_val = app.config.language.to_uppercase();
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        9,
         "Language",
         &language_val,
         selected,

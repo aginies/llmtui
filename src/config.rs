@@ -818,6 +818,14 @@ pub struct DefaultParams {
     pub api_endpoint_enabled: bool,
     #[serde(default = "default_api_endpoint_port")]
     pub api_endpoint_port: u16,
+    #[serde(default = "default_web_search_engine")]
+    pub web_search_engine: String,
+    #[serde(default)]
+    pub web_search_engine_url: String,
+    #[serde(default = "default_web_search_enabled")]
+    pub web_search_enabled: bool,
+    #[serde(default)]
+    pub web_search_api_key: Option<String>,
     #[serde(default)]
     pub spec_type: String,
     #[serde(default)]
@@ -828,6 +836,14 @@ pub struct DefaultParams {
 
 fn default_api_endpoint_port() -> u16 {
     49222
+}
+
+fn default_web_search_engine() -> String {
+    "searxng".to_string()
+}
+
+fn default_web_search_enabled() -> bool {
+    false
 }
 
 fn default_system_prompt_preset_name() -> String {
@@ -982,6 +998,10 @@ impl Default for DefaultParams {
             llama_cpp_version_cuda: None,
             api_endpoint_enabled: false,
             api_endpoint_port: 49222,
+            web_search_engine: "searxng".to_string(),
+            web_search_engine_url: String::new(),
+            web_search_enabled: false,
+            web_search_api_key: None,
             spec_type: String::new(),
             draft_tokens: 0,
             tags: Vec::new(),
@@ -1121,6 +1141,10 @@ impl Config {
             "llama_cpp_version_cuda",
             "api_endpoint_enabled",
             "api_endpoint_port",
+            "web_search_engine",
+            "web_search_engine_url",
+            "web_search_enabled",
+            "web_search_api_key",
             "spec_type",
             "draft_tokens",
             "tags",

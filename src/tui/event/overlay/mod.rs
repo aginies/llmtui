@@ -24,6 +24,7 @@ mod prompt_picker;
 mod rpc_manager;
 mod search_input;
 mod spec_type_picker;
+mod web_search_picker;
 mod yarn_rope_settings;
 
 pub use about::AboutHandler;
@@ -44,6 +45,7 @@ pub use prompt_picker::PromptPickerHandler;
 pub use rpc_manager::RpcManagerHandler;
 pub use search_input::SearchInputHandler;
 pub use spec_type_picker::SpecTypePickerHandler;
+pub use web_search_picker::WebSearchPickerHandler;
 pub use yarn_rope_settings::YarnRoPESettingsHandler;
 
 pub trait OverlayHandler {
@@ -82,6 +84,7 @@ impl OverlayRegistry {
         handlers.push(Box::new(ConfirmationHandler));
         handlers.push(Box::new(RpcManagerHandler));
         handlers.push(Box::new(GgufNamingHandler));
+        handlers.push(Box::new(WebSearchPickerHandler));
 
         Self { handlers }
     }

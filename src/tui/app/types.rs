@@ -187,6 +187,17 @@ pub enum GlobalMode {
         entries: Vec<(String, String)>, // (display_name, full_path)
         selected: usize,
     },
+    WebSearchPicker {
+        enabled: bool,
+        engine: String,
+        engine_url: String,
+        api_key: Option<String>,
+        selected_field: i32, // -1=enabled, 0=engine, 1=url, 2=api_key
+        engine_picker_selected: usize,
+        editing: bool,
+        edit_buffer: String,
+        edit_cursor_pos: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

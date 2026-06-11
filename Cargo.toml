@@ -55,6 +55,7 @@ libc = "0.2"
    arboard = "3"
       sysinfo = "0.38"
     regex = "1"
+scraper = "0.21"
 
 [dev-dependencies]
 wiremock = "0.6"
