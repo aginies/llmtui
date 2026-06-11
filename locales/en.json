@@ -280,7 +280,7 @@
   "dialog.search.execute": "  [↵] search  ",
   "dialog.search.cancel": "  [⎋] cancel  ",
    "dialog.web_search.title": " Web Search Configuration  ",
-   "dialog.web_search.enabled": "[Enabled]",
+   "dialog.web_search.enabled": "Enabled: ",
    "dialog.web_search.on": "On",
    "dialog.web_search.off": "Off",
    "dialog.web_search.engine": "[Engine]",

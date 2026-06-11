@@ -209,7 +209,7 @@
   "dialog.rpc.title": " RPC Workers Manager ",
 "dialog.search.cancel": "  [⎋] cancel  ",
    "dialog.web_search.title": " Configurazione Ricerca Web ",
-   "dialog.web_search.enabled": "[Abilitato]",
+   "dialog.web_search.enabled": "Abilitato: ",
    "dialog.web_search.on": "On",
    "dialog.web_search.off": "Off",
    "dialog.web_search.engine": "[Motore]",
