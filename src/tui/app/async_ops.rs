@@ -283,18 +283,22 @@ impl App {
                 Ok(Err(e)) => {
                     if let crate::tui::app::GlobalMode::WebSearchPicker {
                         check_status,
+                        enabled,
                         ..
                     } = &mut self.ui.global_mode
                     {
+                        *enabled = false;
                         *check_status = Some(crate::tui::app::WebSearchCheckStatus::Error(e));
                     }
                 }
                 Err(e) => {
                     if let crate::tui::app::GlobalMode::WebSearchPicker {
                         check_status,
+                        enabled,
                         ..
                     } = &mut self.ui.global_mode
                     {
+                        *enabled = false;
                         *check_status = Some(crate::tui::app::WebSearchCheckStatus::Error(format!(
                             "Task failed: {}",
                             e
