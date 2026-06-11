@@ -5,7 +5,6 @@ use crate::models::{BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadPro
 
 use ratatui::widgets::TableState;
 use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::{
@@ -146,8 +145,10 @@ pub struct PendingOperations {
     /// for the async kill operation.
     pub pending_kill: Option<ServerHandle>,
     /// Backend resolution state — moved here from old PendingOperations.
-    pub backend_resolving: bool,
-    pub backend_resolve_handle: Option<tokio::task::JoinHandle<Result<PathBuf, String>>>,
+   pub backend_resolving: bool,
+    pub backend_resolve_handle: Option<tokio::task::JoinHandle<Result<std::path::PathBuf, String>>>,
+    /// Web search health check handle.
+    pub web_search_check_handle: Option<tokio::task::JoinHandle<Result<(), String>>>,
     /// Dirty flag for active_model_hint — set to true when model_states changes.
     pub active_model_hint_dirty: bool,
     /// Cached metrics model name for debouncing.

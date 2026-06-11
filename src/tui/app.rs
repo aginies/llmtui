@@ -184,6 +184,7 @@ impl App {
                 pending_kill: None,
                 backend_resolving: false,
                 backend_resolve_handle: None,
+                web_search_check_handle: None,
                 active_model_hint_dirty: true,
                 metrics_model_name_cache: None,
                 metrics_model_name_last: None,

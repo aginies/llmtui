@@ -309,6 +309,7 @@ async fn main() -> Result<()> {
                     app.tick_settings_help();
                     app.tick_metrics_model_name();
                     app.tick_backend_resolution().await;
+                    app.tick_web_search_check().await;
                     app.tick_loading_completion().await;
                     app.tick_server_exit();
                     app.tick_completed_downloads();

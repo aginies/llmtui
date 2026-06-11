@@ -265,6 +265,47 @@ impl App {
         }
     }
 
+    pub async fn tick_web_search_check(&mut self) {
+        if let Some(handle) = &self.pending.web_search_check_handle
+            && handle.is_finished()
+            && let Some(handle) = self.pending.web_search_check_handle.take()
+        {
+            match handle.await {
+                Ok(Ok(())) => {
+                    if let crate::tui::app::GlobalMode::WebSearchPicker {
+                        check_status,
+                        ..
+                    } = &mut self.ui.global_mode
+                    {
+                        *check_status = Some(crate::tui::app::WebSearchCheckStatus::Ok);
+                    }
+                }
+                Ok(Err(e)) => {
+                    if let crate::tui::app::GlobalMode::WebSearchPicker {
+                        check_status,
+                        ..
+                    } = &mut self.ui.global_mode
+                    {
+                        *check_status = Some(crate::tui::app::WebSearchCheckStatus::Error(e));
+                    }
+                }
+                Err(e) => {
+                    if let crate::tui::app::GlobalMode::WebSearchPicker {
+                        check_status,
+                        ..
+                    } = &mut self.ui.global_mode
+                    {
+                        *check_status = Some(crate::tui::app::WebSearchCheckStatus::Error(format!(
+                            "Task failed: {}",
+                            e
+                        )));
+                    }
+                }
+            }
+            self.ui.needs_redraw = true;
+        }
+    }
+
     pub fn tick_download_progress(&mut self) {
         if self.download.last_progress_update.elapsed() < DOWNLOAD_PROGRESS_INTERVAL {
             return;

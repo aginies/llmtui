@@ -2,9 +2,10 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
+use reqwest;
 
 use super::super::helpers::{TextEditor, sync_global_settings};
-use crate::tui::app::{App, GlobalMode};
+use crate::tui::app::{App, GlobalMode, WebSearchCheckStatus};
 
 use super::OverlayHandler;
 
@@ -31,6 +32,7 @@ impl OverlayHandler for WebSearchPickerHandler {
                 editing,
                 edit_buffer,
                 edit_cursor_pos,
+                check_status,
             } = &mut app.ui.global_mode
             {
                 // ── Engine sub-picker ──────────────────────────────────
@@ -92,12 +94,24 @@ impl OverlayHandler for WebSearchPickerHandler {
                             return;
                         }
                         match *selected_field {
-                            -1 => {
-                                // Toggle enabled
-                                *enabled = !*enabled;
-                                app.config.default.web_search_enabled = *enabled;
-                                sync_global_settings(app);
-                            }
+                             -1 => {
+                                 // Toggle enabled
+                                 *enabled = !*enabled;
+                                 app.config.default.web_search_enabled = *enabled;
+                                 if *enabled && !engine_url.is_empty() {
+                                     let engine = engine.clone();
+                                     let engine_url = engine_url.clone();
+                                     let api_key = api_key.clone();
+                                     *check_status = Some(WebSearchCheckStatus::Checking);
+                                     app.ui.needs_redraw = true;
+                                     let handle = tokio::spawn(async move {
+                                         check_web_search_health(&engine, &engine_url, api_key.as_deref().unwrap_or("")).await
+                                     });
+                                     app.pending.web_search_check_handle = Some(handle);
+                                 } else if *enabled {
+                                     *check_status = None;
+                                 }
+                             }
                             0 => {
                                 // Open engine picker
                                 let current = engine.as_str();
@@ -106,22 +120,25 @@ impl OverlayHandler for WebSearchPickerHandler {
                                 *selected_field = -2; // sentinel for engine picker
                             }
                             1 => {
-                                // Edit URL
-                                edit_buffer.clone_from(engine_url);
-                                *editing = true;
-                                *edit_cursor_pos = edit_buffer.chars().count();
-                            }
-                            2 => {
-                                // Edit API key
-                                edit_buffer.clear();
-                                if let Some(ref key) = *api_key {
-                                    edit_buffer.push_str(key);
-                                }
-                                *editing = true;
-                                *edit_cursor_pos = edit_buffer.chars().count();
-                            }
-                            _ => {}
+                                 // Edit URL
+                                 edit_buffer.clone_from(engine_url);
+                                 *editing = true;
+                                 *edit_cursor_pos = edit_buffer.chars().count();
+                                 *check_status = None;
+                             }
+                             2 => {
+                                 // Edit API key
+                                 edit_buffer.clear();
+                                 if let Some(ref key) = *api_key {
+                                     edit_buffer.push_str(key);
+                                 }
+                                 *editing = true;
+                                 *edit_cursor_pos = edit_buffer.chars().count();
+                                 *check_status = None;
+                             }
+                             _ => {}
                         }
+                        sync_global_settings(app);
                     }
                     // ── Navigation ─────────────────────────────────────
                     KeyCode::Up | KeyCode::Char('k') => {
@@ -168,11 +185,58 @@ impl OverlayHandler for WebSearchPickerHandler {
                         TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.home();
                     }
                     KeyCode::End if *editing => {
-                        TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.end();
-                    }
-                    _ => {}
+                         TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.end();
+                     }
+                     // ── Manual check ───────────────────────────────────
+                     KeyCode::Char('c') if !*editing => {
+                         if *selected_field == -1 && *enabled && !engine_url.is_empty() {
+                             let engine = engine.clone();
+                             let engine_url = engine_url.clone();
+                             let api_key = api_key.clone();
+                             *check_status = Some(WebSearchCheckStatus::Checking);
+                             app.ui.needs_redraw = true;
+                             let handle = tokio::spawn(async move {
+                                 check_web_search_health(&engine, &engine_url, api_key.as_deref().unwrap_or("")).await
+                             });
+                             app.pending.web_search_check_handle = Some(handle);
+                         }
+                     }
+                     _ => {}
                 }
             }
         })
+    }
+}
+
+async fn check_web_search_health(_engine: &str, engine_url: &str, api_key: &str) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let url = format!(
+        "{}/search?q=test&format=json",
+        engine_url.trim_end_matches('/')
+    );
+
+    let mut request = client
+        .get(&url)
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        )
+        .timeout(std::time::Duration::from_secs(10));
+
+    if !api_key.is_empty() {
+        request = request.header("Authorization", format!("Bearer {}", api_key));
+    }
+
+    let response = request.send().await.map_err(|e| format!("Connection failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}: {}", response.status(), response.status().canonical_reason().unwrap_or("Unknown")));
+    }
+
+    let body = response.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
+
+    match body.parse::<serde_json::Value>() {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Invalid JSON response: {}", e)),
     }
 }

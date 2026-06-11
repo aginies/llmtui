@@ -288,6 +288,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         engine_picker_selected,
         editing,
         edit_buffer,
+        check_status,
         edit_cursor_pos: _,
     } = &app.ui.global_mode
     {
@@ -303,6 +304,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             *engine_picker_selected,
             *editing,
             edit_buffer,
+            check_status,
         );
         return true;
     }
@@ -322,6 +324,7 @@ fn render_web_search_picker(
     engine_picker_selected: usize,
     editing: bool,
     edit_buffer: &str,
+    check_status: &Option<crate::tui::app::WebSearchCheckStatus>,
 ) {
     let engines = ["searxng", "duckduckgo", "brave", "google", "startpage"];
     let w = 65u16;
@@ -446,7 +449,7 @@ fn render_web_search_picker(
     } else {
         String::new()
     };
-    picker_lines.push(Line::from(vec![
+      picker_lines.push(Line::from(vec![
         Span::styled(key_marker, Style::default().fg(Color::Yellow)),
         Span::styled(
             crate::t!("dialog.web_search.api_key"),
@@ -455,6 +458,36 @@ fn render_web_search_picker(
         Span::styled(key_val, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(""));
+    // Render check status if available
+    if let Some(status) = check_status {
+        match status {
+            crate::tui::app::WebSearchCheckStatus::Checking => {
+                picker_lines.push(Line::from(Span::styled(
+                    "Checking...".to_string(),
+                    Style::default().fg(Color::Yellow),
+                )));
+                picker_lines.push(Line::from(""));
+            }
+            crate::tui::app::WebSearchCheckStatus::Ok => {
+                picker_lines.push(Line::from(Span::styled(
+                    "OK".to_string(),
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                )));
+                picker_lines.push(Line::from(""));
+            }
+            crate::tui::app::WebSearchCheckStatus::Error(e) => {
+                picker_lines.push(Line::from(Span::styled(
+                    format!("Error: {}", e),
+                    Style::default()
+                        .fg(Color::Red)
+                        .add_modifier(Modifier::BOLD),
+                )));
+                picker_lines.push(Line::from(""));
+            }
+        }
+    }
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.web_search.help"),
         Style::default()

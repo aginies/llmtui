@@ -1722,6 +1722,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         editing: false,
                         edit_buffer: String::new(),
                         edit_cursor_pos: 0,
+                        check_status: None,
                     };
                 }
                 9 => {
