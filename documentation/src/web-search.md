@@ -129,6 +129,38 @@ services:
       - ./settings.yml:/etc/searxng/settings.yml
 ```
 
+### Podman
+
+SearXNG runs under Podman using the same image. Create a `podman-compose.yml`:
+
+```yaml
+services:
+  searxng:
+    image: searxng/searxng
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml
+```
+
+Run with podman-compose:
+
+```bash
+podman-compose up -d
+```
+
+Or with a standalone Podman container:
+
+```bash
+podman run -d \
+  --name searxng \
+  -p 8080:8080 \
+  -v ./settings.yml:/etc/searxng/settings.yml:Z \
+  searxng/searxng
+```
+
+The `:Z` flag handles SELinux labeling. For non-SELinux systems, omit it.
+
 After deployment, use the public URL (e.g., `http://localhost:8080` or `https://search.example.com`) as the Engine URL in llm-manager.
 
 ## Settings Panel Display
