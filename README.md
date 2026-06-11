@@ -33,6 +33,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - **WebSocket Dashboard** — live metrics and settings visualization via WebSocket server (configurable port, optional auth)
 - **Multiple Model Directories** — scan multiple directories for models; downloads go to the first directory
 - **Panel Resize** — drag the border between left and right panels, or use `Shift+←/→` to adjust (20%-80%)
+- **Web Search** — automatically search the web via SearXNG when messages contain comparison/research keywords, inject results into prompt
 
 ## Prerequisites
 
@@ -232,6 +233,8 @@ The Server Settings panel (top-right) shows server configuration:
 | Mode | Server mode — `↵` toggles between Normal, Router, Bench, and BenchTune |
 | API Endpoint | Enable API proxy — `↵` toggles (disabled while server is running) |
 | RPC Workers | Open the distributed inference manager window — press `↵` |
+| API Key | API key for SearXNG authentication (optional) |
+| Web Search | Web search configuration — `↵` opens picker (enabled, engine, URL, API key) |
 | API Port | Port for the API proxy server (default: 49222) |
 | Dashboard | WebSocket dashboard server — `↵` opens configuration picker (enabled, port, auth key, TLS) |
 | Language | UI language — `↵` cycles between en/fr/it |
@@ -365,6 +368,36 @@ Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSetti
 | **README horizontal scroll** | `h`/`l` keys scroll horizontally |
 | **Multi-word search** | Type space-separated words (e.g. "qwen opus"); all must match the model name. Matching words are highlighted in cyan. |
 | **README rendering** | Full markdown renderer with headings, code blocks, lists, blockquotes, tables, and task lists |
+
+### Web Search
+
+llm-manager can automatically search the web when your chat messages contain research-oriented keywords (compare, vs, review, which is better, pros and cons, latest, best, recommend, etc.). Results are fetched via [SearXNG](https://github.com/searxng/searxng) and injected into the prompt before your message.
+
+**Configuration:** Open the Server Settings panel (F2), navigate to the **Web Search** field, and press `↵`. The Web Search Picker dialog shows:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| **Enabled** | Toggle | Turn web search on/off |
+| **Engine** | Picker | Search engine (searxng, duckduckgo, brave, google, startpage) — only SearXNG with a configured URL returns results |
+| **Engine URL** | Text input | URL of your self-hosted SearXNG instance (e.g., `https://search.example.com`) |
+| **API Key** | Text input | Bearer token for SearXNG authentication (optional, masked as `****` when set) |
+
+**How it works:** When a message matches a search keyword, the app:
+1. Uses the message as the search query
+2. Fetches up to 10 results via SearXNG (`{engine_url}/search?q={query}&format=json`)
+3. Fetches Wikipedia pages and up to 5 other URLs in parallel
+4. Prepends a `[WEB CONTEXT]...[END WEB CONTEXT]` block to the message with search results and page content
+
+**Timeout:** Web search has a 15-second timeout per request.
+
+**Config YAML:**
+```yaml
+default:
+  web_search_enabled: true
+  web_search_engine: searxng
+  web_search_engine_url: "https://search.example.com"
+  web_search_api_key: null  # optional
+```
 
 ### WebSocket Dashboard
 

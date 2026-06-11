@@ -5,6 +5,7 @@
 - [Usage](usage.md)
 - [Configuration](config.md)
 - [Chat Templates](chat-templates.md)
+- [Web Search](web-search.md)
 - [GGUF Filename Explanation](gguf-filename-explanation.md)
 - [Onboarding Tour](onboarding.md)
 - [Dashboard URL Modal](dashboard-url-modal.md)
