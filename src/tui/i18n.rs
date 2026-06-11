@@ -11,6 +11,7 @@ pub static TRANSLATIONS: LazyLock<HashMap<String, HashMap<&'static str, &'static
             ("en", include_str!("../../locales/en.json")),
             ("fr", include_str!("../../locales/fr.json")),
             ("it", include_str!("../../locales/it.json")),
+            ("de", include_str!("../../locales/de.json")),
         ];
 
         for (lang, json_content) in embedded_locales {

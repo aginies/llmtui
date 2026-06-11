@@ -7,31 +7,19 @@ pub struct SearchResult {
     pub snippet: String,
 }
 
-static SEARCH_KEYWORDS: &[&str] = &[
-    "compare",
-    "comparison",
-    "vs",
-    "versus",
-    "between",
-    "review",
-    "which is better",
-    "vs.",
-    "pros and cons",
-    "differences",
-    "latest",
-    "new",
-    "best",
-    "top",
-    "recommend",
-    "should i buy",
-    "is it worth",
-];
-
 pub fn needs_search(message: &str) -> bool {
     let lower = message.to_lowercase();
-    SEARCH_KEYWORDS
+    get_search_keywords()
         .iter()
         .any(|keyword| lower.contains(keyword))
+}
+
+fn get_search_keywords() -> Vec<String> {
+    let keywords_str = crate::t!("search.keywords");
+    keywords_str
+        .split(',')
+        .map(|k| k.trim().to_string())
+        .collect()
 }
 
 pub async fn search_web(query: &str, max_results: usize, engine: &str, engine_url: &str, api_key: &str) -> Result<Vec<SearchResult>> {
