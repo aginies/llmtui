@@ -373,6 +373,8 @@ Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSetti
 
 llm-manager can automatically search the web when your chat messages contain research-oriented keywords (compare, vs, review, which is better, pros and cons, latest, best, recommend, etc.). Results are fetched via [SearXNG](https://github.com/searxng/searxng) and injected into the prompt before your message.
 
+**Server-side flow:** Web search runs entirely on the llm-manager server. External clients connect to the API proxy (default port `49222`) — no special headers or endpoints needed. The server intercepts chat completions, performs the SearXNG search, injects results into the prompt, and forwards the enriched request to llama-server. Clients never need direct access to SearXNG.
+
 **Configuration:** Open the Server Settings panel (F2), navigate to the **Web Search** field, and press `↵`. The Web Search Picker dialog shows:
 
 | Field | Type | Description |

@@ -2,6 +2,26 @@
 
 llm-manager can automatically search the web when your chat messages contain research-oriented keywords. Results are fetched via [SearXNG](https://github.com/searxng/searxng) and injected into the prompt before your message, allowing the LLM to cite sources and provide up-to-date information.
 
+## Server-Side Flow
+
+Web search runs **entirely on the llm-manager server**. External clients (chat frontends, curl, etc.) connect to llm-manager's API proxy (default port `49222`) just like any other chat request — no special headers or endpoints needed. The server intercepts chat completions requests, checks for search keywords, performs the SearXNG search, injects the results into the prompt, and forwards the enriched request to llama-server.
+
+```
+┌──────────┐     /v1/chat/completions      ┌──────────────────┐
+│  Client  │ ──────────────────────────────►│ llm-manager API  │
+│ (curl,   │ ◄──────────────────────────────│ proxy (port 49222)│
+│  UI, etc)│     SSE streaming response     └────────┬─────────┘
+└──────────┘                                        │
+                                                    │ triggers SearXNG
+                                                    ▼
+                                           ┌──────────────────┐
+                                           │   SearXNG        │
+                                           │   instance       │
+                                           └──────────────────┘
+```
+
+The `web_search_engine_url` config points to the **SearXNG instance**, not the client. Clients never need direct access to SearXNG — they only talk to llm-manager's API proxy.
+
 ## Trigger Keywords
 
 Web search is **not** always active. It is triggered only when your message contains one of these keyword phrases:
