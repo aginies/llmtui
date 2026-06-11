@@ -379,7 +379,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         "Disabled"
     };
     let web_search_engine_name = &app.config.default.web_search_engine;
-    let web_search_display = format!("Web Search ({}: {})", web_search_status, web_search_engine_name);
+    let web_search_display = format!("({}: {})", web_search_status, web_search_engine_name);
     settings_helper::add_setting(
         &mut lines,
         &mut count,
