@@ -458,36 +458,26 @@ fn render_web_search_picker(
         Span::styled(key_val, Style::default().fg(Color::White)),
     ]));
     picker_lines.push(Line::from(""));
-    // Render check status if available
-    if let Some(status) = check_status {
-        match status {
-            crate::tui::app::WebSearchCheckStatus::Checking => {
-                picker_lines.push(Line::from(Span::styled(
-                    "Checking...".to_string(),
-                    Style::default().fg(Color::Yellow),
-                )));
-                picker_lines.push(Line::from(""));
-            }
-            crate::tui::app::WebSearchCheckStatus::Ok => {
-                picker_lines.push(Line::from(Span::styled(
-                    "OK".to_string(),
-                    Style::default()
-                        .fg(Color::Green)
-                        .add_modifier(Modifier::BOLD),
-                )));
-                picker_lines.push(Line::from(""));
-            }
-            crate::tui::app::WebSearchCheckStatus::Error(e) => {
-                picker_lines.push(Line::from(Span::styled(
-                    format!("Error: {}", e),
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
-                )));
-                picker_lines.push(Line::from(""));
-            }
+    // Render validation status
+    let validation_text = match check_status {
+        Some(crate::tui::app::WebSearchCheckStatus::Checking) => {
+            format!("{}{}", crate::t!("dialog.web_search.validation"), crate::t_fmt!("dialog.web_search.checking"))
         }
-    }
+        Some(crate::tui::app::WebSearchCheckStatus::Ok) => {
+            format!("{}{}", crate::t!("dialog.web_search.validation"), crate::t!("dialog.web_search.ok"))
+        }
+        Some(crate::tui::app::WebSearchCheckStatus::Error(e)) => {
+            format!("{}{}", crate::t!("dialog.web_search.validation"), e)
+        }
+        None => {
+            format!("{}{}", crate::t!("dialog.web_search.validation"), crate::t!("dialog.web_search.unknown"))
+        }
+    };
+    picker_lines.push(Line::from(Span::styled(
+        validation_text,
+        Style::default().fg(Color::Yellow),
+    )));
+    picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.web_search.help"),
         Style::default()
