@@ -875,3 +875,37 @@ fn bench_tune_config_new_has_default_params() {
     assert_eq!(config.params_to_test.len(), 10);
     assert_eq!(config.test_duration, std::time::Duration::from_secs(30));
 }
+
+// ── WsMetrics from_metrics ──────────────────────────────────────
+
+#[test]
+fn test_ws_metrics_from_metrics_prompt_tokens() {
+    let metrics = ServerMetrics {
+        loaded: true,
+        tps: 25.5,
+        prompt_tps: 100.0,
+        cpu_usage: 45.0,
+        gpu_mem_used: 8_000,
+        gpu_mem_total: 16_000,
+        ram_used: 16_000,
+        ctx_used: 128,
+        ctx_max: 32768,
+        total_vram_used: 8_000,
+        decoded_tokens: 0,
+        gen_tps: 0.0,
+        latency_per_token_ms: 0.0,
+        prompt_latency_ms: 0.0,
+        prompt_tokens: 512, // Actual prompt tokens
+        prompt_progress: 0.5, // 50% evaluated
+        prompt_elapsed_ms: 120.0,
+        prompt_tps_eval: 200.0,
+    };
+    let settings = ModelSettings::default();
+    let ws_metrics = WsMetrics::from_metrics(&metrics, "test-model", "loaded", &settings, None);
+
+    // Verify that the actual prompt_tokens (512) is preserved and not overridden by 0 (ctx_used * progress fallback).
+    assert_eq!(ws_metrics.prompt_tokens, 512);
+    assert_eq!(ws_metrics.prompt_progress, 0.5);
+    assert_eq!(ws_metrics.prompt_elapsed_ms, 120.0);
+    assert_eq!(ws_metrics.prompt_tps_eval, 200.0);
+}

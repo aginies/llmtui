@@ -502,6 +502,7 @@ impl App {
         let mut server_logs = Vec::new();
         let mut prev_line: Option<String> = None;
         if let Some(rx) = &mut self.server.server_log_rx {
+            let old_metrics = self.metrics.clone();
             while let Ok(line) = rx.try_recv() {
                 let is_generation = line.contains("n_decoded =");
                 let is_prompt_processing = line.contains("prompt processing");
@@ -631,6 +632,18 @@ impl App {
                 if server_logs.len() > 100 {
                     break;
                 }
+            }
+
+            let metrics_changed = self.metrics.prompt_tokens != old_metrics.prompt_tokens
+                || (self.metrics.prompt_progress - old_metrics.prompt_progress).abs() > 0.0001
+                || (self.metrics.prompt_elapsed_ms - old_metrics.prompt_elapsed_ms).abs() > 0.1
+                || (self.metrics.prompt_tps_eval - old_metrics.prompt_tps_eval).abs() > 0.01
+                || self.metrics.ctx_used != old_metrics.ctx_used
+                || self.metrics.decoded_tokens != old_metrics.decoded_tokens
+                || (self.metrics.gen_tps - old_metrics.gen_tps).abs() > 0.01;
+
+            if metrics_changed {
+                self.ui.metrics_changed = true;
             }
         }
         if !server_logs.is_empty() {
@@ -769,6 +782,12 @@ impl App {
                 if m.cpu_usage == 0.0 && self.metrics.cpu_usage > 0.0 {
                     m.cpu_usage = self.metrics.cpu_usage;
                 }
+
+                // Carry over prompt metrics parsed from logs as they are not reported by the /metrics API.
+                m.prompt_tokens = self.metrics.prompt_tokens;
+                m.prompt_progress = self.metrics.prompt_progress;
+                m.prompt_elapsed_ms = self.metrics.prompt_elapsed_ms;
+                m.prompt_tps_eval = self.metrics.prompt_tps_eval;
 
                 // Only redraw if metrics actually changed
                 let any_changed = m.loaded != self.metrics.loaded

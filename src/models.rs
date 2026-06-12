@@ -280,6 +280,16 @@ pub fn strip_gguf(name: &str) -> &str {
         .unwrap_or(name)
 }
 
+/// Extract just the filename from a path, stripping the .gguf extension.
+/// e.g., "repo/model/file.gguf" → "file"
+pub fn model_filename(name: &str) -> String {
+    let filename = std::path::Path::new(name)
+        .file_name()
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_else(|| name.to_string());
+    strip_gguf(&filename).to_string()
+}
+
 /// Ensure host string is valid for URL construction and CLI arguments.
 /// Handles empty strings (defaults to 127.0.0.1), strips display suffixes,
 /// and wraps IPv6 addresses in brackets.
@@ -1599,8 +1609,8 @@ impl WsMetrics {
             gpu_mem_total: metrics.gpu_mem_total,
             ram_used: metrics.ram_used,
             latency_per_token_ms: metrics.latency_per_token_ms,
-            decoded_tokens: metrics.decoded_tokens,
-             gen_tps: metrics.gen_tps,
+           decoded_tokens: metrics.decoded_tokens,
+            gen_tps: metrics.gen_tps,
             prompt_tokens: metrics.prompt_tokens,
             prompt_progress: metrics.prompt_progress,
             prompt_elapsed_ms: metrics.prompt_elapsed_ms,

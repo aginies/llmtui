@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Paragraph},
 };
 
-use crate::models::{ModelState, strip_gguf};
+use crate::models::{ModelState, model_filename, strip_gguf};
 use crate::tui::app::App;
 use crate::tui::format_size;
 
@@ -111,21 +111,21 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Robust check for Benchmarking - prioritize global flag
     if app.bench_tune.bench_tune_running {
-        let display_name = if let Some(m) = app.selected_model() {
-            strip_gguf(&m.name).to_string()
-        } else {
-            "Benchmarking".to_string()
-        };
+   let display_name = if let Some(m) = app.selected_model() {
+             model_filename(&m.name)
+         } else {
+             "Benchmarking".to_string()
+         };
 
-        lines.push(Line::from(vec![
-            Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
-            Span::styled(
-                display_name,
-                Style::default()
-                    .fg(Color::White)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        ]));
+                lines.push(Line::from(vec![
+                     Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
+                     Span::styled(
+                         display_name,
+                         Style::default()
+                             .fg(Color::White)
+                             .add_modifier(Modifier::BOLD),
+                     ),
+                 ]));
 
         lines.push(Line::from(vec![
             Span::styled(" Status: ", Style::default().fg(Color::Yellow)),
@@ -284,7 +284,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 lines.push(Line::from(vec![
                     Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
                     Span::styled(
-                        strip_gguf(name),
+                        model_filename(name),
                         Style::default()
                             .fg(Color::White)
                             .add_modifier(Modifier::BOLD),
@@ -427,7 +427,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 lines.push(Line::from(vec![
                     Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
                     Span::styled(
-                        strip_gguf(name),
+                        model_filename(name),
                         Style::default()
                             .fg(Color::White)
                             .add_modifier(Modifier::BOLD),
@@ -448,7 +448,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 lines.push(Line::from(vec![
                     Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
                     Span::styled(
-                        strip_gguf(name),
+                        model_filename(name),
                         Style::default()
                             .fg(Color::White)
                             .add_modifier(Modifier::BOLD),
@@ -535,7 +535,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 lines.push(Line::from(vec![
                     Span::styled(" Model:  ", Style::default().fg(Color::Yellow)),
                     Span::styled(
-                        strip_gguf(name),
+                        model_filename(name),
                         Style::default()
                             .fg(Color::White)
                             .add_modifier(Modifier::BOLD),
