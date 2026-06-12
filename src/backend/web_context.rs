@@ -109,8 +109,8 @@ pub async fn build_injected_prompt(
     };
 
     let needs = web_search::needs_search(&content);
-    info!("Web search: needs_search={} for '{}'", needs, &content[..content.len().min(80)]);
-    log(log_callback, format!("Web search: needs_search={} for '{}'", needs, &content[..content.len().min(80)]));
+    info!("Web search: needs_search={} for '{}'", needs, &content[..content.char_indices().nth(80).map(|(i, _)| i).unwrap_or(content.len())]);
+    log(log_callback, format!("Web search: needs_search={} for '{}'", needs, &content[..content.char_indices().nth(80).map(|(i, _)| i).unwrap_or(content.len())]));
     if !needs {
         log(log_callback, "Web search: no search keywords found, skipping".into());
         return InjectedPrompt {
@@ -119,8 +119,8 @@ pub async fn build_injected_prompt(
         };
     }
 
-    info!("Web search: triggering for message: {}", &content[..content.len().min(100)]);
-    log(log_callback, format!("Web search: triggering for: '{}'", &content[..content.len().min(100)]));
+    info!("Web search: triggering for message: {}", &content[..content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(content.len())]);
+    log(log_callback, format!("Web search: triggering for: '{}'", &content[..content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(content.len())]));
 
     let query = content.to_string();
     let engine = web_search_engine.to_string();
