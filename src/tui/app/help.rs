@@ -31,6 +31,10 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("panel.help.models.delete"))),
                 ]),
                 Line::from(vec![
+                    Span::styled("^G", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.models.gguf_explanation"))),
+                ]),
+                Line::from(vec![
                     Span::styled("^S", y),
                     Span::raw(format!(
                         "  {}",

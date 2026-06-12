@@ -417,6 +417,7 @@
   "models.list_headers.params": "Parameter",
   "models.list_headers.quality": "Qual",
   "models.list_status.loaded": "[geladen]",
+  "models.already_loaded": "Ein Modell ist bereits geladen. Laden Sie es zuerst entladen.",
   "models.list_status.loading": "wird geladen",
   "models.list_status.benchmarking": "Benchmark läuft",
   "models.list_status.available": "verfügbar",
@@ -596,7 +597,7 @@
   "hints.expert": "^X eXpert",
   "hints.profiles": "^P Profile",
   "hints.filter": "f Filter",
-  "hints.load_unload": "l/laden, u/entladen",
+  "hints.load_unload": "u/l ent/laden",
   "hints.delete": "^D Löschen",
   "hints.help": "^H Hilfe",
   "hints.scroll": "j/k Scrollen",
@@ -712,5 +713,6 @@
   "model_info.capabilities": "Funktionen",
   "dialog.web_search.validation": "Validierung: ",
   "dialog.web_search.unknown": "Unbekannt",
-  "active.prompt": "Fortschritt: {} {} {} tokens ({:.0} t/s)"
+  "active.prompt": "Fortschritt: {} {} {} tokens ({:.0} t/s)",
+  "panel.help.models.gguf_explanation": "GGUF Dateiname Erklärung"
 }

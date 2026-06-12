@@ -23,6 +23,8 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     if let Some(handle) = &app.server.server_handle {
         let label = if app.server_mode == crate::models::ServerMode::Bench {
             crate::t!("status.benchmarking").to_string()
+        } else if app.settings.api_endpoint_enabled {
+            format!("api:{} llm:{}", app.settings.api_endpoint_port, handle.port)
         } else {
             format!("{} {}", handle.port, app.server_mode)
         };

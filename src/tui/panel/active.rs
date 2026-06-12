@@ -76,7 +76,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_active_focused {
         (BorderType::Thick, Color::Green)
     } else {
-        (BorderType::Plain, Color::DarkGray)
+        (BorderType::Plain, Color::Gray)
     };
 
     let mut title_with_bar = title_spans.clone();
@@ -291,24 +291,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     ),
                 ]));
 
-                let tps_style = if app.metrics.tps > 30.0 {
-                    Style::default().fg(Color::Green)
-                } else if app.metrics.tps > 15.0 {
-                    Style::default().fg(Color::Yellow)
-                } else if app.metrics.tps > 0.0 {
-                    Style::default().fg(Color::Red)
-                } else {
-                    Style::default().fg(Color::DarkGray)
-                };
-                let prompt_style = if app.metrics.prompt_tps > 100.0 {
-                    Style::default().fg(Color::Green)
-                } else if app.metrics.prompt_tps > 50.0 {
-                    Style::default().fg(Color::Yellow)
-                } else if app.metrics.prompt_tps > 0.0 {
-                    Style::default().fg(Color::Red)
-                } else {
-                    Style::default().fg(Color::DarkGray)
-                };
+                let tps_style = Style::default().fg(Color::Cyan);
+                let prompt_style = Style::default().fg(Color::Cyan);
 
                 let tps_str = format!("{:.1}", app.metrics.tps);
                 let prompt_str = format!("{:.1}", app.metrics.prompt_tps);
@@ -319,15 +303,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     String::new()
                 };
 
-                let gen_tps_style = if app.metrics.gen_tps > 30.0 {
-                    Style::default().fg(Color::Green)
-                } else if app.metrics.gen_tps > 15.0 {
-                    Style::default().fg(Color::Yellow)
-                } else if app.metrics.gen_tps > 0.0 {
-                    Style::default().fg(Color::Red)
-                } else {
-                    Style::default().fg(Color::DarkGray)
-                };
+                let gen_tps_style = Style::default().fg(Color::Cyan);
 
                 let tps_parts = vec![
                     Span::styled(" [ ", Style::default().fg(Color::White)),
@@ -338,9 +314,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     } else {
                         Span::styled(" ".repeat(10), Style::default().fg(Color::DarkGray))
                     },
-                    Span::styled(" (prompt: ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(" (prompt: ", Style::default().fg(Color::Gray)),
                     Span::styled(prompt_str, prompt_style),
-                    Span::styled(")", Style::default().fg(Color::DarkGray)),
+                    Span::styled(")", Style::default().fg(Color::Gray)),
                     Span::styled(" ]", Style::default().fg(Color::White)),
                     Span::styled("  [ ", Style::default().fg(Color::White)),
                     Span::styled("Decoded: ", Style::default().fg(Color::Yellow)),
@@ -351,7 +327,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled("  ", Style::default().fg(Color::White)),
                     Span::styled("Gen: ", Style::default().fg(Color::Yellow)),
                     Span::styled(format!("{:.1}", app.metrics.gen_tps), gen_tps_style),
-                    Span::styled(" t/s", Style::default().fg(Color::DarkGray)),
+                    Span::styled(" t/s", Style::default().fg(Color::Cyan)),
                     Span::styled(" ]", Style::default().fg(Color::White)),
                 ];
 

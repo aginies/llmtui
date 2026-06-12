@@ -1213,14 +1213,13 @@ pub fn add_setting(
 ) {
     let current_line = lines.len();
     let name_style = if disabled {
-        Style::default().fg(Color::DarkGray)
+        Style::default().fg(Color::Rgb(180, 180, 180))
     } else {
         Style::default().fg(Color::Yellow)
     };
     let val_style = if disabled {
         Style::default()
-            .fg(Color::DarkGray)
-            .add_modifier(Modifier::DIM)
+            .fg(Color::Rgb(180, 180, 180))
     } else {
         Style::default().fg(Color::White)
     };

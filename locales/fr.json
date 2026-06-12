@@ -374,7 +374,7 @@
   "hints.gguf": "^G GGUF",
   "hints.help": "^H Aide",
   "hints.reset": "^R Reset",
-  "hints.load_unload": "l/charger, u/décharger",
+  "hints.load_unload": "u/l dé/charger",
   "hints.loading": "[chargement]",
   "hints.nav": "j/k nav",
   "hints.new": "n Nouveau",
@@ -708,5 +708,7 @@
   "model_info.capabilities": "Capabilités",
   "dialog.web_search.validation": "Validation: ",
   "dialog.web_search.unknown": "Inconnu",
-  "active.prompt": "Progression: {} {} {} tokens ({:.0} t/s)"
+  "active.prompt": "Progression: {} {} {} tokens ({:.0} t/s)",
+  "models.already_loaded": "Un modèle est déjà chargé. Déchargez-le d'abord.",
+  "panel.help.models.gguf_explanation": "Explication du nom de fichier GGUF"
 }

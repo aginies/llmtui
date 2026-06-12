@@ -374,7 +374,7 @@
   "hints.gguf": "^G GGUF",
   "hints.help": "^H Aiuto",
   "hints.reset": "^R Reset",
-  "hints.load_unload": "l/carica, u/scarica",
+  "hints.load_unload": "u/l s/carica",
   "hints.loading": "[caricamento]",
   "hints.nav": "j/k nav",
   "hints.new": "n Nuovo",
@@ -472,6 +472,7 @@
   "models.list_headers.params": "Params",
   "models.list_headers.quality": "Qual",
   "models.list_status.loaded": "[caricato]",
+  "models.already_loaded": "Un modello è già caricato. Scaricalo prima.",
   "models.list_status.loading": "caricamento",
   "models.list_status.benchmarking": "benchmark",
   "models.list_status.available": "disponibile",
@@ -708,5 +709,6 @@
   "model_info.capabilities": "Capacità",
   "dialog.web_search.validation": "Validazione: ",
   "dialog.web_search.unknown": "Sconosciuta",
-  "active.prompt": "Progresso: {} {} {} tokens ({:.0} t/s)"
+  "active.prompt": "Progresso: {} {} {} tokens ({:.0} t/s)",
+  "panel.help.models.gguf_explanation": "Spiegazione nome file GGUF"
 }

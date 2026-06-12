@@ -36,7 +36,7 @@ pub fn render_download_panel(
     let (border_type, border_color) = if is_focused {
         (BorderType::Thick, Color::Green)
     } else {
-        (BorderType::Plain, Color::DarkGray)
+        (BorderType::Plain, Color::Gray)
     };
     let block = Block::default()
         .title(title)
@@ -587,7 +587,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Thick, Color::Green)
             } else {
-                (BorderType::Plain, Color::DarkGray)
+                (BorderType::Plain, Color::Gray)
             };
             let block = Block::default()
                 .title(title)
@@ -747,7 +747,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Thick, Color::Green)
             } else {
-                (BorderType::Plain, Color::DarkGray)
+                (BorderType::Plain, Color::Gray)
             };
             let block = Block::default()
                 .title(title)

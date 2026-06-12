@@ -191,6 +191,14 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     } else {
                         // Server already running, load via API
 
+                        // In Normal mode, block if any model is already loaded
+                        if app.server_mode == crate::models::ServerMode::Normal
+                            && app.model_states.values().any(|s| matches!(s, crate::models::ModelState::Loaded { .. }))
+                        {
+                            app.add_log(crate::t!("models.already_loaded"), crate::config::LogLevel::Warning);
+                            return;
+                        }
+
                         // Check if we reached the limit of models to load (based on Max Concurrent Predictions)
                         let active_count = app
                             .model_states

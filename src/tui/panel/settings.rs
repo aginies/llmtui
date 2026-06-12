@@ -117,11 +117,11 @@ fn render_settings(
         if field.is_new_section(prev_section) {
             let section_style = if disabled {
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(Color::Gray)
                     .add_modifier(Modifier::DIM)
             } else {
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(Color::Gray)
                     .add_modifier(Modifier::BOLD)
             };
             lines.push(Line::from(vec![Span::styled(
@@ -148,7 +148,7 @@ fn render_settings(
         };
 
         let name_style = if visually_disabled {
-            Style::default().fg(Color::Gray).add_modifier(Modifier::DIM)
+            Style::default().fg(Color::Gray)
         } else if dirty {
             Style::default().fg(Color::Red)
         } else if field.is_expert {
@@ -159,7 +159,7 @@ fn render_settings(
             Style::default().fg(Color::Yellow)
         };
         let indicator_style = if visually_disabled {
-            Style::default().fg(Color::Gray).add_modifier(Modifier::DIM)
+            Style::default().fg(Color::Gray)
         } else {
             Style::default().fg(Color::Yellow)
         };
@@ -169,7 +169,7 @@ fn render_settings(
                 .bg(Color::Yellow)
                 .add_modifier(Modifier::BOLD)
         } else if visually_disabled {
-            Style::default().fg(Color::Gray).add_modifier(Modifier::DIM)
+            Style::default().fg(Color::Gray)
         } else if dirty {
             Style::default().fg(Color::Red)
         } else {

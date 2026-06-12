@@ -35,7 +35,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_log_focused {
         (BorderType::Thick, Color::Green)
     } else {
-        (BorderType::Plain, Color::DarkGray)
+        (BorderType::Plain, Color::Gray)
     };
     let block = Block::default()
         .title(title)
