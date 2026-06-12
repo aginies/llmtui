@@ -709,7 +709,6 @@
   "model_info.tokenizer": "Tokenizer",
   "model_info.context": "Context",
   "model_info.capabilities": "Capabilities",
-  "search.keywords": "compare, comparison, vs, versus, between, review, which is better, vs., pros and cons, differences, latest, new, best, top, recommend, should i buy, is it worth",
   "dialog.web_search.validation": "Validation: ",
   "dialog.web_search.unknown": "Unknown"
 }

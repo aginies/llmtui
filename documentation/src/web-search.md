@@ -22,18 +22,15 @@ Web search runs **entirely on the llm-manager server**. External clients (chat f
 
 The `web_search_engine_url` config points to the **SearXNG instance**, not the client. Clients never need direct access to SearXNG — they only talk to llm-manager's API proxy.
 
-## Trigger Keywords
+## Trigger
 
-Web search is **not** always active. It is triggered only when your message contains one of these keyword phrases:
+Web search triggers when your message contains `!web`:
 
 ```
-compare, comparison, vs, versus, between, review, which is better, vs., pros and cons, differences, latest, new, best, top, recommend, should i buy, is it worth
+!web best model for coding 2026
+!web compare qwen 3 and llama 4
+!web recommend vision model
 ```
-
-Example messages that trigger search:
-- "What is the best laptop for coding in 2024?"
-- "Compare Qwen 2.5 and Llama 3.1"
-- "What are the pros and cons of Vulkan vs CUDA?"
 
 ## Configuration
 

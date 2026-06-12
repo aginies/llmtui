@@ -709,7 +709,6 @@
   "model_info.tokenizer": "Tokenizer",
   "model_info.context": "Kontext",
   "model_info.capabilities": "Funktionen",
-  "search.keywords": "verglichen, vergleich, vs, versus, zwischen, bewertung, welches ist besser, vs., vor- und nachteile, unterschiede, neueste, neue, beste, top, empfehlen, soll ich kaufen, lohnt es sich",
   "dialog.web_search.validation": "Validierung: ",
   "dialog.web_search.unknown": "Unbekannt"
 }

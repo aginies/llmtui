@@ -705,7 +705,6 @@
   "model_info.tokenizer": "Tokenizer",
   "model_info.context": "Contesto",
   "model_info.capabilities": "Capacità",
-  "search.keywords": "confronta, confronto, vs, versus, tra, recensione, quale è migliore, vs., pro e contro, differenze, ultimo, nuovo, migliore, top, consiglia, dovrei comprare, vale la pena",
   "dialog.web_search.validation": "Validazione: ",
   "dialog.web_search.unknown": "Sconosciuta"
 }

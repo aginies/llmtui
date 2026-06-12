@@ -8,18 +8,7 @@ pub struct SearchResult {
 }
 
 pub fn needs_search(message: &str) -> bool {
-    let lower = message.to_lowercase();
-    get_search_keywords()
-        .iter()
-        .any(|keyword| lower.contains(keyword))
-}
-
-fn get_search_keywords() -> Vec<String> {
-    let keywords_str = crate::t!("search.keywords");
-    keywords_str
-        .split(',')
-        .map(|k| k.trim().to_string())
-        .collect()
+    message.contains("!web")
 }
 
 pub async fn search_web(query: &str, max_results: usize, engine: &str, engine_url: &str, api_key: &str) -> Result<Vec<SearchResult>> {

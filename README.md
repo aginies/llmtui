@@ -371,7 +371,7 @@ Panels can be individually toggled on/off via `F1`–`F6` (Models=1, ServerSetti
 
 ### Web Search
 
-llm-manager can automatically search the web when your chat messages contain research-oriented keywords (compare, vs, review, which is better, pros and cons, latest, best, recommend, etc.). Results are fetched via [SearXNG](https://github.com/searxng/searxng) and injected into the prompt before your message.
+llm-manager can automatically search the web when your chat messages contain `!web`. Results are fetched via [SearXNG](https://github.com/searxng/searxng) and injected into the prompt before your message.
 
 **Server-side flow:** Web search runs entirely on the llm-manager server. External clients connect to the API proxy (default port `49222`) — no special headers or endpoints needed. The server intercepts chat completions, performs the SearXNG search, injects results into the prompt, and forwards the enriched request to llama-server. Clients never need direct access to SearXNG.
 
@@ -384,7 +384,7 @@ llm-manager can automatically search the web when your chat messages contain res
 | **Engine URL** | Text input | URL of your self-hosted SearXNG instance (e.g., `https://search.example.com`) |
 | **API Key** | Text input | Bearer token for SearXNG authentication (optional, masked as `****` when set) |
 
-**How it works:** When a message matches a search keyword, the app:
+**How it works:** When a message contains `!web`, the app:
 1. Uses the message as the search query
 2. Fetches up to 10 results via SearXNG (`{engine_url}/search?q={query}&format=json`)
 3. Fetches Wikipedia pages and up to 5 other URLs in parallel
