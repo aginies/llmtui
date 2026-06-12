@@ -203,6 +203,8 @@ Server exit is detected via a dedicated channel (not log parsing). On error, aff
 
 Destructive actions trigger a `GlobalMode::Confirmation` overlay with `ConfirmationKind` variants: `Exit`, `Reset`, `Delete`, `Unload`, `DeleteBackend`. The user confirms with `Enter` or cancels with `Esc`.
 
+Dialog height is calculated as `lines.len() + 6` (content lines plus vertical padding), clamped to `area.height - 4` to ensure it fits within the terminal. The dialog requires a minimum terminal height of 12 lines to render, preventing display on very small terminals where buttons would be cut off.
+
 ## Internationalization (i18n)
 
 All user-facing strings go through the i18n system defined in `src/tui/i18n.rs`. Translations are stored as JSON files in `locales/<lang>.json` (currently `en.json`, `fr.json`, `it.json`). The system loads all locale files at startup into a static `LazyLock<HashMap>` and switches language at runtime via `Ctrl+L` (cycles en → fr → it → en).

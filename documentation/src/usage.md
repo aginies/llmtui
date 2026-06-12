@@ -471,6 +471,8 @@ The app uses confirmation dialogs for destructive actions:
 - **Unload** — confirms unloading a model via API
 - **DeleteBackend** — confirms deleting a backend binary version from disk
 
+Dialogs require a minimum terminal height of 12 lines. Height is calculated as content lines plus 6 lines of vertical padding, clamped to `area.height - 4` to fit small terminals.
+
 ## Mouse Support
 
 Mouse interactions are supported: clicking on panels to focus them, and scrolling in the log panel, README panel, settings, profiles, and presets panels.
