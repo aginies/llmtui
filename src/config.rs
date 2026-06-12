@@ -1840,6 +1840,11 @@ impl Config {
         }
         let content = serde_yml::to_string(self)?;
         std::fs::write(&path, content)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+        }
         // Persist model configs to individual YAML files
         let entries: Vec<(String, ModelOverride)> = self
             .model_overrides

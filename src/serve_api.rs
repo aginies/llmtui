@@ -59,7 +59,13 @@ async fn auth_middleware(
 ) -> axum::response::Response {
     if let Some(expected) = &state.api_key {
         let provided = extract_api_key(req.headers());
-        if provided.as_deref() != Some(expected) {
+        let expected_bytes = expected.as_bytes();
+        let not_equal = if let Some(provided_str) = provided {
+            constant_time_not_eq(provided_str.as_bytes(), expected_bytes)
+        } else {
+            true
+        };
+        if not_equal {
             return (
                 StatusCode::UNAUTHORIZED,
                 Json(serde_json::json!({"error": "Unauthorized"})),
@@ -68,6 +74,19 @@ async fn auth_middleware(
         }
     }
     next.run(req).await
+}
+
+/// Constant-time byte comparison: returns true if a != b.
+/// Always processes all bytes regardless of where the first difference occurs.
+fn constant_time_not_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return true;
+    }
+    let mut result: u8 = 0;
+    for (x, y) in a.iter().zip(b.iter()) {
+        result |= x ^ y;
+    }
+    result != 0
 }
 
 /// Proxy a request to the llama-server backend with SSE streaming support.
