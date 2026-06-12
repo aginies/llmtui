@@ -319,6 +319,7 @@ pub async fn fetch_readme(model_id: &str) -> Result<String> {
 }
 
 /// Download a file with progress tracking.
+/// Returns the `sha2-256` header value from the response if present (from GitHub CDN).
 pub async fn download_file(
     _model_id: &str,
     _filename: &str,
@@ -327,9 +328,16 @@ pub async fn download_file(
     progress: &mut crate::models::DownloadState,
     download_state: std::sync::Arc<std::sync::atomic::AtomicU8>,
     tx: tokio::sync::broadcast::Sender<crate::models::DownloadState>,
-) -> Result<()> {
+) -> Result<Option<String>> {
     let client = reqwest::Client::new();
     let resp = client.get(url).send().await?.error_for_status()?;
+
+    // Capture the sha2-256 header from the response (GitHub CDN provides this)
+    let sha256 = resp
+        .headers()
+        .get("sha2-256")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_lowercase());
 
     // Get total size from content-length if available
     if let Some(len) = resp.content_length() {
@@ -397,7 +405,7 @@ pub async fn download_file(
     progress.status = crate::models::DownloadStatus::Complete;
     let _ = tx.send(progress.clone());
 
-    Ok(())
+    Ok(sha256)
 }
 
 pub fn get_bin_base() -> std::path::PathBuf {
@@ -776,7 +784,7 @@ pub async fn resolve_backend_binary(
     let tmp_path = bin_dir.join(&tmp_filename);
     tracing::info!("  -> downloading to: {}", tmp_path.display());
 
-    if let Some(ref tx) = progress_tx {
+    let expected_sha256 = if let Some(ref tx) = progress_tx {
         let mut progress =
             crate::models::DownloadState::new("llama-server".to_string(), tmp_filename.clone(), 0);
         let download_state = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(1));
@@ -789,7 +797,7 @@ pub async fn resolve_backend_binary(
             download_state,
             tx.clone(),
         )
-        .await?;
+        .await?
     } else {
         let resp = client
             .get(&download_url)
@@ -800,13 +808,39 @@ pub async fn resolve_backend_binary(
             .send()
             .await?
             .error_for_status()?;
+
+        // Capture the sha2-256 header from the response (GitHub CDN provides this)
+        let sha256 = resp
+            .headers()
+            .get("sha2-256")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_lowercase());
+
         let mut stream = resp.bytes_stream();
         let mut file = tokio::fs::File::create(&tmp_path).await?;
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
             file.write_all(&chunk).await?;
         }
+        sha256
+    };
+
+    // Verify SHA256 if we received it from the GitHub CDN
+    if let Some(expected) = &expected_sha256 {
+        let actual = file_sha256(&tmp_path)?;
+        if actual != expected.to_lowercase() {
+            return Err(anyhow::anyhow!(
+                "SHA256 mismatch for downloaded binary ({}): expected {}, got {}",
+                download_url,
+                expected,
+                actual
+            ));
+        }
+        tracing::info!("  -> SHA256 verified successfully");
+    } else {
+        tracing::warn!("  -> No sha2-256 header from GitHub, skipping integrity check");
     }
+
     tracing::info!("  -> download complete, extracting...");
 
     // Extract the archive to a temp directory, then pull out the binary and shared libs
@@ -904,6 +938,15 @@ pub async fn resolve_backend_binary(
     let _ = tokio::fs::remove_dir_all(&extract_dir).await;
 
     Ok(bin_path)
+}
+
+/// Compute the SHA256 hash of a file.
+pub fn file_sha256(path: &std::path::Path) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher)?;
+    Ok(hex::encode(hasher.finalize()))
 }
 
 /// Extract a .tar.gz or .zip archive into a directory.

@@ -56,6 +56,8 @@ libc = "0.2"
       sysinfo = "0.38"
     regex = "1"
 scraper = "0.21"
+sha2 = "0.10"
+hex = "0.4"
 
 [dev-dependencies]
 wiremock = "0.6"
