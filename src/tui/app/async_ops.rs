@@ -500,9 +500,100 @@ impl App {
 
     pub fn tick_server_logs(&mut self) {
         let mut server_logs = Vec::new();
+        let mut prev_line: Option<String> = None;
         if let Some(rx) = &mut self.server.server_log_rx {
             while let Ok(line) = rx.try_recv() {
-                if line.contains("n_tokens =")
+                let is_generation = line.contains("n_decoded =");
+                let is_prompt_processing = line.contains("prompt processing");
+                
+                // Reset prompt progress when generation starts
+                if is_generation {
+                    self.metrics.prompt_tokens = 0;
+                    self.metrics.prompt_progress = 0.0;
+                    self.metrics.prompt_elapsed_ms = 0.0;
+                    self.metrics.prompt_tps_eval = 0.0;
+                }
+                
+                // Parse prompt processing metrics
+                if is_prompt_processing {
+                    // n_tokens = X
+                    if let Some(tokens_part) = line.split("n_tokens =").last() {
+                        let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
+                        if let Ok(tokens) = val_str.parse::<u64>() {
+                            self.metrics.prompt_tokens = tokens;
+                        }
+                    }
+                    // progress = Y
+                    if let Some(progress_part) = line.split("progress =").last() {
+                        let val_str = progress_part.split(',').next().unwrap_or(progress_part).trim();
+                        if let Ok(progress) = val_str.parse::<f64>() {
+                            self.metrics.prompt_progress = progress;
+                        }
+                    }
+                    // t = Z (elapsed seconds)
+                    // Try multiple patterns since log format may vary
+                    let mut parsed = false;
+                    // Pattern 1: "t = X.XX" 
+                    if let Some(t_part) = line.split("t =").last() {
+                        let val_str = t_part.split_whitespace()
+                            .filter(|s| !s.is_empty())
+                            .next()
+                            .unwrap_or("")
+                            .trim();
+                        if let Ok(t) = val_str.parse::<f64>() {
+                            self.metrics.prompt_elapsed_ms = t * 1000.0;
+                            parsed = true;
+                        }
+                    }
+                    // Pattern 2: "t=X.XX" (no space)
+                    if !parsed {
+                        if let Some(t_part) = line.split("t=").last() {
+                            let val_str = t_part.split(|c: char| c.is_whitespace() || c == '║')
+                                .filter(|s| !s.is_empty())
+                                .next()
+                                .unwrap_or("")
+                                .trim();
+                            if let Ok(t) = val_str.parse::<f64>() {
+                                self.metrics.prompt_elapsed_ms = t * 1000.0;
+                                parsed = true;
+                            }
+                        }
+                    }
+                    // Pattern 3: Parse from end of line (elapsed time always at end before "s /")
+                    if !parsed {
+                        if let Some(slash_part) = line.rsplit(" s /").next() {
+                            let val_str = slash_part.split_whitespace()
+                                .filter(|s| !s.is_empty())
+                                .last()
+                                .unwrap_or("")
+                                .trim();
+                            if let Ok(t) = val_str.parse::<f64>() {
+                                self.metrics.prompt_elapsed_ms = t * 1000.0;
+                            }
+                        }
+                    }
+                    // TPS: "X.XX tokens per second" on same line or previous line
+                    let tps_str = line.contains("tokens per second")
+                        .then(|| {
+                            line.split("tokens per second").next()
+                                .and_then(|p| p.split('/').last())
+                                .map(|s| s.trim())
+                        })
+                        .flatten()
+                        .or(prev_line.as_deref().and_then(|prev| {
+                            prev.split("tokens per second").next()
+                                .and_then(|p| p.split('/').last())
+                                .map(|s| s.trim())
+                        }));
+                    if let Some(tps_str) = tps_str {
+                        if let Ok(tps) = tps_str.parse::<f64>() {
+                            self.metrics.prompt_tps_eval = tps;
+                        }
+                    }
+                }
+                
+                // Existing: n_tokens = → ctx_used (for generation lines)
+                if !is_prompt_processing && line.contains("n_tokens =")
                     && let Some(tokens_part) = line.split("n_tokens =").last()
                 {
                     let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
@@ -510,6 +601,8 @@ impl App {
                         self.metrics.ctx_used = tokens;
                     }
                 }
+                
+                // Existing: n_decoded = → decoded_tokens
                 if line.contains("n_decoded =")
                     && let Some(decoded_part) = line.split("n_decoded =").last()
                 {
@@ -522,6 +615,8 @@ impl App {
                         self.metrics.decoded_tokens = tokens;
                     }
                 }
+                
+                // Existing: tg = → gen_tps
                 if line.contains("tg =")
                     && let Some(tg_part) = line.split("tg =").last()
                 {
@@ -530,6 +625,8 @@ impl App {
                         self.metrics.gen_tps = tg;
                     }
                 }
+                
+                prev_line = Some(line.clone());
                 server_logs.push(line);
                 if server_logs.len() > 100 {
                     break;

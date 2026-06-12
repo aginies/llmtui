@@ -346,7 +346,7 @@ The app has several panels that can be toggled visible or hidden:
 | **Server Settings** | Server configuration (host, backend, threads, mode, API) |
 | **Model Info** | GGUF metadata: architecture, parameters, tokenizer, VRAM estimate |
 | **LLM Settings** | Loading, GPU, evaluation, sampling, and repetition parameters |
-| **Active Model** | Real-time metrics: TPS, context usage, CPU/RAM/VRAM, benchmarking state (no tokens generated) |
+| **Active Model** | Real-time metrics: TPS, context usage, prompt eval progress, CPU/RAM/VRAM, benchmarking state |
 | **WebSocket Dashboard** | Live WebSocket metrics and settings visualization (port 49223 by default) |
 | **Log** | Server log with expand/collapse and level coloring |
 | **Profiles** | Saved presets of settings for quick switching |
@@ -411,6 +411,7 @@ The WebSocket Dashboard provides a real-time visualization of model metrics and 
 | Prompt Speed | Prompt processing TPS |
 | Latency | Milliseconds per token |
 | Tokens | Tokens generated with progress bar (decoded_tokens / max_tokens, or '∞' if not configured) |
+| Prompt Eval | Prompt token count, progress bar, and evaluation TPS |
 | VRAM | GPU memory used/total (progress bar) |
 | RAM | System memory usage |
 | CPU | CPU usage percentage |

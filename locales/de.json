@@ -711,5 +711,6 @@
   "model_info.context": "Kontext",
   "model_info.capabilities": "Funktionen",
   "dialog.web_search.validation": "Validierung: ",
-  "dialog.web_search.unknown": "Unbekannt"
+  "dialog.web_search.unknown": "Unbekannt",
+  "active.prompt": "Fortschritt: {} {} {} tokens ({:.0} t/s)"
 }

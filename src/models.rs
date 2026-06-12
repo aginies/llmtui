@@ -1448,6 +1448,14 @@ pub struct ServerMetrics {
     pub latency_per_token_ms: f64,
     /// Estimated prompt processing latency in milliseconds (1000 / prompt_tps).
     pub prompt_latency_ms: f64,
+    /// Number of tokens in the prompt being evaluated.
+    pub prompt_tokens: u64,
+    /// Progress of prompt evaluation (0.0-1.0).
+    pub prompt_progress: f64,
+    /// Elapsed prompt evaluation time in milliseconds.
+    pub prompt_elapsed_ms: f64,
+    /// Prompt evaluation throughput in tokens per second.
+    pub prompt_tps_eval: f64,
 }
 
 /// GPU device buffer reported by llama-server during model loading.
@@ -1489,6 +1497,10 @@ impl Default for ServerMetrics {
             gen_tps: 0.0,
             latency_per_token_ms: 0.0,
             prompt_latency_ms: 0.0,
+            prompt_tokens: 0,
+            prompt_progress: 0.0,
+            prompt_elapsed_ms: 0.0,
+            prompt_tps_eval: 0.0,
         }
     }
 }
@@ -1510,6 +1522,10 @@ pub struct WsMetrics {
     pub latency_per_token_ms: f64,
     pub decoded_tokens: u64,
     pub gen_tps: f64,
+    pub prompt_tokens: u64,
+    pub prompt_progress: f64,
+    pub prompt_elapsed_ms: f64,
+    pub prompt_tps_eval: f64,
     pub timestamp: u64,
     // Server command
     pub cmd_display: Option<String>,
@@ -1584,7 +1600,11 @@ impl WsMetrics {
             ram_used: metrics.ram_used,
             latency_per_token_ms: metrics.latency_per_token_ms,
             decoded_tokens: metrics.decoded_tokens,
-            gen_tps: metrics.gen_tps,
+             gen_tps: metrics.gen_tps,
+            prompt_tokens: metrics.prompt_tokens,
+            prompt_progress: metrics.prompt_progress,
+            prompt_elapsed_ms: metrics.prompt_elapsed_ms,
+            prompt_tps_eval: metrics.prompt_tps_eval,
             timestamp,
             cmd_display: cmd_display.map(String::from),
             threads: settings.threads,

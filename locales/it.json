@@ -707,5 +707,6 @@
   "model_info.context": "Contesto",
   "model_info.capabilities": "Capacità",
   "dialog.web_search.validation": "Validazione: ",
-  "dialog.web_search.unknown": "Sconosciuta"
+  "dialog.web_search.unknown": "Sconosciuta",
+  "active.prompt": "Progresso: {} {} {} tokens ({:.0} t/s)"
 }

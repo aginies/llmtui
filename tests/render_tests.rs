@@ -372,9 +372,13 @@ fn test_active_model_panel_renders() {
         total_vram_used: 8_000,
         decoded_tokens: 0,
         gen_tps: 0.0,
-        latency_per_token_ms: 0.0,
-        prompt_latency_ms: 0.0,
-    };
+      latency_per_token_ms: 0.0,
+            prompt_latency_ms: 0.0,
+            prompt_tokens: 0,
+            prompt_progress: 0.0,
+            prompt_elapsed_ms: 0.0,
+            prompt_tps_eval: 0.0,
+        };
     let _terminal = make_terminal(&mut app);
 }
 

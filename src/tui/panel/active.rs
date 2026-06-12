@@ -357,16 +357,42 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                 lines.push(Line::from(tps_parts));
 
-                let context_parts = vec![
-                    Span::styled(" [ ", Style::default().fg(Color::White)),
-                    Span::styled("Context: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(bar_only, Style::default().fg(Color::Cyan)),
-                    Span::styled(" ", Style::default().fg(Color::Cyan)),
-                    Span::styled(token_str, Style::default().fg(Color::Cyan)),
-                    Span::styled(" ]", Style::default().fg(Color::White)),
-                ];
+                let mut context_parts = vec![
+                     Span::styled(" [ ", Style::default().fg(Color::White)),
+                     Span::styled("Context: ", Style::default().fg(Color::Yellow)),
+                     Span::styled(bar_only, Style::default().fg(Color::Cyan)),
+                     Span::styled(" ", Style::default().fg(Color::Cyan)),
+                     Span::styled(token_str, Style::default().fg(Color::Cyan)),
+                     Span::styled(" ]", Style::default().fg(Color::White)),
+                 ];
 
-                lines.push(Line::from(context_parts));
+                // Append prompt eval info on same line
+                 let progress_pct = (app.metrics.prompt_progress * 100.0) as usize;
+                 let bar_width = 20usize;
+                 let filled = (app.metrics.prompt_progress * bar_width as f64) as usize;
+                 let prompt_bar = format!(
+                     "{}{}",
+                     "█".repeat(filled),
+                     "░".repeat(bar_width.saturating_sub(filled)),
+                 );
+             let prompt_token_str = format!(
+                       "{} tokens ({:.0} t/s)",
+                       app.metrics.prompt_tokens,
+                       app.metrics.prompt_tps_eval,
+                   );
+                 context_parts.extend_from_slice(&[
+                     Span::styled(" ", Style::default().fg(Color::White)),
+                     Span::styled(" [ ", Style::default().fg(Color::White)),
+                     Span::styled("Progress: ", Style::default().fg(Color::Yellow)),
+                     Span::styled(prompt_bar, Style::default().fg(Color::Cyan)),
+                     Span::styled(" ", Style::default().fg(Color::Cyan)),
+                     Span::styled(format!("{}%", progress_pct), Style::default().fg(Color::Cyan)),
+                     Span::styled(" ", Style::default().fg(Color::Cyan)),
+                     Span::styled(prompt_token_str, Style::default().fg(Color::Cyan)),
+                     Span::styled(" ]", Style::default().fg(Color::White)),
+                 ]);
+
+                 lines.push(Line::from(context_parts));
 
                 lines.push(Line::from(vec![
                     Span::styled(" [ ", Style::default().fg(Color::White)),

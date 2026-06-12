@@ -69,6 +69,12 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
     <div class="bar-container"><div id="ctx-bar" class="bar blue" style="width:0%"></div></div>
   </div>
   <div class="card">
+    <h2>Prompt Eval</h2>
+    <div id="prompt-tokens" class="value">0</div>
+    <div class="label">tokens</div>
+    <div class="bar-container"><div id="prompt-bar" class="bar yellow" style="width:0%"></div></div>
+  </div>
+  <div class="card">
     <h2>Decoded</h2>
     <div id="decoded" class="value">0</div>
     <div class="label">total tokens</div>
@@ -194,10 +200,13 @@ function update(m) {
   document.getElementById('state-badge').className = 'state-badge ' + (m.loaded ? 'loaded' : 'unloaded');
   document.getElementById('tps').textContent = m.tps.toFixed(1);
   document.getElementById('prompt-tps').textContent = m.prompt_tps.toFixed(1);
-  document.getElementById('ctx').textContent = `${m.ctx_used} / ${m.ctx_max || '∞'}`;
-  const ctxPct = (m.ctx_max && m.ctx_max > 0) ? (m.ctx_used / m.ctx_max * 100) : 0;
-  document.getElementById('ctx-bar').style.width = ctxPct + '%';
-  document.getElementById('cpu').textContent = m.cpu_usage.toFixed(0) + '%';
+ document.getElementById('ctx').textContent = `${m.ctx_used} / ${m.ctx_max || '∞'}`;
+   const ctxPct = (m.ctx_max && m.ctx_max > 0) ? (m.ctx_used / m.ctx_max * 100) : 0;
+   document.getElementById('ctx-bar').style.width = ctxPct + '%';
+   document.getElementById('prompt-tokens').textContent = m.prompt_tokens || 0;
+   const promptPct = (m.prompt_progress || 0) * 100;
+   document.getElementById('prompt-bar').style.width = promptPct + '%';
+   document.getElementById('cpu').textContent = m.cpu_usage.toFixed(0) + '%';
   document.getElementById('vram').textContent = m.gpu_mem_total > 0
     ? `${(m.gpu_mem_used /1024/1024/1024).toFixed(1)} / ${(m.gpu_mem_total/1024/1024/1024).toFixed(1)} GB`
     : '0.0 / 0.0 GB';
