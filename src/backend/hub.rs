@@ -956,6 +956,7 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
         .and_then(|n| n.to_str())
         .unwrap_or("");
 
+    std::fs::create_dir_all(dest_dir)?;
     let dest_dir = dest_dir.canonicalize()?;
 
     if filename.ends_with(".zip") {
@@ -963,9 +964,9 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
         let mut archive = zip::ZipArchive::new(file)?;
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i)?;
-            let file_name = entry.enclosed_name().ok_or("Invalid path in zip")?;
+            let file_name = entry.enclosed_name().ok_or(anyhow::anyhow!("Invalid path in zip"))?;
 
-            let full_path = dest_dir.join(file_name);
+            let full_path = dest_dir.join(&file_name);
             if !full_path.starts_with(&dest_dir) {
                 return Err(anyhow::anyhow!(
                     "Zip slip detected: {} tries to write to {}",
@@ -973,7 +974,16 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
                     full_path.display()
                 ));
             }
-            entry.extract(&dest_dir)?;
+
+            if entry.is_file() {
+                if let Some(parent) = full_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut outfile = std::fs::File::create(&full_path)?;
+                std::io::copy(&mut entry, &mut outfile)?;
+            } else if entry.is_dir() {
+                std::fs::create_dir_all(&full_path)?;
+            }
         }
     } else if filename.ends_with(".tar.gz") || filename.contains(".tar.gz") {
         use flate2::read::GzDecoder;
