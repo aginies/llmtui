@@ -52,7 +52,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         detail,
     } = &app.ui.global_mode
     {
-        if f.area().height >= 8 {
+        if f.area().height >= 12 {
             render_confirmation(
                 f,
                 f.area(),
@@ -626,10 +626,10 @@ fn render_confirmation(
         ),
     ]));
     let w = 70u16;
-    let h = (lines.len() + 2) as u16;
+    let h = (lines.len() as u16 + 6).min(area.height.saturating_sub(4));
     let popup_area = Rect {
         x: area.width.saturating_sub(w) / 2,
-        y: area.height.saturating_sub(h) / 2,
+        y: (area.height.saturating_sub(h)) / 2,
         width: w,
         height: h,
     };
