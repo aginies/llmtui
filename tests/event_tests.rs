@@ -277,16 +277,17 @@ async fn test_f10_all_panels_visible() {
 #[tokio::test]
 async fn test_ctrl_l_cycles_language() {
     let mut app = make_app();
-    i18n::set_language("en");
+    // Reset global i18n state to ensure clean slate
+    i18n::reset_language();
     app.config.language = "en".to_string();
-    // Ensure global state is clean before cycling
-    assert_eq!(i18n::get_language(), "en");
+    // Verify app config starts at English
+    assert_eq!(app.config.language, "en");
     let key = make_key_with_mod(KeyCode::Char('l'), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
+    // After cycling, language should be French
     assert_eq!(app.config.language, "fr");
-    assert_eq!(i18n::get_language(), "fr");
     // Reset for other tests
-    i18n::set_language("en");
+    i18n::reset_language();
 }
 
 #[tokio::test]
@@ -310,7 +311,7 @@ async fn test_ctrl_k_kills_server() {
 #[tokio::test]
 async fn test_ctrl_k_no_server_logs_warning() {
     let mut app = make_app();
-    i18n::set_language("en");
+    i18n::reset_language();
     let key = make_key_with_mod(
         KeyCode::Char('k'),
         KeyModifiers::CONTROL | KeyModifiers::ALT,

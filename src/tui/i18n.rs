@@ -77,6 +77,11 @@ pub fn set_language(lang: &str) {
     *current = Some(lang.to_string());
 }
 
+pub fn reset_language() {
+    let mut current = CURRENT_LANG.lock().unwrap();
+    *current = None;
+}
+
 #[allow(dead_code)]
 pub fn get_language() -> String {
     let current = CURRENT_LANG.lock().unwrap();
