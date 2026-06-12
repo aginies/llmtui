@@ -451,7 +451,8 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
         .allow_headers([
             axum::http::header::CONTENT_TYPE,
             axum::http::header::AUTHORIZATION,
-        ]);
+        ])
+        .allow_credentials(true);
 
     let api_key_clone = state.api_key.clone();
     let protocol = if tls_config.is_some() {
