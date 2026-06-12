@@ -21,6 +21,23 @@ pub fn render_about() -> Vec<Line<'static>> {
         "A high-performance TUI for managing llama.cpp servers.",
     ));
     lines.push(Line::from(""));
+    for author in env!("CARGO_PKG_AUTHORS").split(':') {
+        let author = author.trim();
+        if !author.is_empty() && author.contains('<') {
+            if let Some(name) = author.split('<').next() {
+                lines.push(Line::from(vec![
+                    Span::styled("Author: ", gray),
+                    Span::styled(name.trim(), c),
+                ]));
+            }
+        } else if !author.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("Author: ", gray),
+                Span::styled(author.trim(), c),
+            ]));
+        }
+    }
+    lines.push(Line::from(""));
     lines.push(Line::from(vec![
         Span::raw("License: "),
         Span::styled(
