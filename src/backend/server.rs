@@ -490,8 +490,6 @@ pub fn build_bench_cmd(
         push_arg(&mut cmd, &mut parts, "-fa", "1");
     }
 
-    push_spec_decoding(&mut cmd, &mut parts, settings);
-
     push_flag(&mut cmd, &mut parts, "--progress");
 
     let display = parts.join(" ");
