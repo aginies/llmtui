@@ -121,6 +121,7 @@
   "dialog.bench_config.error_step_range": " ⚠ pas >= intervalle — seulement 2 valeurs seront testées",
   "dialog.bench_config.finish": " [Appuyez pour terminer] ",
   "dialog.bench_config.generates": " Génère {} combinaisons ",
+  "dialog.bench_config.toggle": "Activer/désactiver",
   "dialog.bench_config.iters": " Itérations : ",
   "dialog.bench_config.max_tokens": " Tokens max : ",
   "dialog.bench_config.mode": " Mode : ",

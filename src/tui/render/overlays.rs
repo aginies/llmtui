@@ -1434,7 +1434,15 @@ fn render_bench_tune_setup(
             let marker = if i == selected_idx { ">" } else { " " };
             let is_selected = i == selected_idx;
             let checkbox = if p.name == "spec_type" {
-                " - "
+                if is_selected {
+                    if p.enabled {
+                        "[X]"
+                    } else {
+                        "[ ]"
+                    }
+                } else {
+                    " - "
+                }
             } else if p.name == "draft_tokens" && is_spec_off {
                 " - "
             } else if p.enabled {
@@ -1588,7 +1596,9 @@ fn render_bench_tune_setup(
             Span::styled(" [Alt+I]", Style::default().fg(Color::Yellow)),
             Span::raw(" Iters "),
             Span::styled(" [E]", Style::default().fg(Color::Yellow)),
-            Span::raw(" Range"),
+            Span::raw(" Range "),
+            Span::styled(" [Space]", Style::default().fg(Color::Yellow)),
+            Span::raw(crate::t!("dialog.bench_config.toggle")),
         ]),
         Line::from(""),
         Line::from(vec![

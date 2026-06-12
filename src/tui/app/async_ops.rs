@@ -1787,12 +1787,15 @@ impl App {
                 (Some(cert), Some(key)) => {
                     Some(cert.as_str()) != self.server.running_ws_tls_cert_path.as_deref()
                         || Some(key.as_str()) != self.server.running_ws_tls_key_path.as_deref()
+                        || self.server.running_ws_tls_cfg.is_none()
                 }
                 _ => {
                     // Auto-generated certs: only reload if we haven't cached
-                    // the auto-generated paths yet.
+                    // the auto-generated paths yet, or if the TLS config itself
+                    // is not yet cached (e.g., initial load failed).
                     self.server.running_ws_tls_cert_path.is_none()
                         || self.server.running_ws_tls_key_path.is_none()
+                        || self.server.running_ws_tls_cfg.is_none()
                 }
             };
             if needs_reload {

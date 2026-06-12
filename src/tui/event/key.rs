@@ -940,7 +940,7 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                         .map(|p| p.min as usize == 0)
                         .unwrap_or(true);
                     let p = &mut config.params_to_test[*selected_idx];
-                    if p.name != "spec_type" && !(p.name == "draft_tokens" && is_spec_off) {
+                    if p.name != "draft_tokens" || !is_spec_off {
                         p.enabled = !p.enabled;
                     }
                 }

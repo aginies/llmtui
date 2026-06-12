@@ -234,6 +234,7 @@
   "dialog.bench_config.start": " [↵] STARTEN ",
   "dialog.bench_config.cancel": " [⎋] Abbrechen ",
   "dialog.bench_config.generates": " Generiert {} Kombinationen ",
+  "dialog.bench_config.toggle": "Umschalten",
   "dialog.rpc.title": " RPC-Worker-Manager ",
   "dialog.about.title": " Über ",
   "dialog.max_concurrent.title": " Max gleichzeitige Vorhersagen ",
