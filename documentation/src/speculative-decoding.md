@@ -89,7 +89,7 @@ N-gram cache-based speculative decoding.
 2. Navigate to **Speculative Decoding** section
 3. Toggle **MTP** to enable
 4. Select **Spec Type** from the dropdown
-5. Set **Spec Draft N Max** (0-8, default: 0)
+5. Set **Spec Draft N Max** (0-16, default: 0)
 
 ### In Config
 

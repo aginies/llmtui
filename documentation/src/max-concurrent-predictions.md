@@ -7,7 +7,7 @@ The **Max Concurrent Predictions** field controls how many inference requests ca
 | Setting | Default | Description |
 |---------|---------|-------------|
 | **Max Concurrent Predictions** | None (unlimited) | Maximum number of concurrent requests. `None` means no limit. |
-| **Parallel** | 1 | Max concurrent predictions (alias for the above) |
+| **Parallel** | 1 | Max concurrent predictions (sequences). Separate from `max_concurrent_predictions` which limits requests in flight. |
 
 ## How It Works
 
@@ -16,7 +16,7 @@ When set to a specific number, the server limits concurrent inference to that ma
 - Controlling resource usage in multi-user environments
 - Ensuring predictable latency under load
 
-Set `None` (or 0) to allow unlimited concurrent predictions — the server handles requests as they arrive.
+Set `None` to allow unlimited concurrent predictions — the server handles requests as they arrive.
 
 ## Config Key
 

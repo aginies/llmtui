@@ -8,7 +8,8 @@ The modal displays the full dashboard URL including:
 - Protocol (`http://` or `https://` if TLS is enabled)
 - Host address
 - Port (default: 49223)
-- Auth key (if configured, shown as `?auth=<key>` — the key is NOT copied to clipboard for security)
+- Path (`/dashboard`)
+- Auth key (if configured, appended as `?auth=<key>`)
 
 ## Use Cases
 
@@ -16,6 +17,10 @@ The modal displays the full dashboard URL including:
 - Paste URL into browser for remote monitoring
 - Copy for documentation or tickets
 
+## Auth Key Behavior
+
+The auth key is always included in the copied URL when configured, regardless of TLS setting.
+
 ## TLS Support
 
-If the WebSocket dashboard has TLS enabled (configured in Server Settings → Dashboard), the URL uses `https://` and the full URL including the auth key is copied to clipboard.
+If the WebSocket dashboard has TLS enabled (configured in Server Settings → Dashboard), the URL uses `https://` instead of `http://`.

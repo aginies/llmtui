@@ -39,7 +39,7 @@ The Log panel displays live llama.cpp server output with level-based coloring. P
 
 ### Step 7: Completion
 
-Tour complete. You can reopen it later by pressing `?` in the Help panel.
+Tour complete. You can reopen it later by pressing `Ctrl+O` from any panel.
 
 ## Navigation
 
