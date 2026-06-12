@@ -290,6 +290,7 @@
   "dialog.web_search.checking": "Checking...",
   "dialog.web_search.ok": "OK",
   "dialog.web_search.error": "Error",
+  "web_search.health_check_failed": "Web search disabled: SearXNG not available ({error})",
   "dialog.gguf.title": " GGUF Filename Explanation  ⎋ to close ",
   "dialog.gguf.segment": "Segment",
   "dialog.gguf.value": "Value",

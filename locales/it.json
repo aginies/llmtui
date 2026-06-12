@@ -219,6 +219,7 @@
   "dialog.web_search.checking": "Verifica...",
   "dialog.web_search.ok": "OK",
   "dialog.web_search.error": "Errore",
+  "web_search.health_check_failed": "Ricerca web disabilitata: SearXNG non disponibile ({error})",
   "dialog.search.execute": "  [↵] search  ",
   "dialog.search.label": "Search: ",
   "dialog.search.title": " Search Query ",

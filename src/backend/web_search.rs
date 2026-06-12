@@ -83,6 +83,39 @@ async fn search_searxng(base_url: &str, query: &str, max_results: usize, api_key
     Ok(search_results)
 }
 
+/// Check if a SearXNG instance is reachable and returns valid JSON.
+pub async fn check_health(engine_url: &str, api_key: &str) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let url = format!(
+        "{}/search?q=test&format=json",
+        engine_url.trim_end_matches('/')
+    );
+
+    let mut request = client
+        .get(&url)
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        )
+        .timeout(std::time::Duration::from_secs(10));
+
+    if !api_key.is_empty() {
+        request = request.header("Authorization", format!("Bearer {}", api_key));
+    }
+
+    let response = request.send().await.map_err(|e| format!("Connection failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}: {}", response.status(), response.status().canonical_reason().unwrap_or("Unknown")));
+    }
+
+    let body = response.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
+
+    body.parse::<serde_json::Value>()
+        .map(|_| ())
+        .map_err(|e| format!("Invalid JSON response: {}", e))
+}
+
 pub fn is_wikipedia(url: &str) -> bool {
     url.contains("wikipedia.org")
 }

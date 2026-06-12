@@ -734,6 +734,26 @@ impl App {
                     self.ui.needs_full_redraw = true;
                     self.ui.needs_redraw = true;
 
+                    // Check SearXNG health when web search is enabled
+                    if self.config.default.web_search_enabled
+                        && self.config.default.web_search_engine == "searxng"
+                        && !self.config.default.web_search_engine_url.is_empty()
+                    {
+                        let engine_url = self.config.default.web_search_engine_url.clone();
+                        let api_key = self.config.default.web_search_api_key.clone().unwrap_or_default();
+                        let mut config = self.config.clone();
+
+                        tokio::spawn(async move {
+                            if let Err(e) = crate::backend::web_search::check_health(&engine_url, &api_key).await {
+                                tracing::info!("Web search: SearXNG health check failed: {}", e);
+                                config.default.web_search_enabled = false;
+                                if let Err(save_err) = config.save() {
+                                    tracing::error!("Failed to save config after web search disable: {}", save_err);
+                                }
+                            }
+                        });
+                    }
+
                     if let Some(handle) = &self.server.server_handle {
                         let host = handle.host.clone();
                         let port = handle.port;
