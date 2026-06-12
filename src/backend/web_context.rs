@@ -186,7 +186,7 @@ pub async fn build_injected_prompt(
     );
 
     if let Some(cb) = log_callback.lock().unwrap().as_ref() {
-        cb(format!("Web search: results injected ({} chars)", search_context.len()));
+        // cb(format!("Web search: results injected ({} chars)", search_context.len()));
     }
 
     InjectedPrompt {
