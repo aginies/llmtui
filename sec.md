@@ -203,17 +203,9 @@ fetch('http://192.168.1.100:49222/v1/chat/completions', {
 
 ### Fix (APPLIED)
 
-Added `.allow_credentials(true)` to `CorsLayer`:
+Ensured `.allow_credentials(false)` (the default) by removing `.allow_credentials(true)` from the `CorsLayer`. Combining `.allow_credentials(true)` with wildcard origin `allow_origin(tower_http::cors::Any)` is invalid under the CORS specification and modern browsers, and causes a startup panic in the `tower-http` library.
 
-```rust
-let cors = CorsLayer::new()
-    .allow_origin(tower_http::cors::Any)
-    .allow_methods([...])
-    .allow_headers([CONTENT_TYPE, AUTHORIZATION])
-    .allow_credentials(true);  // <-- ADDED
-```
-
-Browser now only sends `Authorization` header if `Origin` matches the request origin. Prevents cross-origin credential theft while keeping API accessible from any origin for non-credentialed requests.
+Since the API proxy uses Bearer token authentication via the custom `Authorization` header (which must be explicitly set by client-side JS and is not automatically attached by the browser like cookies), wildcard CORS without credentials is secure and standard for open APIs. The `Authorization` header remains safely listed in `.allow_headers([...])`.
 
 ---
 
@@ -822,6 +814,6 @@ fn validate_model_path(path: &Path) -> Result<()> {
 1. ~~**HIGH**: Add zip-slip protection in `hub.rs:910`~~ **DONE**
 2. ~~**HIGH**: Restrict config file permissions to `0600` in `config.rs` save function~~ **DONE**
 3. ~~**MEDIUM**: Add constant-time comparison for API key auth in `serve_api.rs`~~ **DONE**
-4. ~~**MEDIUM**: Add `allow_credentials(true)` to CORS layer~~ **DONE**
+4. ~~**MEDIUM**: Configure CORS wildcard origins safely without invalid credentials~~ **DONE**
 5. ~~**MEDIUM**: Add SHA256 checksum verification for downloaded binaries~~ **DONE**
 6. **MEDIUM**: Default to TLS when `--api-key` is provided
