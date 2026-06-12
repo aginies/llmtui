@@ -913,10 +913,25 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
         .and_then(|n| n.to_str())
         .unwrap_or("");
 
+    let dest_dir = dest_dir.canonicalize()?;
+
     if filename.ends_with(".zip") {
         let file = std::fs::File::open(archive_path)?;
         let mut archive = zip::ZipArchive::new(file)?;
-        archive.extract(dest_dir)?;
+        for i in 0..archive.len() {
+            let mut entry = archive.by_index(i)?;
+            let file_name = entry.enclosed_name().ok_or("Invalid path in zip")?;
+
+            let full_path = dest_dir.join(file_name);
+            if !full_path.starts_with(&dest_dir) {
+                return Err(anyhow::anyhow!(
+                    "Zip slip detected: {} tries to write to {}",
+                    file_name.display(),
+                    full_path.display()
+                ));
+            }
+            entry.extract(&dest_dir)?;
+        }
     } else if filename.ends_with(".tar.gz") || filename.contains(".tar.gz") {
         use flate2::read::GzDecoder;
         use tar::Archive;
@@ -924,7 +939,7 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
         let file = std::fs::File::open(archive_path)?;
         let decoder = GzDecoder::new(file);
         let mut archive = Archive::new(decoder);
-        archive.unpack(dest_dir)?;
+        archive.unpack(&dest_dir)?;
     } else {
         anyhow::bail!("Unsupported archive format: {}", filename);
     }
