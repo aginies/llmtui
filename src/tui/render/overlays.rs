@@ -326,7 +326,7 @@ fn render_web_search_picker(
     edit_buffer: &str,
     check_status: &Option<crate::tui::app::WebSearchCheckStatus>,
 ) {
-    let engines = ["searxng", "duckduckgo", "brave", "google", "startpage"];
+    let engines = ["searxng"];
     let w = 65u16;
     let h = if selected_field < -1 {
         (8.min(area.height - 4)) as u16

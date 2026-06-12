@@ -37,7 +37,7 @@ impl OverlayHandler for WebSearchPickerHandler {
             {
                 // ── Engine sub-picker ──────────────────────────────────
                 if *selected_field < -1 {
-                    let engines = ["searxng", "duckduckgo", "brave", "google", "startpage"];
+                    let engines = ["searxng"];
                     match key.code {
                         KeyCode::Enter | KeyCode::Char(' ') => {
                             if *engine_picker_selected < engines.len() {
@@ -115,7 +115,7 @@ impl OverlayHandler for WebSearchPickerHandler {
                             0 => {
                                 // Open engine picker
                                 let current = engine.as_str();
-                                let engines = ["searxng", "duckduckgo", "brave", "google", "startpage"];
+                                let engines = ["searxng"];
                                 *engine_picker_selected = engines.iter().position(|e| *e == current).unwrap_or(0);
                                 *selected_field = -2; // sentinel for engine picker
                             }

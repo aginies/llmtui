@@ -24,12 +24,12 @@ The `web_search_engine_url` config points to the **SearXNG instance**, not the c
 
 ## Trigger
 
-Web search triggers when your message contains `!web`:
+Web search triggers when your message contains `$web`:
 
 ```
-!web best model for coding 2026
-!web compare qwen 3 and llama 4
-!web recommend vision model
+$web best model for coding 2026
+$web compare qwen 3 and llama 4
+$web recommend vision model
 ```
 
 ## Configuration
@@ -45,7 +45,7 @@ The dialog (65 columns wide, 15 rows tall) shows:
 | Field | Type | Description |
 |-------|------|-------------|
 | **Enabled** | Toggle | Shows "On" (green) or "Off" (gray) — press `↵` to toggle |
-| **Engine** | Dropdown | Search engine: `searxng`, `duckduckgo`, `brave`, `google`, `startpage` |
+| **Engine** | Dropdown | Search engine: `searxng` |
 | **Engine URL** | Text input | URL of your SearXNG instance (e.g., `https://search.example.com`) |
 | **API Key** | Text input | Bearer token for authentication (optional, masked as `****` when set) |
 
@@ -120,12 +120,6 @@ INSTRUCTION: Cite sources using inline markdown links in your answer.
 | Engine | Status | Notes |
 |--------|--------|-------|
 | **SearXNG** | ✅ Fully functional | Requires a configured `engine_url` pointing to a SearXNG instance |
-| DuckDuckGo | ⚠️ Placeholder | Listed in UI picker but returns no results |
-| Brave | ⚠️ Placeholder | Listed in UI picker but returns no results |
-| Google | ⚠️ Placeholder | Listed in UI picker but returns no results |
-| Startpage | ⚠️ Placeholder | Listed in UI picker but returns no results |
-
-Only SearXNG is fully implemented. Other engines are listed in the UI picker for future support.
 
 ## SearXNG Setup
 

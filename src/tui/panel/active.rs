@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Paragraph},
 };
 
-use crate::models::{ModelState, model_filename, strip_gguf};
+use crate::models::{ModelState, model_filename};
 use crate::tui::app::App;
 use crate::tui::format_size;
 

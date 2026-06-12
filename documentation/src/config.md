@@ -130,7 +130,7 @@ cargo run -- --config /path/to/config.yaml
 | `server_mode` | Normal | Server mode (Normal, Router, Bench, BenchTune) |
 | `api_endpoint_enabled` | false | Enable built-in API endpoint |
 | `web_search_enabled` | false | Enable web search |
-| `web_search_engine` | searxng | Search engine (searxng, duckduckgo, brave, google, startpage) |
+| `web_search_engine` | searxng | Search engine (searxng) |
 | `web_search_engine_url` | (empty) | URL of SearXNG instance (required for web search to work) |
 | `web_search_api_key` | null | Bearer token for SearXNG authentication |
 | `api_endpoint_port` | 49222 | Built-in API endpoint port |

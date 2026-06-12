@@ -8,7 +8,12 @@ pub struct SearchResult {
 }
 
 pub fn needs_search(message: &str) -> bool {
-    message.contains("!web")
+    message.rfind("$web").map(|i| {
+        if i == 0 {
+            return true;
+        }
+        !message[..i].chars().last().unwrap().is_alphanumeric()
+    }).unwrap_or(false)
 }
 
 pub async fn search_web(query: &str, max_results: usize, engine: &str, engine_url: &str, api_key: &str) -> Result<Vec<SearchResult>> {
