@@ -499,6 +499,12 @@ impl App {
     }
 
     pub fn tick_server_logs(&mut self) {
+        if let Some(last) = self.server.last_server_logs_tick {
+            if last.elapsed() < std::time::Duration::from_millis(500) {
+                return;
+            }
+        }
+        self.server.last_server_logs_tick = Some(std::time::Instant::now());
         let mut server_logs = Vec::new();
         let mut prev_line: Option<String> = None;
         if let Some(rx) = &mut self.server.server_log_rx {
@@ -655,6 +661,12 @@ impl App {
     }
 
     pub fn tick_sync(&mut self) {
+        if let Some(last) = self.server.last_sync_tick {
+            if last.elapsed() < std::time::Duration::from_millis(1000) {
+                return;
+            }
+        }
+        self.server.last_sync_tick = Some(std::time::Instant::now());
         let mut sync_updated = false;
         if let Some(rx) = &mut self.server.sync_rx {
             while let Ok(models) = rx.try_recv() {
@@ -1218,6 +1230,7 @@ impl App {
         let mut consecutive_failures: u32 = 0;
         let max_failures: u32 = 15;
         let mut prev_model_name: Option<String> = None;
+        let mut cycle_count: u32 = 0;
         loop {
             let mut m = match crate::backend::server::get_metrics(&host, port, None, Some(pid))
                 .await
@@ -1254,34 +1267,38 @@ impl App {
                 }
             };
             m.total_vram_used = m.gpu_mem_used;
+            cycle_count += 1;
             let current_model = {
                 let lock = metrics_model_name.lock().unwrap();
                 lock.clone()
             };
-            if let Some(name) = current_model
-                && let Ok(model_metrics) =
-                    crate::backend::server::get_metrics(&host, port, Some(&name), Some(pid)).await
-            {
-                let stotal = m.gpu_mem_total;
-                let should_use_model_vram = if stotal > 0 {
-                    model_metrics.gpu_mem_used >= stotal / 4
-                } else {
-                    true
-                };
-                // Reset ctx_used when model changes to avoid showing stale cumulative values.
-                if prev_model_name.as_deref() != Some(&name) {
-                    prev_model_name = Some(name.clone());
-                    m.ctx_used = 0;
-                }
-                m.ctx_used = model_metrics.ctx_used;
-                if model_metrics.ctx_max > 0 {
-                    m.ctx_max = model_metrics.ctx_max;
-                }
-                if model_metrics.tps > 0.0 {
-                    m.tps = model_metrics.tps;
-                }
-                if should_use_model_vram {
-                    m.gpu_mem_used = model_metrics.gpu_mem_used;
+            // Skip model-specific metrics for first 3 cycles (server needs time to stabilize)
+            if cycle_count > 3 {
+                if let Some(name) = current_model
+                    && let Ok(model_metrics) =
+                        crate::backend::server::get_metrics(&host, port, Some(&name), Some(pid)).await
+                {
+                    let stotal = m.gpu_mem_total;
+                    let should_use_model_vram = if stotal > 0 {
+                        model_metrics.gpu_mem_used >= stotal / 4
+                    } else {
+                        true
+                    };
+                    // Reset ctx_used when model changes to avoid showing stale cumulative values.
+                    if prev_model_name.as_deref() != Some(&name) {
+                        prev_model_name = Some(name.clone());
+                        m.ctx_used = 0;
+                    }
+                    m.ctx_used = model_metrics.ctx_used;
+                    if model_metrics.ctx_max > 0 {
+                        m.ctx_max = model_metrics.ctx_max;
+                    }
+                    if model_metrics.tps > 0.0 {
+                        m.tps = model_metrics.tps;
+                    }
+                    if should_use_model_vram {
+                        m.gpu_mem_used = model_metrics.gpu_mem_used;
+                    }
                 }
             }
             if metrics_tx.send(m).await.is_err() {

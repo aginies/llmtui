@@ -456,7 +456,7 @@ async fn main() -> Result<()> {
                 let poll_timeout = if app.is_truly_idle() {
                     std::time::Duration::from_millis(1000)
                 } else if app.download.downloading || app.server.server_handle.is_some() {
-                    std::time::Duration::from_millis(200)
+                    std::time::Duration::from_millis(350)
                 } else {
                     std::time::Duration::from_millis(500)
                 };

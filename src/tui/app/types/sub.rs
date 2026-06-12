@@ -90,6 +90,10 @@ pub struct ServerState {
     pub server_exit_rx: Option<tokio::sync::mpsc::Receiver<()>>,
     pub server_exit_tx: Option<tokio::sync::mpsc::Sender<()>>,
     pub api_shutdown_tx: Option<tokio::sync::watch::Sender<bool>>,
+    /// Last time tick_server_logs ran (throttled to ~500ms).
+    pub last_server_logs_tick: Option<std::time::Instant>,
+    /// Last time tick_sync ran (throttled to ~1000ms).
+    pub last_sync_tick: Option<std::time::Instant>,
 }
 
 pub struct BenchTuneState {
