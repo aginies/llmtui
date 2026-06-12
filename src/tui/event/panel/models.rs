@@ -111,7 +111,11 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     );
                 } else {
                     app.update_model_metadata();
-                    let settings = app.selected_model_settings();
+                    let settings = if app.settings != app.model_settings_cache {
+                        app.settings.clone()
+                    } else {
+                        app.selected_model_settings()
+                    };
 
                     if let Some(handle) = &app.server.server_handle
                         && !crate::backend::server::check_health(&handle.host, handle.port).await

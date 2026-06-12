@@ -310,7 +310,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled("Tokens/s: ", Style::default().fg(Color::Yellow)),
                     Span::styled(tps_str, tps_style),
                     if !latency_str.is_empty() {
-                        Span::styled(latency_str, Style::default().fg(Color::DarkGray))
+                        Span::styled(latency_str, Style::default().fg(Color::Cyan))
                     } else {
                         Span::styled(" ".repeat(10), Style::default().fg(Color::DarkGray))
                     },
