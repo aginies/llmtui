@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
@@ -14,6 +14,7 @@ use crate::tui::app::{ConfirmationKind, GlobalMode};
 use crate::tui::format_bench_params;
 use crate::tui::panel;
 use crate::tui::render_vertical_scrollbar;
+use crate::tui::colors::*;
 use crate::tui::settings::profile_settings_parts;
 
 pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
@@ -39,7 +40,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         let block = Block::default()
             .title(" CmdLine — ⎋ to close  e to export ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow))
+            .border_style(Style::default().fg(YELLOW))
             .border_type(BorderType::Double);
         f.render_widget(Paragraph::new(text).block(block), area);
         return true;
@@ -345,7 +346,7 @@ fn render_web_search_picker(
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.web_search.help"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
@@ -353,14 +354,14 @@ fn render_web_search_picker(
             let marker = if i == engine_picker_selected { "> " } else { "  " };
             let style = if i == engine_picker_selected {
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Green)
+                    .fg(BLACK)
+                    .bg(GREEN)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(WHITE)
             };
             picker_lines.push(Line::from(vec![
-                Span::styled(marker, Style::default().fg(Color::Yellow)),
+                Span::styled(marker, Style::default().fg(YELLOW)),
                 Span::styled(e.to_string(), style),
             ]));
         }
@@ -371,11 +372,11 @@ fn render_web_search_picker(
                     .title(Span::styled(
                         crate::t!("dialog.web_search.title"),
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(YELLOW)
                             .add_modifier(Modifier::BOLD),
                     ))
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Yellow)),
+                    .border_style(Style::default().fg(YELLOW)),
             ),
             picker_area,
         );
@@ -384,10 +385,10 @@ fn render_web_search_picker(
 
     let enabled_marker = if selected_field == -1 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
-        Span::styled(enabled_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(enabled_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.web_search.enabled"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
         Span::styled(
             if enabled {
@@ -397,9 +398,9 @@ fn render_web_search_picker(
             },
             Style::default()
                 .fg(if enabled {
-                    Color::Green
+                    GREEN
                 } else {
-                    Color::DarkGray
+                    DARK_GRAY
                 })
                 .add_modifier(Modifier::BOLD),
         ),
@@ -412,12 +413,12 @@ fn render_web_search_picker(
         engine.to_string()
     };
     picker_lines.push(Line::from(vec![
-        Span::styled(engine_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(engine_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.web_search.engine"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(engine_val, Style::default().fg(Color::White)),
+        Span::styled(engine_val, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(""));
     let url_marker = if selected_field == 1 { "> " } else { "  " };
@@ -429,12 +430,12 @@ fn render_web_search_picker(
         engine_url.to_string()
     };
     picker_lines.push(Line::from(vec![
-        Span::styled(url_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(url_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.web_search.engine_url"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(url_val, Style::default().fg(Color::White)),
+        Span::styled(url_val, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(""));
     let key_marker = if selected_field == 2 { "> " } else { "  " };
@@ -450,12 +451,12 @@ fn render_web_search_picker(
         String::new()
     };
       picker_lines.push(Line::from(vec![
-        Span::styled(key_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(key_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.web_search.api_key"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(key_val, Style::default().fg(Color::White)),
+        Span::styled(key_val, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(""));
     // Render validation status
@@ -475,13 +476,13 @@ fn render_web_search_picker(
     };
     picker_lines.push(Line::from(Span::styled(
         validation_text,
-        Style::default().fg(Color::Yellow),
+        Style::default().fg(YELLOW),
     )));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.web_search.help"),
         Style::default()
-            .fg(Color::Yellow)
+            .fg(YELLOW)
             .add_modifier(Modifier::BOLD),
     )));
     f.render_widget(Clear, picker_area);
@@ -491,11 +492,11 @@ fn render_web_search_picker(
                 .title(Span::styled(
                     crate::t!("dialog.web_search.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(YELLOW)),
         ),
         picker_area,
     );
@@ -527,7 +528,7 @@ fn render_confirmation(
                         Span::styled(
                             format!("{}", loaded_count),
                             Style::default()
-                                .fg(Color::Yellow)
+                                .fg(YELLOW)
                                 .add_modifier(Modifier::BOLD),
                         ),
                         Span::raw(""),
@@ -553,7 +554,7 @@ fn render_confirmation(
                     Span::styled(
                         display_name,
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(YELLOW)
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::raw("?"),
@@ -572,7 +573,7 @@ fn render_confirmation(
                     Span::styled(
                         display_name,
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(YELLOW)
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::raw("?"),
@@ -594,7 +595,7 @@ fn render_confirmation(
                         Span::raw(" "),
                         Span::styled(
                             display,
-                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                            Style::default().fg(RED).add_modifier(Modifier::BOLD),
                         ),
                         Span::raw("?"),
                     ]),
@@ -609,19 +610,19 @@ fn render_confirmation(
     lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.confirm_yes"),
-            Style::default().fg(Color::Black).bg(if selected {
-                Color::Yellow
+            Style::default().fg(BLACK).bg(if selected {
+                YELLOW
             } else {
-                Color::DarkGray
+                DARK_GRAY
             }),
         ),
         Span::raw("    "),
         Span::styled(
             crate::t!("dialog.confirm_no"),
-            Style::default().fg(Color::Black).bg(if selected {
-                Color::DarkGray
+            Style::default().fg(BLACK).bg(if selected {
+                DARK_GRAY
             } else {
-                Color::Yellow
+                YELLOW
             }),
         ),
     ]));
@@ -638,9 +639,9 @@ fn render_confirmation(
         .borders(Borders::ALL)
         .border_style(Style::default().fg(
             if kind == ConfirmationKind::Delete || kind == ConfirmationKind::DeleteBackend {
-                Color::Red
+                RED
             } else {
-                Color::Yellow
+                YELLOW
             },
         ))
         .border_type(BorderType::Double);
@@ -667,7 +668,7 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.host_picker.help"),
         Style::default()
-            .fg(Color::Yellow)
+            .fg(YELLOW)
             .add_modifier(Modifier::BOLD),
     )));
     picker_lines.push(Line::from(""));
@@ -675,17 +676,17 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
         let marker = if i == selected { "> " } else { "  " };
         let style = if i == selected {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(BLACK)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(WHITE)
         };
         picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(marker, Style::default().fg(YELLOW)),
             Span::styled(ip.to_string(), style),
             Span::raw("  "),
-            Span::styled(format!("({iface})"), Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("({iface})"), Style::default().fg(DARK_GRAY)),
         ]));
     }
     f.render_widget(Clear, picker_area);
@@ -695,11 +696,11 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
                 .title(Span::styled(
                     crate::t!("dialog.host_picker.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(YELLOW)),
         ),
         picker_area,
     );
@@ -718,7 +719,7 @@ fn render_profile_picker(
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.profile_picker.help"),
         Style::default()
-            .fg(Color::Yellow)
+            .fg(YELLOW)
             .add_modifier(Modifier::BOLD),
     )));
     picker_lines.push(Line::from(""));
@@ -726,20 +727,20 @@ fn render_profile_picker(
         let marker = if i == selected { "> " } else { "  " };
         let style = if i == selected {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(BLACK)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(WHITE)
         };
         picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(marker, Style::default().fg(YELLOW)),
             Span::styled(name, style),
         ]));
         if !desc.is_empty() {
             picker_lines.push(Line::from(Span::styled(
                 format!("        {}", desc),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DARK_GRAY),
             )));
         }
     }
@@ -747,24 +748,24 @@ fn render_profile_picker(
         let preview_parts = profile_settings_parts(profile, current_settings);
         picker_lines.push(Line::from(Span::styled(
             "────────────────────────────────────────────────────────",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(DARK_GRAY),
         )));
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.profile_picker.changed"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )));
         if preview_parts.is_empty() {
             picker_lines.push(Line::from(Span::styled(
                 crate::t!("dialog.profile_picker.no_changes"),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DARK_GRAY),
             )));
         } else {
             for part in preview_parts {
                 picker_lines.push(Line::from(Span::styled(
                     format!("    {}", part),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )));
             }
         }
@@ -787,11 +788,11 @@ fn render_profile_picker(
                     .title(Span::styled(
                         crate::t!("dialog.profile_picker.title"),
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(YELLOW)
                             .add_modifier(Modifier::BOLD),
                     ))
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Yellow)),
+                    .border_style(Style::default().fg(YELLOW)),
             ),
         picker_area,
     );
@@ -824,13 +825,13 @@ fn render_prompt_picker(
         let name = &entries[selected].0;
         picker_lines.push(Line::from(Span::styled(
             format!("{} {}", crate::t!("dialog.prompt_picker.delete"), name),
-            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            Style::default().fg(RED).add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.prompt_picker.confirm"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
@@ -845,7 +846,7 @@ fn render_prompt_picker(
                 }
             ),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
@@ -867,7 +868,7 @@ fn render_prompt_picker(
                     Span::styled(
                         "|",
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(YELLOW)
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::raw(after),
@@ -880,13 +881,13 @@ fn render_prompt_picker(
         picker_lines.push(Line::from(""));
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.prompt_picker.edit_help"),
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(CYAN),
         )));
     } else {
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.prompt_picker.list_help"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
@@ -894,20 +895,20 @@ fn render_prompt_picker(
             let marker = if i == selected { "> " } else { "  " };
             let style = if i == selected {
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Green)
+                    .fg(BLACK)
+                    .bg(GREEN)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(WHITE)
             };
             picker_lines.push(Line::from(vec![
-                Span::styled(marker, Style::default().fg(Color::Yellow)),
+                Span::styled(marker, Style::default().fg(YELLOW)),
                 Span::styled(name, style),
             ]));
             if !desc.is_empty() {
                 picker_lines.push(Line::from(Span::styled(
                     format!("        {}", desc),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(DARK_GRAY),
                 )));
             }
         }
@@ -921,11 +922,11 @@ fn render_prompt_picker(
                     .title(Span::styled(
                         crate::t!("dialog.prompt_picker.title"),
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(YELLOW)
                             .add_modifier(Modifier::BOLD),
                     ))
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Yellow)),
+                    .border_style(Style::default().fg(YELLOW)),
             ),
         picker_area,
     );
@@ -944,12 +945,12 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     if app.edit.tags_insert_mode {
         modal_lines.push(Line::from(Span::styled(
             crate::t!("dialog.tags.add_help"),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(DARK_GRAY),
         )));
     } else {
         modal_lines.push(Line::from(Span::styled(
             crate::t!("dialog.tags.edit_help"),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(DARK_GRAY),
         )));
     }
     modal_lines.push(Line::from(""));
@@ -961,14 +962,14 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
         };
        let style = if Some(i) == app.edit.tags_selected_idx {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(BLACK)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(WHITE)
             };
         modal_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(marker, Style::default().fg(YELLOW)),
             Span::styled(tag.clone(), style),
         ]));
     }
@@ -976,25 +977,25 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
         modal_lines.push(Line::from(vec![
             Span::styled(
                 crate::t!("dialog.tags.new_label"),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ),
             Span::styled(
                 &app.edit.tags_edit_buffer,
-                Style::default().fg(Color::Black).bg(Color::Yellow),
+                Style::default().fg(BLACK).bg(YELLOW),
             ),
-            Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)),
+            Span::styled("_", Style::default().fg(BLACK).bg(YELLOW)),
         ]));
     } else if app.edit.tags_selected_idx.is_some() {
         modal_lines.push(Line::from(vec![
             Span::styled(
                 crate::t!("dialog.tags.edit_label"),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ),
             Span::styled(
                 &app.edit.tags_edit_buffer,
-                Style::default().fg(Color::Black).bg(Color::Yellow),
+                Style::default().fg(BLACK).bg(YELLOW),
             ),
-            Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)),
+            Span::styled("_", Style::default().fg(BLACK).bg(YELLOW)),
         ]));
     }
     f.render_widget(Clear, modal_area);
@@ -1004,11 +1005,11 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
                 .title(Span::styled(
                     crate::t!("dialog.tags.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow))
+                .border_style(Style::default().fg(YELLOW))
                 .border_type(BorderType::Double),
         ),
         modal_area,
@@ -1040,14 +1041,14 @@ fn render_backend_picker(
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.backend_picker.select"),
         Style::default()
-            .fg(Color::Yellow)
+            .fg(YELLOW)
             .add_modifier(Modifier::BOLD),
     )));
     let gpu_models: Vec<String> = all_models.iter().filter_map(|m| m.clone()).collect();
     if !gpu_models.is_empty() {
         picker_lines.push(Line::from(vec![
             Span::raw(crate::t!("dialog.backend_picker.hardware")),
-            Span::styled(gpu_models.join(", "), Style::default().fg(Color::Cyan)),
+            Span::styled(gpu_models.join(", "), Style::default().fg(CYAN)),
         ]));
     }
     picker_lines.push(Line::from(""));
@@ -1072,11 +1073,11 @@ fn render_backend_picker(
         });
         let style = if i == selected {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(BLACK)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(WHITE)
         };
         let label = match backend {
             crate::models::Backend::Cpu => crate::t!("dialog.backend_picker.cpu"),
@@ -1107,21 +1108,21 @@ fn render_backend_picker(
             format!("{} (latest/auto)", label)
         };
         let mut line_spans = vec![
-            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(marker, Style::default().fg(YELLOW)),
             Span::styled(display_label, style),
         ];
         if tag.is_none() && is_installed {
             line_spans.push(Span::raw("  "));
             line_spans.push(Span::styled(
                 crate::t!("dialog.backend_picker.cached"),
-                Style::default().fg(Color::Blue),
+                Style::default().fg(BLUE),
             ));
         }
         if is_recommended {
             line_spans.push(Span::raw("  "));
             line_spans.push(Span::styled(
                 crate::t!("dialog.backend_picker.recommended"),
-                Style::default().fg(Color::Green),
+                Style::default().fg(GREEN),
             ));
         }
         picker_lines.push(Line::from(line_spans));
@@ -1133,11 +1134,11 @@ fn render_backend_picker(
                 .title(Span::styled(
                     crate::t!("dialog.backend_picker.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(YELLOW)),
         ),
         picker_area,
     );
@@ -1174,11 +1175,11 @@ fn render_bench_tune_setup(
         .title(Span::styled(
             crate::t!("dialog.bench_config.title"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow))
+        .border_style(Style::default().fg(YELLOW))
         .border_type(BorderType::Double);
     let inner_area = block.inner(popup_area);
     f.render_widget(Clear, popup_area);
@@ -1207,38 +1208,38 @@ fn render_bench_tune_setup(
     let mode_line = Line::from(vec![
         Span::styled(
             crate::t!("dialog.bench_config.mode"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
         Span::styled(
             mode_name,
             Style::default()
-                .fg(Color::White)
+                .fg(WHITE)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw(" | "),
         Span::styled(
             crate::t!("dialog.bench_config.iters"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
         Span::styled(
             iters_display,
             if app.edit.editing_iters {
-                Style::default().fg(Color::Black).bg(Color::Cyan)
+                Style::default().fg(BLACK).bg(CYAN)
             } else {
-                Style::default().fg(Color::Cyan)
+                Style::default().fg(CYAN)
             },
         ),
         Span::raw(" | "),
         Span::styled(
             crate::t!("dialog.bench_config.max_tokens"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
         Span::styled(
             tokens_display,
             if app.edit.editing_n_predict {
-                Style::default().fg(Color::Black).bg(Color::Cyan)
+                Style::default().fg(BLACK).bg(CYAN)
             } else {
-                Style::default().fg(Color::Cyan)
+                Style::default().fg(CYAN)
             },
         ),
     ]);
@@ -1263,11 +1264,11 @@ fn render_bench_tune_setup(
             Line::from(vec![
                 Span::styled(
                     format!(" [{} chars] ", config.prompt.len()),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 ),
                 Span::styled(
                     crate::t!("dialog.bench_config.finish"),
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 ),
             ]),
         ]
@@ -1276,7 +1277,7 @@ fn render_bench_tune_setup(
             Line::from(prompt_content),
             Line::from(vec![Span::styled(
                 format!(" [{} chars] ", config.prompt.len()),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DARK_GRAY),
             )]),
         ]
     };
@@ -1287,9 +1288,9 @@ fn render_bench_tune_setup(
                     .title(prompt_title)
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(if editing_prompt {
-                        Color::Green
+                        GREEN
                     } else {
-                        Color::DarkGray
+                        DARK_GRAY
                     }))
                     .border_type(BorderType::Double),
             )
@@ -1317,10 +1318,10 @@ fn render_bench_tune_setup(
                 Span::raw(crate::t!("dialog.bench_config.select_params")),
                 Span::styled(
                     crate::t!("dialog.bench_config.edit_hint"),
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 ),
                 Span::raw(")  "),
-                Span::styled(" [←/→: cycle] ", Style::default().fg(Color::DarkGray)),
+                Span::styled(" [←/→: cycle] ", Style::default().fg(DARK_GRAY)),
                 Span::styled(
                     format!(
                         "{} {}",
@@ -1328,12 +1329,12 @@ fn render_bench_tune_setup(
                         selected_name
                     ),
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(CYAN)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     format!(" ({}/{})", selected_variant_idx + 1, p.variants.len()),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(DARK_GRAY),
                 ),
             ])];
             if editing_param_field >= 0 && p.variants.is_empty() {
@@ -1341,19 +1342,19 @@ fn render_bench_tune_setup(
                 if p.min >= p.max {
                     lines.push(Line::from(Span::styled(
                         crate::t!("dialog.bench_config.error_min"),
-                        Style::default().fg(Color::Red),
+                        Style::default().fg(RED),
                     )));
                 }
                 if p.step <= 0.0 {
                     lines.push(Line::from(Span::styled(
                         crate::t!("dialog.bench_config.error_step"),
-                        Style::default().fg(Color::Red),
+                        Style::default().fg(RED),
                     )));
                 }
                 if p.step >= (p.max - p.min) && (p.max - p.min) > 0.001 {
                     lines.push(Line::from(Span::styled(
                         " ⚠ step ≥ range — only 2 values will be tested",
-                        Style::default().fg(Color::Yellow),
+                        Style::default().fg(YELLOW),
                     )));
                 }
             }
@@ -1369,12 +1370,12 @@ fn render_bench_tune_setup(
                 Span::raw(crate::t!("dialog.bench_config.select_params")),
                 Span::styled(
                     crate::t!("dialog.bench_config.edit_hint"),
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 ),
                 Span::raw(")  "),
                 Span::styled(
                     " [Tab: Min → Max → Step] ",
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(DARK_GRAY),
                 ),
                 Span::styled(
                     format!(
@@ -1383,7 +1384,7 @@ fn render_bench_tune_setup(
                         active_field_name
                     ),
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(CYAN)
                         .add_modifier(Modifier::BOLD),
                 ),
             ])];
@@ -1391,19 +1392,19 @@ fn render_bench_tune_setup(
             if p.min >= p.max {
                 lines.push(Line::from(Span::styled(
                     crate::t!("dialog.bench_config.error_min"),
-                    Style::default().fg(Color::Red),
+                    Style::default().fg(RED),
                 )));
             }
             if p.step <= 0.0 {
                 lines.push(Line::from(Span::styled(
                     crate::t!("dialog.bench_config.error_step"),
-                    Style::default().fg(Color::Red),
+                    Style::default().fg(RED),
                 )));
             }
             if p.step >= (p.max - p.min) && (p.max - p.min) > 0.001 {
                 lines.push(Line::from(Span::styled(
                     " ⚠ step ≥ range — only 2 values will be tested",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 )));
             }
             lines
@@ -1413,7 +1414,7 @@ fn render_bench_tune_setup(
             Span::raw(crate::t!("dialog.bench_config.params_label")),
             Span::styled(
                 crate::t!("dialog.bench_config.toggle_hint"),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DARK_GRAY),
             ),
         ])]
     };
@@ -1530,33 +1531,33 @@ fn render_bench_tune_setup(
                 }
             };
             let row_style = if is_selected {
-                Style::default().fg(Color::Black).bg(Color::Green)
+                Style::default().fg(BLACK).bg(GREEN)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(WHITE)
             };
             let desc_style = if p.name == "draft_tokens" && is_spec_off {
                 if is_selected {
                     Style::default()
-                        .fg(Color::DarkGray)
+                        .fg(DARK_GRAY)
                         .add_modifier(Modifier::DIM)
                 } else {
-                    Style::default().fg(Color::DarkGray)
+                    Style::default().fg(DARK_GRAY)
                 }
             } else if editing_param && is_selected && !(-1..0).contains(&editing_param_field) {
-                Style::default().fg(Color::Blue)
+                Style::default().fg(BLUE)
             } else {
-                Style::default().fg(Color::Gray)
+                Style::default().fg(GRAY)
             };
             Row::new(vec![
-                Cell::from(Span::styled(marker, Style::default().fg(Color::Yellow))),
+                Cell::from(Span::styled(marker, Style::default().fg(YELLOW))),
                 Cell::from(Span::styled(
                     checkbox,
                     if p.name == "spec_type" || (p.name == "draft_tokens" && is_spec_off) {
-                        Style::default().fg(Color::DarkGray)
+                        Style::default().fg(DARK_GRAY)
                     } else if p.enabled {
-                        Style::default().fg(Color::Green)
+                        Style::default().fg(GREEN)
                     } else {
-                        Style::default().fg(Color::DarkGray)
+                        Style::default().fg(DARK_GRAY)
                     },
                 )),
                 Cell::from(name),
@@ -1583,37 +1584,37 @@ fn render_bench_tune_setup(
             Span::styled(
                 total_tests.to_string(),
                 Style::default()
-                    .fg(Color::Cyan)
+                    .fg(CYAN)
                     .add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" [Alt+M]", Style::default().fg(Color::Yellow)),
+            Span::styled(" [Alt+M]", Style::default().fg(YELLOW)),
             Span::raw(" Mode "),
-            Span::styled(" [Alt+N]", Style::default().fg(Color::Yellow)),
+            Span::styled(" [Alt+N]", Style::default().fg(YELLOW)),
             Span::raw(" Tokens "),
-            Span::styled(" [Alt+I]", Style::default().fg(Color::Yellow)),
+            Span::styled(" [Alt+I]", Style::default().fg(YELLOW)),
             Span::raw(" Iters "),
-            Span::styled(" [E]", Style::default().fg(Color::Yellow)),
+            Span::styled(" [E]", Style::default().fg(YELLOW)),
             Span::raw(" Range "),
-            Span::styled(" [Space]", Style::default().fg(Color::Yellow)),
+            Span::styled(" [Space]", Style::default().fg(YELLOW)),
             Span::raw(crate::t!("dialog.bench_config.toggle")),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled(
                 crate::t!("dialog.bench_config.start"),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ),
             Span::styled(
                 crate::t!("dialog.bench_config.start_text"),
-                Style::default().fg(Color::Black).bg(Color::Green),
+                Style::default().fg(BLACK).bg(GREEN),
             ),
             Span::raw("  "),
             Span::styled(
                 crate::t!("dialog.bench_config.cancel_key"),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ),
             Span::raw(crate::t!("dialog.bench_config.cancel")),
         ]),
@@ -1624,7 +1625,7 @@ fn render_bench_tune_setup(
                 crate::t!("dialog.bench_config.generates"),
                 num_combinations
             ),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(DARK_GRAY),
         )]),
     ];
     f.render_widget(
@@ -1666,13 +1667,13 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
         .title(Span::styled(
             crate::t!("dialog.rpc.title"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
         .border_style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )
         .border_type(BorderType::Double);
@@ -1704,13 +1705,13 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
         .title(Span::styled(
             crate::t!("dialog.about.title"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
         .border_style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )
         .border_type(BorderType::Double);
@@ -1744,17 +1745,17 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
         "dialog.max_concurrent.divides"
     ))]));
     picker_lines.push(Line::from(vec![
-        Span::styled(ctx_len.to_string(), Style::default().fg(Color::Yellow)),
+        Span::styled(ctx_len.to_string(), Style::default().fg(YELLOW)),
         Span::raw(" / "),
         Span::styled(
             format!("{}", if entered > 0 { entered } else { 1 }),
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(CYAN),
         ),
         Span::raw(" = "),
         Span::styled(
             format!("{}", per_model),
             Style::default()
-                .fg(Color::Green)
+                .fg(GREEN)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw(crate::t!("dialog.max_concurrent.tokens_per_model")),
@@ -1762,18 +1763,18 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::raw(crate::t!("dialog.max_concurrent.value_label")),
-        Span::styled(value, Style::default().fg(Color::Black).bg(Color::Yellow)),
+        Span::styled(value, Style::default().fg(BLACK).bg(YELLOW)),
     ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.max_concurrent.confirm"),
-            Style::default().fg(Color::Black).bg(Color::Yellow),
+            Style::default().fg(BLACK).bg(YELLOW),
         ),
         Span::raw("  "),
         Span::styled(
             crate::t!("dialog.max_concurrent.cancel"),
-            Style::default().fg(Color::Black).bg(Color::DarkGray),
+            Style::default().fg(BLACK).bg(DARK_GRAY),
         ),
     ]));
     f.render_widget(Clear, picker_area);
@@ -1783,11 +1784,11 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
                 .title(Span::styled(
                     crate::t!("dialog.max_concurrent.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(YELLOW)),
         ),
         picker_area,
     );
@@ -1818,10 +1819,10 @@ fn render_dashboard_picker(
     let mut picker_lines: Vec<Line> = Vec::new();
     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
-        Span::styled(enabled_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(enabled_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.dashboard.enabled"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
         Span::styled(
             if enabled {
@@ -1830,7 +1831,7 @@ fn render_dashboard_picker(
                 crate::t!("dialog.dashboard.off")
             },
             Style::default()
-                .fg(Color::Green)
+                .fg(GREEN)
                 .add_modifier(Modifier::BOLD),
         ),
     ]));
@@ -1842,12 +1843,12 @@ fn render_dashboard_picker(
         port.to_string()
     };
     picker_lines.push(Line::from(vec![
-        Span::styled(port_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(port_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.dashboard.port"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(port_val, Style::default().fg(Color::White)),
+        Span::styled(port_val, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(""));
     let auth_marker = if selected_field == 1i32 { "> " } else { "  " };
@@ -1859,20 +1860,20 @@ fn render_dashboard_picker(
         auth_key.to_string()
     };
     picker_lines.push(Line::from(vec![
-        Span::styled(auth_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(auth_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.dashboard.auth_key"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(auth_val, Style::default().fg(Color::White)),
+        Span::styled(auth_val, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(""));
     let tls_enabled_marker = if selected_field == 2i32 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
-        Span::styled(tls_enabled_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(tls_enabled_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.dashboard.tls"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
         Span::styled(
             if tls_enabled {
@@ -1882,9 +1883,9 @@ fn render_dashboard_picker(
             },
             Style::default()
                 .fg(if tls_enabled {
-                    Color::Green
+                    GREEN
                 } else {
-                    Color::DarkGray
+                    DARK_GRAY
                 })
                 .add_modifier(Modifier::BOLD),
         ),
@@ -1899,12 +1900,12 @@ fn render_dashboard_picker(
         tls_cert.to_string()
     };
     picker_lines.push(Line::from(vec![
-        Span::styled(tls_cert_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(tls_cert_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.dashboard.tls_cert"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(tls_cert_val, Style::default().fg(Color::White)),
+        Span::styled(tls_cert_val, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(""));
     let tls_key_marker = if selected_field == 4i32 { "> " } else { "  " };
@@ -1916,17 +1917,17 @@ fn render_dashboard_picker(
         tls_key.to_string()
     };
     picker_lines.push(Line::from(vec![
-        Span::styled(tls_key_marker, Style::default().fg(Color::Yellow)),
+        Span::styled(tls_key_marker, Style::default().fg(YELLOW)),
         Span::styled(
             crate::t!("dialog.dashboard.tls_key"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(tls_key_val, Style::default().fg(Color::White)),
+        Span::styled(tls_key_val, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::styled(
         crate::t!("dialog.dashboard.close"),
-        Style::default().fg(Color::Black).bg(Color::DarkGray),
+        Style::default().fg(BLACK).bg(DARK_GRAY),
     )]));
     f.render_widget(Clear, picker_area);
     f.render_widget(
@@ -1935,11 +1936,11 @@ fn render_dashboard_picker(
                 .title(Span::styled(
                     crate::t!("dialog.dashboard.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow))
+                .border_style(Style::default().fg(YELLOW))
                 .border_type(BorderType::Double),
         ),
         picker_area,
@@ -2000,64 +2001,64 @@ fn render_dashboard_url(
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.dashboard_url.title"),
         Style::default()
-            .fg(Color::Yellow)
+            .fg(YELLOW)
             .add_modifier(Modifier::BOLD),
     )));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.host"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(host_val, Style::default().fg(Color::White)),
+        Span::styled(host_val, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.backend"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(&backend_str, Style::default().fg(Color::White)),
+        Span::styled(&backend_str, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.threads"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(&threads_str, Style::default().fg(Color::White)),
+        Span::styled(&threads_str, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.threads_batch"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(&threads_batch_str, Style::default().fg(Color::White)),
+        Span::styled(&threads_batch_str, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.mode"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(&mode_str, Style::default().fg(Color::White)),
+        Span::styled(&mode_str, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.api_endpoint"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(api_str, Style::default().fg(Color::White)),
+        Span::styled(api_str, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.rpc_workers"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
-        Span::styled(&rpc_str, Style::default().fg(Color::White)),
+        Span::styled(&rpc_str, Style::default().fg(WHITE)),
     ]));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.dashboard"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         ),
         Span::styled(
             if ws_enabled {
@@ -2066,7 +2067,7 @@ fn render_dashboard_url(
                 crate::t!("dialog.dashboard.disabled")
             },
             Style::default()
-                .fg(Color::Green)
+                .fg(GREEN)
                 .add_modifier(Modifier::BOLD),
         ),
     ]));
@@ -2074,18 +2075,18 @@ fn render_dashboard_url(
     picker_lines.push(Line::from(Span::styled(
         &url,
         Style::default()
-            .fg(Color::Cyan)
+            .fg(CYAN)
             .add_modifier(Modifier::BOLD),
     )));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.copy"),
-            Style::default().fg(Color::Black).bg(Color::Yellow),
+            Style::default().fg(BLACK).bg(YELLOW),
         ),
         Span::styled(
             crate::t!("dialog.dashboard_url.close"),
-            Style::default().fg(Color::Black).bg(Color::DarkGray),
+            Style::default().fg(BLACK).bg(DARK_GRAY),
         ),
     ]));
     f.render_widget(Clear, picker_area);
@@ -2095,11 +2096,11 @@ fn render_dashboard_url(
                 .title(Span::styled(
                     crate::t!("dialog.dashboard_url.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow))
+                .border_style(Style::default().fg(YELLOW))
                 .border_type(BorderType::Double),
         ),
         picker_area,
@@ -2124,12 +2125,12 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
         let main_title = Line::from(vec![
             Span::styled(
                 crate::t!("dialog.bench_result.title"),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ),
             Span::styled(
                 p_str,
                 Style::default()
-                    .fg(Color::Cyan)
+                    .fg(CYAN)
                     .add_modifier(Modifier::BOLD),
             ),
         ]);
@@ -2138,7 +2139,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             Row::new(vec![
                 Cell::from(Span::styled(
                     "temperature",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 )),
                 Cell::from(Span::styled(
                     settings
@@ -2150,11 +2151,11 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                                 .map(|v| format!("{:.2}", v))
                                 .unwrap_or_else(|| "-".to_string())
                         }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled("top_p", Style::default().fg(Color::Yellow))),
+                Cell::from(Span::styled("top_p", Style::default().fg(YELLOW))),
                 Cell::from(Span::styled(
                     settings
                         .map(|s| format!("{:.2}", s.top_p))
@@ -2165,11 +2166,11 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                                 .map(|v| format!("{:.2}", v))
                                 .unwrap_or_else(|| "-".to_string())
                         }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled("top_k", Style::default().fg(Color::Yellow))),
+                Cell::from(Span::styled("top_k", Style::default().fg(YELLOW))),
                 Cell::from(Span::styled(
                     settings.map(|s| s.top_k.to_string()).unwrap_or_else(|| {
                         result
@@ -2178,13 +2179,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                             .map(|v| v.to_string())
                             .unwrap_or_else(|| "-".to_string())
                     }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "repeat_penalty",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 )),
                 Cell::from(Span::styled(
                     settings
@@ -2196,13 +2197,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                                 .map(|v| format!("{:.2}", v))
                                 .unwrap_or_else(|| "-".to_string())
                         }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "context_length",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 )),
                 Cell::from(Span::styled(
                     settings
@@ -2214,13 +2215,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                                 .map(|v| v.to_string())
                                 .unwrap_or_else(|| "-".to_string())
                         }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "batch_size",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 )),
                 Cell::from(Span::styled(
                     settings
@@ -2232,13 +2233,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                                 .map(|v| v.to_string())
                                 .unwrap_or_else(|| "-".to_string())
                         }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "flash_attn",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 )),
                 Cell::from(Span::styled(
                     settings
@@ -2262,11 +2263,11 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                                 })
                                 .unwrap_or_else(|| "-".to_string())
                         }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled("threads", Style::default().fg(Color::Yellow))),
+                Cell::from(Span::styled("threads", Style::default().fg(YELLOW))),
                 Cell::from(Span::styled(
                     settings.map(|s| s.threads.to_string()).unwrap_or_else(|| {
                         result
@@ -2275,13 +2276,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                             .map(|v| v.to_string())
                             .unwrap_or_else(|| "-".to_string())
                     }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "expert_count",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 )),
                 Cell::from(Span::styled(
                     settings
@@ -2293,13 +2294,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                                 .map(|v| v.to_string())
                                 .unwrap_or_else(|| "-".to_string())
                         }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "spec_type",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 )),
                 Cell::from(Span::styled(
                     settings
@@ -2325,13 +2326,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                                 })
                                 .unwrap_or_else(|| "-".to_string())
                         }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "draft_tokens",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 )),
                 Cell::from(Span::styled(
                     settings
@@ -2343,7 +2344,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                                 .map(|v| v.to_string())
                                 .unwrap_or_else(|| "-".to_string())
                         }),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
         ];
@@ -2352,13 +2353,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 Cell::from(Span::styled(
                     "Parameter",
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 )),
                 Cell::from(Span::styled(
                     crate::t!("dialog.gguf.value"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 )),
             ]))
@@ -2366,7 +2367,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 Block::default()
                     .title(crate::t!("dialog.bench_result.parameters"))
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan))
+                    .border_style(Style::default().fg(CYAN))
                     .border_type(BorderType::Double),
             );
         let output_idx = app
@@ -2381,48 +2382,48 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             Row::new(vec![
                 Cell::from(Span::styled(
                     "prompt_tps",
-                    Style::default().fg(Color::Green),
+                    Style::default().fg(GREEN),
                 )),
                 Cell::from(Span::styled(
                     format!("{:.2}", metrics_for_output.prompt_tps),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled("gen_tps", Style::default().fg(Color::Green))),
+                Cell::from(Span::styled("gen_tps", Style::default().fg(GREEN))),
                 Cell::from(Span::styled(
                     format!("{:.2}", metrics_for_output.generation_tps),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "combined_tps",
-                    Style::default().fg(Color::Green),
+                    Style::default().fg(GREEN),
                 )),
                 Cell::from(Span::styled(
                     format!("{:.2}", metrics_for_output.combined_tps),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "latency/token",
-                    Style::default().fg(Color::Green),
+                    Style::default().fg(GREEN),
                 )),
                 Cell::from(Span::styled(
                     format!("{:.2} ms", metrics_for_output.latency_per_token),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
                 Cell::from(Span::styled(
                     "prompt_processing",
-                    Style::default().fg(Color::Green),
+                    Style::default().fg(GREEN),
                 )),
                 Cell::from(Span::styled(
                     format!("{:.2} ms", metrics_for_output.prompt_processing_time),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 )),
             ]),
         ];
@@ -2431,13 +2432,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 Cell::from(Span::styled(
                     "Metric",
                     Style::default()
-                        .fg(Color::Green)
+                        .fg(GREEN)
                         .add_modifier(Modifier::BOLD),
                 )),
                 Cell::from(Span::styled(
                     crate::t!("dialog.gguf.value"),
                     Style::default()
-                        .fg(Color::Green)
+                        .fg(GREEN)
                         .add_modifier(Modifier::BOLD),
                 )),
             ]))
@@ -2449,7 +2450,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                         result.outputs.len()
                     ))
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan))
+                    .border_style(Style::default().fg(CYAN))
                     .border_type(BorderType::Double),
             );
         let output_lines: Vec<Line> = if !result.outputs.is_empty() {
@@ -2521,7 +2522,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             let command_block = Block::default()
                 .title(crate::t!("dialog.bench_result.server_cmd"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow))
+                .border_style(Style::default().fg(YELLOW))
                 .border_type(BorderType::Double);
             f.render_widget(
                 Paragraph::new(cmd_text.to_string())
@@ -2542,7 +2543,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             let output_block = Block::default()
                 .title(crate::t!("dialog.bench_result.output"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan))
+                .border_style(Style::default().fg(CYAN))
                 .border_type(BorderType::Double);
             if !output_lines.is_empty() {
                 let scroll = app.bench_tune.bench_tune_output_scroll as u16;
@@ -2572,18 +2573,18 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
         let controls = Line::from(vec![
             Span::styled(
                 crate::t!("dialog.bench_result.close"),
-                Style::default().fg(Color::Black).bg(Color::Yellow),
+                Style::default().fg(BLACK).bg(YELLOW),
             ),
             Span::raw("  "),
-            Span::styled("[j/k] scroll  ", Style::default().fg(Color::Yellow)),
+            Span::styled("[j/k] scroll  ", Style::default().fg(YELLOW)),
             Span::raw("  "),
-            Span::styled("[←] prev   ", Style::default().fg(Color::Yellow)),
+            Span::styled("[←] prev   ", Style::default().fg(YELLOW)),
             Span::styled(
                 format!("({}/{})", absolute_idx, total_outputs),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ),
             Span::raw("  "),
-            Span::styled("[→] next  ", Style::default().fg(Color::Yellow)),
+            Span::styled("[→] next  ", Style::default().fg(YELLOW)),
         ]);
         let controls_area = Rect {
             x: 0,
@@ -2614,34 +2615,34 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
         Line::from(Span::styled(
             crate::t!("dialog.search.title"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(vec![
             Span::styled(
                 crate::t!("dialog.search.label"),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ),
-            Span::styled(before, Style::default().fg(Color::White)),
+            Span::styled(before, Style::default().fg(WHITE)),
             Span::styled(
                 "|",
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(after, Style::default().fg(Color::White)),
+            Span::styled(after, Style::default().fg(WHITE)),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled(
                 crate::t!("dialog.search.execute"),
-                Style::default().fg(Color::Black).bg(Color::Yellow),
+                Style::default().fg(BLACK).bg(YELLOW),
             ),
             Span::raw("  "),
             Span::styled(
                 crate::t!("dialog.max_concurrent.cancel"),
-                Style::default().fg(Color::Black).bg(Color::DarkGray),
+                Style::default().fg(BLACK).bg(DARK_GRAY),
             ),
         ]),
     ];
@@ -2651,7 +2652,7 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
             Block::default()
                 .title(crate::t!("panel.title.search_input"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow))
+                .border_style(Style::default().fg(YELLOW))
                 .border_type(BorderType::Double),
         ),
         popup_area,
@@ -2682,14 +2683,14 @@ fn render_gguf_naming_overlay(
     lines.push(Line::from(Span::styled(
         &explanation.model_family,
         Style::default()
-            .fg(Color::Yellow)
+            .fg(YELLOW)
             .add_modifier(Modifier::BOLD),
     )));
     lines.push(Line::from(""));
 
     // Table header
     let header_style = Style::default()
-        .fg(Color::Yellow)
+        .fg(YELLOW)
         .add_modifier(Modifier::BOLD);
     let segment_header = crate::t!("dialog.gguf.segment");
     let value_header = crate::t!("dialog.gguf.value");
@@ -2728,7 +2729,7 @@ fn render_gguf_naming_overlay(
             "─".repeat(value_w as usize),
             "─".repeat(desc_w as usize)
         ),
-        Style::default().fg(Color::DarkGray),
+        Style::default().fg(DARK_GRAY),
     )));
 
     // Segments
@@ -2736,12 +2737,12 @@ fn render_gguf_naming_overlay(
         let header_spans: Vec<Span> = vec![
             Span::styled(
                 format!("{:<width$}", segment.label, width = label_w as usize),
-                Style::default().fg(Color::Cyan),
+                Style::default().fg(CYAN),
             ),
             Span::raw("  "),
             Span::styled(
                 format!("{:<width$}", segment.value, width = value_w as usize),
-                Style::default().fg(Color::White),
+                Style::default().fg(WHITE),
             ),
             Span::raw("  "),
         ];
@@ -2754,7 +2755,7 @@ fn render_gguf_naming_overlay(
             let mut combined = header_spans.clone();
             combined.push(Span::styled(
                 desc_text.clone(),
-                Style::default().fg(Color::Gray),
+                Style::default().fg(GRAY),
             ));
             lines.push(Line::from(combined));
         } else {
@@ -2794,7 +2795,7 @@ fn render_gguf_naming_overlay(
                 let line_text = &remaining[..byte_count];
                 line_spans.push(Span::styled(
                     line_text.to_string(),
-                    Style::default().fg(Color::Gray),
+                    Style::default().fg(GRAY),
                 ));
                 lines.push(Line::from(line_spans));
 
@@ -2816,18 +2817,18 @@ fn render_gguf_naming_overlay(
     lines.push(Line::from(""));
     lines.push(Line::from(vec![Span::styled(
         crate::t!("dialog.gguf.close"),
-        Style::default().fg(Color::Yellow),
+        Style::default().fg(YELLOW),
     )]));
 
     let block = Block::default()
         .title(Span::styled(
             crate::t!("dialog.gguf.title"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow))
+        .border_style(Style::default().fg(YELLOW))
         .border_type(BorderType::Double);
 
     f.render_widget(Clear, popup_area);
@@ -2880,7 +2881,7 @@ fn render_yarn_rope_picker(
         Line::from(Span::styled(
             crate::t!("dialog.yarn.help"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
@@ -2916,15 +2917,15 @@ fn render_yarn_rope_picker(
 
         let style = if is_selected {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(BLACK)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(WHITE)
         };
         picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(Color::Yellow)),
-            Span::styled(format!("{}: ", name), Style::default().fg(Color::Cyan)),
+            Span::styled(marker, Style::default().fg(YELLOW)),
+            Span::styled(format!("{}: ", name), Style::default().fg(CYAN)),
             Span::styled(display_val, style),
         ]));
     }
@@ -2950,7 +2951,7 @@ fn render_yarn_rope_picker(
             "  scale={:.2} base={:.2} scale_f={:.2}",
             rope_scale_display, freq_base_val, freq_scale_val
         ),
-        Style::default().fg(Color::DarkGray),
+        Style::default().fg(DARK_GRAY),
     )));
     picker_lines.push(Line::from(Span::styled(
         format!(
@@ -2959,7 +2960,7 @@ fn render_yarn_rope_picker(
             ctx_display
         ),
         Style::default()
-            .fg(Color::Cyan)
+            .fg(CYAN)
             .add_modifier(Modifier::BOLD),
     )));
 
@@ -2970,11 +2971,11 @@ fn render_yarn_rope_picker(
                 .title(Span::styled(
                     crate::t!("dialog.yarn.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(YELLOW)),
         ),
         picker_area,
     );
@@ -2998,7 +2999,7 @@ fn render_spec_type_picker(
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
             crate::t!("dialog.profile_picker.help"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         )),
         Line::from(""),
     ];
@@ -3007,14 +3008,14 @@ fn render_spec_type_picker(
         let marker = if i == selected { "> " } else { "  " };
         let style = if i == selected {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(BLACK)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(WHITE)
         };
         picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(marker, Style::default().fg(YELLOW)),
             Span::styled(entry, style),
         ]));
     }
@@ -3026,11 +3027,11 @@ fn render_spec_type_picker(
                 .title(Span::styled(
                     crate::t!("dialog.spec.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(YELLOW)),
         ),
         picker_area,
     );
@@ -3054,7 +3055,7 @@ fn render_chat_template_picker(
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
             crate::t!("dialog.chat_template.help"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         )),
         Line::from(""),
     ];
@@ -3063,14 +3064,14 @@ fn render_chat_template_picker(
         let marker = if i == selected { "> " } else { "  " };
         let style = if i == selected {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(BLACK)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(WHITE)
         };
         picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(marker, Style::default().fg(YELLOW)),
             Span::styled(entry, style),
         ]));
     }
@@ -3082,11 +3083,11 @@ fn render_chat_template_picker(
                 .title(Span::styled(
                     crate::t!("dialog.chat_template.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(YELLOW)),
         ),
         picker_area,
     );
@@ -3110,7 +3111,7 @@ fn render_chat_template_file_picker(
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
             crate::t!("dialog.chat_template.file.help"),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(YELLOW),
         )),
         Line::from(""),
     ];
@@ -3118,21 +3119,21 @@ fn render_chat_template_file_picker(
     if entries.is_empty() {
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.chat_template.file.empty"),
-            Style::default().fg(Color::Red),
+            Style::default().fg(RED),
         )));
     } else {
         for (i, (name, _path)) in entries.iter().enumerate() {
             let marker = if i == selected { "> " } else { "  " };
             let style = if i == selected {
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Green)
+                    .fg(BLACK)
+                    .bg(GREEN)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(WHITE)
             };
             picker_lines.push(Line::from(vec![
-                Span::styled(marker, Style::default().fg(Color::Yellow)),
+                Span::styled(marker, Style::default().fg(YELLOW)),
                 Span::styled(name, style),
             ]));
         }
@@ -3145,11 +3146,11 @@ fn render_chat_template_file_picker(
                 .title(Span::styled(
                     crate::t!("dialog.chat_template.file.title"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow))
+                .border_style(Style::default().fg(YELLOW))
                 .border_type(BorderType::Double),
         ),
         picker_area,
