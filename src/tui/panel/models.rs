@@ -1,13 +1,14 @@
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState},
 };
 
 use crate::models::{ListSort, SearchSort};
 use crate::tui::app::{App, ModelsMode};
+use crate::tui::colors::*;
 use crate::tui::{format_context_k, format_number, format_size};
 use regex::Regex;
 
@@ -34,9 +35,9 @@ pub fn render_download_panel(
     };
 
     let (border_type, border_color) = if is_focused {
-        (BorderType::Thick, Color::Green)
+        (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, Color::Gray)
+        (BorderType::Plain, GRAY)
     };
     let block = Block::default()
         .title(title)
@@ -72,12 +73,12 @@ pub fn render_download_panel(
             };
 
             let status_color = match &d.status {
-                crate::models::DownloadStatus::Downloading => Color::Yellow,
-                crate::models::DownloadStatus::Pausing => Color::Yellow,
-                crate::models::DownloadStatus::Paused => Color::White,
-                crate::models::DownloadStatus::Complete => Color::Green,
-                crate::models::DownloadStatus::Cancelled => Color::Red,
-                crate::models::DownloadStatus::Error(_) => Color::Red,
+                crate::models::DownloadStatus::Downloading => YELLOW,
+                crate::models::DownloadStatus::Pausing => YELLOW,
+                crate::models::DownloadStatus::Paused => WHITE,
+                crate::models::DownloadStatus::Complete => GREEN,
+                crate::models::DownloadStatus::Cancelled => RED,
+                crate::models::DownloadStatus::Error(_) => RED,
             };
 
             Row::new(vec![
@@ -94,32 +95,32 @@ pub fn render_download_panel(
     let headers = vec![
         Cell::from(crate::t!("download.headers.model")).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.file")).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.progress")).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.speed")).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.eta")).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.status")).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ),
     ];
@@ -137,7 +138,7 @@ pub fn render_download_panel(
         .header(Row::new(headers))
         .row_highlight_style(
             Style::default()
-                .bg(Color::Green)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">> ");
@@ -240,7 +241,7 @@ fn highlight_query(text: &str, lower_text: &str, compiled: Option<&Regex>) -> Li
         spans.push(Span::styled(
             text[*hstart..*hend].to_string(),
             Style::default()
-                .fg(Color::Cyan)
+                .fg(CYAN)
                 .add_modifier(Modifier::BOLD),
         ));
         start = *hend;
@@ -268,9 +269,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, Color::Green)
+                (BorderType::Thick, GREEN)
             } else {
-                (BorderType::Plain, Color::Gray)
+                (BorderType::Plain, GRAY)
             };
             let block = Block::default()
                 .title(title)
@@ -304,19 +305,19 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         Span::styled(
                             "Filter: ",
                             Style::default()
-                                .fg(Color::Yellow)
+                                .fg(YELLOW)
                                 .add_modifier(Modifier::BOLD),
                         ),
                         Span::styled(
                             &app.search.local_filter,
-                            Style::default().fg(Color::Black).bg(Color::Yellow),
+                            Style::default().fg(BLACK).bg(YELLOW),
                         ),
-                        Span::styled("_", Style::default().fg(Color::Black).bg(Color::Yellow)),
+                        Span::styled("_", Style::default().fg(BLACK).bg(YELLOW)),
                     ])
                 } else {
                     Line::from(vec![
-                        Span::styled("Filter: ", Style::default().fg(Color::DarkGray)),
-                        Span::styled(&app.search.local_filter, Style::default().fg(Color::Cyan)),
+                        Span::styled("Filter: ", Style::default().fg(DARK_GRAY)),
+                        Span::styled(&app.search.local_filter, Style::default().fg(CYAN)),
                     ])
                 };
                 f.render_widget(ratatui::widgets::Paragraph::new(filter_text), filter_inner);
@@ -335,7 +336,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == ListSort::Status {
@@ -349,7 +350,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == ListSort::Params {
@@ -363,7 +364,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == ListSort::Qual {
@@ -377,7 +378,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(
@@ -392,7 +393,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     })
                     .style(
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(YELLOW)
                             .add_modifier(Modifier::BOLD),
                     )
                     .alignment(Alignment::Center),
@@ -480,40 +481,40 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let name_display = scroll_text(display_name, name_width, state);
                     let name_style = if is_selected {
                         Style::default()
-                            .fg(Color::Black)
-                            .bg(Color::Green)
+                            .fg(BLACK)
+                            .bg(GREEN)
                             .add_modifier(Modifier::BOLD)
                     } else {
                         match model_state {
                             Some(crate::models::ModelState::Loaded { .. }) => Style::default()
-                                .fg(Color::Green)
+                                .fg(GREEN)
                                 .add_modifier(Modifier::BOLD),
                             Some(crate::models::ModelState::Loading)
                             | Some(crate::models::ModelState::Benchmarking) => {
-                                Style::default().fg(Color::Yellow)
+                                Style::default().fg(YELLOW)
                             }
-                            _ => Style::default().fg(Color::White),
+                            _ => Style::default().fg(WHITE),
                         }
                     };
 
                     let status_style = match model_state {
                         Some(crate::models::ModelState::Loaded { .. }) => {
-                            Style::default().fg(Color::Green)
+                            Style::default().fg(GREEN)
                         }
                         Some(crate::models::ModelState::Loading)
                         | Some(crate::models::ModelState::Benchmarking) => {
-                            Style::default().fg(Color::Yellow)
+                            Style::default().fg(YELLOW)
                         }
-                        _ => Style::default().fg(Color::Gray),
+                        _ => Style::default().fg(GRAY),
                     };
 
                     let is_moe = meta.map(|m| m.arch.contains("moe")).unwrap_or(false);
                     let params_style = if params_str.is_empty() {
-                        Style::default().fg(Color::DarkGray)
+                        Style::default().fg(DARK_GRAY)
                     } else if is_moe {
-                        Style::default().fg(Color::Magenta)
+                        Style::default().fg(MAGENTA)
                     } else {
-                        Style::default().fg(Color::White)
+                        Style::default().fg(WHITE)
                     };
 
                     let quality_cell = meta
@@ -529,7 +530,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             ratatui::text::Text::from(context_str)
                                 .alignment(ratatui::layout::Alignment::Right),
                         )
-                        .style(Style::default().fg(Color::Cyan)),
+                        .style(Style::default().fg(CYAN)),
                     ])
                 })
                 .collect();
@@ -546,8 +547,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .header(Row::new(headers))
                 .row_highlight_style(
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Green)
+                        .fg(BLACK)
+                        .bg(GREEN)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
@@ -585,9 +586,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             };
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, Color::Green)
+                (BorderType::Thick, GREEN)
             } else {
-                (BorderType::Plain, Color::Gray)
+                (BorderType::Plain, GRAY)
             };
             let block = Block::default()
                 .title(title)
@@ -598,7 +599,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let headers = vec![
                 Cell::from(crate::t!("models.search_headers.model")).style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == SearchSort::Downloads {
@@ -608,7 +609,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == SearchSort::Likes {
@@ -618,12 +619,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(crate::t!("models.search_headers.license")).style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
             ];
@@ -674,7 +675,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let is_downloaded = result.downloaded;
                     let marker = if is_downloaded { "✓" } else { " " };
                     let marker_span =
-                        Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));
+                        Span::styled(format!("[{}] ", marker), Style::default().fg(GREEN));
                     let mut name_spans: Vec<Span> = vec![marker_span];
                     name_spans.extend(highlighted.spans.iter().cloned());
 
@@ -690,7 +691,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             // Add informational rows
             if *loading {
                 rows.push(Row::new(vec![
-                    Cell::from("Loading more results...").style(Style::default().fg(Color::Yellow)),
+                    Cell::from("Loading more results...").style(Style::default().fg(YELLOW)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
@@ -698,14 +699,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             } else if results.is_empty() {
                 rows.push(Row::new(vec![
                     Cell::from("No results found for this query.")
-                        .style(Style::default().fg(Color::Red)),
+                        .style(Style::default().fg(RED)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
                 ]));
             } else if !has_more {
                 rows.push(Row::new(vec![
-                    Cell::from("No more results").style(Style::default().fg(Color::DarkGray)),
+                    Cell::from("No more results").style(Style::default().fg(DARK_GRAY)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
@@ -724,8 +725,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .block(block)
                 .row_highlight_style(
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Green)
+                        .fg(BLACK)
+                        .bg(GREEN)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
@@ -745,9 +746,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let title = crate::t_fmt!("models.gguf_files", model_id);
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, Color::Green)
+                (BorderType::Thick, GREEN)
             } else {
-                (BorderType::Plain, Color::Gray)
+                (BorderType::Plain, GRAY)
             };
             let block = Block::default()
                 .title(title)
@@ -769,7 +770,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .contains(&name.to_lowercase());
                     let marker = if is_downloaded { "✓" } else { " " };
                     let marker_span =
-                        Span::styled(format!("[{}] ", marker), Style::default().fg(Color::Green));
+                        Span::styled(format!("[{}] ", marker), Style::default().fg(GREEN));
                     let table_width = inner_area.width.saturating_sub(2);
                     let col_width = table_width * 80 / 100;
                     let available = col_width.saturating_sub(4);
@@ -804,12 +805,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let headers = vec![
                 Cell::from(crate::t!("models.gguf_headers.file")).style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(crate::t!("models.gguf_headers.size")).style(
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
             ];
@@ -820,8 +821,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .header(Row::new(headers))
                 .row_highlight_style(
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Green)
+                        .fg(BLACK)
+                        .bg(GREEN)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
@@ -834,9 +835,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
            let title = crate::t!("panel.title.bench_tune").to_string();
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, Color::Green)
+                (BorderType::Thick, GREEN)
             } else {
-                (BorderType::Plain, Color::Gray)
+                (BorderType::Plain, GRAY)
             };
             let block = Block::default()
                 .title(title)
@@ -895,17 +896,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                     elapsed_str
                                 ),
                                 Style::default()
-                                    .fg(Color::Green)
+                                    .fg(GREEN)
                                     .add_modifier(Modifier::BOLD),
                             ),
                         ]));
 
                         let success_style = if successful_tests == total_tests {
-                            Style::default().fg(Color::Green)
+                            Style::default().fg(GREEN)
                         } else if *successful_tests > 0 {
-                            Style::default().fg(Color::Yellow)
+                            Style::default().fg(YELLOW)
                         } else {
-                            Style::default().fg(Color::Red)
+                            Style::default().fg(RED)
                         };
 
                         lines.push(Line::from(vec![
@@ -922,7 +923,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                     "models.benchtune_warning",
                                     total_tests - successful_tests
                                 ),
-                                Style::default().fg(Color::Red),
+                                Style::default().fg(RED),
                             )));
                         }
 
@@ -943,7 +944,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(
                                 "PARTIALLY COMPLETED",
                                 Style::default()
-                                    .fg(Color::Yellow)
+                                    .fg(YELLOW)
                                     .add_modifier(Modifier::BOLD),
                             ),
                             Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
@@ -954,7 +955,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(
                                 format!("{}/{}", successful_tests, total_tests),
                                 Style::default()
-                                    .fg(Color::Yellow)
+                                    .fg(YELLOW)
                                     .add_modifier(Modifier::BOLD),
                             ),
                         ]));
@@ -962,12 +963,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::raw("Failed: "),
                             Span::styled(
                                 format!("{} test(s)", failed_tests),
-                                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                                Style::default().fg(RED).add_modifier(Modifier::BOLD),
                             ),
                         ]));
                         lines.push(Line::from(Span::styled(
                             "Check Log (F6) for failure details.".to_string(),
-                            Style::default().fg(Color::Red),
+                            Style::default().fg(RED),
                         )));
 
                         if !app.bench_tune.bench_tune_results.is_empty() {
@@ -987,7 +988,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(
                                 "CANCELLED",
                                 Style::default()
-                                    .fg(Color::Yellow)
+                                    .fg(YELLOW)
                                     .add_modifier(Modifier::BOLD),
                             ),
                             Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
@@ -998,7 +999,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(
                                 format!("{}/{}", successful_tests, total_tests),
                                 Style::default()
-                                    .fg(Color::Yellow)
+                                    .fg(YELLOW)
                                     .add_modifier(Modifier::BOLD),
                             ),
                         ]));
@@ -1006,12 +1007,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::raw("Failed: "),
                             Span::styled(
                                 format!("{} test(s)", failed_tests),
-                                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                                Style::default().fg(RED).add_modifier(Modifier::BOLD),
                             ),
                         ]));
                         lines.push(Line::from(Span::styled(
                             "Benchmark was cancelled by user.",
-                            Style::default().fg(Color::Yellow),
+                            Style::default().fg(YELLOW),
                         )));
 
                         if !app.bench_tune.bench_tune_results.is_empty() {
@@ -1061,7 +1062,7 @@ fn render_benchtune_results_table(
     )));
     lines.push(Line::from(Span::styled(
         " (Press [↵] to view details of selected result)",
-        Style::default().fg(Color::DarkGray),
+        Style::default().fg(DARK_GRAY),
     )));
     lines.push(Line::from(""));
 
@@ -1069,9 +1070,9 @@ fn render_benchtune_results_table(
     for (i, result) in app.bench_tune.bench_tune_results.iter().enumerate() {
         let p_str = crate::tui::format_bench_params(&result.params, false).join(",");
         let style = if i == 0 {
-            Style::default().fg(Color::Green)
+            Style::default().fg(GREEN)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(WHITE)
         };
         rows.push(
             Row::new(vec![
@@ -1096,7 +1097,7 @@ fn render_benchtune_results_table(
     ])
     .style(
         Style::default()
-            .fg(Color::Yellow)
+            .fg(YELLOW)
             .add_modifier(Modifier::BOLD),
     );
 
@@ -1113,7 +1114,7 @@ fn render_benchtune_results_table(
     .block(Block::default().borders(Borders::NONE))
     .row_highlight_style(
         Style::default()
-            .bg(Color::Green)
+            .bg(GREEN)
             .add_modifier(Modifier::BOLD),
     )
     .highlight_symbol("> ");
