@@ -7,6 +7,7 @@ use ratatui::{
 use crate::models::BenchTuneParamValue;
 
 pub mod app;
+pub mod colors;
 pub mod event;
 pub mod gguf_naming;
 pub mod i18n;
