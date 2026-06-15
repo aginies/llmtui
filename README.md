@@ -231,11 +231,8 @@ The Server Settings panel (top-right) shows server configuration:
 | Threads | CPU threads for generation |
 | Threads Batch | CPU threads for batch processing |
 | Mode | Server mode — `↵` toggles between Normal, Router, Bench, and BenchTune |
-| API Endpoint | Enable API proxy — `↵` toggles (disabled while server is running) |
-| RPC Workers | Open the distributed inference manager window — press `↵` |
-| API Key | API key for SearXNG authentication (optional) |
-| Web Search | Web search configuration — `↵` opens picker (enabled, engine, URL, API key) |
-| API Port | Port for the API proxy server (default: 49222) |
+| API Endpoint | Enable API proxy — `↵` opens picker (enabled, port, API key) |
+| API Key | API key for the API proxy server (Bearer token) |
 | Dashboard | WebSocket dashboard server — `↵` opens configuration picker (enabled, port, auth key, TLS) |
 | Language | UI language — `↵` cycles between en/fr/it |
 
@@ -427,6 +424,18 @@ To configure the dashboard:
 When an auth key is set, clients must include `?auth=<key>` in the URL (e.g., `http://localhost:49223/dashboard?auth=mypassword`).
 
 The `--host` option in serve mode binds **both** the API proxy server and the WebSocket dashboard server to the same address, ensuring they use the same network interface.
+
+### API Endpoint
+
+The API Endpoint controls the OpenAI-compatible proxy server that forwards requests to llama-server. Configure it from the Server Settings panel:
+
+1. Navigate to **API Endpoint** field and press `↵`
+2. Toggle **Enabled** (On/Off)
+3. Set **Port** (default: 49222)
+4. Set **API Key** (Bearer token for authentication, optional)
+5. Press `↵` to save, `⎋` to close
+
+The API proxy shares TLS configuration with the WebSocket dashboard. When `ws_server_tls_enabled` is true in config.yaml, the API proxy runs over HTTPS; otherwise it uses HTTP. The API key is used for Bearer token authentication on the proxy (separate from the dashboard auth key).
 
 ### Backend selection
 
