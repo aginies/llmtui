@@ -1,11 +1,12 @@
 use super::types::{ActivePanel, App};
-use ratatui::style::{Color, Modifier, Style};
+use crate::tui::colors::*;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
 impl App {
     pub fn panel_help_lines(&self) -> Vec<Line<'static>> {
         let y = Style::default()
-            .fg(Color::Yellow)
+            .fg(YELLOW)
             .add_modifier(Modifier::BOLD);
 
         match self.ui.active_panel {
