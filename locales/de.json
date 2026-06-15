@@ -565,7 +565,6 @@
   "status.bench_tune_cancelled": "BENCH TUNE ABGEBROCHEN ({}/{}, {} fehlgeschlagen) in {}",
   "status.bench_tune_error": "BENCH TUNE FEHLER: {}",
   "status.bench_tune_ready": "BENCH TUNE BEREIT",
-  "status.server": "Server",
   "status.host_picker": "[HOST-AUSWAHL]",
   "status.rpc_manager": "[RPC-MANAGER]",
   "status.about": "[ÜBER]",

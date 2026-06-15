@@ -650,7 +650,6 @@
   "status.rpc_manager": "[GESTIONNAIRE RPC]",
   "status.search": "RECHERCHE",
   "status.search_count": "({} résultats)",
-  "status.server": "Serveur",
   "status.server_panel": "SERVEUR",
   "sync.reset_settings": "Réinitialiser les paramètres LLM aux valeurs par défaut",
   "server.host_label": "localhost (127.0.0.1)",

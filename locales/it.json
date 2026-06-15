@@ -651,7 +651,6 @@
   "status.rpc_manager": "[GESTORE RPC]",
   "status.search": "RICERCA",
   "status.search_count": "({} risultati)",
-  "status.server": "Server",
   "status.server_panel": "SERVER",
   "sync.reset_settings": "Reset LLM Settings to defaults",
   "server.host_label": "localhost (127.0.0.1)",

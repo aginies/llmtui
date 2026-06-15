@@ -565,7 +565,6 @@
   "status.bench_tune_cancelled": "BENCH TUNE CANCELLED ({}/{}, {} failed) in {}",
   "status.bench_tune_error": "BENCH TUNE ERROR: {}",
   "status.bench_tune_ready": "BENCH TUNE READY",
-  "status.server": "Server",
   "status.host_picker": "[HOST PICKER]",
   "status.rpc_manager": "[RPC MANAGER]",
   "status.about": "[ABOUT]",
