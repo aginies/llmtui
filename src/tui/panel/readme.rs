@@ -118,10 +118,10 @@ impl MdRenderer {
             Tag::Heading { level, .. } => {
                 self.current_style = match level {
                     pulldown_cmark::HeadingLevel::H1 => Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                     pulldown_cmark::HeadingLevel::H2 => Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                     pulldown_cmark::HeadingLevel::H3 => Style::default()
                         .fg(MAGENTA)
