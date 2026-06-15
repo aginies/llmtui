@@ -234,6 +234,8 @@ The Server Settings panel (top-right) shows server configuration:
 | API Endpoint | Enable API proxy — `↵` opens picker (enabled, port, API key) |
 | API Key | API key for the API proxy server (Bearer token) |
 | Dashboard | WebSocket dashboard server — `↵` opens configuration picker (enabled, port, auth key, TLS) |
+| RPC Workers | Open the distributed inference manager window — press `↵` |
+| Web Search | Web search configuration — `↵` opens picker (enabled, engine, URL, API key) |
 | Language | UI language — `↵` cycles between en/fr/it |
 
 When API Endpoint is enabled, a proxy server starts on port `49222` that forwards requests to the running llama-server instance, exposing the full llama.cpp API (see Serve mode above).
