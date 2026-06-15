@@ -1,8 +1,9 @@
 use crate::tui::app::App;
+use crate::tui::colors::*;
 use pulldown_cmark::{Event, Options, Tag, TagEnd};
 use ratatui::{
     prelude::*,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Paragraph},
 };
@@ -39,7 +40,7 @@ impl MdRenderer {
             current_style: Style::default(),
             in_code_block: false,
             code_block_style: Style::default()
-                .fg(Color::Green)
+                .fg(GREEN)
                 .add_modifier(Modifier::DIM),
             indent: 0,
             list_marker: None,
@@ -123,7 +124,7 @@ impl MdRenderer {
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                     pulldown_cmark::HeadingLevel::H3 => Style::default()
-                        .fg(Color::Magenta)
+                        .fg(MAGENTA)
                         .add_modifier(Modifier::BOLD),
                     _ => Style::default().add_modifier(Modifier::BOLD),
                 };
@@ -219,16 +220,16 @@ impl MdRenderer {
         if self.in_table {
             if self.table_is_header {
                 self.pending_table_header
-                    .push((code.to_string(), Style::default().fg(Color::Green)));
+                    .push((code.to_string(), Style::default().fg(GREEN)));
             } else {
                 self.pending_table_line
-                    .push((code.to_string(), Style::default().fg(Color::Green)));
+                    .push((code.to_string(), Style::default().fg(GREEN)));
             }
         } else if self.in_code_block {
             self.pending.push((code.to_string(), self.code_block_style));
         } else {
             self.pending
-                .push((format!("`{code}`"), self.current_style.fg(Color::Green)));
+                .push((format!("`{code}`"), self.current_style.fg(GREEN)));
         }
     }
 
@@ -263,7 +264,7 @@ impl MdRenderer {
         }
         let line = Line::from(vec![Span::styled(
             "────────────────────────────────────────",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(DARK_GRAY),
         )]);
         self.lines.push(line);
     }
@@ -342,7 +343,7 @@ impl MdRenderer {
                 self.lines.push(Line::from(spans));
                 self.lines.push(Line::from(vec![Span::styled(
                     "───┼───────",
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(DARK_GRAY),
                 )]));
             }
             self.table_is_header = false;
@@ -400,7 +401,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
             // Text is Some but empty
             vec![Line::from(Span::styled(
                 "no README available",
-                Style::default().fg(Color::Red),
+                Style::default().fg(RED),
             ))]
         }
         Some((_, None)) => {
@@ -408,7 +409,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
             // Not yet fetched
             vec![Line::from(Span::styled(
                 "Press -> to Fetch the README.md",
-                Style::default().fg(Color::Green),
+                Style::default().fg(GREEN),
             ))]
         }
         None => {
@@ -434,9 +435,9 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
 
     let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::SearchReadme;
     let border_color = if is_focused {
-        Color::Green
+        GREEN
     } else {
-        Color::Gray
+        GRAY
     };
     let block = Block::default()
         .title(crate::t!("panel.title.readme"))
