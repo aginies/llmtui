@@ -2026,51 +2026,58 @@ impl App {
             }
 
             // Build TLS config — share with WebSocket dashboard (ws_server_tls_* config).
+            // Priority: 1) Cached TLS config, 2) Cached paths, 3) User config paths, 4) Auto-generate
             let tls_cfg = if self.config.default.ws_server_tls_enabled {
-                let tls_cert = self.config.default.ws_server_tls_cert.clone();
-                let tls_key = self.config.default.ws_server_tls_key.clone();
-                let needs_reload = match (&tls_cert, &tls_key) {
-                    (Some(cert), Some(key)) => {
-                        Some(cert.as_str()) != self.server.running_ws_tls_cert_path.as_deref()
-                            || Some(key.as_str()) != self.server.running_ws_tls_key_path.as_deref()
-                            || self.server.running_ws_tls_cfg.is_none()
+                // Use cached TLS config if WebSocket server already built it
+                if let Some(ref cached) = self.server.running_ws_tls_cfg {
+                    Some(cached.clone())
+                } else if let (Some(cert), Some(key)) = (
+                    &self.config.default.ws_server_tls_cert,
+                    &self.config.default.ws_server_tls_key,
+                ) {
+                    // User-specified cert/key paths
+                    match crate::backend::tls::load_tls_config(cert, key).await {
+                        Ok(cfg) => Some(cfg),
+                        Err(e) => {
+                            self.add_log(
+                                crate::t_fmt!("async.api_tls_error", e),
+                                crate::config::LogLevel::Warning,
+                            );
+                            None
+                        }
                     }
-                    _ => self.server.running_ws_tls_cfg.is_none(),
-                };
-                if !needs_reload {
-                    self.server.running_ws_tls_cfg.clone()
                 } else {
-                    let (cert_p, key_p) = if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
-                        (cert.clone(), key.clone())
-                    } else {
-                        match crate::backend::tls::ensure_tls_certs() {
-                            Ok((c, k)) => (
-                                c.to_string_lossy().to_string(),
-                                k.to_string_lossy().to_string(),
-                            ),
-                            Err(e) => {
-                                self.add_log(
-                                    crate::t_fmt!("async.api_tls_error", e),
-                                    crate::config::LogLevel::Warning,
-                                );
-                                (String::new(), String::new())
+                    // Auto-generate certs (same as WebSocket dashboard)
+                    match crate::backend::tls::ensure_tls_certs() {
+                        Ok((c, k)) => {
+                            // Cache the generated paths for future use
+                            self.server.running_ws_tls_cert_path =
+                                Some(c.to_string_lossy().to_string());
+                            self.server.running_ws_tls_key_path =
+                                Some(k.to_string_lossy().to_string());
+                            match crate::backend::tls::load_tls_config(
+                                &c.to_string_lossy(),
+                                &k.to_string_lossy(),
+                            )
+                            .await
+                            {
+                                Ok(cfg) => Some(cfg),
+                                Err(e) => {
+                                    self.add_log(
+                                        crate::t_fmt!("async.api_tls_error", e),
+                                        crate::config::LogLevel::Warning,
+                                    );
+                                    None
+                                }
                             }
                         }
-                    };
-                    if !cert_p.is_empty() {
-                        match crate::backend::tls::load_tls_config(&cert_p, &key_p).await {
-                            Ok(cfg) => Some(cfg),
-                            Err(_) => {
-                                let e = format!("Failed to load TLS from {} / {}", cert_p, key_p);
-                                self.add_log(
-                                    crate::t_fmt!("async.api_tls_error", e),
-                                    crate::config::LogLevel::Warning,
-                                );
-                                None
-                            }
+                        Err(e) => {
+                            self.add_log(
+                                crate::t_fmt!("async.api_tls_error", e),
+                                crate::config::LogLevel::Warning,
+                            );
+                            None
                         }
-                    } else {
-                        None
                     }
                 }
             } else {
