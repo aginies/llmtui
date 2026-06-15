@@ -37,6 +37,7 @@ pub const BLUE: Color = Color::Blue;
 // ── Common Style patterns ────────────────────────────────────────────────────
 
 /// Selected row / item: black text on green background, bold
+#[allow(dead_code)]
 pub static SELECTED_ROW: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
         .fg(BLACK)
@@ -45,6 +46,7 @@ pub static SELECTED_ROW: LazyLock<Style> = LazyLock::new(|| {
 });
 
 /// Edit cursor: black text on yellow background
+#[allow(dead_code)]
 pub static EDIT_CURSOR: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
         .fg(BLACK)
@@ -52,6 +54,7 @@ pub static EDIT_CURSOR: LazyLock<Style> = LazyLock::new(|| {
 });
 
 /// Panel title / section header: yellow text, bold
+#[allow(dead_code)]
 pub static TITLE: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
         .fg(YELLOW)
@@ -59,6 +62,7 @@ pub static TITLE: LazyLock<Style> = LazyLock::new(|| {
 });
 
 /// Panel title / section header (dimmed, for disabled state)
+#[allow(dead_code)]
 pub static TITLE_DIM: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
         .fg(YELLOW)
@@ -66,15 +70,19 @@ pub static TITLE_DIM: LazyLock<Style> = LazyLock::new(|| {
 });
 
 /// Label / field name color
+#[allow(dead_code)]
 pub static LABEL: LazyLock<Style> = LazyLock::new(|| Style::default().fg(YELLOW));
 
 /// Default body text / values
+#[allow(dead_code)]
 pub static BODY_TEXT: LazyLock<Style> = LazyLock::new(|| Style::default().fg(WHITE));
 
 /// Secondary / dimmed text (timestamps, footers, descriptions)
+#[allow(dead_code)]
 pub static DIM_TEXT: LazyLock<Style> = LazyLock::new(|| Style::default().fg(DARK_GRAY));
 
 /// Link / URL color
+#[allow(dead_code)]
 pub static LINK_TEXT: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
         .fg(CYAN)
@@ -82,28 +90,37 @@ pub static LINK_TEXT: LazyLock<Style> = LazyLock::new(|| {
 });
 
 /// Focused panel border color
+#[allow(dead_code)]
 pub static BORDER_FOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(GREEN));
 
 /// Unfocused panel border color
+#[allow(dead_code)]
 pub static BORDER_UNFOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(GRAY));
 
 /// Status: success / complete / loaded
+#[allow(dead_code)]
 pub static STATUS_SUCCESS: LazyLock<Style> = LazyLock::new(|| Style::default().fg(GREEN));
 
 /// Status: loading / active / downloading
+#[allow(dead_code)]
 pub static STATUS_LOADING: LazyLock<Style> = LazyLock::new(|| Style::default().fg(YELLOW));
 
 /// Status: error / failed / cancelled
+#[allow(dead_code)]
 pub static STATUS_ERROR: LazyLock<Style> = LazyLock::new(|| Style::default().fg(RED));
 
 /// Status: paused
+#[allow(dead_code)]
 pub static STATUS_PAUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(WHITE));
 
 /// Dirty / uncommitted setting value
+#[allow(dead_code)]
 pub static DIRTY: LazyLock<Style> = LazyLock::new(|| Style::default().fg(RED));
 
 /// Disabled setting name / value
+#[allow(dead_code)]
 pub static DISABLED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(GRAY));
 
 /// Sort direction label color
+#[allow(dead_code)]
 pub static SORT_LABEL: LazyLock<Style> = LazyLock::new(|| Style::default().fg(MAGENTA));
