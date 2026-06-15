@@ -1,9 +1,10 @@
 use ratatui::{
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
 };
 
+use crate::tui::colors::*;
 use crate::tui::settings::{self, SettingField};
 
 /// Render the LLM Settings panel.
@@ -117,11 +118,11 @@ fn render_settings(
         if field.is_new_section(prev_section) {
             let section_style = if disabled {
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::DIM)
             } else {
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD)
             };
             lines.push(Line::from(vec![Span::styled(
@@ -148,32 +149,32 @@ fn render_settings(
         };
 
         let name_style = if visually_disabled {
-            Style::default().fg(Color::Gray)
+            Style::default().fg(GRAY)
         } else if dirty {
-            Style::default().fg(Color::Red)
+            Style::default().fg(RED)
         } else if field.is_expert {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::DIM)
         } else {
-            Style::default().fg(Color::Yellow)
+            Style::default().fg(YELLOW)
         };
         let indicator_style = if visually_disabled {
-            Style::default().fg(Color::Gray)
+            Style::default().fg(GRAY)
         } else {
-            Style::default().fg(Color::Yellow)
+            Style::default().fg(YELLOW)
         };
         let final_val_style = if *total_count == selected {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(BLACK)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
         } else if visually_disabled {
-            Style::default().fg(Color::Gray)
+            Style::default().fg(GRAY)
         } else if dirty {
-            Style::default().fg(Color::Red)
+            Style::default().fg(RED)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(WHITE)
         };
 
         lines.push(Line::from(vec![
