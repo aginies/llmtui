@@ -1,7 +1,8 @@
+use crate::tui::colors::*;
 use ratatui::{
     Frame,
     layout::{Alignment, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Paragraph, Wrap},
 };
@@ -24,7 +25,7 @@ fn highlight_keys(text: &str) -> Vec<Span<'static>> {
             spans.push(Span::styled(
                 ch.to_string(),
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             ));
         } else {
@@ -108,7 +109,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     // Progress bar
     lines.push(Line::from(Span::styled(
         progress_bar,
-        Style::default().fg(Color::Cyan),
+        Style::default().fg(CYAN),
     )));
     lines.push(Line::from(""));
 
@@ -116,7 +117,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     lines.push(Line::from(Span::styled(
         title,
         Style::default()
-            .fg(Color::Yellow)
+            .fg(YELLOW)
             .add_modifier(Modifier::BOLD),
     )));
     lines.push(Line::from(description));
@@ -127,7 +128,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
         lines.push(Line::from(Span::styled(
             "── KEY SHORTCUTS ──",
             Style::default()
-                .fg(Color::Cyan)
+                .fg(CYAN)
                 .add_modifier(Modifier::BOLD),
         )));
         let key_spans = highlight_keys(keys_text);
@@ -139,7 +140,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     let block = Block::default()
         .title(format!(" {} — {} ", title, step_indicator))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow))
+        .border_style(Style::default().fg(YELLOW))
         .border_type(BorderType::Double);
 
     f.render_widget(ratatui::widgets::Clear, popup_area);
@@ -165,7 +166,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     );
     let footer = Paragraph::new(Line::from(Span::styled(
         footer_text,
-        Style::default().fg(Color::DarkGray),
+        Style::default().fg(DARK_GRAY),
     )));
     f.render_widget(footer, popup_area);
 }
