@@ -1,9 +1,10 @@
 use ratatui::{
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
 };
 
 use crate::config::Profile;
+use crate::tui::colors::*;
 use crate::tui::settings::profile_settings_parts;
 
 pub fn render_all<'a>(
@@ -17,12 +18,12 @@ pub fn render_all<'a>(
         Span::styled(
             "Profiles",
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             " — Select a profile to apply its settings",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(DARK_GRAY),
         ),
     ]));
     lines.push(Line::from(""));
@@ -31,14 +32,14 @@ pub fn render_all<'a>(
         let marker = if i == selected { "> " } else { "  " };
         let name_style = if i == selected {
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(BLACK)
+                .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(WHITE)
         };
         lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(Color::Yellow)),
+            Span::styled(marker, Style::default().fg(YELLOW)),
             Span::styled(&profile.name, name_style),
         ]));
 
@@ -48,7 +49,7 @@ pub fn render_all<'a>(
             for part in parts {
                 lines.push(Line::from(vec![
                     Span::raw("    "),
-                    Span::styled(part, Style::default().fg(Color::DarkGray)),
+                    Span::styled(part, Style::default().fg(DARK_GRAY)),
                 ]));
             }
         }
@@ -57,9 +58,9 @@ pub fn render_all<'a>(
     }
 
     lines.push(Line::from(vec![
-        Span::styled("[↵] Apply  ", Style::default().fg(Color::Cyan)),
-        Span::styled("[d] Delete  ", Style::default().fg(Color::Cyan)),
-        Span::styled("[⎋] Cancel", Style::default().fg(Color::Cyan)),
+        Span::styled("[↵] Apply  ", Style::default().fg(CYAN)),
+        Span::styled("[d] Delete  ", Style::default().fg(CYAN)),
+        Span::styled("[⎋] Cancel", Style::default().fg(CYAN)),
     ]));
 
     (lines, profiles.len())
