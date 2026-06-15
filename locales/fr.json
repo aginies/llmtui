@@ -633,6 +633,7 @@
   "status.bench_tune_ready": "BENCH TUNE PRÊT",
   "status.benchmarking": "BENCHMARKING",
   "status.benchtune": "BENCHTUNE",
+  "status.web_search": "SEARXNG",
   "status.downloads": "TÉLÉCHARGEMENTS",
   "status.editing_prompt": "[ÉDITION INVITE]",
   "status.expert": "[EXPERT] ",

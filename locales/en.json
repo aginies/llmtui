@@ -581,6 +581,7 @@
   "status.downloads": "DOWNLOADS",
   "status.app": "APP",
   "status.benchtune": "BENCHTUNE",
+  "status.web_search": "SEARXNG",
   "hints.nav": "j/k nav",
   "hints.panels": "⇥ Panels",
   "hints.about": "Shift+a About",

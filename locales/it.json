@@ -634,6 +634,7 @@
   "status.bench_tune_ready": "BENCH TUNE PRONTO",
   "status.benchmarking": "BENCHMARKING",
   "status.benchtune": "BENCHTUNE",
+  "status.web_search": "SEARXNG",
   "status.downloads": "DOWNLOAD",
   "status.editing_prompt": "[MODIFICA PROMPT]",
   "status.expert": "[EXPERT] ",

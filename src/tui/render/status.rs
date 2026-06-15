@@ -15,21 +15,25 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     };
     parts.push(Span::styled(
         format!("[Mode: {}] ", mode_name),
-        Style::default().fg(Color::DarkGray),
+        Style::default().fg(Color::Gray),
     ));
 
     // Expert mode indicator removed from top bar
 
     if let Some(handle) = &app.server.server_handle {
-        let label = if app.server_mode == crate::models::ServerMode::Bench {
+        let inner = if app.server_mode == crate::models::ServerMode::Bench {
             crate::t!("status.benchmarking").to_string()
         } else if app.settings.api_endpoint_enabled {
             format!("api:{} llm:{}", app.settings.api_endpoint_port, handle.port)
         } else {
             format!("{} {}", handle.port, app.server_mode)
         };
+        let mut content = format!("[{}]", inner);
+        if app.config.default.web_search_enabled {
+            content.push_str(" SEARXNG");
+        }
         parts.push(Span::styled(
-            format!("● {}", label),
+            content,
             Style::default().fg(Color::Green),
         ));
     } else if app.server_mode == crate::models::ServerMode::BenchTune {
@@ -123,7 +127,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     } else {
         parts.push(Span::styled(
             format!("○ {}", crate::t!("status.server")),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(Color::Gray),
         ));
     }
 
