@@ -1,6 +1,7 @@
 use super::App;
-use super::{Color, Line, Modifier, Span, Style};
+use super::{Line, Modifier, Span, Style};
 use crate::tui::app::{ActivePanel, GlobalMode, ModelsMode};
+use crate::tui::colors::*;
 use crate::tui::render::hints::render_hints;
 use ratatui::layout::Rect;
 
@@ -15,7 +16,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     };
     parts.push(Span::styled(
         format!("[Mode: {}] ", mode_name),
-        Style::default().fg(Color::Gray),
+        Style::default().fg(GRAY),
     ));
 
     // Expert mode indicator removed from top bar
@@ -34,7 +35,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         }
         parts.push(Span::styled(
             content,
-            Style::default().fg(Color::Green),
+            Style::default().fg(GREEN),
         ));
     } else if app.server_mode == crate::models::ServerMode::BenchTune {
         if let Some(progress) = &app.bench_tune.bench_tune_progress {
@@ -53,7 +54,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     );
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
-                        Style::default().fg(Color::Yellow),
+                        Style::default().fg(YELLOW),
                     ));
                 }
                 crate::models::BenchTuneProgress::Completed {
@@ -70,7 +71,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     );
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
-                        Style::default().fg(Color::Green),
+                        Style::default().fg(GREEN),
                     ));
                 }
                 crate::models::BenchTuneProgress::PartiallyCompleted {
@@ -89,7 +90,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     );
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
-                        Style::default().fg(Color::Yellow),
+                        Style::default().fg(YELLOW),
                     ));
                 }
                 crate::models::BenchTuneProgress::Cancelled {
@@ -108,26 +109,26 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                     );
                     parts.push(Span::styled(
                         format!("● {}", progress_str),
-                        Style::default().fg(Color::Yellow),
+                        Style::default().fg(YELLOW),
                     ));
                 }
                 crate::models::BenchTuneProgress::Error { error } => {
                     parts.push(Span::styled(
                         format!("● {}", crate::t_fmt!("status.bench_tune_error", error)),
-                        Style::default().fg(Color::Red),
+                        Style::default().fg(RED),
                     ));
                 }
             }
         } else {
             parts.push(Span::styled(
                 format!("● {}", crate::t!("status.bench_tune_ready")),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ));
         }
     } else {
         parts.push(Span::styled(
             "[ N/A ]",
-            Style::default().fg(Color::Gray),
+            Style::default().fg(GRAY),
         ));
     }
 
@@ -136,7 +137,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         parts.push(Span::styled(
             crate::t!("status.host_picker"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -145,7 +146,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         parts.push(Span::styled(
             crate::t!("status.rpc_manager"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -154,7 +155,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         parts.push(Span::styled(
             crate::t!("status.about"),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -164,14 +165,14 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             parts.push(Span::styled(
                 crate::t!("status.editing_prompt"),
                 Style::default()
-                    .fg(Color::Cyan)
+                    .fg(CYAN)
                     .add_modifier(Modifier::BOLD),
             ));
         } else {
             parts.push(Span::styled(
                 crate::t!("status.bench_setup"),
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             ));
         }
@@ -186,7 +187,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                 parts.push(Span::styled(
                     crate::t!("status.search"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ));
             } else {
@@ -202,14 +203,14 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                 parts.push(Span::styled(
                     panel_label,
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ));
             }
             parts.push(Span::raw(" "));
             parts.push(Span::styled(
                 sort_by.label(),
-                Style::default().fg(Color::Magenta),
+                Style::default().fg(MAGENTA),
             ));
         }
         ModelsMode::Files { model_id, .. } => {
@@ -218,7 +219,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                 parts.push(Span::styled(
                     crate::t!("status.files"),
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ));
             } else {
@@ -234,12 +235,12 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
                 parts.push(Span::styled(
                     panel_label,
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ));
             }
             parts.push(Span::raw(" "));
-            parts.push(Span::styled(model_id, Style::default().fg(Color::Cyan)));
+            parts.push(Span::styled(model_id, Style::default().fg(CYAN)));
         }
         ModelsMode::List { .. } => {
             parts.push(Span::raw("  "));
@@ -257,7 +258,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             parts.push(Span::styled(
                 panel_label,
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             ));
         }
@@ -266,7 +267,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             parts.push(Span::styled(
                 crate::t!("status.benchtune"),
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             ));
         }
