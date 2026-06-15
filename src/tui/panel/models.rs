@@ -137,7 +137,7 @@ pub fn render_download_panel(
         .header(Row::new(headers))
         .row_highlight_style(
             Style::default()
-                .bg(Color::DarkGray)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">> ");
@@ -1113,7 +1113,7 @@ fn render_benchtune_results_table(
     .block(Block::default().borders(Borders::NONE))
     .row_highlight_style(
         Style::default()
-            .bg(Color::DarkGray)
+            .bg(Color::Green)
             .add_modifier(Modifier::BOLD),
     )
     .highlight_symbol("> ");

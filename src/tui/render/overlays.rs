@@ -2081,7 +2081,7 @@ fn render_dashboard_url(
     picker_lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.dashboard_url.copy"),
-            Style::default().fg(Color::Black).bg(Color::DarkGray),
+            Style::default().fg(Color::Black).bg(Color::Yellow),
         ),
         Span::styled(
             crate::t!("dialog.dashboard_url.close"),

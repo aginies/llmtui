@@ -31,7 +31,8 @@ pub fn render_all<'a>(
         let marker = if i == selected { "> " } else { "  " };
         let name_style = if i == selected {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(Color::Black)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)

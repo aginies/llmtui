@@ -117,11 +117,11 @@ fn render_settings(
         if field.is_new_section(prev_section) {
             let section_style = if disabled {
                 Style::default()
-                    .fg(Color::Gray)
+                    .fg(Color::Yellow)
                     .add_modifier(Modifier::DIM)
             } else {
                 Style::default()
-                    .fg(Color::Gray)
+                    .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD)
             };
             lines.push(Line::from(vec![Span::styled(

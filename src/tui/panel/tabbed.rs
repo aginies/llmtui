@@ -701,9 +701,9 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
             let link_line = Line::from(vec![
                 Span::styled(
                     "  https://huggingface.co/",
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(Color::Cyan),
                 ),
-                Span::styled(r.model_id.clone(), Style::default().fg(Color::DarkGray)),
+                Span::styled(r.model_id.clone(), Style::default().fg(Color::Cyan)),
             ]);
             info_lines.push(link_line);
         }
@@ -715,9 +715,9 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
         let link_line = Line::from(vec![
             Span::styled(
                 "  https://huggingface.co/",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(Color::Cyan),
             ),
-            Span::styled(r.model_id.clone(), Style::default().fg(Color::DarkGray)),
+            Span::styled(r.model_id.clone(), Style::default().fg(Color::Cyan)),
         ]);
         info_lines.push(link_line);
     }
