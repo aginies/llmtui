@@ -1,6 +1,7 @@
 use super::App;
-use super::{Color, Span, Style};
+use super::{Span, Style};
 use crate::tui::app::{ActivePanel, ModelsMode};
+use crate::tui::colors::*;
 
 fn hint_nav() -> &'static str {
     crate::t!("hints.nav")
@@ -14,9 +15,9 @@ fn hint_about() -> &'static str {
 const HINT_SEP: &str = "  ";
 
 pub fn render_hints(app: &App) -> Vec<Span<'static>> {
-    let y = Style::default().fg(Color::Yellow);
-    let c = Style::default().fg(Color::Cyan);
-    let r = Style::default().fg(Color::Red);
+    let y = Style::default().fg(YELLOW);
+    let c = Style::default().fg(CYAN);
+    let r = Style::default().fg(RED);
 
     // Backend picker has its own hint rendering
     if matches!(
@@ -45,13 +46,13 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 Span::styled(crate::t!("hints.readme"), y),
                 Span::raw(HINT_SEP),
                 Span::styled("sort:", c),
-                Span::styled(sort_by.label(), Style::default().fg(Color::Magenta)),
+                Span::styled(sort_by.label(), Style::default().fg(MAGENTA)),
             ];
             if *loading {
                 parts.push(Span::raw(HINT_SEP));
                 parts.push(Span::styled(
                     crate::t!("hints.loading"),
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 ));
             }
             parts
@@ -106,7 +107,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::styled(crate::t!("hints.delete"), y),
                             Span::raw(HINT_SEP),
                             Span::styled("sort:", c),
-                            Span::styled(sort_label, Style::default().fg(Color::Magenta)),
+                            Span::styled(sort_label, Style::default().fg(MAGENTA)),
                             Span::raw(HINT_SEP),
                             Span::styled(crate::t!("hints.help"), c),
                             Span::raw(HINT_SEP),
