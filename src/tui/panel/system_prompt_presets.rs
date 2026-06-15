@@ -1,9 +1,10 @@
 use ratatui::{
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
 };
 
 use crate::config::SystemPromptPreset;
+use crate::tui::colors::*;
 
 pub fn render_all<'a>(
     presets: &'a [SystemPromptPreset],
@@ -20,7 +21,7 @@ pub fn render_all<'a>(
             lines.push(Line::from(vec![Span::styled(
                 format!("Editing: {}", presets[selected].name),
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(""));
@@ -28,7 +29,7 @@ pub fn render_all<'a>(
             lines.push(Line::from(vec![Span::styled(
                 "Creating new preset",
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(""));
@@ -45,14 +46,14 @@ pub fn render_all<'a>(
             if line_chars.is_empty() && current_char_idx == edit_cursor_pos {
                 spans.push(Span::styled(
                     "_",
-                    Style::default().fg(Color::Black).bg(Color::Yellow),
+                    Style::default().fg(BLACK).bg(YELLOW),
                 ));
             } else {
                 for &ch in line_chars.iter() {
                     if current_char_idx == edit_cursor_pos {
                         spans.push(Span::styled(
                             ch.to_string(),
-                            Style::default().fg(Color::Black).bg(Color::Yellow),
+                            Style::default().fg(BLACK).bg(YELLOW),
                         ));
                     } else {
                         spans.push(Span::raw(ch.to_string()));
@@ -64,7 +65,7 @@ pub fn render_all<'a>(
                 if current_char_idx == edit_cursor_pos {
                     spans.push(Span::styled(
                         "_",
-                        Style::default().fg(Color::Black).bg(Color::Yellow),
+                        Style::default().fg(BLACK).bg(YELLOW),
                     ));
                 }
             }
@@ -77,14 +78,14 @@ pub fn render_all<'a>(
         if edit_content.ends_with('\n') && current_char_idx - 1 == edit_cursor_pos {
             lines.push(Line::from(Span::styled(
                 "_",
-                Style::default().fg(Color::Black).bg(Color::Yellow),
+                Style::default().fg(BLACK).bg(YELLOW),
             )));
         }
 
         lines.push(Line::from(""));
         lines.push(Line::from(vec![Span::styled(
             "[↵] new line  [⎋] cancel  [^S] save",
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(CYAN),
         )]));
     } else {
         // ── List mode ──────────────────────────────────────────
@@ -92,12 +93,12 @@ pub fn render_all<'a>(
             Span::styled(
                 "System Prompt Presets",
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 " — Select a preset to apply",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DARK_GRAY),
             ),
         ]));
         lines.push(Line::from(""));
@@ -106,26 +107,26 @@ pub fn render_all<'a>(
             let marker = if i == selected { "> " } else { "  " };
             let name_style = if i == selected {
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Green)
+                    .fg(BLACK)
+                    .bg(GREEN)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(WHITE)
             };
             lines.push(Line::from(vec![
-                Span::styled(marker, Style::default().fg(Color::Yellow)),
+                Span::styled(marker, Style::default().fg(YELLOW)),
                 Span::styled(&preset.name, name_style),
             ]));
             lines.push(Line::from(vec![
                 Span::raw("    "),
-                Span::styled(&preset.description, Style::default().fg(Color::DarkGray)),
+                Span::styled(&preset.description, Style::default().fg(DARK_GRAY)),
             ]));
             lines.push(Line::from(""));
         }
 
         lines.push(Line::from(vec![Span::styled(
             "[↵] apply  [e] edit  [n] new  [d] delete  [⎋] cancel",
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(CYAN),
         )]));
     }
 
