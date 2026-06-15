@@ -701,22 +701,24 @@ impl App {
                                 .unwrap_or(false);
                             if path_match || id_match || filename_match || id_filename_match {
                                 if is_active {
-                                    if status_lower == "loading" {
-                                        self.model_states.insert(
-                                            model.display_name.clone(),
-                                            crate::models::ModelState::Loading,
-                                        );
-                                    } else {
-                                        let mut loaded_names =
-                                            self.server.loaded_model_names.lock().unwrap();
-                                        if !loaded_names.contains(&model.display_name) {
-                                            loaded_names.push(model.display_name.clone());
-                                        }
-                                        self.model_states.insert(
-                                            model.display_name.clone(),
-                                            crate::models::ModelState::Loaded { port, pid },
-                                        );
-                                    }
+                                     if status_lower == "loading" {
+                                         self.model_states.insert(
+                                             model.display_name.clone(),
+                                             crate::models::ModelState::Loading,
+                                         );
+                                     } else {
+                                         let mut loaded_names =
+                                             self.server.loaded_model_names.lock().unwrap();
+                                         if !loaded_names.contains(&model.display_name) {
+                                             loaded_names.push(model.display_name.clone());
+                                         }
+                                         self.model_states.insert(
+                                             model.display_name.clone(),
+                                             crate::models::ModelState::Loaded { port, pid },
+                                         );
+                                         // Clear error message on successful load
+                                         self.ui.last_error_message = None;
+                                     }
                                 }
                                 matched = true;
                             }
@@ -736,6 +738,8 @@ impl App {
                                                 model.display_name.clone(),
                                                 crate::models::ModelState::Loaded { port, pid },
                                             );
+                                            // Clear error message on successful load
+                                            self.ui.last_error_message = None;
                                         }
                                         matched = true;
                                         break;
