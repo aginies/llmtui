@@ -152,8 +152,13 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
 
     // Generate server cert signed by CA (use the in-memory CA cert, don't re-read from disk)
     let (server_cert, server_key) = generate_server_cert(&ca_cert_pem, &ca_key_pem)?;
-    std::fs::write(&server_cert_path, &server_cert)?;
-    std::fs::write(&server_key_path, &server_key)?;
+    // Write to temp files first, then rename for atomicity
+    let tmp_cert_path = server_cert_path.with_extension("pem.tmp");
+    let tmp_key_path = server_key_path.with_extension("pem.tmp");
+    std::fs::write(&tmp_cert_path, &server_cert)?;
+    std::fs::write(&tmp_key_path, &server_key)?;
+    std::fs::rename(&tmp_cert_path, &server_cert_path)?;
+    std::fs::rename(&tmp_key_path, &server_key_path)?;
 
     // Write version file
     std::fs::write(&version_path, TLS_VERSION)?;
