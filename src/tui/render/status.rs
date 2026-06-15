@@ -126,7 +126,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         }
     } else {
         parts.push(Span::styled(
-            format!("○ {}", crate::t!("status.server")),
+            "[ N/A ]",
             Style::default().fg(Color::Gray),
         ));
     }
