@@ -1,15 +1,16 @@
+use crate::tui::colors::*;
 use ratatui::{
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
 };
 
 pub fn render_about() -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     let y = Style::default()
-        .fg(Color::Yellow)
+        .fg(YELLOW)
         .add_modifier(Modifier::BOLD);
-    let c = Style::default().fg(Color::Cyan);
-    let gray = Style::default().fg(Color::DarkGray);
+    let c = Style::default().fg(CYAN);
+    let gray = Style::default().fg(DARK_GRAY);
 
     lines.push(Line::from(vec![
         Span::styled("llm-manager", y),
@@ -43,7 +44,7 @@ pub fn render_about() -> Vec<Line<'static>> {
         Span::styled(
             "GNU GPLv3",
             Style::default()
-                .fg(Color::Green)
+                .fg(GREEN)
                 .add_modifier(Modifier::BOLD),
         ),
     ]));
@@ -68,7 +69,7 @@ pub fn render_about() -> Vec<Line<'static>> {
     lines.push(Line::from(""));
     lines.push(Line::from(vec![Span::styled(
         "[⎋/Any] Close",
-        Style::default().fg(Color::DarkGray),
+        Style::default().fg(DARK_GRAY),
     )]));
 
     lines
