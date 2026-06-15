@@ -1,7 +1,8 @@
 use crate::config::Profile;
 use crate::models::{CacheQuantType, GpuLayersMode, Mirostat, ModelSettings, NumMode, SplitMode};
+use crate::tui::colors::*;
 use ratatui::{
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
 };
 
@@ -1213,15 +1214,15 @@ pub fn add_setting(
 ) {
     let current_line = lines.len();
     let name_style = if disabled {
-        Style::default().fg(Color::Gray)
+        Style::default().fg(GRAY)
     } else {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(YELLOW)
     };
     let val_style = if disabled {
         Style::default()
-            .fg(Color::Gray)
+            .fg(GRAY)
     } else {
-        Style::default().fg(Color::White)
+        Style::default().fg(WHITE)
     };
     if idx == selected {
         *selected_line_idx = current_line;
@@ -1230,7 +1231,7 @@ pub fn add_setting(
             Span::styled(
                 "> ",
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(if disabled {
                         Modifier::DIM
                     } else {
@@ -1241,8 +1242,8 @@ pub fn add_setting(
             Span::styled(
                  val.to_string(),
                  Style::default()
-                     .fg(Color::Black)
-                     .bg(Color::Green)
+                     .fg(BLACK)
+                     .bg(GREEN)
                      .add_modifier(Modifier::BOLD),
              ),
         ]));
