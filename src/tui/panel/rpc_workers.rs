@@ -1,9 +1,10 @@
 use ratatui::{
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
 };
 
 use crate::config::RpcWorker;
+use crate::tui::colors::*;
 
 pub fn render_all<'a>(
     workers: &'a [RpcWorker],
@@ -20,12 +21,12 @@ pub fn render_all<'a>(
             Span::styled(
                 "Editing RPC Worker",
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 " — Format: [Name], IP, Port",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DARK_GRAY),
             ),
         ]));
         lines.push(Line::from(""));
@@ -36,9 +37,9 @@ pub fn render_all<'a>(
             let after: String = edit_content.chars().skip(edit_cursor_pos + 1).collect();
 
             spans.push(Span::raw(before));
-            spans.push(Span::styled(
+            spans.push(           Span::styled(
                 c.to_string(),
-                Style::default().fg(Color::Black).bg(Color::Yellow),
+                Style::default().fg(BLACK).bg(YELLOW),
             ));
             spans.push(Span::raw(after));
         } else {
@@ -47,7 +48,7 @@ pub fn render_all<'a>(
         if edit_cursor_pos == edit_content.chars().count() {
             spans.push(Span::styled(
                 "_",
-                Style::default().fg(Color::Black).bg(Color::Yellow),
+                Style::default().fg(BLACK).bg(YELLOW),
             ));
         }
         lines.push(Line::from(spans));
@@ -55,7 +56,7 @@ pub fn render_all<'a>(
         lines.push(Line::from(""));
         lines.push(Line::from(vec![Span::styled(
             "[↵] Save  [⎋] Cancel",
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(CYAN),
         )]));
     } else {
         // ── List mode ──────────────────────────────────────────
@@ -63,12 +64,12 @@ pub fn render_all<'a>(
             Span::styled(
                 "RPC Workers",
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 " — Space: Toggle | n: New | e: Edit | d: Delete",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DARK_GRAY),
             ),
         ]));
         lines.push(Line::from(""));
@@ -79,11 +80,11 @@ pub fn render_all<'a>(
 
             let row_style = if i == selected {
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Green)
+                    .fg(BLACK)
+                    .bg(GREEN)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(WHITE)
             };
 
             let name_display = if worker.name.is_empty() {
@@ -93,13 +94,13 @@ pub fn render_all<'a>(
             };
 
             lines.push(Line::from(vec![
-                Span::styled(marker, Style::default().fg(Color::Yellow)),
+                Span::styled(marker, Style::default().fg(YELLOW)),
                 Span::styled(
                     checkbox,
                     Style::default().fg(if worker.selected {
-                        Color::Green
+                        GREEN
                     } else {
-                        Color::DarkGray
+                        DARK_GRAY
                     }),
                 ),
                 Span::styled(
@@ -112,14 +113,14 @@ pub fn render_all<'a>(
         if workers.is_empty() {
             lines.push(Line::from(Span::styled(
                 "  No RPC workers configured.",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DARK_GRAY),
             )));
         }
 
         lines.push(Line::from(""));
         lines.push(Line::from(vec![Span::styled(
             "[Space] Toggle  [e] Edit  [n] New  [d] Delete  [⎋] Back",
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(CYAN),
         )]));
     }
 
