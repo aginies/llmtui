@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{
         Block, BorderType, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
@@ -10,6 +10,7 @@ use ratatui::{
 };
 
 use crate::tui::app::App;
+use crate::tui::colors::*;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     if area.height < 2 {
@@ -33,9 +34,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     };
     let is_log_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Log;
     let (border_type, border_color) = if is_log_focused {
-        (BorderType::Thick, Color::Green)
+        (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, Color::Gray)
+        (BorderType::Plain, GRAY)
     };
     let block = Block::default()
         .title(title)
@@ -46,9 +47,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let mut lines: Vec<Line> = Vec::new();
     for e in &app.log.log_entries {
         let level_color = match e.level {
-            crate::config::LogLevel::Info => Color::Cyan,
-            crate::config::LogLevel::Warning => Color::Yellow,
-            crate::config::LogLevel::Error => Color::Red,
+            crate::config::LogLevel::Info => CYAN,
+            crate::config::LogLevel::Warning => YELLOW,
+            crate::config::LogLevel::Error => RED,
         };
 
         let ts_prefix = format!("[{}] ", e.timestamp);
@@ -58,32 +59,32 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         let msg_lines: Vec<&str> = e.message.lines().collect();
         if msg_lines.is_empty() {
             lines.push(Line::from(vec![
-                Span::styled(ts_prefix, Style::default().fg(Color::DarkGray)),
+                Span::styled(ts_prefix, Style::default().fg(DARK_GRAY)),
                 Span::styled(
                     lv_prefix,
                     Style::default()
                         .fg(level_color)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(&e.message, Style::default().fg(Color::White)),
+                Span::styled(&e.message, Style::default().fg(WHITE)),
             ]));
         } else {
             for (i, line) in msg_lines.into_iter().enumerate() {
                 if i == 0 {
                     lines.push(Line::from(vec![
-                        Span::styled(ts_prefix.clone(), Style::default().fg(Color::DarkGray)),
+                        Span::styled(ts_prefix.clone(), Style::default().fg(DARK_GRAY)),
                         Span::styled(
                             lv_prefix.clone(),
                             Style::default()
                                 .fg(level_color)
                                 .add_modifier(Modifier::BOLD),
                         ),
-                        Span::styled(line, Style::default().fg(Color::White)),
+                        Span::styled(line, Style::default().fg(WHITE)),
                     ]));
                 } else {
                     lines.push(Line::from(vec![
                         Span::raw(" ".repeat(prefix_width)),
-                        Span::styled(line, Style::default().fg(Color::White)),
+                        Span::styled(line, Style::default().fg(WHITE)),
                     ]));
                 }
             }
