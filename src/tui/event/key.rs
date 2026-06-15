@@ -1673,9 +1673,15 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     };
                 }
                 5 => {
-                    if app.server.server_handle.is_none() {
-                        app.settings.api_endpoint_enabled = !app.settings.api_endpoint_enabled;
-                    }
+                    app.ui.global_mode = GlobalMode::ApiEndpointPicker {
+                        enabled: app.settings.api_endpoint_enabled,
+                        port: app.settings.api_endpoint_port.to_string(),
+                        api_key: app.config.default.api_endpoint_key.clone().unwrap_or_default(),
+                        selected_field: -1,
+                        editing: false,
+                        edit_buffer: String::new(),
+                        edit_cursor_pos: 0,
+                    };
                 }
                 6 => {
                     app.ui.global_mode = GlobalMode::DashboardPicker {
@@ -1704,9 +1710,9 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         editing: false,
                         edit_buffer: String::new(),
                         edit_cursor_pos: 0,
-                    };
-                }
-                7 => {
+            };
+                 }
+                 7 => {
                     app.ui.global_mode = GlobalMode::RpcManager;
                     app.picker.rpc_workers_selected_idx = 0;
                     app.picker.editing_rpc_worker = None;
@@ -1727,8 +1733,8 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 9 => {
                     let current = crate::tui::i18n::get_language();
-                    let next = match current.as_str() {
-                        "fr" => "it",
+                     let next = match current.as_str() {
+                         "fr" => "it",
                         "it" => "en",
                         _ => "fr",
                     };
@@ -1738,9 +1744,9 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.add_log(
                         format!("Language changed to {}", next.to_uppercase()),
                         crate::config::LogLevel::Info,
-                    );
-                }
-                _ => {}
+                  );
+                 }
+                 _ => {}
             }
             sync_global_settings(app);
         }

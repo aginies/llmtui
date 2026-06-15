@@ -6,6 +6,7 @@ use crossterm::event::KeyEvent;
 use crate::tui::app::{App, GlobalMode};
 
 mod about;
+mod api_endpoint_picker;
 mod backend_picker;
 mod bench_tune_setup;
 mod chat_template_file_picker;
@@ -28,6 +29,7 @@ mod web_search_picker;
 mod yarn_rope_settings;
 
 pub use about::AboutHandler;
+pub use api_endpoint_picker::ApiEndpointPickerHandler;
 pub use backend_picker::BackendPickerHandler;
 pub use bench_tune_setup::BenchTuneSetupHandler;
 pub use chat_template_file_picker::ChatTemplateFilePickerHandler;
@@ -70,6 +72,7 @@ impl OverlayRegistry {
         handlers.push(Box::new(AboutHandler));
         handlers.push(Box::new(SearchInputHandler));
         handlers.push(Box::new(DashboardPickerHandler));
+        handlers.push(Box::new(ApiEndpointPickerHandler));
         handlers.push(Box::new(SpecTypePickerHandler));
         handlers.push(Box::new(ChatTemplatePickerHandler));
         handlers.push(Box::new(ChatTemplateFilePickerHandler));

@@ -827,6 +827,8 @@ pub struct DefaultParams {
     #[serde(default)]
     pub web_search_api_key: Option<String>,
     #[serde(default)]
+    pub api_endpoint_key: Option<String>,
+    #[serde(default)]
     pub spec_type: String,
     #[serde(default)]
     pub draft_tokens: u32,
@@ -998,6 +1000,7 @@ impl Default for DefaultParams {
             llama_cpp_version_cuda: None,
             api_endpoint_enabled: false,
             api_endpoint_port: 49222,
+            api_endpoint_key: None,
             web_search_engine: "searxng".to_string(),
             web_search_engine_url: String::new(),
             web_search_enabled: false,

@@ -397,6 +397,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
             api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
+            api_endpoint_key: dp.api_endpoint_key,
 
             spec_type: dp.spec_type,
             draft_tokens: dp.draft_tokens,
@@ -985,6 +986,8 @@ pub struct ModelSettings {
     pub api_endpoint_enabled: bool,
     /// Port for the API proxy server.
     pub api_endpoint_port: u16,
+    /// API key for the proxy server (Bearer token).
+    pub api_endpoint_key: Option<String>,
     /// Speculative decoding type (e.g., "draft-mtp", "ngram-simple", "" for off).
     pub spec_type: String,
     /// Number of draft tokens for MTP.

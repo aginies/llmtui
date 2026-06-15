@@ -167,6 +167,7 @@ pub fn sync_global_settings(app: &mut App) {
         || app.config.default.threads_batch != app.settings.threads_batch
         || app.config.default.api_endpoint_enabled != app.settings.api_endpoint_enabled
         || app.config.default.api_endpoint_port != app.settings.api_endpoint_port
+        || app.config.default.api_endpoint_key != app.settings.api_endpoint_key
         || app.config.default.server_mode != app.server_mode
         || app.config.default.router_max_models != app.router_max_models
         || app.config.default.llama_cpp_version_cpu != app.settings.llama_cpp_version_cpu
@@ -187,6 +188,7 @@ pub fn sync_global_settings(app: &mut App) {
     app.config.default.threads_batch = app.settings.threads_batch;
     app.config.default.api_endpoint_enabled = app.settings.api_endpoint_enabled;
     app.config.default.api_endpoint_port = app.settings.api_endpoint_port;
+    app.config.default.api_endpoint_key = app.settings.api_endpoint_key.clone();
     app.config.default.server_mode = app.server_mode;
     app.config.default.router_max_models = app.router_max_models;
     app.config.default.llama_cpp_version_cpu = app.settings.llama_cpp_version_cpu.clone();

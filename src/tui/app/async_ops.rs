@@ -1962,6 +1962,7 @@ impl App {
             .map(|h| h.pid)
             .unwrap_or(0);
         let model_name = self.server.spawned_model_name.clone().unwrap_or_default();
+        let api_key = self.config.default.ws_server_auth_key.clone();
 
         // No backend server and API proxy is not running — nothing to do.
         // This prevents a busy loop where settings_changed is always true
@@ -2024,6 +2025,58 @@ impl App {
                 }
             }
 
+            // Build TLS config — share with WebSocket dashboard (ws_server_tls_* config).
+            let tls_cfg = if self.config.default.ws_server_tls_enabled {
+                let tls_cert = self.config.default.ws_server_tls_cert.clone();
+                let tls_key = self.config.default.ws_server_tls_key.clone();
+                let needs_reload = match (&tls_cert, &tls_key) {
+                    (Some(cert), Some(key)) => {
+                        Some(cert.as_str()) != self.server.running_ws_tls_cert_path.as_deref()
+                            || Some(key.as_str()) != self.server.running_ws_tls_key_path.as_deref()
+                            || self.server.running_ws_tls_cfg.is_none()
+                    }
+                    _ => self.server.running_ws_tls_cfg.is_none(),
+                };
+                if !needs_reload {
+                    self.server.running_ws_tls_cfg.clone()
+                } else {
+                    let (cert_p, key_p) = if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
+                        (cert.clone(), key.clone())
+                    } else {
+                        match crate::backend::tls::ensure_tls_certs() {
+                            Ok((c, k)) => (
+                                c.to_string_lossy().to_string(),
+                                k.to_string_lossy().to_string(),
+                            ),
+                            Err(e) => {
+                                self.add_log(
+                                    crate::t_fmt!("async.api_tls_error", e),
+                                    crate::config::LogLevel::Warning,
+                                );
+                                (String::new(), String::new())
+                            }
+                        }
+                    };
+                    if !cert_p.is_empty() {
+                        match crate::backend::tls::load_tls_config(&cert_p, &key_p).await {
+                            Ok(cfg) => Some(cfg),
+                            Err(_) => {
+                                let e = format!("Failed to load TLS from {} / {}", cert_p, key_p);
+                                self.add_log(
+                                    crate::t_fmt!("async.api_tls_error", e),
+                                    crate::config::LogLevel::Warning,
+                                );
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+
             let (api_shutdown_tx, api_shutdown_rx) = tokio::sync::watch::channel(false);
             self.server.api_shutdown_tx = Some(api_shutdown_tx);
             let host_clone = host.clone();
@@ -2042,16 +2095,17 @@ impl App {
             let log_cb_clone = log_cb.clone();
             let ws_enabled = self.config.default.web_search_enabled;
             let ws_api_key = self.config.default.web_search_api_key.clone();
+                   let tls_cfg_for_api = tls_cfg.clone();
             let handle = tokio::spawn(async move {
                 let _ = crate::serve_api::start_api_server(
                     addr,
-                    None,
+                    api_key,
                     server_port,
                     model_name_clone,
                     pid,
                     api_shutdown_rx,
                     host_clone,
-                    None,
+                    tls_cfg_for_api,
                     preset_name,
                     search_engine,
                     search_engine_url,
@@ -2070,8 +2124,9 @@ impl App {
             } else {
                 ""
             };
+            let protocol = if tls_cfg.is_some() { "https" } else { "http" };
             self.add_log(
-                crate::t_fmt!("async.api_started", host, port, status),
+                crate::t_fmt!("async.api_started", protocol, host, port, status),
                 crate::config::LogLevel::Info,
             );
         }

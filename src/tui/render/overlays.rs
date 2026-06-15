@@ -210,6 +210,30 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+   if let GlobalMode::ApiEndpointPicker {
+         enabled,
+         port,
+         api_key,
+         selected_field,
+         editing,
+         edit_buffer,
+         edit_cursor_pos: _,
+     } = &app.ui.global_mode
+    {
+        render_api_endpoint_picker(
+            f,
+            f.area(),
+            app,
+            *enabled,
+            port,
+            api_key,
+            *selected_field,
+            *editing,
+            edit_buffer,
+        );
+        return true;
+    }
+
     if let GlobalMode::YarnRoPESettings {
         scale,
         freq_base,
@@ -1943,11 +1967,107 @@ fn render_dashboard_picker(
                 .border_style(Style::default().fg(YELLOW))
                 .border_type(BorderType::Double),
         ),
-        picker_area,
-    );
-}
+    picker_area,
+     );
+ }
 
-fn render_dashboard_url(
+ fn render_api_endpoint_picker(
+     f: &mut Frame,
+     area: Rect,
+     _app: &App,
+     enabled: bool,
+     port: &str,
+     api_key: &str,
+     selected_field: i32,
+     editing: bool,
+     edit_buffer: &str,
+ ) {
+     let w = 60u16;
+     let h = (14.min(area.height - 4)) as u16;
+     let picker_area = Rect {
+         x: (area.width - w) / 2,
+         y: (area.height - h) / 2,
+         width: w,
+         height: h,
+     };
+     let mut picker_lines: Vec<Line> = Vec::new();
+
+     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
+     picker_lines.push(Line::from(vec![
+         Span::styled(enabled_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("dialog.dashboard.enabled"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::styled(
+             if enabled {
+                 crate::t!("dialog.dashboard.on")
+             } else {
+                 crate::t!("dialog.dashboard.off")
+             },
+             Style::default()
+                 .fg(if enabled { GREEN } else { DARK_GRAY })
+                 .add_modifier(Modifier::BOLD),
+         ),
+     ]));
+     picker_lines.push(Line::from(""));
+
+     let port_marker = if selected_field == 0i32 { "> " } else { "  " };
+     let port_val = if editing && selected_field == 0i32 {
+         format!("{}|", edit_buffer)
+     } else {
+         port.to_string()
+     };
+     picker_lines.push(Line::from(vec![
+         Span::styled(port_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("dialog.dashboard.port"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::styled(port_val, Style::default().fg(WHITE)),
+     ]));
+     picker_lines.push(Line::from(""));
+
+     let api_key_marker = if selected_field == 1i32 { "> " } else { "  " };
+     let api_key_val = if editing && selected_field == 1i32 {
+         format!("{}|", edit_buffer)
+     } else if api_key.is_empty() {
+         crate::t!("dialog.dashboard.none").to_string()
+     } else {
+         api_key.to_string()
+     };
+     picker_lines.push(Line::from(vec![
+         Span::styled(api_key_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("panel.server.api_key"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::styled(api_key_val, Style::default().fg(WHITE)),
+     ]));
+     picker_lines.push(Line::from(""));
+     picker_lines.push(Line::from(vec![Span::styled(
+         crate::t!("dialog.dashboard.close"),
+         Style::default().fg(BLACK).bg(DARK_GRAY),
+     )]));
+     f.render_widget(Clear, picker_area);
+     f.render_widget(
+         Paragraph::new(picker_lines).block(
+             Block::default()
+                 .title(Span::styled(
+                     "API Endpoint",
+                     Style::default()
+                         .fg(YELLOW)
+                         .add_modifier(Modifier::BOLD),
+                 ))
+                 .borders(Borders::ALL)
+                 .border_style(Style::default().fg(YELLOW))
+                 .border_type(BorderType::Double),
+         ),
+         picker_area,
+     );
+ }
+
+ fn render_dashboard_url(
     f: &mut Frame,
     area: Rect,
     app: &App,
