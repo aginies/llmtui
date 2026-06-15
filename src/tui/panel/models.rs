@@ -270,7 +270,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Thick, Color::Green)
             } else {
-                (BorderType::Plain, Color::Yellow)
+                (BorderType::Plain, Color::Gray)
             };
             let block = Block::default()
                 .title(title)
@@ -831,12 +831,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             f.render_stateful_widget(table, inner_area, &mut app.search.files_table_state);
         }
         ModelsMode::BenchTune => {
-            let title = crate::t!("panel.title.bench_tune").to_string();
+           let title = crate::t!("panel.title.bench_tune").to_string();
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Thick, Color::Green)
             } else {
-                (BorderType::Plain, Color::Yellow)
+                (BorderType::Plain, Color::Gray)
             };
             let block = Block::default()
                 .title(title)
@@ -1113,7 +1113,7 @@ fn render_benchtune_results_table(
     .block(Block::default().borders(Borders::NONE))
     .row_highlight_style(
         Style::default()
-            .bg(Color::Rgb(60, 60, 60))
+            .bg(Color::DarkGray)
             .add_modifier(Modifier::BOLD),
     )
     .highlight_symbol("> ");

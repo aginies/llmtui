@@ -166,7 +166,7 @@ fn render_settings(
         let final_val_style = if *total_count == selected {
             Style::default()
                 .fg(Color::Black)
-                .bg(Color::Yellow)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
         } else if visually_disabled {
             Style::default().fg(Color::Gray)

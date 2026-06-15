@@ -1213,13 +1213,13 @@ pub fn add_setting(
 ) {
     let current_line = lines.len();
     let name_style = if disabled {
-        Style::default().fg(Color::Rgb(180, 180, 180))
+        Style::default().fg(Color::Gray)
     } else {
         Style::default().fg(Color::Yellow)
     };
     let val_style = if disabled {
         Style::default()
-            .fg(Color::Rgb(180, 180, 180))
+            .fg(Color::Gray)
     } else {
         Style::default().fg(Color::White)
     };
@@ -1239,12 +1239,12 @@ pub fn add_setting(
             ),
             Span::styled(format!("{name}: "), name_style),
             Span::styled(
-                val.to_string(),
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD),
-            ),
+                 val.to_string(),
+                 Style::default()
+                     .fg(Color::Black)
+                     .bg(Color::Green)
+                     .add_modifier(Modifier::BOLD),
+             ),
         ]));
     } else {
         lines.push(Line::from(vec![

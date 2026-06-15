@@ -354,7 +354,7 @@ fn render_web_search_picker(
             let style = if i == engine_picker_selected {
                 Style::default()
                     .fg(Color::Black)
-                    .bg(Color::Yellow)
+                    .bg(Color::Green)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
@@ -676,7 +676,7 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
         let style = if i == selected {
             Style::default()
                 .fg(Color::Black)
-                .bg(Color::Yellow)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
@@ -727,7 +727,7 @@ fn render_profile_picker(
         let style = if i == selected {
             Style::default()
                 .fg(Color::Black)
-                .bg(Color::Yellow)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
@@ -895,7 +895,7 @@ fn render_prompt_picker(
             let style = if i == selected {
                 Style::default()
                     .fg(Color::Black)
-                    .bg(Color::Yellow)
+                    .bg(Color::Green)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
@@ -959,14 +959,14 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
         } else {
             "  "
         };
-        let style = if Some(i) == app.edit.tags_selected_idx {
+       let style = if Some(i) == app.edit.tags_selected_idx {
             Style::default()
                 .fg(Color::Black)
-                .bg(Color::Yellow)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::White)
-        };
+            } else {
+                Style::default().fg(Color::White)
+            };
         modal_lines.push(Line::from(vec![
             Span::styled(marker, Style::default().fg(Color::Yellow)),
             Span::styled(tag.clone(), style),
@@ -1073,7 +1073,7 @@ fn render_backend_picker(
         let style = if i == selected {
             Style::default()
                 .fg(Color::Black)
-                .bg(Color::Yellow)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
@@ -1530,7 +1530,7 @@ fn render_bench_tune_setup(
                 }
             };
             let row_style = if is_selected {
-                Style::default().fg(Color::Black).bg(Color::Yellow)
+                Style::default().fg(Color::Black).bg(Color::Green)
             } else {
                 Style::default().fg(Color::White)
             };
@@ -2917,7 +2917,7 @@ fn render_yarn_rope_picker(
         let style = if is_selected {
             Style::default()
                 .fg(Color::Black)
-                .bg(Color::Yellow)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
@@ -3008,7 +3008,7 @@ fn render_spec_type_picker(
         let style = if i == selected {
             Style::default()
                 .fg(Color::Black)
-                .bg(Color::Yellow)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
@@ -3064,7 +3064,7 @@ fn render_chat_template_picker(
         let style = if i == selected {
             Style::default()
                 .fg(Color::Black)
-                .bg(Color::Yellow)
+                .bg(Color::Green)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
@@ -3126,7 +3126,7 @@ fn render_chat_template_file_picker(
             let style = if i == selected {
                 Style::default()
                     .fg(Color::Black)
-                    .bg(Color::Yellow)
+                    .bg(Color::Green)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
