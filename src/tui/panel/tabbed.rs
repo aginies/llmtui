@@ -2,7 +2,7 @@ use ratatui::{
     Frame,
     layout::Rect,
     prelude::Stylize,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Paragraph},
 };
@@ -10,6 +10,7 @@ use ratatui::{
 use super::info;
 use super::info::ModelInfoPair;
 use super::settings;
+use crate::tui::colors::*;
 use crate::tui::app::{ActivePanel, App};
 use crate::tui::settings as settings_helper;
 
@@ -27,7 +28,7 @@ fn render_unsaved_watermark(f: &mut Frame, area: Rect, app: &App) {
         .map(|c| {
             Line::from(vec![Span::styled(
                 format!("{} ", c),
-                Style::default().fg(Color::Red).add_modifier(Modifier::DIM),
+                Style::default().fg(RED).add_modifier(Modifier::DIM),
             )])
         })
         .collect();
@@ -69,9 +70,9 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let start_idx = app.settings_state.settings_scroll_offset;
 
     let _border_color = if is_focused {
-        Color::Green
+        GREEN
     } else {
-        Color::DarkGray
+        DARK_GRAY
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = if app.settings_state.expert_mode {
@@ -81,16 +82,16 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     };
     let is_llm_focused = app.ui.active_panel == crate::tui::app::ActivePanel::LlmSettings;
     let (border_type, border_color) = if is_llm_focused {
-        (BorderType::Thick, Color::Green)
+        (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, Color::Gray)
+        (BorderType::Plain, GRAY)
     };
     let block = Block::default()
         .title(Line::from(vec![
             Span::raw(title),
             Span::styled(
                 format!("(VRAM ~= {}) ", vram_text),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ),
         ]))
         .borders(Borders::ALL)
@@ -130,9 +131,9 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         };
         let help_block = Block::default()
             .borders(Borders::TOP)
-            .border_style(Style::default().fg(Color::Gray))
+            .border_style(Style::default().fg(GRAY))
             .border_type(BorderType::Rounded)
-            .bg(Color::Black);
+            .bg(BLACK);
         let help_inner = help_block.inner(help_area);
         f.render_widget(help_block.clone(), help_area);
         f.render_widget(
@@ -209,11 +210,11 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
 
     let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
     let _border_color = if server_running {
-        Color::DarkGray
+        DARK_GRAY
     } else if is_focused {
-        Color::Green
+        GREEN
     } else {
-        Color::DarkGray
+        DARK_GRAY
     };
     let selected = app.settings_state.server_settings_selected_idx;
 
@@ -445,9 +446,9 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     };
     let is_server_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
     let (border_type, border_color) = if is_server_focused {
-        (BorderType::Thick, Color::Green)
+        (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, Color::Gray)
+        (BorderType::Plain, GRAY)
     };
     let block = Block::default()
         .title(title)
@@ -477,9 +478,9 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let is_llm_focused = app.ui.active_panel == ActivePanel::LlmSettings;
     let (border_type, border_color) = if is_llm_focused {
-        (BorderType::Thick, Color::Green)
+        (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, Color::Gray)
+        (BorderType::Plain, GRAY)
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = crate::t!("panel.title.llm_active");
@@ -488,7 +489,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
             Span::raw(title),
             Span::styled(
                 format!("(VRAM ~= {}) ", vram_text),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(YELLOW),
             ),
         ]))
         .borders(Borders::ALL)
@@ -535,9 +536,9 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         };
         let help_block = Block::default()
             .borders(Borders::TOP)
-            .border_style(Style::default().fg(Color::Gray))
+            .border_style(Style::default().fg(GRAY))
             .border_type(BorderType::Rounded)
-            .bg(Color::Black);
+            .bg(BLACK);
         f.render_widget(help_block.clone(), help_area);
         f.render_widget(
             Paragraph::new(help_text.as_str()).wrap(ratatui::widgets::Wrap { trim: true }),
@@ -607,7 +608,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 fn empty_info() -> Vec<Line<'static>> {
     vec![Line::from(Span::styled(
         "Select a model to view info",
-        Style::default().fg(Color::DarkGray),
+        Style::default().fg(DARK_GRAY),
     ))]
 }
 
@@ -644,8 +645,8 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                 && let Some((filename, _, _url)) = files.get(*idx)
             {
                 lines.push(Line::from(vec![
-                    Span::styled("File: ", Style::default().fg(Color::Yellow)),
-                    Span::styled(filename.clone(), Style::default().fg(Color::White)),
+                    Span::styled("File: ", Style::default().fg(YELLOW)),
+                    Span::styled(filename.clone(), Style::default().fg(WHITE)),
                 ]));
             }
             lines
@@ -682,7 +683,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                     if cached_meta.is_none() {
                         lines.push(Line::from(vec![Span::styled(
                             "GGUF metadata not available — check log for errors",
-                            Style::default().fg(Color::DarkGray),
+                            Style::default().fg(DARK_GRAY),
                         )]));
                     }
                     lines
@@ -701,9 +702,9 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
             let link_line = Line::from(vec![
                 Span::styled(
                     "  https://huggingface.co/",
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(CYAN),
                 ),
-                Span::styled(r.model_id.clone(), Style::default().fg(Color::Cyan)),
+                Span::styled(r.model_id.clone(), Style::default().fg(CYAN)),
             ]);
             info_lines.push(link_line);
         }
@@ -715,9 +716,9 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
         let link_line = Line::from(vec![
             Span::styled(
                 "  https://huggingface.co/",
-                Style::default().fg(Color::Cyan),
+                Style::default().fg(CYAN),
             ),
-            Span::styled(r.model_id.clone(), Style::default().fg(Color::Cyan)),
+            Span::styled(r.model_id.clone(), Style::default().fg(CYAN)),
         ]);
         info_lines.push(link_line);
     }
@@ -730,7 +731,7 @@ pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static
     let block = Block::default()
         .title(crate::t!("panel.title.model_info_active"))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Gray))
+        .border_style(Style::default().fg(GRAY))
         .border_type(BorderType::Rounded);
 
     let paragraph = Paragraph::new(lines).block(block);
@@ -757,7 +758,7 @@ fn render_model_info_lines(
         let value_width = width.saturating_sub(label.len() as u16 + 1);
         let value_display = crate::tui::panel::models::scroll_text(&value, value_width, state);
         lines.push(Line::from(vec![
-            Span::styled(label, Style::default().fg(Color::Yellow)),
+            Span::styled(label, Style::default().fg(YELLOW)),
             Span::styled(value_display, Style::default().fg(first.value_style)),
         ]));
     }
@@ -775,7 +776,7 @@ fn render_model_info_lines(
             lines.push(Line::from(vec![
                 Span::styled(
                     format!("{:<12}", left_label),
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 ),
                 Span::styled(
                     format!("{:<15}", left.value),
@@ -784,7 +785,7 @@ fn render_model_info_lines(
                 Span::raw("  "),
                 Span::styled(
                     format!("{:<12}", right_label),
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(YELLOW),
                 ),
                 Span::styled(right.value.clone(), Style::default().fg(right.value_style)),
             ]));
@@ -792,7 +793,7 @@ fn render_model_info_lines(
             // Single item in last row
             let label = format!("{}: ", crate::t!(left.label));
             lines.push(Line::from(vec![
-                Span::styled(label, Style::default().fg(Color::Yellow)),
+                Span::styled(label, Style::default().fg(YELLOW)),
                 Span::styled(left.value.clone(), Style::default().fg(left.value_style)),
             ]));
         }
@@ -875,56 +876,56 @@ fn render_search_result_info(
         .join(", ");
 
     let mut lines = vec![Line::from(vec![
-        Span::styled("Model: ", Style::default().fg(Color::Yellow)),
-        Span::styled(r.model_id.clone(), Style::default().fg(Color::White)),
+        Span::styled("Model: ", Style::default().fg(YELLOW)),
+        Span::styled(r.model_id.clone(), Style::default().fg(WHITE)),
     ])];
     if let Some(s) = size_str.clone() {
         lines.push(Line::from(vec![
-            Span::styled("Size: ", Style::default().fg(Color::Yellow)),
-            Span::styled(s, Style::default().fg(Color::White)),
+            Span::styled("Size: ", Style::default().fg(YELLOW)),
+            Span::styled(s, Style::default().fg(WHITE)),
         ]));
     }
     lines.push(Line::from(vec![
-        Span::styled("Params: ", Style::default().fg(Color::Yellow)),
-        Span::styled(params_str.clone(), Style::default().fg(Color::White)),
+        Span::styled("Params: ", Style::default().fg(YELLOW)),
+        Span::styled(params_str.clone(), Style::default().fg(WHITE)),
         Span::raw(" | "),
-        Span::styled("Type: ", Style::default().fg(Color::Yellow)),
-        Span::styled(cap_str.clone(), Style::default().fg(Color::White)),
+        Span::styled("Type: ", Style::default().fg(YELLOW)),
+        Span::styled(cap_str.clone(), Style::default().fg(WHITE)),
     ]));
     lines.push(Line::from(vec![
-        Span::styled("Pipeline: ", Style::default().fg(Color::Yellow)),
-        Span::styled(pipeline_str.to_string(), Style::default().fg(Color::White)),
+        Span::styled("Pipeline: ", Style::default().fg(YELLOW)),
+        Span::styled(pipeline_str.to_string(), Style::default().fg(WHITE)),
         Span::raw(" | "),
-        Span::styled("Downloads: ", Style::default().fg(Color::Yellow)),
+        Span::styled("Downloads: ", Style::default().fg(YELLOW)),
         Span::styled(
             format!("{}", r.downloads),
-            Style::default().fg(Color::White),
+            Style::default().fg(WHITE),
         ),
     ]));
     lines.push(Line::from(vec![
-        Span::styled("Likes: ", Style::default().fg(Color::Yellow)),
-        Span::styled(format!("{}", r.likes), Style::default().fg(Color::White)),
+        Span::styled("Likes: ", Style::default().fg(YELLOW)),
+        Span::styled(format!("{}", r.likes), Style::default().fg(WHITE)),
         Span::raw(" | "),
-        Span::styled("Trending: ", Style::default().fg(Color::Yellow)),
+        Span::styled("Trending: ", Style::default().fg(YELLOW)),
         Span::styled(
             format!("{}", r.trending_score),
-            Style::default().fg(Color::White),
+            Style::default().fg(WHITE),
         ),
     ]));
     let license: String = r.license.as_deref().unwrap_or("—").to_string();
     lines.push(Line::from(vec![
-        Span::styled("License: ", Style::default().fg(Color::Yellow)),
-        Span::styled(license, Style::default().fg(Color::White)),
+        Span::styled("License: ", Style::default().fg(YELLOW)),
+        Span::styled(license, Style::default().fg(WHITE)),
     ]));
     if let Some(created) = &r.created_at {
         lines.push(Line::from(vec![
-            Span::styled("Created: ", Style::default().fg(Color::Yellow)),
-            Span::styled(created.clone(), Style::default().fg(Color::White)),
+            Span::styled("Created: ", Style::default().fg(YELLOW)),
+            Span::styled(created.clone(), Style::default().fg(WHITE)),
         ]));
     }
     lines.push(Line::from(vec![
-        Span::styled("Tags: ", Style::default().fg(Color::Yellow)),
-        Span::styled(tag_str, Style::default().fg(Color::White)),
+        Span::styled("Tags: ", Style::default().fg(YELLOW)),
+        Span::styled(tag_str, Style::default().fg(WHITE)),
     ]));
     lines
 }
