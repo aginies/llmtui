@@ -1,5 +1,6 @@
 use ratatui::style::Color;
 
+use crate::tui::colors::*;
 use crate::tui::format_size;
 
 /// A single key-value pair for model info, rendered in two columns.
@@ -31,13 +32,13 @@ pub fn render_model_lines(
     pairs.push(ModelInfoPair {
         label: "model_info.path",
         value: path,
-        value_style: Color::White,
+        value_style: WHITE,
     });
 
     pairs.push(ModelInfoPair {
         label: "model_info.size",
         value: size,
-        value_style: Color::White,
+        value_style: WHITE,
     });
 
     // Use cached metadata if available, otherwise just show basic info.
@@ -47,7 +48,7 @@ pub fn render_model_lines(
             pairs.push(ModelInfoPair {
                 label: "model_info.arch",
                 value: meta.arch.clone(),
-                value_style: Color::Cyan,
+                value_style: CYAN,
             });
         }
 
@@ -55,7 +56,7 @@ pub fn render_model_lines(
             pairs.push(ModelInfoPair {
                 label: "model_info.mtp",
                 value: format!("{} drafts", meta.draft_tokens),
-                value_style: Color::Magenta,
+                value_style: MAGENTA,
             });
         }
 
@@ -63,7 +64,7 @@ pub fn render_model_lines(
             pairs.push(ModelInfoPair {
                 label: "model_info.domain",
                 value: meta.domain.clone(),
-                value_style: Color::White,
+                value_style: WHITE,
             });
         }
 
@@ -71,7 +72,7 @@ pub fn render_model_lines(
             pairs.push(ModelInfoPair {
                 label: "model_info.quant",
                 value: meta.quantization.clone(),
-                value_style: Color::Cyan,
+                value_style: CYAN,
             });
         }
 
@@ -79,7 +80,7 @@ pub fn render_model_lines(
             pairs.push(ModelInfoPair {
                 label: "model_info.format",
                 value: meta.file_type.clone(),
-                value_style: Color::White,
+                value_style: WHITE,
             });
         }
 
@@ -87,7 +88,7 @@ pub fn render_model_lines(
             pairs.push(ModelInfoPair {
                 label: "model_info.parameters",
                 value: meta.model_parameters.clone(),
-                value_style: Color::White,
+                value_style: WHITE,
             });
         }
 
@@ -95,7 +96,7 @@ pub fn render_model_lines(
             pairs.push(ModelInfoPair {
                 label: "model_info.tokenizer",
                 value: meta.tokenizer.clone(),
-                value_style: Color::Cyan,
+                value_style: CYAN,
             });
         }
 
@@ -104,7 +105,7 @@ pub fn render_model_lines(
             pairs.push(ModelInfoPair {
                 label: "model_info.context",
                 value: format!("{} tokens", meta.n_ctx_train),
-                value_style: Color::White,
+                value_style: WHITE,
             });
         }
 
@@ -129,7 +130,7 @@ pub fn render_model_lines(
             pairs.push(ModelInfoPair {
                 label: "model_info.capabilities",
                 value: all_capabilities.join(", "),
-                value_style: Color::Green,
+                value_style: GREEN,
             });
         }
     }
