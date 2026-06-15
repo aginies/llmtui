@@ -195,7 +195,9 @@ function render_settings(m) {
   ).join('');
 }
 function update(m) {
-  document.getElementById('model-name').textContent = m.model_name || 'No model loaded';
+  const name = m.model_name || 'No model loaded';
+  const displayName = name ? name.split('/').pop() : 'No model loaded';
+  document.getElementById('model-name').textContent = displayName;
   document.getElementById('state-badge').textContent = m.state || 'unknown';
   document.getElementById('state-badge').className = 'state-badge ' + (m.loaded ? 'loaded' : 'unloaded');
   document.getElementById('tps').textContent = m.tps.toFixed(1);
