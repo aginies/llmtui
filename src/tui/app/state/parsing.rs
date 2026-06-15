@@ -56,13 +56,19 @@ pub static KV_BUFFER_SIZE: LazyLock<Regex> =
 /// Detects whether a log line indicates a loading error.
 pub fn is_loading_error(msg: &str) -> bool {
     let lower = msg.to_lowercase();
+    // OOM patterns — check first (most common)
     lower.contains("out of memory")
         || lower.contains("out_of_memory")
         || lower.contains("out_of_device_memory")
         || lower.contains("outofmemory")
         || lower.contains("outofdevicememory")
-        || lower.contains("error")
+        // Actual error patterns — check for error: prefix or specific failure messages
+        || lower.starts_with("error:")
+        || lower.contains(" error: ")
+        || lower.contains("\nerror:")
         || lower.contains("failed to load")
+        || lower.contains("failed loading")
+        || lower.contains("load failed")
         || lower.contains("exception")
         || lower.contains("vk::systemerror")
 }
