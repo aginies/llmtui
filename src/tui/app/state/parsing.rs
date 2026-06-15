@@ -62,13 +62,12 @@ pub fn is_loading_error(msg: &str) -> bool {
         || lower.contains("out_of_device_memory")
         || lower.contains("outofmemory")
         || lower.contains("outofdevicememory")
-        // Actual error patterns — check for error: prefix or specific failure messages
-        || lower.starts_with("error:")
-        || lower.contains(" error: ")
-        || lower.contains("\nerror:")
+        // Actual loading error patterns — must be specific to model loading
         || lower.contains("failed to load")
         || lower.contains("failed loading")
         || lower.contains("load failed")
+        || lower.contains("load_model: error")
+        || lower.contains("error loading")
         || lower.contains("exception")
         || lower.contains("vk::systemerror")
 }
