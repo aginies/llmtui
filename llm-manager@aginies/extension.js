@@ -260,7 +260,19 @@ var LlmManagerButton = GObject.registerClass({
                 const metric = WS_METRICS.find(m => m.key === key);
                 if (!metric) continue;
 
-                const displayValue = this._formatMetricValue(metric, this._currentMetrics);
+                let displayValue;
+                if (metric.type === 'ratio') {
+                    const used = this._currentMetrics[metric.used];
+                    const max = this._currentMetrics[metric.max];
+                    if (used !== undefined && max !== undefined && max > 0) {
+                        const percent = Math.round((used / max) * 100);
+                        displayValue = `${percent}%`;
+                    } else {
+                        displayValue = 'N/A';
+                    }
+                } else {
+                    displayValue = this._formatMetricValue(metric, this._currentMetrics);
+                }
                 if (displayValue && displayValue !== 'N/A' && displayValue !== '--') {
                     parts.push(metric.label + ': ' + displayValue);
                 }
