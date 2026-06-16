@@ -1,6 +1,7 @@
 use crate::config::Profile;
 use crate::models::{CacheQuantType, GpuLayersMode, Mirostat, ModelSettings, NumMode, SplitMode};
 use crate::tui::colors::*;
+use crate::tui::format_context_k;
 use ratatui::{
     style::{Modifier, Style},
     text::{Line, Span},
@@ -313,12 +314,7 @@ pub fn all_fields() -> Vec<SettingField> {
             "Context",
             "Loading",
             |s| {
-                if s.rope_yarn_enabled && s.rope_scale > 1.0 {
-                    let extended = (s.context_length as f64 * s.rope_scale as f64) as u32;
-                    format!("{} ({})", s.context_length, extended)
-                } else {
-                    s.context_length.to_string()
-                }
+                format_context_k(s.context_length, s.rope_yarn_enabled, s.rope_scale)
             },
             |s, c| s.context_length != c.context_length,
             |s, delta, ctx_limit| {

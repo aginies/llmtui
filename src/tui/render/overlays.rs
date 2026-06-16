@@ -12,6 +12,7 @@ use super::onboarding;
 use crate::backend::hardware::{GpuVendor, detect_gpu_models, detect_gpu_vendors};
 use crate::tui::app::{ConfirmationKind, GlobalMode};
 use crate::tui::format_bench_params;
+use crate::tui::format_context_k;
 use crate::tui::panel;
 use crate::tui::render_vertical_scrollbar;
 use crate::tui::colors::*;
@@ -2327,12 +2328,12 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 )),
                 Cell::from(Span::styled(
                     settings
-                        .map(|s| s.context_length.to_string())
+                        .map(|s| format_context_k(s.context_length, s.rope_yarn_enabled, s.rope_scale))
                         .unwrap_or_else(|| {
                             result
                                 .params
                                 .context_length
-                                .map(|v| v.to_string())
+                                .map(|v| format_context_k(v, false, 1.0))
                                 .unwrap_or_else(|| "-".to_string())
                         }),
                     Style::default().fg(CYAN),

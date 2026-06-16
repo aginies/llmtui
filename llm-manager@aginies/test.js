@@ -169,7 +169,7 @@ const WS_METRICS = [
     { key: 'tps', label: 'TPS', type: 'number', unit: 't/s' },
     { key: 'prompt_tps', label: 'Prompt TPS', type: 'number', unit: 't/s' },
     { key: 'gen_tps', label: 'Gen TPS', type: 'number', unit: 't/s' },
-    { key: 'ctx', label: 'Context', type: 'ratio', used: 'ctx_used', max: 'ctx_max', unit: 'tokens' },
+    { key: 'ctx', label: 'Ctx', type: 'ratio', used: 'ctx_used', max: 'ctx_max', unit: 'tokens' },
     { key: 'vram', label: 'VRAM', type: 'ratio_gb', used: 'gpu_mem_used', total: 'gpu_mem_total' },
     { key: 'ram', label: 'RAM', type: 'gb', key: 'ram_used' },
     { key: 'cpu', label: 'CPU', type: 'percent', key: 'cpu_usage' },

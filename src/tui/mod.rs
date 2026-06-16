@@ -36,13 +36,18 @@ pub fn format_size(bytes: u64) -> String {
 }
 
 /// Format a number into an abbreviated human-readable string (e.g., 1.5K, 2.3M, 1.2B).
+/// Uses 1024 as base for K (consistent with context length in tokens).
 pub fn format_number(n: u64) -> String {
-    if n >= 1_000_000_000 {
-        format!("{:.1}B", n as f64 / 1_000_000_000.0)
-    } else if n >= 1_000_000 {
-        format!("{:.1}M", n as f64 / 1_000_000.0)
-    } else if n >= 1_000 {
-        format!("{:.1}K", n as f64 / 1_000.0)
+    let k = 1024.0;
+    let m = k * 1024.0;
+    let b = m * 1024.0;
+    let s = n as f64;
+    if s >= b {
+        format!("{:.1}B", s / b)
+    } else if s >= m {
+        format!("{:.1}M", s / m)
+    } else if s >= k {
+        format!("{:.1}K", s / k)
     } else {
         format!("{}", n)
     }
@@ -125,9 +130,9 @@ pub fn format_bench_params(params: &BenchTuneParamValue, verbose: bool) -> Vec<S
     }
     if let Some(v) = params.context_length {
         parts.push(if verbose {
-            format!("  context_length: {}", v)
+            format!("  context_length: {}", format_number(v as u64))
         } else {
-            format!("context_length={}", v)
+            format!("context_length={}", format_number(v as u64))
         });
     }
     if let Some(v) = params.batch_size {

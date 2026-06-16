@@ -10,7 +10,7 @@ const WS_METRICS = [
     { key: 'tps', label: 'TPS' },
     { key: 'prompt_tps', label: 'Prompt TPS' },
     { key: 'gen_tps', label: 'Gen TPS' },
-    { key: 'ctx', label: 'Context' },
+    { key: 'ctx', label: 'Ctx' },
     { key: 'vram', label: 'VRAM' },
     { key: 'ram', label: 'RAM' },
     { key: 'cpu', label: 'CPU' },
