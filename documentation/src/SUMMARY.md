@@ -17,5 +17,6 @@
 - [Cache Reuse](cache-reuse.md)
 - [Cache Prompt](cache-prompt.md)
 - [WebSocket Dashboard](dashboard.md)
+- [GNOME Shell Extension](gnome-extension.md)
 - [Architecture](architecture.md)
 - [API Reference](api-reference.md) — Rust API docs on docs.rs
