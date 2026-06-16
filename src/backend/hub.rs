@@ -392,6 +392,11 @@ pub async fn download_file(
             continue;
         }
 
+        // Reset status when resuming from paused state
+        if progress.status == crate::models::DownloadStatus::Paused {
+            progress.status = crate::models::DownloadStatus::Downloading;
+        }
+
         // Send progress update at most every 100ms and only if bytes changed
         if last_update.elapsed() >= std::time::Duration::from_millis(100)
             && progress.downloaded_bytes != last_bytes
