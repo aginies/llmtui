@@ -28,6 +28,7 @@ usage() {
     echo "  clippy    - Run clippy lints"
     echo "  doc       - Build documentation"
     echo "  servedoc  - Serve documentation with watch mode"
+    echo "  gnome-ext - Install gnome extension and compile schemas"
     echo "  help      - Show this help"
 }
 
@@ -53,6 +54,7 @@ examples() {
     echo "  $0 doc                # Build documentation"
     echo "  $0 servedoc           # Serve docs with watch mode"
     echo "  $0 release --features vulkan  # Release with Vulkan feature"
+    echo "  $0 gnome-ext          # Install extension + compile schemas"
 }
 
 cmd_build() {
@@ -111,6 +113,18 @@ cmd_servedoc() {
     mdbook serve documentation --port "${1:-3000}"
 }
 
+cmd_gnome_ext() {
+    echo "Installing gnome extension..."
+    local ext_src="llm-manager@aginies"
+    local ext_dest="$HOME/.local/share/gnome/extensions/$ext_src"
+    mkdir -p "$ext_dest"
+    cp -a "$ext_src"/. "$ext_dest"/
+    echo "Extension installed to $ext_dest"
+    echo "Compiling schemas..."
+    glib-compile-schemas --strict "$ext_src/schemas/"
+    echo "Schemas compiled successfully"
+}
+
 case "${1:-help}" in
     build)     shift; cmd_build "$@" ;;
     run)       shift; cmd_run "$@" ;;
@@ -123,6 +137,7 @@ case "${1:-help}" in
     clippy)    shift; cmd_clippy "$@" ;;
     doc)       shift; cmd_doc "$@" ;;
     servedoc)  shift; cmd_servedoc "$@" ;;
+    gnome-ext) cmd_gnome_ext ;;
     help|--help|-h) usage; examples ;;
     *)
         echo "Unknown command: $1"
