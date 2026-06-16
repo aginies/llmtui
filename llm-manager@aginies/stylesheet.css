@@ -1,14 +1,56 @@
 .llm-icon { icon-size: 16px; }
 .llm-panel-item { spacing: 4px; }
-.llm-panel-label { font-weight: bold; }
-.llm-panel-menu { spacing: 11px; padding: 3px; }
-.llm-menu-item { spacing: 6px; }
+.llm-panel-label { font-weight: bold; font-size: 13px; }
+.llm-menu-item { spacing: 8px; padding: 4px 8px; }
 .llm-metric-label { }
-.llm-metric-value { x-align: 1; }
-.llm-value-good { color: #4CAF50; }
-.llm-value-warn { color: #FF9800; }
-.llm-value-bad { color: #F44336; }
-.llm-metric-selected { font-weight: bold; color: #3584e4; }
+.llm-metric-value { font-weight: bold; font-size: 12px; }
+.llm-value-good { color: #9ece6a; }
+.llm-value-warn { color: #e0af68; }
+.llm-value-bad { color: #f7768e; }
+.llm-metric-selected { font-weight: bold; color: #7aa2f7; }
+
+.llm-bar-container {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.llm-bar {
+    background-color: #2a2e3f;
+    border-radius: 4px;
+}
+
+.llm-bar-inner {
+    border-radius: 4px;
+}
+
+.llm-bar-green {
+    background-color: #9ece6a;
+}
+
+.llm-bar-yellow {
+    background-color: #e0af68;
+}
+
+.llm-bar-red {
+    background-color: #f7768e;
+}
+
+.llm-state-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 11px;
+}
+
+.llm-state-loaded {
+    background-color: #1a3a2a;
+    color: #9ece6a;
+}
+
+.llm-state-unloaded {
+    background-color: #3a2a1a;
+    color: #e0af68;
+}
 
 .debug-log {
     background-color: #2e3436;

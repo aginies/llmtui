@@ -3,41 +3,56 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
+import Soup from 'gi://Soup?version=3.0';
 
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const PROMETHEUS_METRICS = [
-    { key: 'prompt_tokens_total',       label: 'Prompt Tokens',       type: 'counter',  unit: '' },
-    { key: 'prompt_seconds_total',      label: 'Prompt Seconds',      type: 'counter',  unit: 's' },
-    { key: 'tokens_predicted_total',    label: 'Predicted Tokens',    type: 'counter',  unit: '' },
-    { key: 'tokens_predicted_seconds_total', label: 'Predict Seconds', type: 'counter', unit: 's' },
-    { key: 'n_decode_total',            label: 'Decode Calls',        type: 'counter',  unit: '' },
-    { key: 'n_tokens_max',              label: 'Max Tokens',          type: 'counter',  unit: '' },
-    { key: 'prompt_tokens_seconds',     label: 'Prompt TPS',          type: 'gauge',    unit: 't/s' },
-    { key: 'predicted_tokens_seconds',  label: 'Predict TPS',         type: 'gauge',    unit: 't/s' },
-    { key: 'requests_processing',       label: 'Active Requests',     type: 'gauge',    unit: '' },
-    { key: 'requests_deferred',         label: 'Deferred Requests',   type: 'gauge',    unit: '' },
-    { key: 'n_busy_slots_per_decode',   label: 'Busy Slots/Decode',   type: 'gauge',    unit: '' },
+const WS_METRICS = [
+    { key: 'model_name', label: 'Model', type: 'text' },
+    { key: 'state', label: 'State', type: 'badge' },
+    { key: 'tps', label: 'TPS', type: 'number', unit: 't/s' },
+    { key: 'prompt_tps', label: 'Prompt TPS', type: 'number', unit: 't/s' },
+    { key: 'gen_tps', label: 'Gen TPS', type: 'number', unit: 't/s' },
+    { key: 'ctx', label: 'Context', type: 'ratio', used: 'ctx_used', max: 'ctx_max', unit: 'tokens' },
+    { key: 'vram', label: 'VRAM', type: 'ratio_gb', used: 'gpu_mem_used', total: 'gpu_mem_total' },
+    { key: 'ram', label: 'RAM', type: 'gb', field: 'ram_used' },
+    { key: 'cpu', label: 'CPU', type: 'percent', field: 'cpu_usage' },
+    { key: 'decoded_tokens', label: 'Decoded', type: 'number' },
+    { key: 'prompt_tokens', label: 'Prompt Tok', type: 'number' },
 ];
 
-function parsePrometheusMetrics(text) {
-    const metrics = {};
-    const lines = text.split('\n');
-    for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('#') || trimmed === '') continue;
-        const match = trimmed.match(/^(\S+)\s+(.+)$/);
-        if (match) {
-            const [, name, value] = match;
-            const cleanName = name.replace('llamacpp:', '');
-            metrics[cleanName] = parseFloat(value);
+function buildWsUrl(metricsUrl, authEnabled) {
+    try {
+        const match = metricsUrl.match(/^(https?:)\/\/([^\/?#]+)([^?#]*)(?:\?([^#]*))?/);
+        if (!match) {
+            throw new Error('Invalid URL format');
         }
+        const protocol = match[1];
+        const host = match[2];
+        const query = match[4] || '';
+
+        const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+        let auth = null;
+        if (authEnabled && query) {
+            const params = query.split('&');
+            for (const param of params) {
+                const [key, value] = param.split('=');
+                if (key === 'auth') {
+                    auth = decodeURIComponent(value);
+                    break;
+                }
+            }
+        }
+        return {
+            wsUrl: `${wsProtocol}//${host}/ws${auth ? '?auth=' + encodeURIComponent(auth) : ''}`,
+            hasAuth: !!auth,
+        };
+    } catch (e) {
+        return { wsUrl: 'ws://127.0.0.1:8080/ws', hasAuth: false };
     }
-    console.log(`[llm-manager] parsePrometheusMetrics: matched ${Object.keys(metrics).length} metrics`);
-    return metrics;
 }
 
 function formatNumber(value, decimals) {
@@ -45,25 +60,32 @@ function formatNumber(value, decimals) {
     return value.toFixed(decimals);
 }
 
-function formatCounter(value, unit) {
-    if (value === undefined || value === null || isNaN(value)) return 'N/A';
-    if (value >= 1e6) return (value / 1e6).toFixed(2) + 'M' + unit;
-    if (value >= 1e3) return (value / 1e3).toFixed(1) + 'K' + unit;
-    return Math.round(value).toString() + unit;
+function formatGB(bytes) {
+    if (bytes === undefined || bytes === null || isNaN(bytes)) return 'N/A';
+    return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GB';
 }
 
-function getMetricColor(value, key) {
-    if (key === 'requests_processing') {
-        if (value >= 4) return 'llm-value-bad';
-        if (value >= 2) return 'llm-value-warn';
-        return 'llm-value-good';
-    }
-    if (key === 'n_busy_slots_per_decode') {
-        if (value < 0.5) return 'llm-value-bad';
-        if (value < 0.8) return 'llm-value-warn';
-        return 'llm-value-good';
-    }
-    return '';
+function formatBytes(bytes) {
+    if (bytes === undefined || bytes === null || isNaN(bytes)) return 'N/A';
+    if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
+    if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
+    return Math.round(bytes) + ' B';
+}
+
+function getVramColor(percent) {
+    if (percent > 80) return 'llm-value-bad';
+    if (percent > 50) return 'llm-value-warn';
+    return 'llm-value-good';
+}
+
+function truncateModelName(name, maxLen) {
+    if (!name) return 'No model';
+    if (name.length <= maxLen) return name;
+    const ext = name.endsWith('.gguf') ? 5 : 4;
+    const suffix = name.endsWith('.gguf') ? '.gguf' : '';
+    const available = maxLen - ext;
+    if (available <= 0) return name.substring(0, maxLen);
+    return name.substring(0, available) + '...' + suffix;
 }
 
 var LlmPanelItem = GObject.registerClass({
@@ -103,19 +125,22 @@ var LlmManagerButton = GObject.registerClass({
 
         this._extensionObject = extensionObject;
         this._settings = extensionObject.getSettings();
+        this._settings.connect('changed::selected-metrics', () => this._updatePanel());
 
         this._currentMetrics = {};
+        this._ws = null;
+        this._soupSession = null;
+        this._isConnecting = false;
         this._refreshTimeoutId = null;
+        this._reconnectTimerId = null;
 
         this._panelItem = new LlmPanelItem();
         this.add_child(this._panelItem);
 
-        // Add metric items directly to this.menu
         this._metricLabels = {};
         this._metricContainers = {};
-        this._history = {};
-        for (const m of PROMETHEUS_METRICS) {
-            this._history[m.key] = { value: 0, diff: 0 };
+        this._metricBars = {};
+        for (const m of WS_METRICS) {
             this._addMetricItem(m);
         }
 
@@ -129,19 +154,17 @@ var LlmManagerButton = GObject.registerClass({
 
         this._settingsConnections = [];
         this._addSettingChangedSignal('position-in-panel', this._positionInPanelChanged.bind(this));
-        this._addSettingChangedSignal('metrics-url', this._pollMetrics.bind(this));
+        this._addSettingChangedSignal('metrics-url', () => {
+            this._connectWebSocket(true);
+        });
         this._addSettingChangedSignal('update-time', this._updateTimeChanged.bind(this));
-        this._addSettingChangedSignal('show-throughput', this._updatePanel.bind(this));
-        this._addSettingChangedSignal('show-requests', this._updatePanel.bind(this));
-        this._addSettingChangedSignal('precision', this._updatePanel.bind(this));
-        this._addSettingChangedSignal('selected-metrics', () => {
-            this._updatePanel();
-            this._updateSelectionHighlights();
+        this._addSettingChangedSignal('position-in-panel', this._positionInPanelChanged.bind(this));
+        this._addSettingChangedSignal('ws-auth-enabled', () => {
+            this._connectWebSocket(true);
         });
 
-        this._updateSelectionHighlights();
         this._initializeTimer();
-        this._pollMetrics();
+        this._connectWebSocket();
     }
 
     _addMetricItem(metric) {
@@ -160,16 +183,46 @@ var LlmManagerButton = GObject.registerClass({
             text: metric.label,
         });
 
+        const valueBox = new St.BoxLayout({
+            orientation: Clutter.Orientation.HORIZONTAL,
+            x_expand: true,
+            x_align: Clutter.ActorAlign.END,
+        });
+
         const value = new St.Label({
             style_class: 'llm-metric-value',
             text: '---',
-            x_align: Clutter.ActorAlign.END,
-            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
         });
+
+        const barContainer = new St.BoxLayout({
+            style_class: 'llm-bar-container',
+            visible: false,
+            x_expand: true,
+            y_align: Clutter.ActorAlign.END,
+            height: 8,
+        });
+
+        const bar = new St.Bin({
+            style_class: 'llm-bar',
+            x_expand: true,
+            height: 8,
+        });
+
+        const barInner = new St.Bin({
+            style_class: 'llm-bar-inner',
+            width: 0,
+            height: 8,
+        });
+
+        bar.set_child(barInner);
+        barContainer.add_child(bar);
+        valueBox.add_child(value);
 
         container.add_child(icon);
         container.add_child(label);
-        container.add_child(value);
+        container.add_child(valueBox);
+        container.add_child(barContainer);
 
         const item = new PopupMenu.PopupBaseMenuItem({ reactive: true });
         item.add_child(container);
@@ -181,6 +234,7 @@ var LlmManagerButton = GObject.registerClass({
         this.menu.addMenuItem(item);
         this._metricLabels[metric.key] = value;
         this._metricContainers[metric.key] = { item, label, value };
+        this._metricBars[metric.key] = { barContainer, bar, barInner };
     }
 
     _selectMetric(key) {
@@ -193,57 +247,245 @@ var LlmManagerButton = GObject.registerClass({
         this._settings.set_strv('selected-metrics', selectedKeys);
     }
 
-    _updateSelectionHighlights() {
+    _updatePanel() {
         const selectedKeys = this._settings.get_strv('selected-metrics') || [];
-        for (const metric of PROMETHEUS_METRICS) {
-            const containerInfo = this._metricContainers[metric.key];
-            if (!containerInfo) continue;
 
-            const isSelected = selectedKeys.includes(metric.key);
-            if (isSelected) {
-                containerInfo.label.add_style_class_name('llm-metric-selected');
-                containerInfo.value.add_style_class_name('llm-metric-selected');
-            } else {
-                containerInfo.label.remove_style_class_name('llm-metric-selected');
-                containerInfo.value.remove_style_class_name('llm-metric-selected');
+        if (selectedKeys.length > 0) {
+            let parts = [];
+            for (const key of selectedKeys) {
+                const metric = WS_METRICS.find(m => m.key === key);
+                if (!metric) continue;
+
+                const displayValue = this._formatMetricValue(metric, this._currentMetrics);
+                if (displayValue && displayValue !== 'N/A' && displayValue !== '--') {
+                    parts.push(metric.label + ': ' + displayValue);
+                }
             }
+            if (parts.length > 0) {
+                this._panelItem.setLabel(parts.join('  '));
+                this._panelItem.visible = true;
+                return;
+            }
+        }
+
+        this._panelItem.visible = false;
+    }
+
+    _formatMetricValue(metric, metrics) {
+        switch (metric.type) {
+            case 'text':
+                let textVal = metrics[metric.key];
+                if (textVal && metric.key === 'model_name') {
+                    textVal = textVal.split('/').pop();
+                }
+                return textVal || '-';
+            case 'badge':
+                const loaded = metrics.loaded;
+                return loaded ? 'Loaded' : 'Unloaded';
+            case 'number':
+                const numVal = metrics[metric.key];
+                if (numVal === undefined || numVal === null || isNaN(numVal)) return 'N/A';
+                return formatNumber(numVal, 1) + (metric.unit ? ' ' + metric.unit : '');
+            case 'ratio':
+                const used = metrics[metric.used];
+                const max = metrics[metric.max];
+                if (used === undefined || max === undefined) return 'N/A';
+                return `${used} / ${max}`;
+            case 'ratio_gb':
+                const usedGb = metrics[metric.used];
+                const totalGb = metrics[metric.total];
+                if (usedGb === undefined || totalGb === undefined) return 'N/A';
+                return `${formatGB(usedGb)} / ${formatGB(totalGb)}`;
+            case 'gb':
+                const gbKey = metric.field || metric.key || metric.used;
+                const gbVal = metrics[gbKey];
+                if (gbVal === undefined || gbVal === null) return 'N/A';
+                return formatGB(gbVal);
+            case 'percent':
+                const pctKey = metric.field || metric.key || metric.used;
+                const pctVal = metrics[pctKey];
+                if (pctVal === undefined || pctVal === null || isNaN(pctVal)) return 'N/A';
+                return Math.round(pctVal) + '%';
+            default:
+                return '-';
         }
     }
 
     _updateMetricsValues() {
         const selectedKeys = this._settings.get_strv('selected-metrics') || [];
-        for (const metric of PROMETHEUS_METRICS) {
+        
+        for (const metric of WS_METRICS) {
             const label = this._metricLabels[metric.key];
             if (!label) continue;
 
-            const rawValue = this._currentMetrics[metric.key];
-            const history = this._history[metric.key];
-            history.diff = rawValue !== undefined ? rawValue - history.value : 0;
-            history.value = rawValue ?? 0;
-
-            let displayValue;
-            if (rawValue === undefined || rawValue === null || isNaN(rawValue)) {
-                displayValue = 'N/A';
-            } else if (metric.type === 'counter') {
-                displayValue = formatCounter(rawValue, metric.unit);
-            } else {
-                displayValue = formatNumber(rawValue, 1) + (metric.unit ? ' ' + metric.unit : '');
-            }
-
-            const colorClass = getMetricColor(rawValue, metric.key);
             const isSelected = selectedKeys.includes(metric.key);
-            
-            let classes = ['llm-metric-value'];
-            if (colorClass) {
-                classes.push(colorClass);
+            const barInfo = this._metricBars[metric.key];
+
+            if (metric.type === 'ratio' || metric.type === 'ratio_gb') {
+                let percent = 0;
+                if (metric.type === 'ratio') {
+                    const used = this._currentMetrics[metric.used];
+                    const max = this._currentMetrics[metric.max];
+                    if (max && max > 0) {
+                        percent = (used / max) * 100;
+                    }
+                } else if (metric.type === 'ratio_gb') {
+                    const used = this._currentMetrics[metric.used];
+                    const total = this._currentMetrics[metric.total];
+                    if (total && total > 0) {
+                        percent = (used / total) * 100;
+                    }
+                }
+
+                if (barInfo && barInfo.barContainer) {
+                    barInfo.barContainer.visible = true;
+                    barInfo.barInner.width = percent * barInfo.bar.width / 100;
+                    
+                    let colorClass = 'llm-bar-green';
+                    if (percent > 80) {
+                        colorClass = 'llm-bar-red';
+                    } else if (percent > 50) {
+                        colorClass = 'llm-bar-yellow';
+                    }
+                    barInfo.barInner.style_class = colorClass;
+                }
+
+                const displayValue = this._formatMetricValue(metric, this._currentMetrics);
+                label.text = displayValue;
+                label.style_class = isSelected ? 'llm-metric-value llm-metric-selected' : 'llm-metric-value';
+            } else if (metric.type === 'gb' || metric.type === 'percent') {
+                if (barInfo && barInfo.barContainer) {
+                    barInfo.barContainer.visible = false;
+                }
+                const displayValue = this._formatMetricValue(metric, this._currentMetrics);
+                label.text = displayValue;
+                label.style_class = isSelected ? 'llm-metric-value llm-metric-selected' : 'llm-metric-value';
+            } else {
+                if (barInfo && barInfo.barContainer) {
+                    barInfo.barContainer.visible = false;
+                }
+                const displayValue = this._formatMetricValue(metric, this._currentMetrics);
+                label.text = displayValue;
+                label.style_class = isSelected ? 'llm-metric-value llm-metric-selected' : 'llm-metric-value';
             }
-            if (isSelected) {
-                classes.push('llm-metric-selected');
-            }
-            
-            label.style_class = classes.join(' ');
-            label.text = displayValue;
         }
+
+        this._updatePanel();
+    }
+
+    _connectWebSocket(force = false) {
+        if (!force) {
+            if (this._isConnecting) {
+                return;
+            }
+            if (this._ws && this._ws.state === Soup.WebsocketState.OPEN) {
+                return;
+            }
+        }
+
+        this._isConnecting = true;
+
+        if (this._ws) {
+            try {
+                this._ws.close(Soup.WebsocketCloseCode.NORMAL, 'Reconnecting');
+            } catch (e) {}
+            this._ws = null;
+        }
+
+        if (this._soupSession) {
+            try {
+                this._soupSession.abort();
+            } catch (e) {}
+            this._soupSession = null;
+        }
+
+        const metricsUrl = this._settings.get_string('metrics-url');
+        const authEnabled = this._settings.get_boolean('ws-auth-enabled');
+        const { wsUrl, hasAuth } = buildWsUrl(metricsUrl, authEnabled);
+
+        console.log(`[llm-manager] Connecting to WebSocket: ${wsUrl}`);
+
+        try {
+            this._soupSession = new Soup.Session();
+            const message = Soup.Message.new('GET', wsUrl);
+
+            // Bypass SSL/TLS self-signed certificate validation errors
+            message.connect('accept-certificate', (msg, cert, errors) => {
+                return true;
+            });
+
+            this._soupSession.websocket_connect_async(
+                message,
+                null, // origin
+                null, // protocols
+                GLib.PRIORITY_DEFAULT, // io_priority
+                null, // cancellable
+                (session, result) => {
+                    try {
+                        this._ws = session.websocket_connect_finish(result);
+                        this._isConnecting = false;
+                        console.log('[llm-manager] WebSocket connected');
+                        
+                        if (this._reconnectTimerId) {
+                            GLib.Source.remove(this._reconnectTimerId);
+                            this._reconnectTimerId = null;
+                        }
+
+                        this._ws.connect('message', (connection, type, data) => {
+                            if (type === Soup.WebsocketDataType.TEXT) {
+                                try {
+                                    const decoder = new TextDecoder('utf-8');
+                                    const text = decoder.decode(data.get_data());
+                                    const m = JSON.parse(text);
+                                    this._currentMetrics = m;
+                                    this._updateMetricsValues();
+                                } catch (e) {
+                                    console.log(`[llm-manager] Failed to parse WebSocket message: ${e}`);
+                                }
+                            }
+                        });
+
+                        this._ws.connect('closed', () => {
+                            console.log('[llm-manager] WebSocket disconnected');
+                            this._ws = null;
+                            this._scheduleReconnect();
+                        });
+
+                        this._ws.connect('error', (connection, error) => {
+                            console.log(`[llm-manager] WebSocket connection error: ${error}`);
+                        });
+
+                    } catch (e) {
+                        this._isConnecting = false;
+                        console.log(`[llm-manager] Failed to complete WebSocket handshake: ${e}`);
+                        this._scheduleReconnect();
+                    }
+                }
+            );
+        } catch (e) {
+            this._isConnecting = false;
+            console.log(`[llm-manager] Failed to create WebSocket session: ${e}`);
+            this._scheduleReconnect();
+        }
+    }
+
+    _scheduleReconnect() {
+        if (this._reconnectTimerId) {
+            return;
+        }
+        let update_time = this._settings.get_int('update-time');
+        if (update_time < 1) {
+            update_time = 2;
+        }
+        this._reconnectTimerId = GLib.timeout_add_seconds(
+            GLib.PRIORITY_DEFAULT,
+            update_time,
+            () => {
+                this._reconnectTimerId = null;
+                this._connectWebSocket();
+                return GLib.SOURCE_REMOVE;
+            }
+        );
     }
 
     _addToPanel() {
@@ -286,7 +528,7 @@ var LlmManagerButton = GObject.registerClass({
             GLib.PRIORITY_DEFAULT,
             update_time,
             () => {
-                this._pollMetrics();
+                this._connectWebSocket();
                 return GLib.SOURCE_CONTINUE;
             }
         );
@@ -299,93 +541,24 @@ var LlmManagerButton = GObject.registerClass({
         }
     }
 
-    _pollMetrics() {
-        const url = this._settings.get_string('metrics-url');
-        console.log(`[llm-manager] Fetching metrics from: ${url}`);
-        const subprocess = Gio.Subprocess.new(
-            ['curl', '-s', '--max-time', '5', url],
-            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-        );
-        subprocess.communicate_utf8_async(null, null, (source, result) => {
-            try {
-                const [success, stdout, stderr] = source.communicate_utf8_finish(result);
-                if (success && source.get_successful()) {
-                    console.log(`[llm-manager] Raw response (${stdout ? stdout.length : 0} bytes):`);
-                    console.log(stdout);
-                    this._currentMetrics = parsePrometheusMetrics(stdout || '');
-                    console.log(`[llm-manager] Parsed metrics:`, this._currentMetrics);
-                    this._updatePanel();
-                    this._updateMetricsValues();
-                } else {
-                    const errStr = stderr ? stderr : '';
-                    const exit_status = source.get_exit_status();
-                    console.log(`[llm-manager] Fetch failed, exit_status: ${exit_status}, stderr: ${errStr.trim()}`);
-                }
-            } catch (e) {
-                global.logError(e);
-            }
-        });
-    }
-
-    _updatePanel() {
-        const selectedKeys = this._settings.get_strv('selected-metrics') || [];
-        const precision = this._settings.get_int('precision');
-
-        console.log(`[llm-manager] _updatePanel: selectedKeys=${JSON.stringify(selectedKeys)}, metrics=${JSON.stringify(this._currentMetrics)}`);
-        
-        if (selectedKeys.length > 0) {
-            let parts = [];
-            for (const key of selectedKeys) {
-                const metric = PROMETHEUS_METRICS.find(m => m.key === key);
-                if (metric) {
-                    const value = this._currentMetrics[key];
-                    let displayValue;
-                    if (value === undefined || value === null || isNaN(value)) {
-                        displayValue = '--';
-                    } else if (metric.type === 'counter') {
-                        displayValue = formatCounter(value, metric.unit);
-                    } else {
-                        displayValue = formatNumber(value, precision) + (metric.unit ? ' ' + metric.unit : '');
-                    }
-                    parts.push(`${metric.label}: ${displayValue}`);
-                }
-            }
-            if (parts.length > 0) {
-                this._panelItem.setLabel(parts.join(' | '));
-                this._panelItem.visible = true;
-                return;
-            }
-        }
-
-        const showThroughput = this._settings.get_boolean('show-throughput');
-        const showRequests = this._settings.get_boolean('show-requests');
-
-        let parts = [];
-
-        if (showRequests && this._currentMetrics['requests_processing'] !== undefined) {
-            const req = this._currentMetrics['requests_processing'];
-            parts.push(`${req}r`);
-        }
-
-        if (showThroughput) {
-            if (this._currentMetrics['prompt_tokens_seconds'] !== undefined) {
-                parts.push(`${formatNumber(this._currentMetrics['prompt_tokens_seconds'], precision)}p`);
-            }
-            if (this._currentMetrics['predicted_tokens_seconds'] !== undefined) {
-                parts.push(`${formatNumber(this._currentMetrics['predicted_tokens_seconds'], precision)}d`);
-            }
-        }
-
-        if (parts.length > 0) {
-            this._panelItem.setLabel(parts.join(' '));
-            this._panelItem.visible = true;
-        } else {
-            this._panelItem.visible = false;
-        }
-    }
-
     destroy() {
         this._destroyTimer();
+        if (this._reconnectTimerId) {
+            GLib.Source.remove(this._reconnectTimerId);
+            this._reconnectTimerId = null;
+        }
+        if (this._ws) {
+            try {
+                this._ws.close(Soup.WebsocketCloseCode.NORMAL, 'Extension destroyed');
+            } catch (e) {}
+            this._ws = null;
+        }
+        if (this._soupSession) {
+            try {
+                this._soupSession.abort();
+            } catch (e) {}
+            this._soupSession = null;
+        }
         if (this._settingsConnections) {
             for (const conn of this._settingsConnections) {
                 this._settings.disconnect(conn.id);

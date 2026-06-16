@@ -4,6 +4,20 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+const WS_METRICS = [
+    { key: 'model_name', label: 'Model' },
+    { key: 'state', label: 'State' },
+    { key: 'tps', label: 'TPS' },
+    { key: 'prompt_tps', label: 'Prompt TPS' },
+    { key: 'gen_tps', label: 'Gen TPS' },
+    { key: 'ctx', label: 'Context' },
+    { key: 'vram', label: 'VRAM' },
+    { key: 'ram', label: 'RAM' },
+    { key: 'cpu', label: 'CPU' },
+    { key: 'decoded_tokens', label: 'Decoded Tokens' },
+    { key: 'prompt_tokens', label: 'Prompt Tokens' },
+];
+
 export default class LlmManagerPreferences extends ExtensionPreferences {
     getPreferencesWidget() {
         const frame = new Gtk.Frame({
@@ -21,7 +35,8 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             margin_end: 12,
         });
 
-         const schema = 'org.gnome.shell.extensions.llm-manager';
+        const schema = 'org.gnome.shell.extensions.llm-manager';
+        let row = 0;
 
         // metrics-url
         const urlLabel = new Gtk.Label({
@@ -29,7 +44,8 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             xalign: 0,
             visible: true,
         });
-        grid.attach(urlLabel, 0, 0, 1, 1);
+        grid.attach(urlLabel, 0, row, 1, 1);
+        row++;
 
         const urlBox = new Gtk.Box({
             orientation: Gtk.Orientation.VERTICAL,
@@ -44,7 +60,6 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
         });
 
         const urlEntry = new Gtk.Entry({
-            text: this.getSettings().get_string('metrics-url'),
             visible: true,
             primary_icon_name: 'network-server-symbolic',
             hexpand: true,
@@ -67,7 +82,8 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
         });
         urlBox.append(testStatusLabel);
 
-        grid.attach(urlBox, 1, 0, 1, 1);
+        grid.attach(urlBox, 1, row, 1, 1);
+        row++;
 
         this.getSettings().bind(
             'metrics-url', urlEntry, 'text',
@@ -76,12 +92,12 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
 
         testBtn.connect('clicked', () => {
             const url = urlEntry.text;
-            testStatusLabel.set_markup(`<span color="#3584e4">${_('Testing connection...')}</span>`);
+            testStatusLabel.set_markup(`<span color="#3584e4">${_('Testing WebSocket connection...')}</span>`);
             testStatusLabel.set_visible(true);
             testBtn.set_sensitive(false);
 
             const subprocess = Gio.Subprocess.new(
-                ['curl', '-i', '-s', '--max-time', '5', url],
+                ['curl', '-s', '-I', '-k', '--max-time', '5', url],
                 Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
             );
 
@@ -90,13 +106,12 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
                 try {
                     const [success, stdout, stderr] = source.communicate_utf8_finish(result);
                     if (success && source.get_successful()) {
-                        const lines = stdout.split('\r\n');
-                        const statusLine = lines[0] || 'HTTP OK';
-                        
-                        if (stdout.includes('llamacpp:') || stdout.includes('# HELP')) {
-                            testStatusLabel.set_markup(`<span color="#2ec27e"><b>${_('Success: Connected!')}</b> (${statusLine})</span>`);
+                        const hasHeaders = stdout.includes('HTTP') || stdout.includes('Switching');
+                        const hasMetrics = (stdout || '').includes('llamacpp:') || (stdout || '').includes('# HELP');
+                        if (hasHeaders || hasMetrics) {
+                            testStatusLabel.set_markup(`<span color="#2ec27e"><b>${_('Success: Server reachable!')}</b></span>`);
                         } else {
-                            testStatusLabel.set_markup(`<span color="#e01b24"><b>${_('Warning: Connected, but llama.cpp metrics not found.')}</b> (${statusLine})</span>`);
+                            testStatusLabel.set_markup(`<span color="#e01b24"><b>${_('Warning: Server responds but not LLM server')}</b></span>`);
                         }
                     } else {
                         const errStr = stderr ? stderr.trim() : `${_('Exit status')} ${source.get_exit_status()}`;
@@ -110,11 +125,12 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
 
         // update-time
         const updateLabel = new Gtk.Label({
-            label: _('Update Interval (seconds)'),
+            label: _('Reconnect Interval (seconds)'),
             xalign: 0,
             visible: true,
         });
-        grid.attach(updateLabel, 0, 1, 1, 1);
+        grid.attach(updateLabel, 0, row, 1, 1);
+        row++;
 
         const updateSpin = new Gtk.SpinButton({
             visible: true,
@@ -126,61 +142,25 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             }),
         });
         updateSpin.value = this.getSettings().get_int('update-time');
-        grid.attach(updateSpin, 1, 1, 1, 1);
+        grid.attach(updateSpin, 1, row, 1, 1);
+        row++;
 
         this.getSettings().bind(
             'update-time', updateSpin, 'value',
             Gio.SettingsBindFlags.DEFAULT
         );
 
-        // show-throughput
-        const throughputCheck = new Gtk.CheckButton({
-            label: _('Show throughput in panel'),
+        // ws-auth-enabled
+        const authCheck = new Gtk.CheckButton({
+            label: _('Enable WebSocket auth from URL'),
             visible: true,
         });
-        throughputCheck.active = this.getSettings().get_boolean('show-throughput');
-        grid.attach(throughputCheck, 0, 2, 2, 1);
+        authCheck.active = this.getSettings().get_boolean('ws-auth-enabled');
+        grid.attach(authCheck, 0, row, 2, 1);
+        row++;
 
         this.getSettings().bind(
-            'show-throughput', throughputCheck, 'active',
-            Gio.SettingsBindFlags.DEFAULT
-        );
-
-        // show-requests
-        const requestsCheck = new Gtk.CheckButton({
-            label: _('Show active requests in panel'),
-            visible: true,
-        });
-        requestsCheck.active = this.getSettings().get_boolean('show-requests');
-        grid.attach(requestsCheck, 0, 3, 2, 1);
-
-        this.getSettings().bind(
-            'show-requests', requestsCheck, 'active',
-            Gio.SettingsBindFlags.DEFAULT
-        );
-
-        // precision
-        const precisionLabel = new Gtk.Label({
-            label: _('Decimal Precision (0-3)'),
-            xalign: 0,
-            visible: true,
-        });
-        grid.attach(precisionLabel, 0, 4, 1, 1);
-
-        const precisionSpin = new Gtk.SpinButton({
-            visible: true,
-            adjustment: new Gtk.Adjustment({
-                lower: 0,
-                upper: 3,
-                step_increment: 1,
-                page_increment: 1,
-            }),
-        });
-        precisionSpin.value = this.getSettings().get_int('precision');
-        grid.attach(precisionSpin, 1, 4, 1, 1);
-
-        this.getSettings().bind(
-            'precision', precisionSpin, 'value',
+            'ws-auth-enabled', authCheck, 'active',
             Gio.SettingsBindFlags.DEFAULT
         );
 
@@ -190,7 +170,8 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             xalign: 0,
             visible: true,
         });
-        grid.attach(positionLabel, 0, 5, 1, 1);
+        grid.attach(positionLabel, 0, row, 1, 1);
+        row++;
 
         const positionCombo = new Gtk.ComboBoxText({
             visible: true,
@@ -201,31 +182,95 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
         positionCombo.append('3', _('Far Left'));
         positionCombo.append('4', _('Far Right'));
         positionCombo.active = this.getSettings().get_int('position-in-panel');
-        grid.attach(positionCombo, 1, 5, 1, 1);
+        grid.attach(positionCombo, 1, row, 1, 1);
+        row++;
 
         this.getSettings().bind(
             'position-in-panel', positionCombo, 'active',
             Gio.SettingsBindFlags.DEFAULT
         );
 
-        // debug log
-        this._setupDebugLog(grid);
-
-        frame.connect('destroy', () => {
-            this._destroyDebugLogPolling();
+        // Metrics selection
+        const metricsLabel = new Gtk.Label({
+            label: _('Metrics to Display'),
+            xalign: 0,
+            visible: true,
         });
+        grid.attach(metricsLabel, 0, row, 1, 1);
+        row++;
+
+        const metricsFrame = new Gtk.Frame({
+            label: _('Selected Metrics'),
+            visible: true,
+            margin_start: 6,
+            margin_end: 6,
+            margin_top: 6,
+            margin_bottom: 6,
+        });
+
+        const metricsGrid = new Gtk.Grid({
+            column_spacing: 12,
+            row_spacing: 6,
+            visible: true,
+            margin_start: 12,
+            margin_end: 12,
+            margin_top: 12,
+            margin_bottom: 12,
+        });
+
+        const checkButtons = [];
+        const selectedKeys = this.getSettings().get_strv('selected-metrics') || [];
+
+        let col = 0;
+        let r = 0;
+        for (const m of WS_METRICS) {
+            const check = new Gtk.CheckButton({
+                label: m.label,
+                active: selectedKeys.includes(m.key),
+                visible: true,
+            });
+            checkButtons.push({ check, key: m.key });
+            
+            metricsGrid.attach(check, col, r, 1, 1);
+            col++;
+            if (col >= 3) {
+                col = 0;
+                r++;
+            }
+        }
+
+        metricsFrame.set_child(metricsGrid);
+        grid.attach(metricsFrame, 0, row, 2, 1);
+        row++;
+
+        for (const { check, key } of checkButtons) {
+            check.connect('toggled', () => {
+                let keys = this.getSettings().get_strv('selected-metrics') || [];
+                if (check.active) {
+                    if (!keys.includes(key)) {
+                        keys.push(key);
+                    }
+                } else {
+                    keys = keys.filter(k => k !== key);
+                }
+                this.getSettings().set_strv('selected-metrics', keys);
+            });
+        }
+
+        // debug log
+        this._setupDebugLog(grid, row);
 
         frame.set_child(grid);
         return frame;
     }
 
-    _setupDebugLog(grid) {
+    _setupDebugLog(grid, startRow) {
         const logLabel = new Gtk.Label({
             label: _('Debug Log'),
             xalign: 0,
             visible: true,
         });
-        grid.attach(logLabel, 0, 6, 1, 1);
+        grid.attach(logLabel, 0, startRow, 1, 1);
 
         const clearBtn = new Gtk.Button({
             label: _('Clear'),
@@ -234,7 +279,7 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
         clearBtn.connect('clicked', () => {
             this._debugLogBuffer.set_text('', -1);
         });
-        grid.attach(clearBtn, 1, 6, 1, 1);
+        grid.attach(clearBtn, 1, startRow, 1, 1);
 
         const logView = new Gtk.TextView({
             editable: false,
@@ -254,7 +299,7 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             height_request: 150,
         });
         scrolled.set_child(logView);
-        grid.attach(scrolled, 0, 7, 2, 1);
+        grid.attach(scrolled, 0, startRow + 1, 2, 1);
 
         this._startDebugLogPolling();
     }
