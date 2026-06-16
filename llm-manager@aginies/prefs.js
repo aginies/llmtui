@@ -155,7 +155,7 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
 
         // update-time
         const updateLabel = new Gtk.Label({
-            label: _('Reconnect Interval (seconds)'),
+            label: _('Second between updates'),
             xalign: 0,
             visible: true,
         });
@@ -213,6 +213,13 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             margin_top: 6,
             margin_bottom: 6,
         });
+        const metricsFrameLabel = new Gtk.Label({
+            label: `<b>${_('Selected Metrics to Display')}</b>`,
+            use_markup: true,
+            xalign: 0,
+            visible: true,
+        });
+        metricsFrame.set_label_widget(metricsFrameLabel);
 
         const metricsGrid = new Gtk.Grid({
             column_spacing: 12,
@@ -272,6 +279,13 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             margin_top: 6,
             margin_bottom: 6,
         });
+        const aboutFrameLabel = new Gtk.Label({
+            label: `<b>${_('About')}</b>`,
+            use_markup: true,
+            xalign: 0,
+            visible: true,
+        });
+        aboutFrame.set_label_widget(aboutFrameLabel);
 
         const aboutBox = new Gtk.Box({
             orientation: Gtk.Orientation.VERTICAL,

@@ -204,19 +204,19 @@ var LlmManagerButton = GObject.registerClass({
             visible: false,
             x_expand: true,
             y_align: Clutter.ActorAlign.END,
-            height: 8,
+            height: 16,
         });
 
         const bar = new St.Bin({
             style_class: 'llm-bar',
             x_expand: true,
-            height: 8,
+            height: 16,
         });
 
         const barInner = new St.Bin({
             style_class: 'llm-bar-inner',
             width: 0,
-            height: 8,
+            height: 16,
         });
 
         bar.set_child(barInner);

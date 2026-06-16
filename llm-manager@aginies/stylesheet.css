@@ -16,11 +16,10 @@
 
 .llm-bar {
     background-color: #2a2e3f;
-    border-radius: 4px;
 }
 
 .llm-bar-inner {
-    border-radius: 4px;
+    border-radius: 0;
 }
 
 .llm-bar-green {

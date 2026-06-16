@@ -80,30 +80,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         (BorderType::Plain, GRAY)
     };
 
-    let mut title_with_bar = title_spans.clone();
-    if app.metrics.total_vram_used > 0 && app.metrics.gpu_mem_total > 0 {
-        let pct = app.metrics.total_vram_used as f64 / app.metrics.gpu_mem_total as f64;
-        let bar_width = 12usize;
-        let filled = (pct * bar_width as f64) as usize;
-        let bar = format!(
-            " [{}{}] {:.0}%]",
-            "█".repeat(filled),
-            "░".repeat(bar_width.saturating_sub(filled)),
-            pct * 100.0
-        );
-        let bar_color = if pct < 0.7 {
-            GREEN
-        } else if pct < 0.9 {
-            YELLOW
-        } else {
-            RED
-        };
-        title_with_bar.push(Span::raw(" "));
-        title_with_bar.push(Span::styled(bar, Style::default().fg(bar_color)));
-    }
-
     let block = Block::default()
-        .title(Line::from(title_with_bar))
+        .title(Line::from(title_spans))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .border_type(border_type);
@@ -270,13 +248,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 } else {
                     0
                 };
-                let bar_width = 20usize;
-                let filled = (pct as f64 / 100.0 * bar_width as f64) as usize;
-                let bar_only = format!(
-                    "{}{}",
-                    "█".repeat(filled),
-                    "░".repeat(bar_width.saturating_sub(filled)),
-                );
                 let token_str = format!(
                     "{}/{} ({:.0}%)",
                     display_used, app.metrics.ctx_max, pct as f64
@@ -334,14 +305,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                 lines.push(Line::from(tps_parts));
 
-                let mut context_parts = vec![
-                     Span::styled(" [ ", Style::default().fg(WHITE)),
-                     Span::styled("Context: ", Style::default().fg(YELLOW)),
-                     Span::styled(bar_only, Style::default().fg(CYAN)),
-                     Span::styled(" ", Style::default().fg(CYAN)),
-                     Span::styled(token_str, Style::default().fg(CYAN)),
-                     Span::styled(" ]", Style::default().fg(WHITE)),
-                 ];
+              let mut context_parts = vec![
+                      Span::styled(" [ ", Style::default().fg(WHITE)),
+                      Span::styled("Context: ", Style::default().fg(YELLOW)),
+                      Span::styled(token_str, Style::default().fg(CYAN)),
+                      Span::styled(" ]", Style::default().fg(WHITE)),
+                  ];
 
                 // Append prompt eval info on same line
                  let progress_pct = (app.metrics.prompt_progress * 100.0) as usize;
