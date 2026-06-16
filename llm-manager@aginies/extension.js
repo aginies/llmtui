@@ -72,6 +72,12 @@ function formatBytes(bytes) {
     return Math.round(bytes) + ' B';
 }
 
+function formatTokens(tokens) {
+    if (tokens === undefined || tokens === null || isNaN(tokens)) return 'N/A';
+    if (tokens >= 1024) return Math.floor(tokens / 1024) + 'K';
+    return Math.round(tokens).toString();
+}
+
 function getVramColor(percent) {
     if (percent > 80) return 'llm-value-bad';
     if (percent > 50) return 'llm-value-warn';
@@ -291,6 +297,7 @@ var LlmManagerButton = GObject.registerClass({
                 const used = metrics[metric.used];
                 const max = metrics[metric.max];
                 if (used === undefined || max === undefined) return 'N/A';
+                if (metric.unit === 'tokens') return `${formatTokens(used)} / ${formatTokens(max)}`;
                 return `${used} / ${max}`;
             case 'ratio_gb':
                 const usedGb = metrics[metric.used];

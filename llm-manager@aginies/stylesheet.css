@@ -1,4 +1,4 @@
-.llm-icon { icon-size: 16px; }
+.llm-icon { icon-size: 24px; }
 .llm-panel-item { spacing: 4px; }
 .llm-panel-label { font-weight: bold; font-size: 13px; }
 .llm-menu-item { spacing: 8px; padding: 4px 8px; }
@@ -50,11 +50,4 @@
 .llm-state-unloaded {
     background-color: #3a2a1a;
     color: #e0af68;
-}
-
-.debug-log {
-    background-color: #2e3436;
-    color: #d8dee9;
-    font-family: monospace;
-    padding: 6px;
 }
