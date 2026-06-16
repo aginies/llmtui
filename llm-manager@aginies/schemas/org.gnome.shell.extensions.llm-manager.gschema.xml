@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.llm-manager" path="/org/gnome/shell/extensions/llm-manager/">
+    <key name="metrics-url" type="s">
+      <default>"http://100.72.33.21:49222/metrics"</default>
+      <summary>Metrics URL</summary>
+      <description>Prometheus metrics endpoint URL</description>
+    </key>
+    <key name="update-time" type="i">
+      <default>3</default>
+      <summary>Seconds between updates</summary>
+      <description>Delay between metrics polling</description>
+    </key>
+    <key name="show-throughput" type="b">
+      <default>true</default>
+      <summary>Show throughput in panel</summary>
+      <description>Display prompt and predict throughput in the top panel</description>
+    </key>
+    <key name="show-requests" type="b">
+      <default>true</default>
+      <summary>Show active requests in panel</summary>
+      <description>Display number of active requests in the top panel</description>
+    </key>
+    <key name="position-in-panel" type="i">
+      <default>2</default>
+      <summary>Position in panel</summary>
+      <description>Position in Panel (0=left, 1=center, 2=right, 3=far left, 4=far right)</description>
+    </key>
+    <key name="precision" type="i">
+      <default>1</default>
+      <summary>Decimal precision</summary>
+      <description>Number of decimal places for throughput values (0-3)</description>
+    </key>
+    <key name="selected-metrics" type="as">
+      <default>[]</default>
+      <summary>Selected metrics</summary>
+      <description>The keys of the metrics currently selected to display in the top bar.</description>
+    </key>
+  </schema>
+</schemalist>

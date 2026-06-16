@@ -1,0 +1,18 @@
+.llm-icon { icon-size: 16px; }
+.llm-panel-item { spacing: 4px; }
+.llm-panel-label { font-weight: bold; }
+.llm-panel-menu { spacing: 11px; padding: 3px; }
+.llm-menu-item { spacing: 6px; }
+.llm-metric-label { }
+.llm-metric-value { x-align: 1; }
+.llm-value-good { color: #4CAF50; }
+.llm-value-warn { color: #FF9800; }
+.llm-value-bad { color: #F44336; }
+.llm-metric-selected { font-weight: bold; color: #3584e4; }
+
+.debug-log {
+    background-color: #2e3436;
+    color: #d8dee9;
+    font-family: monospace;
+    padding: 6px;
+}

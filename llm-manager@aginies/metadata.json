@@ -1,0 +1,9 @@
+{
+  "name": "llm-manager",
+  "description": "Monitor llamacpp inference server metrics. Displays prompt/predict throughput, active requests, and token counts from a Prometheus-style metrics endpoint.",
+  "uuid": "llm-manager@aginies",
+  "shell-version": [ "45", "46", "47", "48", "49", "50" ],
+  "settings-schema": "org.gnome.shell.extensions.llm-manager",
+  "prefs-formats": [{"uuid": "llm-manager@aginies", "path": "prefs.js", "type": "builtin"}],
+  "version": 1
+}
