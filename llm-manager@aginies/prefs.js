@@ -15,7 +15,6 @@ const WS_METRICS = [
     { key: 'ram', label: 'RAM' },
     { key: 'cpu', label: 'CPU' },
     { key: 'decoded_tokens', label: 'Decoded Tokens' },
-    { key: 'prompt_tokens', label: 'Prompt Tokens' },
 ];
 
 export default class LlmManagerPreferences extends ExtensionPreferences {

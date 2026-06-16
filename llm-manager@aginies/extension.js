@@ -21,7 +21,6 @@ const WS_METRICS = [
     { key: 'ram', label: 'RAM', type: 'gb', field: 'ram_used' },
     { key: 'cpu', label: 'CPU', type: 'percent', field: 'cpu_usage' },
     { key: 'decoded_tokens', label: 'Decoded', type: 'number' },
-    { key: 'prompt_tokens', label: 'Prompt Tok', type: 'number' },
 ];
 
 function buildWsUrl(metricsUrl, authEnabled) {

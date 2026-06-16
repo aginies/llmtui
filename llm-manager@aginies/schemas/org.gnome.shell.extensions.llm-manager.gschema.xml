@@ -17,7 +17,7 @@
       <description>Position in Panel (0=left, 1=center, 2=right, 3=far left, 4=far right)</description>
     </key>
     <key name="selected-metrics" type="as">
-      <default>['model_name', 'state', 'tps', 'prompt_tps', 'gen_tps', 'ctx', 'vram', 'ram', 'cpu', 'decoded_tokens', 'prompt_tokens']</default>
+      <default>['model_name', 'state', 'tps', 'prompt_tps', 'gen_tps', 'ctx', 'vram', 'ram', 'cpu', 'decoded_tokens']</default>
       <summary>Selected metrics</summary>
       <description>The keys of the metrics currently selected to display in the top bar and menu.</description>
     </key>

@@ -86,7 +86,7 @@ Toggle individual metrics on or off via checkboxes in the preferences dialog. Al
 
 ## Metrics Reference
 
-The extension monitors 11 metrics from the llama.cpp WebSocket feed. Each metric can be individually toggled in the preferences dialog.
+The extension monitors 10 metrics from the llama.cpp WebSocket feed. Each metric can be individually toggled in the preferences dialog.
 
 | Metric Key | Label | Type | Description |
 |------------|-------|------|-------------|
@@ -100,7 +100,6 @@ The extension monitors 11 metrics from the llama.cpp WebSocket feed. Each metric
 | `ram` | RAM | gb | System memory usage in GB |
 | `cpu` | CPU | percent | CPU usage percentage |
 | `decoded_tokens` | Decoded | number | Total decoded tokens generated |
-| `prompt_tokens` | Prompt Tok | number | Total prompt tokens processed |
 
 ### Context Token Formatting
 

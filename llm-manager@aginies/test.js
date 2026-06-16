@@ -174,12 +174,11 @@ const WS_METRICS = [
     { key: 'ram', label: 'RAM', type: 'gb', key: 'ram_used' },
     { key: 'cpu', label: 'CPU', type: 'percent', key: 'cpu_usage' },
     { key: 'decoded_tokens', label: 'Decoded', type: 'number' },
-    { key: 'prompt_tokens', label: 'Prompt Tok', type: 'number' },
 ];
 
 console.log('\nTesting WS_METRICS definition...');
 
-assert.strictEqual(WS_METRICS.length, 11);
+assert.strictEqual(WS_METRICS.length, 10);
 assert.strictEqual(WS_METRICS[0].key, 'model_name');
 assert.strictEqual(WS_METRICS[0].type, 'text');
 assert.strictEqual(WS_METRICS[5].type, 'ratio');
@@ -213,7 +212,6 @@ const mockMetrics = JSON.stringify({
     ram_used: 10737418240,
     cpu_usage: 45.2,
     decoded_tokens: 1234,
-    prompt_tokens: 512,
     prompt_progress: 0.75,
     timestamp: 1234567890,
 });
