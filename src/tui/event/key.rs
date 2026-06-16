@@ -456,17 +456,21 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // ── Mode-specific handling ────────────────────────────────────
 
-    // Handle search mode first (it takes priority) - unless README panel has focus (except for Enter key)
+    // Handle search mode first (it takes priority) - unless README panel has focus (except for Enter/Esc)
     let is_search = matches!(app.models_mode, ModelsMode::Search { .. })
-        && (app.ui.active_panel != ActivePanel::SearchReadme || key.code == KeyCode::Enter);
+        && (app.ui.active_panel != ActivePanel::SearchReadme
+            || key.code == KeyCode::Enter
+            || key.code == KeyCode::Esc);
     if is_search {
         handle_search_key(app, key).await;
         return;
     }
 
-    // Handle files mode - unless README panel has focus (except for Enter key)
+    // Handle files mode - unless README panel has focus (except for Enter/Esc)
     let is_files = matches!(app.models_mode, ModelsMode::Files { .. })
-        && (app.ui.active_panel != ActivePanel::SearchReadme || key.code == KeyCode::Enter);
+        && (app.ui.active_panel != ActivePanel::SearchReadme
+            || key.code == KeyCode::Enter
+            || key.code == KeyCode::Esc);
     if is_files {
         handle_files_key(app, key).await;
         return;
