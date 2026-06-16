@@ -61,8 +61,6 @@ llm-manager tui --models-dir /path/to/models --backend vulkan --config /path/to/
 
 ### Build script
 
-### Build script
-
 A convenience script is included for common operations:
 
 ```bash
@@ -77,6 +75,7 @@ A convenience script is included for common operations:
 ./build.sh test       # Run tests
 ./build.sh clippy     # Run clippy
 ./build.sh doc        # Build documentation
+./build.sh gnome-ext  # Install gnome extension + compile schemas
 ./build.sh help       # Show help
 ```
 
