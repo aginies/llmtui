@@ -20,7 +20,6 @@ const WS_METRICS = [
 export default class LlmManagerPreferences extends ExtensionPreferences {
     getPreferencesWidget() {
         const frame = new Gtk.Frame({
-            label: _('LLM Manager Settings'),
             visible: true,
         });
 
@@ -38,23 +37,25 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
         let row = 0;
 
         // metrics-url
-        const urlLabel = new Gtk.Label({
-            label: _('Metrics URL'),
-            xalign: 0,
-            visible: true,
-        });
-        grid.attach(urlLabel, 0, row, 1, 1);
-        row++;
-
         const urlBox = new Gtk.Box({
             orientation: Gtk.Orientation.VERTICAL,
             spacing: 4,
             visible: true,
         });
 
+        const urlLabel = new Gtk.Label({
+            label: _('Metrics URL'),
+            xalign: 0,
+            use_markup: true,
+            visible: true,
+        });
+        urlLabel.set_markup(`<b>${_('Metrics URL')}</b>`);
+        urlBox.append(urlLabel);
+
         const entryBox = new Gtk.Box({
             orientation: Gtk.Orientation.HORIZONTAL,
             spacing: 6,
+            hexpand: true,
             visible: true,
         });
 
@@ -63,7 +64,6 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             primary_icon_name: 'network-server-symbolic',
             hexpand: true,
         });
-        urlEntry.set_width_chars(32);
         entryBox.append(urlEntry);
 
         const testBtn = new Gtk.Button({
@@ -81,7 +81,7 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
         });
         urlBox.append(testStatusLabel);
 
-        grid.attach(urlBox, 1, row, 1, 1);
+        grid.attach(urlBox, 0, row, 2, 1);
         row++;
 
         this.getSettings().bind(
@@ -122,6 +122,37 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             });
         });
 
+        // secret
+        const secretLabel = new Gtk.Label({
+            label: _('Secret'),
+            xalign: 0,
+            visible: true,
+        });
+        grid.attach(secretLabel, 0, row, 1, 1);
+
+        const secretBox = new Gtk.Box({
+            orientation: Gtk.Orientation.HORIZONTAL,
+            spacing: 6,
+            hexpand: true,
+            visible: true,
+        });
+
+        const secretEntry = new Gtk.Entry({
+            visible: true,
+            visibility: false,
+            primary_icon_name: 'dialog-password',
+            hexpand: true,
+        });
+        secretBox.append(secretEntry);
+
+        grid.attach(secretBox, 1, row, 1, 1);
+        row++;
+
+        this.getSettings().bind(
+            'metrics-secret', secretEntry, 'text',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+
         // update-time
         const updateLabel = new Gtk.Label({
             label: _('Reconnect Interval (seconds)'),
@@ -129,7 +160,6 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             visible: true,
         });
         grid.attach(updateLabel, 0, row, 1, 1);
-        row++;
 
         const updateSpin = new Gtk.SpinButton({
             visible: true,
@@ -149,20 +179,6 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             Gio.SettingsBindFlags.DEFAULT
         );
 
-        // ws-auth-enabled
-        const authCheck = new Gtk.CheckButton({
-            label: _('Enable WebSocket auth from URL'),
-            visible: true,
-        });
-        authCheck.active = this.getSettings().get_boolean('ws-auth-enabled');
-        grid.attach(authCheck, 0, row, 2, 1);
-        row++;
-
-        this.getSettings().bind(
-            'ws-auth-enabled', authCheck, 'active',
-            Gio.SettingsBindFlags.DEFAULT
-        );
-
         // position
         const positionLabel = new Gtk.Label({
             label: _('Panel Position'),
@@ -170,7 +186,6 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
             visible: true,
         });
         grid.attach(positionLabel, 0, row, 1, 1);
-        row++;
 
         const positionCombo = new Gtk.ComboBoxText({
             visible: true,
@@ -190,16 +205,8 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
         );
 
         // Metrics selection
-        const metricsLabel = new Gtk.Label({
-            label: _('Metrics to Display'),
-            xalign: 0,
-            visible: true,
-        });
-        grid.attach(metricsLabel, 0, row, 1, 1);
-        row++;
-
         const metricsFrame = new Gtk.Frame({
-            label: _('Selected Metrics'),
+            label: _('Selected Metrics to Display'),
             visible: true,
             margin_start: 6,
             margin_end: 6,
@@ -255,6 +262,37 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
                 this.getSettings().set_strv('selected-metrics', keys);
             });
         }
+
+        // About
+        const aboutFrame = new Gtk.Frame({
+            label: _('About'),
+            visible: true,
+            margin_start: 6,
+            margin_end: 6,
+            margin_top: 6,
+            margin_bottom: 6,
+        });
+
+        const aboutBox = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
+            spacing: 6,
+            visible: true,
+            margin_start: 12,
+            margin_end: 12,
+            margin_top: 12,
+            margin_bottom: 12,
+        });
+
+        const linkBtn = new Gtk.LinkButton({
+            uri: 'https://github.com/aginies/llm-manager',
+            label: 'https://github.com/aginies/llm-manager',
+            visible: true,
+        });
+        aboutBox.append(linkBtn);
+
+        aboutFrame.set_child(aboutBox);
+        grid.attach(aboutFrame, 0, row, 2, 1);
+        row++;
 
         frame.set_child(grid);
         return frame;

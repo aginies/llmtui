@@ -1,8 +1,8 @@
 const fs = require('node:fs');
 const assert = require('node:assert');
 
-// Test buildWsUrl function
-function buildWsUrl(metricsUrl, authEnabled) {
+ // Test buildWsUrl function
+  function buildWsUrl(metricsUrl, secret) {
     try {
         const match = metricsUrl.match(/^(https?:)\/\/([^\/?#]+)([^?#]*)(?:\?([^#]*))?/);
         if (!match) {
@@ -14,7 +14,9 @@ function buildWsUrl(metricsUrl, authEnabled) {
 
         const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
         let auth = null;
-        if (authEnabled && query) {
+        if (secret) {
+            auth = secret;
+        } else if (query) {
             const params = query.split('&');
             for (const param of params) {
                 const [key, value] = param.split('=');
@@ -35,47 +37,53 @@ function buildWsUrl(metricsUrl, authEnabled) {
 
 console.log('Testing buildWsUrl...');
 
-// Test 1: Basic HTTP URL
-const result1 = buildWsUrl('http://127.0.0.1:8080/metrics', true);
+  // Test 1: Basic HTTP URL
+    const result1 = buildWsUrl('http://127.0.0.1:8080/metrics', '');
 assert.strictEqual(result1.wsUrl, 'ws://127.0.0.1:8080/ws');
 assert.strictEqual(result1.hasAuth, false);
 console.log('✓ Test 1 passed: Basic HTTP URL');
 
-// Test 2: HTTP URL with auth
-const result2 = buildWsUrl('http://127.0.0.1:8080/metrics?auth=secret123', true);
+// Test 2: HTTP URL with auth from URL
+const result2 = buildWsUrl('http://127.0.0.1:8080/metrics?auth=secret123', '');
 assert.strictEqual(result2.wsUrl, 'ws://127.0.0.1:8080/ws?auth=secret123');
 assert.strictEqual(result2.hasAuth, true);
 console.log('✓ Test 2 passed: HTTP URL with auth');
 
 // Test 3: HTTPS URL
-const result3 = buildWsUrl('https://example.com/metrics', true);
+const result3 = buildWsUrl('https://example.com/metrics', '');
 assert.strictEqual(result3.wsUrl, 'wss://example.com/ws');
 assert.strictEqual(result3.hasAuth, false);
 console.log('✓ Test 3 passed: HTTPS URL');
 
 // Test 4: HTTPS URL with auth
-const result4 = buildWsUrl('https://example.com/metrics?auth=token456', true);
+const result4 = buildWsUrl('https://example.com/metrics?auth=token456', '');
 assert.strictEqual(result4.wsUrl, 'wss://example.com/ws?auth=token456');
 assert.strictEqual(result4.hasAuth, true);
-console.log('✓ Test 4 passed: HTTPS URL with auth');
+   console.log('✓ Test 4 passed: HTTPS URL with auth');
 
-// Test 5: Auth disabled
-const result5 = buildWsUrl('http://127.0.0.1:8080/metrics?auth=secret123', false);
-assert.strictEqual(result5.wsUrl, 'ws://127.0.0.1:8080/ws');
-assert.strictEqual(result5.hasAuth, false);
-console.log('✓ Test 5 passed: Auth disabled ignores query param');
+// Test 5: Secret overrides URL auth
+const result5 = buildWsUrl('http://127.0.0.1:8080/metrics?auth=oldsecret', 'newsecret');
+assert.strictEqual(result5.wsUrl, 'ws://127.0.0.1:8080/ws?auth=newsecret');
+assert.strictEqual(result5.hasAuth, true);
+console.log('✓ Test 5 passed: Secret overrides URL auth');
 
-// Test 6: Invalid URL
-const result6 = buildWsUrl('not-a-url', true);
-assert.strictEqual(result6.wsUrl, 'ws://127.0.0.1:8080/ws');
-assert.strictEqual(result6.hasAuth, false);
-console.log('✓ Test 6 passed: Invalid URL fallback');
+// Test 6: Secret with no URL query params
+const result6 = buildWsUrl('http://127.0.0.1:8080/metrics', 'mysecret');
+assert.strictEqual(result6.wsUrl, 'ws://127.0.0.1:8080/ws?auth=mysecret');
+assert.strictEqual(result6.hasAuth, true);
+console.log('✓ Test 6 passed: Secret appends auth');
 
-// Test 7: Auth with special characters
-const result7 = buildWsUrl('http://127.0.0.1:8080/metrics?auth=abc%20def', true);
-assert.strictEqual(result7.wsUrl, 'ws://127.0.0.1:8080/ws?auth=abc%20def');
-assert.strictEqual(result7.hasAuth, true);
-console.log('✓ Test 7 passed: Auth with special characters preserved');
+// Test 7: Invalid URL
+const result7 = buildWsUrl('not-a-url', '');
+assert.strictEqual(result7.wsUrl, 'ws://127.0.0.1:8080/ws');
+assert.strictEqual(result7.hasAuth, false);
+console.log('✓ Test 7 passed: Invalid URL fallback');
+
+// Test 8: Auth with special characters
+const result8 = buildWsUrl('http://127.0.0.1:8080/metrics?auth=abc%20def', '');
+assert.strictEqual(result8.wsUrl, 'ws://127.0.0.1:8080/ws?auth=abc%20def');
+assert.strictEqual(result8.hasAuth, true);
+console.log('✓ Test 8 passed: Auth with special characters preserved');
 
 // Test formatNumber function
 function formatNumber(value, decimals) {

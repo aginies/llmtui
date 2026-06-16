@@ -21,10 +21,10 @@
       <summary>Selected metrics</summary>
       <description>The keys of the metrics currently selected to display in the top bar and menu.</description>
     </key>
-    <key name="ws-auth-enabled" type="b">
-      <default>true</default>
-      <summary>Enable WebSocket auth</summary>
-      <description>Auto-detect and use auth parameter from metrics-url for WebSocket connection</description>
+   <key name="metrics-secret" type="s">
+      <default>""</default>
+      <summary>Metrics Secret</summary>
+      <description>Secret to use for WebSocket authentication (appended as auth query parameter)</description>
     </key>
   </schema>
 </schemalist>

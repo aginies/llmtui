@@ -23,7 +23,7 @@ const WS_METRICS = [
     { key: 'decoded_tokens', label: 'Decoded', type: 'number' },
 ];
 
-function buildWsUrl(metricsUrl, authEnabled) {
+      function buildWsUrl(metricsUrl, secret) {
     try {
         const match = metricsUrl.match(/^(https?:)\/\/([^\/?#]+)([^?#]*)(?:\?([^#]*))?/);
         if (!match) {
@@ -35,7 +35,9 @@ function buildWsUrl(metricsUrl, authEnabled) {
 
         const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
         let auth = null;
-        if (authEnabled && query) {
+        if (secret) {
+            auth = secret;
+        } else if (query) {
             const params = query.split('&');
             for (const param of params) {
                 const [key, value] = param.split('=');
@@ -164,9 +166,6 @@ var LlmManagerButton = GObject.registerClass({
         });
         this._addSettingChangedSignal('update-time', this._updateTimeChanged.bind(this));
         this._addSettingChangedSignal('position-in-panel', this._positionInPanelChanged.bind(this));
-        this._addSettingChangedSignal('ws-auth-enabled', () => {
-            this._connectWebSocket(true);
-        });
 
         this._initializeTimer();
         this._connectWebSocket();
@@ -407,8 +406,8 @@ var LlmManagerButton = GObject.registerClass({
         }
 
         const metricsUrl = this._settings.get_string('metrics-url');
-        const authEnabled = this._settings.get_boolean('ws-auth-enabled');
-        const { wsUrl, hasAuth } = buildWsUrl(metricsUrl, authEnabled);
+        const metricsSecret = this._settings.get_string('metrics-secret');
+        const { wsUrl, hasAuth } = buildWsUrl(metricsUrl, metricsSecret);
 
         console.log(`[llm-manager] Connecting to WebSocket: ${wsUrl}`);
 
