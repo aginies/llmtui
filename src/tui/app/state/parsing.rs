@@ -65,6 +65,7 @@ pub fn is_loading_error(msg: &str) -> bool {
         // Actual loading error patterns — must be specific to model loading
         || lower.contains("failed to load")
         || lower.contains("failed loading")
+        || lower.contains("failed to initialize")
         || lower.contains("load failed")
         || lower.contains("load_model: error")
         || lower.contains("error loading")
