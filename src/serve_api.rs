@@ -57,6 +57,7 @@ async fn auth_middleware(
     req: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
+    tracing::debug!("auth_middleware: api_key={:?}", state.api_key.as_deref());
     if let Some(expected) = &state.api_key {
         let provided = extract_api_key(req.headers());
         let expected_bytes = expected.as_bytes();
@@ -66,6 +67,7 @@ async fn auth_middleware(
             true
         };
         if not_equal {
+            tracing::debug!("auth_middleware: rejecting request, not_equal={}", not_equal);
             return (
                 StatusCode::UNAUTHORIZED,
                 Json(serde_json::json!({"error": "Unauthorized"})),
@@ -479,12 +481,12 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
                 .route("/api/status", get(status))
                 .fallback(proxy_streaming)
                 .layer(cors)
-                .layer(TraceLayer::new_for_http())
-                .layer(axum::middleware::from_fn_with_state(
-                    state.clone(),
-                    auth_middleware,
-                )),
+                .layer(TraceLayer::new_for_http()),
         )
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ))
         .with_state(state);
 
     match tls_config {

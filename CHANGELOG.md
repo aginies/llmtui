@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.0] - 2026-06-17
+
+### Breaking Changes
+- **Config** — Renamed `ws_server_tls_enabled`, `ws_server_tls_cert`, `ws_server_tls_key` to `server_tls_enabled`, `server_tls_cert`, `server_tls_key`
+- **Config** — Removed `ws_server_auth_key` field
+
+### Features
+- **TLS Validation** — Validate certs on load and after generation; regenerate on failure
+- **Dashboard Picker** — Add TLS toggle, cert path, and key path fields with editing
+- **API Endpoint Picker** — Add TLS toggle, cert path, and key path fields with editing
+
 ## [1.4.1] - 2026-06-17
 
 ### Features
