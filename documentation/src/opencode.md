@@ -16,6 +16,22 @@ Configure the API endpoint and auth key in llm-manager (see [Configuration](conf
 
 ## Connecting with opencode
 
+### Note: API Endpoint vs Direct Server
+
+You can connect opencode directly to llama.cpp's default port `8080`:
+
+```bash
+export OPENAI_API_BASE="http://localhost:8080/v1"
+```
+
+However, using llm-manager's API endpoint (port `49222`) provides additional features:
+- **Web Search** — automatic SearXNG integration when messages contain research keywords
+- **API proxy** — CORS, SSE streaming optimization, request interception
+- **Auth key** — Bearer token authentication
+- **Metrics** — Prometheus metrics at `/metrics`
+
+For full feature access, use the API endpoint below.
+
 ### Auth JSON approach
 
 Set the `OPENAI_API_KEY` and `OPENAI_API_BASE` environment variables:
