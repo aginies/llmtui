@@ -91,7 +91,6 @@ The extension monitors 10 metrics from the llama.cpp WebSocket feed. Each metric
 | Metric Key | Label | Type | Description |
 |------------|-------|------|-------------|
 | `model_name` | Model | text | Current model filename (path stripped to basename) |
-| `state` | State | badge | Model loading state: "Loaded" or "Unloaded" |
 | `tps` | TPS | number | Tokens per second for generation (t/s) |
 | `prompt_tps` | Prompt TPS | number | Tokens per second for prompt processing (t/s) |
 | `gen_tps` | Gen TPS | number | Generation tokens per second |
