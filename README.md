@@ -12,23 +12,15 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 
 ## Features
 
-- **Search & download** GGUF models from HuggingFace
-- **Load/unload** models via llama.cpp server
-- **Chat** with loaded models via OpenAI-compatible API
-- **Configure** loading and inference parameters per model
-- **WebSocket Dashboard** — real-time metrics in a web browser
-- **API Proxy** — OpenAI-compatible endpoints with CORS and SSE streaming
-- **Benchmark Tuning** — auto-tune model parameters for optimal performance
-- **Profiles & Presets** — save and switch between named settings
-- **Multi-backend** — CPU, Vulkan, ROCm, ROCm Lemonade, CUDA
-- **Web Search** — automatic SearXNG integration for research queries
-- **GNOME Extension** — real-time metrics in the top panel
-- **Multi-language UI** — English, French, Italian
-
-## Prerequisites
-
-- Rust toolchain (edition 2024)
-- GPU (optional): NVIDIA (CUDA), AMD (ROCm/ROCm Lemonade), or Intel (Vulkan)
+- Search & download GGUF models from HuggingFace
+- Load/unload models via llama.cpp server with real-time metrics
+- Chat with loaded models via OpenAI-compatible API proxy
+- WebSocket Dashboard — real-time metrics in a web browser
+- Benchmark Tuning — auto-tune model parameters for optimal performance
+- Profiles & Presets — save and switch between named settings
+- Multi-backend — CPU, Vulkan, ROCm, CUDA
+- Web Search — SearXNG integration
+- Multi-language UI — English, French, Italian, German
 
 ## Quick Start
 
@@ -41,23 +33,7 @@ cargo run
 
 ## Documentation
 
-- [Getting Started](documentation/src/getting-started.md) — full walkthrough
-- [Usage](documentation/src/usage.md) — TUI, serve mode, keyboard shortcuts
-- [Configuration](documentation/src/config.md) — config file, profiles, backends
-- [API Endpoint](documentation/src/api-endpoint.md) — API proxy, TLS, authentication
-- [opencode](documentation/src/opencode.md) — connect opencode to llm-manager
-
-## Build Script
-
-```bash
-./build.sh build      # Build (debug)
-./build.sh run        # Build and run (TUI mode)
-./build.sh serve      # Serve a model
-./build.sh release    # Release build
-./build.sh test       # Run tests
-./build.sh doc        # Build documentation
-./build.sh help       # Show all options
-```
+[Full documentation](https://aginies.github.io/llmtui/)
 
 ## License
 
