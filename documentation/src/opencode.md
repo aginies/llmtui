@@ -4,7 +4,7 @@ This document covers how to use [opencode](https://github.com/opencode-alliance/
 
 ## Prerequisites
 
-Configure the API endpoint and auth key in llm-manager:
+Configure the API endpoint and auth key in llm-manager (see [Configuration](config.md)):
 
 1. Open the **Server Settings** panel (F2)
 2. Navigate to **API Endpoint** and press `Enter`
@@ -13,16 +13,6 @@ Configure the API endpoint and auth key in llm-manager:
    - **Port** — default `49222`, configurable via `api_endpoint_port` in config.yaml
    - **API Key** — the auth key for Bearer token authentication
 4. Press `Enter` to save
-
-Alternatively, set these values in `~/.config/llm-manager/config.yaml`:
-
-```yaml
-default:
-  api_endpoint_enabled: true
-  api_endpoint_port: 49222
-  api_endpoint_key: my-secret-key
-  server_tls_enabled: false  # set true for HTTPS
-```
 
 ## Connecting with opencode
 
@@ -72,14 +62,6 @@ If you want to properly trust your self-signed certificate instead of disabling 
 ```bash
 export SSL_CERT_FILE=/path/to/your/certificate.crt
 opencode
-```
-
-## Testing with curl
-
-Verify the API endpoint is working:
-
-```bash
-curl -H "Authorization: Bearer my-secret-key" http://localhost:49222/v1/chat/completions
 ```
 
 ## TLS / HTTPS

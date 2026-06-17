@@ -1,172 +1,113 @@
 # Getting Started
 
-## Installation
+This guide walks you through installing llm-manager, searching for models, loading one, configuring settings, and connecting a client.
 
-### From source
+## 1. Install & Start
 
 ```bash
 git clone https://github.com/aginies/llmtui.git
 cd llmtui
 cargo build --release
-```
-
-### Platform Support
-
-llm-manager runs on Linux, macOS, and Windows. GPU backends available per platform:
-
-| Platform | CPU | Vulkan | ROCm | ROCm Lemonade | CUDA |
-|----------|-----|--------|------|---------------|------|
-| **Linux x64** | Yes | Yes | Yes | Yes | Yes |
-| **Linux ARM64** | Yes | — | — | — | — |
-| **Windows x64** | Yes | Yes | Yes (HIP) | — | Yes (12.4 / 13.1) |
-| **macOS ARM64** | Yes | — | — | — | — |
-| **macOS x64** | Yes | — | — | — | — |
-
-ROCm Lemonade (AMD optimized) is Linux-only and auto-detects your GPU architecture (e.g. `gfx1100`).
-
-> **Note:** Benchmarks show Vulkan provides comparable performance to CUDA on NVIDIA GPUs, making it a viable cross-platform alternative.
-
-### Using the build script
-
-A convenience script is included for common operations:
-
-```bash
-./build.sh build      # Build (debug)
-./build.sh run        # Build and run (TUI mode)
-./build.sh serve      # Serve a model
-./build.sh servedoc   # Serve docs with watch mode
-./build.sh release    # Release build
-./build.sh clean      # Remove build artifacts
-./build.sh format     # Format code
-./build.sh clippy     # Run clippy
-./build.sh doc        # Build documentation
-./build.sh help       # Show help
-```
-
-## First Run
-
-On first launch, llm-manager creates a default configuration in `~/.config/llm-manager/config.yaml` and sets up the models directory at `~/.local/share/llm-manager/models/`.
-
-```bash
 cargo run
 ```
 
-The application will:
+On first launch, llm-manager creates a default configuration in `~/.config/llm-manager/config.yaml` and sets up the models directory at `~/.local/share/llm-manager/models/`.
 
-1. Load (or create) the config file
-2. Discover any `.gguf` files in the models directory
-3. Start the TUI
+![LLM Manager](images/main.png)
 
-## Navigating the Interface
+## 2. Search & Download Models
 
-The TUI is divided into several panels:
+Press `/` to enter search mode, type a query (e.g., `qwen2.5`), and press `Enter`.
 
-- **Models panel** (left) — list of local GGUF models
-- **Settings panel** (right) — server and LLM settings
-- **Log panel** (bottom) — live output from llama.cpp
-- **Download panel** — appears when downloading files
+Results appear sorted by relevance. Press `Ctrl+S` to cycle sort order (Relevance / Downloads / Likes / Trending / Created). Press `Ctrl+B` to go back, or scroll down for more results.
 
-Use `Tab` to cycle between panels, and `Ctrl+H` for panel-specific help. Press `Ctrl+L` to cycle the UI language (English → French → Italian → English). Translations are stored as JSON files in `locales/`.
+![Search Results](images/search_result.png)
 
-## Searching for Models
+Press `Enter` on a result to browse available GGUF files:
 
-To search HuggingFace for models:
+![GGUF File Browser](images/search_gguf_files.png)
 
-1. Press `/` to enter search mode
-2. Type your query and press `Enter`
-3. Results appear sorted by relevance by default
-4. Press `Ctrl+S` to cycle sort order (Relevance / Downloads / Likes / Trending / Created)
-5. Press `Ctrl+B` to go back one page, or scroll down at the bottom for more results
-6. Press `Enter` to browse GGUF files (auto-fetches README) or `->`/`Ctrl+R` to fetch README only
+Select a file and press `Enter` to download. The download progress shows speed (MiB/s), ETA, and status. Press `p` to pause/resume, `⌥C` to cancel.
 
-**Multi-word search:** Type space-separated words (e.g. `qwen opus`) to search with AND logic — all words must match the model name.
+## 3. Load a Model
 
-### Downloading Models
-
-To download a model from HuggingFace:
-
-1. Press `/` to enter search mode
-2. Type your query and press `Enter`
-3. Press `Enter` on a result to browse available GGUF files
-4. Select a file and press `Enter` to download
-5. Press `⌥C` (Alt+C) to cancel, or `p` to pause/resume the download at any time
-
-The download progress is shown in the Download panel with speed (MiB/s), ETA, and status indicators. Before downloading, the app checks available disk space and warns if insufficient. Cancelled downloads automatically remove the temporary file. Once complete, the model appears in the Models panel (in your models directory).
-
-### Loading Models
-
-Once a model is downloaded (or has one locally in your models directory):
+Once a model is downloaded (or already exists locally):
 
 1. Select the model in the Models panel
 2. Press `l` (or `Enter`) to load it
 
-The loading process shows a progress bar with phases:
+The loading process shows a progress bar with phases: server starting, loading model weights, loading metadata, loading tensors (with GPU layer count), server listening, and ready.
 
-- Server starting
-- Loading model weights
-- Loading metadata
-- Loading tensors (with GPU layer count)
-- Server listening
-- Ready (detected via `/health` API polling)
+The Model Info panel (`i`) shows GGUF metadata including architecture, layers, context length, and VRAM estimate.
 
-### Log Panel
+![Model Info](images/info_model.png)
 
-The Log panel shows live output from the llama.cpp server. Press `Enter` to expand to fullscreen, `Esc` to collapse. Press `f` to toggle between Following (auto-scroll) and Manual (scroll history) modes.
+## 4. Configure Settings
 
-### Other Features
+Press `F2` to open the **Server Settings** panel. When a server is running, the panel is disabled:
 
-- **Profile Picker** (`Ctrl+P`) — Open a modal to select from built-in or user profiles
-- **System Prompt Presets** — Named system prompts for different use cases (Coder, Thinker, Mathematician)
-- **RPC Workers** — Manage distributed inference nodes from Server Settings
-- **Benchmark Tuning** — Auto-tune model parameters for optimal performance (set Mode to BenchTune)
-- **Router Mode** — Load multiple models simultaneously *(Work In Progress — not yet selectable in TUI)*
-- **Panel Resize** — Drag the border between left and right panels, or use `Shift+←/→` (20%-80%)
-- **Mouse support** — Click panels to focus, scroll in logs, README, and settings
+![Server Settings Disabled](images/disabling_panels.png)
 
-## Using Serve Mode
+### Server Settings
 
-You can also start a model directly from the command line:
+| Setting | Description |
+|---------|-------------|
+| **Host** | Bind address (default: `127.0.0.1`) |
+| **Backend** | GPU acceleration (auto-detected, or CPU/Vulkan/ROCm/CUDA) |
+| **Threads** | CPU threads for generation |
+| **Threads Batch** | CPU threads for batch processing |
+| **Mode** | Server mode (Normal, Router, Bench, BenchTune) |
+| **API Endpoint** | Enable OpenAI-compatible API proxy |
+| **Dashboard** | Enable WebSocket dashboard |
+| **RPC Workers** | Manage distributed inference nodes |
+| **Language** | UI language (en/fr/it) |
 
-```bash
-./build.sh serve --model /path/to/model.gguf
-```
+Press `F3` to open the **LLM Settings** panel. Toggle expert mode with `Ctrl+X` to reveal 17 additional parameters.
 
-Or with a settings profile:
+![LLM Settings Expert Mode](images/llm_settings_expert.png)
 
-```bash
-./build.sh serve --model model.gguf --profile qwen
-```
+Press `Ctrl+H` for panel-specific help:
 
-With a custom backend binary:
+![Help Panel](images/help.png)
 
-```bash
-./build.sh serve --model model.gguf --backend-binary /opt/rocm/bin/llama-server
-```
+### Saving Settings
 
-Bound to a specific network interface:
+- `Ctrl+S` — Save settings for the selected model
+- `Ctrl+R` — Reset to defaults
+- `Ctrl+P` — Apply a profile (built-in: Qwen, Gemma, Llama, Mistral, Phi)
 
-```bash
-./build.sh serve --model model.gguf --host 0.0.0.0
-```
+Settings are stored in `~/.config/llm-manager/models/<model_name>.yaml`. For global defaults, edit `~/.config/llm-manager/config.yaml` directly.
 
-Logs redirected to a file:
+## 5. Connect a Client
+
+With the API Endpoint enabled (default port `49222`), you can connect any OpenAI-compatible client:
+
+### curl
 
 ```bash
-./build.sh serve --model model.gguf --log-file /var/log/llm-manager/model.log
+curl http://localhost:49222/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"llama","messages":[{"role":"user","content":"Hello"}]}'
 ```
 
-### API Proxy
-
-Start with an OpenAI-compatible API proxy:
+With auth key:
 
 ```bash
-./build.sh serve --model model.gguf --api-port 49222
+curl http://localhost:49222/v1/chat/completions \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{"model":"llama","messages":[{"role":"user","content":"Hello"}]}'
 ```
 
-With authentication:
+### opencode
 
-```bash
-./build.sh serve --model model.gguf --api-port 49222 --api-key secret
+See the [opencode documentation](opencode.md) for configuring opencode to use llm-manager's API endpoint.
+
+### Dashboard
+
+Open the WebSocket Dashboard in your browser:
+
+```
+http://localhost:49223
 ```
 
-The API proxy forwards requests to the llama-server instance and supports all llama.cpp endpoints including chat completions, embeddings, and more. It supports **SSE (Server-Sent Events) streaming** for chat completions and other streaming endpoints, and **CORS** is enabled for all origins.
+See the [Dashboard documentation](dashboard.md) for authentication and TLS configuration.
