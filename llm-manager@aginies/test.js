@@ -173,7 +173,6 @@ console.log('✓ truncateModelName tests passed');
 // Test metric value formatting
 const WS_METRICS = [
     { key: 'model_name', label: 'Model', type: 'text' },
-    { key: 'state', label: 'State', type: 'badge' },
     { key: 'tps', label: 'TPS', type: 'number', unit: 't/s' },
     { key: 'prompt_tps', label: 'Prompt TPS', type: 'number', unit: 't/s' },
     { key: 'gen_tps', label: 'Gen TPS', type: 'number', unit: 't/s' },
@@ -186,7 +185,7 @@ const WS_METRICS = [
 
 console.log('\nTesting WS_METRICS definition...');
 
-assert.strictEqual(WS_METRICS.length, 10);
+assert.strictEqual(WS_METRICS.length, 9);
 assert.strictEqual(WS_METRICS[0].key, 'model_name');
 assert.strictEqual(WS_METRICS[0].type, 'text');
 assert.strictEqual(WS_METRICS[5].type, 'ratio');

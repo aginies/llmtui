@@ -12,7 +12,6 @@ import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/ex
 
 const WS_METRICS = [
     { key: 'model_name', label: 'Model', type: 'text' },
-    { key: 'state', label: 'State', type: 'badge' },
     { key: 'tps', label: 'TPS', type: 'number', unit: 't/s' },
     { key: 'prompt_tps', label: 'Prompt TPS', type: 'number', unit: 't/s' },
     { key: 'gen_tps', label: 'Gen TPS', type: 'number', unit: 't/s' },
@@ -202,21 +201,19 @@ var LlmManagerButton = GObject.registerClass({
         const barContainer = new St.BoxLayout({
             style_class: 'llm-bar-container',
             visible: false,
-            x_expand: true,
-            y_align: Clutter.ActorAlign.END,
-            height: 16,
+            y_align: Clutter.ActorAlign.START,
         });
 
         const bar = new St.Bin({
             style_class: 'llm-bar',
-            x_expand: true,
-            height: 16,
+            width: 50,
+            height: metric.type === 'ratio' || metric.type === 'ratio_gb' ? 12 : 16,
         });
 
         const barInner = new St.Bin({
             style_class: 'llm-bar-inner',
             width: 0,
-            height: 16,
+            height: metric.type === 'ratio' || metric.type === 'ratio_gb' ? 12 : 16,
         });
 
         bar.set_child(barInner);

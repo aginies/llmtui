@@ -6,7 +6,6 @@ import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Ex
 
 const WS_METRICS = [
     { key: 'model_name', label: 'Model' },
-    { key: 'state', label: 'State' },
     { key: 'tps', label: 'TPS' },
     { key: 'prompt_tps', label: 'Prompt TPS' },
     { key: 'gen_tps', label: 'Gen TPS' },
