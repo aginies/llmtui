@@ -14,6 +14,8 @@ const WS_METRICS = [
     { key: 'ram', label: 'RAM' },
     { key: 'cpu', label: 'CPU' },
     { key: 'decoded_tokens', label: 'Decoded Tokens' },
+    { key: 'prompt_tokens', label: 'Prompt Eval Tokens' },
+    { key: 'prompt_progress', label: 'Prompt Progress' },
 ];
 
 const METRIC_GROUPS = [
@@ -23,7 +25,7 @@ const METRIC_GROUPS = [
     },
     {
         name: 'Performance',
-        metrics: ['tps', 'prompt_tps', 'gen_tps', 'decoded_tokens'],
+        metrics: ['tps', 'prompt_tps', 'gen_tps', 'decoded_tokens', 'prompt_tokens', 'prompt_progress'],
     },
     {
         name: 'Resources',

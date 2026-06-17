@@ -20,6 +20,8 @@ const WS_METRICS = [
     { key: 'ram', label: 'RAM', type: 'gb', field: 'ram_used' },
     { key: 'cpu', label: 'CPU', type: 'percent', field: 'cpu_usage' },
     { key: 'decoded_tokens', label: 'Decoded', type: 'number' },
+    { key: 'prompt_tokens', label: 'Prompt Eval', type: 'number', unit: 'tokens' },
+    { key: 'prompt_progress', label: 'Prompt Progress', type: 'ratio_pct', used: 'prompt_progress', max: 1.0 },
 ];
 
 const METRIC_GROUPS = [
@@ -29,7 +31,7 @@ const METRIC_GROUPS = [
     },
     {
         name: 'Performance',
-        metrics: ['tps', 'prompt_tps', 'gen_tps', 'decoded_tokens'],
+        metrics: ['tps', 'prompt_tps', 'gen_tps', 'decoded_tokens', 'prompt_tokens', 'prompt_progress'],
     },
     {
         name: 'Resources',
@@ -226,13 +228,13 @@ var LlmManagerButton = GObject.registerClass({
         const bar = new St.Bin({
             style_class: 'llm-bar',
             width: 50,
-            height: metric.type === 'ratio' || metric.type === 'ratio_gb' ? 12 : 16,
+            height: metric.type === 'ratio' || metric.type === 'ratio_gb' || metric.type === 'ratio_pct' ? 12 : 16,
         });
 
         const barInner = new St.Bin({
             style_class: 'llm-bar-inner',
             width: 0,
-            height: metric.type === 'ratio' || metric.type === 'ratio_gb' ? 12 : 16,
+            height: metric.type === 'ratio' || metric.type === 'ratio_gb' || metric.type === 'ratio_pct' ? 12 : 16,
         });
 
         bar.set_child(barInner);
@@ -332,6 +334,7 @@ var LlmManagerButton = GObject.registerClass({
             case 'number':
                 const numVal = metrics[metric.key];
                 if (numVal === undefined || numVal === null || isNaN(numVal)) return 'N/A';
+                if (metric.key === 'prompt_tokens') return Math.round(numVal) + (metric.unit ? ' ' + metric.unit : '');
                 return formatNumber(numVal, 1) + (metric.unit ? ' ' + metric.unit : '');
             case 'ratio':
                 const used = metrics[metric.used];
@@ -354,6 +357,10 @@ var LlmManagerButton = GObject.registerClass({
                 const pctVal = metrics[pctKey];
                 if (pctVal === undefined || pctVal === null || isNaN(pctVal)) return 'N/A';
                 return Math.round(pctVal) + '%';
+            case 'ratio_pct':
+                const usedPct = metrics[metric.used];
+                if (usedPct === undefined || usedPct === null) return 'N/A';
+                return Math.round(usedPct * 100) + '%';
             default:
                 return '-';
         }
@@ -369,7 +376,7 @@ var LlmManagerButton = GObject.registerClass({
             const isSelected = selectedKeys.includes(metric.key);
             const barInfo = this._metricBars[metric.key];
 
-            if (metric.type === 'ratio' || metric.type === 'ratio_gb') {
+            if (metric.type === 'ratio' || metric.type === 'ratio_gb' || metric.type === 'ratio_pct') {
                 let percent = 0;
                 if (metric.type === 'ratio') {
                     const used = this._currentMetrics[metric.used];
@@ -383,9 +390,14 @@ var LlmManagerButton = GObject.registerClass({
                     if (total && total > 0) {
                         percent = (used / total) * 100;
                     }
+                } else if (metric.type === 'ratio_pct') {
+                    const usedPct = this._currentMetrics[metric.used];
+                    if (usedPct !== undefined && usedPct !== null) {
+                        percent = usedPct * 100;
+                    }
                 }
 
-                if (barInfo && barInfo.barContainer) {
+                 if (barInfo && barInfo.barContainer) {
                     barInfo.barContainer.visible = true;
                     barInfo.barInner.width = percent * barInfo.bar.width / 100;
                     
