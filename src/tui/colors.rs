@@ -126,7 +126,7 @@ pub static DIRTY: LazyLock<Style> = LazyLock::new(|| Style::default().fg(RED));
 #[allow(dead_code)]
 pub static DISABLED: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
-        .fg(MID_GRAY)
+        .fg(GRAY)
         .add_modifier(Modifier::DIM)
 });
 
