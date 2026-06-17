@@ -8,25 +8,27 @@
 - [Usage](usage.md)
 - [opencode](opencode.md)
 
-## Configuration
+## User Configuration
 - [Configuration](config.md)
 
-## Features
-- [WebSocket Dashboard](dashboard.md)
+## Server Settings
 - [API Endpoint](api-endpoint.md)
+- [WebSocket Dashboard](dashboard.md)
 - [Web Search](web-search.md)
-- [GNOME Extension](gnome-extension.md)
-
-## Advanced
-- [Benchmark Tuning](benchmark-tuning.md)
 - [Router Mode & Multi-Model Inference](router-mode.md)
+- [Benchmark Tuning](benchmark-tuning.md)
 - [Distributed Inference (RPC Workers)](distributed-inference.md)
-- [Speculative Decoding](speculative-decoding.md)
-- [Max Concurrent Predictions](max-concurrent-predictions.md)
+
+## LLM Settings
 - [Cache Reuse](cache-reuse.md)
 - [Cache Prompt](cache-prompt.md)
+- [Speculative Decoding](speculative-decoding.md)
 - [Chat Templates](chat-templates.md)
+- [Max Concurrent Predictions](max-concurrent-predictions.md)
 - [GGUF Filename Explanation](gguf-filename-explanation.md)
+
+## GNOME Desktop
+- [GNOME Extension](gnome-extension.md)
 
 ## Reference
 - [Architecture](architecture.md)
