@@ -287,9 +287,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     } else {
                         Span::styled(" ".repeat(10), Style::default().fg(DIM_GRAY))
                     },
-                    Span::styled(" (prompt: ", Style::default().fg(MID_GRAY)),
+                    Span::styled(" (prompt: ", Style::default().fg(YELLOW)),
                     Span::styled(prompt_str, prompt_style),
-                    Span::styled(")", Style::default().fg(MID_GRAY)),
+                    Span::styled(")", Style::default().fg(YELLOW)),
                     Span::styled(" ]", Style::default().fg(WHITE)),
                     Span::styled("  [ ", Style::default().fg(WHITE)),
                     Span::styled("Decoded: ", Style::default().fg(YELLOW)),
