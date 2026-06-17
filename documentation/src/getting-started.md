@@ -38,10 +38,6 @@ Once a model is downloaded (or already exists locally):
 
 The loading process shows a progress bar with phases: server starting, loading model weights, loading metadata, loading tensors (with GPU layer count), server listening, and ready.
 
-The Model Info panel (`i`) shows GGUF metadata including architecture, layers, context length, and VRAM estimate.
-
-![Model Info](images/info_model.png)
-
 ## 4. Configure Settings
 
 Press `F2` to open the **Server Settings** panel. When a server is running, the panel is disabled:
