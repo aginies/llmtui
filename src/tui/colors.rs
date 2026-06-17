@@ -120,7 +120,11 @@ pub static DIRTY: LazyLock<Style> = LazyLock::new(|| Style::default().fg(RED));
 
 /// Disabled setting name / value
 #[allow(dead_code)]
-pub static DISABLED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(GRAY));
+pub static DISABLED: LazyLock<Style> = LazyLock::new(|| {
+    Style::default()
+        .fg(GRAY)
+        .add_modifier(Modifier::DIM)
+});
 
 /// Sort direction label color
 #[allow(dead_code)]
