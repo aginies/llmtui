@@ -41,12 +41,12 @@ pub const BLUE: Color = Color::Blue;
 
 // ── Common Style patterns ────────────────────────────────────────────────────
 
-/// Selected row / item: black text on green background, bold
+/// Selected row / item: white text on yellow background, bold
 #[allow(dead_code)]
 pub static SELECTED_ROW: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
-        .fg(BLACK)
-        .bg(GREEN)
+        .fg(WHITE)
+        .bg(YELLOW)
         .add_modifier(Modifier::BOLD)
 });
 

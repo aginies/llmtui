@@ -390,7 +390,7 @@ fn render_web_search_picker(
             let style = if i == engine_picker_selected {
                 Style::default()
                     .fg(BLACK)
-                    .bg(GREEN)
+                    .bg(YELLOW)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(WHITE)
@@ -712,7 +712,7 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
         let style = if i == selected {
             Style::default()
                 .fg(BLACK)
-                .bg(GREEN)
+                .bg(YELLOW)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(WHITE)
@@ -763,7 +763,7 @@ fn render_profile_picker(
         let style = if i == selected {
             Style::default()
                 .fg(BLACK)
-                .bg(GREEN)
+                .bg(YELLOW)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(WHITE)
@@ -931,7 +931,7 @@ fn render_prompt_picker(
             let style = if i == selected {
                 Style::default()
                     .fg(BLACK)
-                    .bg(GREEN)
+                    .bg(YELLOW)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(WHITE)
@@ -998,7 +998,7 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
        let style = if Some(i) == app.edit.tags_selected_idx {
             Style::default()
                 .fg(BLACK)
-                .bg(GREEN)
+                .bg(YELLOW)
                 .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(WHITE)
@@ -1109,7 +1109,7 @@ fn render_backend_picker(
         let style = if i == selected {
             Style::default()
                 .fg(BLACK)
-                .bg(GREEN)
+                .bg(YELLOW)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(WHITE)
@@ -1566,7 +1566,7 @@ fn render_bench_tune_setup(
                 }
             };
             let row_style = if is_selected {
-                Style::default().fg(BLACK).bg(GREEN)
+                Style::default().fg(BLACK).bg(YELLOW)
             } else {
                 Style::default().fg(WHITE)
             };
@@ -1644,7 +1644,7 @@ fn render_bench_tune_setup(
             ),
             Span::styled(
                 crate::t!("dialog.bench_config.start_text"),
-                Style::default().fg(BLACK).bg(GREEN),
+                Style::default().fg(BLACK).bg(YELLOW),
             ),
             Span::raw("  "),
             Span::styled(
@@ -3178,7 +3178,7 @@ fn render_yarn_rope_picker(
         let style = if is_selected {
             Style::default()
                 .fg(BLACK)
-                .bg(GREEN)
+                .bg(YELLOW)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(WHITE)
@@ -3269,7 +3269,7 @@ fn render_spec_type_picker(
         let style = if i == selected {
             Style::default()
                 .fg(BLACK)
-                .bg(GREEN)
+                .bg(YELLOW)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(WHITE)
@@ -3325,7 +3325,7 @@ fn render_chat_template_picker(
         let style = if i == selected {
             Style::default()
                 .fg(BLACK)
-                .bg(GREEN)
+                .bg(YELLOW)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(WHITE)
@@ -3387,7 +3387,7 @@ fn render_chat_template_file_picker(
             let style = if i == selected {
                 Style::default()
                     .fg(BLACK)
-                    .bg(GREEN)
+                    .bg(YELLOW)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(WHITE)

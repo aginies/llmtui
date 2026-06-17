@@ -138,7 +138,7 @@ pub fn render_download_panel(
         .header(Row::new(headers))
         .row_highlight_style(
             Style::default()
-                .bg(GREEN)
+                .bg(YELLOW)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">> ");
@@ -482,7 +482,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let name_style = if is_selected {
                         Style::default()
                             .fg(BLACK)
-                            .bg(GREEN)
+                            .bg(YELLOW)
                             .add_modifier(Modifier::BOLD)
                     } else {
                         match model_state {
@@ -548,7 +548,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .row_highlight_style(
                     Style::default()
                         .fg(BLACK)
-                        .bg(GREEN)
+                        .bg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
@@ -726,7 +726,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .row_highlight_style(
                     Style::default()
                         .fg(BLACK)
-                        .bg(GREEN)
+                        .bg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
@@ -822,7 +822,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .row_highlight_style(
                     Style::default()
                         .fg(BLACK)
-                        .bg(GREEN)
+                        .bg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
@@ -1114,7 +1114,7 @@ fn render_benchtune_results_table(
     .block(Block::default().borders(Borders::NONE))
     .row_highlight_style(
         Style::default()
-            .bg(GREEN)
+            .bg(YELLOW)
             .add_modifier(Modifier::BOLD),
     )
     .highlight_symbol("> ");

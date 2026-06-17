@@ -1239,7 +1239,7 @@ pub fn add_setting(
                  val.to_string(),
                  Style::default()
                      .fg(BLACK)
-                     .bg(GREEN)
+                     .bg(YELLOW)
                      .add_modifier(Modifier::BOLD),
              ),
         ]));

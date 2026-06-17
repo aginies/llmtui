@@ -81,7 +81,7 @@ pub fn render_all<'a>(
             let row_style = if i == selected {
                 Style::default()
                     .fg(BLACK)
-                    .bg(GREEN)
+                    .bg(YELLOW)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(WHITE)

@@ -108,7 +108,7 @@ pub fn render_all<'a>(
             let name_style = if i == selected {
                 Style::default()
                     .fg(BLACK)
-                    .bg(GREEN)
+                    .bg(YELLOW)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(WHITE)
