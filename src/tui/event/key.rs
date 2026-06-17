@@ -53,11 +53,11 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             auth_key: app
                 .config
                 .default
-                .ws_server_auth_key
+                .api_endpoint_key
                 .clone()
                 .unwrap_or_default(),
             ws_enabled: app.config.default.ws_server_enabled,
-            tls_enabled: app.config.default.ws_server_tls_enabled,
+            tls_enabled: app.server.running_server_tls.unwrap_or(false),
         };
         return;
     }
@@ -1681,6 +1681,19 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         enabled: app.settings.api_endpoint_enabled,
                         port: app.settings.api_endpoint_port.to_string(),
                         api_key: app.config.default.api_endpoint_key.clone().unwrap_or_default(),
+                        tls_enabled: app.config.default.server_tls_enabled,
+                        tls_cert: app
+                            .config
+                            .default
+                            .server_tls_cert
+                            .clone()
+                            .unwrap_or_default(),
+                        tls_key: app
+                            .config
+                            .default
+                            .server_tls_key
+                            .clone()
+                            .unwrap_or_default(),
                         selected_field: -1,
                         editing: false,
                         edit_buffer: String::new(),
@@ -1691,23 +1704,23 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.ui.global_mode = GlobalMode::DashboardPicker {
                         enabled: app.config.default.ws_server_enabled,
                         port: app.config.default.ws_server_port.to_string(),
-                        auth_key: app
+                      auth_key: app
                             .config
                             .default
-                            .ws_server_auth_key
+                            .api_endpoint_key
                             .clone()
                             .unwrap_or_default(),
-                        tls_enabled: app.config.default.ws_server_tls_enabled,
+                        tls_enabled: app.config.default.server_tls_enabled,
                         tls_cert: app
                             .config
                             .default
-                            .ws_server_tls_cert
+                            .server_tls_cert
                             .clone()
                             .unwrap_or_default(),
                         tls_key: app
                             .config
                             .default
-                            .ws_server_tls_key
+                            .server_tls_key
                             .clone()
                             .unwrap_or_default(),
                         selected_field: -1,

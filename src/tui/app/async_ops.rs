@@ -1780,26 +1780,26 @@ impl App {
     pub async fn tick_ws_server(&mut self) {
         let enabled = self.config.default.ws_server_enabled;
         let port = self.config.default.ws_server_port;
-        let auth_key = self.config.default.ws_server_auth_key.clone();
-        let tls_enabled = self.config.default.ws_server_tls_enabled;
-        let tls_cert = self.config.default.ws_server_tls_cert.clone();
-        let tls_key = self.config.default.ws_server_tls_key.clone();
+        let auth_key = self.config.default.api_endpoint_key.clone();
+        let tls_enabled = self.config.default.server_tls_enabled;
+        let tls_cert = self.config.default.server_tls_cert.clone();
+        let tls_key = self.config.default.server_tls_key.clone();
 
         // Load TLS config only if paths changed since last load, or if not yet cached.
         let tls_cfg = if tls_enabled {
             let needs_reload = match (&tls_cert, &tls_key) {
                 (Some(cert), Some(key)) => {
-                    Some(cert.as_str()) != self.server.running_ws_tls_cert_path.as_deref()
-                        || Some(key.as_str()) != self.server.running_ws_tls_key_path.as_deref()
-                        || self.server.running_ws_tls_cfg.is_none()
+                    Some(cert.as_str()) != self.server.running_server_tls_cert_path.as_deref()
+                        || Some(key.as_str()) != self.server.running_server_tls_key_path.as_deref()
+                        || self.server.running_server_tls_cfg.is_none()
                 }
                 _ => {
                     // Auto-generated certs: only reload if we haven't cached
                     // the auto-generated paths yet, or if the TLS config itself
                     // is not yet cached (e.g., initial load failed).
-                    self.server.running_ws_tls_cert_path.is_none()
-                        || self.server.running_ws_tls_key_path.is_none()
-                        || self.server.running_ws_tls_cfg.is_none()
+                    self.server.running_server_tls_cert_path.is_none()
+                        || self.server.running_server_tls_key_path.is_none()
+                        || self.server.running_server_tls_cfg.is_none()
                 }
             };
             if needs_reload {
@@ -1812,13 +1812,13 @@ impl App {
                                 crate::t!("async.tls_generating"),
                                 crate::config::LogLevel::Info,
                             );
-                            self.config.default.ws_server_tls_cert =
+                            self.config.default.server_tls_cert =
                                 Some(cert.to_string_lossy().to_string());
-                            self.config.default.ws_server_tls_key =
+                            self.config.default.server_tls_key =
                                 Some(key.to_string_lossy().to_string());
-                            self.server.running_ws_tls_cert_path =
+                            self.server.running_server_tls_cert_path =
                                 Some(cert.to_string_lossy().to_string());
-                            self.server.running_ws_tls_key_path =
+                            self.server.running_server_tls_key_path =
                                 Some(key.to_string_lossy().to_string());
                             crate::backend::tls::load_tls_config(
                                 cert.to_string_lossy().as_ref(),
@@ -1831,35 +1831,35 @@ impl App {
                     }
                 }
             } else {
-                self.server.running_ws_tls_cfg.clone()
+                self.server.running_server_tls_cfg.clone()
             }
         } else {
-            self.server.running_ws_tls_cfg = None;
-            self.server.running_ws_tls_cert_path = None;
-            self.server.running_ws_tls_key_path = None;
+            self.server.running_server_tls_cfg = None;
+            self.server.running_server_tls_cert_path = None;
+            self.server.running_server_tls_key_path = None;
             None
         };
 
         // Cache the TLS config and the paths used to load it.
         if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
-            self.server.running_ws_tls_cert_path = Some(cert.clone());
-            self.server.running_ws_tls_key_path = Some(key.clone());
+            self.server.running_server_tls_cert_path = Some(cert.clone());
+            self.server.running_server_tls_key_path = Some(key.clone());
         }
-        self.server.running_ws_tls_cfg = tls_cfg.clone();
+        self.server.running_server_tls_cfg = tls_cfg.clone();
 
         // Check if settings have changed since last start.
         // When the user sets cert paths, compare configured against running.
         // When TLS is auto-generated (user didn't set paths), the effective
-        // paths are already stored in running_ws_tls_cert_path/key_path, so
+        // paths are already stored in running_server_tls_cert_path/key_path, so
         // just skip the TLS path comparison — the paths haven't changed
         // unless the user explicitly changed their config.
         let tls_paths_changed = match (&tls_cert, &tls_key) {
             (Some(cert), Some(key)) => {
-                Some(cert.as_str()) != self.server.running_ws_tls_cert_path.as_deref()
-                    || Some(key.as_str()) != self.server.running_ws_tls_key_path.as_deref()
+                Some(cert.as_str()) != self.server.running_server_tls_cert_path.as_deref()
+                    || Some(key.as_str()) != self.server.running_server_tls_key_path.as_deref()
             }
             _ => {
-                // Auto-generated: paths are stored in running_ws_tls_*_path,
+                // Auto-generated: paths are stored in running_server_tls_*_path,
                 // which is set once after generation. Since the user didn't
                 // configure specific paths, just check the TLS toggle itself.
                 false
@@ -1867,7 +1867,7 @@ impl App {
         };
         let settings_changed = self.server.running_ws_port != Some(port)
             || self.server.running_ws_auth != auth_key
-            || self.server.running_ws_tls != Some(tls_enabled)
+            || self.server.running_server_tls != Some(tls_enabled)
             || tls_paths_changed;
 
         if self.ws_server_handle.is_some() && (!enabled || settings_changed) {
@@ -1876,7 +1876,7 @@ impl App {
             crate::backend::ws_server::stop_ws_server(handle);
             self.server.running_ws_port = None;
             self.server.running_ws_auth = None;
-            self.server.running_ws_tls = None;
+            self.server.running_server_tls = None;
             if !enabled {
                 self.add_log(
                     crate::t!("async.dashboard_disabled"),
@@ -1891,6 +1891,7 @@ impl App {
             let _host = self.settings.host.clone();
             let (ws_shutdown_tx, ws_shutdown_rx) = tokio::sync::watch::channel(false);
             self.ws_shutdown_tx = Some(ws_shutdown_tx);
+            let has_tls = tls_cfg.is_some();
             match crate::backend::ws_server::start_ws_server(
                 port,
                 ws_rx,
@@ -1906,7 +1907,7 @@ impl App {
                     self.ws_server_handle = Some(handle);
                     self.server.running_ws_port = Some(port);
                     self.server.running_ws_auth = auth_key.clone();
-                    self.server.running_ws_tls = Some(tls_enabled);
+                    self.server.running_server_tls = Some(has_tls);
                     let protocol = if tls_enabled { "https" } else { "http" };
                     let auth_param = match &auth_key {
                         Some(a) => format!("?auth={}", urlencoding::encode(a)),
@@ -1966,7 +1967,7 @@ impl App {
             .map(|h| h.pid)
             .unwrap_or(0);
         let model_name = self.server.spawned_model_name.clone().unwrap_or_default();
-        let api_key = self.config.default.ws_server_auth_key.clone();
+        let api_key = self.config.default.api_endpoint_key.clone();
 
         // No backend server and API proxy is not running — nothing to do.
         // This prevents a busy loop where settings_changed is always true
@@ -2029,15 +2030,15 @@ impl App {
                 }
             }
 
-            // Build TLS config — share with WebSocket dashboard (ws_server_tls_* config).
+            // Build TLS config — share with WebSocket dashboard (server_tls_* config).
             // Priority: 1) Cached TLS config, 2) Cached paths, 3) User config paths, 4) Auto-generate
-            let tls_cfg = if self.config.default.ws_server_tls_enabled {
+            let tls_cfg = if self.config.default.server_tls_enabled {
                 // Use cached TLS config if WebSocket server already built it
-                if let Some(ref cached) = self.server.running_ws_tls_cfg {
+                if let Some(ref cached) = self.server.running_server_tls_cfg {
                     Some(cached.clone())
                 } else if let (Some(cert), Some(key)) = (
-                    &self.config.default.ws_server_tls_cert,
-                    &self.config.default.ws_server_tls_key,
+                    &self.config.default.server_tls_cert,
+                    &self.config.default.server_tls_key,
                 ) {
                     // User-specified cert/key paths
                     match crate::backend::tls::load_tls_config(cert, key).await {
@@ -2055,9 +2056,9 @@ impl App {
                     match crate::backend::tls::ensure_tls_certs() {
                         Ok((c, k)) => {
                             // Cache the generated paths for future use
-                            self.server.running_ws_tls_cert_path =
+                            self.server.running_server_tls_cert_path =
                                 Some(c.to_string_lossy().to_string());
-                            self.server.running_ws_tls_key_path =
+                            self.server.running_server_tls_key_path =
                                 Some(k.to_string_lossy().to_string());
                             match crate::backend::tls::load_tls_config(
                                 &c.to_string_lossy(),

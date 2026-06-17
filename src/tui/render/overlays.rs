@@ -211,27 +211,33 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
-   if let GlobalMode::ApiEndpointPicker {
-         enabled,
-         port,
-         api_key,
-         selected_field,
-         editing,
-         edit_buffer,
-         edit_cursor_pos: _,
-     } = &app.ui.global_mode
-    {
-        render_api_endpoint_picker(
-            f,
-            f.area(),
-            app,
-            *enabled,
-            port,
-            api_key,
-            *selected_field,
-            *editing,
-            edit_buffer,
-        );
+  if let GlobalMode::ApiEndpointPicker {
+          enabled,
+          port,
+          api_key,
+          tls_enabled,
+          tls_cert,
+          tls_key,
+          selected_field,
+          editing,
+          edit_buffer,
+          edit_cursor_pos: _,
+      } = &app.ui.global_mode
+     {
+         render_api_endpoint_picker(
+             f,
+             f.area(),
+             app,
+             *enabled,
+             port,
+             api_key,
+             *tls_enabled,
+             tls_cert,
+             tls_key,
+             *selected_field,
+             *editing,
+             edit_buffer,
+         );
         return true;
     }
 
@@ -1979,12 +1985,15 @@ fn render_dashboard_picker(
      enabled: bool,
      port: &str,
      api_key: &str,
+     tls_enabled: bool,
+     tls_cert: &str,
+     tls_key: &str,
      selected_field: i32,
      editing: bool,
      edit_buffer: &str,
  ) {
      let w = 60u16;
-     let h = (14.min(area.height - 4)) as u16;
+     let h = (22.min(area.height - 4)) as u16;
      let picker_area = Rect {
          x: (area.width - w) / 2,
          y: (area.height - h) / 2,
@@ -2044,6 +2053,66 @@ fn render_dashboard_picker(
              Style::default().fg(YELLOW),
          ),
          Span::styled(api_key_val, Style::default().fg(WHITE)),
+     ]));
+     picker_lines.push(Line::from(""));
+
+     let tls_enabled_marker = if selected_field == 2i32 { "> " } else { "  " };
+     picker_lines.push(Line::from(vec![
+         Span::styled(tls_enabled_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("dialog.dashboard.tls"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::styled(
+             if tls_enabled {
+                 crate::t!("dialog.dashboard.on")
+             } else {
+                 crate::t!("dialog.dashboard.off")
+             },
+             Style::default()
+                 .fg(if tls_enabled {
+                     GREEN
+                 } else {
+                     DARK_GRAY
+                 })
+                 .add_modifier(Modifier::BOLD),
+         ),
+     ]));
+     picker_lines.push(Line::from(""));
+
+     let tls_cert_marker = if selected_field == 3i32 { "> " } else { "  " };
+     let tls_cert_val = if editing && selected_field == 3i32 {
+         format!("{}|", edit_buffer)
+     } else if tls_cert.is_empty() {
+         crate::t!("dialog.dashboard.tls_auto").to_string()
+     } else {
+         tls_cert.to_string()
+     };
+     picker_lines.push(Line::from(vec![
+         Span::styled(tls_cert_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("dialog.dashboard.tls_cert"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::styled(tls_cert_val, Style::default().fg(WHITE)),
+     ]));
+     picker_lines.push(Line::from(""));
+
+     let tls_key_marker = if selected_field == 4i32 { "> " } else { "  " };
+     let tls_key_val = if editing && selected_field == 4i32 {
+         format!("{}|", edit_buffer)
+     } else if tls_key.is_empty() {
+         crate::t!("dialog.dashboard.tls_auto").to_string()
+     } else {
+         tls_key.to_string()
+     };
+     picker_lines.push(Line::from(vec![
+         Span::styled(tls_key_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("dialog.dashboard.tls_key"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::styled(tls_key_val, Style::default().fg(WHITE)),
      ]));
      picker_lines.push(Line::from(""));
      picker_lines.push(Line::from(vec![Span::styled(

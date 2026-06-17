@@ -161,15 +161,18 @@ pub enum GlobalMode {
          edit_buffer: String,
          edit_cursor_pos: usize,
      },
-     ApiEndpointPicker {
-         enabled: bool,
-         port: String,
-         api_key: String,
-         selected_field: i32, // -1=enabled, 0=port, 1=api_key
-         editing: bool,
-         edit_buffer: String,
-         edit_cursor_pos: usize,
-     },
+   ApiEndpointPicker {
+        enabled: bool,
+        port: String,
+        api_key: String,
+        tls_enabled: bool,
+        tls_cert: String,
+        tls_key: String,
+        selected_field: i32, // -1=enabled, 0=port, 1=api_key, 2=tls_enabled, 3=tls_cert, 4=tls_key
+        editing: bool,
+        edit_buffer: String,
+        edit_cursor_pos: usize,
+    },
     DashboardUrl {
         host: String,
         port: String,

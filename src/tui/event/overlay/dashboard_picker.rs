@@ -44,7 +44,12 @@ impl OverlayHandler for DashboardPickerHandler {
                                 port.clone_from(edit_buffer);
                             }
                             if *selected_field == 1i32 {
-                                app.config.default.ws_server_auth_key = if edit_buffer.is_empty() {
+                                app.settings.api_endpoint_key = if edit_buffer.is_empty() {
+                                    None
+                                } else {
+                                    Some(edit_buffer.clone())
+                                };
+                                app.config.default.api_endpoint_key = if edit_buffer.is_empty() {
                                     None
                                 } else {
                                     Some(edit_buffer.clone())
@@ -53,10 +58,10 @@ impl OverlayHandler for DashboardPickerHandler {
                             }
                             if *selected_field == 2i32 {
                                 *tls_enabled = !*tls_enabled;
-                                app.config.default.ws_server_tls_enabled = *tls_enabled;
+                                app.config.default.server_tls_enabled = *tls_enabled;
                             }
                             if *selected_field == 3i32 {
-                                app.config.default.ws_server_tls_cert = if edit_buffer.is_empty() {
+                                app.config.default.server_tls_cert = if edit_buffer.is_empty() {
                                     None
                                 } else {
                                     Some(edit_buffer.clone())
@@ -64,7 +69,7 @@ impl OverlayHandler for DashboardPickerHandler {
                                 tls_cert.clone_from(edit_buffer);
                             }
                             if *selected_field == 4i32 {
-                                app.config.default.ws_server_tls_key = if edit_buffer.is_empty() {
+                                app.config.default.server_tls_key = if edit_buffer.is_empty() {
                                     None
                                 } else {
                                     Some(edit_buffer.clone())
@@ -95,7 +100,7 @@ impl OverlayHandler for DashboardPickerHandler {
                         }
                         if *selected_field == 2i32 {
                             *tls_enabled = !*tls_enabled;
-                            app.config.default.ws_server_tls_enabled = *tls_enabled;
+                            app.config.default.server_tls_enabled = *tls_enabled;
                             sync_global_settings(app);
                             return;
                         }
