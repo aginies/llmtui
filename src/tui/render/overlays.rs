@@ -646,8 +646,8 @@ fn render_confirmation(
     lines.push(Line::from(vec![
         Span::styled(
             crate::t!("dialog.confirm_yes"),
-            Style::default().fg(BLACK).bg(if selected {
-                YELLOW
+            Style::default().fg(WHITE).bg(if selected {
+                BLUE
             } else {
                 DIM_GRAY
             }),
@@ -656,9 +656,9 @@ fn render_confirmation(
         Span::styled(
             crate::t!("dialog.confirm_no"),
             Style::default().fg(BLACK).bg(if selected {
-                DIM_GRAY
+                BLUE
             } else {
-                YELLOW
+                DIM_GRAY
             }),
         ),
     ]));
