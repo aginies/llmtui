@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.1] - 2026-06-17
+
+### Features
+- **GNOME Extension Metrics Grouping** — Group top bar metrics into Model, Performance, and Resources categories with labeled headers and separators
+- **Preferences** — Bold frame labels for Selected Metrics and About sections
+- **CSS** — Add `.llm-group-header` style for metric group labels
+
+### Bug Fixes
+- **GNOME Extension** — Remove "State" metric from top bar display
+- **GNOME Extension** — Update "Reconnect Interval" label to "Seconds between updates"
+- **GNOME Extension** — Fix bar styling (height, border-radius) for VRAM/RAM meters
+- **GNOME Extension** — Delete `gschemas.compiled` from repo
+- **GNOME Extension** — Update test.js metric count to 9
+- **Dashboard** — Remove VRAM usage bar from active model frame title
+- **Dashboard** — Remove progress bar from context display, show text-only `used/total (pct%)`
+- **Active Panel** — Simplify context line rendering, remove unnecessary bar chars
+
 ## [1.4.0] - 2026-06-16
 
 ### Features
