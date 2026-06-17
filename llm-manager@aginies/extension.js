@@ -22,7 +22,22 @@ const WS_METRICS = [
     { key: 'decoded_tokens', label: 'Decoded', type: 'number' },
 ];
 
-      function buildWsUrl(metricsUrl, secret) {
+const METRIC_GROUPS = [
+    {
+        name: 'Model',
+        metrics: ['model_name'],
+    },
+    {
+        name: 'Performance',
+        metrics: ['tps', 'prompt_tps', 'gen_tps', 'decoded_tokens'],
+    },
+    {
+        name: 'Resources',
+        metrics: ['ctx', 'vram', 'ram', 'cpu'],
+    },
+];
+
+function buildWsUrl(metricsUrl, secret) {
     try {
         const match = metricsUrl.match(/^(https?:)\/\/([^\/?#]+)([^?#]*)(?:\?([^#]*))?/);
         if (!match) {
@@ -146,11 +161,16 @@ var LlmManagerButton = GObject.registerClass({
         this._metricLabels = {};
         this._metricContainers = {};
         this._metricBars = {};
-        for (const m of WS_METRICS) {
-            this._addMetricItem(m);
+        for (const group of METRIC_GROUPS) {
+            this._addGroupHeader(group.name);
+            for (const key of group.metrics) {
+                const metric = WS_METRICS.find(m => m.key === key);
+                if (metric) {
+                    this._addMetricItem(metric);
+                }
+            }
+            this._addGroupSeparator();
         }
-
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         const settingsItem = new PopupMenu.PopupMenuItem(_('Settings'));
         settingsItem.connect('activate', () => {
@@ -164,7 +184,6 @@ var LlmManagerButton = GObject.registerClass({
             this._connectWebSocket(true);
         });
         this._addSettingChangedSignal('update-time', this._updateTimeChanged.bind(this));
-        this._addSettingChangedSignal('position-in-panel', this._positionInPanelChanged.bind(this));
 
         this._initializeTimer();
         this._connectWebSocket();
@@ -236,6 +255,20 @@ var LlmManagerButton = GObject.registerClass({
         this._metricLabels[metric.key] = value;
         this._metricContainers[metric.key] = { item, label, value };
         this._metricBars[metric.key] = { barContainer, bar, barInner };
+    }
+
+    _addGroupHeader(name) {
+        const header = new PopupMenu.PopupBaseMenuItem({ reactive: false });
+        const label = new St.Label({
+            text: name,
+            style_class: 'llm-group-header',
+        });
+        header.add_child(label);
+        this.menu.addMenuItem(header);
+    }
+
+    _addGroupSeparator() {
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
     }
 
     _selectMetric(key) {

@@ -50,3 +50,10 @@
     background-color: #3a2a1a;
     color: #e0af68;
 }
+
+.llm-group-header {
+    font-weight: bold;
+    font-size: 12px;
+    color: #9aa5ce;
+    padding: 4px 0;
+}

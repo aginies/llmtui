@@ -16,6 +16,21 @@ const WS_METRICS = [
     { key: 'decoded_tokens', label: 'Decoded Tokens' },
 ];
 
+const METRIC_GROUPS = [
+    {
+        name: 'Model',
+        metrics: ['model_name'],
+    },
+    {
+        name: 'Performance',
+        metrics: ['tps', 'prompt_tps', 'gen_tps', 'decoded_tokens'],
+    },
+    {
+        name: 'Resources',
+        metrics: ['ctx', 'vram', 'ram', 'cpu'],
+    },
+];
+
 export default class LlmManagerPreferences extends ExtensionPreferences {
     getPreferencesWidget() {
         const frame = new Gtk.Frame({
@@ -233,22 +248,44 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
         const checkButtons = [];
         const selectedKeys = this.getSettings().get_strv('selected-metrics') || [];
 
-        let col = 0;
         let r = 0;
-        for (const m of WS_METRICS) {
-            const check = new Gtk.CheckButton({
-                label: m.label,
-                active: selectedKeys.includes(m.key),
+        for (const group of METRIC_GROUPS) {
+            const groupLabel = new Gtk.Label({
+                label: group.name,
+                xalign: 0,
+                use_markup: true,
                 visible: true,
             });
-            checkButtons.push({ check, key: m.key });
-            
-            metricsGrid.attach(check, col, r, 1, 1);
-            col++;
-            if (col >= 3) {
-                col = 0;
-                r++;
+            groupLabel.set_markup(`<b>${group.name}</b>`);
+            metricsGrid.attach(groupLabel, 0, r, 3, 1);
+            r++;
+
+            let col = 0;
+            for (const key of group.metrics) {
+                const metric = WS_METRICS.find(m => m.key === key);
+                if (!metric) continue;
+                const check = new Gtk.CheckButton({
+                    label: metric.label,
+                    active: selectedKeys.includes(key),
+                    visible: true,
+                });
+                checkButtons.push({ check, key });
+
+                metricsGrid.attach(check, col, r, 1, 1);
+                col++;
+                if (col >= 3) {
+                    col = 0;
+                    r++;
+                }
             }
+            r++;
+
+            const separator = new Gtk.Separator({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                visible: true,
+            });
+            metricsGrid.attach(separator, 0, r, 3, 1);
+            r++;
         }
 
         metricsFrame.set_child(metricsGrid);
