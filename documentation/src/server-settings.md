@@ -2,6 +2,22 @@
 
 Server Settings cover the infrastructure and networking configuration of llm-manager.
 
+## Quick Start
+
+The two most important parameters to configure are the Host and Backend selection.
+
+### Host
+
+Bind address for the llama.cpp server. Select from available network interfaces.
+
+![Host Picker](images/host_picker.png)
+
+### Backend
+
+GPU/CPU backend selection. Choose between CPU, Vulkan, ROCm, CUDA, and platform variants.
+
+![Backend Picker](images/backend_picker.png)
+
 ---
 
 # API Endpoint
