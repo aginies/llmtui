@@ -2184,11 +2184,6 @@ fn render_dashboard_picker(
     } else {
         "None".to_string()
     };
-    let tls_str = if tls_enabled {
-        format!("{} On", crate::t!("dialog.dashboard_url.tls"))
-    } else {
-        format!("{} Off", crate::t!("dialog.dashboard_url.tls"))
-    };
     let api_url = format!(
         "{}://{}:{}",
         if tls_enabled { "https" } else { "http" },
@@ -2255,7 +2250,11 @@ fn render_dashboard_picker(
     ]));
     picker_lines.push(Line::from(vec![
         Span::styled(
-            tls_str,
+            format!("{} ", crate::t!("dialog.dashboard_url.tls")),
+            Style::default().fg(YELLOW),
+        ),
+        Span::styled(
+            if tls_enabled { "On" } else { "Off" },
             Style::default()
                 .fg(if tls_enabled { GREEN } else { DARK_GRAY })
                 .add_modifier(Modifier::BOLD),
@@ -2282,14 +2281,14 @@ fn render_dashboard_picker(
             Style::default().fg(YELLOW),
         ),
         Span::styled(
-             if ws_enabled {
-                 format!("{} (Port {})", crate::t!("dialog.dashboard.enabled"), ws_port)
-             } else {
-                 crate::t!("dialog.dashboard.disabled").to_string()
-             },
-             Style::default()
-                 .fg(if ws_enabled { GREEN } else { DARK_GRAY })
-                 .add_modifier(Modifier::BOLD),
+            if ws_enabled {
+                format!("Enabled (Port {})", ws_port)
+            } else {
+                "Disabled".to_string()
+            },
+            Style::default()
+                .fg(if ws_enabled { GREEN } else { DARK_GRAY })
+                .add_modifier(Modifier::BOLD),
         ),
     ]));
     picker_lines.push(Line::from(""));
