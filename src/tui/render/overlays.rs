@@ -268,7 +268,9 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
 
     if let GlobalMode::DashboardUrl {
         host,
-        port,
+        ws_port,
+        api_port,
+        llm_port,
         auth_key,
         ws_enabled,
         tls_enabled,
@@ -279,7 +281,9 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             f.area(),
             app,
             host,
-            port,
+            ws_port,
+            *api_port,
+            *llm_port,
             auth_key,
             *ws_enabled,
             *tls_enabled,
@@ -2142,7 +2146,9 @@ fn render_dashboard_picker(
     area: Rect,
     app: &App,
     host: &str,
-    port: &str,
+    ws_port: &str,
+    api_port: u16,
+    llm_port: u16,
     auth_key: &str,
     ws_enabled: bool,
     tls_enabled: bool,
@@ -2154,8 +2160,8 @@ fn render_dashboard_picker(
         height: area.height,
     };
     f.render_widget(Clear, modal_area);
-    let w = 60u16;
-    let h = (18.min(area.height - 4)) as u16;
+    let w = 72u16;
+    let h = (20.min(area.height - 4)) as u16;
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -2168,9 +2174,9 @@ fn render_dashboard_picker(
     let threads_batch_str = app.settings.threads_batch.to_string();
     let mode_str = format!("{}", app.server_mode);
     let api_str = if app.settings.api_endpoint_enabled {
-        "True"
+        format!("Enabled (Port {})", app.settings.api_endpoint_port)
     } else {
-        "False"
+        "Disabled".to_string()
     };
     let rpc_workers_count = app.config.rpc_workers.iter().filter(|w| w.selected).count();
     let rpc_str = if rpc_workers_count > 0 {
@@ -2178,22 +2184,38 @@ fn render_dashboard_picker(
     } else {
         "None".to_string()
     };
-    let mut url = format!(
+    let tls_str = if tls_enabled {
+        format!("{} On", crate::t!("dialog.dashboard_url.tls"))
+    } else {
+        format!("{} Off", crate::t!("dialog.dashboard_url.tls"))
+    };
+    let api_url = format!(
+        "{}://{}:{}",
+        if tls_enabled { "https" } else { "http" },
+        host_val,
+        api_port
+    );
+    let metrics_url = format!(
+        "http://{}:{}/metrics",
+        host_val,
+        llm_port
+    );
+    let mut dashboard_url = format!(
         "{}://{}:{}/dashboard",
         if tls_enabled { "https" } else { "http" },
         host,
-        port
+        ws_port
     );
     if !auth_key.is_empty() {
-        url.push_str(&format!("?auth={}", auth_key));
+        dashboard_url.push_str(&format!("?auth={}", auth_key));
     }
+    let opencode_url = format!(
+        "{}://{}:{}/v1",
+        if tls_enabled { "https" } else { "http" },
+        host_val,
+        api_port
+    );
     let mut picker_lines: Vec<Line> = Vec::new();
-    picker_lines.push(Line::from(Span::styled(
-        crate::t!("dialog.dashboard_url.title"),
-        Style::default()
-            .fg(YELLOW)
-            .add_modifier(Modifier::BOLD),
-    )));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(
@@ -2233,6 +2255,15 @@ fn render_dashboard_picker(
     ]));
     picker_lines.push(Line::from(vec![
         Span::styled(
+            tls_str,
+            Style::default()
+                .fg(if tls_enabled { GREEN } else { DARK_GRAY })
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(vec![
+        Span::styled(
             crate::t!("dialog.dashboard_url.api_endpoint"),
             Style::default().fg(YELLOW),
         ),
@@ -2251,23 +2282,65 @@ fn render_dashboard_picker(
             Style::default().fg(YELLOW),
         ),
         Span::styled(
-            if ws_enabled {
-                crate::t!("dialog.dashboard.enabled")
-            } else {
-                crate::t!("dialog.dashboard.disabled")
-            },
-            Style::default()
-                .fg(GREEN)
-                .add_modifier(Modifier::BOLD),
+             if ws_enabled {
+                 format!("{} (Port {})", crate::t!("dialog.dashboard.enabled"), ws_port)
+             } else {
+                 crate::t!("dialog.dashboard.disabled").to_string()
+             },
+             Style::default()
+                 .fg(if ws_enabled { GREEN } else { DARK_GRAY })
+                 .add_modifier(Modifier::BOLD),
         ),
     ]));
     picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(Span::styled(
-        &url,
-        Style::default()
-            .fg(CYAN)
-            .add_modifier(Modifier::BOLD),
-    )));
+    picker_lines.push(Line::from(vec![
+        Span::styled(
+            format!("{} ", crate::t!("dialog.dashboard_url.api_url")),
+            Style::default().fg(YELLOW),
+        ),
+        Span::styled(
+            &api_url,
+            Style::default()
+                .fg(CYAN)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    picker_lines.push(Line::from(vec![
+        Span::styled(
+            format!("{} ", crate::t!("dialog.dashboard_url.metrics_url")),
+            Style::default().fg(YELLOW),
+        ),
+        Span::styled(
+            &metrics_url,
+            Style::default()
+                .fg(CYAN)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    picker_lines.push(Line::from(vec![
+        Span::styled(
+            format!("{} ", crate::t!("dialog.dashboard_url.dashboard_url")),
+            Style::default().fg(YELLOW),
+        ),
+        Span::styled(
+            &dashboard_url,
+            Style::default()
+                .fg(CYAN)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    picker_lines.push(Line::from(vec![
+        Span::styled(
+            "opencode baseURL: ",
+            Style::default().fg(YELLOW),
+        ),
+        Span::styled(
+            &opencode_url,
+            Style::default()
+                .fg(CYAN)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![
         Span::styled(

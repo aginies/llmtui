@@ -25,7 +25,12 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         let inner = if app.server_mode == crate::models::ServerMode::Bench {
             crate::t!("status.benchmarking").to_string()
         } else if app.settings.api_endpoint_enabled {
-            format!("api:{} llm:{}", app.settings.api_endpoint_port, handle.port)
+            let tls = if app.server.running_server_tls.unwrap_or(false) {
+                " TLS:On"
+            } else {
+                ""
+            };
+            format!("api:{} llm:{}{}", app.settings.api_endpoint_port, handle.port, tls)
         } else {
             format!("{} {}", handle.port, app.server_mode)
         };

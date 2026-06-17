@@ -175,7 +175,9 @@ pub enum GlobalMode {
     },
     DashboardUrl {
         host: String,
-        port: String,
+        ws_port: String,
+        api_port: u16,
+        llm_port: u16,
         auth_key: String,
         ws_enabled: bool,
         tls_enabled: bool,

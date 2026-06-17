@@ -23,10 +23,12 @@ impl OverlayHandler for DashboardUrlHandler {
         Box::pin(async move {
             if let GlobalMode::DashboardUrl {
                 host,
-                port,
+                ws_port,
+                api_port,
+                llm_port,
                 auth_key,
+                ws_enabled: _,
                 tls_enabled,
-                ..
             } = &app.ui.global_mode
             {
                 match key.code {
@@ -35,18 +37,30 @@ impl OverlayHandler for DashboardUrlHandler {
                     }
                     KeyCode::Enter => {
                         let host_val = crate::models::format_host(host);
-                        let mut url = format!(
-                            "{}://{}:{}/dashboard",
+                        let api_url = format!(
+                            "{}://{}:{}",
                             if *tls_enabled { "https" } else { "http" },
                             host_val,
-                            port
+                            api_port
+                        );
+                        let metrics_url = format!(
+                            "http://{}:{}",
+                            host_val,
+                            llm_port
+                        );
+                        let mut dashboard_url = format!(
+                            "{}://{}:{}/dashboard",
+                            if *tls_enabled { "https" } else { "http" },
+                            host,
+                            ws_port
                         );
                         if !auth_key.is_empty() {
-                            url.push_str(&format!("?auth={}", auth_key));
+                            dashboard_url.push_str(&format!("?auth={}", auth_key));
                         }
+                        let all_urls = format!("{}\n{}\n{}", api_url, metrics_url, dashboard_url);
                         let cb = arboard::Clipboard::new();
                         if let Ok(mut cb) = cb {
-                            let _ = cb.set().text(&url);
+                            let _ = cb.set().text(&all_urls);
                         }
                         app.ui.global_mode = GlobalMode::Normal;
                     }

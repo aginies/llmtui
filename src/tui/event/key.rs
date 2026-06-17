@@ -47,9 +47,16 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // Ctrl+U: open DashboardUrl modal
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
+        let port = if let Some(handle) = &app.server.server_handle {
+            handle.port
+        } else {
+            0
+        };
         app.ui.global_mode = GlobalMode::DashboardUrl {
             host: app.settings.host.clone(),
-            port: app.config.default.ws_server_port.to_string(),
+            ws_port: app.config.default.ws_server_port.to_string(),
+            api_port: app.settings.api_endpoint_port,
+            llm_port: port,
             auth_key: app
                 .config
                 .default
