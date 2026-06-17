@@ -16,7 +16,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     };
     parts.push(Span::styled(
         format!("[Mode: {}] ", mode_name),
-        Style::default().fg(MID_GRAY),
+        Style::default().fg(WHITE),
     ));
 
     // Expert mode indicator removed from top bar

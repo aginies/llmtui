@@ -82,6 +82,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     let block = Block::default()
         .title(Line::from(title_spans))
+        .title_style(Style::default().fg(YELLOW))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .border_type(border_type);

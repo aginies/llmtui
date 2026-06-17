@@ -641,25 +641,54 @@ fn render_confirmation(
             )
         }
     };
-    let mut lines = text_lines;
+   let mut lines = text_lines;
     lines.push(Line::from(""));
+    // Selected option with high contrast style and markers
+    let selected_yes = selected;
+    let yes_style = if selected_yes {
+        Style::default()
+            .fg(BLACK)
+            .bg(YELLOW)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(WHITE)
+    };
+
+    let no_style = if !selected_yes {
+        Style::default()
+            .fg(BLACK)
+            .bg(YELLOW)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(WHITE)
+    };
+
     lines.push(Line::from(vec![
         Span::styled(
-            crate::t!("dialog.confirm_yes"),
-            Style::default().fg(WHITE).bg(if selected {
-                BLUE
-            } else {
-                DIM_GRAY
-            }),
+            if selected_yes { "> " } else { "  " },
+            Style::default().fg(YELLOW).add_modifier(Modifier::BOLD),
         ),
-        Span::raw("    "),
         Span::styled(
-            crate::t!("dialog.confirm_no"),
-            Style::default().fg(BLACK).bg(if selected {
-                BLUE
-            } else {
-                DIM_GRAY
-            }),
+            crate::t!("dialog.confirm_yes").to_string(),
+            yes_style,
+        ),
+        Span::styled(
+            if selected_yes { " <" } else { "  " },
+            Style::default().fg(YELLOW).add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled(
+            if !selected_yes { "> " } else { "  " },
+            Style::default().fg(YELLOW).add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            crate::t!("dialog.confirm_no").to_string(),
+            no_style,
+        ),
+        Span::styled(
+            if !selected_yes { " <" } else { "  " },
+            Style::default().fg(YELLOW).add_modifier(Modifier::BOLD),
         ),
     ]));
     let w = 70u16;

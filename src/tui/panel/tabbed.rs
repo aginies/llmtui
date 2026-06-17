@@ -94,6 +94,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
                 Style::default().fg(YELLOW),
             ),
         ]))
+        .title_style(Style::default().fg(YELLOW))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .border_type(border_type);
@@ -726,6 +727,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
 pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
         .title(crate::t!("panel.title.model_info_active"))
+        .title_style(Style::default().fg(YELLOW))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(MID_GRAY))
         .border_type(BorderType::Rounded);
