@@ -24,6 +24,8 @@ Customize the dashboard port and authentication:
 ./build.sh serve --model model.gguf --api-port 49222 --ws-enable --ws-port 8081 --ws-auth mykey
 ```
 
+> **Note:** In serve mode, `--api-key` sets the key for **both** the API proxy and the dashboard. If you use `--api-key secret --ws-enable`, the dashboard auth key is also `secret`. Use `--ws-auth` to override with a different key.
+
 Customize the host and use a specific backend binary:
 
 ```bash

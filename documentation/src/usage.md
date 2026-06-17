@@ -11,8 +11,8 @@ Run a model directly with llama-server and expose an OpenAI-compatible API:
 # Serve with a settings profile
 ./build.sh serve --model model.gguf --profile qwen
 
-# Serve with API key authentication (Bearer token)
-./build.sh serve --model model.gguf --api-port 49222 --api-key secret
+# Serve with API key authentication (same key for API proxy and dashboard)
+./build.sh serve --model model.gguf --api-port 49222 --api-key secret --ws-enable
 
 # Serve with API proxy and WebSocket dashboard
 ./build.sh serve --model model.gguf --api-port 49222 --ws-enable

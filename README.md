@@ -436,7 +436,18 @@ The API Endpoint controls the OpenAI-compatible proxy server that forwards reque
 4. Set **API Key** (Bearer token for authentication, optional)
 5. Press `↵` to save, `⎋` to close
 
-The API proxy shares TLS configuration with the WebSocket dashboard. When `server_tls_enabled` is true in config.yaml, the API proxy runs over HTTPS; otherwise it uses HTTP. The API key is used for Bearer token authentication on the proxy (separate from the dashboard auth key).
+The API proxy shares TLS configuration with the WebSocket dashboard. When `server_tls_enabled` is true in config.yaml, the API proxy runs over HTTPS; otherwise it uses HTTP.
+
+For opencode configuration, see [documentation/src/opencode.md](documentation/src/opencode.md).
+
+### Serve mode: single key for both API and Dashboard
+
+In serve mode, `--api-key` sets the **same key** for both the API proxy and the WebSocket dashboard:
+
+- **API proxy**: clients send `Authorization: Bearer <key>` header
+- **Dashboard**: clients add `?auth=<key>` query parameter to the URL
+
+This means one key authenticates both services simultaneously.
 
 ### Backend selection
 

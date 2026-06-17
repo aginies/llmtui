@@ -16,6 +16,7 @@
 - [Max Concurrent Predictions](max-concurrent-predictions.md)
 - [Cache Reuse](cache-reuse.md)
 - [Cache Prompt](cache-prompt.md)
+- [opencode](opencode.md)
 - [WebSocket Dashboard](dashboard.md)
 - [GNOME Shell Extension](gnome-extension.md)
 - [Architecture](architecture.md)
