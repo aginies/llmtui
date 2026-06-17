@@ -2,6 +2,8 @@
 
 Press `Ctrl+U` in any panel to open the Dashboard URL modal, which copies the WebSocket dashboard URL to your clipboard.
 
+![Server Settings Summary](images/server_summary.png)
+
 ## What It Shows
 
 The modal displays the full dashboard URL including:
