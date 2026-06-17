@@ -151,19 +151,13 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 
         if settings_height > available_height.saturating_sub(help_area_height) as usize {
-            let scroll_area = Rect {
-                x: settings_area.x + settings_area.width.saturating_sub(1),
-                y: settings_area.y,
-                width: 1,
-                height: settings_area.height,
-            };
             crate::tui::render_vertical_scrollbar(
                 f,
-                scroll_area,
+                llm_area,
                 settings_height,
                 app.settings_state.settings_scroll_offset,
-                0,
-                0,
+                1,
+                2,
             );
         }
     } else {
@@ -184,19 +178,13 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 
         if settings_height > available_height as usize {
-            let scroll_area = Rect {
-                x: settings_area.x + settings_area.width.saturating_sub(1),
-                y: settings_area.y,
-                width: 1,
-                height: settings_area.height,
-            };
             crate::tui::render_vertical_scrollbar(
                 f,
-                scroll_area,
+                llm_area,
                 settings_height,
                 app.settings_state.settings_scroll_offset,
-                0,
-                0,
+                1,
+                2,
             );
         }
     }
@@ -551,19 +539,13 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 
         if settings_height > available_height.saturating_sub(help_area_height) as usize {
-            let scroll_area = Rect {
-                x: settings_area.x + settings_area.width.saturating_sub(1),
-                y: settings_area.y,
-                width: 1,
-                height: settings_area.height,
-            };
             crate::tui::render_vertical_scrollbar(
                 f,
-                scroll_area,
+                area,
                 settings_height,
                 app.settings_state.settings_scroll_offset,
-                0,
-                0,
+                1,
+                2,
             );
         }
     } else {
@@ -584,19 +566,13 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 
         if settings_height > available_height as usize {
-            let scroll_area = Rect {
-                x: settings_area.x + settings_area.width.saturating_sub(1),
-                y: settings_area.y,
-                width: 1,
-                height: settings_area.height,
-            };
             crate::tui::render_vertical_scrollbar(
                 f,
-                scroll_area,
+                area,
                 settings_height,
                 app.settings_state.settings_scroll_offset,
-                0,
-                0,
+                1,
+                2,
             );
         }
     }
