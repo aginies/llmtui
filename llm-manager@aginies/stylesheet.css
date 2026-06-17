@@ -7,6 +7,9 @@
 .llm-value-good { color: #9ece6a; }
 .llm-value-warn { color: #e0af68; }
 .llm-value-bad { color: #f7768e; }
+.llm-panel-value-good { color: #9ece6a; }
+.llm-panel-value-warn { color: #e0af68; }
+.llm-panel-value-bad { color: #f7768e; }
 .llm-metric-selected { font-weight: bold; color: #7aa2f7; }
 
 .llm-bar-container {

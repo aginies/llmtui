@@ -178,20 +178,22 @@ const WS_METRICS = [
     { key: 'gen_tps', label: 'Gen TPS', type: 'number', unit: 't/s' },
     { key: 'ctx', label: 'Ctx', type: 'ratio', used: 'ctx_used', max: 'ctx_max', unit: 'tokens' },
     { key: 'vram', label: 'VRAM', type: 'ratio_gb', used: 'gpu_mem_used', total: 'gpu_mem_total' },
-    { key: 'ram', label: 'RAM', type: 'gb', key: 'ram_used' },
-    { key: 'cpu', label: 'CPU', type: 'percent', key: 'cpu_usage' },
+    { key: 'ram', label: 'RAM', type: 'gb', field: 'ram_used' },
+    { key: 'cpu', label: 'CPU', type: 'percent', field: 'cpu_usage' },
     { key: 'decoded_tokens', label: 'Decoded', type: 'number' },
+    { key: 'prompt_tokens', label: 'Prompt Eval', type: 'number', unit: 'tokens' },
+    { key: 'prompt_progress', label: 'Prompt Progress', type: 'ratio_pct', used: 'prompt_progress', max: 1.0 },
 ];
 
 console.log('\nTesting WS_METRICS definition...');
 
-assert.strictEqual(WS_METRICS.length, 9);
+assert.strictEqual(WS_METRICS.length, 11);
 assert.strictEqual(WS_METRICS[0].key, 'model_name');
 assert.strictEqual(WS_METRICS[0].type, 'text');
-assert.strictEqual(WS_METRICS[5].type, 'ratio');
-assert.strictEqual(WS_METRICS[5].used, 'ctx_used');
-assert.strictEqual(WS_METRICS[6].type, 'ratio_gb');
-assert.strictEqual(WS_METRICS[8].type, 'percent');
+assert.strictEqual(WS_METRICS[4].type, 'ratio');
+assert.strictEqual(WS_METRICS[4].used, 'ctx_used');
+assert.strictEqual(WS_METRICS[5].type, 'ratio_gb');
+assert.strictEqual(WS_METRICS[7].type, 'percent');
 console.log('✓ WS_METRICS definition valid');
 
 // Test WebSocket message parsing

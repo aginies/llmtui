@@ -138,6 +138,10 @@ var LlmPanelItem = GObject.registerClass({
     setLabel(text) {
         this._label.text = text;
     }
+
+    setMarkup(markup) {
+        this._label.clutter_text.set_markup(markup);
+    }
 });
 
 var LlmManagerButton = GObject.registerClass({
@@ -154,6 +158,7 @@ var LlmManagerButton = GObject.registerClass({
         this._ws = null;
         this._soupSession = null;
         this._isConnecting = false;
+        this._destroyed = false;
         this._refreshTimeoutId = null;
         this._reconnectTimerId = null;
 
@@ -284,6 +289,7 @@ var LlmManagerButton = GObject.registerClass({
     }
 
     _updatePanel() {
+        if (this._destroyed) return;
         const selectedKeys = this._settings.get_strv('selected-metrics') || [];
 
         if (selectedKeys.length > 0) {
@@ -318,13 +324,16 @@ var LlmManagerButton = GObject.registerClass({
                     if (metric.key === 'prompt_progress') {
                         const color = percent >= 80 ? '#9ece6a' : (percent > 50 ? '#e0af68' : '#f7768e');
                         parts.push(metric.label + ': <span color="' + color + '">' + displayValue + '</span>');
+                    } else if (metric.type === 'ratio' || metric.type === 'ratio_gb' || metric.type === 'ratio_pct') {
+                        const color = percent > 80 ? '#f7768e' : (percent > 50 ? '#e0af68' : '#9ece6a');
+                        parts.push(metric.label + ': <span color="' + color + '">' + displayValue + '</span>');
                     } else {
                         parts.push(metric.label + ': ' + displayValue);
                     }
                 }
             }
             if (parts.length > 0) {
-                this._panelItem.setLabel(parts.join('  '));
+                this._panelItem.setMarkup(parts.join('  '));
                 this._panelItem.visible = true;
                 return;
             }
@@ -381,6 +390,7 @@ var LlmManagerButton = GObject.registerClass({
     }
 
     _updateMetricsValues() {
+        if (this._destroyed) return;
         const selectedKeys = this._settings.get_strv('selected-metrics') || [];
         
         for (const metric of WS_METRICS) {
@@ -459,6 +469,7 @@ var LlmManagerButton = GObject.registerClass({
     }
 
     _connectWebSocket(force = false) {
+        if (this._destroyed) return;
         if (!force) {
             if (this._isConnecting) {
                 return;
@@ -506,6 +517,7 @@ var LlmManagerButton = GObject.registerClass({
                 GLib.PRIORITY_DEFAULT, // io_priority
                 null, // cancellable
                 (session, result) => {
+                    if (this._destroyed) return;
                     try {
                         this._ws = session.websocket_connect_finish(result);
                         this._isConnecting = false;
@@ -517,6 +529,7 @@ var LlmManagerButton = GObject.registerClass({
                         }
 
                         this._ws.connect('message', (connection, type, data) => {
+                            if (this._destroyed) return;
                             if (type === Soup.WebsocketDataType.TEXT) {
                                 try {
                                     const decoder = new TextDecoder('utf-8');
@@ -531,12 +544,14 @@ var LlmManagerButton = GObject.registerClass({
                         });
 
                         this._ws.connect('closed', () => {
+                            if (this._destroyed) return;
                             console.log('[llm-manager] WebSocket disconnected');
                             this._ws = null;
                             this._scheduleReconnect();
                         });
 
                         this._ws.connect('error', (connection, error) => {
+                            if (this._destroyed) return;
                             console.log(`[llm-manager] WebSocket connection error: ${error}`);
                         });
 
@@ -555,6 +570,9 @@ var LlmManagerButton = GObject.registerClass({
     }
 
     _scheduleReconnect() {
+        if (this._destroyed) {
+            return;
+        }
         if (this._reconnectTimerId) {
             return;
         }
@@ -567,6 +585,9 @@ var LlmManagerButton = GObject.registerClass({
             update_time,
             () => {
                 this._reconnectTimerId = null;
+                if (this._destroyed) {
+                    return GLib.SOURCE_REMOVE;
+                }
                 this._connectWebSocket();
                 return GLib.SOURCE_REMOVE;
             }
@@ -613,6 +634,9 @@ var LlmManagerButton = GObject.registerClass({
             GLib.PRIORITY_DEFAULT,
             update_time,
             () => {
+                if (this._destroyed) {
+                    return GLib.SOURCE_REMOVE;
+                }
                 this._connectWebSocket();
                 return GLib.SOURCE_CONTINUE;
             }
@@ -627,6 +651,7 @@ var LlmManagerButton = GObject.registerClass({
     }
 
     destroy() {
+        this._destroyed = true;
         this._destroyTimer();
         if (this._reconnectTimerId) {
             GLib.Source.remove(this._reconnectTimerId);
