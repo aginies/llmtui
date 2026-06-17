@@ -229,9 +229,9 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let threads_batch_val = format!("{}", app.settings.threads_batch);
     let mode_val = format!("{}", app.server_mode);
     let api_enabled = if app.settings.api_endpoint_enabled {
-        "True"
+        "Enabled"
     } else {
-        "False"
+        "Disabled"
     };
     let rpc_workers_count = app.config.rpc_workers.iter().filter(|w| w.selected).count();
     let rpc_workers_val = if rpc_workers_count > 0 {
@@ -336,14 +336,11 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         server_running,
     );
 
-    let dashboard_val = format!(
-        "Dashboard ({})",
-        if app.config.default.ws_server_enabled {
-            "Enabled"
-        } else {
-            "Disabled"
-        }
-    );
+    let dashboard_enabled = if app.config.default.ws_server_enabled {
+        "Enabled"
+    } else {
+        "Disabled"
+    };
     settings_helper::add_setting(
         &mut lines,
         &mut count,
@@ -353,7 +350,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         &mut selected_content_line,
         6,
         "Dashboard",
-        &dashboard_val,
+        &dashboard_enabled,
         selected,
         "",
         false,
@@ -374,13 +371,11 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         false,
         server_running,
     );
-    let web_search_status = if app.config.default.web_search_enabled {
-        "Enabled"
+    let web_search_display = if app.config.default.web_search_enabled {
+        format!("Enabled (searxng)")
     } else {
-        "Disabled"
+        format!("Disabled (searxng)")
     };
-    let web_search_engine_name = &app.config.default.web_search_engine;
-    let web_search_display = format!("({}: {})", web_search_status, web_search_engine_name);
     settings_helper::add_setting(
         &mut lines,
         &mut count,
