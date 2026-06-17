@@ -82,11 +82,11 @@ The preferences dialog includes a **Test** button that:
 
 ### Metrics Selection
 
-Toggle individual metrics on or off via checkboxes in the preferences dialog. All 11 metrics are selected by default. The selected metrics appear both in the top panel (as a compact string) and in the dropdown menu as clickable items.
+Toggle individual metrics on or off via checkboxes in the preferences dialog. All 12 metrics are selected by default. The selected metrics appear both in the top panel (as a compact string) and in the dropdown menu as clickable items.
 
 ## Metrics Reference
 
-The extension monitors 10 metrics from the llama.cpp WebSocket feed. Each metric can be individually toggled in the preferences dialog.
+The extension monitors 12 metrics from the llama.cpp WebSocket feed. Each metric can be individually toggled in the preferences dialog.
 
 | Metric Key | Label | Type | Description |
 |------------|-------|------|-------------|
@@ -99,6 +99,8 @@ The extension monitors 10 metrics from the llama.cpp WebSocket feed. Each metric
 | `ram` | RAM | gb | System memory usage in GB |
 | `cpu` | CPU | percent | CPU usage percentage |
 | `decoded_tokens` | Decoded | number | Total decoded tokens generated |
+| `prompt_tokens` | Prompt Eval | number | Prompt evaluation token count |
+| `prompt_progress` | Prompt Progress | ratio_pct | Prompt processing progress (0–100%) |
 
 ### Context Token Formatting
 
@@ -137,6 +139,6 @@ The dropdown menu shows all metrics as interactive checkboxes. Clicking a metric
 
 ## Recent Changes
 
-- **Token Formatting** — Context metric now displays with K-suffix for large token counts (e.g., "2K / 8K" instead of raw numbers)
+- **Prompt Metrics** — Added `prompt_tokens` (Prompt Eval) and `prompt_progress` (Prompt Progress) metrics to the Performance group. Prompt Progress uses a new `ratio_pct` type for progress bars with 0–100% values.
 - **Icon Size** — Panel icon increased from 16px to 24px for better visibility
 - **Debug Log Removed** — Debug log panel removed from preferences dialog to simplify the settings interface
