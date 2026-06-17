@@ -10,34 +10,56 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const WS_METRICS = [
-    { key: 'model_name', label: 'Model', type: 'text' },
-    { key: 'tps', label: 'TPS', type: 'number', unit: 't/s' },
-    { key: 'prompt_tps', label: 'Prompt TPS', type: 'number', unit: 't/s' },
-    { key: 'gen_tps', label: 'Gen TPS', type: 'number', unit: 't/s' },
-    { key: 'ctx', label: 'Ctx', type: 'ratio', used: 'ctx_used', max: 'ctx_max', unit: 'tokens' },
-    { key: 'vram', label: 'VRAM', type: 'ratio_gb', used: 'gpu_mem_used', total: 'gpu_mem_total' },
-    { key: 'ram', label: 'RAM', type: 'gb', field: 'ram_used' },
-    { key: 'cpu', label: 'CPU', type: 'percent', field: 'cpu_usage' },
-    { key: 'decoded_tokens', label: 'Decoded', type: 'number' },
-    { key: 'prompt_tokens', label: 'Prompt Eval', type: 'number', unit: 'tokens' },
-    { key: 'prompt_progress', label: 'Prompt Progress', type: 'ratio_pct', used: 'prompt_progress', max: 1.0 },
-];
+import { WS_METRICS, METRIC_GROUPS } from './config/metrics.js';
 
-const METRIC_GROUPS = [
-    {
-        name: 'Model',
-        metrics: ['model_name'],
+const METRIC_FORMATTERS = {
+    text(metrics, metric) {
+        let textVal = metrics[metric.key];
+        if (textVal && metric.key === 'model_name') {
+            textVal = textVal.split('/').pop();
+        }
+        return textVal || '-';
     },
-    {
-        name: 'Performance',
-        metrics: ['tps', 'prompt_tps', 'gen_tps', 'decoded_tokens', 'prompt_tokens', 'prompt_progress'],
+    badge(metrics) {
+        return metrics.loaded ? 'Loaded' : 'Unloaded';
     },
-    {
-        name: 'Resources',
-        metrics: ['ctx', 'vram', 'ram', 'cpu'],
+    number(metrics, metric) {
+        const numVal = metrics[metric.key];
+        if (numVal === undefined || numVal === null || isNaN(numVal)) return 'N/A';
+        const display = metric.key === 'prompt_tokens' ? Math.round(numVal) : numVal.toFixed(1);
+        return display + (metric.unit ? ' ' + metric.unit : '');
     },
-];
+    ratio(metrics, metric) {
+        const used = metrics[metric.used];
+        const max = metrics[metric.max];
+        if (used === undefined || max === undefined) return 'N/A';
+        if (metric.unit === 'tokens') return `${formatTokens(used)} / ${formatTokens(max)}`;
+        return `${used} / ${max}`;
+    },
+    ratio_gb(metrics, metric) {
+        const usedGb = metrics[metric.used];
+        const totalGb = metrics[metric.total];
+        if (usedGb === undefined || totalGb === undefined) return 'N/A';
+        return `${formatGB(usedGb)} / ${formatGB(totalGb)}`;
+    },
+    gb(metrics, metric) {
+        const gbKey = metric.field || metric.key || metric.used;
+        const gbVal = metrics[gbKey];
+        if (gbVal === undefined || gbVal === null) return 'N/A';
+        return formatGB(gbVal);
+    },
+    percent(metrics, metric) {
+        const pctKey = metric.field || metric.key || metric.used;
+        const pctVal = metrics[pctKey];
+        if (pctVal === undefined || pctVal === null || isNaN(pctVal)) return 'N/A';
+        return Math.round(pctVal) + '%';
+    },
+    ratio_pct(metrics, metric) {
+        const usedPct = metrics[metric.used];
+        if (usedPct === undefined || usedPct === null) return 'N/A';
+        return Math.round(usedPct * 100) + '%';
+    },
+};
 
 function buildWsUrl(metricsUrl, secret) {
     try {
@@ -48,6 +70,16 @@ function buildWsUrl(metricsUrl, secret) {
         const protocol = match[1];
         const host = match[2];
         const query = match[4] || '';
+
+        // Remove existing auth param from query
+        let otherParams = '';
+        if (query) {
+            const params = query.split('&').filter(p => {
+                const [key] = p.split('=');
+                return key !== 'auth';
+            });
+            otherParams = params.length > 0 ? '&' + params.join('&') : '';
+        }
 
         const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
         let auth = null;
@@ -64,7 +96,7 @@ function buildWsUrl(metricsUrl, secret) {
             }
         }
         return {
-            wsUrl: `${wsProtocol}//${host}/ws${auth ? '?auth=' + encodeURIComponent(auth) : ''}`,
+            wsUrl: `${wsProtocol}//${host}/ws${auth ? '?auth=' + encodeURIComponent(auth) + otherParams : otherParams}`,
             hasAuth: !!auth,
         };
     } catch (e) {
@@ -95,20 +127,10 @@ function formatTokens(tokens) {
     return Math.round(tokens).toString();
 }
 
-function getVramColor(percent) {
-    if (percent > 80) return 'llm-value-bad';
-    if (percent > 50) return 'llm-value-warn';
-    return 'llm-value-good';
-}
-
 function truncateModelName(name, maxLen) {
     if (!name) return 'No model';
     if (name.length <= maxLen) return name;
-    const ext = name.endsWith('.gguf') ? 5 : 4;
-    const suffix = name.endsWith('.gguf') ? '.gguf' : '';
-    const available = maxLen - ext;
-    if (available <= 0) return name.substring(0, maxLen);
-    return name.substring(0, available) + '...' + suffix;
+    return name.substring(0, maxLen);
 }
 
 var LlmPanelItem = GObject.registerClass({
@@ -300,31 +322,44 @@ var LlmManagerButton = GObject.registerClass({
 
                 let displayValue;
                 let percent = 0;
+                let useColor = false;
+
                 if (metric.type === 'ratio') {
                     const used = this._currentMetrics[metric.used];
                     const max = this._currentMetrics[metric.max];
                     if (used !== undefined && max !== undefined && max > 0) {
                         percent = Math.round((used / max) * 100);
-                        displayValue = `${percent}%`;
-                    } else {
-                        displayValue = 'N/A';
+                        useColor = true;
                     }
+                    if (metric.key === 'ctx') {
+                        displayValue = (used !== undefined && max !== undefined && max > 0) ? `${percent}%` : 'N/A';
+                    } else {
+                        displayValue = this._formatMetricValue(metric, this._currentMetrics);
+                    }
+                } else if (metric.type === 'ratio_gb') {
+                    const used = this._currentMetrics[metric.used];
+                    const total = this._currentMetrics[metric.total];
+                    if (used !== undefined && total !== undefined && total > 0) {
+                        percent = Math.round((used / total) * 100);
+                        useColor = true;
+                    }
+                    displayValue = this._formatMetricValue(metric, this._currentMetrics);
                 } else if (metric.type === 'ratio_pct') {
                     const usedPct = this._currentMetrics[metric.used];
                     if (usedPct !== undefined && usedPct !== null) {
                         percent = Math.round(usedPct * 100);
-                        displayValue = percent + '%';
-                    } else {
-                        displayValue = 'N/A';
+                        useColor = true;
                     }
+                    displayValue = this._formatMetricValue(metric, this._currentMetrics);
                 } else {
                     displayValue = this._formatMetricValue(metric, this._currentMetrics);
                 }
+
                 if (displayValue && displayValue !== 'N/A' && displayValue !== '--') {
                     if (metric.key === 'prompt_progress') {
                         const color = percent === 0 ? '#ffffff' : '#f7768e';
                         parts.push(metric.label + ': <span color="' + color + '">' + displayValue + '</span>');
-                    } else if (metric.type === 'ratio' || metric.type === 'ratio_gb' || metric.type === 'ratio_pct') {
+                    } else if (useColor) {
                         const color = percent > 80 ? '#f7768e' : (percent > 50 ? '#e0af68' : '#9ece6a');
                         parts.push(metric.label + ': <span color="' + color + '">' + displayValue + '</span>');
                     } else {
@@ -344,49 +379,9 @@ var LlmManagerButton = GObject.registerClass({
     }
 
     _formatMetricValue(metric, metrics) {
-        switch (metric.type) {
-            case 'text':
-                let textVal = metrics[metric.key];
-                if (textVal && metric.key === 'model_name') {
-                    textVal = textVal.split('/').pop();
-                }
-                return textVal || '-';
-            case 'badge':
-                const loaded = metrics.loaded;
-                return loaded ? 'Loaded' : 'Unloaded';
-            case 'number':
-                const numVal = metrics[metric.key];
-                if (numVal === undefined || numVal === null || isNaN(numVal)) return 'N/A';
-                if (metric.key === 'prompt_tokens') return Math.round(numVal) + (metric.unit ? ' ' + metric.unit : '');
-                return formatNumber(numVal, 1) + (metric.unit ? ' ' + metric.unit : '');
-            case 'ratio':
-                const used = metrics[metric.used];
-                const max = metrics[metric.max];
-                if (used === undefined || max === undefined) return 'N/A';
-                if (metric.unit === 'tokens') return `${formatTokens(used)} / ${formatTokens(max)}`;
-                return `${used} / ${max}`;
-            case 'ratio_gb':
-                const usedGb = metrics[metric.used];
-                const totalGb = metrics[metric.total];
-                if (usedGb === undefined || totalGb === undefined) return 'N/A';
-                return `${formatGB(usedGb)} / ${formatGB(totalGb)}`;
-            case 'gb':
-                const gbKey = metric.field || metric.key || metric.used;
-                const gbVal = metrics[gbKey];
-                if (gbVal === undefined || gbVal === null) return 'N/A';
-                return formatGB(gbVal);
-            case 'percent':
-                const pctKey = metric.field || metric.key || metric.used;
-                const pctVal = metrics[pctKey];
-                if (pctVal === undefined || pctVal === null || isNaN(pctVal)) return 'N/A';
-                return Math.round(pctVal) + '%';
-            case 'ratio_pct':
-                const usedPct = metrics[metric.used];
-                if (usedPct === undefined || usedPct === null) return 'N/A';
-                return Math.round(usedPct * 100) + '%';
-            default:
-                return '-';
-        }
+        const formatter = METRIC_FORMATTERS[metric.type];
+        if (!formatter) return '-';
+        return formatter(metrics, metric);
     }
 
     _updateMetricsValues() {

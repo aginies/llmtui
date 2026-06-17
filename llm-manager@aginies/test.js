@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const assert = require('node:assert');
 
  // Test buildWsUrl function
-  function buildWsUrl(metricsUrl, secret) {
+   function buildWsUrl(metricsUrl, secret) {
     try {
         const match = metricsUrl.match(/^(https?:)\/\/([^\/?#]+)([^?#]*)(?:\?([^#]*))?/);
         if (!match) {
@@ -11,6 +11,16 @@ const assert = require('node:assert');
         const protocol = match[1];
         const host = match[2];
         const query = match[4] || '';
+
+        // Remove existing auth param from query
+        let otherParams = '';
+        if (query) {
+            const params = query.split('&').filter(p => {
+                const [key] = p.split('=');
+                return key !== 'auth';
+            });
+            otherParams = params.length > 0 ? '&' + params.join('&') : '';
+        }
 
         const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
         let auth = null;
@@ -27,7 +37,7 @@ const assert = require('node:assert');
             }
         }
         return {
-            wsUrl: `${wsProtocol}//${host}/ws${auth ? '?auth=' + encodeURIComponent(auth) : ''}`,
+            wsUrl: `${wsProtocol}//${host}/ws${auth ? '?auth=' + encodeURIComponent(auth) + otherParams : otherParams}`,
             hasAuth: !!auth,
         };
     } catch (e) {
@@ -72,6 +82,18 @@ const result6 = buildWsUrl('http://127.0.0.1:8080/metrics', 'mysecret');
 assert.strictEqual(result6.wsUrl, 'ws://127.0.0.1:8080/ws?auth=mysecret');
 assert.strictEqual(result6.hasAuth, true);
 console.log('✓ Test 6 passed: Secret appends auth');
+
+// Test 9: Secret with other query params preserved
+const result9 = buildWsUrl('http://127.0.0.1:8080/metrics?foo=bar&auth=old', 'newsecret');
+assert.strictEqual(result9.wsUrl, 'ws://127.0.0.1:8080/ws?auth=newsecret&foo=bar');
+assert.strictEqual(result9.hasAuth, true);
+console.log('✓ Test 9 passed: Secret replaces auth, preserves other params');
+
+// Test 10: No secret, other query params preserved
+const result10 = buildWsUrl('http://127.0.0.1:8080/metrics?foo=bar&auth=secret123', '');
+assert.strictEqual(result10.wsUrl, 'ws://127.0.0.1:8080/ws?auth=secret123&foo=bar');
+assert.strictEqual(result10.hasAuth, true);
+console.log('✓ Test 10 passed: Auth extracted, other params preserved');
 
 // Test 7: Invalid URL
 const result7 = buildWsUrl('not-a-url', '');
@@ -132,39 +154,17 @@ assert.strictEqual(formatBytes(1024), '1024 B');
 assert.strictEqual(formatBytes(undefined), 'N/A');
 console.log('✓ formatBytes tests passed');
 
-// Test getVramColor function
-function getVramColor(percent) {
-    if (percent > 80) return 'llm-value-bad';
-    if (percent > 50) return 'llm-value-warn';
-    return 'llm-value-good';
-}
-
-console.log('\nTesting getVramColor...');
-
-assert.strictEqual(getVramColor(0), 'llm-value-good');
-assert.strictEqual(getVramColor(50), 'llm-value-good');
-assert.strictEqual(getVramColor(51), 'llm-value-warn');
-assert.strictEqual(getVramColor(75), 'llm-value-warn');
-assert.strictEqual(getVramColor(80), 'llm-value-warn');
-assert.strictEqual(getVramColor(81), 'llm-value-bad');
-assert.strictEqual(getVramColor(100), 'llm-value-bad');
-console.log('✓ getVramColor tests passed');
-
 // Test truncateModelName function
 function truncateModelName(name, maxLen) {
     if (!name) return 'No model';
     if (name.length <= maxLen) return name;
-    const suffix = name.endsWith('.gguf') ? '.gguf' : '';
-    const ext = suffix.length;
-    const available = maxLen - ext;
-    if (available <= 0) return name.substring(0, maxLen);
-    return name.substring(0, available) + '...' + suffix;
+    return name.substring(0, maxLen);
 }
 
 console.log('\nTesting truncateModelName...');
 
 assert.strictEqual(truncateModelName('my-model.gguf', 20), 'my-model.gguf');
-assert.strictEqual(truncateModelName('my-model.gguf', 10), 'my-mo....gguf');
+assert.strictEqual(truncateModelName('my-model.gguf', 10), 'my-model.g');
 assert.strictEqual(truncateModelName('a', 5), 'a');
 assert.strictEqual(truncateModelName(undefined, 10), 'No model');
 assert.strictEqual(truncateModelName('', 10), 'No model');
@@ -238,5 +238,55 @@ console.log('✓ WebSocket message parsing works');
 const invalid = parseWsMetrics('not json');
 assert.strictEqual(invalid, null);
 console.log('✓ Invalid JSON returns null');
+
+// Test Panel Ctx Percentage formatting vs Popdown value formatting
+console.log('\nTesting Ctx display value formatting...');
+const testCtxMetric = WS_METRICS.find(m => m.key === 'ctx');
+assert.strictEqual(testCtxMetric.type, 'ratio');
+
+function formatTokens(tokens) {
+    if (tokens === undefined || tokens === null || isNaN(tokens)) return 'N/A';
+    if (tokens >= 1024) return Math.floor(tokens / 1024) + 'K';
+    return Math.round(tokens).toString();
+}
+
+// Mock metric formatter (representing the pop down menu display)
+function testFormatMetricValue(metric, metrics) {
+    if (metric.type === 'ratio') {
+        const used = metrics[metric.used];
+        const max = metrics[metric.max];
+        if (used === undefined || max === undefined) return 'N/A';
+        if (metric.unit === 'tokens') return `${formatTokens(used)} / ${formatTokens(max)}`;
+        return `${used} / ${max}`;
+    }
+    return '-';
+}
+
+// Mock top bar display formatting
+function testFormatTopBarValue(metric, metrics) {
+    if (metric.type === 'ratio') {
+        const used = metrics[metric.used];
+        const max = metrics[metric.max];
+        let percent = 0;
+        if (used !== undefined && max !== undefined && max > 0) {
+            percent = Math.round((used / max) * 100);
+        }
+        if (metric.key === 'ctx') {
+            return (used !== undefined && max !== undefined && max > 0) ? `${percent}%` : 'N/A';
+        }
+        return testFormatMetricValue(metric, metrics);
+    }
+    return '-';
+}
+
+const mockState1 = { ctx_used: 2048, ctx_max: 8192 };
+assert.strictEqual(testFormatMetricValue(testCtxMetric, mockState1), '2K / 8K');
+assert.strictEqual(testFormatTopBarValue(testCtxMetric, mockState1), '25%');
+
+const mockState2 = { ctx_used: undefined, ctx_max: 8192 };
+assert.strictEqual(testFormatMetricValue(testCtxMetric, mockState2), 'N/A');
+assert.strictEqual(testFormatTopBarValue(testCtxMetric, mockState2), 'N/A');
+
+console.log('✓ Ctx display value formatting tests passed');
 
 console.log('\n✓ All tests passed successfully!');

@@ -37,23 +37,6 @@
     background-color: #f7768e;
 }
 
-.llm-state-badge {
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: bold;
-    font-size: 11px;
-}
-
-.llm-state-loaded {
-    background-color: #1a3a2a;
-    color: #9ece6a;
-}
-
-.llm-state-unloaded {
-    background-color: #3a2a1a;
-    color: #e0af68;
-}
-
 .llm-group-header {
     font-weight: bold;
     font-size: 12px;

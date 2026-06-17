@@ -2,36 +2,8 @@ import Gtk from 'gi://Gtk';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import { WS_METRICS, METRIC_GROUPS } from './config/metrics.js';
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-
-const WS_METRICS = [
-    { key: 'model_name', label: 'Model' },
-    { key: 'tps', label: 'TPS' },
-    { key: 'prompt_tps', label: 'Prompt TPS' },
-    { key: 'gen_tps', label: 'Gen TPS' },
-    { key: 'ctx', label: 'Ctx' },
-    { key: 'vram', label: 'VRAM' },
-    { key: 'ram', label: 'RAM' },
-    { key: 'cpu', label: 'CPU' },
-    { key: 'decoded_tokens', label: 'Decoded Tokens' },
-    { key: 'prompt_tokens', label: 'Prompt Eval Tokens' },
-    { key: 'prompt_progress', label: 'Prompt Progress' },
-];
-
-const METRIC_GROUPS = [
-    {
-        name: 'Model',
-        metrics: ['model_name'],
-    },
-    {
-        name: 'Performance',
-        metrics: ['tps', 'prompt_tps', 'gen_tps', 'decoded_tokens', 'prompt_tokens', 'prompt_progress'],
-    },
-    {
-        name: 'Resources',
-        metrics: ['ctx', 'vram', 'ram', 'cpu'],
-    },
-];
 
 export default class LlmManagerPreferences extends ExtensionPreferences {
     getPreferencesWidget() {
