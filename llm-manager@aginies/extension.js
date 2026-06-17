@@ -322,7 +322,7 @@ var LlmManagerButton = GObject.registerClass({
                 }
                 if (displayValue && displayValue !== 'N/A' && displayValue !== '--') {
                     if (metric.key === 'prompt_progress') {
-                        const color = percent >= 80 ? '#9ece6a' : (percent > 50 ? '#e0af68' : '#f7768e');
+                        const color = percent === 0 ? '#ffffff' : '#f7768e';
                         parts.push(metric.label + ': <span color="' + color + '">' + displayValue + '</span>');
                     } else if (metric.type === 'ratio' || metric.type === 'ratio_gb' || metric.type === 'ratio_pct') {
                         const color = percent > 80 ? '#f7768e' : (percent > 50 ? '#e0af68' : '#9ece6a');
