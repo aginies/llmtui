@@ -262,9 +262,10 @@ async fn fetch_wikipedia_content(url: &str) -> Result<String> {
             "User-Agent",
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         )
+        .timeout(std::time::Duration::from_secs(5))
         .send()
         .await
-        .context(format!("Failed to fetch Wikipedia page: {}", url))?
+        .context(format!("Failed to fetch Wikipedia page (timeout 5s): {}", url))?
         .text()
         .await
         .context(format!("Failed to read Wikipedia content: {}", url))?;
@@ -309,9 +310,10 @@ async fn fetch_other_content(url: &str) -> Result<String> {
             "User-Agent",
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         )
+        .timeout(std::time::Duration::from_secs(5))
         .send()
         .await
-        .context(format!("Failed to fetch page: {}", url))?;
+        .context(format!("Failed to fetch page (timeout 5s): {}", url))?;
 
     let content_type = response
         .headers()
