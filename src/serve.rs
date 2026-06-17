@@ -21,7 +21,6 @@ pub struct ServeOptions {
     pub api_key: Option<String>,
     pub ws_enable: bool,
     pub ws_port: Option<u16>,
-    pub ws_auth: Option<String>,
     pub backend_binary: Option<String>,
     pub host: Option<String>,
     pub tls_enable: bool,
@@ -196,12 +195,12 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     // WebSocket settings: CLI flags take precedence, then config.yaml
     let ws_enable = opts.ws_enable || config.default.ws_server_enabled;
     let ws_port = opts.ws_port.unwrap_or(config.default.ws_server_port);
-    let ws_auth: Option<String> = opts.ws_auth.or(config.default.ws_server_auth_key.clone());
+    let ws_auth: Option<String> = opts.api_key.clone();
 
     // TLS settings: CLI flags take precedence, then config.yaml
-    let tls_enable = opts.tls_enable || config.default.ws_server_tls_enabled;
-    let tls_cert = opts.tls_cert.or(config.default.ws_server_tls_cert.clone());
-    let tls_key = opts.tls_key.or(config.default.ws_server_tls_key.clone());
+    let tls_enable = opts.tls_enable || config.default.server_tls_enabled;
+    let tls_cert = opts.tls_cert.or(config.default.server_tls_cert.clone());
+    let tls_key = opts.tls_key.or(config.default.server_tls_key.clone());
 
     let tls_config = if tls_enable || (tls_cert.is_some() && tls_key.is_some()) {
         let (cert_path, key_path) = if let Some(cert) = &tls_cert {

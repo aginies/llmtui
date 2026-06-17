@@ -123,9 +123,9 @@ cargo run -- --config /path/to/config.yaml
 | `ws_server_enabled` | false | Enable WebSocket server |
 | `ws_server_port` | 49223 | WebSocket server port |
 | `ws_server_auth_key` | null | WebSocket server auth key |
-| `ws_server_tls_enabled` | true | WebSocket server TLS |
-| `ws_server_tls_cert` | null | WebSocket server TLS cert path |
-| `ws_server_tls_key` | null | WebSocket server TLS key path |
+| `server_tls_enabled` | true | WebSocket server TLS |
+| `server_tls_cert` | null | WebSocket server TLS cert path |
+| `server_tls_key` | null | WebSocket server TLS key path |
 | `router_max_models` | 4 | Max models in router mode |
 | `server_mode` | Normal | Server mode (Normal, Router, Bench, BenchTune) |
 | `api_endpoint_enabled` | false | Enable built-in API endpoint |

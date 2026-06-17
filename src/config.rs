@@ -779,14 +779,12 @@ pub struct DefaultParams {
     pub ws_server_enabled: bool,
     #[serde(default = "default_ws_server_port")]
     pub ws_server_port: u16,
+    #[serde(default = "default_server_tls_enabled")]
+    pub server_tls_enabled: bool,
     #[serde(default)]
-    pub ws_server_auth_key: Option<String>,
-    #[serde(default = "default_ws_server_tls_enabled")]
-    pub ws_server_tls_enabled: bool,
+    pub server_tls_cert: Option<String>,
     #[serde(default)]
-    pub ws_server_tls_cert: Option<String>,
-    #[serde(default)]
-    pub ws_server_tls_key: Option<String>,
+    pub server_tls_key: Option<String>,
     #[serde(default)]
     pub router_max_models: u32,
     #[serde(default)]
@@ -874,7 +872,7 @@ fn default_ws_server_port() -> u16 {
     49223
 }
 
-fn default_ws_server_tls_enabled() -> bool {
+fn default_server_tls_enabled() -> bool {
     true
 }
 
@@ -962,10 +960,9 @@ impl Default for DefaultParams {
             webui: false,
             ws_server_enabled: false,
             ws_server_port: 49223,
-            ws_server_auth_key: None,
-            ws_server_tls_enabled: true,
-            ws_server_tls_cert: None,
-            ws_server_tls_key: None,
+            server_tls_enabled: true,
+            server_tls_cert: None,
+            server_tls_key: None,
             router_max_models: 4,
             server_mode: crate::models::ServerMode::Normal,
 
@@ -1000,7 +997,7 @@ impl Default for DefaultParams {
             llama_cpp_version_cuda: None,
             api_endpoint_enabled: false,
             api_endpoint_port: 49222,
-            api_endpoint_key: None,
+          api_endpoint_key: None,
             web_search_engine: "searxng".to_string(),
             web_search_engine_url: String::new(),
             web_search_enabled: false,
@@ -1127,10 +1124,9 @@ impl Config {
             "webui",
             "ws_server_enabled",
             "ws_server_port",
-            "ws_server_auth_key",
-            "ws_server_tls_enabled",
-            "ws_server_tls_cert",
-            "ws_server_tls_key",
+            "server_tls_enabled",
+            "server_tls_cert",
+            "server_tls_key",
             "router_max_models",
             "server_mode",
             "max_tokens",
@@ -1144,6 +1140,7 @@ impl Config {
             "llama_cpp_version_cuda",
             "api_endpoint_enabled",
             "api_endpoint_port",
+            "api_endpoint_key",
             "web_search_engine",
             "web_search_engine_url",
             "web_search_enabled",
@@ -1539,22 +1536,22 @@ impl Config {
                 severity: ValidationSeverity::Warning,
             });
         }
-        if let Some(cert) = &default.ws_server_tls_cert
+        if let Some(cert) = &default.server_tls_cert
             && !cert.is_empty()
             && !std::path::Path::new(cert).exists()
         {
             warnings.push(ValidationWarning {
-                field: "default.ws_server_tls_cert".to_string(),
+                field: "default.server_tls_cert".to_string(),
                 message: format!("TLS cert path does not exist: {}", cert),
                 severity: ValidationSeverity::Warning,
             });
         }
-        if let Some(key) = &default.ws_server_tls_key
+        if let Some(key) = &default.server_tls_key
             && !key.is_empty()
             && !std::path::Path::new(key).exists()
         {
             warnings.push(ValidationWarning {
-                field: "default.ws_server_tls_key".to_string(),
+                field: "default.server_tls_key".to_string(),
                 message: format!("TLS key path does not exist: {}", key),
                 severity: ValidationSeverity::Warning,
             });
@@ -1641,23 +1638,23 @@ impl Config {
                 severity: ValidationSeverity::Warning,
             });
         }
-        if default.ws_server_tls_enabled {
-            if let Some(cert) = &default.ws_server_tls_cert
+        if default.server_tls_enabled {
+            if let Some(cert) = &default.server_tls_cert
                 && !cert.is_empty()
                 && !std::path::Path::new(cert).exists()
             {
                 warnings.push(ValidationWarning {
-                    field: "default.ws_server_tls_cert".to_string(),
+                    field: "default.server_tls_cert".to_string(),
                     message: format!("TLS cert path does not exist: {}", cert),
                     severity: ValidationSeverity::Warning,
                 });
             }
-            if let Some(key) = &default.ws_server_tls_key
+            if let Some(key) = &default.server_tls_key
                 && !key.is_empty()
                 && !std::path::Path::new(key).exists()
             {
                 warnings.push(ValidationWarning {
-                    field: "default.ws_server_tls_key".to_string(),
+                    field: "default.server_tls_key".to_string(),
                     message: format!("TLS key path does not exist: {}", key),
                     severity: ValidationSeverity::Warning,
                 });
