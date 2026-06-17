@@ -46,7 +46,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 Span::styled(crate::t!("hints.readme"), y),
                 Span::raw(HINT_SEP),
                 Span::styled("sort:", c),
-                Span::styled(sort_by.label(), Style::default().fg(MAGENTA)),
+                Span::styled(sort_by.label(), Style::default().fg(CYAN)),
             ];
             if *loading {
                 parts.push(Span::raw(HINT_SEP));
@@ -107,7 +107,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::styled(crate::t!("hints.delete"), y),
                             Span::raw(HINT_SEP),
                             Span::styled("sort:", c),
-                            Span::styled(sort_label, Style::default().fg(MAGENTA)),
+                            Span::styled(sort_label, Style::default().fg(CYAN)),
                             Span::raw(HINT_SEP),
                             Span::styled(crate::t!("hints.help"), c),
                             Span::raw(HINT_SEP),

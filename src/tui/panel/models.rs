@@ -37,7 +37,7 @@ pub fn render_download_panel(
     let (border_type, border_color) = if is_focused {
         (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, GRAY)
+        (BorderType::Plain, MID_GRAY)
     };
     let block = Block::default()
         .title(title)
@@ -271,7 +271,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Thick, GREEN)
             } else {
-                (BorderType::Plain, GRAY)
+                (BorderType::Plain, MID_GRAY)
             };
             let block = Block::default()
                 .title(title)
@@ -505,7 +505,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         | Some(crate::models::ModelState::Benchmarking) => {
                             Style::default().fg(YELLOW)
                         }
-                        _ => Style::default().fg(GRAY),
+                        _ => Style::default().fg(MID_GRAY),
                     };
 
                     let is_moe = meta.map(|m| m.arch.contains("moe")).unwrap_or(false);
@@ -588,7 +588,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Thick, GREEN)
             } else {
-                (BorderType::Plain, GRAY)
+                (BorderType::Plain, MID_GRAY)
             };
             let block = Block::default()
                 .title(title)
@@ -748,7 +748,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Thick, GREEN)
             } else {
-                (BorderType::Plain, GRAY)
+                (BorderType::Plain, MID_GRAY)
             };
             let block = Block::default()
                 .title(title)
@@ -837,7 +837,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Thick, GREEN)
             } else {
-                (BorderType::Plain, GRAY)
+                (BorderType::Plain, MID_GRAY)
             };
             let block = Block::default()
                 .title(title)

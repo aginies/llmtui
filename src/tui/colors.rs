@@ -26,6 +26,10 @@ pub const GRAY: Color = Color::Gray;
 /// Brighter than ANSI DarkGray for better contrast on dark backgrounds
 pub const DIM_GRAY: Color = Color::Gray;
 
+/// Mid-tone gray for disabled elements, unfocused borders
+/// Brighter than DIM_GRAY for visual hierarchy
+pub const MID_GRAY: Color = Color::DarkGray;
+
 /// Links, URLs, data values, metrics, log info
 pub const CYAN: Color = Color::Cyan;
 
@@ -66,8 +70,8 @@ pub static TITLE: LazyLock<Style> = LazyLock::new(|| {
 #[allow(dead_code)]
 pub static TITLE_DIM: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
-        .fg(YELLOW)
-        .add_modifier(Modifier::DIM)
+        .fg(DIM_GRAY)
+        .add_modifier(Modifier::BOLD)
 });
 
 /// Label / field name color
@@ -96,7 +100,7 @@ pub static BORDER_FOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().f
 
 /// Unfocused panel border color
 #[allow(dead_code)]
-pub static BORDER_UNFOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(GRAY));
+pub static BORDER_UNFOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(MID_GRAY));
 
 /// Status: success / complete / loaded
 #[allow(dead_code)]
@@ -112,7 +116,7 @@ pub static STATUS_ERROR: LazyLock<Style> = LazyLock::new(|| Style::default().fg(
 
 /// Status: paused
 #[allow(dead_code)]
-pub static STATUS_PAUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(WHITE));
+pub static STATUS_PAUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(DIM_GRAY));
 
 /// Dirty / uncommitted setting value
 #[allow(dead_code)]
@@ -122,10 +126,10 @@ pub static DIRTY: LazyLock<Style> = LazyLock::new(|| Style::default().fg(RED));
 #[allow(dead_code)]
 pub static DISABLED: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
-        .fg(GRAY)
+        .fg(MID_GRAY)
         .add_modifier(Modifier::DIM)
 });
 
 /// Sort direction label color
 #[allow(dead_code)]
-pub static SORT_LABEL: LazyLock<Style> = LazyLock::new(|| Style::default().fg(MAGENTA));
+pub static SORT_LABEL: LazyLock<Style> = LazyLock::new(|| Style::default().fg(CYAN));

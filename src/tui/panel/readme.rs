@@ -437,7 +437,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     let border_color = if is_focused {
         GREEN
     } else {
-        GRAY
+        MID_GRAY
     };
     let block = Block::default()
         .title(crate::t!("panel.title.readme"))

@@ -77,7 +77,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_active_focused {
         (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, GRAY)
+        (BorderType::Plain, MID_GRAY)
     };
 
     let block = Block::default()
@@ -286,9 +286,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     } else {
                         Span::styled(" ".repeat(10), Style::default().fg(DIM_GRAY))
                     },
-                    Span::styled(" (prompt: ", Style::default().fg(GRAY)),
+                    Span::styled(" (prompt: ", Style::default().fg(MID_GRAY)),
                     Span::styled(prompt_str, prompt_style),
-                    Span::styled(")", Style::default().fg(GRAY)),
+                    Span::styled(")", Style::default().fg(MID_GRAY)),
                     Span::styled(" ]", Style::default().fg(WHITE)),
                     Span::styled("  [ ", Style::default().fg(WHITE)),
                     Span::styled("Decoded: ", Style::default().fg(YELLOW)),

@@ -16,7 +16,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     };
     parts.push(Span::styled(
         format!("[Mode: {}] ", mode_name),
-        Style::default().fg(GRAY),
+        Style::default().fg(MID_GRAY),
     ));
 
     // Expert mode indicator removed from top bar
@@ -133,7 +133,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     } else {
         parts.push(Span::styled(
             "[ N/A ]",
-            Style::default().fg(GRAY),
+            Style::default().fg(MID_GRAY),
         ));
     }
 
@@ -215,7 +215,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             parts.push(Span::raw(" "));
             parts.push(Span::styled(
                 sort_by.label(),
-                Style::default().fg(MAGENTA),
+                Style::default().fg(CYAN),
             ));
         }
         ModelsMode::Files { model_id, .. } => {

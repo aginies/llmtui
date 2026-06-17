@@ -1210,13 +1210,13 @@ pub fn add_setting(
 ) {
     let current_line = lines.len();
     let name_style = if disabled {
-        Style::default().fg(GRAY)
+        Style::default().fg(MID_GRAY)
     } else {
         Style::default().fg(YELLOW)
     };
     let val_style = if disabled {
         Style::default()
-            .fg(GRAY)
+            .fg(MID_GRAY)
     } else {
         Style::default().fg(WHITE)
     };

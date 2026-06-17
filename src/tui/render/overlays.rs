@@ -1581,7 +1581,7 @@ fn render_bench_tune_setup(
             } else if editing_param && is_selected && !(-1..0).contains(&editing_param_field) {
                 Style::default().fg(BLUE)
             } else {
-                Style::default().fg(GRAY)
+                Style::default().fg(MID_GRAY)
             };
             Row::new(vec![
                 Cell::from(Span::styled(marker, Style::default().fg(YELLOW))),
@@ -3015,7 +3015,7 @@ fn render_gguf_naming_overlay(
             let mut combined = header_spans.clone();
             combined.push(Span::styled(
                 desc_text.clone(),
-                Style::default().fg(GRAY),
+                Style::default().fg(MID_GRAY),
             ));
             lines.push(Line::from(combined));
         } else {
@@ -3055,7 +3055,7 @@ fn render_gguf_naming_overlay(
                 let line_text = &remaining[..byte_count];
                 line_spans.push(Span::styled(
                     line_text.to_string(),
-                    Style::default().fg(GRAY),
+                    Style::default().fg(MID_GRAY),
                 ));
                 lines.push(Line::from(line_spans));
 

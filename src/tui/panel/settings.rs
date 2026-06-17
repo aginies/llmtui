@@ -149,7 +149,7 @@ fn render_settings(
         };
 
         let name_style = if visually_disabled {
-            Style::default().fg(GRAY)
+            Style::default().fg(MID_GRAY)
         } else if dirty {
             Style::default().fg(RED)
         } else if field.is_expert {
@@ -160,7 +160,7 @@ fn render_settings(
             Style::default().fg(YELLOW)
         };
         let indicator_style = if visually_disabled {
-            Style::default().fg(GRAY)
+            Style::default().fg(MID_GRAY)
         } else {
             Style::default().fg(YELLOW)
         };
@@ -170,7 +170,7 @@ fn render_settings(
                 .bg(GREEN)
                 .add_modifier(Modifier::BOLD)
         } else if visually_disabled {
-            Style::default().fg(GRAY)
+            Style::default().fg(MID_GRAY)
         } else if dirty {
             Style::default().fg(RED)
         } else {

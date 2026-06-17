@@ -84,7 +84,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_llm_focused {
         (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, GRAY)
+        (BorderType::Plain, MID_GRAY)
     };
     let block = Block::default()
         .title(Line::from(vec![
@@ -131,7 +131,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         };
         let help_block = Block::default()
             .borders(Borders::TOP)
-            .border_style(Style::default().fg(GRAY))
+            .border_style(Style::default().fg(MID_GRAY))
             .border_type(BorderType::Rounded)
             .bg(BLACK);
         let help_inner = help_block.inner(help_area);
@@ -443,7 +443,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_server_focused {
         (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, GRAY)
+        (BorderType::Plain, MID_GRAY)
     };
     let block = Block::default()
         .title(title)
@@ -475,7 +475,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_llm_focused {
         (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, GRAY)
+        (BorderType::Plain, MID_GRAY)
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = crate::t!("panel.title.llm_active");
@@ -531,7 +531,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         };
         let help_block = Block::default()
             .borders(Borders::TOP)
-            .border_style(Style::default().fg(GRAY))
+            .border_style(Style::default().fg(MID_GRAY))
             .border_type(BorderType::Rounded)
             .bg(BLACK);
         f.render_widget(help_block.clone(), help_area);
@@ -726,7 +726,7 @@ pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static
     let block = Block::default()
         .title(crate::t!("panel.title.model_info_active"))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(GRAY))
+        .border_style(Style::default().fg(MID_GRAY))
         .border_type(BorderType::Rounded);
 
     let paragraph = Paragraph::new(lines).block(block);
