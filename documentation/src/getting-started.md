@@ -42,6 +42,8 @@ The loading process shows a progress bar with phases: server starting, loading m
 
 Press `F2` to open the **Server Settings** panel.
 
+![Server Settings](images/server_settings.png)
+
 ### Server Settings
 
 | Setting | Description |
