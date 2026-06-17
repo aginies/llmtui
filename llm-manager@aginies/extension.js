@@ -293,12 +293,21 @@ var LlmManagerButton = GObject.registerClass({
                 if (!metric) continue;
 
                 let displayValue;
+                let percent = 0;
                 if (metric.type === 'ratio') {
                     const used = this._currentMetrics[metric.used];
                     const max = this._currentMetrics[metric.max];
                     if (used !== undefined && max !== undefined && max > 0) {
-                        const percent = Math.round((used / max) * 100);
+                        percent = Math.round((used / max) * 100);
                         displayValue = `${percent}%`;
+                    } else {
+                        displayValue = 'N/A';
+                    }
+                } else if (metric.type === 'ratio_pct') {
+                    const usedPct = this._currentMetrics[metric.used];
+                    if (usedPct !== undefined && usedPct !== null) {
+                        percent = Math.round(usedPct * 100);
+                        displayValue = percent + '%';
                     } else {
                         displayValue = 'N/A';
                     }
@@ -306,7 +315,12 @@ var LlmManagerButton = GObject.registerClass({
                     displayValue = this._formatMetricValue(metric, this._currentMetrics);
                 }
                 if (displayValue && displayValue !== 'N/A' && displayValue !== '--') {
-                    parts.push(metric.label + ': ' + displayValue);
+                    if (metric.key === 'prompt_progress') {
+                        const color = percent >= 80 ? '#9ece6a' : (percent > 50 ? '#e0af68' : '#f7768e');
+                        parts.push(metric.label + ': <span color="' + color + '">' + displayValue + '</span>');
+                    } else {
+                        parts.push(metric.label + ': ' + displayValue);
+                    }
                 }
             }
             if (parts.length > 0) {
@@ -397,15 +411,26 @@ var LlmManagerButton = GObject.registerClass({
                     }
                 }
 
-                 if (barInfo && barInfo.barContainer) {
+                if (barInfo && barInfo.barContainer) {
                     barInfo.barContainer.visible = true;
                     barInfo.barInner.width = percent * barInfo.bar.width / 100;
                     
-                    let colorClass = 'llm-bar-green';
-                    if (percent > 80) {
-                        colorClass = 'llm-bar-red';
-                    } else if (percent > 50) {
-                        colorClass = 'llm-bar-yellow';
+                    let colorClass;
+                    if (metric.key === 'prompt_progress') {
+                        if (percent >= 80) {
+                            colorClass = 'llm-bar-green';
+                        } else if (percent > 50) {
+                            colorClass = 'llm-bar-yellow';
+                        } else {
+                            colorClass = 'llm-bar-red';
+                        }
+                    } else {
+                        colorClass = 'llm-bar-green';
+                        if (percent > 80) {
+                            colorClass = 'llm-bar-red';
+                        } else if (percent > 50) {
+                            colorClass = 'llm-bar-yellow';
+                        }
                     }
                     barInfo.barInner.style_class = colorClass;
                 }
