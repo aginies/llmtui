@@ -111,7 +111,15 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
     let version_matches = version_path.exists()
         && std::fs::read_to_string(&version_path).ok().as_deref() == Some(TLS_VERSION);
     if server_cert_path.exists() && server_key_path.exists() && version_matches {
-        return Ok((server_cert_path, server_key_path));
+        if try_load_tls(
+            server_cert_path.to_str().unwrap(),
+            server_key_path.to_str().unwrap(),
+        )
+        .is_ok()
+        {
+            return Ok((server_cert_path, server_key_path));
+        }
+        // Certs corrupt — fall through to regenerate
     }
 
     // Create TLS directory
@@ -160,6 +168,21 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
     std::fs::rename(&tmp_cert_path, &server_cert_path)?;
     std::fs::rename(&tmp_key_path, &server_key_path)?;
 
+    // Validate just-written certs immediately; delete and regenerate on failure
+    // to avoid leaving the user with corrupt files that pass the version check.
+    if try_load_tls(
+        server_cert_path.to_str().unwrap(),
+        server_key_path.to_str().unwrap(),
+    )
+    .is_err()
+    {
+        tracing::warn!("Generated TLS certs failed validation, removing for regeneration");
+        let _ = std::fs::remove_file(&server_cert_path);
+        let _ = std::fs::remove_file(&server_key_path);
+        let _ = std::fs::remove_file(&version_path);
+        return ensure_tls_certs();
+    }
+
     // Write version file
     std::fs::write(&version_path, TLS_VERSION)?;
 
@@ -193,4 +216,17 @@ pub fn validate_tls_path(path: &str) -> Result<(), String> {
         return Err(format!("TLS path is not a file: {}", path));
     }
     Ok(())
+}
+
+/// Attempt to load TLS config from PEM files. Returns Ok if valid.
+pub fn try_load_tls(cert_path: &str, key_path: &str) -> Result<(), String> {
+    tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current()
+            .block_on(async {
+                axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path)
+                    .await
+                    .map_err(|e| format!("TLS load failed: {e}"))
+            })
+            .map(|_| ())
+    })
 }
