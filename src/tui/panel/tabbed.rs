@@ -726,7 +726,6 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
 pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
         .title(crate::t!("panel.title.model_info_active"))
-        .title_style(Style::default().fg(YELLOW))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(MID_GRAY))
         .border_type(BorderType::Rounded);

@@ -655,10 +655,10 @@ fn render_confirmation(
         Span::raw("    "),
         Span::styled(
             crate::t!("dialog.confirm_no"),
-            Style::default().fg(WHITE).bg(if selected {
-                DIM_GRAY
-            } else {
+            Style::default().fg(BLACK).bg(if selected {
                 BLUE
+            } else {
+                DIM_GRAY
             }),
         ),
     ]));

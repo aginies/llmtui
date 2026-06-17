@@ -41,6 +41,7 @@ pub fn render_download_panel(
     };
     let block = Block::default()
         .title(title)
+                .title_style(Style::default().fg(YELLOW))
         .title_style(Style::default().fg(YELLOW))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
