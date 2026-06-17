@@ -2248,7 +2248,7 @@ fn render_dashboard_picker(
         ),
         Span::styled(&mode_str, Style::default().fg(WHITE)),
     ]));
-    picker_lines.push(Line::from(vec![
+      picker_lines.push(Line::from(vec![
         Span::styled(
             format!("{} ", crate::t!("dialog.dashboard_url.tls")),
             Style::default().fg(YELLOW),
@@ -2256,8 +2256,7 @@ fn render_dashboard_picker(
         Span::styled(
             if tls_enabled { "On" } else { "Off" },
             Style::default()
-                .fg(if tls_enabled { GREEN } else { DARK_GRAY })
-                .add_modifier(Modifier::BOLD),
+                .fg(if tls_enabled { WHITE } else { DARK_GRAY }),
         ),
     ]));
     picker_lines.push(Line::from(""));
@@ -2287,8 +2286,7 @@ fn render_dashboard_picker(
                 "Disabled".to_string()
             },
             Style::default()
-                .fg(if ws_enabled { GREEN } else { DARK_GRAY })
-                .add_modifier(Modifier::BOLD),
+                .fg(if ws_enabled { WHITE } else { DARK_GRAY }),
         ),
     ]));
     picker_lines.push(Line::from(""));
