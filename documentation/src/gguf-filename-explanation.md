@@ -2,6 +2,8 @@
 
 GGUF filenames encode the model's architecture, quantization, and source. Press `Ctrl+G` from any panel to open a popup that parses and explains the filename.
 
+![Model Info Panel](images/info_model.png)
+
 ## How It Works
 
 The parser splits the filename into segments and provides a description for each:
