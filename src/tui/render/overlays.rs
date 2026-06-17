@@ -421,26 +421,27 @@ fn render_web_search_picker(
 
     let enabled_marker = if selected_field == -1 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
-        Span::styled(enabled_marker, Style::default().fg(YELLOW)),
-        Span::styled(
-            crate::t!("dialog.web_search.enabled"),
-            Style::default().fg(YELLOW),
-        ),
-        Span::styled(
-            if enabled {
-                crate::t!("dialog.web_search.on")
-            } else {
-                crate::t!("dialog.web_search.off")
-            },
-            Style::default()
-                .fg(if enabled {
-                    GREEN
-                } else {
-                    DIM_GRAY
-                })
-                .add_modifier(Modifier::BOLD),
-        ),
-    ]));
+         Span::styled(enabled_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("dialog.web_search.enabled"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::raw(": "),
+         Span::styled(
+             if enabled {
+                 crate::t!("dialog.web_search.on")
+             } else {
+                 crate::t!("dialog.web_search.off")
+             },
+             Style::default()
+                 .fg(if enabled {
+                     GREEN
+                 } else {
+                     DIM_GRAY
+                 })
+                 .add_modifier(Modifier::BOLD),
+         ),
+     ]));
     picker_lines.push(Line::from(""));
     let engine_marker = if selected_field == 0 { "> " } else { "  " };
     let engine_val = if engine_marker == "> " && editing {
@@ -449,13 +450,14 @@ fn render_web_search_picker(
         engine.to_string()
     };
     picker_lines.push(Line::from(vec![
-        Span::styled(engine_marker, Style::default().fg(YELLOW)),
-        Span::styled(
-            crate::t!("dialog.web_search.engine"),
-            Style::default().fg(YELLOW),
-        ),
-        Span::styled(engine_val, Style::default().fg(WHITE)),
-    ]));
+         Span::styled(engine_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("dialog.web_search.engine"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::raw(": "),
+         Span::styled(engine_val, Style::default().fg(WHITE)),
+     ]));
     picker_lines.push(Line::from(""));
     let url_marker = if selected_field == 1 { "> " } else { "  " };
     let url_val = if editing && selected_field == 1 {
@@ -466,13 +468,14 @@ fn render_web_search_picker(
         engine_url.to_string()
     };
     picker_lines.push(Line::from(vec![
-        Span::styled(url_marker, Style::default().fg(YELLOW)),
-        Span::styled(
-            crate::t!("dialog.web_search.engine_url"),
-            Style::default().fg(YELLOW),
-        ),
-        Span::styled(url_val, Style::default().fg(WHITE)),
-    ]));
+         Span::styled(url_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("dialog.web_search.engine_url"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::raw(": "),
+         Span::styled(url_val, Style::default().fg(WHITE)),
+     ]));
     picker_lines.push(Line::from(""));
     let key_marker = if selected_field == 2 { "> " } else { "  " };
     let key_val = if editing && selected_field == 2 {
@@ -487,13 +490,14 @@ fn render_web_search_picker(
         String::new()
     };
       picker_lines.push(Line::from(vec![
-        Span::styled(key_marker, Style::default().fg(YELLOW)),
-        Span::styled(
-            crate::t!("dialog.web_search.api_key"),
-            Style::default().fg(YELLOW),
-        ),
-        Span::styled(key_val, Style::default().fg(WHITE)),
-    ]));
+         Span::styled(key_marker, Style::default().fg(YELLOW)),
+         Span::styled(
+             crate::t!("dialog.web_search.api_key"),
+             Style::default().fg(YELLOW),
+         ),
+         Span::raw(": "),
+         Span::styled(key_val, Style::default().fg(WHITE)),
+     ]));
     picker_lines.push(Line::from(""));
     // Render validation status
     let validation_text = match check_status {
@@ -1890,6 +1894,7 @@ fn render_dashboard_picker(
             crate::t!("dialog.dashboard.enabled"),
             Style::default().fg(YELLOW),
         ),
+        Span::raw(": "),
         Span::styled(
             if enabled {
                 crate::t!("dialog.dashboard.on")
@@ -1908,14 +1913,15 @@ fn render_dashboard_picker(
     } else {
         port.to_string()
     };
-    picker_lines.push(Line::from(vec![
-        Span::styled(port_marker, Style::default().fg(YELLOW)),
-        Span::styled(
-            crate::t!("dialog.dashboard.port"),
-            Style::default().fg(YELLOW),
-        ),
-        Span::styled(port_val, Style::default().fg(WHITE)),
-    ]));
+     picker_lines.push(Line::from(vec![
+          Span::styled(port_marker, Style::default().fg(YELLOW)),
+          Span::styled(
+              crate::t!("dialog.dashboard.port"),
+              Style::default().fg(YELLOW),
+          ),
+          Span::raw(": "),
+          Span::styled(port_val, Style::default().fg(WHITE)),
+      ]));
     picker_lines.push(Line::from(""));
     let auth_marker = if selected_field == 1i32 { "> " } else { "  " };
     let auth_val = if editing && selected_field == 1i32 {
@@ -1935,27 +1941,28 @@ fn render_dashboard_picker(
     ]));
     picker_lines.push(Line::from(""));
     let tls_enabled_marker = if selected_field == 2i32 { "> " } else { "  " };
-    picker_lines.push(Line::from(vec![
-        Span::styled(tls_enabled_marker, Style::default().fg(YELLOW)),
-        Span::styled(
-            crate::t!("dialog.dashboard.tls"),
-            Style::default().fg(YELLOW),
-        ),
-        Span::styled(
-            if tls_enabled {
-                crate::t!("dialog.dashboard.on")
-            } else {
-                crate::t!("dialog.dashboard.off")
-            },
-            Style::default()
-                .fg(if tls_enabled {
-                    GREEN
-                } else {
-                    DIM_GRAY
-                })
-                .add_modifier(Modifier::BOLD),
-        ),
-    ]));
+     picker_lines.push(Line::from(vec![
+          Span::styled(tls_enabled_marker, Style::default().fg(YELLOW)),
+          Span::styled(
+              crate::t!("dialog.dashboard.tls"),
+              Style::default().fg(YELLOW),
+          ),
+          Span::raw(": "),
+          Span::styled(
+              if tls_enabled {
+                  crate::t!("dialog.dashboard.on")
+              } else {
+                  crate::t!("dialog.dashboard.off")
+              },
+              Style::default()
+                  .fg(if tls_enabled {
+                      GREEN
+                  } else {
+                      DIM_GRAY
+                  })
+                  .add_modifier(Modifier::BOLD),
+          ),
+      ]));
     picker_lines.push(Line::from(""));
     let tls_cert_marker = if selected_field == 3i32 { "> " } else { "  " };
     let tls_cert_val = if editing && selected_field == 3i32 {
@@ -1965,14 +1972,15 @@ fn render_dashboard_picker(
     } else {
         tls_cert.to_string()
     };
-    picker_lines.push(Line::from(vec![
-        Span::styled(tls_cert_marker, Style::default().fg(YELLOW)),
-        Span::styled(
-            crate::t!("dialog.dashboard.tls_cert"),
-            Style::default().fg(YELLOW),
-        ),
-        Span::styled(tls_cert_val, Style::default().fg(WHITE)),
-    ]));
+     picker_lines.push(Line::from(vec![
+          Span::styled(tls_cert_marker, Style::default().fg(YELLOW)),
+          Span::styled(
+              crate::t!("dialog.dashboard.tls_cert"),
+              Style::default().fg(YELLOW),
+          ),
+          Span::raw(": "),
+          Span::styled(tls_cert_val, Style::default().fg(WHITE)),
+      ]));
     picker_lines.push(Line::from(""));
     let tls_key_marker = if selected_field == 4i32 { "> " } else { "  " };
     let tls_key_val = if editing && selected_field == 4i32 {
@@ -1982,14 +1990,15 @@ fn render_dashboard_picker(
     } else {
         tls_key.to_string()
     };
-    picker_lines.push(Line::from(vec![
-        Span::styled(tls_key_marker, Style::default().fg(YELLOW)),
-        Span::styled(
-            crate::t!("dialog.dashboard.tls_key"),
-            Style::default().fg(YELLOW),
-        ),
-        Span::styled(tls_key_val, Style::default().fg(WHITE)),
-    ]));
+     picker_lines.push(Line::from(vec![
+          Span::styled(tls_key_marker, Style::default().fg(YELLOW)),
+          Span::styled(
+              crate::t!("dialog.dashboard.tls_key"),
+              Style::default().fg(YELLOW),
+          ),
+          Span::raw(": "),
+          Span::styled(tls_key_val, Style::default().fg(WHITE)),
+      ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::styled(
         crate::t!("dialog.dashboard.close"),
@@ -2039,22 +2048,23 @@ fn render_dashboard_picker(
 
      let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
      picker_lines.push(Line::from(vec![
-         Span::styled(enabled_marker, Style::default().fg(YELLOW)),
-         Span::styled(
-             crate::t!("dialog.dashboard.enabled"),
-             Style::default().fg(YELLOW),
-         ),
-         Span::styled(
-             if enabled {
-                 crate::t!("dialog.dashboard.on")
-             } else {
-                 crate::t!("dialog.dashboard.off")
-             },
-             Style::default()
-                 .fg(if enabled { GREEN } else { DIM_GRAY })
-                 .add_modifier(Modifier::BOLD),
-         ),
-     ]));
+          Span::styled(enabled_marker, Style::default().fg(YELLOW)),
+          Span::styled(
+              crate::t!("dialog.dashboard.enabled"),
+              Style::default().fg(YELLOW),
+          ),
+          Span::raw(": "),
+          Span::styled(
+              if enabled {
+                  crate::t!("dialog.dashboard.on")
+              } else {
+                  crate::t!("dialog.dashboard.off")
+              },
+              Style::default()
+                  .fg(if enabled { GREEN } else { DIM_GRAY })
+                  .add_modifier(Modifier::BOLD),
+          ),
+      ]));
      picker_lines.push(Line::from(""));
 
      let port_marker = if selected_field == 0i32 { "> " } else { "  " };
@@ -2082,13 +2092,14 @@ fn render_dashboard_picker(
          api_key.to_string()
      };
      picker_lines.push(Line::from(vec![
-         Span::styled(api_key_marker, Style::default().fg(YELLOW)),
-         Span::styled(
-             crate::t!("panel.server.api_key"),
-             Style::default().fg(YELLOW),
-         ),
-         Span::styled(api_key_val, Style::default().fg(WHITE)),
-     ]));
+          Span::styled(api_key_marker, Style::default().fg(YELLOW)),
+          Span::styled(
+              crate::t!("panel.server.api_key"),
+              Style::default().fg(YELLOW),
+          ),
+          Span::raw(": "),
+          Span::styled(api_key_val, Style::default().fg(WHITE)),
+      ]));
      picker_lines.push(Line::from(""));
 
      let tls_enabled_marker = if selected_field == 2i32 { "> " } else { "  " };
