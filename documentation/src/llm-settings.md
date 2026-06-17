@@ -208,6 +208,8 @@ N-gram cache-based speculative decoding.
 4. Select **Spec Type** from the dropdown
 5. Set **Spec Draft N Max** (0-16, default: 0)
 
+![Speculative Decoding Settings](images/speculative_decoding.png)
+
 ### In Config
 
 ```yaml

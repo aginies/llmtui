@@ -199,6 +199,8 @@ The LLM Settings panel has 19 standard fields, 12 expert fields (revealed with `
 | **Yarn RoPE** | false | Enables YaRN (Yet another RoPE extensioN) for extending context beyond the model's training length. |
 | **Yarn Params** | — | Opens a modal to configure three floating-point values: `rope_scale` (default 1.0, multiplies context), `rope_freq_base` (default 0.0, overrides the model's base frequency), `rope_freq_scale` (default 1.0, scales the frequency). Only digits, `.`, `-`, `e`, and `E` are accepted. |
 
+![Yarn RoPE Parameters](images/yarn_rope_parameters.png)
+
 #### Tags
 
 | Field | Default | Description |
@@ -489,9 +491,15 @@ The horizontal split between left panels (Models + Info) and right panels (Setti
 
 The current split percentage is shown in the status bar (e.g., `│ 55%`). While actively resizing, the indicator shows `│ 55% ← resize →`.
 
+You can toggle individual panels visibility using `F1`–`F6` keys or `Ctrl+F7`–`Ctrl+F9` to focus specific panels.
+
+![Panel Toggling](images/disabling_panels.png)
+
 ## CmdLine Overlay
 
 Press `Ctrl+K` to view the full command line that would be executed to start the llama.cpp server. This shows the binary path, model path, and all parameters.
+
+![CmdLine Overlay](images/command_line.png)
 
 Press `e` in the overlay to export the command to `/tmp/test_llamaserver.sh`.
 
