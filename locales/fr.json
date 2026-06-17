@@ -33,7 +33,7 @@
    "async.api_invalid_address": "Échec du démarrage du point de terminaison API : adresse invalide {}:{}: {}",
    "async.api_tls_error": "Erreur TLS : {}",
    "async.api_started": "Point de terminaison {} démarré sur {}:{}{}",
-   "panel.server.api_key": "Clé API",
+   "panel.server.api_key": "Clé d'authentification : ",
    "panel.server.api_endpoint_enabled": "Activé",
    "panel.server.api_endpoint_port": "Port",
    "async.backend_delete_failed": "Échec de la suppression du backend : {}",
