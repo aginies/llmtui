@@ -441,6 +441,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     };
     let block = Block::default()
         .title(crate::t!("panel.title.readme"))
+        .title_style(Style::default().fg(YELLOW))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .border_type(BorderType::Rounded);

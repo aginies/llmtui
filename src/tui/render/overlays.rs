@@ -40,6 +40,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         let text = Text::from(wrapped);
         let block = Block::default()
             .title(" CmdLine — ⎋ to close  e to export ")
+            .title_style(Style::default().fg(YELLOW))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(YELLOW))
             .border_type(BorderType::Double);
@@ -671,6 +672,7 @@ fn render_confirmation(
     };
     let block = Block::default()
         .title(title)
+        .title_style(Style::default().fg(YELLOW))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(
             if kind == ConfirmationKind::Delete || kind == ConfirmationKind::DeleteBackend {
