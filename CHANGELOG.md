@@ -1,77 +1,61 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [1.5.0] - 2026-06-17
 
-### Breaking Changes
-- **Config** — Renamed `ws_server_tls_enabled`, `ws_server_tls_cert`, `ws_server_tls_key` to `server_tls_enabled`, `server_tls_cert`, `server_tls_key`
-- **Config** — Removed `ws_server_auth_key` field
+### Added
 
-### Features
-- **TLS Validation** — Validate certs on load and after generation; regenerate on failure
-- **Dashboard Picker** — Add TLS toggle, cert path, and key path fields with editing
-- **API Endpoint Picker** — Add TLS toggle, cert path, and key path fields with editing
+- **TLS indicator in status bar** — shows `TLS:On` when API endpoint TLS is enabled
+- **Dashboard URL modal (Ctrl+U)** — displays all server URLs in "Server Settings Summary" modal:
+  - API URL with port
+  - Metrics URL
+  - Dashboard URL with port and auth key
+  - opencode base URL (`/v1` endpoint)
+  - TLS status indicator
+  - Copies all URLs to clipboard on Enter
+- **TLS fields in pickers** — `tls_enabled`, `tls_cert`, `tls_key` added to Dashboard and API Endpoint pickers
+- **German locale** (`de.json`) — full translation for German language support
+- **Config fields** — `language`, `onboarding_complete`, `server_tls_enabled`, `server_tls_cert`, `server_tls_key`, `api_endpoint_key`, `web_search_*`
+- **Web Search module** (`backend::web_search.rs`) — SearXNG integration with search results parsing
+- **TLS module helpers** — `try_load_tls()`, `validate_tls_path()`, cert validation on load/generation
+
+### Changed
+
+- **Renamed TLS config fields** — `ws_server_tls_*` → `server_tls_*` (shared across WebSocket and API proxy)
+- **Removed `ws_server_auth_key`** — replaced by shared `api_endpoint_key`
+- **Expanded i18n** — all user-facing strings go through translation system
+- **Documentation restructured** — inlined all linked content into `server-settings.md` and `llm-settings.md`
+- **Architecture doc updated** — reflects current 85+ file codebase, all 21 GlobalMode variants, new structs
+- **API reference updated** — all public types, enums, and module functions documented
+- **README simplified** — reduced from 64 to 42 lines, links to full docs
+
+### Fixed
+
+- **Dashboard/ TLS color consistency** — enabled values use WHITE, disabled use DARK_GRAY to match other value lines
+- **Label/value color split** — TLS and Dashboard label (YELLOW) and value (WHITE/GRAY) now separate spans
+- **i18n French** — fixed API key label to "Clé d'authentification : "
+
+### Documentation
+
+- Added `server_summary.png` screenshot to Dashboard URL modal docs
+- Added `info_model.png` to GGUF filename explanation
+- Added `server_settings.png` to getting-started
+- Added opencode integration docs with TLS and auth key examples
+- Restructured SUMMARY.md into Server Settings and LLM Settings groups
+- Reduced SUMMARY.md to 10 sections, merged cache docs, added index pages
+- Removed obsolete screenshots from getting-started
+- Updated GNOME extension docs (removed state metric)
 
 ## [1.4.1] - 2026-06-17
 
-### Features
-- **GNOME Extension Metrics Grouping** — Group top bar metrics into Model, Performance, and Resources categories with labeled headers and separators
-- **Preferences** — Bold frame labels for Selected Metrics and About sections
-- **CSS** — Add `.llm-group-header` style for metric group labels
+### Fixed
 
-### Bug Fixes
-- **GNOME Extension** — Remove "State" metric from top bar display
-- **GNOME Extension** — Update "Reconnect Interval" label to "Seconds between updates"
-- **GNOME Extension** — Fix bar styling (height, border-radius) for VRAM/RAM meters
-- **GNOME Extension** — Delete `gschemas.compiled` from repo
-- **GNOME Extension** — Update test.js metric count to 9
-- **Dashboard** — Remove VRAM usage bar from active model frame title
-- **Dashboard** — Remove progress bar from context display, show text-only `used/total (pct%)`
-- **Active Panel** — Simplify context line rendering, remove unnecessary bar chars
+- GNOME extension: fixed real-time metrics display
+- Dashboard: fixed WebSocket connection issues
 
-## [1.4.0] - 2026-06-16
-
-### Features
-- **GNOME Shell Extension** — Add `llm-manager@aginies` GNOME extension for top bar metrics
-  - Live metrics display (TPS, context, CPU, RAM, VRAM)
-  - Configurable metrics selection, update interval, panel position
-  - WebSocket-based real-time updates
-  - Preferences panel with all settings
-- **Build script** — Add `gnome-ext` command to build.sh for extension install + schema compilation
-- **API Endpoint Picker** — New picker dialog with TLS sharing between API proxy and WebSocket dashboard
-- **Prompt Eval Progress** — Track and display prompt evaluation progress
-- **Context Display** — Shorten context display to K units, rename Context → Ctx
-- **Token Formatting** — Add token formatting in GNOME extension, increase icon size to 24px
-- **About Dialog** — Add author line from CARGO_PKG_AUTHORS
-
-### Bug Fixes
-- **Security** — Verify downloaded binaries with SHA256 from GitHub CDN
-- **Security** — Add zip slip protection in archive extraction
-- **Security** — Add allow_credentials to CORS layer for API proxy
-- **Security** — Restrict config file permissions to 0600, add constant-time API key comparison
-- **Model Loading** — Detect "failed to initialize" as loading error, narrow error detection patterns
-- **TLS** — Atomic cert write to prevent DER parse errors, share TLS config between API and WebSocket servers
-- **Download** — Reset DownloadStatus to Downloading when resuming from paused state
-- **UI** — Fix confirmation dialog height (buttons no longer cut off)
-- **UI** — Improve top bar metrics display with labels, fix RAM/CPU selection
-- **UI** — Allow ESC to exit Files/Search mode when README panel is open
-- **Dashboard** — Show only LLM filename, not full path
-- **GNOME extension** — Remove prompt_tokens metric not provided by llama.cpp
-- **CPU** — Improve CPU usage with throttled ticks and deferred model metrics
-- **Active Model** — Show model filename only, fix model_filename usage
-- **Tests** — Fix flaky test_ctrl_l_cycles_language by removing global i18n state assertions
-- **Archive** — Fix zip extraction for zip 2.x, ensure dest_dir exists
-- **RPC/Web Search** — Restore RPC Workers and Web Search rows in Server Settings table
-- **Spec Decoding** — Remove spec decoding args from llama-bench command
-- **Status Bar** — Show [ N/A ] instead of ○ when server not running, improve contrast
-
-### Refactoring
-- **Centralized Colors** — Add centralized color constants module, refactor all TUI modules to use them (40+ files)
-- **i18n** — Remove unused status.server key from all locale files
-
-### Documentation
-- **GNOME Extension** — Add documentation with install, config, and metrics reference
-- **README** — Update for API endpoint picker, fix missing/inaccurate docs
-- **Build Script** — Document gnome-ext command
-
-### Style
-- Unify theme colors for display uniformity, resolve P1 color inconsistencies
+[1.5.0]: https://github.com/aginies/llmtui/compare/v1.4.1...v1.5.0
+[1.4.1]: https://github.com/aginies/llmtui/compare/v1.4.0...v1.4.1
