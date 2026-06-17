@@ -40,9 +40,7 @@ The loading process shows a progress bar with phases: server starting, loading m
 
 ## 4. Configure Settings
 
-Press `F2` to open the **Server Settings** panel. When a server is running, the panel is disabled:
-
-![Server Settings Disabled](images/disabling_panels.png)
+Press `F2` to open the **Server Settings** panel.
 
 ### Server Settings
 
