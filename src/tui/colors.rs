@@ -30,6 +30,9 @@ pub const DIM_GRAY: Color = Color::Gray;
 /// Brighter than DIM_GRAY for visual hierarchy
 pub const MID_GRAY: Color = Color::DarkGray;
 
+/// Brighter gray for unfocused panel borders
+pub const LIGHT_GRAY: Color = Color::Rgb(120, 120, 140);
+
 /// Links, URLs, data values, metrics, log info
 pub const CYAN: Color = Color::Cyan;
 

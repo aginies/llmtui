@@ -14,7 +14,7 @@ use crate::tui::colors::*;
 use crate::tui::app::{ActivePanel, App};
 use crate::tui::settings as settings_helper;
 
-const SERVER_SETTINGS_HEIGHT: u16 = 8;
+const SERVER_SETTINGS_HEIGHT: u16 = 9;
 
 /// Render a vertical "UNSAVED" watermark in red, dimmed, behind the settings content.
 fn render_unsaved_watermark(f: &mut Frame, area: Rect, app: &App) {
@@ -84,7 +84,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_llm_focused {
         (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, MID_GRAY)
+        (BorderType::Plain, LIGHT_GRAY)
     };
     let block = Block::default()
         .title(Line::from(vec![
@@ -444,7 +444,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_server_focused {
         (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, MID_GRAY)
+        (BorderType::Plain, LIGHT_GRAY)
     };
     let block = Block::default()
         .title(title)
@@ -477,7 +477,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_llm_focused {
         (BorderType::Thick, GREEN)
     } else {
-        (BorderType::Plain, MID_GRAY)
+        (BorderType::Plain, LIGHT_GRAY)
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = crate::t!("panel.title.llm_active");
@@ -729,7 +729,7 @@ pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static
         .title(crate::t!("panel.title.model_info_active"))
         .title_style(Style::default().fg(YELLOW))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(MID_GRAY))
+        .border_style(Style::default().fg(LIGHT_GRAY))
         .border_type(BorderType::Rounded);
 
     let paragraph = Paragraph::new(lines).block(block);
