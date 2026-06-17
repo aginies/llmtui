@@ -435,7 +435,7 @@ fn render_web_search_picker(
                 .fg(if enabled {
                     GREEN
                 } else {
-                    DARK_GRAY
+                    DIM_GRAY
                 })
                 .add_modifier(Modifier::BOLD),
         ),
@@ -648,14 +648,14 @@ fn render_confirmation(
             Style::default().fg(BLACK).bg(if selected {
                 YELLOW
             } else {
-                DARK_GRAY
+                DIM_GRAY
             }),
         ),
         Span::raw("    "),
         Span::styled(
             crate::t!("dialog.confirm_no"),
             Style::default().fg(BLACK).bg(if selected {
-                DARK_GRAY
+                DIM_GRAY
             } else {
                 YELLOW
             }),
@@ -721,7 +721,7 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
             Span::styled(marker, Style::default().fg(YELLOW)),
             Span::styled(ip.to_string(), style),
             Span::raw("  "),
-            Span::styled(format!("({iface})"), Style::default().fg(DARK_GRAY)),
+            Span::styled(format!("({iface})"), Style::default().fg(DIM_GRAY)),
         ]));
     }
     f.render_widget(Clear, picker_area);
@@ -775,7 +775,7 @@ fn render_profile_picker(
         if !desc.is_empty() {
             picker_lines.push(Line::from(Span::styled(
                 format!("        {}", desc),
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             )));
         }
     }
@@ -783,7 +783,7 @@ fn render_profile_picker(
         let preview_parts = profile_settings_parts(profile, current_settings);
         picker_lines.push(Line::from(Span::styled(
             "────────────────────────────────────────────────────────",
-            Style::default().fg(DARK_GRAY),
+            Style::default().fg(DIM_GRAY),
         )));
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.profile_picker.changed"),
@@ -794,7 +794,7 @@ fn render_profile_picker(
         if preview_parts.is_empty() {
             picker_lines.push(Line::from(Span::styled(
                 crate::t!("dialog.profile_picker.no_changes"),
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             )));
         } else {
             for part in preview_parts {
@@ -943,7 +943,7 @@ fn render_prompt_picker(
             if !desc.is_empty() {
                 picker_lines.push(Line::from(Span::styled(
                     format!("        {}", desc),
-                    Style::default().fg(DARK_GRAY),
+                    Style::default().fg(DIM_GRAY),
                 )));
             }
         }
@@ -980,12 +980,12 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     if app.edit.tags_insert_mode {
         modal_lines.push(Line::from(Span::styled(
             crate::t!("dialog.tags.add_help"),
-            Style::default().fg(DARK_GRAY),
+            Style::default().fg(DIM_GRAY),
         )));
     } else {
         modal_lines.push(Line::from(Span::styled(
             crate::t!("dialog.tags.edit_help"),
-            Style::default().fg(DARK_GRAY),
+            Style::default().fg(DIM_GRAY),
         )));
     }
     modal_lines.push(Line::from(""));
@@ -1312,7 +1312,7 @@ fn render_bench_tune_setup(
             Line::from(prompt_content),
             Line::from(vec![Span::styled(
                 format!(" [{} chars] ", config.prompt.len()),
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             )]),
         ]
     };
@@ -1325,7 +1325,7 @@ fn render_bench_tune_setup(
                     .border_style(Style::default().fg(if editing_prompt {
                         GREEN
                     } else {
-                        DARK_GRAY
+                        DIM_GRAY
                     }))
                     .border_type(BorderType::Double),
             )
@@ -1356,7 +1356,7 @@ fn render_bench_tune_setup(
                     Style::default().fg(YELLOW),
                 ),
                 Span::raw(")  "),
-                Span::styled(" [←/→: cycle] ", Style::default().fg(DARK_GRAY)),
+                Span::styled(" [←/→: cycle] ", Style::default().fg(DIM_GRAY)),
                 Span::styled(
                     format!(
                         "{} {}",
@@ -1369,7 +1369,7 @@ fn render_bench_tune_setup(
                 ),
                 Span::styled(
                     format!(" ({}/{})", selected_variant_idx + 1, p.variants.len()),
-                    Style::default().fg(DARK_GRAY),
+                    Style::default().fg(DIM_GRAY),
                 ),
             ])];
             if editing_param_field >= 0 && p.variants.is_empty() {
@@ -1410,7 +1410,7 @@ fn render_bench_tune_setup(
                 Span::raw(")  "),
                 Span::styled(
                     " [Tab: Min → Max → Step] ",
-                    Style::default().fg(DARK_GRAY),
+                    Style::default().fg(DIM_GRAY),
                 ),
                 Span::styled(
                     format!(
@@ -1449,7 +1449,7 @@ fn render_bench_tune_setup(
             Span::raw(crate::t!("dialog.bench_config.params_label")),
             Span::styled(
                 crate::t!("dialog.bench_config.toggle_hint"),
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             ),
         ])]
     };
@@ -1573,10 +1573,10 @@ fn render_bench_tune_setup(
             let desc_style = if p.name == "draft_tokens" && is_spec_off {
                 if is_selected {
                     Style::default()
-                        .fg(DARK_GRAY)
+                        .fg(DIM_GRAY)
                         .add_modifier(Modifier::DIM)
                 } else {
-                    Style::default().fg(DARK_GRAY)
+                    Style::default().fg(DIM_GRAY)
                 }
             } else if editing_param && is_selected && !(-1..0).contains(&editing_param_field) {
                 Style::default().fg(BLUE)
@@ -1588,11 +1588,11 @@ fn render_bench_tune_setup(
                 Cell::from(Span::styled(
                     checkbox,
                     if p.name == "spec_type" || (p.name == "draft_tokens" && is_spec_off) {
-                        Style::default().fg(DARK_GRAY)
+                        Style::default().fg(DIM_GRAY)
                     } else if p.enabled {
                         Style::default().fg(GREEN)
                     } else {
-                        Style::default().fg(DARK_GRAY)
+                        Style::default().fg(DIM_GRAY)
                     },
                 )),
                 Cell::from(name),
@@ -1660,7 +1660,7 @@ fn render_bench_tune_setup(
                 crate::t!("dialog.bench_config.generates"),
                 num_combinations
             ),
-            Style::default().fg(DARK_GRAY),
+            Style::default().fg(DIM_GRAY),
         )]),
     ];
     f.render_widget(
@@ -1809,7 +1809,7 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
         Span::raw("  "),
         Span::styled(
             crate::t!("dialog.max_concurrent.cancel"),
-            Style::default().fg(BLACK).bg(DARK_GRAY),
+            Style::default().fg(BLACK).bg(DIM_GRAY),
         ),
     ]));
     f.render_widget(Clear, picker_area);
@@ -1920,7 +1920,7 @@ fn render_dashboard_picker(
                 .fg(if tls_enabled {
                     GREEN
                 } else {
-                    DARK_GRAY
+                    DIM_GRAY
                 })
                 .add_modifier(Modifier::BOLD),
         ),
@@ -1962,7 +1962,7 @@ fn render_dashboard_picker(
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::styled(
         crate::t!("dialog.dashboard.close"),
-        Style::default().fg(BLACK).bg(DARK_GRAY),
+        Style::default().fg(BLACK).bg(DIM_GRAY),
     )]));
     f.render_widget(Clear, picker_area);
     f.render_widget(
@@ -2020,7 +2020,7 @@ fn render_dashboard_picker(
                  crate::t!("dialog.dashboard.off")
              },
              Style::default()
-                 .fg(if enabled { GREEN } else { DARK_GRAY })
+                 .fg(if enabled { GREEN } else { DIM_GRAY })
                  .add_modifier(Modifier::BOLD),
          ),
      ]));
@@ -2077,7 +2077,7 @@ fn render_dashboard_picker(
                  .fg(if tls_enabled {
                      GREEN
                  } else {
-                     DARK_GRAY
+                     DIM_GRAY
                  })
                  .add_modifier(Modifier::BOLD),
          ),
@@ -2121,7 +2121,7 @@ fn render_dashboard_picker(
      picker_lines.push(Line::from(""));
      picker_lines.push(Line::from(vec![Span::styled(
          crate::t!("dialog.dashboard.close"),
-         Style::default().fg(BLACK).bg(DARK_GRAY),
+         Style::default().fg(BLACK).bg(DIM_GRAY),
      )]));
      f.render_widget(Clear, picker_area);
      f.render_widget(
@@ -2256,7 +2256,7 @@ fn render_dashboard_picker(
         Span::styled(
             if tls_enabled { "On" } else { "Off" },
             Style::default()
-                .fg(if tls_enabled { WHITE } else { DARK_GRAY }),
+                .fg(if tls_enabled { WHITE } else { DIM_GRAY }),
         ),
     ]));
     picker_lines.push(Line::from(""));
@@ -2286,7 +2286,7 @@ fn render_dashboard_picker(
                 "Disabled".to_string()
             },
             Style::default()
-                .fg(if ws_enabled { WHITE } else { DARK_GRAY }),
+                .fg(if ws_enabled { WHITE } else { DIM_GRAY }),
         ),
     ]));
     picker_lines.push(Line::from(""));
@@ -2346,7 +2346,7 @@ fn render_dashboard_picker(
         ),
         Span::styled(
             crate::t!("dialog.dashboard_url.close"),
-            Style::default().fg(BLACK).bg(DARK_GRAY),
+            Style::default().fg(BLACK).bg(DIM_GRAY),
         ),
     ]));
     f.render_widget(Clear, picker_area);
@@ -2902,7 +2902,7 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
             Span::raw("  "),
             Span::styled(
                 crate::t!("dialog.max_concurrent.cancel"),
-                Style::default().fg(BLACK).bg(DARK_GRAY),
+                Style::default().fg(BLACK).bg(DIM_GRAY),
             ),
         ]),
     ];
@@ -2989,7 +2989,7 @@ fn render_gguf_naming_overlay(
             "─".repeat(value_w as usize),
             "─".repeat(desc_w as usize)
         ),
-        Style::default().fg(DARK_GRAY),
+        Style::default().fg(DIM_GRAY),
     )));
 
     // Segments
@@ -3211,7 +3211,7 @@ fn render_yarn_rope_picker(
             "  scale={:.2} base={:.2} scale_f={:.2}",
             rope_scale_display, freq_base_val, freq_scale_val
         ),
-        Style::default().fg(DARK_GRAY),
+        Style::default().fg(DIM_GRAY),
     )));
     picker_lines.push(Line::from(Span::styled(
         format!(

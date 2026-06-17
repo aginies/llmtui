@@ -166,7 +166,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     );
     let footer = Paragraph::new(Line::from(Span::styled(
         footer_text,
-        Style::default().fg(DARK_GRAY),
+        Style::default().fg(DIM_GRAY),
     )));
     f.render_widget(footer, popup_area);
 }

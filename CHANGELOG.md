@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-06-17
+
+### Added
+
+- **Prompt metrics in GNOME extension** — `prompt_tokens` (eval token count) and `prompt_progress` (progress bar) added to Performance metric group
+- **`ratio_pct` metric type** — new progress bar type using raw percentage values (0-100)
+- **Color thresholds** — `prompt_progress` bar: red (0-50%), yellow (50-80%), green (80-100%)
+- **Pango markup support** — `setMarkup()` on `LlmPanelItem` for colored metric display in top bar
+- **5s timeout for web search** — `fetch_wikipedia_content` and `fetch_other_content` now have `std::time::Duration::from_secs(5)` timeout with `(timeout 5s)` error suffix
+
+### Changed
+
+- **Metrics config extracted** — `WS_METRICS` and `METRIC_GROUPS` moved to `config/metrics.js`, `METRIC_FORMATTERS` object added
+- **`buildWsUrl` preserves query params** — non-auth query parameters no longer dropped
+- **`prompt_progress` color fix** — white at 0%, red at 1%+
+- **State badge removed** — `state` removed from default `selected-metrics` schema, `.llm-state-badge` CSS removed
+- **`truncateModelName` simplified** — no longer preserves extension suffix
+- **GNOME extension docs updated** — metrics count 10→12, new metrics documented in reference table
+
+### Fixed
+
+- **WebSocket callback guard** — `_destroyed` flag prevents use-after-destroy crashes
+- **RAM/CPU metric key collision** — fixed `key` field name collision in metric handlers
+
+### Documentation
+
+- **6 new screenshots** — `backend_picker.png`, `host_picker.png`, `command_line.png`, `searxng.png`, `speculative_decoding.png`, `yarn_rope_parameters.png`
+- **Quick Start section** — added to `server-settings.md` with host and backend picker screenshots
+- **Speculative decoding, Yarn RoPE docs** — screenshots added to `llm-settings.md` and `usage.md`
+- **Panel toggle docs** — `disabling_panels.png` screenshot added with panel toggle info
+
 ## [1.5.0] - 2026-06-17
 
 ### Added
@@ -57,5 +88,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GNOME extension: fixed real-time metrics display
 - Dashboard: fixed WebSocket connection issues
 
+[1.5.1]: https://github.com/aginies/llmtui/compare/v1.5.0...V1.5.1
 [1.5.0]: https://github.com/aginies/llmtui/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/aginies/llmtui/compare/v1.4.0...v1.4.1

@@ -316,7 +316,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     ])
                 } else {
                     Line::from(vec![
-                        Span::styled("Filter: ", Style::default().fg(DARK_GRAY)),
+                        Span::styled("Filter: ", Style::default().fg(DIM_GRAY)),
                         Span::styled(&app.search.local_filter, Style::default().fg(CYAN)),
                     ])
                 };
@@ -510,7 +510,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                     let is_moe = meta.map(|m| m.arch.contains("moe")).unwrap_or(false);
                     let params_style = if params_str.is_empty() {
-                        Style::default().fg(DARK_GRAY)
+                        Style::default().fg(DIM_GRAY)
                     } else if is_moe {
                         Style::default().fg(MAGENTA)
                     } else {
@@ -706,7 +706,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 ]));
             } else if !has_more {
                 rows.push(Row::new(vec![
-                    Cell::from("No more results").style(Style::default().fg(DARK_GRAY)),
+                    Cell::from("No more results").style(Style::default().fg(DIM_GRAY)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
@@ -1062,7 +1062,7 @@ fn render_benchtune_results_table(
     )));
     lines.push(Line::from(Span::styled(
         " (Press [↵] to view details of selected result)",
-        Style::default().fg(DARK_GRAY),
+        Style::default().fg(DIM_GRAY),
     )));
     lines.push(Line::from(""));
 

@@ -23,7 +23,8 @@ pub const BLACK: Color = Color::Black;
 pub const GRAY: Color = Color::Gray;
 
 /// Secondary text — timestamps, footers, descriptions, subtitles
-pub const DARK_GRAY: Color = Color::DarkGray;
+/// Brighter than ANSI DarkGray for better contrast on dark backgrounds
+pub const DIM_GRAY: Color = Color::Gray;
 
 /// Links, URLs, data values, metrics, log info
 pub const CYAN: Color = Color::Cyan;
@@ -79,7 +80,7 @@ pub static BODY_TEXT: LazyLock<Style> = LazyLock::new(|| Style::default().fg(WHI
 
 /// Secondary / dimmed text (timestamps, footers, descriptions)
 #[allow(dead_code)]
-pub static DIM_TEXT: LazyLock<Style> = LazyLock::new(|| Style::default().fg(DARK_GRAY));
+pub static DIM_TEXT: LazyLock<Style> = LazyLock::new(|| Style::default().fg(DIM_GRAY));
 
 /// Link / URL color
 #[allow(dead_code)]

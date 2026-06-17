@@ -72,7 +72,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let _border_color = if is_focused {
         GREEN
     } else {
-        DARK_GRAY
+        DIM_GRAY
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = if app.settings_state.expert_mode {
@@ -210,11 +210,11 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
 
     let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
     let _border_color = if server_running {
-        DARK_GRAY
+        DIM_GRAY
     } else if is_focused {
         GREEN
     } else {
-        DARK_GRAY
+        DIM_GRAY
     };
     let selected = app.settings_state.server_settings_selected_idx;
 
@@ -603,7 +603,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 fn empty_info() -> Vec<Line<'static>> {
     vec![Line::from(Span::styled(
         "Select a model to view info",
-        Style::default().fg(DARK_GRAY),
+        Style::default().fg(DIM_GRAY),
     ))]
 }
 
@@ -678,7 +678,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                     if cached_meta.is_none() {
                         lines.push(Line::from(vec![Span::styled(
                             "GGUF metadata not available — check log for errors",
-                            Style::default().fg(DARK_GRAY),
+                            Style::default().fg(DIM_GRAY),
                         )]));
                     }
                     lines

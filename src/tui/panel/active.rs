@@ -235,7 +235,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 Span::styled(" Info:   ", Style::default().fg(YELLOW)),
                 Span::styled(
                     "Starting first test...",
-                    Style::default().fg(DARK_GRAY),
+                    Style::default().fg(DIM_GRAY),
                 ),
             ]));
         }
@@ -284,7 +284,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     if !latency_str.is_empty() {
                         Span::styled(latency_str, Style::default().fg(CYAN))
                     } else {
-                        Span::styled(" ".repeat(10), Style::default().fg(DARK_GRAY))
+                        Span::styled(" ".repeat(10), Style::default().fg(DIM_GRAY))
                     },
                     Span::styled(" (prompt: ", Style::default().fg(GRAY)),
                     Span::styled(prompt_str, prompt_style),
@@ -432,7 +432,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let bar = format!("[{}] 0%", "░".repeat(bar_width));
                     lines.push(Line::from(vec![Span::styled(
                         bar,
-                        Style::default().fg(DARK_GRAY),
+                        Style::default().fg(DIM_GRAY),
                     )]));
                 }
 
@@ -513,17 +513,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 ),
                 Span::styled(
                     crate::t!("active.no_model_loaded"),
-                    Style::default().fg(DARK_GRAY),
+                    Style::default().fg(DIM_GRAY),
                 ),
             ]));
         } else {
             lines.push(Line::from(vec![Span::styled(
                 crate::t!("active.no_model"),
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             )]));
             lines.push(Line::from(vec![Span::styled(
                 crate::t!("active.no_model_hint"),
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             )]));
         }
     }

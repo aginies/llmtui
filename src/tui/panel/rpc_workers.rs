@@ -26,7 +26,7 @@ pub fn render_all<'a>(
             ),
             Span::styled(
                 " — Format: [Name], IP, Port",
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             ),
         ]));
         lines.push(Line::from(""));
@@ -69,7 +69,7 @@ pub fn render_all<'a>(
             ),
             Span::styled(
                 " — Space: Toggle | n: New | e: Edit | d: Delete",
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             ),
         ]));
         lines.push(Line::from(""));
@@ -100,7 +100,7 @@ pub fn render_all<'a>(
                     Style::default().fg(if worker.selected {
                         GREEN
                     } else {
-                        DARK_GRAY
+                        DIM_GRAY
                     }),
                 ),
                 Span::styled(
@@ -113,7 +113,7 @@ pub fn render_all<'a>(
         if workers.is_empty() {
             lines.push(Line::from(Span::styled(
                 "  No RPC workers configured.",
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             )));
         }
 

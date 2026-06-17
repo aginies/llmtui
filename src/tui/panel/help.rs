@@ -22,8 +22,8 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
     // Title
     let title = Paragraph::new(Line::from(vec![
         Span::styled("Help", Style::default().add_modifier(Modifier::BOLD)),
-        Span::styled(" — ", Style::default().fg(DARK_GRAY)),
-        Span::styled("⎋ to close", Style::default().fg(DARK_GRAY)),
+        Span::styled(" — ", Style::default().fg(DIM_GRAY)),
+        Span::styled("⎋ to close", Style::default().fg(DIM_GRAY)),
     ]))
     .block(
         Block::default()
@@ -48,6 +48,6 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(paragraph, chunks[1]);
 
     // Footer
-    let footer = Paragraph::new("j/k scroll · ⎋ close").style(Style::default().fg(DARK_GRAY));
+    let footer = Paragraph::new("j/k scroll · ⎋ close").style(Style::default().fg(DIM_GRAY));
     f.render_widget(footer, chunks[2]);
 }

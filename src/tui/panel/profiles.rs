@@ -23,7 +23,7 @@ pub fn render_all<'a>(
         ),
         Span::styled(
             " — Select a profile to apply its settings",
-            Style::default().fg(DARK_GRAY),
+            Style::default().fg(DIM_GRAY),
         ),
     ]));
     lines.push(Line::from(""));
@@ -49,7 +49,7 @@ pub fn render_all<'a>(
             for part in parts {
                 lines.push(Line::from(vec![
                     Span::raw("    "),
-                    Span::styled(part, Style::default().fg(DARK_GRAY)),
+                    Span::styled(part, Style::default().fg(DIM_GRAY)),
                 ]));
             }
         }

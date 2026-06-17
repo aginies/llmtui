@@ -10,7 +10,7 @@ pub fn render_about() -> Vec<Line<'static>> {
         .fg(YELLOW)
         .add_modifier(Modifier::BOLD);
     let c = Style::default().fg(CYAN);
-    let gray = Style::default().fg(DARK_GRAY);
+    let gray = Style::default().fg(DIM_GRAY);
 
     lines.push(Line::from(vec![
         Span::styled("llm-manager", y),
@@ -69,7 +69,7 @@ pub fn render_about() -> Vec<Line<'static>> {
     lines.push(Line::from(""));
     lines.push(Line::from(vec![Span::styled(
         "[⎋/Any] Close",
-        Style::default().fg(DARK_GRAY),
+        Style::default().fg(DIM_GRAY),
     )]));
 
     lines

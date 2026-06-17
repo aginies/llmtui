@@ -59,7 +59,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         let msg_lines: Vec<&str> = e.message.lines().collect();
         if msg_lines.is_empty() {
             lines.push(Line::from(vec![
-                Span::styled(ts_prefix, Style::default().fg(DARK_GRAY)),
+                Span::styled(ts_prefix, Style::default().fg(DIM_GRAY)),
                 Span::styled(
                     lv_prefix,
                     Style::default()
@@ -72,7 +72,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             for (i, line) in msg_lines.into_iter().enumerate() {
                 if i == 0 {
                     lines.push(Line::from(vec![
-                        Span::styled(ts_prefix.clone(), Style::default().fg(DARK_GRAY)),
+                        Span::styled(ts_prefix.clone(), Style::default().fg(DIM_GRAY)),
                         Span::styled(
                             lv_prefix.clone(),
                             Style::default()

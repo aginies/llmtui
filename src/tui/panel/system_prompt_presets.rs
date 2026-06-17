@@ -98,7 +98,7 @@ pub fn render_all<'a>(
             ),
             Span::styled(
                 " — Select a preset to apply",
-                Style::default().fg(DARK_GRAY),
+                Style::default().fg(DIM_GRAY),
             ),
         ]));
         lines.push(Line::from(""));
@@ -119,7 +119,7 @@ pub fn render_all<'a>(
             ]));
             lines.push(Line::from(vec![
                 Span::raw("    "),
-                Span::styled(&preset.description, Style::default().fg(DARK_GRAY)),
+                Span::styled(&preset.description, Style::default().fg(DIM_GRAY)),
             ]));
             lines.push(Line::from(""));
         }

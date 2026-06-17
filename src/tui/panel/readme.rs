@@ -264,7 +264,7 @@ impl MdRenderer {
         }
         let line = Line::from(vec![Span::styled(
             "────────────────────────────────────────",
-            Style::default().fg(DARK_GRAY),
+            Style::default().fg(DIM_GRAY),
         )]);
         self.lines.push(line);
     }
@@ -343,7 +343,7 @@ impl MdRenderer {
                 self.lines.push(Line::from(spans));
                 self.lines.push(Line::from(vec![Span::styled(
                     "───┼───────",
-                    Style::default().fg(DARK_GRAY),
+                    Style::default().fg(DIM_GRAY),
                 )]));
             }
             self.table_is_header = false;
