@@ -28,7 +28,7 @@ fn render_unsaved_watermark(f: &mut Frame, area: Rect, app: &App) {
         .map(|c| {
             Line::from(vec![Span::styled(
                 format!("{} ", c),
-                Style::default().fg(RED).add_modifier(Modifier::DIM),
+                Style::default().fg(ratatui::style::Color::Rgb(255, 130, 130)).add_modifier(Modifier::BOLD),
             )])
         })
         .collect();
@@ -81,10 +81,17 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         crate::t!("panel.title.llm_active").to_string()
     };
     let is_llm_focused = app.ui.active_panel == crate::tui::app::ActivePanel::LlmSettings;
-    let (border_type, border_color) = if is_llm_focused {
-        (BorderType::Double, LIGHT_GREEN)
+    let border_color = if app.is_settings_dirty() {
+        ratatui::style::Color::Rgb(255, 130, 130)
+    } else if is_llm_focused {
+        LIGHT_GREEN
     } else {
-        (BorderType::Plain, LIGHT_GRAY)
+        LIGHT_GRAY
+    };
+    let border_type = if is_llm_focused {
+        BorderType::Double
+    } else {
+        BorderType::Plain
     };
     let block = Block::default()
         .title(Line::from(vec![
@@ -462,10 +469,17 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
 
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let is_llm_focused = app.ui.active_panel == ActivePanel::LlmSettings;
-    let (border_type, border_color) = if is_llm_focused {
-        (BorderType::Double, LIGHT_GREEN)
+    let border_color = if app.is_settings_dirty() {
+        ratatui::style::Color::Rgb(255, 130, 130)
+    } else if is_llm_focused {
+        LIGHT_GREEN
     } else {
-        (BorderType::Plain, LIGHT_GRAY)
+        LIGHT_GRAY
+    };
+    let border_type = if is_llm_focused {
+        BorderType::Double
+    } else {
+        BorderType::Plain
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = crate::t!("panel.title.llm_active");

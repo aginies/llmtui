@@ -1804,6 +1804,9 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             mark_settings_dirty(app, true);
             sync_global_settings(app);
         }
+        KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.save_model_settings();
+        }
         _ => {}
     }
 }

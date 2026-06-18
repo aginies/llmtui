@@ -139,15 +139,18 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                         }
                     }
                     ActivePanel::ServerSettings => {
-                        vec![
+                        let parts = vec![
                             Span::styled(hint_nav(), c),
+                            Span::raw(HINT_SEP),
+                            Span::styled(crate::t!("hints.save"), y),
                             Span::raw(HINT_SEP),
                             Span::styled(crate::t!("hints.toggle"), y),
                             Span::raw(HINT_SEP),
                             Span::styled(hint_panels(), c),
                             Span::raw(HINT_SEP),
                             Span::styled(hint_about(), c),
-                        ]
+                        ];
+                        parts
                     }
                     ActivePanel::Profiles => {
                         vec![

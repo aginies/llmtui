@@ -21,6 +21,16 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
 
     // Expert mode indicator removed from top bar
 
+    if app.is_settings_dirty() {
+        parts.push(Span::raw("  "));
+        parts.push(Span::styled(
+            crate::t!("hints.unsaved_watermark"),
+            Style::default()
+                .fg(ratatui::style::Color::Rgb(255, 130, 130))
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
+
     if let Some(handle) = &app.server.server_handle {
         let inner = if app.server_mode == crate::models::ServerMode::Bench {
             crate::t!("status.benchmarking").to_string()
