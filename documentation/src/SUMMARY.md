@@ -17,6 +17,9 @@
 ## LLM Settings
 - [LLM Settings](llm-settings.md) — overview and links
 
+## Web Search
+- [Web Search](web-search.md)
+
 ## GNOME Desktop
 - [GNOME Extension](gnome-extension.md)
 

@@ -123,56 +123,115 @@ INSTRUCTION: Cite sources using inline markdown links in your answer.
 
 ## SearXNG Setup
 
-SearXNG must be self-hosted. Official installation guides:
+![SearXNG Settings](images/searxng_config.png)
 
-- [SearXNG Docker](https://docs.searxng.org/admin/installation/docker.html)
-- [SearXNG Debian](https://docs.searxng.org/admin/installation/debian.html)
+### Minimal `settings.yml`
 
-Example Docker Compose:
+SearXNG requires a `settings.yml` configuration file. Create one before deploying:
+
+```yaml
+use_default_settings: true
+
+server:
+  secret_key: "change-this-to-a-random-secret"  # generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+  port: 8081
+  bind_address: "0.0.0.0"
+  # Base URL — required to avoid 303 redirects
+  # Set to the public URL where SearXNG is accessible
+  base_url: "http://localhost:8081"  # or "https://search.example.com"
+
+search:
+  default_lang: en
+  # Enable JSON format for API access (required for llm-manager web search)
+  formats:
+    - html
+    - json
+```
+
+> **Note:** The `server.port` in `settings.yml` is for SearXNG's WSGI metadata. The actual listening port is controlled by the `GRANIAN_PORT` environment variable (default `8080`). You must set `-e GRANIAN_PORT=8081` to match your desired port.
+
+### Podman (standalone)
+
+Run SearXNG as a standalone Podman container:
+
+```bash
+# Create config directory and settings file
+mkdir -p ~/.searxng
+cat > ~/.searxng/settings.yml << 'EOF'
+use_default_settings: true
+
+server:
+  secret_key: "change-this-to-a-random-secret"
+  port: 8081
+  bind_address: "0.0.0.0"
+  base_url: "http://localhost:8081"  # uncomment if behind reverse proxy
+
+search:
+  default_lang: en
+  formats:
+    - html
+    - json
+EOF
+
+# Run the container
+podman run -d \
+  --name searxng \
+  -p 8081:8081 \
+  -e GRANIAN_PORT=8081 \
+  -v ~/.searxng/settings.yml:/etc/searxng/settings.yml:Z \
+  --restart unless-stopped \
+  searxng/searxng:latest
+```
+
+> **Important:** Do **not** use `-v ~/.searxng:/etc/searxng/lib/searx:Z` — it replaces the entire Python package directory with an empty directory, causing the container to crash. Only mount the `settings.yml` file.
+
+After deployment, use `http://localhost:8081` (or your public URL) as the Engine URL in llm-manager.
+
+### Docker Compose
+
+For Docker Compose users, create `docker-compose.yml`:
 
 ```yaml
 services:
   searxng:
-    image: searxng/searxng
+    image: searxng/searxng:latest
     ports:
-      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - GRANIAN_PORT=8081
     volumes:
-      - ./settings.yml:/etc/searxng/settings.yml
+      - ~/.searxng/settings.yml:/etc/searxng/settings.yml:Z
+    restart: unless-stopped
 ```
 
-### Podman
+Run with:
 
-SearXNG runs under Podman using the same image. Create a `podman-compose.yml`:
+```bash
+docker compose up -d
+```
+
+### podman-compose
+
+For `podman-compose` users:
 
 ```yaml
 services:
   searxng:
-    image: searxng/searxng
+    image: searxng/searxng:latest
     ports:
-      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - GRANIAN_PORT=8081
     volumes:
-      - ./settings.yml:/etc/searxng/settings.yml
+      - ~/.searxng/settings.yml:/etc/searxng/settings.yml:Z
+    restart: unless-stopped
 ```
 
-Run with podman-compose:
+Run with:
 
 ```bash
 podman-compose up -d
 ```
-
-Or with a standalone Podman container:
-
-```bash
-podman run -d \
-  --name searxng \
-  -p 8080:8080 \
-  -v ./settings.yml:/etc/searxng/settings.yml:Z \
-  searxng/searxng
-```
-
-The `:Z` flag handles SELinux labeling. For non-SELinux systems, omit it.
-
-After deployment, use the public URL (e.g., `http://localhost:8080` or `https://search.example.com`) as the Engine URL in llm-manager.
 
 ## Settings Panel Display
 
@@ -188,6 +247,7 @@ Web Search (Disabled: searxng)
 
 ## Troubleshooting
 
+- **303 redirect** — set `server.base_url` in `settings.yaml` to the public URL (e.g., `http://localhost:8081` or `https://search.example.com`)
 - **Search returns no results** — verify the Engine URL is accessible and points to a running SearXNG instance
 - **Timeout errors** — web search has a 15-second timeout; slow SearXNG instances may need tuning
 - **Authentication failures** — if `web_search_api_key` is set, ensure the SearXNG instance accepts the Bearer token

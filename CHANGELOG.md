@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-06-18
+
+### Added
+
+- **UNSAVED indicator** — shows in status bar and LLM settings panel when settings are dirty
+- **Ctrl+S in Server Settings** — save LLM model parameters from Server Settings panel
+- **Save hint in Server Settings** — status bar displays save shortcut when Server Settings is focused
+- **Global settings dirty detection** — `is_global_settings_same_as_config()` compares host, port, backend, threads, API endpoint, server mode, llama.cpp versions, and more against config defaults
+
+### Changed
+
+- **LLM panel border** — red (`Rgb(255,130,130)`) when settings are dirty (double border if focused, single if not); green when clean
+- **Status bar UNSAVED text** — bold, light red, displayed between mode indicator and server status when settings are dirty
+- **Progress bars** — replaced manual `█░` characters with ratatui `Gauge` widget
+
+### Fixed
+
+- **GGUF filename explanation readability** — improved layout and formatting
+- **Params column width** — minimum 12 chars so `(MoE)` label always visible
+- **Scrollbar alignment** — LLM settings scrollbar now aligned with server settings scrollbar position
+- **Dashboard picker** — added `": "` separator in Enabled line
+- **Active model panel** — same width as model info panel, brighter borders
+- **Onboarding** — updated step 3 Server Settings description and keys, fixed `llama-manager` typo
+- **Backend picker** — noted Vulkan works on NVIDIA
+
+### Style
+
+- **Focused panel borders** — changed from `Thick` to `Double` border type
+- **LIGHT_GREEN extension** — applied to Models, Log, and Active Model panel borders
+- **MoE label** — removed parentheses from MoE label in models list
+- **Selection highlight** — changed from GREEN to YELLOW background for clear visibility
+- **Panel titles** — always YELLOW for readability on unfocused panels
+- **Dialog selection** — BLUE background for better readability
+- **Disabled settings text** — GRAY with `Modifier::DIM` for better visual hierarchy
+- **Color hierarchy** — added `MID_GRAY`, fixed `STATUS_PAUSED` and `SORT_LABEL` accessibility
+- **Active model header** — prompt section colored yellow
+- **Server status** — `[ N/A ]` uses GREEN to match active server styling
+- **Dialog and panel contrast** — improved visual contrast throughout
+- **Font size** — increased size font
+
+### Documentation
+
+- Added screenshots and documentation updates from 1.5.x releases
+
 ## [1.5.1] - 2026-06-17
 
 ### Added
@@ -88,6 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GNOME extension: fixed real-time metrics display
 - Dashboard: fixed WebSocket connection issues
 
-[1.5.1]: https://github.com/aginies/llmtui/compare/v1.5.0...V1.5.1
+[1.6.0]: https://github.com/aginies/llmtui/compare/v1.5.1...v1.6.0
+[1.5.1]: https://github.com/aginies/llmtui/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/aginies/llmtui/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/aginies/llmtui/compare/v1.4.0...v1.4.1
