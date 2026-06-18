@@ -54,7 +54,7 @@ The Models panel shows all `.gguf` files found in your models directories (recur
 - `u` — Unload model from server
 - `Ctrl+D` — Delete model (with confirmation)
 
-When a model is loaded, its state changes to **Loaded** showing the port and PID. You can load multiple models when using Router mode *(Work In Progress — not yet selectable in TUI, enable via config.yaml)*.
+When a model is loaded, it shows **[LOADED: \<name\>]** in green bold. You can load multiple models when using Router mode *(Work In Progress — not yet selectable in TUI, enable via config.yaml)*.
 
 ### Deleting Models
 
@@ -263,7 +263,7 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | `u` | Unload selected model (prompts confirmation) |
 | `Ctrl+D` / `Del` | Delete selected model (with confirmation) |
 | `f` | Enter local filter mode (type to filter, `Esc` to cancel, `Enter` to confirm) |
-| `Ctrl+S` | Cycle list sort order (Name, Status, Params, Qual, Context) |
+| `Ctrl+S` | Cycle list sort order (Name, Params, Qual, Context) |
 | `Ctrl+G` | Show GGUF filename explanation |
 | `Shift+A` | Open About modal |
 

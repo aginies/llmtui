@@ -29,7 +29,7 @@ Or through the TUI:
 1. Select a model in the Models panel
 2. Press `l` or `Enter` to load it
 
-Each loaded model shows its status in the Models panel with the port and PID.
+Each loaded model shows **[LOADED: \<name\>]** in green bold in the Models panel.
 
 ## Managing Models
 
