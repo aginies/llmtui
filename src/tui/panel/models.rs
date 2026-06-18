@@ -344,20 +344,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .fg(YELLOW)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Cell::from(if *sort_by == ListSort::Status {
-                    if sort_ascending {
-                        "Status \u{2191}"
-                    } else {
-                        "Status \u{2193}"
-                    }
-                } else {
-                    crate::t!("models.list_headers.status")
-                })
-                .style(
-                    Style::default()
-                        .fg(YELLOW)
-                        .add_modifier(Modifier::BOLD),
-                ),
                 Cell::from(if *sort_by == ListSort::Params {
                     if sort_ascending {
                         "Params \u{2191}"
@@ -414,20 +400,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let model = &app.models[idx];
                     let key = model.display_name.clone();
                     let model_state = app.model_states.get(&model.display_name);
-                    let is_selected = Some(idx) == app.selected_model_idx;
+                     let is_selected = Some(idx) == app.selected_model_idx;
 
-                    let status_text = match model_state {
-                        Some(crate::models::ModelState::Loaded { .. }) => {
-                            Some(crate::t!("models.list_status.loaded"))
-                        }
-                        Some(crate::models::ModelState::Loading) => {
-                            Some(crate::t!("models.list_status.loading"))
-                        }
-                        Some(crate::models::ModelState::Benchmarking) => {
-                            Some(crate::t!("models.list_status.benchmarking"))
-                        }
-                        _ => None,
-                    };
+                    let is_loaded = matches!(model_state, Some(crate::models::ModelState::Loaded { .. }));
 
                     let (context_length, rope_yarn_enabled, rope_scale) = ctx_cache
                         .get(model.display_name.as_str())
@@ -460,9 +435,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let name_width =
                         table_area
                             .width
-                            .saturating_sub(
-                                status_text.as_ref().map_or(0, |s| s.chars().count()) as u16
-                            )
                             .saturating_sub(context_str.chars().count() as u16 + 4)
                             .saturating_sub(params_width)
                             .saturating_sub(4);
@@ -483,34 +455,31 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.max_offset = max_offset;
                     state.visible = true;
 
-                    let name_display = scroll_text(display_name, name_width, state);
+                    let name_display = if is_loaded {
+                        let prefix = crate::t_fmt!("models.list_status.loaded_prefix", display_name);
+                        scroll_text(&prefix, name_width, state)
+                    } else if matches!(model_state, Some(crate::models::ModelState::Loading)) {
+                        let prefix = crate::t_fmt!("models.list_status.loading_prefix", display_name);
+                        scroll_text(&prefix, name_width, state)
+                    } else if matches!(model_state, Some(crate::models::ModelState::Benchmarking)) {
+                        let prefix = crate::t_fmt!("models.list_status.benchmarking_prefix", display_name);
+                        scroll_text(&prefix, name_width, state)
+                    } else {
+                        scroll_text(display_name, name_width, state)
+                    };
                     let name_style = if is_selected {
                         Style::default()
                             .fg(BLACK)
                             .bg(YELLOW)
                             .add_modifier(Modifier::BOLD)
+                    } else if is_loaded {
+                        Style::default()
+                            .fg(GREEN)
+                            .add_modifier(Modifier::BOLD)
+                    } else if matches!(model_state, Some(crate::models::ModelState::Loading) | Some(crate::models::ModelState::Benchmarking)) {
+                        Style::default().fg(YELLOW)
                     } else {
-                        match model_state {
-                            Some(crate::models::ModelState::Loaded { .. }) => Style::default()
-                                .fg(GREEN)
-                                .add_modifier(Modifier::BOLD),
-                            Some(crate::models::ModelState::Loading)
-                            | Some(crate::models::ModelState::Benchmarking) => {
-                                Style::default().fg(YELLOW)
-                            }
-                            _ => Style::default().fg(WHITE),
-                        }
-                    };
-
-                    let status_style = match model_state {
-                        Some(crate::models::ModelState::Loaded { .. }) => {
-                            Style::default().fg(GREEN)
-                        }
-                        Some(crate::models::ModelState::Loading)
-                        | Some(crate::models::ModelState::Benchmarking) => {
-                            Style::default().fg(YELLOW)
-                        }
-                        _ => Style::default().fg(MID_GRAY),
+                        Style::default().fg(WHITE)
                     };
 
                     let is_moe = meta.map(|m| m.arch.contains("moe")).unwrap_or(false);
@@ -528,7 +497,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                     Row::new(vec![
                         Cell::from(Line::from(Span::styled(name_display, name_style))),
-                        Cell::from(status_text.clone().unwrap_or_default()).style(status_style),
                         Cell::from(params_str).style(params_style),
                         Cell::from(quality_cell),
                         Cell::from(
@@ -541,9 +509,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .collect();
 
             let widths = [
-                Constraint::Percentage(52),
+                Constraint::Percentage(58),
                 Constraint::Percentage(11),
-                Constraint::Percentage(10),
                 Constraint::Length(4),
                 Constraint::Percentage(10),
             ];
