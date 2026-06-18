@@ -75,7 +75,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     let is_active_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ActiveModel;
     let (border_type, border_color) = if is_active_focused {
-        (BorderType::Thick, GREEN)
+        (BorderType::Thick, LIGHT_GREEN)
     } else {
         (BorderType::Plain, LIGHT_GRAY)
     };

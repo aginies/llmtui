@@ -35,7 +35,7 @@ pub fn render_download_panel(
     };
 
     let (border_type, border_color) = if is_focused {
-        (BorderType::Thick, GREEN)
+        (BorderType::Thick, LIGHT_GREEN)
     } else {
         (BorderType::Plain, LIGHT_GRAY)
     };
@@ -267,14 +267,15 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 crate::t!("panel.title.models_active").to_string()
             } else {
                 crate::t!("panel.title.models").to_string()
-            };
+           };
 
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, GREEN)
+                (BorderType::Thick, LIGHT_GREEN)
             } else {
                 (BorderType::Plain, LIGHT_GRAY)
             };
+
             let block = Block::default()
                 .title(title)
                 .title_style(Style::default().fg(YELLOW))
@@ -589,7 +590,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             };
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, GREEN)
+                (BorderType::Thick, LIGHT_GREEN)
             } else {
                 (BorderType::Plain, LIGHT_GRAY)
             };
@@ -750,7 +751,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let title = crate::t_fmt!("models.gguf_files", model_id);
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, GREEN)
+                (BorderType::Thick, LIGHT_GREEN)
             } else {
                 (BorderType::Plain, LIGHT_GRAY)
             };
@@ -836,11 +837,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             f.render_stateful_widget(table, inner_area, &mut app.search.files_table_state);
         }
-        ModelsMode::BenchTune => {
-           let title = crate::t!("panel.title.bench_tune").to_string();
+       ModelsMode::BenchTune => {
+            let title = crate::t!("panel.title.bench_tune").to_string();
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, GREEN)
+                (BorderType::Thick, LIGHT_GREEN)
             } else {
                 (BorderType::Plain, LIGHT_GRAY)
             };
