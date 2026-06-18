@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Gauge, Paragraph},
 };
@@ -10,6 +10,67 @@ use crate::tui::colors::*;
 use crate::models::{ModelState, model_filename};
 use crate::tui::app::App;
 use crate::tui::format_size;
+
+/// Build a VRAM usage bar for the panel title.
+/// Returns a Line with the bar + percentage, or a shortened variant for narrow panels.
+fn vram_bar_line(used: u64, total: u64, panel_width: u16) -> Option<Line<'static>> {
+    if total == 0 || used == 0 {
+        return None;
+    }
+
+    let pct = (used as f64 / total as f64 * 100.0) as usize;
+    let usage_str = format_size(used);
+    let total_str = format_size(total);
+
+    // Narrow terminal: just show percentage
+    if panel_width < 20 {
+        return Some(Line::from(vec![
+            Span::styled(format!("{pct}%"), vram_color(pct)),
+        ]));
+    }
+
+    // Medium terminal: show bar + percentage, no byte values
+    if panel_width < 30 {
+        let bar = vram_progress_bar(10, pct);
+        return Some(Line::from(vec![
+            Span::styled(bar, vram_color(pct)),
+            Span::raw(" "),
+            Span::styled(format!("{pct}%"), vram_color(pct)),
+        ]));
+    }
+
+    // Wide terminal: full bar + percentage + byte values
+    let bar = vram_progress_bar(10, pct);
+    Some(Line::from(vec![
+        Span::styled(bar, vram_color(pct)),
+        Span::raw(" "),
+        Span::styled(format!("{pct}%"), vram_color(pct)),
+        Span::raw(" "),
+        Span::styled(format!("{usage_str}/{total_str}"), CYAN),
+    ]))
+}
+
+/// Build a VRAM progress bar of given width at the given percentage.
+fn vram_progress_bar(width: usize, pct: usize) -> String {
+    let filled = width * pct / 100;
+    let empty = width - filled;
+    format!(
+        "[{}{}]",
+        "█".repeat(filled),
+        "░".repeat(empty.max(0)),
+    )
+}
+
+/// Get the appropriate color for a VRAM usage percentage.
+fn vram_color(pct: usize) -> Color {
+    if pct < 60 {
+        VRAM_GREEN
+    } else if pct < 80 {
+        VRAM_YELLOW
+    } else {
+        VRAM_RED
+    }
+}
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     // Use cached hint instead of scanning model_states every render.
@@ -61,15 +122,30 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             "Total VRAM: ",
             Style::default().fg(YELLOW),
         ));
-        title_spans.push(Span::styled(
-            format_size(app.metrics.total_vram_used),
-            Style::default().fg(CYAN),
-        ));
-        title_spans.push(Span::styled(" / ", Style::default().fg(WHITE)));
-        title_spans.push(Span::styled(
-            format_size(app.metrics.gpu_mem_total),
-            Style::default().fg(CYAN),
-        ));
+
+        if let Some(bar_line) = vram_bar_line(
+            app.metrics.total_vram_used,
+            app.metrics.gpu_mem_total,
+            area.width,
+        ) {
+            for span in bar_line.spans.iter() {
+                title_spans.push(Span::styled(
+                    span.content.clone(),
+                    span.style,
+                ));
+            }
+        } else {
+            title_spans.push(Span::styled(
+                format_size(app.metrics.total_vram_used),
+                Style::default().fg(CYAN),
+            ));
+            title_spans.push(Span::styled(" / ", Style::default().fg(WHITE)));
+            title_spans.push(Span::styled(
+                format_size(app.metrics.gpu_mem_total),
+                Style::default().fg(CYAN),
+            ));
+        }
+
         title_spans.push(Span::styled(" ]", Style::default().fg(WHITE)));
     }
 

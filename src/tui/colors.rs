@@ -49,6 +49,15 @@ pub const MAGENTA: Color = Color::Magenta;
 /// Rare / niche use (backend cached indicator)
 pub const BLUE: Color = Color::Blue;
 
+/// VRAM usage bar — low utilization (0-60%)
+pub const VRAM_GREEN: Color = Color::Rgb(0, 200, 0);
+
+/// VRAM usage bar — medium utilization (60-80%)
+pub const VRAM_YELLOW: Color = Color::Rgb(255, 200, 0);
+
+/// VRAM usage bar — high utilization (80-100%)
+pub const VRAM_RED: Color = Color::Rgb(255, 60, 60);
+
 // ── Common Style patterns ────────────────────────────────────────────────────
 
 /// Selected row / item: white text on yellow background, bold
