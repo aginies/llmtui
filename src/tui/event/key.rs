@@ -3,7 +3,7 @@ use ratatui::widgets::TableState;
 use tracing::debug;
 
 use super::helpers::{
-    TextEditor, handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle, mark_settings_dirty,
+    TextEditor, handle_fkey_focus, handle_fkey_show_all, handle_fkey_toggle, mark_settings_dirty,
     picker_nav_down, picker_nav_up, sync_global_settings,
 };
 use super::overlay::{check_web_search_health, OverlayRegistry};
@@ -323,27 +323,49 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         }
         KeyCode::F(1) => {
-            app.ui.active_panel = ActivePanel::Models;
+            handle_fkey_focus(app, 0, ActivePanel::Models);
+            return;
+        }
+        KeyCode::F(2) if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            handle_fkey_toggle(app, 1, None, false);
             return;
         }
         KeyCode::F(2) => {
-            handle_fkey_toggle(app, 1, Some(ActivePanel::ServerSettings), true);
+            handle_fkey_focus(app, 1, ActivePanel::ServerSettings);
+            return;
+        }
+        KeyCode::F(3) if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            handle_fkey_toggle(app, 3, None, false);
             return;
         }
         KeyCode::F(3) => {
-            handle_fkey_toggle(app, 2, Some(ActivePanel::ModelInfo), false);
+            handle_fkey_focus(app, 3, ActivePanel::LlmSettings);
             return;
         }
-        KeyCode::F(4) => {
-            handle_fkey_toggle(app, 3, Some(ActivePanel::LlmSettings), false);
+        KeyCode::F(4) if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            handle_fkey_toggle(app, 2, None, false);
             return;
         }
-        KeyCode::F(5) => {
+        KeyCode::F(5) if key.modifiers.contains(KeyModifiers::CONTROL) => {
             handle_fkey_toggle(app, 4, None, false);
             return;
         }
+        KeyCode::F(6) if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            handle_fkey_toggle(app, 5, None, false);
+            return;
+        }
         KeyCode::F(6) => {
-            handle_fkey_toggle(app, 5, Some(ActivePanel::Log), false);
+            handle_fkey_focus(app, 5, ActivePanel::Log);
+            return;
+        }
+        KeyCode::F(10) if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.hide_all_panels();
+            app.ui.active_panel = ActivePanel::Models;
+            return;
+        }
+        KeyCode::F(10) => {
+            handle_fkey_show_all(app);
+            app.ui.active_panel = ActivePanel::Models;
             return;
         }
         KeyCode::Left if key.modifiers.contains(KeyModifiers::SHIFT) => {
@@ -352,26 +374,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Right if key.modifiers.contains(KeyModifiers::SHIFT) => {
             app.ui.left_pct = app.ui.left_pct.saturating_add(1).min(80);
-            return;
-        }
-        KeyCode::F(7) if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            handle_fkey_show(app, 0, ActivePanel::Models, false);
-            return;
-        }
-        KeyCode::F(8) if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            handle_fkey_show(app, 1, ActivePanel::ServerSettings, true);
-            return;
-        }
-        KeyCode::F(9) if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            handle_fkey_show(app, 3, ActivePanel::LlmSettings, false);
-            return;
-        }
-        KeyCode::F(10) if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            handle_fkey_show_all(app);
-            return;
-        }
-        KeyCode::F(10) => {
-            handle_fkey_show_all(app);
             return;
         }
         KeyCode::Char('k')
@@ -391,11 +393,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             } else {
                 app.add_log(crate::t!("log.no_server"), crate::config::LogLevel::Warning);
             }
-            return;
-        }
-        KeyCode::F(9) => {
-            app.ui.panel_visibility = 0b111111;
-            app.log.log_expanded = false;
             return;
         }
         KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -450,6 +447,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             };
             app.search.search_results_idx = Some(0);
             app.log.log_expanded = false;
+            app.ui.panel_visibility &= !(1 << 1);
+            app.ui.panel_visibility &= !(1 << 3);
             app.ui.panel_visibility &= !(1 << 4);
             app.ui.panel_visibility &= !(1 << 5);
             return;

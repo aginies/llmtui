@@ -191,23 +191,23 @@ async fn test_f2_switches_to_server_settings() {
 }
 
 #[tokio::test]
-async fn test_f3_switches_to_model_info() {
+async fn test_f3_switches_to_llm_settings() {
     let mut app = make_app();
-    // Hide panel 2 first so toggle turns it back on
-    app.toggle_panel_visibility(2);
+    // Hide panel 3 first so focus turns it back on
+    app.toggle_panel_visibility(3);
     let key = make_key(KeyCode::F(3));
     handle_key(&mut app, key).await;
-    assert_eq!(app.ui.active_panel, ActivePanel::ModelInfo);
+    assert_eq!(app.ui.active_panel, ActivePanel::LlmSettings);
 }
 
 #[tokio::test]
-async fn test_f4_switches_to_llm_settings() {
+async fn test_ctrl_f4_toggles_model_info() {
     let mut app = make_app();
-    // Hide panel 3 first so toggle turns it back on
-    app.toggle_panel_visibility(3);
-    let key = make_key(KeyCode::F(4));
+    // Hide panel 2 first so toggle turns it back on
+    app.toggle_panel_visibility(2);
+    let key = make_key_with_mod(KeyCode::F(4), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
-    assert_eq!(app.ui.active_panel, ActivePanel::LlmSettings);
+    assert!(app.is_panel_visible(2));
 }
 
 #[tokio::test]

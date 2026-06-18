@@ -15,6 +15,14 @@ impl App {
         }
     }
 
+    pub fn hide_all_panels(&mut self) {
+        self.ui.panel_visibility &= !(1 << 1);
+        self.ui.panel_visibility &= !(1 << 2);
+        self.ui.panel_visibility &= !(1 << 3);
+        self.ui.panel_visibility &= !(1 << 4);
+        self.ui.panel_visibility &= !(1 << 5);
+    }
+
     /// Return a list of all currently visible and focusable panels in logical order.
     pub fn get_visible_panels(&self) -> Vec<ActivePanel> {
         let mut visible = Vec::new();

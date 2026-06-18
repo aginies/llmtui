@@ -186,7 +186,7 @@ mod tests {
             .expect("English translations not found");
         assert_eq!(
             *en_map.get("panel.title.models_active").unwrap(),
-            " MODELS (F7) [^F7] "
+            " MODELS (F1) "
         );
 
         // Ensure French translations are loaded and distinct
@@ -194,13 +194,13 @@ mod tests {
             .get("fr")
             .expect("French translations not found");
         let fr_val = *fr_map.get("panel.title.models_active").unwrap();
-        assert_ne!(fr_val, " MODELS (F7) [^F7] ");
+        assert_ne!(fr_val, " MODELS (F1) ");
 
         // Ensure Italian translations are loaded and distinct
         let it_map = TRANSLATIONS
             .get("it")
             .expect("Italian translations not found");
         let it_val = *it_map.get("panel.title.models_active").unwrap();
-        assert_ne!(it_val, " MODELS (F7) [^F7] ");
+        assert_ne!(it_val, " MODELS (F1) ");
     }
 }

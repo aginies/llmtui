@@ -219,7 +219,7 @@ impl App {
                 Line::from(vec![
                     Span::styled("0-9, -, .", y),
                     Span::raw(format!(
-                        "  {}  ·  ^F7/8/9 {}",
+                        "  {}  ·  ^F2-6 {}",
                         crate::t!("panel.help.llm.type_numeric")
                             .split("·")
                             .next()

@@ -261,6 +261,11 @@ pub fn sync_global_settings(app: &mut App) {
     }
 }
 
+pub fn handle_fkey_focus(app: &mut App, panel_idx: u8, target_panel: ActivePanel) {
+    app.ui.panel_visibility |= 1 << panel_idx;
+    app.ui.active_panel = target_panel;
+}
+
 pub fn handle_fkey_toggle(
     app: &mut App,
     panel_idx: u8,
@@ -276,19 +281,6 @@ pub fn handle_fkey_toggle(
     {
         app.ui.active_panel = panel;
     }
-}
-
-pub fn handle_fkey_show(
-    app: &mut App,
-    panel_idx: u8,
-    target_panel: ActivePanel,
-    require_no_server: bool,
-) {
-    if require_no_server && app.server.server_handle.is_some() {
-        return;
-    }
-    app.ui.panel_visibility |= 1 << panel_idx;
-    app.ui.active_panel = target_panel;
 }
 
 pub fn handle_fkey_show_all(app: &mut App) {
