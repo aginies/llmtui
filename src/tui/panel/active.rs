@@ -80,9 +80,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         (BorderType::Plain, LIGHT_GRAY)
     };
 
+    let title_color = if is_active_focused { GREEN } else { YELLOW };
     let block = Block::default()
         .title(Line::from(title_spans))
-        .title_style(Style::default().fg(YELLOW))
+        .title_style(Style::default().fg(title_color))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .border_type(border_type);

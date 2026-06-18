@@ -81,6 +81,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         crate::t!("panel.title.llm_active").to_string()
     };
     let is_llm_focused = app.ui.active_panel == crate::tui::app::ActivePanel::LlmSettings;
+    let title_color = if is_llm_focused { GREEN } else { YELLOW };
     let border_color = if app.is_settings_dirty() {
         ratatui::style::Color::Rgb(255, 130, 130)
     } else if is_llm_focused {
@@ -101,7 +102,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
                 Style::default().fg(YELLOW),
             ),
         ]))
-        .title_style(Style::default().fg(YELLOW))
+        .title_style(Style::default().fg(title_color))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .border_type(border_type);
@@ -436,6 +437,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         crate::t!("panel.title.server_active")
     };
     let is_server_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
+    let title_color = if is_server_focused { GREEN } else { YELLOW };
     let (border_type, border_color) = if is_server_focused {
         (BorderType::Double, LIGHT_GREEN)
     } else {
@@ -443,7 +445,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     };
     let block = Block::default()
         .title(title)
-        .title_style(Style::default().fg(YELLOW))
+        .title_style(Style::default().fg(title_color))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .border_type(border_type);
@@ -714,7 +716,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
 }
 
 /// Render the info paragraph with a block and borders.
-pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
+ pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
         .title(crate::t!("panel.title.model_info_active"))
         .title_style(Style::default().fg(YELLOW))

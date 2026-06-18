@@ -39,9 +39,10 @@ pub fn render_download_panel(
     } else {
         (BorderType::Plain, LIGHT_GRAY)
     };
+    let title_color = if is_focused { GREEN } else { YELLOW };
     let block = Block::default()
         .title(title)
-        .title_style(Style::default().fg(YELLOW))
+        .title_style(Style::default().fg(title_color))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .border_type(border_type);
@@ -269,6 +270,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
            };
 
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let title_color = if is_models_focused { GREEN } else { YELLOW };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
             } else {
@@ -277,7 +279,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             let block = Block::default()
                 .title(title)
-                .title_style(Style::default().fg(YELLOW))
+                .title_style(Style::default().fg(title_color))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
                 .border_type(border_type);
@@ -587,7 +589,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     results.len()
                 )
             };
-            let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let title_color = if is_models_focused { GREEN } else { YELLOW };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
             } else {
@@ -595,7 +598,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             };
             let block = Block::default()
                 .title(title)
-                .title_style(Style::default().fg(YELLOW))
+                .title_style(Style::default().fg(title_color))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
                 .border_type(border_type);
@@ -748,7 +751,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             ..
         } => {
             let title = crate::t_fmt!("models.gguf_files", model_id);
-            let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let title_color = if is_models_focused { GREEN } else { YELLOW };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
             } else {
@@ -756,7 +760,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             };
             let block = Block::default()
                 .title(title)
-                .title_style(Style::default().fg(YELLOW))
+                .title_style(Style::default().fg(title_color))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
                 .border_type(border_type);
@@ -836,9 +840,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             f.render_stateful_widget(table, inner_area, &mut app.search.files_table_state);
         }
-       ModelsMode::BenchTune => {
+        ModelsMode::BenchTune => {
             let title = crate::t!("panel.title.bench_tune").to_string();
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let title_color = if is_models_focused { GREEN } else { YELLOW };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
             } else {
@@ -846,7 +851,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             };
             let block = Block::default()
                 .title(title)
-                .title_style(Style::default().fg(YELLOW))
+                .title_style(Style::default().fg(title_color))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
                 .border_type(border_type);
