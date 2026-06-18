@@ -13,13 +13,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SearXNG config screenshot** — `searxng_config.png` added to documentation
 - **Web Search entry in SUMMARY.md** — web-search.md now included in mdbook build
 - **Web search injection log** — logs "Web search: results injected (N chars)" when SearXNG data is injected into prompt
+- **Docs link in Web Search picker** — `cf4dfba` adds documentation link to Web Search Configuration dialog
+- **Auto SearXNG health check** — `04e0cf7` auto-checks SearXNG health when Web Search picker opens
+- **Alt+F3 toggle** — `25e4268` add Alt+F3 to toggle LLM Settings visibility
+- **VRAM usage bar** — `149237f` add VRAM usage bar to active model panel title
+- **README panel always visible** — `2e8a2d4`/`90c8b97`/`82b1cd9` README panel visible in all modes (except BenchTune), restored on ESC
+- **Ctx (U) column** — `bbea35e` rename context column header to 'Ctx (U)' to indicate user-configured context from LLM settings
+
+### Changed
+
+- **F-key navigation restructured** — `1d06d54` refactor F-key panel navigation; F2/F3/F6 focus panels, Ctrl+F2/F3/F6 toggle visibility; Ctrl+F10 shows all, F10 hides all
+- **Status bar split into two tiers** — `63aca0f` split status bar into mode + hints tiers
+- **Sort label moved to status line** — `999e5ea` move sort label from hints to status line for List and Search modes
+- **Status column removed** — `52c478b` remove status column, add [LOADED/LOADING/BENCHMARK] name prefixes instead
+- **Section headers** — `4c35d3f` replace `--- Title ---` section headers with `━━━ Title ━━━`
+- **Panel title colors** — `fd8a939` panel title turns green when focused, yellow when not
+- **Unfocused borders** — `16673ac` standardize borders to Rounded for unfocused panels and pickers
+- **Scrollbar alignment** — `4c35d3f` fix scroll offset for new section header style
 
 ### Fixed
 
-- **GRANIAN_PORT env var** — documented requirement to match external port (default 8080 in image)
-- **Volume mount** — removed `-v ~/.searxng:/etc/searxng/lib/searx:Z` that overwrites Python package dir
-- **Settings file extension** — standardized on `settings.yml` (not `.yaml`)
-- **base_url uncommented** — enabled in all documentation examples
+- **Dirty flag on Ctrl+S** — `078d082` clear dirty flag on Ctrl+S by syncing global settings
+- **VRAM metrics display** — `88b8585` cache VRAM metrics, extract HOP_BY_HOP constant, fix VRAM not displaying
+- **Ctrl+F10/F10 behavior** — `775b07d` swap Ctrl+F10 (show all) / F10 (hide all) behavior
+- **Log panel title** — `7e55737` log panel title always shows (F6) [^F6] + make Ctrl+F2/F3 global
+- **Sort info in status bar** — `c61c000` move sort info inside Mode block in status bar
+- **Context column width** — `45ca666` context column min width 7 chars for 'Ctx (U)' header
+- **Context column restored** — `5cb89bb` restore context column to Percentage(11)
+- **README restore on ESC** — `9a88c95` always show README in search mode, restore all panels on ESC
+- **Documentation discrepancies** — `44f0d43` fix --ws-auth flag, F-key mappings, Bench display name, F3 for LLM Settings
+
+### Documentation
+
+- **Web Search docs** — `3497b83` add SearXNG web search documentation with podman deployment guide
+- **Keyboard shortcuts** — `c8aac51` restructure keyboard shortcuts per panel
+- **Ctx (U) explanation** — `83c684b` explain Ctx (U) column as user-configured context from LLM settings
+- **Status column removal docs** — `b08c4c8` update usage and router-mode docs for status column removal
+- **Git tag v1.6.1** — `45c8179` bump version to 1.6.1
+
+### Style
+
+- **Selection highlight** — `29e0a2d` update helpers, profiles, status, tests; add screenshot
 
 ## [1.6.0] - 2026-06-18
 
