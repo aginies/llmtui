@@ -133,7 +133,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
     } else {
         parts.push(Span::styled(
             "[ N/A ]",
-            Style::default().fg(MID_GRAY),
+            Style::default().fg(GREEN),
         ));
     }
 
