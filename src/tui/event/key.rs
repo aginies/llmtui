@@ -179,6 +179,18 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Ctrl+F2: toggle Server Settings panel (global, works from any overlay)
+    if key.code == KeyCode::F(2) && key.modifiers.contains(KeyModifiers::CONTROL) {
+        handle_fkey_toggle(app, 1, Some(ActivePanel::ServerSettings), false);
+        return;
+    }
+
+    // Ctrl+F3: toggle LLM Settings panel (global, works from any overlay)
+    if key.code == KeyCode::F(3) && key.modifiers.contains(KeyModifiers::CONTROL) {
+        handle_fkey_toggle(app, 3, Some(ActivePanel::LlmSettings), false);
+        return;
+    }
+
     // Dispatch to overlay handler if an overlay is active
     // (when no overlay matches, dispatch returns without doing anything, flow continues)
     if OVERLAY_REGISTRY.dispatch(app, key).await {
@@ -326,16 +338,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             handle_fkey_focus(app, 0, ActivePanel::Models);
             return;
         }
-        KeyCode::F(2) if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            handle_fkey_toggle(app, 1, None, false);
-            return;
-        }
         KeyCode::F(2) => {
             handle_fkey_focus(app, 1, ActivePanel::ServerSettings);
-            return;
-        }
-        KeyCode::F(3) if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            handle_fkey_toggle(app, 3, None, false);
             return;
         }
         KeyCode::F(3) => {

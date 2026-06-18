@@ -19,18 +19,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     let log_area = area;
 
-    let title = if app.is_panel_visible(5) {
-        if app.log.log_follow {
-            " Log (F6) - Following "
-        } else {
-            " Log (F6) - Manual "
-        }
+    let title = if app.log.log_follow {
+        crate::t!("log.following")
     } else {
-        if app.log.log_follow {
-            " Log - Following "
-        } else {
-            " Log - Manual "
-        }
+        crate::t!("log.manual")
     };
     let is_log_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Log;
     let (border_type, border_color) = if is_log_focused {
