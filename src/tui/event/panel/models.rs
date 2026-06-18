@@ -134,7 +134,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
                     if app.server.server_handle.is_none() {
                         // Start server (with model in CLI for normal mode, without model for router mode)
-                        app.ui.last_error_message = None;
+                        app.ui.active_toast = None;
 
                         if app.server_mode == crate::models::ServerMode::BenchTune {
                             let bench_tune_config = crate::models::BenchTuneConfig::new(
@@ -223,7 +223,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             return;
                         }
 
-                        app.ui.last_error_message = None;
+                        app.ui.active_toast = None;
                         app.pending.pending_api_load = Some(model.display_name.clone());
                         app.loading.loading_phases =
                             std::iter::once(LoadingPhase::LoadingModel).collect();

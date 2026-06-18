@@ -216,7 +216,7 @@ impl App {
                 panel_visibility: 0b111111,
                 panel_help: false,
                 panel_help_offset: 0,
-                last_error_message: None,
+                active_toast: None,
                 models_table_state: Default::default(),
                 resize_state: None,
                 left_pct,
@@ -301,8 +301,17 @@ impl App {
             }
         }
 
-        if changed {
+    if changed {
             self.ui.needs_redraw = true;
+        }
+    }
+
+    pub fn tick_toasts(&mut self) {
+        if let Some(toast) = &self.ui.active_toast {
+            if toast.is_expired() {
+                self.ui.active_toast = None;
+                self.ui.needs_redraw = true;
+            }
         }
     }
 

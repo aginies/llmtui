@@ -1,5 +1,6 @@
 use super::types::App;
 use crate::backend::server::ServerHandle;
+use crate::tui::toast::{Toast, ToastLevel};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8};
@@ -716,14 +717,14 @@ impl App {
                                              model.display_name.clone(),
                                              crate::models::ModelState::Loaded { port, pid },
                                          );
-                                         // Clear error message on successful load
-                                         self.ui.last_error_message = None;
-                                     }
-                                }
-                                matched = true;
-                            }
-                        }
-                        if !matched {
+                                        // Clear toast on successful load
+                                          self.ui.active_toast = None;
+                                      }
+                                 }
+                                 matched = true;
+                             }
+                         }
+                         if !matched {
                             let possible_names = vec![id.clone(), format!("{}.gguf", id)];
                             for name in possible_names {
                                 for model in &self.models {
@@ -738,8 +739,8 @@ impl App {
                                                 model.display_name.clone(),
                                                 crate::models::ModelState::Loaded { port, pid },
                                             );
-                                            // Clear error message on successful load
-                                            self.ui.last_error_message = None;
+                                           // Clear toast on successful load
+                                             self.ui.active_toast = None;
                                         }
                                         matched = true;
                                         break;
@@ -1206,7 +1207,7 @@ impl App {
                         self.add_log(line, crate::config::LogLevel::Info);
                     }
                 }
-                self.ui.last_error_message = Some(e);
+                self.ui.active_toast = Some(Toast::new(e, ToastLevel::Error));
                 self.reset_loading_state(true);
                 self.server_ready = false;
                 self.ui.needs_redraw = true;

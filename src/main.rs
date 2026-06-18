@@ -297,9 +297,10 @@ async fn main() -> Result<()> {
                     app.tick_server_logs();
                     app.tick_metrics();
                     app.tick_sync();
-                    app.tick_spinner();
+               app.tick_spinner();
                     app.tick_loading_progress();
                     app.tick_text_scrolls();
+                    app.tick_toasts();
                     app.tick_settings_help();
                     app.tick_metrics_model_name();
                     app.tick_backend_resolution().await;

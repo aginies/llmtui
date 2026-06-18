@@ -1,14 +1,16 @@
 use ratatui::{
-    Frame,
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph},
-};
+     Frame,
+     layout::Rect,
+     style::{Color, Modifier, Style},
+     text::{Line, Span},
+     widgets::{Block, BorderType, Borders, Paragraph},
+ };
 
-use crate::tui::app::{ActivePanel, App, ModelsMode};
-use crate::tui::colors::*;
-use crate::tui::panel;
-use crate::tui::render_vertical_scrollbar;
+ use crate::tui::app::{ActivePanel, App, ModelsMode};
+ use crate::tui::colors::*;
+ use crate::tui::panel;
+ use crate::tui::toast;
+ use crate::tui::render_vertical_scrollbar;
 
 mod hints;
 mod onboarding;
@@ -71,7 +73,9 @@ pub fn render(f: &mut Frame, app: &mut App) {
     };
 
     let status = status::render_status_bar(app, chunks[0]);
-    f.render_widget(Paragraph::new(status), chunks[0]);
+    let status_block = Block::default()
+        .style(Style::default().bg(Color::Rgb(20, 20, 20)));
+    f.render_widget(Paragraph::new(status).block(status_block), chunks[0]);
 
     if app.log.log_expanded {
         let log_area = chunks[1];
@@ -287,13 +291,23 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .map(|d| d.bytes_per_second)
             .sum();
         let downloads_focused = app.ui.active_panel == ActivePanel::Downloads;
-        panel::models::render_download_panel(
-            f,
-            bottom_area,
-            &app.download.download_progress,
-            total_speed,
-            &mut app.download.download_scroll_state,
-            downloads_focused,
-        );
+    panel::models::render_download_panel(
+             f,
+             bottom_area,
+             &app.download.download_progress,
+             total_speed,
+             &mut app.download.download_scroll_state,
+             downloads_focused,
+         );
+    }
+
+    if let Some(toast) = &app.ui.active_toast {
+        let toast_area = Rect {
+            x: f.area().right().saturating_sub(toast::TOAST_MAX_WIDTH).saturating_sub(2),
+            y: f.area().bottom().saturating_sub(3),
+            width: toast::TOAST_MAX_WIDTH,
+            height: 3,
+        };
+        toast::render_toast(f, toast_area, toast);
     }
 }
