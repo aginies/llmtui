@@ -228,11 +228,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             }
         }
         _ => {
-            let show_readme = match &app.models_mode {
-                ModelsMode::Search { .. } => true,
-                ModelsMode::Files { .. } => true,
-                _ => false,
-            };
+   let show_readme = !matches!(app.models_mode, ModelsMode::BenchTune);
             if show_readme {
                 panel::readme::render(f, top_chunks[1], app);
             } else {
