@@ -191,6 +191,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Alt+F3: toggle LLM Settings panel (global, works from any overlay)
+    if key.code == KeyCode::F(3) && key.modifiers.contains(KeyModifiers::ALT) {
+        handle_fkey_toggle(app, 3, Some(ActivePanel::LlmSettings), false);
+        return;
+    }
+
     // Dispatch to overlay handler if an overlay is active
     // (when no overlay matches, dispatch returns without doing anything, flow continues)
     if OVERLAY_REGISTRY.dispatch(app, key).await {
