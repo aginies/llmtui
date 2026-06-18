@@ -28,7 +28,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_log_focused {
         (BorderType::Double, LIGHT_GREEN)
     } else {
-        (BorderType::Plain, LIGHT_GRAY)
+        (BorderType::Rounded, LIGHT_GRAY)
     };
     let title_color = if is_log_focused { GREEN } else { YELLOW };
     let block = Block::default()

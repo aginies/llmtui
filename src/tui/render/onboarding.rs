@@ -142,7 +142,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
         .title(format!(" {} — {} ", title, step_indicator))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(YELLOW))
-        .border_type(BorderType::Double);
+        .border_type(BorderType::Rounded);
 
     f.render_widget(ratatui::widgets::Clear, popup_area);
     f.render_widget(

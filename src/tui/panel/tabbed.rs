@@ -92,7 +92,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let border_type = if is_llm_focused {
         BorderType::Double
     } else {
-        BorderType::Plain
+        BorderType::Rounded
     };
     let block = Block::default()
         .title(Line::from(vec![
@@ -441,7 +441,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let (border_type, border_color) = if is_server_focused {
         (BorderType::Double, LIGHT_GREEN)
     } else {
-        (BorderType::Plain, LIGHT_GRAY)
+        (BorderType::Rounded, LIGHT_GRAY)
     };
     let block = Block::default()
         .title(title)
@@ -481,7 +481,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let border_type = if is_llm_focused {
         BorderType::Double
     } else {
-        BorderType::Plain
+        BorderType::Rounded
     };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = crate::t!("panel.title.llm_active");

@@ -44,7 +44,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             .title_style(Style::default().fg(YELLOW))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(YELLOW))
-            .border_type(BorderType::Double);
+            .border_type(BorderType::Rounded);
         f.render_widget(Paragraph::new(text).block(block), area);
         return true;
     }
@@ -1088,7 +1088,7 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
                 ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(YELLOW))
-                .border_type(BorderType::Double),
+                .border_type(BorderType::Rounded),
         ),
         modal_area,
     );
@@ -1370,7 +1370,7 @@ fn render_bench_tune_setup(
                     } else {
                         DIM_GRAY
                     }))
-                    .border_type(BorderType::Double),
+                    .border_type(BorderType::Rounded),
             )
             .wrap(Wrap { trim: true }),
         regions[3],
@@ -2024,7 +2024,7 @@ fn render_dashboard_picker(
                 ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(YELLOW))
-                .border_type(BorderType::Double),
+                .border_type(BorderType::Rounded),
         ),
     picker_area,
      );
@@ -2185,7 +2185,7 @@ fn render_dashboard_picker(
                  ))
                  .borders(Borders::ALL)
                  .border_style(Style::default().fg(YELLOW))
-                 .border_type(BorderType::Double),
+                 .border_type(BorderType::Rounded),
          ),
          picker_area,
      );
@@ -2411,7 +2411,7 @@ fn render_dashboard_picker(
                 ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(YELLOW))
-                .border_type(BorderType::Double),
+                .border_type(BorderType::Rounded),
         ),
         picker_area,
     );
@@ -2678,7 +2678,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                     .title(crate::t!("dialog.bench_result.parameters"))
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(CYAN))
-                    .border_type(BorderType::Double),
+                    .border_type(BorderType::Rounded),
             );
         let output_idx = app
             .bench_tune
@@ -2761,7 +2761,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                     ))
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(CYAN))
-                    .border_type(BorderType::Double),
+                    .border_type(BorderType::Rounded),
             );
         let output_lines: Vec<Line> = if !result.outputs.is_empty() {
             result.outputs[output_idx]
@@ -2833,7 +2833,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 .title(crate::t!("dialog.bench_result.server_cmd"))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(YELLOW))
-                .border_type(BorderType::Double);
+                .border_type(BorderType::Rounded);
             f.render_widget(
                 Paragraph::new(cmd_text.to_string())
                     .block(command_block)
@@ -2854,7 +2854,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 .title(crate::t!("dialog.bench_result.output"))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(CYAN))
-                .border_type(BorderType::Double);
+                .border_type(BorderType::Rounded);
             if !output_lines.is_empty() {
                 let scroll = app.bench_tune.bench_tune_output_scroll as u16;
                 f.render_widget(
@@ -2963,7 +2963,7 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
                 .title(crate::t!("panel.title.search_input"))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(YELLOW))
-                .border_type(BorderType::Double),
+                .border_type(BorderType::Rounded),
         ),
         popup_area,
     );
@@ -3461,7 +3461,7 @@ fn render_chat_template_file_picker(
                 ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(YELLOW))
-                .border_type(BorderType::Double),
+                .border_type(BorderType::Rounded),
         ),
         picker_area,
     );
