@@ -6,7 +6,7 @@ use super::helpers::{
     TextEditor, handle_fkey_show, handle_fkey_show_all, handle_fkey_toggle, mark_settings_dirty,
     picker_nav_down, picker_nav_up, sync_global_settings,
 };
-use super::overlay::OverlayRegistry;
+use super::overlay::{check_web_search_health, OverlayRegistry};
 use super::panel::{
     handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key,
     handle_settings_key, handle_system_prompt_presets_key,
@@ -1742,6 +1742,9 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.picker.editing_rpc_worker = None;
                 }
                 8 => {
+                    let engine_url = app.config.default.web_search_engine_url.clone();
+                    let engine = app.config.default.web_search_engine.clone();
+                    let api_key = app.config.default.web_search_api_key.clone();
                     app.ui.global_mode = GlobalMode::WebSearchPicker {
                         enabled: app.config.default.web_search_enabled,
                         engine: app.config.default.web_search_engine.clone(),
@@ -1754,6 +1757,16 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         edit_cursor_pos: 0,
                         check_status: None,
                     };
+                    if !engine_url.is_empty() {
+                        let engine = engine.clone();
+                        let engine_url = engine_url.clone();
+                        let api_key = api_key.clone();
+                        app.ui.needs_redraw = true;
+                        let handle = tokio::spawn(async move {
+                            check_web_search_health(&engine, &engine_url, api_key.as_deref().unwrap_or("")).await
+                        });
+                        app.pending.web_search_check_handle = Some(handle);
+                    }
                 }
                 9 => {
                     let current = crate::tui::i18n::get_language();

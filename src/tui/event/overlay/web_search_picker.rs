@@ -208,7 +208,7 @@ impl OverlayHandler for WebSearchPickerHandler {
     }
 }
 
-async fn check_web_search_health(_engine: &str, engine_url: &str, api_key: &str) -> Result<(), String> {
+pub async fn check_web_search_health(_engine: &str, engine_url: &str, api_key: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
     let url = format!(
         "{}/search?q=test&format=json",

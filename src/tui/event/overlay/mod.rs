@@ -47,7 +47,7 @@ pub use prompt_picker::PromptPickerHandler;
 pub use rpc_manager::RpcManagerHandler;
 pub use search_input::SearchInputHandler;
 pub use spec_type_picker::SpecTypePickerHandler;
-pub use web_search_picker::WebSearchPickerHandler;
+pub use web_search_picker::{check_web_search_health, WebSearchPickerHandler};
 pub use yarn_rope_settings::YarnRoPESettingsHandler;
 
 pub trait OverlayHandler {
