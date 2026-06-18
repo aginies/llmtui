@@ -393,13 +393,19 @@ fn get_sorted_indices(app: &App, filtered: &[usize]) -> Vec<usize> {
                 rank_b.cmp(&rank_a)
             }
             ListSort::Context => {
-                let settings_a = app
-                    .config
-                    .resolve_settings(Some(model_a.display_name.as_str()), None);
-                let settings_b = app
-                    .config
-                    .resolve_settings(Some(model_b.display_name.as_str()), None);
-                settings_b.context_length.cmp(&settings_a.context_length)
+                let ctx_a = app
+                    .search
+                    .ctx_cache
+                    .get(&model_a.display_name)
+                    .map(|(c, _, _)| *c)
+                    .unwrap_or(0);
+                let ctx_b = app
+                    .search
+                    .ctx_cache
+                    .get(&model_b.display_name)
+                    .map(|(c, _, _)| *c)
+                    .unwrap_or(0);
+                ctx_b.cmp(&ctx_a)
             }
         }
     });
