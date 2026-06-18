@@ -1,4 +1,5 @@
 use super::types::App;
+use crate::tui::event::helpers::sync_global_settings;
 
 impl App {
     /// Apply a profile's settings to the current settings.
@@ -40,6 +41,8 @@ impl App {
                 );
                 // Update the cache so it reflects the newly saved settings
                 self.model_settings_cache = self.settings.clone();
+                // Also sync global settings so is_settings_dirty() returns false
+                sync_global_settings(self);
             }
         } else {
             self.add_log(
