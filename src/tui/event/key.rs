@@ -359,12 +359,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         }
         KeyCode::F(10) if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            app.hide_all_panels();
+            handle_fkey_show_all(app);
             app.ui.active_panel = ActivePanel::Models;
             return;
         }
         KeyCode::F(10) => {
-            handle_fkey_show_all(app);
+            app.hide_all_panels();
             app.ui.active_panel = ActivePanel::Models;
             return;
         }

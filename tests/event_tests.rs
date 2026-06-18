@@ -211,6 +211,16 @@ async fn test_ctrl_f4_toggles_model_info() {
 }
 
 #[tokio::test]
+async fn test_ctrl_f3_toggles_llm_settings() {
+    let mut app = make_app();
+    // Hide panel 3 first so toggle turns it back on
+    app.toggle_panel_visibility(3);
+    let key = make_key_with_mod(KeyCode::F(3), KeyModifiers::CONTROL);
+    handle_key(&mut app, key).await;
+    assert!(app.is_panel_visible(3));
+}
+
+#[tokio::test]
 async fn test_f5_toggles_panel() {
     let mut app = make_app();
     let key = make_key(KeyCode::F(5));
@@ -264,11 +274,11 @@ async fn test_shift_right_clamps_at_80() {
 }
 
 #[tokio::test]
-async fn test_f10_all_panels_visible() {
+async fn test_ctrl_f10_all_panels_visible() {
     let mut app = make_app();
     app.ui.panel_visibility = 0;
     app.log.log_expanded = true;
-    let key = make_key(KeyCode::F(10));
+    let key = make_key_with_mod(KeyCode::F(10), KeyModifiers::CONTROL);
     handle_key(&mut app, key).await;
     assert_eq!(app.ui.panel_visibility, 0b111111);
     assert!(!app.log.log_expanded);
