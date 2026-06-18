@@ -478,3 +478,20 @@ fn app_new_panel_help_hidden() {
     let app = App::new(config);
     assert!(!app.ui.panel_help);
 }
+
+// ── Settings Dirty & Global Sync ───────────────────────────────
+
+#[test]
+fn test_settings_not_dirty_at_startup() {
+    let config = Config::default();
+    let app = App::new(config);
+    assert!(!app.is_settings_dirty());
+}
+
+#[test]
+fn test_settings_dirty_when_per_model_changed() {
+    let config = Config::default();
+    let mut app = App::new(config);
+    app.settings.temperature = 0.99; // per-model field
+    assert!(app.is_settings_dirty());
+}

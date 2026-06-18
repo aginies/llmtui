@@ -40,7 +40,7 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             } else {
                 ""
             };
-            format!("api:{} llm:{}{}", app.settings.api_endpoint_port, handle.port, tls)
+            format!("API:{} llama.cpp:{}{}", app.settings.api_endpoint_port, handle.port, tls)
         } else {
             format!("{} {}", handle.port, app.server_mode)
         };

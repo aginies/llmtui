@@ -158,45 +158,100 @@ pub fn mark_settings_dirty(app: &mut App, recalc_vram: bool) {
 }
 
 pub fn sync_global_settings(app: &mut App) {
-    let changed = app.config.default.host != app.settings.host
-        || app.config.default.port != app.settings.port
-        || app.config.default.backend != app.settings.backend
-        || app.config.default.parallel != app.settings.parallel
-        || app.config.default.max_concurrent_predictions != app.settings.max_concurrent_predictions
-        || app.config.default.threads != app.settings.threads
-        || app.config.default.threads_batch != app.settings.threads_batch
-        || app.config.default.api_endpoint_enabled != app.settings.api_endpoint_enabled
-        || app.config.default.api_endpoint_port != app.settings.api_endpoint_port
-        || app.config.default.api_endpoint_key != app.settings.api_endpoint_key
-        || app.config.default.server_mode != app.server_mode
-        || app.config.default.router_max_models != app.router_max_models
-        || app.config.default.llama_cpp_version_cpu != app.settings.llama_cpp_version_cpu
-        || app.config.default.llama_cpp_version_vulkan != app.settings.llama_cpp_version_vulkan
-        || app.config.default.llama_cpp_version_rocm != app.settings.llama_cpp_version_rocm
-        || app.config.default.llama_cpp_version_rocm_lemonade
-            != app.settings.llama_cpp_version_rocm_lemonade
-        || app.config.default.llama_cpp_version_cuda != app.settings.llama_cpp_version_cuda;
+    let has_model = app.selected_model().is_some();
+
+    let changed = if has_model {
+        app.config.default.host != app.settings.host
+            || app.config.default.port != app.settings.port
+            || app.config.default.backend != app.settings.backend
+            || app.config.default.api_endpoint_enabled != app.settings.api_endpoint_enabled
+            || app.config.default.api_endpoint_port != app.settings.api_endpoint_port
+            || app.config.default.api_endpoint_key != app.settings.api_endpoint_key
+            || app.config.default.server_mode != app.server_mode
+            || app.config.default.router_max_models != app.router_max_models
+            || app.config.default.llama_cpp_version_cpu != app.settings.llama_cpp_version_cpu
+            || app.config.default.llama_cpp_version_vulkan != app.settings.llama_cpp_version_vulkan
+            || app.config.default.llama_cpp_version_rocm != app.settings.llama_cpp_version_rocm
+            || app.config.default.llama_cpp_version_rocm_lemonade
+                != app.settings.llama_cpp_version_rocm_lemonade
+            || app.config.default.llama_cpp_version_cuda != app.settings.llama_cpp_version_cuda
+    } else {
+        app.config.default.host != app.settings.host
+            || app.config.default.port != app.settings.port
+            || app.config.default.backend != app.settings.backend
+            || app.config.default.parallel != app.settings.parallel
+            || app.config.default.max_concurrent_predictions != app.settings.max_concurrent_predictions
+            || app.config.default.threads != app.settings.threads
+            || app.config.default.threads_batch != app.settings.threads_batch
+            || app.config.default.api_endpoint_enabled != app.settings.api_endpoint_enabled
+            || app.config.default.api_endpoint_port != app.settings.api_endpoint_port
+            || app.config.default.api_endpoint_key != app.settings.api_endpoint_key
+            || app.config.default.server_mode != app.server_mode
+            || app.config.default.router_max_models != app.router_max_models
+            || app.config.default.llama_cpp_version_cpu != app.settings.llama_cpp_version_cpu
+            || app.config.default.llama_cpp_version_vulkan != app.settings.llama_cpp_version_vulkan
+            || app.config.default.llama_cpp_version_rocm != app.settings.llama_cpp_version_rocm
+            || app.config.default.llama_cpp_version_rocm_lemonade
+                != app.settings.llama_cpp_version_rocm_lemonade
+            || app.config.default.llama_cpp_version_cuda != app.settings.llama_cpp_version_cuda
+    };
+
     if !changed {
         return;
     }
-    app.config.default.host = app.settings.host.clone();
-    app.config.default.port = app.settings.port;
-    app.config.default.backend = app.settings.backend;
-    app.config.default.parallel = app.settings.parallel;
-    app.config.default.max_concurrent_predictions = app.settings.max_concurrent_predictions;
-    app.config.default.threads = app.settings.threads;
-    app.config.default.threads_batch = app.settings.threads_batch;
-    app.config.default.api_endpoint_enabled = app.settings.api_endpoint_enabled;
-    app.config.default.api_endpoint_port = app.settings.api_endpoint_port;
-    app.config.default.api_endpoint_key = app.settings.api_endpoint_key.clone();
-    app.config.default.server_mode = app.server_mode;
-    app.config.default.router_max_models = app.router_max_models;
-    app.config.default.llama_cpp_version_cpu = app.settings.llama_cpp_version_cpu.clone();
-    app.config.default.llama_cpp_version_vulkan = app.settings.llama_cpp_version_vulkan.clone();
-    app.config.default.llama_cpp_version_rocm = app.settings.llama_cpp_version_rocm.clone();
-    app.config.default.llama_cpp_version_rocm_lemonade =
-        app.settings.llama_cpp_version_rocm_lemonade.clone();
-    app.config.default.llama_cpp_version_cuda = app.settings.llama_cpp_version_cuda.clone();
+
+    if has_model {
+        app.config.default.host = app.settings.host.clone();
+        app.config.default.port = app.settings.port;
+        app.config.default.backend = app.settings.backend;
+        app.config.default.api_endpoint_enabled = app.settings.api_endpoint_enabled;
+        app.config.default.api_endpoint_port = app.settings.api_endpoint_port;
+        app.config.default.api_endpoint_key = app.settings.api_endpoint_key.clone();
+        app.config.default.server_mode = app.server_mode;
+        app.config.default.router_max_models = app.router_max_models;
+        app.config.default.llama_cpp_version_cpu = app.settings.llama_cpp_version_cpu.clone();
+        app.config.default.llama_cpp_version_vulkan = app.settings.llama_cpp_version_vulkan.clone();
+        app.config.default.llama_cpp_version_rocm = app.settings.llama_cpp_version_rocm.clone();
+        app.config.default.llama_cpp_version_rocm_lemonade =
+            app.settings.llama_cpp_version_rocm_lemonade.clone();
+        app.config.default.llama_cpp_version_cuda = app.settings.llama_cpp_version_cuda.clone();
+
+        // Sync synced global fields to model_settings_cache to keep is_settings_dirty() correct
+        app.model_settings_cache.host = app.settings.host.clone();
+        app.model_settings_cache.port = app.settings.port;
+        app.model_settings_cache.backend = app.settings.backend;
+        app.model_settings_cache.api_endpoint_enabled = app.settings.api_endpoint_enabled;
+        app.model_settings_cache.api_endpoint_port = app.settings.api_endpoint_port;
+        app.model_settings_cache.api_endpoint_key = app.settings.api_endpoint_key.clone();
+        app.model_settings_cache.llama_cpp_version_cpu = app.settings.llama_cpp_version_cpu.clone();
+        app.model_settings_cache.llama_cpp_version_vulkan = app.settings.llama_cpp_version_vulkan.clone();
+        app.model_settings_cache.llama_cpp_version_rocm = app.settings.llama_cpp_version_rocm.clone();
+        app.model_settings_cache.llama_cpp_version_rocm_lemonade =
+            app.settings.llama_cpp_version_rocm_lemonade.clone();
+        app.model_settings_cache.llama_cpp_version_cuda = app.settings.llama_cpp_version_cuda.clone();
+    } else {
+        app.config.default.host = app.settings.host.clone();
+        app.config.default.port = app.settings.port;
+        app.config.default.backend = app.settings.backend;
+        app.config.default.parallel = app.settings.parallel;
+        app.config.default.max_concurrent_predictions = app.settings.max_concurrent_predictions;
+        app.config.default.threads = app.settings.threads;
+        app.config.default.threads_batch = app.settings.threads_batch;
+        app.config.default.api_endpoint_enabled = app.settings.api_endpoint_enabled;
+        app.config.default.api_endpoint_port = app.settings.api_endpoint_port;
+        app.config.default.api_endpoint_key = app.settings.api_endpoint_key.clone();
+        app.config.default.server_mode = app.server_mode;
+        app.config.default.router_max_models = app.router_max_models;
+        app.config.default.llama_cpp_version_cpu = app.settings.llama_cpp_version_cpu.clone();
+        app.config.default.llama_cpp_version_vulkan = app.settings.llama_cpp_version_vulkan.clone();
+        app.config.default.llama_cpp_version_rocm = app.settings.llama_cpp_version_rocm.clone();
+        app.config.default.llama_cpp_version_rocm_lemonade =
+            app.settings.llama_cpp_version_rocm_lemonade.clone();
+        app.config.default.llama_cpp_version_cuda = app.settings.llama_cpp_version_cuda.clone();
+
+        // Since no model is selected, sync all fields to model_settings_cache
+        app.model_settings_cache = app.settings.clone();
+    }
 
     if let Err(e) = app.config.save() {
         app.add_log(

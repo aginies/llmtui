@@ -53,33 +53,9 @@ impl App {
         self.settings_state.settings_render_cache = None;
     }
 
-    /// Check if global settings match config defaults.
-    /// Returns true when all global-scoped fields equal their config.default values.
-    pub fn is_global_settings_same_as_config(&self) -> bool {
-        let d = &self.config.default;
-        self.settings.host == d.host
-            && self.settings.port == d.port
-            && self.settings.backend == d.backend
-            && self.settings.parallel == d.parallel
-            && self.settings.max_concurrent_predictions == d.max_concurrent_predictions
-            && self.settings.threads == d.threads
-            && self.settings.threads_batch == d.threads_batch
-            && self.settings.api_endpoint_enabled == d.api_endpoint_enabled
-            && self.settings.api_endpoint_port == d.api_endpoint_port
-            && self.settings.api_endpoint_key == d.api_endpoint_key
-            && self.server_mode == d.server_mode
-            && self.router_max_models == d.router_max_models
-            && self.settings.llama_cpp_version_cpu == d.llama_cpp_version_cpu
-            && self.settings.llama_cpp_version_vulkan == d.llama_cpp_version_vulkan
-            && self.settings.llama_cpp_version_rocm == d.llama_cpp_version_rocm
-            && self.settings.llama_cpp_version_rocm_lemonade == d.llama_cpp_version_rocm_lemonade
-            && self.settings.llama_cpp_version_cuda == d.llama_cpp_version_cuda
-    }
-
     /// Check if any LLM settings have been modified since last save.
     pub fn is_settings_dirty(&self) -> bool {
         self.settings.is_dirty(&self.model_settings_cache)
-            || !self.is_global_settings_same_as_config()
     }
 
     /// Compute a fingerprint of the current settings for cache invalidation.
