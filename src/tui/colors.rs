@@ -10,6 +10,9 @@ pub const YELLOW: Color = Color::Yellow;
 /// Success / focus / selection color
 pub const GREEN: Color = Color::Green;
 
+/// Bright green for focused panel borders — more visible than ANSI Green
+pub const LIGHT_GREEN: Color = Color::Rgb(29, 168, 29);
+
 /// Error / danger / dirty state color
 pub const RED: Color = Color::Red;
 
@@ -99,7 +102,7 @@ pub static LINK_TEXT: LazyLock<Style> = LazyLock::new(|| {
 
 /// Focused panel border color
 #[allow(dead_code)]
-pub static BORDER_FOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(GREEN));
+pub static BORDER_FOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(LIGHT_GREEN));
 
 /// Unfocused panel border color
 #[allow(dead_code)]
