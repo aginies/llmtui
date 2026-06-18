@@ -1,6 +1,6 @@
 use super::App;
 use super::{Line, Modifier, Span, Style};
-use crate::tui::app::{ActivePanel, GlobalMode, ModelsMode};
+use crate::tui::app::{GlobalMode, ModelsMode};
 use crate::tui::colors::*;
 use crate::tui::render::hints::render_hints;
 use ratatui::layout::Rect;
@@ -188,31 +188,6 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
             query: _, sort_by, ..
         } => {
             parts.push(Span::raw("  "));
-            if app.ui.active_panel == ActivePanel::Models {
-                parts.push(Span::styled(
-                    crate::t!("status.search"),
-                    Style::default()
-                        .fg(YELLOW)
-                        .add_modifier(Modifier::BOLD),
-                ));
-            } else {
-                let panel_label = match app.ui.active_panel {
-                    ActivePanel::Log => crate::t!("status.log"),
-                    ActivePanel::ServerSettings => crate::t!("status.server_panel"),
-                    ActivePanel::LlmSettings => crate::t!("status.llm"),
-                    ActivePanel::Profiles => crate::t!("status.profiles"),
-                    ActivePanel::SystemPromptPresets => crate::t!("status.presets"),
-                    ActivePanel::SearchReadme => crate::t!("status.readme"),
-                    _ => crate::t!("status.search"),
-                };
-                parts.push(Span::styled(
-                    panel_label,
-                    Style::default()
-                        .fg(YELLOW)
-                        .add_modifier(Modifier::BOLD),
-                ));
-            }
-            parts.push(Span::raw(" "));
             parts.push(Span::styled(
                 sort_by.label(),
                 Style::default().fg(CYAN),
@@ -220,53 +195,9 @@ pub fn render_status_bar<'a>(app: &'a App, panel_area: Rect) -> Line<'a> {
         }
         ModelsMode::Files { model_id, .. } => {
             parts.push(Span::raw("  "));
-            if app.ui.active_panel == ActivePanel::Models {
-                parts.push(Span::styled(
-                    crate::t!("status.files"),
-                    Style::default()
-                        .fg(YELLOW)
-                        .add_modifier(Modifier::BOLD),
-                ));
-            } else {
-                let panel_label = match app.ui.active_panel {
-                    ActivePanel::Log => crate::t!("status.log"),
-                    ActivePanel::ServerSettings => crate::t!("status.server_panel"),
-                    ActivePanel::LlmSettings => crate::t!("status.llm"),
-                    ActivePanel::Profiles => crate::t!("status.profiles"),
-                    ActivePanel::SystemPromptPresets => crate::t!("status.presets"),
-                    ActivePanel::SearchReadme => crate::t!("status.readme"),
-                    _ => crate::t!("status.files"),
-                };
-                parts.push(Span::styled(
-                    panel_label,
-                    Style::default()
-                        .fg(YELLOW)
-                        .add_modifier(Modifier::BOLD),
-                ));
-            }
-            parts.push(Span::raw(" "));
             parts.push(Span::styled(model_id, Style::default().fg(CYAN)));
         }
-        ModelsMode::List { .. } => {
-            parts.push(Span::raw("  "));
-            let panel_label = match app.ui.active_panel {
-                ActivePanel::Models => crate::t!("status.models"),
-                ActivePanel::Log => crate::t!("status.log"),
-                ActivePanel::ServerSettings => crate::t!("status.server_panel"),
-                ActivePanel::LlmSettings => crate::t!("status.llm"),
-                ActivePanel::Profiles => crate::t!("status.profiles"),
-                ActivePanel::SystemPromptPresets => crate::t!("status.presets"),
-                ActivePanel::SearchReadme => crate::t!("status.readme"),
-                ActivePanel::Downloads => crate::t!("status.downloads"),
-                _ => crate::t!("status.app"),
-            };
-            parts.push(Span::styled(
-                panel_label,
-                Style::default()
-                    .fg(YELLOW)
-                    .add_modifier(Modifier::BOLD),
-            ));
-        }
+        ModelsMode::List { .. } => {}
         ModelsMode::BenchTune => {
             parts.push(Span::raw("  "));
             parts.push(Span::styled(
