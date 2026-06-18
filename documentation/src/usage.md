@@ -252,54 +252,255 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 
 ## Keyboard Shortcuts
 
+### Models Panel
+
+#### List Mode (local models)
+
 | Key | Action |
 |-----|--------|
-| `j` / `k` | Navigate up/down |
-| `Enter` | Load model / Select GGUF files (in search) / Expand log |
-| `f` | Filter local models list / Toggle Follow mode (in Log panel) |
-| `Esc` | Back / Exit search / Collapse log / Clear local filter |
-| `Tab` | Switch panels (next) |
-| `Shift+Tab` | Switch panels (previous) |
-| `/` | Open search input modal |
-| `l` | Load model |
-| `u` | Unload model |
-| `t` | Open tags editor (in LLM Settings) |
-| `A` | About box (license and version info) |
-| `Ctrl+D` | Delete model (with confirmation) |
-| `Ctrl+H` | Panel-specific help |
-| `Ctrl+K` | CmdLine overlay |
-| `Ctrl+Alt+K` | Kill llama-server |
-| `Ctrl+L` | Cycle UI language (en → fr → it → en) |
-| `Ctrl+S` | Save settings / Cycle search sort (in search) / Cycle local models sort (in list) |
-| `Ctrl+R` | Reset settings (in LLM Settings) / Fetch README (in search) |
-| `Ctrl+E` | Toggle field enabled/disabled (in LLM Settings: Cache Type K/V, Max Tokens, Presence/Frequency Penalty, Max Concurrent Pred, Flash Attention, Unified KV, Keep in memory, Fit, MTP, Ignore EOS, Yarn RoPE, Active Experts, SWA Full Cache) |
-| `Ctrl+G` | Show GGUF filename explanation (global, works from any panel) |
-| `Ctrl+X` | Toggle expert mode (in LLM Settings) |
-| `Ctrl+P` | Open Profile Picker modal (in LLM Settings) |
+| `j` / `k` / `Up` / `Down` | Navigate model list |
+| `Enter` / `l` | Load selected model |
+| `u` | Unload selected model (prompts confirmation) |
+| `Ctrl+D` / `Del` | Delete selected model (with confirmation) |
+| `f` | Enter local filter mode (type to filter, `Esc` to cancel, `Enter` to confirm) |
+| `Ctrl+S` | Cycle list sort order (Name, Status, Params, Qual, Context) |
+| `Ctrl+G` | Show GGUF filename explanation |
+| `Shift+A` | Open About modal |
+
+#### Search Mode (HuggingFace)
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `Up` / `Down` | Navigate search results |
+| `/` | Enter search input mode — type query, press `Enter` to search |
+| `Enter` | Select result: fetch README, then open GGUF files view |
+| `Esc` | Exit search mode, return to List mode |
+| `l` | View GGUF files for selected model |
+| `S` | Cycle search sort order (Relevance, Downloads, Likes, Trending, CreatedAt) |
+| `Ctrl+S` | Cycle sort order (same as `S`) |
+| `Ctrl+B` | Go to previous page of results |
+| `Down` (at bottom) | Load more results (pagination) |
+| `Ctrl+R` | Fetch README for selected model and switch to README panel |
+
+#### Files Mode (GGUF file browser)
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `Up` / `Down` | Navigate GGUF files |
+| `Enter` | Download selected GGUF file |
+| `Right` | Switch to README panel |
+| `Esc` | Return to search results |
+
+#### BenchTune Mode
+
+| Key | Action |
+|-----|--------|
+| `Up` / `Down` | Navigate benchmark results |
+| `Enter` | View output for selected benchmark result |
+| `Esc` | Cancel benchmark, return to List mode |
+
+### Log Panel
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `Up` / `Down` | Scroll log entries |
+| `g` / `Home` | Jump to top, turn off follow mode |
+| `G` / `End` | Jump to bottom, turn on follow mode |
+| `PageUp` / `PageDown` | Scroll 15 lines up/down |
+| `f` | Toggle follow mode (auto-scroll to newest) |
+| `Enter` | Expand log panel |
+| `Esc` | Collapse log panel |
+
+### Server Settings Panel
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `Up` / `Down` | Navigate settings fields |
+| `Enter` | Activate selected field (opens picker, toggles, or cycles) |
+| `Left` / `h` | Decrease value (Threads, Threads Batch) |
+| `Right` / `l` | Increase value (Threads, Threads Batch) |
+| `Ctrl+S` | Save settings |
+
+**Field-specific `Enter` behavior:**
+
+| Field | Action |
+|-------|--------|
+| Host | Open Host picker modal |
+| Backend | Open Backend picker modal |
+| Threads | Cycle threads value |
+| Threads Batch | Cycle threads batch value |
+| Mode | Cycle: Normal → Bench → BenchTune → Normal |
+| API Endpoint | Open API Endpoint picker modal |
+| Dashboard | Open Dashboard URL modal |
+| RPC Workers | Open RPC Manager modal |
+| Web Search | Open Web Search picker modal |
+| Language | Cycle language (en → fr → it → en) |
+
+### LLM Settings Panel
+
+#### Navigation
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `Up` / `Down` | Navigate settings fields |
+| `Ctrl+PageDown` / `Ctrl+D` | Jump down 10 fields |
+| `Ctrl+PageUp` / `Ctrl+U` | Jump up 10 fields |
+| `PageDown` | Scroll down 5 fields |
+| `PageUp` | Scroll up 5 fields |
+
+#### Edit Values
+
+| Key | Action |
+|-----|--------|
+| `Left` / `Backspace` | Decrease value (or remove char from edit buffer) |
+| `Right` | Increase value |
+| `0-9` | Append digit to edit buffer |
+| `-` | Append minus to edit buffer |
+| `.` | Append decimal point |
+| `Enter` (with buffer) | Apply edited value |
+| `Esc` (with buffer) | Cancel edit, clear buffer |
+
+#### Global Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+S` | Save settings |
+| `Ctrl+R` | Reset settings (confirmation if dirty) |
+| `Ctrl+E` | Toggle current field (boolean fields) |
+| `Ctrl+X` | Toggle expert mode (reveals 17 additional parameters) |
+| `t` | Open Tags modal |
+
+**Field-specific `Enter` actions:**
+
+| Field | Action |
+|-------|--------|
+| Prompt | Open Prompt Picker modal |
+| GPU Layers | Enter edit mode or cycle GPU layers (Auto → Specific → All) |
+| Chat Template | Open Chat Template picker |
+| Cache Type K / V | Cycle cache type (F16, Q8_0, Q6_K, Q5_0, ...) |
+| Max Concurrent Pred | Open Max Concurrent picker |
+| Yarn Params | Open Yarn RoPE Settings modal |
+| Spec Type | Open Speculative Decoding Type picker |
+| Tags | Open Tags modal |
+| LLama.cpp Version | Open Backend version picker |
+
+### Profiles Panel
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `Up` / `Down` | Navigate profiles |
+| `PageUp` / `PageDown` | Scroll 5 entries up/down |
+| `Enter` | Apply selected profile and switch to LLM Settings |
+| `s` / `Ctrl+S` | Save current settings as a new profile |
+| `d` | Delete selected user profile (moved to `unused_profiles/`) |
+| `Esc` | Return to LLM Settings |
+
+### System Prompt Presets Panel
+
+#### List Mode
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `Up` / `Down` | Navigate presets |
+| `PageUp` / `PageDown` | Scroll 5 entries up/down |
+| `Enter` | Apply selected preset and switch to LLM Settings |
+| `e` | Edit selected preset (enters edit mode) |
+| `n` | Create new preset (enters edit mode) |
+| `d` | Delete selected custom preset (not built-in) |
+| `Esc` | Return to LLM Settings |
+
+#### Edit Mode
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Insert newline at cursor |
+| `Ctrl+S` | Save preset and exit edit mode |
+| `Esc` | Cancel edit |
+| `Left` / `Right` | Move cursor |
+| `Backspace` | Delete char before cursor |
+| `Delete` | Delete char at cursor |
+| Any character | Insert at cursor |
+
+### Search README Panel
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `Up` / `Down` | Scroll README content |
+| `h` / `Left` | Switch focus back to Models panel |
+| `Enter` | Expand README panel |
+| `Esc` | Hide README panel |
+
+### Downloads Panel
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` / `Up` / `Down` | Navigate download entries |
+| `p` | Pause/resume selected download |
+| `Alt+C` | Cancel selected download and remove temp file |
+
+### Active Model / Model Info Panels
+
+Read-only display panels. No dedicated key bindings.
+
+| Key | Action |
+|-----|--------|
+| `Tab` / `Shift+Tab` | Switch to other panels |
+| `Ctrl+G` | GGUF filename explanation (Model Info only) |
+| `Shift+A` | Open About modal |
+
+### Panel Navigation (F-keys)
+
+F-keys control panel visibility and focus. Each panel has a bit index (0-5):
+
+| Key | Panel | Bit | Action |
+|-----|-------|-----|--------|
+| `F1` | Models | 0 | Focus Models (no toggle) |
+| `F2` | Server Settings | 1 | Focus Server Settings |
+| `Ctrl+F2` | Server Settings | 1 | Toggle Server visibility |
+| `Ctrl+F4` | Model Info | 2 | Toggle Model Info visibility |
+| `F3` | LLM Settings | 3 | Focus LLM Settings |
+| `Ctrl+F3` | LLM Settings | 3 | Toggle LLM Settings visibility |
+| `Ctrl+F5` | Active Model | 4 | Toggle Active Model visibility |
+| `F6` | Log | 5 | Focus Log |
+| `Ctrl+F6` | Log | 5 | Toggle Log visibility |
+| `F10` | — | — | Hide all panels except Models |
+| `Ctrl+F10` | — | — | Show all panels |
+
+### Panel Navigation (Tab cycling)
+
+`Tab` / `Shift+Tab` cycle focus only among **currently visible** panels. Panel order:
+Models → (Server Settings / README / Profiles / Presets) → Active Model → Log → Downloads.
+
+### Panel Resize
+
+| Method | Description |
+|--------|-------------|
+| `Shift+←` / `Shift+→` | Resize left/right split by 1% (range: 20%-80%) |
+| Mouse drag on border | Drag the vertical border between left and right panels |
+| Scroll on border | Scroll mouse wheel while hovering the border (1% steps) |
+
+### Global Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+H` | Toggle panel-specific help overlay |
+| `Ctrl+K` | Show CmdLine overlay (full server command) |
+| `Ctrl+Alt+K` | Kill running llama-server |
+| `Ctrl+P` | Open Profile Picker modal |
 | `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
+| `Ctrl+G` | Show GGUF filename explanation (any panel) |
+| `Ctrl+X` | Toggle expert mode (any panel) |
+| `Ctrl+L` | Cycle UI language (en → fr → it → en) |
 | `Ctrl+O` | Re-trigger onboarding wizard |
-| `Ctrl+B` | Back one page in search |
-| `g` / `G` | Jump to top/bottom of log |
-| `PageUp` / `PageDown` | Fast scroll (logs, profiles, presets, benchmarks) |
-| `F1`–`F6` | Toggle panels (Models, Server, Info, Settings, Active, Log) |
-| `F9` / `F10` / `Ctrl+F10` | Show all panels |
-| `Ctrl+F7` | Focus Models panel |
-| `Ctrl+F8` | Focus Server Settings panel |
-| `Ctrl+F9` | Focus LLM Settings panel |
-| `Shift+←` / `Shift+→` | Resize horizontal panel split (20%-80%) |
-| `p` | Pause/resume download / Previous benchmark result |
-| `n` | New preset (System Prompt Presets) / Next benchmark result / Add new worker (RPC) |
-| `Space` | Toggle selection (RPC workers, benchmark parameters) |
+| `Ctrl+C` | Exit (warns if models loaded) |
+| `A` | Open About modal |
+| `y` | Confirm destructive action |
 | `Alt+M` | Toggle benchmark mode (RuntimeOnly / Full) |
 | `Alt+P` | Edit benchmark prompt |
 | `Alt+N` | Edit n_predict (max tokens) |
 | `Alt+I` | Edit iterations |
 | `Alt+C` | Edit chat template kwargs / Cancel confirmation |
-| `y` | Confirm destructive action |
-| `Ctrl+h` | Cancel confirmation dialog |
-| `0-9, -, .` | Type numeric values directly (in LLM Settings) |
-| `Right` | View README (in search/files mode) |
-| `Esc` (in BenchTune) | Cancel benchmark tuning |
+| `Space` | Toggle selection (RPC workers, benchmark parameters) |
 
 ## Log Panel
 
