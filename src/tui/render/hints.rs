@@ -2,6 +2,7 @@ use super::App;
 use super::{Span, Style};
 use crate::tui::app::{ActivePanel, ModelsMode};
 use crate::tui::colors::*;
+use ratatui::text::Line;
 
 fn hint_nav() -> &'static str {
     crate::t!("hints.nav")
@@ -249,4 +250,44 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
             }
         }
     }
+}
+
+/// Render hints as a Line, truncated to fit within max_width.
+pub fn render_hints_line(app: &App, panel_area: ratatui::layout::Rect) -> Line<'static> {
+    let hints = render_hints(app);
+    let hints_width: usize = hints.iter().map(|s| s.width()).sum();
+    let available_width = panel_area.width.saturating_sub(10) as usize;
+
+    if hints_width <= available_width {
+        return Line::from(hints);
+    }
+
+    // Truncate hints to fit
+    let mut truncated: Vec<Span> = Vec::new();
+    let mut total_width: usize = 0;
+
+    for span in &hints {
+        let span_width = span.width() as usize;
+        if total_width + span_width <= available_width {
+            total_width += span_width;
+            truncated.push(span.clone());
+        } else if total_width > 0 {
+            // Add ellipsis
+            truncated.push(Span::styled(
+                " ...",
+                Style::default().fg(DIM_GRAY),
+            ));
+            break;
+        }
+    }
+
+    if truncated.is_empty() {
+        // Even first hint doesn't fit, show abbreviated version
+        truncated.push(Span::styled(
+            "...",
+            Style::default().fg(DIM_GRAY),
+        ));
+    }
+
+    Line::from(truncated)
 }

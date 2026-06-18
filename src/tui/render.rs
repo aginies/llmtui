@@ -31,7 +31,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .direction(ratatui::layout::Direction::Vertical)
             .margin(0)
             .constraints([
-                ratatui::layout::Constraint::Length(1),
+                ratatui::layout::Constraint::Length(2),
                 ratatui::layout::Constraint::Fill(1),
             ])
             .split(f.area())
@@ -64,7 +64,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .direction(ratatui::layout::Direction::Vertical)
             .margin(0)
             .constraints([
-                ratatui::layout::Constraint::Length(1),
+                ratatui::layout::Constraint::Length(2),
                 ratatui::layout::Constraint::Fill(3),
                 active_model_constraint,
                 bottom_constraint,
@@ -72,10 +72,10 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .split(f.area())
     };
 
-    let status = status::render_status_bar(app, chunks[0]);
+    let status_lines = status::render_status_bar(app, chunks[0]);
     let status_block = Block::default()
         .style(Style::default().bg(Color::Rgb(20, 20, 20)));
-    f.render_widget(Paragraph::new(status).block(status_block), chunks[0]);
+    f.render_widget(Paragraph::new(status_lines).block(status_block), chunks[0]);
 
     if app.log.log_expanded {
         let log_area = chunks[1];
