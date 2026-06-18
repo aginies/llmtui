@@ -21,6 +21,29 @@ static HEALTH_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
 
 static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
+/// Cached VRAM metrics from system tools (nvidia-smi / amdgpu_top).
+struct VramCache {
+    nvidia: Option<(u64, u64)>,
+    amd: Option<(u64, u64)>,
+    stale: bool,
+}
+
+static VRAM_CACHE: LazyLock<std::sync::Mutex<VramCache>> = LazyLock::new(|| {
+    std::sync::Mutex::new(VramCache {
+        nvidia: None,
+        amd: None,
+        stale: true,
+    })
+});
+
+/// Invalidate the VRAM cache so the next metrics poll re-queries system tools.
+pub fn invalidate_vram_cache() {
+    let mut cache = VRAM_CACHE.lock().unwrap();
+    cache.nvidia = None;
+    cache.amd = None;
+    cache.stale = true;
+}
+
 /// Manages a single llama.cpp server process.
 #[derive(Clone)]
 pub struct ServerHandle {
@@ -978,22 +1001,102 @@ pub async fn get_metrics(
             }
         };
 
-        let (nv_used, nv_total) = get_nvidia_vram_metrics().unwrap_or((0, 0));
-        set_if_better(&mut m, nv_used, nv_total);
+        let cached_nvidia;
+        let cached_amd;
+        {
+            let cache = VRAM_CACHE.lock().unwrap();
+            cached_nvidia = cache.nvidia;
+            cached_amd = cache.amd;
+        }
+
+        if cached_nvidia.is_some() {
+            if let Some((nv_used, nv_total)) = cached_nvidia {
+                set_if_better(&mut m, nv_used, nv_total);
+            }
+        } else {
+            let nv = tokio::task::spawn_blocking(get_nvidia_vram_metrics)
+                .await
+                .unwrap_or(Err("spawn join error".to_string()));
+            if let Ok((used, total)) = nv {
+                {
+                    let mut cache = VRAM_CACHE.lock().unwrap();
+                    cache.nvidia = Some((used, total));
+                    cache.stale = false;
+                }
+                set_if_better(&mut m, used, total);
+            }
+        }
 
         if m.gpu_mem_total == 0 {
-            // AMD fallback when nvidia-smi is not available.
-            let (amd_used, amd_total) = get_amdgpu_vram_metrics().unwrap_or((0, 0));
-            set_if_better(&mut m, amd_used, amd_total);
+            if cached_amd.is_some() {
+                if let Some((amd_used, amd_total)) = cached_amd {
+                    set_if_better(&mut m, amd_used, amd_total);
+                }
+            } else {
+                // AMD fallback when nvidia-smi is not available.
+                let amd = tokio::task::spawn_blocking(get_amdgpu_vram_metrics)
+                    .await
+                    .unwrap_or(Err("spawn join error".to_string()));
+                if let Ok((used, total)) = amd {
+                    {
+                        let mut cache = VRAM_CACHE.lock().unwrap();
+                        cache.amd = Some((used, total));
+                        cache.stale = false;
+                    }
+                    set_if_better(&mut m, used, total);
+                }
+            }
         }
     } else if m.gpu_mem_used == 0 {
         // KV-only queries: use system tools as a last resort.
-        if let Ok((used, total)) = get_nvidia_vram_metrics() {
-            m.gpu_mem_used = used;
-            m.gpu_mem_total = total;
-        } else if let Ok((used, total)) = get_amdgpu_vram_metrics() {
-            m.gpu_mem_used = used;
-            m.gpu_mem_total = total;
+        let cached_nvidia;
+        let cached_amd;
+        {
+            let cache = VRAM_CACHE.lock().unwrap();
+            cached_nvidia = cache.nvidia;
+            cached_amd = cache.amd;
+        }
+
+        if cached_nvidia.is_some() {
+            if let Some((used, total)) = cached_nvidia {
+                m.gpu_mem_used = used;
+                m.gpu_mem_total = total;
+            }
+        } else {
+            let nv = tokio::task::spawn_blocking(get_nvidia_vram_metrics)
+                .await
+                .unwrap_or(Err("spawn join error".to_string()));
+            if let Ok((used, total)) = nv {
+                {
+                    let mut cache = VRAM_CACHE.lock().unwrap();
+                    cache.nvidia = Some((used, total));
+                    cache.stale = false;
+                }
+                m.gpu_mem_used = used;
+                m.gpu_mem_total = total;
+            }
+        }
+
+        if m.gpu_mem_used == 0 {
+            if cached_amd.is_some() {
+                if let Some((used, total)) = cached_amd {
+                    m.gpu_mem_used = used;
+                    m.gpu_mem_total = total;
+                }
+            } else {
+                let amd = tokio::task::spawn_blocking(get_amdgpu_vram_metrics)
+                    .await
+                    .unwrap_or(Err("spawn join error".to_string()));
+                if let Ok((used, total)) = amd {
+                    {
+                        let mut cache = VRAM_CACHE.lock().unwrap();
+                        cache.amd = Some((used, total));
+                        cache.stale = false;
+                    }
+                    m.gpu_mem_used = used;
+                    m.gpu_mem_total = total;
+                }
+            }
         }
     }
 

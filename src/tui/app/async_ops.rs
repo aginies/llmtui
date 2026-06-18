@@ -866,6 +866,7 @@ impl App {
                     self.loading.progress_target = 1.0;
                     self.ui.needs_full_redraw = true;
                     self.ui.needs_redraw = true;
+                    crate::backend::server::invalidate_vram_cache();
 
                     // Check SearXNG health when web search is enabled
                     if self.config.default.web_search_enabled
@@ -1462,6 +1463,7 @@ impl App {
                     let log_tx = self.server.spawn_log_tx.clone();
                     let model_name_err = model_name_clone.clone();
                     self.metrics.ctx_used = 0;
+                    crate::backend::server::invalidate_vram_cache();
                     tokio::spawn(async move {
                         if let Err(e) =
                             crate::backend::server::load_model(&host, port, &model_name_clone).await
@@ -1503,11 +1505,12 @@ impl App {
             let port = handle.port;
             let model_name_clone = model_name.clone();
             if server_mode == crate::models::ServerMode::Normal {
-                self.add_log(
-                    crate::t_fmt!("async.unloading", model_name_clone),
-                    crate::config::LogLevel::Info,
-                );
-                self.pending.pending_kill = Some(handle_clone);
+                 self.add_log(
+                     crate::t_fmt!("async.unloading", model_name_clone),
+                     crate::config::LogLevel::Info,
+                 );
+                 crate::backend::server::invalidate_vram_cache();
+                 self.pending.pending_kill = Some(handle_clone);
             } else {
                 self.add_log(
                     crate::t_fmt!("async.send_unload", model_name_clone),
@@ -1596,9 +1599,10 @@ impl App {
                     crate::t!("log.server_stopped"),
                     crate::config::LogLevel::Info,
                 );
-                self.server.server_handle = None;
-                self.server.metrics_rx = None;
-                self.metrics = Default::default();
+              self.server.server_handle = None;
+                 self.server.metrics_rx = None;
+                 self.metrics = Default::default();
+                 crate::backend::server::invalidate_vram_cache();
                 if let Some(task) = self.server.metrics_task_handle.take() {
                     task.abort();
                 }

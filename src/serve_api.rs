@@ -21,6 +21,20 @@ use crate::backend::web_context;
 
 
 
+/// HTTP hop-by-hop headers to strip when proxying.
+const HOP_BY_HOP: &[&str] = &[
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "host",
+    "content-length",
+];
+
 pub struct StatusCache {
     pub models: usize,
     pub cached_at: Instant,
@@ -186,7 +200,7 @@ async fn proxy_streaming(
                   messages.len(), last_content.len(), last_content);
         }
 
-        let body_stream = futures_util::stream::once(async move {
+       let body_stream = futures_util::stream::once(async move {
             Ok::<Bytes, std::convert::Infallible>(Bytes::from(
                 serde_json::to_vec(&modified_body).unwrap_or(body_bytes.to_vec())
             ))
@@ -194,22 +208,10 @@ async fn proxy_streaming(
 
         let mut request_builder = state.client.post(&url);
 
-   const HOP_BY_HOP: &[&str] = &[
-        "connection",
-        "keep-alive",
-        "proxy-authenticate",
-        "proxy-authorization",
-        "te",
-        "trailer",
-        "transfer-encoding",
-        "upgrade",
-        "host",
-        "content-length",
-    ];
-    let mut filtered = axum::http::HeaderMap::new();
-    for (name, value) in headers.iter() {
-        let n = name.as_str();
-        if !HOP_BY_HOP.contains(&n) && n != "authorization" {
+        let mut filtered = axum::http::HeaderMap::new();
+        for (name, value) in headers.iter() {
+            let n = name.as_str();
+            if !HOP_BY_HOP.contains(&n) && n != "authorization" {
             filtered.insert(name, value.clone());
         }
     }
@@ -243,17 +245,6 @@ async fn proxy_streaming(
         }
     };
 
-    const HOP_BY_HOP: &[&str] = &[
-        "connection",
-        "keep-alive",
-        "proxy-authenticate",
-        "proxy-authorization",
-        "te",
-        "trailer",
-        "transfer-encoding",
-        "upgrade",
-        "host",
-    ];
     let mut filtered = axum::http::HeaderMap::new();
     for (name, value) in headers.iter() {
         let n = name.as_str();
