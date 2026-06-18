@@ -539,7 +539,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 Constraint::Percentage(58),
                 Constraint::Percentage(11),
                 Constraint::Length(4),
-                Constraint::Min(7),
+                Constraint::Percentage(11),
             ];
 
             let table = Table::new(rows, widths)
