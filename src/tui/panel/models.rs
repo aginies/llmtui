@@ -432,12 +432,23 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .unwrap_or_default();
                     let params_width = params_str.chars().count() as u16 + 2;
 
-                    let name_width =
+                     let prefix_width = if is_loaded {
+                         crate::t!("models.list_status.loaded_prefix").chars().count() as u16
+                     } else if matches!(model_state, Some(crate::models::ModelState::Loading)) {
+                         crate::t!("models.list_status.loading_prefix").chars().count() as u16
+                     } else if matches!(model_state, Some(crate::models::ModelState::Benchmarking)) {
+                         crate::t!("models.list_status.benchmarking_prefix").chars().count() as u16
+                     } else {
+                         0
+                     };
+
+                     let name_width =
                         table_area
                             .width
                             .saturating_sub(context_str.chars().count() as u16 + 4)
                             .saturating_sub(params_width)
-                            .saturating_sub(4);
+                            .saturating_sub(4)
+                            .saturating_sub(prefix_width);
                     let max_offset = filename.chars().count().saturating_sub(name_width as usize);
                     let state = app.ui.text_scrolls.entry(key.clone()).or_insert_with(|| {
                         crate::tui::app::TextScrollState {
@@ -455,18 +466,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.max_offset = max_offset;
                     state.visible = true;
 
-                    let name_display = if is_loaded {
-                        let prefix = crate::t_fmt!("models.list_status.loaded_prefix", display_name);
-                        scroll_text(&prefix, name_width, state)
-                    } else if matches!(model_state, Some(crate::models::ModelState::Loading)) {
-                        let prefix = crate::t_fmt!("models.list_status.loading_prefix", display_name);
-                        scroll_text(&prefix, name_width, state)
-                    } else if matches!(model_state, Some(crate::models::ModelState::Benchmarking)) {
-                        let prefix = crate::t_fmt!("models.list_status.benchmarking_prefix", display_name);
-                        scroll_text(&prefix, name_width, state)
-                    } else {
-                        scroll_text(display_name, name_width, state)
-                    };
                     let name_style = if is_selected {
                         Style::default()
                             .fg(BLACK)
@@ -480,6 +479,34 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         Style::default().fg(YELLOW)
                     } else {
                         Style::default().fg(WHITE)
+                    };
+
+                     let name_display = if is_loaded {
+                        let prefix = crate::t!("models.list_status.loaded_prefix");
+                        let scrolled = scroll_text(display_name, name_width, state);
+                        Line::from(vec![
+                            Span::styled(prefix, name_style),
+                            Span::styled(scrolled, name_style),
+                            Span::styled("]", name_style),
+                        ])
+                    } else if matches!(model_state, Some(crate::models::ModelState::Loading)) {
+                        let prefix = crate::t!("models.list_status.loading_prefix");
+                        let scrolled = scroll_text(display_name, name_width, state);
+                        Line::from(vec![
+                            Span::styled(prefix, name_style),
+                            Span::styled(scrolled, name_style),
+                            Span::styled("]", name_style),
+                        ])
+                    } else if matches!(model_state, Some(crate::models::ModelState::Benchmarking)) {
+                        let prefix = crate::t!("models.list_status.benchmarking_prefix");
+                        let scrolled = scroll_text(display_name, name_width, state);
+                        Line::from(vec![
+                            Span::styled(prefix, name_style),
+                            Span::styled(scrolled, name_style),
+                            Span::styled("]", name_style),
+                        ])
+                    } else {
+                        Line::from(vec![Span::styled(scroll_text(display_name, name_width, state), name_style)])
                     };
 
                     let is_moe = meta.map(|m| m.arch.contains("moe")).unwrap_or(false);
@@ -496,7 +523,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .unwrap_or_else(|| quality_dot(0));
 
                     Row::new(vec![
-                        Cell::from(Line::from(Span::styled(name_display, name_style))),
+                        Cell::from(name_display),
                         Cell::from(params_str).style(params_style),
                         Cell::from(quality_cell),
                         Cell::from(
