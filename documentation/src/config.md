@@ -238,7 +238,6 @@ You can start a model directly from the command line without the TUI:
 | `--api-key` | API key for Bearer token authentication (API proxy) |
 | `--ws-enable` | Enable WebSocket dashboard server |
 | `--ws-port` | Port for WebSocket dashboard server |
-| `--ws-auth` | Auth key for WebSocket dashboard access (defaults to `--api-key` value if not specified) |
 | `--host` | Bind address for the server (e.g., `0.0.0.0`) |
 | `--backend-binary` | Path to a custom llama-server binary |
 | `--log-file` | Log file path (default: stdout) |

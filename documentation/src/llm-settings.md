@@ -202,7 +202,7 @@ N-gram cache-based speculative decoding.
 
 ### In the TUI
 
-1. Open LLM Settings (`F9`)
+1. Open LLM Settings (`F3`)
 2. Navigate to **Speculative Decoding** section
 3. Toggle **MTP** to enable
 4. Select **Spec Type** from the dropdown

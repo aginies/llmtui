@@ -490,22 +490,18 @@ Language switching persists the chosen language to `~/.config/llm-manager/config
 | `Shift+Tab` | Focus prev |
 | `Tab` | Focus next |
 | `Ctrl+H` | Toggle panel help |
-| `F1` | Switch to Models panel |
-| `F2` | Toggle ServerSettings panel |
-| `F3` | Toggle ModelInfo panel |
-| `F4` | Toggle LlmSettings panel |
-| `F5` | Toggle ActiveModel panel |
-| `F6` | Toggle Log panel |
-| `Shift+Left` | Decrease left_pct by 1 |
-| `Shift+Right` | Increase left_pct by 1 |
-| `Ctrl+F7` | Show Models panel |
-| `Ctrl+F8` | Show ServerSettings panel |
-| `Ctrl+F9` | Show LlmSettings panel |
-| `Ctrl+F10` / `F10` | Show all panels |
-| `Ctrl+K` | Kill llama-server |
-| `Ctrl+L` | View CmdLine |
-| `/` | Enter search mode |
-| `A` | Open About overlay |
+| `F1` | Focus Models panel |
+| `F2` | Focus ServerSettings panel |
+| `F3` | Focus LlmSettings panel |
+| `F6` | Focus Log panel |
+| `Ctrl+F2` | Toggle ServerSettings panel visibility |
+| `Ctrl+F3` | Toggle LlmSettings panel visibility |
+| `Alt+F3` | Toggle LlmSettings panel visibility |
+| `Ctrl+F4` | Toggle ModelInfo panel visibility |
+| `Ctrl+F5` | Toggle ActiveModel panel visibility |
+| `Ctrl+F6` | Toggle Log panel visibility |
+| `Ctrl+F10` | Show all panels |
+| `F10` | Hide all panels except Models |
 
 ### Server Settings Field Navigation (Enter key)
 

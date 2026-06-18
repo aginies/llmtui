@@ -17,8 +17,8 @@ Run a model directly with llama-server and expose an OpenAI-compatible API:
 # Serve with API proxy and WebSocket dashboard
 ./build.sh serve --model model.gguf --api-port 49222 --ws-enable
 
-# Serve with custom dashboard port and auth
-./build.sh serve --model model.gguf --api-port 49222 --ws-enable --ws-port 8081 --ws-auth mykey
+# Serve with custom dashboard port
+./build.sh serve --model model.gguf --api-port 49222 --ws-enable --ws-port 8081
 
 # Serve with a custom backend binary path
 ./build.sh serve --model model.gguf --backend-binary /path/to/custom/llama-server
@@ -331,7 +331,7 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | Backend | Open Backend picker modal |
 | Threads | Cycle threads value |
 | Threads Batch | Cycle threads batch value |
-| Mode | Cycle: Normal → Bench → BenchTune → Normal |
+| Mode | Cycle: Normal → Bench GPU → BenchTune → Normal |
 | API Endpoint | Open API Endpoint picker modal |
 | Dashboard | Open Dashboard URL modal |
 | RPC Workers | Open RPC Manager modal |
