@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-06-18
+
+### Added
+
+- **Web Search documentation** — complete SearXNG setup guide with podman and docker-compose examples in `documentation/src/web-search.md`
+- **SearXNG config screenshot** — `searxng_config.png` added to documentation
+- **Web Search entry in SUMMARY.md** — web-search.md now included in mdbook build
+- **Web search injection log** — logs "Web search: results injected (N chars)" when SearXNG data is injected into prompt
+
+### Fixed
+
+- **GRANIAN_PORT env var** — documented requirement to match external port (default 8080 in image)
+- **Volume mount** — removed `-v ~/.searxng:/etc/searxng/lib/searx:Z` that overwrites Python package dir
+- **Settings file extension** — standardized on `settings.yml` (not `.yaml`)
+- **base_url uncommented** — enabled in all documentation examples
+
 ## [1.6.0] - 2026-06-18
 
 ### Added
@@ -132,6 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GNOME extension: fixed real-time metrics display
 - Dashboard: fixed WebSocket connection issues
 
+[1.6.1]: https://github.com/aginies/llmtui/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/aginies/llmtui/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/aginies/llmtui/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/aginies/llmtui/compare/v1.4.1...v1.5.0
