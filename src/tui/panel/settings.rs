@@ -61,7 +61,7 @@ pub fn render_all(
     // Scroll clamp (always executes)
     let available_height = area.height.saturating_sub(2);
     if selected_content_line < app.settings_state.settings_scroll_offset {
-        app.settings_state.settings_scroll_offset = selected_content_line;
+        app.settings_state.settings_scroll_offset = selected_content_line.saturating_sub(1);
     } else if available_height > 0
         && (selected_content_line - app.settings_state.settings_scroll_offset)
             >= (available_height as usize)
@@ -126,7 +126,7 @@ fn render_settings(
                     .add_modifier(Modifier::BOLD)
             };
             lines.push(Line::from(vec![Span::styled(
-                format!("--- {} ---", field.section),
+                format!("━━━ {} ━━━", field.section),
                 section_style,
             )]));
             prev_section = Some(field.section);

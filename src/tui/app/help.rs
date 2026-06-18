@@ -250,7 +250,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("panel.help.llm.expert_mode"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Loading ---", y)]),
+                Line::from(vec![Span::styled("━━━ Loading ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Context", y),
                     Span::raw(format!("  {}", crate::t!("field.help.context_length"))),
@@ -267,7 +267,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.mlock"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- GPU Offload ---", y)]),
+                Line::from(vec![Span::styled("━━━ GPU Offload ━━━", y)]),
                 Line::from(vec![
                     Span::styled("GPU Layers", y),
                     Span::raw(format!("  {}", crate::t!("field.help.gpu_layers_mode"))),
@@ -293,7 +293,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.expert_count"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Evaluation ---", y)]),
+                Line::from(vec![Span::styled("━━━ Evaluation ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Eval Batch", y),
                     Span::raw(format!("  {}", crate::t!("field.help.batch_size"))),
@@ -318,7 +318,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.swa_full"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Sampling ---", y)]),
+                Line::from(vec![Span::styled("━━━ Sampling ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Seed", y),
                     Span::raw(format!("  {}", crate::t!("field.help.seed"))),
@@ -344,7 +344,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.max_tokens"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Repetition ---", y)]),
+                Line::from(vec![Span::styled("━━━ Repetition ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Repeat Penalty", y),
                     Span::raw(format!("  {}", crate::t!("field.help.repeat_penalty"))),
@@ -362,19 +362,19 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.frequency_penalty"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Tags ---", y)]),
+                Line::from(vec![Span::styled("━━━ Tags ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Tags", y),
                     Span::raw(format!("  {}", crate::t!("field.help.tags"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Backend ---", y)]),
+                Line::from(vec![Span::styled("━━━ Backend ━━━", y)]),
                 Line::from(vec![
                     Span::styled("LLama.cpp Version", y),
                     Span::raw(format!("  {}", crate::t!("field.help.backend_version"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Yarn RoPE ---", y)]),
+                Line::from(vec![Span::styled("━━━ Yarn RoPE ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Yarn RoPE", y),
                     Span::raw(format!("  {}", crate::t!("field.help.rope_yarn_enabled"))),
@@ -384,7 +384,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.yarn_params"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Speculative Decoding ---", y)]),
+                Line::from(vec![Span::styled("━━━ Speculative Decoding ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Spec Type", y),
                     Span::raw(format!("  {}", crate::t!("field.help.spec_type"))),
@@ -394,7 +394,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.draft_tokens"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Ultra Expert: Loading ---", y)]),
+                Line::from(vec![Span::styled("━━━ Ultra Expert: Loading ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Threads Batch", y),
                     Span::raw(format!("  {}", crate::t!("field.help.threads_batch"))),
@@ -416,7 +416,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.numa"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Ultra Expert: GPU ---", y)]),
+                Line::from(vec![Span::styled("━━━ Ultra Expert: GPU ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Split Mode", y),
                     Span::raw(format!("  {}", crate::t!("field.help.split_mode"))),
@@ -450,7 +450,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.embedding"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Ultra Expert: Sampling ---", y)]),
+                Line::from(vec![Span::styled("━━━ Ultra Expert: Sampling ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Typical P", y),
                     Span::raw(format!("  {}", crate::t!("field.help.typical_p"))),
@@ -476,7 +476,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.samplers"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Ultra Expert: DRY ---", y)]),
+                Line::from(vec![Span::styled("━━━ Ultra Expert: DRY ━━━", y)]),
                 Line::from(vec![
                     Span::styled("DRY Multiplier", y),
                     Span::raw(format!("  {}", crate::t!("field.help.dry_multiplier"))),
@@ -494,7 +494,7 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.dry_penalty_last_n"))),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- Ultra Expert: Server ---", y)]),
+                Line::from(vec![Span::styled("━━━ Ultra Expert: Server ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Cache Prompt", y),
                     Span::raw(format!("  {}", crate::t!("field.help.cache_prompt"))),
@@ -540,7 +540,7 @@ impl App {
                     Span::raw("  GGUF filename explanation (works from any panel)"),
                 ]),
                 Line::from(""),
-                Line::from(vec![Span::styled("--- GGUF Naming Reference ---", y)]),
+                Line::from(vec![Span::styled("━━━ GGUF Naming Reference ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Q4/Q5/Q6/Q8", y),
                     Span::raw("  Quantization bit depth (4-8 bits)"),
