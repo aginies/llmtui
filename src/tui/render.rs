@@ -229,7 +229,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         }
         _ => {
             let show_readme = match &app.models_mode {
-                ModelsMode::Search { show_readme, .. } => *show_readme,
+                ModelsMode::Search { .. } => true,
                 ModelsMode::Files { .. } => true,
                 _ => false,
             };
