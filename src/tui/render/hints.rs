@@ -89,10 +89,6 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
             } else {
                 match app.ui.active_panel {
                     ActivePanel::Models => {
-                        let sort_label = match &app.models_mode {
-                            ModelsMode::List { sort_by } => sort_by.label(),
-                            _ => String::new(),
-                        };
                         let parts = vec![
                             Span::styled(crate::t!("hints.gguf"), c),
                             Span::raw(HINT_SEP),
@@ -103,9 +99,6 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::styled(crate::t!("hints.load_unload"), y),
                             Span::raw(HINT_SEP),
                             Span::styled(crate::t!("hints.delete"), y),
-                            Span::raw(HINT_SEP),
-                            Span::styled("sort:", c),
-                            Span::styled(sort_label, Style::default().fg(CYAN)),
                             Span::raw(HINT_SEP),
                             Span::styled(crate::t!("hints.help"), c),
                             Span::raw(HINT_SEP),
