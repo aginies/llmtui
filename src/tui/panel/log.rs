@@ -34,7 +34,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     };
     let is_log_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Log;
     let (border_type, border_color) = if is_log_focused {
-        (BorderType::Thick, LIGHT_GREEN)
+        (BorderType::Double, LIGHT_GREEN)
     } else {
         (BorderType::Plain, LIGHT_GRAY)
     };

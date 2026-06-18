@@ -35,7 +35,7 @@ pub fn render_download_panel(
     };
 
     let (border_type, border_color) = if is_focused {
-        (BorderType::Thick, LIGHT_GREEN)
+        (BorderType::Double, LIGHT_GREEN)
     } else {
         (BorderType::Plain, LIGHT_GRAY)
     };
@@ -271,7 +271,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, LIGHT_GREEN)
+                (BorderType::Double, LIGHT_GREEN)
             } else {
                 (BorderType::Plain, LIGHT_GRAY)
             };
@@ -590,7 +590,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             };
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, LIGHT_GREEN)
+                (BorderType::Double, LIGHT_GREEN)
             } else {
                 (BorderType::Plain, LIGHT_GRAY)
             };
@@ -751,7 +751,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let title = crate::t_fmt!("models.gguf_files", model_id);
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, LIGHT_GREEN)
+                (BorderType::Double, LIGHT_GREEN)
             } else {
                 (BorderType::Plain, LIGHT_GRAY)
             };
@@ -841,7 +841,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let title = crate::t!("panel.title.bench_tune").to_string();
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let (border_type, border_color) = if is_models_focused {
-                (BorderType::Thick, LIGHT_GREEN)
+                (BorderType::Double, LIGHT_GREEN)
             } else {
                 (BorderType::Plain, LIGHT_GRAY)
             };

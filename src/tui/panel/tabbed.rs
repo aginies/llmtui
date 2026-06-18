@@ -82,7 +82,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     };
     let is_llm_focused = app.ui.active_panel == crate::tui::app::ActivePanel::LlmSettings;
     let (border_type, border_color) = if is_llm_focused {
-        (BorderType::Thick, LIGHT_GREEN)
+        (BorderType::Double, LIGHT_GREEN)
     } else {
         (BorderType::Plain, LIGHT_GRAY)
     };
@@ -430,7 +430,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     };
     let is_server_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
     let (border_type, border_color) = if is_server_focused {
-        (BorderType::Thick, LIGHT_GREEN)
+        (BorderType::Double, LIGHT_GREEN)
     } else {
         (BorderType::Plain, LIGHT_GRAY)
     };
@@ -463,7 +463,7 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let is_llm_focused = app.ui.active_panel == ActivePanel::LlmSettings;
     let (border_type, border_color) = if is_llm_focused {
-        (BorderType::Thick, LIGHT_GREEN)
+        (BorderType::Double, LIGHT_GREEN)
     } else {
         (BorderType::Plain, LIGHT_GRAY)
     };
