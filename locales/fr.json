@@ -475,7 +475,7 @@
   "models.search_headers.license": "Licence",
   "models.list_headers.model": "Modèle",
   "models.list_headers.status": "État",
-  "models.list_headers.context": "  Ctx",
+  "models.list_headers.context": "  Ctx (U)",
   "models.list_headers.params": "Params",
   "models.list_headers.quality": "Qual",
   "models.list_status.loaded_prefix": "[CHARGÉ: ",

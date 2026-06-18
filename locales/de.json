@@ -422,7 +422,7 @@
   "models.search_headers.license": "Lizenz",
   "models.list_headers.model": "Modell",
   "models.list_headers.status": "Status",
-  "models.list_headers.context": "  Ctx",
+  "models.list_headers.context": "  Ctx (U)",
   "models.list_headers.params": "Parameter",
   "models.list_headers.quality": "Qual",
   "models.list_status.loaded_prefix": "[GELADEN: ",

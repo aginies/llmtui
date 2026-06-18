@@ -475,7 +475,7 @@
   "models.search_headers.license": "Licenza",
   "models.list_headers.model": "Modello",
   "models.list_headers.status": "Stato",
-  "models.list_headers.context": "  Ctx",
+  "models.list_headers.context": "  Ctx (U)",
   "models.list_headers.params": "Params",
   "models.list_headers.quality": "Qual",
   "models.list_status.loaded_prefix": "[CARICATO: ",
