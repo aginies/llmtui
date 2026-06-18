@@ -449,7 +449,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .map(|m| {
                             let mut p = m.model_parameters.clone();
                             if m.arch.contains("moe") && !p.is_empty() {
-                                p = format!("{} (MoE)", p);
+                                p = format!("{} MoE", p);
                             }
                             p
                         })
@@ -542,7 +542,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let widths = [
                 Constraint::Percentage(52),
                 Constraint::Percentage(11),
-                Constraint::Min(12),
+                Constraint::Percentage(10),
                 Constraint::Length(4),
                 Constraint::Percentage(10),
             ];
