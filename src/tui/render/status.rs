@@ -10,9 +10,9 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
 
     // Line 1: mode + server status
     let mode_name: String = match &app.models_mode {
-        ModelsMode::List { .. } => crate::t!("status.list").to_string(),
-        ModelsMode::Search { results, .. } => format!("{} {}", crate::t!("status.search"), crate::t_fmt!("status.search_count", results.len())),
-        ModelsMode::Files { files, .. } => crate::t_fmt!("status.files", files.len()),
+        ModelsMode::List { sort_by } => format!("{} | sort:{}", crate::t!("status.list"), sort_by.label().to_lowercase()),
+        ModelsMode::Search { results, sort_by, .. } => format!("{} {} | sort:{}", crate::t!("status.search"), crate::t_fmt!("status.search_count", results.len()), sort_by.label().to_lowercase()),
+        ModelsMode::Files { model_id, .. } => format!("{} | {}", crate::t!("status.files"), model_id),
         ModelsMode::BenchTune => crate::t!("status.bench_tune").to_string(),
     };
     let mut status_parts: Vec<Span<'static>> = Vec::new();
@@ -180,41 +180,6 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         } else {
             status_parts.push(Span::styled(
                 crate::t!("status.bench_setup").to_string(),
-                Style::default()
-                    .fg(YELLOW)
-                    .add_modifier(Modifier::BOLD),
-            ));
-        }
-    }
-
-    match &app.models_mode {
-        ModelsMode::Search {
-            query: _, sort_by, ..
-        } => {
-            status_parts.push(Span::raw("  "));
-            status_parts.push(Span::styled(
-                sort_by.label().to_string(),
-                Style::default().fg(CYAN),
-            ));
-        }
-        ModelsMode::Files { model_id, .. } => {
-            status_parts.push(Span::raw("  "));
-            status_parts.push(Span::styled(
-                model_id.to_string(),
-                Style::default().fg(CYAN),
-            ));
-        }
-        ModelsMode::List { sort_by } => {
-            status_parts.push(Span::raw("  "));
-            status_parts.push(Span::styled(
-                format!("sort:{}", sort_by.label().to_lowercase()),
-                Style::default().fg(CYAN),
-            ));
-        }
-        ModelsMode::BenchTune => {
-            status_parts.push(Span::raw("  "));
-            status_parts.push(Span::styled(
-                crate::t!("status.benchtune").to_string(),
                 Style::default()
                     .fg(YELLOW)
                     .add_modifier(Modifier::BOLD),
