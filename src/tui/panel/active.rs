@@ -3,7 +3,7 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, Gauge, Paragraph},
 };
 
 use crate::tui::colors::*;
@@ -125,9 +125,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     progress: p,
                     current_params,
                 } => {
-                    let label = " Progress: ";
-                    let overhead = label.len() + 2 + 6;
-                    let bar_width = area.width.saturating_sub(overhead as u16 + 2) as usize;
+                    let bar_width = area.width.saturating_sub(16) as usize;
                     let filled = (*p as f64 / 100.0 * bar_width as f64) as usize;
                     let bar = format!(
                         "[{}{}] {:.0}%",
@@ -136,7 +134,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         p
                     );
                     lines.push(Line::from(vec![
-                        Span::styled(label, Style::default().fg(YELLOW)),
+                        Span::styled(" Progress: ", Style::default().fg(YELLOW)),
                         Span::styled(bar, Style::default().fg(YELLOW)),
                     ]));
                     lines.push(Line::from(vec![
@@ -306,40 +304,37 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                 lines.push(Line::from(tps_parts));
 
-              let mut context_parts = vec![
+             let mut context_parts = vec![
                       Span::styled(" [ ", Style::default().fg(WHITE)),
                       Span::styled("Context: ", Style::default().fg(YELLOW)),
                       Span::styled(token_str, Style::default().fg(CYAN)),
                       Span::styled(" ]", Style::default().fg(WHITE)),
                   ];
 
-                // Append prompt eval info on same line
-                 let progress_pct = (app.metrics.prompt_progress * 100.0) as usize;
-                 let bar_width = 20usize;
-                 let filled = (app.metrics.prompt_progress * bar_width as f64) as usize;
-                 let prompt_bar = format!(
-                     "{}{}",
-                     "█".repeat(filled),
-                     "░".repeat(bar_width.saturating_sub(filled)),
-                 );
-             let prompt_token_str = format!(
-                       "{} tokens ({:.0} t/s)",
-                       app.metrics.prompt_tokens,
-                       app.metrics.prompt_tps_eval,
-                   );
-                 context_parts.extend_from_slice(&[
-                     Span::styled(" ", Style::default().fg(WHITE)),
-                     Span::styled(" [ ", Style::default().fg(WHITE)),
-                     Span::styled("Progress: ", Style::default().fg(YELLOW)),
-                     Span::styled(prompt_bar, Style::default().fg(CYAN)),
-                     Span::styled(" ", Style::default().fg(CYAN)),
-                     Span::styled(format!("{}%", progress_pct), Style::default().fg(CYAN)),
-                     Span::styled(" ", Style::default().fg(CYAN)),
-                     Span::styled(prompt_token_str, Style::default().fg(CYAN)),
-                     Span::styled(" ]", Style::default().fg(WHITE)),
-                 ]);
+                if app.metrics.prompt_progress > 0.0 {
+                    let bar_width = 20usize;
+                    let filled = (app.metrics.prompt_progress * bar_width as f64) as usize;
+                    let prompt_bar = format!(
+                        "{}{}",
+                        "█".repeat(filled),
+                        "░".repeat(bar_width.saturating_sub(filled)),
+                    );
+                    let prompt_token_str = format!(
+                        "{} tokens ({:.0} t/s)",
+                        app.metrics.prompt_tokens,
+                        app.metrics.prompt_tps_eval,
+                    );
+                    context_parts.push(Span::styled(" ", Style::default().fg(WHITE)));
+                    context_parts.push(Span::styled(" [Progress: ", Style::default().fg(YELLOW)));
+                    context_parts.push(Span::styled(prompt_bar, Style::default().fg(CYAN)));
+                    context_parts.push(Span::styled(" ", Style::default().fg(CYAN)));
+                    context_parts.push(Span::styled(format!("{}%", (app.metrics.prompt_progress * 100.0) as usize), Style::default().fg(CYAN)));
+                    context_parts.push(Span::styled(" ", Style::default().fg(CYAN)));
+                    context_parts.push(Span::styled(prompt_token_str, Style::default().fg(CYAN)));
+                    context_parts.push(Span::styled(" ]", Style::default().fg(WHITE)));
+                }
 
-                 lines.push(Line::from(context_parts));
+                  lines.push(Line::from(context_parts));
 
                 lines.push(Line::from(vec![
                     Span::styled(" [ ", Style::default().fg(WHITE)),
@@ -408,36 +403,39 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 } else {
                     "LOADING".to_string()
                 };
-                lines.push(Line::from(vec![
-                    Span::styled(" Status: ", Style::default().fg(YELLOW)),
-                    Span::styled(status_content, Style::default().fg(YELLOW)),
-                ]));
+          lines.push(Line::from(vec![
+                     Span::styled(" Status: ", Style::default().fg(YELLOW)),
+                     Span::styled(status_content, Style::default().fg(YELLOW)),
+                 ]));
 
-                let overhead = 2 + 5;
-                let bar_width = area.width.saturating_sub(overhead as u16 + 2) as usize;
+                 if app.loading.loading_progress > 0.0 && app.loading.loading_progress <= 1.0 {
+                    let ratio = app.loading.loading_progress as f64;
+                    let bar_area = Rect {
+                        x: area.x,
+                        y: area.y + 4,
+                        width: area.width.saturating_sub(2),
+                        height: 1,
+                    };
+                    let gauge = Gauge::default()
+                        .ratio(ratio)
+                        .label(format!("{:.0}%", ratio * 100.0))
+                        .gauge_style(Style::default().fg(YELLOW));
+                    f.render_widget(gauge, bar_area);
+                 } else {
+                    let bar_area = Rect {
+                        x: area.x,
+                        y: area.y + 4,
+                        width: area.width.saturating_sub(2),
+                        height: 1,
+                    };
+                    let gauge = Gauge::default()
+                        .ratio(0.0)
+                        .label("0%")
+                        .gauge_style(Style::default().fg(DIM_GRAY));
+                    f.render_widget(gauge, bar_area);
+                 }
 
-                if app.loading.loading_progress > 0.0 && app.loading.loading_progress <= 1.0 {
-                    let filled = (app.loading.loading_progress * bar_width as f32) as usize;
-                    let bar = format!(
-                        "[{}{}] {:.0}%",
-                        "█".repeat(filled),
-                        "░".repeat(bar_width.saturating_sub(filled)),
-                        app.loading.loading_progress * 100.0
-                    );
-                    lines.push(Line::from(vec![Span::styled(
-                        bar,
-                        Style::default().fg(YELLOW),
-                    )]));
-                } else {
-                    // Show empty progress bar with spinner
-                    let bar = format!("[{}] 0%", "░".repeat(bar_width));
-                    lines.push(Line::from(vec![Span::styled(
-                        bar,
-                        Style::default().fg(DIM_GRAY),
-                    )]));
-                }
-
-                let mut detail_parts = Vec::new();
+                 let mut detail_parts = Vec::new();
                 if let (Some(loaded), Some(total)) = (
                     app.loading.load_progress.layers_loaded,
                     app.loading.load_progress.layers_total,

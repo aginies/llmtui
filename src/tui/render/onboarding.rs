@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
+     widgets::{Block, BorderType, Borders, Gauge, Paragraph, Wrap},
 };
 
 const TOTAL_STEPS: usize = 8;
@@ -97,20 +97,21 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
         TOTAL_STEPS
     );
 
-    // Progress bar
-    let bar_width = w.saturating_sub(4);
-    let filled = ((step + 1) as u16 * bar_width) / TOTAL_STEPS as u16;
-    let progress_bar: String = (0..bar_width)
-        .map(|i| if i < filled { "█" } else { "░" })
-        .collect();
-
+     // Progress bar
     let mut lines: Vec<Line> = Vec::new();
-
-    // Progress bar
-    lines.push(Line::from(Span::styled(
-        progress_bar,
-        Style::default().fg(CYAN),
-    )));
+    let bar_area = Rect {
+        x: popup_area.x + 1,
+        y: popup_area.y + 1,
+        width: popup_area.width.saturating_sub(2),
+        height: 1,
+    };
+    let ratio = (step + 1) as f64 / TOTAL_STEPS as f64;
+    let progress_bar = Gauge::default()
+        .ratio(ratio.min(1.0))
+        .label(format!("Step {}/{}", step + 1, TOTAL_STEPS))
+        .gauge_style(Style::default().fg(CYAN));
+    f.render_widget(progress_bar, bar_area);
+    lines.push(Line::from(""));
     lines.push(Line::from(""));
 
     // Title
