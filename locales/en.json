@@ -690,7 +690,7 @@
   "onboarding.step3.description": "Configure the llama.cpp server: Host (bind address), Backend (CPU/Vulkan/CUDA/ROCm), Threads & Threads Batch (parallelism), Mode (Normal/Bench/BenchTune), API Endpoint (OpenAI-compatible API), Dashboard (WebSocket monitoring), RPC Workers (multi-GPU), Web Search (SearXNG integration), and Language. Press Enter on a field to open its picker or cycle values.",
   "onboarding.step3.keys": "`j/k` Navigate · `↵` Open picker / cycle · `←/→` Adjust threads · `h/l` Adjust threads",
   "onboarding.step4.title": "Backend Selection",
-  "onboarding.step4.description": "Choose the inference backend: CPU (universal, slower), Vulkan (Intel/AMD GPUs), CUDA (NVIDIA GPUs), or ROCm (AMD GPUs). The app auto-detects your GPU and picks the best option. You can change this later in the Server Settings panel.",
+  "onboarding.step4.description": "Choose the inference backend: CPU (universal, slower), Vulkan (Intel/AMD/NVIDIA GPUs), CUDA (NVIDIA GPUs, recommended), or ROCm (AMD GPUs). The app auto-detects your GPU and picks the best option. You can change this later in the Server Settings panel.",
   "onboarding.step4.keys": "`^F8` Server settings · Auto-detected GPU backend · Change anytime in settings",
   "onboarding.step5.title": "llama-server Binary",
   "onboarding.step5.description": "llm-manager uses llama-server from llama.cpp to run models. The default is 'llama-server' (looked up in PATH). The app can auto-download the right binary for your platform and GPU backend. No manual setup needed.",

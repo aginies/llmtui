@@ -690,7 +690,7 @@
   "onboarding.step3.description": "Konfigurieren Sie den llama.cpp-Server: Host (Bindungsadresse), Backend (CPU/Vulkan/CUDA/ROCm), Threads und Threads Batch (Parallelisierung), Modus (Normal/Bench/BenchTune), API-Endpunkt (OpenAI-kompatible API), Dashboard (WebSocket-Überwachung), RPC-Worker (Multi-GPU), Websuche (SearXNG-Integration) und Sprache. Drücken Sie Eingabetaste auf ein Feld, um den Picker zu öffnen oder Werte zu durchlaufen.",
   "onboarding.step3.keys": "`j/k` Navigieren · `↵` Picker öffnen / durchlaufen · `←/→` Threads anpassen · `h/l` Threads anpassen",
   "onboarding.step4.title": "Backend-Auswahl",
-  "onboarding.step4.description": "Wählen Sie das Inferenz-Backend: CPU (universell, langsamer), Vulkan (Intel/AMD GPUs), CUDA (NVIDIA GPUs) oder ROCm (AMD GPUs). Die App erkennt Ihre GPU automatisch und wählt die beste Option. Sie können dies später im Server-Einstellungen-Panel ändern.",
+  "onboarding.step4.description": "Wählen Sie das Inferenz-Backend: CPU (universell, langsamer), Vulkan (Intel/AMD/NVIDIA GPUs), CUDA (NVIDIA GPUs, empfohlen) oder ROCm (AMD GPUs). Die App erkennt Ihre GPU automatisch und wählt die beste Option. Sie können dies später im Server-Einstellungen-Panel ändern.",
   "onboarding.step4.keys": "`^F8` Servereinstellungen · Automatisch erkanntes GPU-Backend · Jederzeit in den Einstellungen änderbar",
   "onboarding.step5.title": "llama-server-Binary",
   "onboarding.step5.description": "llm-manager verwendet llama-server von llama.cpp zum Ausführen von Modellen. Der Standard ist 'llama-server' (wird in PATH gesucht). Die App kann das richtige Binary für Ihre Plattform und Ihr GPU-Backend automatisch herunterladen. Keine manuelle Einrichtung erforderlich.",
