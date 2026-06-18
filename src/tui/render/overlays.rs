@@ -3008,7 +3008,7 @@ fn render_gguf_naming_overlay(
     let max_label_width = max_label_width.max(segment_header.chars().count() as u16);
 
     let label_w = max_label_width + 1;
-    let value_w = 10;
+    let value_w = 8;
     let desc_w = w - label_w - value_w - 6;
 
     lines.push(Line::from(vec![
@@ -3057,7 +3057,7 @@ fn render_gguf_naming_overlay(
             let mut combined = header_spans.clone();
             combined.push(Span::styled(
                 desc_text.clone(),
-                Style::default().fg(MID_GRAY),
+                Style::default().fg(DESCRIPTION_GRAY),
             ));
             lines.push(Line::from(combined));
         } else {
@@ -3097,7 +3097,7 @@ fn render_gguf_naming_overlay(
                 let line_text = &remaining[..byte_count];
                 line_spans.push(Span::styled(
                     line_text.to_string(),
-                    Style::default().fg(MID_GRAY),
+                    Style::default().fg(DESCRIPTION_GRAY),
                 ));
                 lines.push(Line::from(line_spans));
 

@@ -33,6 +33,10 @@ pub const DIM_GRAY: Color = Color::Gray;
 /// Brighter than DIM_GRAY for visual hierarchy
 pub const MID_GRAY: Color = Color::DarkGray;
 
+/// Brighter gray for descriptions and secondary text
+/// Readable on dark backgrounds
+pub const DESCRIPTION_GRAY: Color = Color::Rgb(180, 180, 180);
+
 /// Brighter gray for unfocused panel borders
 pub const LIGHT_GRAY: Color = Color::Rgb(120, 120, 140);
 
