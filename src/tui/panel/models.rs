@@ -542,7 +542,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let widths = [
                 Constraint::Percentage(52),
                 Constraint::Percentage(11),
-                Constraint::Percentage(10),
+                Constraint::Min(12),
                 Constraint::Length(4),
                 Constraint::Percentage(10),
             ];
