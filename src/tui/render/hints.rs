@@ -34,7 +34,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
 
     match &app.models_mode {
         ModelsMode::Search {
-            sort_by,
+            sort_by: _,
             show_readme: _,
             loading,
             ..
@@ -45,9 +45,6 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 Span::styled(crate::t!("hints.files"), y),
                 Span::raw(HINT_SEP),
                 Span::styled(crate::t!("hints.readme"), y),
-                Span::raw(HINT_SEP),
-                Span::styled("sort:", c),
-                Span::styled(sort_by.label(), Style::default().fg(CYAN)),
             ];
             if *loading {
                 parts.push(Span::raw(HINT_SEP));

@@ -204,7 +204,13 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
                 Style::default().fg(CYAN),
             ));
         }
-        ModelsMode::List { .. } => {}
+        ModelsMode::List { sort_by } => {
+            status_parts.push(Span::raw("  "));
+            status_parts.push(Span::styled(
+                format!("sort:{}", sort_by.label().to_lowercase()),
+                Style::default().fg(CYAN),
+            ));
+        }
         ModelsMode::BenchTune => {
             status_parts.push(Span::raw("  "));
             status_parts.push(Span::styled(
