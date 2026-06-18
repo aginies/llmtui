@@ -5,6 +5,7 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
+use ratatui::style::Stylize;
 use unicode_width::UnicodeWidthStr;
 
 use super::App;
@@ -517,6 +518,13 @@ fn render_web_search_picker(
     picker_lines.push(Line::from(Span::styled(
         validation_text,
         Style::default().fg(YELLOW),
+    )));
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(Span::styled(
+        "📖 https://aginies.github.io/llmtui/web-search.html",
+        Style::default()
+            .fg(BLUE)
+            .underlined(),
     )));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(Span::styled(
