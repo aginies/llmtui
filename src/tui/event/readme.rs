@@ -44,8 +44,7 @@ pub async fn fetch_readme_for_selected(app: &mut App, model_id: String) {
 pub fn handle_readme_key(app: &mut App, key: crossterm::event::KeyEvent) {
     match key.code {
         KeyCode::Esc => {
-            if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
-                *show_readme = false;
+            if let ModelsMode::Search { .. } = &mut app.models_mode {
                 app.ui.active_panel = crate::tui::app::ActivePanel::Models;
             }
             if let ModelsMode::Files { .. } = &app.models_mode {

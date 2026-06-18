@@ -33,7 +33,7 @@ impl App {
         }
 
         // 3. Right Panel (README / Settings / Profiles / Presets)
-        let (is_search, is_files, is_bench_tune, show_readme) = match &self.models_mode {
+        let (is_search, is_files, is_bench_tune, _show_readme) = match &self.models_mode {
             ModelsMode::Search { show_readme, .. } => (true, false, false, *show_readme),
             ModelsMode::Files { .. } => (false, true, false, true),
             ModelsMode::BenchTune => (false, false, true, false),
@@ -44,7 +44,7 @@ impl App {
             visible.push(ActivePanel::Profiles);
         } else if self.ui.active_panel == ActivePanel::SystemPromptPresets {
             visible.push(ActivePanel::SystemPromptPresets);
-        } else if show_readme && (is_search || is_files) {
+        } else if is_search || is_files {
             visible.push(ActivePanel::SearchReadme);
         } else {
             if self.is_panel_visible(1) && self.server.server_handle.is_none() && !is_bench_tune {

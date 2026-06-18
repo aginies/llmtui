@@ -1171,7 +1171,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.models_mode = ModelsMode::List {
                 sort_by: crate::models::ListSort::Name,
             };
-            app.ui.panel_visibility |= (1 << 4) | (1 << 5);
+            app.ui.panel_visibility |= (1 << 1) | (1 << 3) | (1 << 4) | (1 << 5);
             app.invalidate_list_caches();
             return;
         }
