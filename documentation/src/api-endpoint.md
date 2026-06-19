@@ -2,6 +2,16 @@
 
 The API Endpoint exposes an OpenAI-compatible API proxy that forwards requests to llama-server.
 
+## Features
+
+- **Web search injection** — the proxy intercepts `chat/completions` requests, checks for search keywords, performs a SearXNG search, and injects the results directly into the user's last message. No special headers or endpoints needed — any OpenAI-compatible client works.
+
+- **Auth key isolation** — the proxy's `Authorization: Bearer` key is stripped before forwarding to llama.cpp. The backend never sees the proxy API key, preventing credential leakage.
+
+- **Timing-safe authentication** — Bearer token comparison uses constant-time byte comparison (`constant_time_not_eq`) to prevent timing side-channel attacks.
+
+- **Status caching** — the `/models` count is cached with a 5-second TTL, avoiding repeated polling of llama.cpp and reducing backend overhead.
+
 ## Enabling
 
 Enable from the **Server Settings** panel (F2):
