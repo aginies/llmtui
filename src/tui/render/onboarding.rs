@@ -97,20 +97,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
         TOTAL_STEPS
     );
 
-     // Progress bar
     let mut lines: Vec<Line> = Vec::new();
-    let bar_area = Rect {
-        x: popup_area.x + 1,
-        y: popup_area.y + 1,
-        width: popup_area.width.saturating_sub(2),
-        height: 1,
-    };
-    let ratio = (step + 1) as f64 / TOTAL_STEPS as f64;
-    let progress_bar = Gauge::default()
-        .ratio(ratio.min(1.0))
-        .label(format!("Step {}/{}", step + 1, TOTAL_STEPS))
-        .gauge_style(Style::default().fg(CYAN));
-    f.render_widget(progress_bar, bar_area);
     lines.push(Line::from(""));
     lines.push(Line::from(""));
 
@@ -152,6 +139,21 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
             .wrap(Wrap { trim: false }),
         popup_area,
     );
+
+    // Progress bar — render AFTER Clear/Paragraph so it's not wiped out
+    let bar_area = Rect {
+        x: popup_area.x + 1,
+        y: popup_area.y + 1,
+        width: popup_area.width.saturating_sub(2),
+        height: 1,
+    };
+    let ratio = (step + 1) as f64 / TOTAL_STEPS as f64;
+    let progress_bar = Gauge::default()
+        .ratio(ratio.min(1.0))
+        .label(format!(" Step {}/{}", step + 1, TOTAL_STEPS))
+        .style(Style::default().fg(BLACK).bg(WHITE))
+        .gauge_style(Style::default().fg(BLACK).bg(GREEN).add_modifier(Modifier::BOLD));
+    f.render_widget(progress_bar, bar_area);
 
     // Footer
     let next_label = if step + 1 >= TOTAL_STEPS {
