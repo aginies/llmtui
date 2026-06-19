@@ -85,29 +85,26 @@ impl OverlayHandler for YarnRoPESettingsHandler {
                             *edit_cursor_pos = edit_buffer.chars().count();
                         }
                     }
-                    KeyCode::Char(' ') => {
-                        if *selected_field == -1 {
+                    KeyCode::Char(' ')
+                        if *selected_field == -1 => {
                             app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
                         }
-                    }
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if !*editing {
+                    KeyCode::Up | KeyCode::Char('k')
+                        if !*editing => {
                             *selected_field = if *selected_field <= -1 {
                                 2
                             } else {
                                 *selected_field - 1
                             };
                         }
-                    }
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if !*editing {
+                    KeyCode::Down | KeyCode::Char('j')
+                        if !*editing => {
                             *selected_field = if *selected_field >= 2 {
                                 -1
                             } else {
                                 *selected_field + 1
                             };
                         }
-                    }
                     KeyCode::Esc => {
                         if *editing {
                             *editing = false;

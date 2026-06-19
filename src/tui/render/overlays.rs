@@ -367,9 +367,9 @@ fn render_web_search_picker(
     let engines = ["searxng"];
     let w = 65u16;
     let h = if selected_field < -1 {
-        (8.min(area.height - 4)) as u16
+        8.min(area.height - 4)
     } else {
-        (15.min(area.height - 4)) as u16
+        15.min(area.height - 4)
     };
     let picker_area = Rect {
         x: (area.width - w) / 2,
@@ -1236,7 +1236,7 @@ fn render_bench_tune_setup(
     editing_prompt: bool,
 ) {
     let w = 90u16;
-    let h = (30.min(area.height - 4)) as u16;
+    let h = 30.min(area.height - 4);
     let popup_area = Rect {
         x: (area.width.saturating_sub(w)) / 2,
         y: (area.height.saturating_sub(h)) / 2,
@@ -1804,7 +1804,7 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
 
 fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &str) {
     let w = 55u16;
-    let h = (10.min(area.height - 4)).max(8) as u16;
+    let h = (10.min(area.height - 4)).max(8);
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -1887,7 +1887,7 @@ fn render_dashboard_picker(
     edit_buffer: &str,
 ) {
     let w = 60u16;
-    let h = (19.min(area.height - 4)) as u16;
+    let h = 19.min(area.height - 4);
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -2045,7 +2045,7 @@ fn render_dashboard_picker(
      edit_buffer: &str,
  ) {
      let w = 60u16;
-     let h = (22.min(area.height - 4)) as u16;
+     let h = 22.min(area.height - 4);
      let picker_area = Rect {
          x: (area.width - w) / 2,
          y: (area.height - h) / 2,
@@ -2211,7 +2211,7 @@ fn render_dashboard_picker(
     };
     f.render_widget(Clear, modal_area);
     let w = 72u16;
-    let h = (20.min(area.height - 4)) as u16;
+    let h = 20.min(area.height - 4);
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,

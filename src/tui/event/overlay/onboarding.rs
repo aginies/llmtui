@@ -39,11 +39,10 @@ impl OverlayHandler for OnboardingHandler {
                         app.ui.global_mode = GlobalMode::Onboarding { step: next };
                     }
                 }
-                KeyCode::Char('p') | KeyCode::Left => {
-                    if step > 0 {
+                KeyCode::Char('p') | KeyCode::Left
+                    if step > 0 => {
                         app.ui.global_mode = GlobalMode::Onboarding { step: step - 1 };
                     }
-                }
                 KeyCode::Esc | KeyCode::Char('q') => {
                     // Skip onboarding — mark complete
                     app.config.onboarding_complete = true;

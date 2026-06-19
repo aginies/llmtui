@@ -180,19 +180,17 @@ impl App {
             }
         }
         // Remove parent directory if it's now empty
-        if let Some(parent) = path.parent() {
-            if let Ok(mut entries) = tokio::fs::read_dir(parent).await {
+        if let Some(parent) = path.parent()
+            && let Ok(mut entries) = tokio::fs::read_dir(parent).await {
                 let has_files = entries.next_entry().await.unwrap_or(None).is_some();
-                if !has_files {
-                    if let Err(e) = tokio::fs::remove_dir(parent).await {
+                if !has_files
+                    && let Err(e) = tokio::fs::remove_dir(parent).await {
                         self.add_log(
                             crate::t_fmt!("async.dir_delete_failed", e),
                             crate::config::LogLevel::Warning,
                         );
                     }
-                }
             }
-        }
         self.add_log(
             crate::t_fmt!(
                 "async.model_deleted",
@@ -500,11 +498,10 @@ impl App {
     }
 
     pub fn tick_server_logs(&mut self) {
-        if let Some(last) = self.server.last_server_logs_tick {
-            if last.elapsed() < std::time::Duration::from_millis(500) {
+        if let Some(last) = self.server.last_server_logs_tick
+            && last.elapsed() < std::time::Duration::from_millis(500) {
                 return;
             }
-        }
         self.server.last_server_logs_tick = Some(std::time::Instant::now());
         let mut server_logs = Vec::new();
         let mut prev_line: Option<String> = None;
@@ -543,9 +540,18 @@ impl App {
                     let mut parsed = false;
                     // Pattern 1: "t = X.XX" 
                     if let Some(t_part) = line.split("t =").last() {
-                        let val_str = t_part.split_whitespace()
-                            .filter(|s| !s.is_empty())
-                            .next()
+                        let val_str = t_part.split_whitespace().find(|s| !s.is_empty()).unwrap_or("").trim();
+                        if let Ok(t) = val_str.parse::<f64>() {
+                            self.metrics.prompt_elapsed_ms = t * 1000.0;
+                            parsed = true;
+                        }
+                    }
+                    // Pattern 2: "t=X.XX" (no space)
+                    if !parsed
+                        && let Some(t_part) = line.split("t=").last()
+                    {
+                        let val_str = t_part.split(|c: char| c.is_whitespace() || c == '║')
+                            .find(|s| !s.is_empty())
                             .unwrap_or("")
                             .trim();
                         if let Ok(t) = val_str.parse::<f64>() {
@@ -553,51 +559,34 @@ impl App {
                             parsed = true;
                         }
                     }
-                    // Pattern 2: "t=X.XX" (no space)
-                    if !parsed {
-                        if let Some(t_part) = line.split("t=").last() {
-                            let val_str = t_part.split(|c: char| c.is_whitespace() || c == '║')
-                                .filter(|s| !s.is_empty())
-                                .next()
-                                .unwrap_or("")
-                                .trim();
-                            if let Ok(t) = val_str.parse::<f64>() {
-                                self.metrics.prompt_elapsed_ms = t * 1000.0;
-                                parsed = true;
-                            }
-                        }
-                    }
                     // Pattern 3: Parse from end of line (elapsed time always at end before "s /")
-                    if !parsed {
-                        if let Some(slash_part) = line.rsplit(" s /").next() {
-                            let val_str = slash_part.split_whitespace()
-                                .filter(|s| !s.is_empty())
-                                .last()
-                                .unwrap_or("")
-                                .trim();
-                            if let Ok(t) = val_str.parse::<f64>() {
-                                self.metrics.prompt_elapsed_ms = t * 1000.0;
-                            }
+                    if !parsed
+                        && let Some(slash_part) = line.rsplit(" s /").next()
+                    {
+                        let val_str = slash_part.split_whitespace().rfind(|s| !s.is_empty())
+                            .unwrap_or("")
+                            .trim();
+                        if let Ok(t) = val_str.parse::<f64>() {
+                            self.metrics.prompt_elapsed_ms = t * 1000.0;
                         }
                     }
                     // TPS: "X.XX tokens per second" on same line or previous line
                     let tps_str = line.contains("tokens per second")
                         .then(|| {
                             line.split("tokens per second").next()
-                                .and_then(|p| p.split('/').last())
+                                .and_then(|p| p.split('/').next_back())
                                 .map(|s| s.trim())
                         })
                         .flatten()
                         .or(prev_line.as_deref().and_then(|prev| {
                             prev.split("tokens per second").next()
-                                .and_then(|p| p.split('/').last())
+                                .and_then(|p| p.split('/').next_back())
                                 .map(|s| s.trim())
                         }));
-                    if let Some(tps_str) = tps_str {
-                        if let Ok(tps) = tps_str.parse::<f64>() {
+                    if let Some(tps_str) = tps_str
+                        && let Ok(tps) = tps_str.parse::<f64>() {
                             self.metrics.prompt_tps_eval = tps;
                         }
-                    }
                 }
                 
                 // Existing: n_tokens = → ctx_used (for generation lines)
@@ -662,11 +651,10 @@ impl App {
     }
 
     pub fn tick_sync(&mut self) {
-        if let Some(last) = self.server.last_sync_tick {
-            if last.elapsed() < std::time::Duration::from_millis(1000) {
+        if let Some(last) = self.server.last_sync_tick
+            && last.elapsed() < std::time::Duration::from_millis(1000) {
                 return;
             }
-        }
         self.server.last_sync_tick = Some(std::time::Instant::now());
         let mut sync_updated = false;
         if let Some(rx) = &mut self.server.sync_rx {
@@ -909,11 +897,10 @@ impl App {
                                                     if matches!(
                                                         s,
                                                         crate::models::ModelState::Loading
-                                                    ) {
-                                                        if id == *name {
+                                                    )
+                                                        && id == *name {
                                                             return Some(name.clone());
                                                         }
-                                                    }
                                                     None
                                                 });
                                             if let Some(name) = name {
@@ -933,7 +920,7 @@ impl App {
                         // If API didn't give us a match, use spawned_model_name as fallback
                         let target_model = target_model.or_else(|| {
                             self.server.spawned_model_name.as_ref().and_then(|name| {
-                                if self.model_states.get(name).map_or(false, |s| {
+                                if self.model_states.get(name).is_some_and(|s| {
                                     matches!(s, crate::models::ModelState::Loading)
                                 }) {
                                     Some(name.clone())
@@ -1258,8 +1245,8 @@ impl App {
                         }
                         break;
                     }
-                    if consecutive_failures % 5 == 1 {
-                        if let Some(tx) = &log_tx {
+                    if consecutive_failures % 5 == 1
+                        && let Some(tx) = &log_tx {
                             let _ = tx
                                 .send(format!(
                                     "Metrics polling: server unreachable (attempt {}/{})",
@@ -1267,7 +1254,6 @@ impl App {
                                 ))
                                 .await;
                         }
-                    }
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                     continue;
                 }
@@ -1279,8 +1265,8 @@ impl App {
                 lock.clone()
             };
             // Skip model-specific metrics for first 3 cycles (server needs time to stabilize)
-            if cycle_count > 3 {
-                if let Some(name) = current_model
+            if cycle_count > 3
+                && let Some(name) = current_model
                     && let Ok(model_metrics) =
                         crate::backend::server::get_metrics(&host, port, Some(&name), Some(pid)).await
                 {
@@ -1306,7 +1292,6 @@ impl App {
                         m.gpu_mem_used = model_metrics.gpu_mem_used;
                     }
                 }
-            }
             if metrics_tx.send(m).await.is_err() {
                 break;
             }
@@ -2105,7 +2090,7 @@ impl App {
             let log_cb = Arc::new(std::sync::Mutex::new({
                 log_tx.map(|tx| {
                     Box::new(move |msg: String| {
-                        let _ = tx.send(msg);
+                        std::mem::drop(tx.send(msg));
                     }) as Box<dyn Fn(String) + Send + Sync>
                 })
             }));

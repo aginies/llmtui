@@ -26,11 +26,10 @@ impl OverlayHandler for MaxConcurrentPickerHandler {
                     KeyCode::Esc => {
                         app.ui.global_mode = GlobalMode::Normal;
                     }
-                    KeyCode::Char(c) if c.is_ascii_digit() => {
-                        if value.len() < 3 {
+                    KeyCode::Char(c) if c.is_ascii_digit()
+                        && value.len() < 3 => {
                             value.push(c);
                         }
-                    }
                     KeyCode::Backspace => {
                         value.pop();
                     }

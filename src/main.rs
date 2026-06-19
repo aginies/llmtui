@@ -220,7 +220,7 @@ async fn main() -> Result<()> {
             }
 
             // Apply CLI backend override
-            let backend = Backend::from_str(&backend);
+            let backend = Backend::parse_backend(&backend);
             config.default.backend = backend;
 
             // Ensure models directories exist
@@ -460,10 +460,9 @@ async fn main() -> Result<()> {
                     && let Ok(event) = crossterm::event::read()
                 {
                     match event {
-                        crossterm::event::Event::Key(key) => {
-                            if key.kind != crossterm::event::KeyEventKind::Release {
-                                tui::event::handle_key(&mut app, key).await;
-                            }
+                        crossterm::event::Event::Key(key)
+                            if key.kind != crossterm::event::KeyEventKind::Release => {
+                            tui::event::handle_key(&mut app, key).await;
                         }
                         crossterm::event::Event::Mouse(mouse) => {
                             let size = terminal.size()?;

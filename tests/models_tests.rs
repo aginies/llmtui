@@ -353,17 +353,17 @@ fn backend_is_macos_non_macos() {
 
 #[test]
 fn backend_from_str_variants() {
-    assert_eq!(Backend::from_str("cpu"), Backend::Cpu);
-    assert_eq!(Backend::from_str("CPU"), Backend::Cpu);
-    assert_eq!(Backend::from_str("vulkan"), Backend::Vulkan);
-    assert_eq!(Backend::from_str("vk"), Backend::Vulkan);
-    assert_eq!(Backend::from_str("rocm"), Backend::Rocm);
-    assert_eq!(Backend::from_str("ro"), Backend::Rocm);
-    assert_eq!(Backend::from_str("rocm-lemonade"), Backend::RocmLemonade);
-    assert_eq!(Backend::from_str("cuda"), Backend::Cuda);
-    assert_eq!(Backend::from_str("cu"), Backend::Cuda);
+    assert_eq!(         Backend::parse_backend("cpu"), Backend::Cpu);
+    assert_eq!(         Backend::parse_backend("CPU"), Backend::Cpu);
+    assert_eq!(         Backend::parse_backend("vulkan"), Backend::Vulkan);
+    assert_eq!(         Backend::parse_backend("vk"), Backend::Vulkan);
+    assert_eq!(         Backend::parse_backend("rocm"), Backend::Rocm);
+    assert_eq!(         Backend::parse_backend("ro"), Backend::Rocm);
+    assert_eq!(         Backend::parse_backend("rocm-lemonade"), Backend::RocmLemonade);
+    assert_eq!(         Backend::parse_backend("cuda"), Backend::Cuda);
+    assert_eq!(         Backend::parse_backend("cu"), Backend::Cuda);
     // Unknown defaults to Cpu
-    assert_eq!(Backend::from_str("unknown"), Backend::Cpu);
+    assert_eq!(         Backend::parse_backend("unknown"), Backend::Cpu);
 }
 
 #[test]

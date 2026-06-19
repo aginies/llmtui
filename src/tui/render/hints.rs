@@ -257,7 +257,7 @@ pub fn render_hints_line(app: &App, panel_area: ratatui::layout::Rect) -> Line<'
     let mut total_width: usize = 0;
 
     for span in &hints {
-        let span_width = span.width() as usize;
+        let span_width = span.width();
         if total_width + span_width <= available_width {
             total_width += span_width;
             truncated.push(span.clone());

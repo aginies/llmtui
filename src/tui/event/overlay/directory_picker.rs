@@ -11,7 +11,7 @@ pub fn default_chat_templates_dir() -> String {
 pub fn load_jinja_files_recursive(dir_path: &str) -> Vec<(String, String)> {
     let mut files = Vec::new();
     collect_jinja_files(dir_path, dir_path, &mut files);
-    files.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+    files.sort_by_key(|a| a.0.to_lowercase());
     files
 }
 

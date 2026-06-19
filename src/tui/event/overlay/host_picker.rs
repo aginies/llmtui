@@ -25,14 +25,13 @@ impl OverlayHandler for HostPickerHandler {
                 match key.code {
                     KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
                     KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
-                    KeyCode::Enter => {
-                        if *selected < entries.len() {
+                    KeyCode::Enter
+                        if *selected < entries.len() => {
                             let (ip, _) = entries[*selected].clone();
                             app.settings.host = ip;
                             app.ui.global_mode = GlobalMode::Normal;
                             sync_global_settings(app);
                         }
-                    }
                     KeyCode::Char('d') => {
                         *entries = App::fetch_host_picker_entries();
                         *selected = 0;

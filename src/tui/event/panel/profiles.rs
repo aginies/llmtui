@@ -11,12 +11,11 @@ pub fn handle_profiles_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.settings_state.settings_selected_idx =
                 app.settings_state.settings_selected_idx.saturating_sub(1);
         }
-        KeyCode::Down | KeyCode::Char('j') => {
-            if total > 0 {
+        KeyCode::Down | KeyCode::Char('j')
+            if total > 0 => {
                 app.settings_state.settings_selected_idx =
                     (app.settings_state.settings_selected_idx + 1).min(total - 1);
             }
-        }
         KeyCode::PageUp => {
             app.picker.profiles_scroll_offset = app.picker.profiles_scroll_offset.saturating_sub(5);
         }
@@ -31,15 +30,14 @@ pub fn handle_profiles_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.ui.active_panel = crate::tui::app::ActivePanel::LlmSettings;
             }
         }
-        KeyCode::Char('d') => {
+        KeyCode::Char('d')
             // Delete the selected user profile (not built-in)
-            if app.delete_profile(app.settings_state.settings_selected_idx) {
+            if app.delete_profile(app.settings_state.settings_selected_idx) => {
                 let new_total = app.config.merged_profiles().len();
                 if new_total > 0 && app.settings_state.settings_selected_idx >= new_total {
                     app.settings_state.settings_selected_idx = new_total - 1;
                 }
             }
-        }
         KeyCode::Esc => {
             app.ui.active_panel = crate::tui::app::ActivePanel::LlmSettings;
         }

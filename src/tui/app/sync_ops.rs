@@ -238,7 +238,7 @@ impl App {
                         .map(|m| {
                             let trimmed = m.model_parameters.trim();
                             let num_str = trimmed
-                                .trim_end_matches(|c: char| c == 'B' || c == 'b')
+                                .trim_end_matches(['B', 'b'])
                                 .trim();
                             num_str.parse::<f64>().unwrap_or(0.0)
                         })
@@ -247,7 +247,7 @@ impl App {
                         .map(|m| {
                             let trimmed = m.model_parameters.trim();
                             let num_str = trimmed
-                                .trim_end_matches(|c: char| c == 'B' || c == 'b')
+                                .trim_end_matches(['B', 'b'])
                                 .trim();
                             num_str.parse::<f64>().unwrap_or(0.0)
                         })
@@ -322,9 +322,8 @@ fn is_quantization_suffix(suffix: &str) -> bool {
     }
     let rest = &suffix[1..];
 
-    if rest.starts_with('q') {
-        let after_q = &rest[1..];
-        if after_q
+       if let Some(after_q) = rest.strip_prefix('q')
+            && after_q
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
@@ -332,10 +331,8 @@ fn is_quantization_suffix(suffix: &str) -> bool {
         {
             return true;
         }
-    }
-    if rest.starts_with("iq") {
-        let after_iq = &rest[2..];
-        if after_iq
+       if let Some(after_iq) = rest.strip_prefix("iq")
+            && after_iq
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
@@ -343,10 +340,8 @@ fn is_quantization_suffix(suffix: &str) -> bool {
         {
             return true;
         }
-    }
-    if rest.starts_with("fp") {
-        let after_fp = &rest[2..];
-        if after_fp
+       if let Some(after_fp) = rest.strip_prefix("fp")
+            && after_fp
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
@@ -354,10 +349,8 @@ fn is_quantization_suffix(suffix: &str) -> bool {
         {
             return true;
         }
-    }
-    if rest.starts_with("bf") {
-        let after_bf = &rest[2..];
-        if after_bf
+       if let Some(after_bf) = rest.strip_prefix("bf")
+            && after_bf
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
@@ -365,10 +358,8 @@ fn is_quantization_suffix(suffix: &str) -> bool {
         {
             return true;
         }
-    }
-    if rest.starts_with('f') {
-        let after_f = &rest[1..];
-        if after_f
+       if let Some(after_f) = rest.strip_prefix('f')
+            && after_f
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
@@ -376,7 +367,6 @@ fn is_quantization_suffix(suffix: &str) -> bool {
         {
             return true;
         }
-    }
     false
 }
 
@@ -409,11 +399,10 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
             if display_name_lower.len() == model_id_lower.len() {
                 return true;
             }
-            if let Some(next_char) = display_name_lower[model_id_lower.len()..].chars().next() {
-                if next_char == '/' {
+            if let Some(next_char) = display_name_lower[model_id_lower.len()..].chars().next()
+                && next_char == '/' {
                     return true;
                 }
-            }
         }
 
         let local_parts: Vec<&str> = model.display_name.split('/').collect();
@@ -424,11 +413,10 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
         };
 
         // If both authors are specified, they must match (case-insensitively)
-        if let (Some(ra), Some(la)) = (repo_author, local_author) {
-            if ra.to_lowercase() != la.to_lowercase() {
+        if let (Some(ra), Some(la)) = (repo_author, local_author)
+            && ra.to_lowercase() != la.to_lowercase() {
                 continue;
             }
-        }
 
         let mut local_name = model.name.to_lowercase().replace('_', "-");
         if local_name.ends_with(".gguf") {

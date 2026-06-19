@@ -307,12 +307,11 @@ impl App {
     }
 
     pub fn tick_toasts(&mut self) {
-        if let Some(toast) = &self.ui.active_toast {
-            if toast.is_expired() {
+        if let Some(toast) = &self.ui.active_toast
+            && toast.is_expired() {
                 self.ui.active_toast = None;
                 self.ui.needs_redraw = true;
             }
-        }
     }
 
     pub fn cleanup_text_scrolls(&mut self) {

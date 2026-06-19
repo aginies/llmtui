@@ -271,13 +271,12 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
         }
-        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::ALT) => {
-            if !app.download.download_progress.is_empty() {
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::ALT)
+            && !app.download.download_progress.is_empty() => {
                 let selected_idx = app.download.download_scroll_state.selected().unwrap_or(0);
                 app.cancel_download(selected_idx);
                 return;
             }
-        }
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             let loaded_count = app
                 .model_states
@@ -320,8 +319,8 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 return;
             }
         }
-        KeyCode::Tab => {
-            if app.ui.global_mode == GlobalMode::Normal {
+        KeyCode::Tab
+            if app.ui.global_mode == GlobalMode::Normal => {
                 if key.modifiers.contains(KeyModifiers::SHIFT) {
                     app.focus_prev();
                 } else {
@@ -329,7 +328,6 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 return;
             }
-        }
         KeyCode::Char('h')
             if key.modifiers.contains(KeyModifiers::CONTROL)
                 && !key.modifiers.contains(KeyModifiers::SHIFT) =>
@@ -688,14 +686,13 @@ pub(super) fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::Key
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
             KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
-            KeyCode::Enter => {
-                if *selected < entries.len() {
+            KeyCode::Enter
+                if *selected < entries.len() => {
                     let (name, _) = entries[*selected].clone();
                     app.settings.system_prompt_preset_name = name.clone();
                     app.resolve_system_prompt();
                     app.ui.global_mode = GlobalMode::Normal;
                 }
-            }
             KeyCode::Char('e') => {
                 *editing = true;
                 *edit_cursor_pos = 0;
@@ -800,9 +797,8 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                     && !*editing_kwargs
                     && !app.edit.editing_n_predict
                     && !app.edit.editing_iters
-                    && !*editing_param =>
-            {
-                if *selected_idx < config.params_to_test.len() {
+                    && !*editing_param
+                && *selected_idx < config.params_to_test.len() => {
                     let is_spec_off = config
                         .params_to_test
                         .iter()
@@ -822,7 +818,6 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                         }
                     }
                 }
-            }
             KeyCode::Up | KeyCode::Char('k') => {
                 if *editing_prompt || *editing_kwargs {
                     if app.edit.edit_cursor_pos > 0 {
@@ -875,8 +870,8 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                         (*selected_idx + 1).min(config.params_to_test.len().saturating_sub(1));
                 }
             }
-            KeyCode::Tab => {
-                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() {
+            KeyCode::Tab
+                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() => {
                     *editing_param_field = (*editing_param_field + 1).min(2);
                     let p = &config.params_to_test[*selected_idx];
                     let val = match *editing_param_field {
@@ -893,9 +888,8 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                     }
                     *param_edit_cursor_pos = param_edit_buffer.len();
                 }
-            }
-            KeyCode::BackTab => {
-                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() {
+            KeyCode::BackTab
+                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() => {
                     *editing_param_field = if *editing_param_field <= 0 {
                         2
                     } else {
@@ -916,7 +910,6 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                     }
                     *param_edit_cursor_pos = param_edit_buffer.len();
                 }
-            }
             KeyCode::Char('+')
                 if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() =>
             {
@@ -966,27 +959,23 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                 }
             }
             KeyCode::Char(c)
-                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() =>
-            {
-                if "0123456789.-eE".contains(c) {
+                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty()
+                && "0123456789.-eE".contains(c) => {
                     TextEditor {
                         buffer: param_edit_buffer,
                         cursor: param_edit_cursor_pos,
                     }
                     .insert_char(c);
                 }
-            }
             KeyCode::Char(c)
-                if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() =>
-            {
-                if c.is_ascii_digit() {
+                if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty()
+                && c.is_ascii_digit() => {
                     let idx = c.to_digit(10).unwrap() as usize;
                     let variants = &config.params_to_test[*selected_idx].variants;
                     if idx < variants.len() {
                         *editing_param_field = -(idx as i32 + 2);
                     }
                 }
-            }
             KeyCode::Char(c) => {
                 if *editing_prompt {
                     config.prompt.insert(app.edit.edit_cursor_pos, c);
@@ -1073,11 +1062,10 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                             match *editing_param_field {
                                 0 => config.params_to_test[*selected_idx].min = val,
                                 1 => config.params_to_test[*selected_idx].max = val,
-                                2 => {
-                                    if val > 0.0 {
+                                2
+                                    if val > 0.0 => {
                                         config.params_to_test[*selected_idx].step = val;
                                     }
-                                }
                                 _ => {}
                             }
                         }
@@ -1641,11 +1629,10 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     (app.bench_tune.bench_tune_result_row + 1).min(len - 1);
             }
         }
-        KeyCode::Up => {
-            if app.bench_tune.bench_tune_result_row > 0 {
+        KeyCode::Up
+            if app.bench_tune.bench_tune_result_row > 0 => {
                 app.bench_tune.bench_tune_result_row -= 1;
             }
-        }
         _ => {}
     }
 }

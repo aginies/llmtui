@@ -116,24 +116,22 @@ impl OverlayHandler for DashboardPickerHandler {
                             *edit_cursor_pos = edit_buffer.chars().count();
                         }
                     }
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if !*editing {
+                    KeyCode::Up | KeyCode::Char('k')
+                        if !*editing => {
                             *selected_field = if *selected_field <= -1 {
                                 4
                             } else {
                                 *selected_field - 1
                             };
                         }
-                    }
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if !*editing {
+                    KeyCode::Down | KeyCode::Char('j')
+                        if !*editing => {
                             *selected_field = if *selected_field >= 4 {
                                 -1
                             } else {
                                 *selected_field + 1
                             };
                         }
-                    }
                     KeyCode::Esc => {
                         if *editing {
                             *editing = false;

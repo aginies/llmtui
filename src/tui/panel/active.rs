@@ -57,7 +57,7 @@ fn vram_progress_bar(width: usize, pct: usize) -> String {
     format!(
         "[{}{}]",
         "█".repeat(filled),
-        "░".repeat(empty.max(0)),
+        "░".repeat(empty),
     )
 }
 

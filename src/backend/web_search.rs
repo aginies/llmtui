@@ -128,10 +128,10 @@ pub fn is_wikipedia(url: &str) -> bool {
 fn extract_source_url(content: &str) -> Option<String> {
     content.split('\n').next().and_then(|line| {
         let line = line.trim_start_matches("# ");
-        if let Some(stripped) = line.strip_prefix("[") {
-            if let Some(pos) = stripped.rfind("](") {
-                return Some(stripped[pos+2..].to_string());
-            }
+        if let Some(stripped) = line.strip_prefix("[")
+            && let Some(pos) = stripped.rfind("](")
+        {
+            return Some(stripped[pos+2..].to_string());
         }
         None
     })

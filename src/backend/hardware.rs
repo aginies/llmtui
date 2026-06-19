@@ -522,10 +522,10 @@ mod tests {
                 if !vendors.contains(&GpuVendor::Amd) {
                     vendors.push(GpuVendor::Amd);
                 }
-            } else if lower.contains("intel") {
-                if !vendors.contains(&GpuVendor::Intel) {
-                    vendors.push(GpuVendor::Intel);
-                }
+            } else if lower.contains("intel")
+                && !vendors.contains(&GpuVendor::Intel)
+            {
+                vendors.push(GpuVendor::Intel);
             }
         }
         vendors
@@ -561,10 +561,10 @@ mod tests {
                 if !vendors.contains(&GpuVendor::Amd) {
                     vendors.push(GpuVendor::Amd);
                 }
-            } else if lower.contains("intel") {
-                if !vendors.contains(&GpuVendor::Intel) {
-                    vendors.push(GpuVendor::Intel);
-                }
+            } else if lower.contains("intel")
+                && !vendors.contains(&GpuVendor::Intel)
+            {
+                vendors.push(GpuVendor::Intel);
             }
         }
         vendors

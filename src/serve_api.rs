@@ -178,17 +178,13 @@ async fn proxy_streaming(
                 c(format!("API: web search performed={}, content_len={}", result.performed, result.content.len()));
             }
         }
-        if result.performed && !result.content.is_empty() {
-            if let Some(obj) = request_json.as_object_mut() {
-                if let Some(messages) = obj.get_mut("messages").and_then(|m| m.as_array_mut()) {
-                    if let Some(last) = messages.last_mut() {
-                        if let Some(content_val) = last.get_mut("content") {
+        if result.performed && !result.content.is_empty()
+            && let Some(obj) = request_json.as_object_mut()
+                && let Some(messages) = obj.get_mut("messages").and_then(|m| m.as_array_mut())
+                    && let Some(last) = messages.last_mut()
+                        && let Some(content_val) = last.get_mut("content") {
                             *content_val = serde_json::Value::String(result.content);
                         }
-                    }
-                }
-            }
-        }
 
         let modified_body = request_json.clone();
 
@@ -228,7 +224,7 @@ async fn proxy_streaming(
 
     // Stream request body directly to backend (no drain to memory)
     let body_stream = req.into_body().into_data_stream().map(|r| {
-        r.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e)))
+        r.map_err(|e| std::io::Error::other(format!("{}", e)))
     });
 
     let mut request_builder = match method {
@@ -260,7 +256,7 @@ async fn proxy_streaming(
         .await;
 
      let response = handle_response(response, &path).await;
-    return response.into_response();
+    response.into_response()
 }
 
 async fn handle_response(
@@ -354,7 +350,7 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
         if !is_stale {
             cached_models
         } else {
-            let count = match state
+            match state
                 .client
                 .get(format!("{}/models", state.server_url))
                 .send()
@@ -375,8 +371,7 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
                     cache.cached_at = Instant::now();
                     0
                 }
-            };
-            count
+            }
         }
     };
 

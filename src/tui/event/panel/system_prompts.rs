@@ -58,8 +58,8 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                 app.settings_state.settings_edit_buffer.insert(byte_idx, c);
                 app.edit.edit_cursor_pos += 1;
             }
-            KeyCode::Backspace => {
-                if app.edit.edit_cursor_pos > 0 {
+            KeyCode::Backspace
+                if app.edit.edit_cursor_pos > 0 => {
                     app.edit.edit_cursor_pos -= 1;
                     let byte_idx = app
                         .settings_state
@@ -70,11 +70,10 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                         .unwrap_or(0);
                     app.settings_state.settings_edit_buffer.remove(byte_idx);
                 }
-            }
-            KeyCode::Delete => {
+            KeyCode::Delete
                 if app.edit.edit_cursor_pos
                     < app.settings_state.settings_edit_buffer.chars().count()
-                {
+                => {
                     let byte_idx = app
                         .settings_state
                         .settings_edit_buffer
@@ -84,7 +83,6 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                         .unwrap_or(app.settings_state.settings_edit_buffer.len());
                     app.settings_state.settings_edit_buffer.remove(byte_idx);
                 }
-            }
             KeyCode::Left => {
                 app.edit.edit_cursor_pos = app.edit.edit_cursor_pos.saturating_sub(1);
             }
@@ -105,12 +103,11 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
             app.settings_state.settings_selected_idx =
                 app.settings_state.settings_selected_idx.saturating_sub(1);
         }
-        KeyCode::Down | KeyCode::Char('j') => {
-            if total > 0 {
+        KeyCode::Down | KeyCode::Char('j')
+            if total > 0 => {
                 app.settings_state.settings_selected_idx =
                     (app.settings_state.settings_selected_idx + 1).min(total - 1);
             }
-        }
         KeyCode::PageUp => {
             app.picker.system_prompt_presets_scroll_offset = app
                 .picker
@@ -162,11 +159,11 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
             app.edit.edit_cursor_pos = 0;
             app.edit.editing_preset = Some(app.settings_state.settings_selected_idx);
         }
-        KeyCode::Char('d') => {
+        KeyCode::Char('d')
             // Delete custom preset (not built-in)
             if app.settings_state.settings_selected_idx
                 >= crate::config::builtin_system_prompt_presets().len()
-            {
+            => {
                 let preset = all_presets[app.settings_state.settings_selected_idx].clone();
                 app.config.system_prompt_presets.delete(&preset.name);
                 let new_total = app.config.merged_presets().len();
@@ -185,7 +182,6 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                     );
                 }
             }
-        }
         KeyCode::Esc => {
             app.ui.active_panel = crate::tui::app::ActivePanel::LlmSettings;
         }

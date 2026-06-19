@@ -751,7 +751,7 @@ impl Backend {
     }
 
     /// Parse backend from string representation.
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse_backend(s: &str) -> Self {
         let s = s.to_lowercase();
         if s.starts_with("vulkan") || s.starts_with("vk") {
             Backend::Vulkan
@@ -1428,10 +1428,10 @@ pub fn get_available_chat_templates() -> Vec<String> {
         "stable-diffusion",
     ];
     for arch in &archs {
-        if let Some(template) = arch_to_chat_template(arch) {
-            if seen.insert(template.to_string()) {
-                templates.push(template.to_string());
-            }
+        if let Some(template) = arch_to_chat_template(arch)
+            && seen.insert(template.to_string())
+        {
+            templates.push(template.to_string());
         }
     }
     templates.push("Select a Template file...".to_string());

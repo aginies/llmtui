@@ -141,24 +141,22 @@ impl OverlayHandler for WebSearchPickerHandler {
                         sync_global_settings(app);
                     }
                     // ── Navigation ─────────────────────────────────────
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if !*editing {
+                    KeyCode::Up | KeyCode::Char('k')
+                        if !*editing => {
                             *selected_field = if *selected_field <= -1 {
                                 2
                             } else {
                                 *selected_field - 1
                             };
                         }
-                    }
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if !*editing {
+                    KeyCode::Down | KeyCode::Char('j')
+                        if !*editing => {
                             *selected_field = if *selected_field >= 2 {
                                 -1
                             } else {
                                 *selected_field + 1
                             };
                         }
-                    }
                     // ── Esc ────────────────────────────────────────────
                     KeyCode::Esc => {
                         if *editing {
@@ -188,8 +186,8 @@ impl OverlayHandler for WebSearchPickerHandler {
                          TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.end();
                      }
                      // ── Manual check ───────────────────────────────────
-                     KeyCode::Char('c') if !*editing => {
-                         if *selected_field == -1 && *enabled && !engine_url.is_empty() {
+                     KeyCode::Char('c') if !*editing
+                         && *selected_field == -1 && *enabled && !engine_url.is_empty() => {
                              let engine = engine.clone();
                              let engine_url = engine_url.clone();
                              let api_key = api_key.clone();
@@ -200,7 +198,6 @@ impl OverlayHandler for WebSearchPickerHandler {
                              });
                              app.pending.web_search_check_handle = Some(handle);
                          }
-                     }
                      _ => {}
                 }
             }

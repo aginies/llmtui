@@ -365,7 +365,7 @@ fn get_sorted_indices(app: &App, filtered: &[usize]) -> Vec<usize> {
                     .map(|m| {
                         let trimmed = m.model_parameters.trim();
                         let num_str = trimmed
-                            .trim_end_matches(|c: char| c == 'B' || c == 'b')
+                            .trim_end_matches(['B', 'b'])
                             .trim();
                         num_str.parse::<f64>().unwrap_or(0.0)
                     })
@@ -374,7 +374,7 @@ fn get_sorted_indices(app: &App, filtered: &[usize]) -> Vec<usize> {
                     .map(|m| {
                         let trimmed = m.model_parameters.trim();
                         let num_str = trimmed
-                            .trim_end_matches(|c: char| c == 'B' || c == 'b')
+                            .trim_end_matches(['B', 'b'])
                             .trim();
                         num_str.parse::<f64>().unwrap_or(0.0)
                     })

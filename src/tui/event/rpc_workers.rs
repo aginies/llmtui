@@ -93,8 +93,8 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_edit_buffer.insert(byte_idx, c);
                 app.edit.edit_cursor_pos += 1;
             }
-            KeyCode::Backspace => {
-                if app.edit.edit_cursor_pos > 0 {
+            KeyCode::Backspace
+                if app.edit.edit_cursor_pos > 0 => {
                     app.edit.edit_cursor_pos -= 1;
                     let byte_idx = app
                         .settings_state
@@ -105,11 +105,10 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         .unwrap_or(0);
                     app.settings_state.settings_edit_buffer.remove(byte_idx);
                 }
-            }
-            KeyCode::Delete => {
+            KeyCode::Delete
                 if app.edit.edit_cursor_pos
                     < app.settings_state.settings_edit_buffer.chars().count()
-                {
+                => {
                     let byte_idx = app
                         .settings_state
                         .settings_edit_buffer
@@ -119,7 +118,6 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         .unwrap_or(app.settings_state.settings_edit_buffer.len());
                     app.settings_state.settings_edit_buffer.remove(byte_idx);
                 }
-            }
             KeyCode::Left => {
                 app.edit.edit_cursor_pos = app.edit.edit_cursor_pos.saturating_sub(1);
             }
@@ -172,8 +170,8 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.edit.edit_cursor_pos = app.settings_state.settings_edit_buffer.chars().count();
                 }
             }
-            KeyCode::Char('d') => {
-                if !app.config.rpc_workers.is_empty() {
+            KeyCode::Char('d')
+                if !app.config.rpc_workers.is_empty() => {
                     app.config
                         .rpc_workers
                         .remove(app.picker.rpc_workers_selected_idx);
@@ -184,7 +182,6 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                     let _ = app.config.save();
                 }
-            }
             _ => {}
         }
     }

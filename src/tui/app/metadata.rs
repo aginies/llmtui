@@ -15,7 +15,7 @@ impl App {
             let mut results = Vec::new();
             for path_str in models {
                 if let Ok(meta) =
-                    crate::models::GgufMetadata::from_path(&std::path::Path::new(&path_str))
+                    crate::models::GgufMetadata::from_path(std::path::Path::new(&path_str))
                 {
                     results.push((path_str, meta));
                 }

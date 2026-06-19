@@ -386,11 +386,10 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('-') => {
             app.settings_state.settings_edit_buffer.push('-');
         }
-        KeyCode::Char('.') => {
-            if !app.settings_state.settings_edit_buffer.contains('.') {
+        KeyCode::Char('.')
+            if !app.settings_state.settings_edit_buffer.contains('.') => {
                 app.settings_state.settings_edit_buffer.push('.');
             }
-        }
         KeyCode::Enter => {
             if app.settings_state.settings_edit_buffer.is_empty() {
                 return;
@@ -404,12 +403,11 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.settings_state.settings_edit_buffer.clear();
             mark_settings_dirty(app, true);
         }
-        KeyCode::Esc => {
-            if !app.settings_state.settings_edit_buffer.is_empty() {
+        KeyCode::Esc
+            if !app.settings_state.settings_edit_buffer.is_empty() => {
                 app.settings_state.settings_edit_buffer.clear();
                 mark_settings_dirty(app, true);
             }
-        }
         _ => {}
     }
 }

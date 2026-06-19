@@ -1314,15 +1314,14 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_string!(parts, s, current, system_prompt_preset_name, "preset");
     diff_string!(parts, s, current, tensor_split, "tensor_split");
     diff_string!(parts, s, current, rpc, "rpc");
-    if s.chat_template != current.chat_template {
-        if let Some(ref v) = s.chat_template {
+    if s.chat_template != current.chat_template
+        && let Some(ref v) = s.chat_template {
             let filename = std::path::Path::new(v)
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or(v);
             parts.push(format!("chat_template={}", filename));
         }
-    }
     diff_option!(
         parts,
         s,

@@ -198,11 +198,10 @@ pub fn scroll_text(
     }
 
     // Use cache if width and offset haven't changed
-    if state.cached_width == max_width && state.cached_offset == state.offset {
-        if let Some(ref cached) = state.cached_output {
+    if state.cached_width == max_width && state.cached_offset == state.offset
+        && let Some(ref cached) = state.cached_output {
             return cached.clone();
         }
-    }
 
     let offset = state.offset.min(state.max_offset);
     let mut char_indices_iter = text.char_indices();
@@ -525,7 +524,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Row::new(vec![
                         Cell::from(name_display),
                         Cell::from(params_str).style(params_style),
-                        Cell::from(quality_cell),
+                        quality_cell,
                         Cell::from(
                             ratatui::text::Text::from(context_str)
                                 .alignment(ratatui::layout::Alignment::Right),

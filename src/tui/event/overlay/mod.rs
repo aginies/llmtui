@@ -65,29 +65,29 @@ pub struct OverlayRegistry {
 
 impl OverlayRegistry {
     pub fn new() -> Self {
-        let mut handlers: Vec<Box<dyn OverlayHandler + Send + Sync>> = Vec::new();
-
-        handlers.push(Box::new(OnboardingHandler));
-        handlers.push(Box::new(CmdLineHandler));
-        handlers.push(Box::new(AboutHandler));
-        handlers.push(Box::new(SearchInputHandler));
-        handlers.push(Box::new(DashboardPickerHandler));
-        handlers.push(Box::new(ApiEndpointPickerHandler));
-        handlers.push(Box::new(SpecTypePickerHandler));
-        handlers.push(Box::new(ChatTemplatePickerHandler));
-        handlers.push(Box::new(ChatTemplateFilePickerHandler));
-        handlers.push(Box::new(YarnRoPESettingsHandler));
-        handlers.push(Box::new(DashboardUrlHandler));
-        handlers.push(Box::new(HostPickerHandler));
-        handlers.push(Box::new(ProfilePickerHandler));
-        handlers.push(Box::new(PromptPickerHandler));
-        handlers.push(Box::new(BenchTuneSetupHandler));
-        handlers.push(Box::new(BackendPickerHandler));
-        handlers.push(Box::new(MaxConcurrentPickerHandler));
-        handlers.push(Box::new(ConfirmationHandler));
-        handlers.push(Box::new(RpcManagerHandler));
-        handlers.push(Box::new(GgufNamingHandler));
-        handlers.push(Box::new(WebSearchPickerHandler));
+        let handlers: Vec<Box<dyn OverlayHandler + Send + Sync>> = vec![
+            Box::new(OnboardingHandler),
+            Box::new(CmdLineHandler),
+            Box::new(AboutHandler),
+            Box::new(SearchInputHandler),
+            Box::new(DashboardPickerHandler),
+            Box::new(ApiEndpointPickerHandler),
+            Box::new(SpecTypePickerHandler),
+            Box::new(ChatTemplatePickerHandler),
+            Box::new(ChatTemplateFilePickerHandler),
+            Box::new(YarnRoPESettingsHandler),
+            Box::new(DashboardUrlHandler),
+            Box::new(HostPickerHandler),
+            Box::new(ProfilePickerHandler),
+            Box::new(PromptPickerHandler),
+            Box::new(BenchTuneSetupHandler),
+            Box::new(BackendPickerHandler),
+            Box::new(MaxConcurrentPickerHandler),
+            Box::new(ConfirmationHandler),
+            Box::new(RpcManagerHandler),
+            Box::new(GgufNamingHandler),
+            Box::new(WebSearchPickerHandler),
+        ];
 
         Self { handlers }
     }

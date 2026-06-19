@@ -68,10 +68,10 @@ impl App {
 
         // Parse "loading tensor X of Y"
         if let Some(caps) = LOADING_TENSOR.captures(msg) {
-            if let Ok(n) = caps.get(1).unwrap().as_str().parse::<u32>() {
+            if let Some(n) = caps.get(1).and_then(|m| m.as_str().parse::<u32>().ok()) {
                 self.loading.load_progress.tensors_loaded = n;
             }
-            if let Ok(total) = caps.get(2).unwrap().as_str().parse::<u32>() {
+            if let Some(total) = caps.get(2).and_then(|m| m.as_str().parse::<u32>().ok()) {
                 self.loading.load_progress.tensors_total = Some(total);
             }
             return;
@@ -87,17 +87,17 @@ impl App {
 
         // Parse "offloading N repeating layers to GPU"
         if let Some(caps) = OFFLOADING_LAYERS.captures(msg)
-            && let Ok(count) = caps.get(1).unwrap().as_str().parse::<u32>()
+            && let Some(count) = caps.get(1).and_then(|m| m.as_str().parse::<u32>().ok())
         {
             self.loading.load_progress.layers_total = Some(count);
         }
 
         // Parse "offloaded X/Y layers" or "offloaded X out of Y layers"
         if let Some(caps) = OFFLOADED_LAYERS.captures(msg) {
-            if let Ok(loaded) = caps.get(1).unwrap().as_str().parse::<u32>() {
+            if let Some(loaded) = caps.get(1).and_then(|m| m.as_str().parse::<u32>().ok()) {
                 self.loading.load_progress.layers_loaded = Some(loaded);
             }
-            if let Ok(total) = caps.get(2).unwrap().as_str().parse::<u32>() {
+            if let Some(total) = caps.get(2).and_then(|m| m.as_str().parse::<u32>().ok()) {
                 self.loading.load_progress.layers_total = Some(total);
             }
         }
@@ -108,7 +108,7 @@ impl App {
                 .get(1)
                 .map(|m| m.as_str().trim().to_string())
                 .unwrap_or_default();
-            if let Ok(mib) = caps.get(2).unwrap().as_str().parse::<f64>() {
+            if let Some(mib) = caps.get(2).and_then(|m| m.as_str().parse::<f64>().ok()) {
                 let exists = self
                     .loading
                     .load_progress
@@ -131,7 +131,7 @@ impl App {
 
         // Parse: "kv buffer size = X MiB"
         if let Some(caps) = KV_BUFFER_SIZE.captures(msg)
-            && let Ok(mib) = caps.get(1).unwrap().as_str().parse::<f64>()
+            && let Some(mib) = caps.get(1).and_then(|m| m.as_str().parse::<f64>().ok())
         {
             let exists = self
                 .loading

@@ -108,12 +108,11 @@ impl MdRenderer {
 
     fn handle_start(&mut self, tag: Tag) {
         match tag {
-            Tag::CodeBlock(_) => {
-                if !self.in_code_block {
+            Tag::CodeBlock(_)
+                if !self.in_code_block => {
                     self.flush_line();
                     self.in_code_block = true;
                 }
-            }
             Tag::Paragraph => {}
             Tag::Heading { level, .. } => {
                 self.current_style = match level {
@@ -157,13 +156,12 @@ impl MdRenderer {
 
     fn handle_end(&mut self, tag: TagEnd) {
         match tag {
-            TagEnd::CodeBlock => {
-                if self.in_code_block {
+            TagEnd::CodeBlock
+                if self.in_code_block => {
                     self.flush_code_block();
                     self.in_code_block = false;
                     self.current_style = Style::default();
                 }
-            }
             TagEnd::Paragraph => {
                 self.flush_line();
                 self.lines.push(Line::from(""));
@@ -175,11 +173,10 @@ impl MdRenderer {
                 self.list_marker = None;
             }
             TagEnd::Item => {}
-            TagEnd::BlockQuote(_) => {
-                if self.blockquote_depth > 0 {
+            TagEnd::BlockQuote(_)
+                if self.blockquote_depth > 0 => {
                     self.blockquote_depth -= 1;
                 }
-            }
             TagEnd::TableHead => {
                 self.flush_table_row();
                 self.table_is_header = false;
@@ -187,12 +184,11 @@ impl MdRenderer {
             TagEnd::TableRow => {
                 self.flush_table_row();
             }
-            TagEnd::Table => {
-                if self.in_table {
+            TagEnd::Table
+                if self.in_table => {
                     self.flush_table_row();
                     self.in_table = false;
                 }
-            }
             TagEnd::TableCell => {}
             TagEnd::Heading(_) => {
                 self.flush_line();

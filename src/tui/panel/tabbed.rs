@@ -347,7 +347,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         &mut selected_content_line,
         6,
         "Dashboard",
-        &dashboard_enabled,
+        dashboard_enabled,
         selected,
         "",
         false,
@@ -369,9 +369,9 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         server_running,
     );
     let web_search_display = if app.config.default.web_search_enabled {
-        format!("Enabled (searxng)")
+        "Enabled (searxng)".to_string()
     } else {
-        format!("Disabled (searxng)")
+        "Disabled (searxng)".to_string()
     };
     settings_helper::add_setting(
         &mut lines,
