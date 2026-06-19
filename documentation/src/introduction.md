@@ -30,7 +30,7 @@
 - **README rendering** — full markdown renderer for HuggingFace model documentation
 - **Model info** — GGUF metadata display with HuggingFace URL navigation
 - **CmdLine overlay** — view the full llama-server command line (`Ctrl+K`)
-- **Panel resize** — drag the border between left and right panels, or use `Shift+←/→`
+- **Panel resize** — drag left/right border, `Shift+←/→` (horizontal), `Shift+↑/↓` (Server/LLM Settings split, vertical)
 - **Mouse support** — click panels to focus, scroll in logs, README, and settings
 - **Multi-language UI** — switch between English, French, and Italian with `Ctrl+L`
 

@@ -482,6 +482,7 @@ Models → (Server Settings / README / Profiles / Presets) → Active Model → 
 | Method | Description |
 |--------|-------------|
 | `Shift+←` / `Shift+→` | Resize left/right split by 1% (range: 20%-80%) |
+| `Shift+↑` / `Shift+↓` | Resize Server Settings panel height by 1 row (range: 3-20 rows) |
 | Mouse drag on border | Drag the vertical border between left and right panels |
 | Scroll on border | Scroll mouse wheel while hovering the border (1% steps) |
 
@@ -694,9 +695,10 @@ The horizontal split between left panels (Models + Info) and right panels (Setti
 |--------|-------------|
 | **Drag border** | Click and drag the vertical border between left and right panels |
 | **Scroll on border** | Scroll mouse wheel while hovering over the border (1% steps) |
-| **Keyboard** | `Shift+←` / `Shift+→` to adjust by 1% (range: 20%-80%) |
+| **Keyboard horizontal** | `Shift+←` / `Shift+→` to adjust left/right split by 1% (range: 20%-80%) |
+| **Keyboard vertical** | `Shift+↑` / `Shift+↓` to adjust Server Settings height by 1 row (range: 3-20 rows, persisted) |
 
-The current split percentage is shown in the status bar (e.g., `│ 55%`). While actively resizing, the indicator shows `│ 55% ← resize →`.
+The current horizontal split percentage is shown in the status bar (e.g., `│ 55%`). While actively resizing, the indicator shows `│ 55% ← resize →`.
 
 You can toggle individual panels visibility using `F1`–`F6` keys or `Ctrl+F7`–`Ctrl+F9` to focus specific panels.
 
