@@ -192,7 +192,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
     let indicator = render_panel_visibility(app);
     let indicator_width: usize = indicator.iter().map(|s| s.width()).sum::<usize>() + 2; // brackets + spaces
     let existing_width: usize = status_parts.iter().map(|s| s.width()).sum();
-    let available = panel_area.width.saturating_sub(2) as usize - existing_width;
+    let available = (panel_area.width.saturating_sub(2) as usize).saturating_sub(existing_width);
     let padding = available.saturating_sub(indicator_width).saturating_sub(6);
     if padding > 0 {
         status_parts.push(Span::raw(" ".repeat(padding)));

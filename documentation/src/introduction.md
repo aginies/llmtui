@@ -10,12 +10,6 @@
 - **Download manager** — progress tracking with speed, ETA, and cancellation support
 - **Multi-word search** — space-separated words use AND logic for precise filtering
 
-### Inference
-- **Model loading** — progress visualization through server start, weight loading, metadata, tensor loading, and server listening phases
-- **Chat with models** — interact with loaded models via the API proxy
-- **RPC Workers** — manage distributed inference nodes from a dedicated window
-- **Router Mode** — load multiple models simultaneously *(Work in Progress)*
-
 ### Configuration
 - **Per-model settings** — full control over context length, GPU layers, sampling parameters, and more
 - **Profiles** — save and quickly switch between named presets of settings
