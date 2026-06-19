@@ -568,8 +568,6 @@ Web Search (Disabled: searxng)
 
 # Router Mode & Multi-Model Inference
 
-> **⚠️ Work In Progress:** Router Mode is currently under active development. It is not yet selectable through the TUI interface — the mode switcher cycles `Normal → Bench → BenchTune → Normal` only. Router mode can be enabled manually by setting `server_mode: router` in `~/.config/llm-manager/config.yaml`. The backend infrastructure (server spawning, `/models/load`, `/models/unload`, `/models` endpoints) is implemented and functional.
-
 Router Mode enables loading and managing multiple models simultaneously through a single llama-server instance. This is useful for A/B testing models, building model routing systems, or comparing different models in a shared environment.
 
 ## What is Router Mode?

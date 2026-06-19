@@ -31,7 +31,7 @@ cargo doc --open
 | Type | Module | Description |
 |------|--------|-------------|
 | `Backend` | `models` | Acceleration backend: `Cpu`, `Vulkan`, `Rocm`, `RocmLemonade`, `Cuda`, `CpuArm64`, `CpuWindows`, `VulkanWindows`, `CudaWindows12_4`, `CudaWindows13_1`, `HipWindows`, `CpuMacosArm64`, `CpuMacosX64` |
-| `ServerMode` | `models` | Server operating mode: `Normal` (single model), `Router` (multiple, *Work In Progress*), `Bench` (GPU benchmarking), or `BenchTune` (parameter auto-tuning) |
+| `ServerMode` | `models` | Server operating mode: `Normal` (single model), `Router` (multiple), `Bench` (GPU benchmarking), or `BenchTune` (parameter auto-tuning) |
 | `GpuLayersMode` | `models` | GPU offloading: `Auto`, `Specific(n)`, or `All` |
 | `SearchSort` | `models` | Search result sort order: `Relevance`, `Downloads`, `Likes`, `Trending`, `CreatedAt` |
 | `ListSort` | `models` | Local model list sort order: `Name`, `Size`, `Modified` |

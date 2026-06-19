@@ -1681,10 +1681,10 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 }
                 4 => {
                     app.server_mode = match app.server_mode {
-                        crate::models::ServerMode::Normal => crate::models::ServerMode::Bench,
+                        crate::models::ServerMode::Normal => crate::models::ServerMode::Router,
+                        crate::models::ServerMode::Router => crate::models::ServerMode::Bench,
                         crate::models::ServerMode::Bench => crate::models::ServerMode::BenchTune,
                         crate::models::ServerMode::BenchTune => crate::models::ServerMode::Normal,
-                        _ => crate::models::ServerMode::Normal,
                     };
                 }
                 5 => {

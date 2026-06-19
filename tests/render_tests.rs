@@ -383,6 +383,73 @@ fn test_active_model_panel_renders() {
 }
 
 #[test]
+fn test_active_model_panel_router_mode_not_loaded_renders() {
+    let mut app = make_app();
+    app.server_mode = ServerMode::Router;
+    app.models = vec![DiscoveredModel {
+        path: "/model.gguf".into(),
+        name: "test.gguf".into(),
+        file_size: 1000,
+        display_name: "test.gguf".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
+    }];
+    app.selected_model_idx = Some(0);
+    app.pending.active_model_hint_dirty = true;
+    app.ui.active_panel = ActivePanel::ActiveModel;
+    
+    let mut terminal = make_terminal(&mut app);
+    let buffer = get_buffer(&mut terminal);
+    let text: String = buffer.content.iter().map(|c| c.symbol()).collect();
+    assert!(text.contains("test"));
+    assert!(text.contains("NOT LOADED"));
+}
+
+#[test]
+fn test_active_model_panel_router_mode_loaded_renders() {
+    let mut app = make_app();
+    app.server_mode = ServerMode::Router;
+    app.models = vec![DiscoveredModel {
+        path: "/model.gguf".into(),
+        name: "test.gguf".into(),
+        file_size: 1000,
+        display_name: "test.gguf".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
+    }];
+    app.selected_model_idx = Some(0);
+    app.model_states.insert("test.gguf".to_string(), ModelState::Loaded { port: 8080, pid: 1234 });
+    app.pending.active_model_hint_dirty = true;
+    app.ui.active_panel = ActivePanel::ActiveModel;
+    app.metrics = ServerMetrics {
+        loaded: true,
+        tps: 25.5,
+        prompt_tps: 100.0,
+        cpu_usage: 45.0,
+        gpu_mem_used: 8_000,
+        gpu_mem_total: 16_000,
+        ram_used: 16_000,
+        ctx_used: 128,
+        ctx_max: 32768,
+        total_vram_used: 8_000,
+        decoded_tokens: 0,
+        gen_tps: 0.0,
+        latency_per_token_ms: 0.0,
+        prompt_latency_ms: 0.0,
+        prompt_tokens: 0,
+        prompt_progress: 0.0,
+        prompt_elapsed_ms: 0.0,
+        prompt_tps_eval: 0.0,
+    };
+    
+    let mut terminal = make_terminal(&mut app);
+    let buffer = get_buffer(&mut terminal);
+    let text: String = buffer.content.iter().map(|c| c.symbol()).collect();
+    assert!(text.contains("test"));
+    assert!(text.contains("Tokens/s"));
+}
+
+#[test]
 fn test_model_info_panel_renders() {
     let mut app = make_app();
     app.ui.active_panel = ActivePanel::ModelInfo;

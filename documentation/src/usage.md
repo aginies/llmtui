@@ -136,7 +136,7 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 | **Backend** | auto-detected | Acceleration backend: auto-detected based on GPU (Cuda for NVIDIA, Rocm for AMD, Vulkan for Intel). Options: `cpu` (CPU-only), `vulkan` (NVIDIA/AMD/Intel GPU), `rocm` (AMD GPU), `rocm-lemonade` (AMD optimized), `cuda` (NVIDIA CUDA 12.8). Shows the currently selected version. |
 | **Threads** | (physical cores) | CPU threads for generation. Set to your physical core count for best performance. |
 | **Threads Batch** | 8 | CPU threads for batch processing (prompt evaluation). |
-| **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models, *Work In Progress — not reachable via cycling key, enable via config.yaml*), `Bench` (run llama-bench), or `BenchTune` (parameter auto-tuning). |
+| **Mode** | Normal | Server mode: `Normal` (single model), `Router` (multiple models), `Bench` (run llama-bench), or `BenchTune` (parameter auto-tuning). |
 | **API Endpoint** | false | Enable the API proxy server (see Serve Mode). |
 | **Dashboard** | false | WebSocket dashboard server (port 49223). Press `Enter` to configure (enabled, port, auth key, TLS). |
 | **RPC Workers** | None | Open a dedicated window to manage distributed inference nodes (IP:Port). |

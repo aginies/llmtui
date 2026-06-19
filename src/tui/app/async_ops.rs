@@ -1225,7 +1225,11 @@ impl App {
         let mut prev_model_name: Option<String> = None;
         let mut cycle_count: u32 = 0;
         loop {
-            let mut m = match crate::backend::server::get_metrics(&host, port, None, Some(pid))
+            let current_model_for_metrics = {
+                let lock = metrics_model_name.lock().unwrap();
+                lock.clone()
+            };
+            let mut m = match crate::backend::server::get_metrics(&host, port, current_model_for_metrics.as_deref(), Some(pid))
                 .await
             {
                 Ok(metrics) => {
@@ -1424,47 +1428,43 @@ impl App {
         }
         if let Some(model_name) = self.pending.pending_api_load.clone() {
             if let Some(handle) = &self.server.server_handle {
-                if self
-                    .loading
-                    .loading_phases
-                    .contains(&super::types::LoadingPhase::Complete)
-                    || self
-                        .loading
-                        .loading_phases
-                        .contains(&super::types::LoadingPhase::ServerListening)
+                let host = handle.host.clone();
+                let port = handle.port;
+                let model_name_clone = model_name.clone();
+                // Router expects model ID (display_name without .gguf extension)
+                let model_id = model_name_clone
+                    .strip_suffix(".gguf")
+                    .unwrap_or(&model_name_clone)
+                    .to_string();
+                self.pending.pending_api_load = None;
+                self.add_log(
+                    crate::t_fmt!("async.send_load", model_name_clone),
+                    crate::config::LogLevel::Info,
+                );
                 {
-                    let host = handle.host.clone();
-                    let port = handle.port;
-                    let model_name_clone = model_name.clone();
-                    self.pending.pending_api_load = None;
-                    self.add_log(
-                        crate::t_fmt!("async.send_load", model_name_clone),
-                        crate::config::LogLevel::Info,
-                    );
-                    {
-                        let mut lock = self.server.metrics_model_name.lock().unwrap();
-                        *lock = Some(model_name_clone.clone());
-                    }
-                    let log_tx = self.server.spawn_log_tx.clone();
-                    let model_name_err = model_name_clone.clone();
-                    self.metrics.ctx_used = 0;
-                    crate::backend::server::invalidate_vram_cache();
-                    tokio::spawn(async move {
-                        if let Err(e) =
-                            crate::backend::server::load_model(&host, port, &model_name_clone).await
-                        {
-                            let err_msg = crate::t_fmt!("async.load_failed", model_name_err, e);
-                            if let Some(tx) = log_tx {
-                                let _ = tx.send(err_msg.clone()).await;
-                            } else {
-                                tracing::error!("{}", err_msg);
-                            }
-                        }
-                    });
-                    self.model_states
-                        .insert(model_name, crate::models::ModelState::Loading);
-                    self.ui.needs_redraw = true;
+                    let mut lock = self.server.metrics_model_name.lock().unwrap();
+                    *lock = Some(model_id.clone());
                 }
+                let log_tx = self.server.spawn_log_tx.clone();
+                let model_name_err = model_name_clone.clone();
+                self.metrics.ctx_used = 0;
+                crate::backend::server::invalidate_vram_cache();
+                let model_id_for_api = model_id.clone();
+                tokio::spawn(async move {
+                    if let Err(e) =
+                        crate::backend::server::load_model(&host, port, &model_id_for_api).await
+                    {
+                        let err_msg = crate::t_fmt!("async.load_failed", model_name_err, e);
+                        if let Some(tx) = log_tx {
+                            let _ = tx.send(err_msg.clone()).await;
+                        } else {
+                            tracing::error!("{}", err_msg);
+                        }
+                    }
+                });
+                self.model_states
+                    .insert(model_name, crate::models::ModelState::Loading);
+                self.ui.needs_redraw = true;
             } else if self.server.spawn_task_handle.is_none() {
                 self.pending.pending_api_load = None;
             }
@@ -1489,6 +1489,10 @@ impl App {
             let host = handle.host.clone();
             let port = handle.port;
             let model_name_clone = model_name.clone();
+            let model_id = model_name_clone
+                .strip_suffix(".gguf")
+                .unwrap_or(&model_name_clone)
+                .to_string();
             if server_mode == crate::models::ServerMode::Normal {
                  self.add_log(
                      crate::t_fmt!("async.unloading", model_name_clone),
@@ -1512,7 +1516,7 @@ impl App {
                     format!("api_unload_{}", model_name_task),
                     tokio::spawn(async move {
                         if let Err(e) =
-                            crate::backend::server::unload_model(&host, port, &model_name_clone)
+                            crate::backend::server::unload_model(&host, port, &model_id)
                                 .await
                         {
                             if let Some(tx) = kill_tx {
@@ -1721,10 +1725,22 @@ impl App {
         }
 
         let active_loaded_model = if let Some(model) = self.selected_model() {
-            if self.is_model_loaded(&model.display_name) {
+            // In router mode, only use selected model if it is in Loaded state to avoid triggering
+            // auto-loading and concurrent loading conflicts in llama-server router.
+            if self.server_mode == crate::models::ServerMode::Router {
+                if let Some(crate::models::ModelState::Loaded { .. }) = self.model_states.get(&model.display_name) {
+                    Some(model.display_name.clone())
+                } else {
+                    let lock = self
+                        .server
+                        .loaded_model_names
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    lock.first().cloned()
+                }
+            } else if self.is_model_loaded(&model.display_name) {
                 Some(model.display_name.clone())
             } else {
-                // Fallback to the first actually loaded model
                 let lock = self
                     .server
                     .loaded_model_names
@@ -1733,7 +1749,6 @@ impl App {
                 lock.first().cloned()
             }
         } else {
-            // No selection, fallback to the first actually loaded model
             let lock = self
                 .server
                 .loaded_model_names

@@ -511,7 +511,7 @@ Language switching persists the chosen language to `~/.config/llm-manager/config
 | 1 | Backend | Opens BackendPicker |
 | 2 | Threads | Cycles 1..max_threads |
 | 3 | Threads Batch | Cycles 1..32 |
-| 4 | Mode | Cycles Normal → Bench → BenchTune → Normal |
+| 4 | Mode | Cycles Normal → Router → Bench → BenchTune → Normal |
 | 5 | API Endpoint | Opens ApiEndpointPicker |
 | 6 | Dashboard | Opens DashboardPicker |
 | 7 | RPC Workers | Opens RpcManager |

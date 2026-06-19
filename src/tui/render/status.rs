@@ -142,6 +142,16 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         ));
     }
 
+    if app.server.server_handle.is_some() {
+        status_parts.push(Span::raw("  "));
+        status_parts.push(Span::styled("(", Style::default().fg(DIM_GRAY)));
+        status_parts.push(Span::styled(
+            crate::t!("hints.kill_server").to_string(),
+            Style::default().fg(CYAN),
+        ));
+        status_parts.push(Span::styled(")", Style::default().fg(DIM_GRAY)));
+    }
+
     if matches!(app.ui.global_mode, GlobalMode::HostPicker { .. }) {
         status_parts.push(Span::raw("  "));
         status_parts.push(Span::styled(

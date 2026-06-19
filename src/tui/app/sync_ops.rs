@@ -110,6 +110,7 @@ impl App {
     }
 
     pub fn on_model_selection_change(&mut self) {
+        self.pending.active_model_hint_dirty = true;
         self.search.readme_cache = None;
         if let Some(idx) = self.selected_model_idx {
             let model = self.models[idx].clone();

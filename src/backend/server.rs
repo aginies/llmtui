@@ -1318,7 +1318,11 @@ pub async fn load_model(host: &str, port: u16, model_id: &str) -> Result<(), Str
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            Err(format!("Server returned {}: {}", status, error))
+            if error.contains("model is already running") {
+                Ok(())
+            } else {
+                Err(format!("Server returned {}: {}", status, error))
+            }
         }
         Err(e) => Err(format!("Failed to send request: {}", e)),
     }

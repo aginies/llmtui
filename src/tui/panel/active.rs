@@ -80,11 +80,30 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         for (name, state) in &app.model_states {
             if !matches!(state, ModelState::Available) {
                 result.push((name.clone(), state.clone()));
-                break;
             }
         }
-        app.active_model_hint = result.first().cloned();
-        result
+        // In router mode, prefer the selected model, loaded or not.
+        // Otherwise fall back to first loaded model.
+        let hint = if app.server_mode == crate::models::ServerMode::Router {
+            if let Some(selected) = app.selected_model() {
+                let state = app.model_states.get(&selected.display_name).cloned().unwrap_or(ModelState::Available);
+                Some((selected.display_name.clone(), state))
+            } else {
+                result.first().cloned()
+            }
+        } else {
+            result.first().cloned()
+        };
+        app.active_model_hint = hint;
+        if app.server_mode == crate::models::ServerMode::Router {
+            if let Some(h) = &app.active_model_hint {
+                vec![h.clone()]
+            } else {
+                result
+            }
+        } else {
+            result
+        }
     } else if let Some(hint) = &app.active_model_hint {
         vec![hint.clone()]
     } else {
@@ -93,11 +112,28 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         for (name, state) in &app.model_states {
             if !matches!(state, ModelState::Available) {
                 result.push((name.clone(), state.clone()));
-                break;
             }
         }
-        app.active_model_hint = result.first().cloned();
-        result
+        let hint = if app.server_mode == crate::models::ServerMode::Router {
+            if let Some(selected) = app.selected_model() {
+                let state = app.model_states.get(&selected.display_name).cloned().unwrap_or(ModelState::Available);
+                Some((selected.display_name.clone(), state))
+            } else {
+                result.first().cloned()
+            }
+        } else {
+            result.first().cloned()
+        };
+        app.active_model_hint = hint;
+        if app.server_mode == crate::models::ServerMode::Router {
+            if let Some(h) = &app.active_model_hint {
+                vec![h.clone()]
+            } else {
+                result
+            }
+        } else {
+            result
+        }
     };
 
     // If no model is active in app.model_states, fallback to selected model
@@ -575,7 +611,26 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(error, Style::default().fg(WHITE)),
                 ]));
             }
-            ModelState::Available => unreachable!(),
+            ModelState::Available => {
+                lines.push(Line::from(vec![
+                    Span::styled(" Model:  ", Style::default().fg(YELLOW)),
+                    Span::styled(
+                        model_filename(name),
+                        Style::default()
+                            .fg(WHITE)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]));
+                lines.push(Line::from(vec![
+                    Span::styled(" Status: ", Style::default().fg(YELLOW)),
+                    Span::styled(
+                        "NOT LOADED",
+                        Style::default()
+                            .fg(DIM_GRAY)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]));
+            }
         }
     } else {
         if app.server.server_handle.is_some() {
