@@ -384,6 +384,14 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.ui.left_pct = app.ui.left_pct.saturating_add(1).min(80);
             return;
         }
+        KeyCode::Up if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            app.ui.server_settings_height = app.ui.server_settings_height.saturating_sub(1).max(3);
+            return;
+        }
+        KeyCode::Down if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            app.ui.server_settings_height = app.ui.server_settings_height.saturating_add(1).min(20);
+            return;
+        }
         KeyCode::Char('k')
             if key.modifiers.contains(KeyModifiers::CONTROL)
                 && key.modifiers.contains(KeyModifiers::ALT) =>

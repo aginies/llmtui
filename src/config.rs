@@ -111,6 +111,9 @@ pub struct Config {
     /// Left panel width percentage (20-80).
     #[serde(default = "default_left_pct")]
     pub left_pct: u16,
+    /// Server Settings panel height in rows (3-20).
+    #[serde(default = "default_server_settings_height")]
+    pub server_settings_height: u16,
     /// UI language (en, fr, it). Falls back to en.
     #[serde(default = "default_language")]
     pub language: String,
@@ -125,6 +128,10 @@ fn default_language() -> String {
 
 fn default_left_pct() -> u16 {
     55
+}
+
+fn default_server_settings_height() -> u16 {
+    9
 }
 
 fn default_onboarding() -> bool {
@@ -1027,6 +1034,7 @@ impl Default for Config {
             search_limit: default_search_limit(),
             active_panel: ActivePanel::Models,
             left_pct: 55,
+            server_settings_height: 9,
             language: default_language(),
             onboarding_complete: false,
         }

@@ -14,8 +14,6 @@ use crate::tui::colors::*;
 use crate::tui::app::{ActivePanel, App};
 use crate::tui::settings as settings_helper;
 
-const SERVER_SETTINGS_HEIGHT: u16 = 9;
-
 /// Render a vertical "UNSAVED" watermark in red, dimmed, behind the settings content.
 fn render_unsaved_watermark(f: &mut Frame, area: Rect, app: &App) {
     if !app.is_settings_dirty() {
@@ -49,7 +47,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         x: area.x,
         y: area.y,
         width: area.width,
-        height: SERVER_SETTINGS_HEIGHT.min(area.height),
+        height: app.ui.server_settings_height.min(area.height),
     };
 
     let llm_area = Rect {

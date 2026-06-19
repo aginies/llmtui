@@ -516,6 +516,7 @@ async fn main() -> Result<()> {
             // Save config with UI state
             app.config.active_panel = app.ui.active_panel;
             app.config.left_pct = app.ui.left_pct;
+            app.config.server_settings_height = app.ui.server_settings_height;
             app.config.save().ok();
 
             // Restore terminal

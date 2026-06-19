@@ -195,6 +195,7 @@ pub struct UIState {
     pub models_table_state: TableState,
     pub resize_state: Option<ResizeState>,
     pub left_pct: u16,
+    pub server_settings_height: u16,
     pub needs_full_redraw: bool,
     pub needs_redraw: bool,
     pub text_scrolls: HashMap<String, TextScrollState>,

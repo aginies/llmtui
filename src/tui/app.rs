@@ -24,6 +24,7 @@ impl App {
     pub fn new(config: Config) -> Self {
         let active_panel = config.active_panel;
         let left_pct = config.left_pct;
+        let server_settings_height = config.server_settings_height;
         let mut log = VecDeque::new();
         log.push_back(LogEntry::new(
             "Starting llm-manager...",
@@ -220,6 +221,7 @@ impl App {
                 models_table_state: Default::default(),
                 resize_state: None,
                 left_pct,
+                server_settings_height,
                 needs_full_redraw: false,
                 needs_redraw: true,
                 text_scrolls: Default::default(),
@@ -370,6 +372,7 @@ mod tests {
             search_limit: 50,
             active_panel: types::ActivePanel::Models,
             left_pct: 55,
+            server_settings_height: 9,
             language: "en".to_string(),
             onboarding_complete: false,
         };

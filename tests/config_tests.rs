@@ -629,6 +629,7 @@ fn config_default_empty_model_overrides() {
         search_limit: 50,
         active_panel: ActivePanel::Models,
         left_pct: 55,
+        server_settings_height: 9,
         language: "en".to_string(),
         onboarding_complete: false,
     };
