@@ -148,6 +148,8 @@ During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) p
 
 The LLM Settings panel has 19 standard fields, 12 expert fields (revealed with `Ctrl+X`), and 15 ultra fields (hidden even in expert mode), for a total of 46 fields. Arrow keys adjust values; `+`/`-` for coarse changes, `Left`/`Right` for fine. Toggle fields respond to `e` or `Ctrl+E`.
 
+![LLM Settings](images/llm_settings.png)
+
 #### Loading
 
 | Field | Default | Description |
@@ -242,6 +244,8 @@ These fields follow the same navigation and editing rules as standard fields. Ar
 #### Changing Values
 
 Use `Left`/`Right` to adjust numeric fields by 1, or `Up`/`Down` for larger steps. Toggle fields respond to `e` or `Ctrl+E`. Dirty (changed) fields have the name in red and a trailing `*`. The status bar shows `*unsaved*` when settings are dirty.
+
+![Unsaved Settings](images/unsaved.png)
 
 ### Saving Settings
 
@@ -697,6 +701,12 @@ The current split percentage is shown in the status bar (e.g., `│ 55%`). While
 You can toggle individual panels visibility using `F1`–`F6` keys or `Ctrl+F7`–`Ctrl+F9` to focus specific panels.
 
 ![Panel Toggling](images/disabling_panels.png)
+
+The TUI shows panel visibility status via small indicators on each panel border. When all panels are visible, all indicators appear. When a panel is hidden, its indicator disappears, making it easy to see which panels are currently shown or hidden.
+
+![All Panels Visible](images/panel_info_all.png)
+
+![Some Panels Hidden](images/panel_info_some.png)
 
 ## CmdLine Overlay
 
