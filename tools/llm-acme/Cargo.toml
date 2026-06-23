@@ -1,0 +1,26 @@
+[package]
+name = "llm-acme"
+version = "0.1.0"
+edition = "2024"
+description = "Let's Encrypt certificate management tool for llm-manager"
+license = "GPL-3.0-or-later"
+authors = ["Antoine Giniès <antoine@ginies.org>"]
+
+[[bin]]
+name = "llm-acme"
+path = "src/main.rs"
+
+[dependencies]
+lers = { version = "0.4", features = ["dns-01", "dns-01-cloudflare"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "signal"] }
+clap = { version = "4", features = ["derive", "env"] }
+dirs = "6"
+serde = { version = "1", features = ["derive"] }
+serde_yml = "0.0.13"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+x509-parser = "0.16"
+chrono = "0.4"
+openssl = "0.10"
+libc = "0.2"
