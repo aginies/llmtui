@@ -119,6 +119,56 @@ default:
   server_tls_key: ~/.config/llm-manager/tls/letsencrypt/myhost.example.com/key.pem
 ```
 
+### API Endpoint
+
+The API proxy shares TLS configuration with the WebSocket dashboard. When enabled, all API requests use HTTPS:
+
+```yaml
+default:
+  server_tls_enabled: true
+  server_tls_cert: /path/to/cert.pem
+  server_tls_key: /path/to/key.pem
+  api_endpoint_enabled: true
+  api_endpoint_port: 49222
+```
+
+Or from the command line:
+
+```bash
+llm-manager serve --model model.gguf \
+  --tls-cert /path/to/cert.pem \
+  --tls-key /path/to/key.pem
+```
+
+With TLS enabled, the API proxy listens on `https://` instead of `http://`. Clients must use the `https://` base URL and trust the CA that signed the certificate.
+
+### Using llm-acme certs with the API
+
+After issuing a certificate with `llm-acme`, configure it in `config.yaml`:
+
+```yaml
+default:
+  server_tls_enabled: true
+  server_tls_cert: ~/.config/llm-manager/tls/letsencrypt/myhost.example.com/cert.pem
+  server_tls_key: ~/.config/llm-manager/tls/letsencrypt/myhost.example.com/key.pem
+  api_endpoint_enabled: true
+  api_endpoint_port: 49222
+```
+
+The API proxy at `https://myhost.example.com:49222` will present the Let's Encrypt certificate, trusted by all standard clients.
+
+### Using your own certificates
+
+You can use any valid TLS certificate (self-signed, CA-signed, etc.):
+
+```bash
+llm-manager serve --model model.gguf \
+  --tls-cert /etc/ssl/certs/my-cert.pem \
+  --tls-key /etc/ssl/private/my-key.pem
+```
+
+Place the paths in `config.yaml` under `server_tls_cert` and `server_tls_key`. The cert and key files must exist; if they do not, llm-manager auto-generates a self-signed certificate instead.
+
 ## Port 80 Requirement
 
 The HTTP-01 ACME challenge requires binding to port 80. You have several options:
