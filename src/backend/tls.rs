@@ -77,10 +77,12 @@ fn parse_ca_from_pem(
 }
 
 /// Generate a server certificate signed by the CA, persisting to disk.
+/// The cert includes the given host alongside localhost/127.0.0.1 in SANs.
 /// Returns (cert_pem, key_pem).
 fn generate_server_cert(
     ca_cert_pem: &str,
     ca_key_pem: &str,
+    host: &str,
 ) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
     let server_key = KeyPair::generate()?;
 
@@ -88,10 +90,18 @@ fn generate_server_cert(
 
     // Generate server cert signed by CA
     let mut params = CertificateParams::default();
-    params.subject_alt_names = vec![
+    let mut san_entries = vec![
         SanType::DnsName("localhost".try_into().unwrap()),
         SanType::IpAddress([127, 0, 0, 1].into()),
     ];
+    if host != "localhost" {
+        if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+            san_entries.push(SanType::IpAddress(ip));
+        } else {
+            san_entries.push(SanType::DnsName(host.try_into().unwrap()));
+        }
+    }
+    params.subject_alt_names = san_entries;
     let cert = params.signed_by(&server_key, &ca_issuer)?;
     let cert_pem = cert.pem();
     let key_pem = server_key.serialize_pem();
@@ -99,8 +109,9 @@ fn generate_server_cert(
 }
 
 /// Ensure TLS certificates exist. If not, generates a CA + server cert pair.
+/// The server cert is issued for the given host alongside localhost/127.0.0.1.
 /// Returns the paths to the cert and key files.
-pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync>> {
+pub fn ensure_tls_certs(host: &str) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync>> {
     let ca_path = ca_cert_path();
     let ca_key_path = ca_key_path();
     let server_cert_path = server_cert_path();
@@ -158,7 +169,7 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
     };
 
     // Generate server cert signed by CA (use the in-memory CA cert, don't re-read from disk)
-    let (server_cert, server_key) = generate_server_cert(&ca_cert_pem, &ca_key_pem)?;
+    let (server_cert, server_key) = generate_server_cert(&ca_cert_pem, &ca_key_pem, host)?;
     // Write to temp files first, then rename for atomicity
     let tmp_cert_path = server_cert_path.with_extension("pem.tmp");
     let tmp_key_path = server_key_path.with_extension("pem.tmp");
@@ -179,7 +190,7 @@ pub fn ensure_tls_certs() -> Result<(PathBuf, PathBuf), Box<dyn std::error::Erro
         let _ = std::fs::remove_file(&server_cert_path);
         let _ = std::fs::remove_file(&server_key_path);
         let _ = std::fs::remove_file(&version_path);
-        return ensure_tls_certs();
+        return ensure_tls_certs("localhost");
     }
 
     // Write version file

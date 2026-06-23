@@ -217,7 +217,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 }
             }
         } else {
-            let (cert, key) = tls::ensure_tls_certs().map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+            let (cert, key) = tls::ensure_tls_certs(&settings.host).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
             (
                 cert.to_string_lossy().to_string(),
                 key.to_string_lossy().to_string(),

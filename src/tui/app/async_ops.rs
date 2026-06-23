@@ -1809,9 +1809,35 @@ impl App {
             };
             if needs_reload {
                 if let (Some(cert), Some(key)) = (&tls_cert, &tls_key) {
-                    crate::backend::tls::load_tls_config(cert, key).await.ok()
+                    if std::path::Path::new(cert).exists() && std::path::Path::new(key).exists() {
+                        crate::backend::tls::load_tls_config(cert, key).await.ok()
+                    } else {
+                        match crate::backend::tls::ensure_tls_certs(&self.settings.host) {
+                            Ok((c, k)) => {
+                                self.add_log(
+                                    crate::t!("async.tls_generating"),
+                                    crate::config::LogLevel::Info,
+                                );
+                                self.config.default.server_tls_cert =
+                                    Some(c.to_string_lossy().to_string());
+                                self.config.default.server_tls_key =
+                                    Some(k.to_string_lossy().to_string());
+                                self.server.running_server_tls_cert_path =
+                                    Some(c.to_string_lossy().to_string());
+                                self.server.running_server_tls_key_path =
+                                    Some(k.to_string_lossy().to_string());
+                                crate::backend::tls::load_tls_config(
+                                    c.to_string_lossy().as_ref(),
+                                    k.to_string_lossy().as_ref(),
+                                )
+                                .await
+                                .ok()
+                            }
+                            Err(_) => None,
+                        }
+                    }
                 } else {
-                    match crate::backend::tls::ensure_tls_certs() {
+                    match crate::backend::tls::ensure_tls_certs(&self.settings.host) {
                         Ok((cert, key)) => {
                             self.add_log(
                                 crate::t!("async.tls_generating"),
@@ -1880,8 +1906,12 @@ impl App {
             let _ = self.ws_shutdown_tx.take().map(|tx| tx.send(true));
             crate::backend::ws_server::stop_ws_server(handle);
             self.server.running_ws_port = None;
-            self.server.running_ws_auth = None;
-            self.server.running_server_tls = None;
+            if !enabled {
+                self.server.running_ws_auth = None;
+            }
+            if !enabled {
+                self.server.running_server_tls = None;
+            }
             if !enabled {
                 self.add_log(
                     crate::t!("async.dashboard_disabled"),
@@ -1896,7 +1926,6 @@ impl App {
             let _host = self.settings.host.clone();
             let (ws_shutdown_tx, ws_shutdown_rx) = tokio::sync::watch::channel(false);
             self.ws_shutdown_tx = Some(ws_shutdown_tx);
-            let has_tls = tls_cfg.is_some();
             match crate::backend::ws_server::start_ws_server(
                 port,
                 ws_rx,
@@ -1912,7 +1941,7 @@ impl App {
                     self.ws_server_handle = Some(handle);
                     self.server.running_ws_port = Some(port);
                     self.server.running_ws_auth = auth_key.clone();
-                    self.server.running_server_tls = Some(has_tls);
+                    self.server.running_server_tls = Some(tls_enabled);
                     let protocol = if tls_enabled { "https" } else { "http" };
                     let auth_param = match &auth_key {
                         Some(a) => format!("?auth={}", urlencoding::encode(a)),
@@ -2045,22 +2074,56 @@ impl App {
                     &self.config.default.server_tls_cert,
                     &self.config.default.server_tls_key,
                 ) {
-                    // User-specified cert/key paths
-                    match crate::backend::tls::load_tls_config(cert, key).await {
-                        Ok(cfg) => Some(cfg),
-                        Err(e) => {
-                            self.add_log(
-                                crate::t_fmt!("async.api_tls_error", e),
-                                crate::config::LogLevel::Warning,
-                            );
-                            None
+                    // User-specified cert/key paths — only use if files exist
+                    if std::path::Path::new(cert).exists() && std::path::Path::new(key).exists() {
+                        match crate::backend::tls::load_tls_config(cert, key).await {
+                            Ok(cfg) => Some(cfg),
+                            Err(e) => {
+                                self.add_log(
+                                    crate::t_fmt!("async.api_tls_error", e),
+                                    crate::config::LogLevel::Warning,
+                                );
+                                None
+                            }
+                        }
+                    } else {
+                        // Files missing — auto-generate
+                        match crate::backend::tls::ensure_tls_certs(&host) {
+                            Ok((c, k)) => {
+                                // Cache the generated paths for future use
+                                self.server.running_server_tls_cert_path =
+                                    Some(c.to_string_lossy().to_string());
+                                self.server.running_server_tls_key_path =
+                                    Some(k.to_string_lossy().to_string());
+                                match crate::backend::tls::load_tls_config(
+                                    &c.to_string_lossy(),
+                                    &k.to_string_lossy(),
+                                )
+                                .await
+                                {
+                                    Ok(cfg) => Some(cfg),
+                                    Err(e) => {
+                                        self.add_log(
+                                            crate::t_fmt!("async.api_tls_error", e),
+                                            crate::config::LogLevel::Warning,
+                                        );
+                                        None
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                self.add_log(
+                                    crate::t_fmt!("async.api_tls_error", e),
+                                    crate::config::LogLevel::Warning,
+                                );
+                                None
+                            }
                         }
                     }
                 } else {
-                    // Auto-generate certs (same as WebSocket dashboard)
-                    match crate::backend::tls::ensure_tls_certs() {
+                    // No cert/key paths configured — auto-generate
+                    match crate::backend::tls::ensure_tls_certs(&host) {
                         Ok((c, k)) => {
-                            // Cache the generated paths for future use
                             self.server.running_server_tls_cert_path =
                                 Some(c.to_string_lossy().to_string());
                             self.server.running_server_tls_key_path =
