@@ -1156,6 +1156,8 @@ impl Config {
             "spec_type",
             "draft_tokens",
             "tags",
+            "server_settings_height",
+            "auto_chat_template",
         ]
     }
 
