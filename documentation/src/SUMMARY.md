@@ -26,3 +26,4 @@
 ## Reference
 - [Architecture](architecture.md)
 - [API Reference](api-reference.md) — Rust API docs on docs.rs
+- [Systemd Deployment](systemd.md) — .env and service file configuration
