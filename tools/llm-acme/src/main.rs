@@ -262,11 +262,14 @@ async fn create_or_load_account(
     Ok(account)
 }
 
+/// Solver resolver return type.
+type SolverResult = (Box<dyn Solver + Send + Sync>, Option<tokio::task::JoinHandle<()>>);
+
 /// Resolve the solver to use based on user preference or auto-detection.
 fn resolve_solver(
     solver_type: Option<SolverType>,
     dns_token: Option<String>,
-) -> Result<(Box<dyn Solver + Send + Sync>, Option<tokio::task::JoinHandle<()>>)> {
+) -> Result<SolverResult> {
     match solver_type {
         Some(SolverType::Http) => {
             check_port_80();
@@ -529,7 +532,7 @@ fn list_certs() -> Result<()> {
 
         let dt = cert.validity().not_after.to_datetime();
         let expires = chrono::DateTime::<chrono::Utc>::from_timestamp(
-            dt.unix_timestamp(), dt.microsecond() as u32
+            dt.unix_timestamp(), dt.microsecond()
         ).unwrap_or(chrono::Utc::now());
 
         let now = chrono::Utc::now();

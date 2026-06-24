@@ -20,7 +20,6 @@ exec /home/aginies/llmtui/target/release/llm-manager serve \
   ${LLM_LOG_FILE:+--log-file "${LLM_LOG_FILE}"} \
   ${DASHBOARD_ENABLED:+--ws-enable} \
   ${LLM_WS_PORT:+--ws-port "${LLM_WS_PORT}"} \
-  ${LLM_WS_AUTH:+--ws-auth "${LLM_WS_AUTH}"} \
   ${LLM_API_KEY:+--api-key "${LLM_API_KEY}"} \
   ${LLM_TLS_ENABLE:+--tls-enable} \
   ${LLM_TLS_CERT:+--tls-cert "${LLM_TLS_CERT}"} \
