@@ -61,6 +61,10 @@ enum Cli {
         #[arg(short, long)]
         config: Option<String>,
 
+        /// Path to a model override YAML file to apply on top of config
+        #[arg(long)]
+        model_config: Option<String>,
+
         /// Start an API proxy server on the given port
         #[arg(long)]
         api_port: Option<u16>,
@@ -113,6 +117,7 @@ async fn main() -> Result<()> {
             model,
             profile,
             config,
+            model_config,
           api_port,
             api_key,
             ws_enable,
@@ -156,6 +161,7 @@ async fn main() -> Result<()> {
                 model_path: model,
                 profile_name: profile,
                 config_path: config,
+                model_config_path: model_config,
             api_port,
                 api_key,
                 ws_enable,

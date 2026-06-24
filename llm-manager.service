@@ -13,7 +13,8 @@ exec /home/aginies/llmtui/target/release/llm-manager serve \
   --model "${LLM_MODEL}" \
   ${LLM_PROFILE:+--profile "${LLM_PROFILE}"} \
   ${LLM_API_PORT:+--api-port "${LLM_API_PORT}"} \
-  --config /home/aginies/.config/llm-manager/config.yaml \
+  ${LLM_CONFIG:+--config "${LLM_CONFIG}"} \
+  ${LLM_MODEL_CONFIG:+--model-config "${LLM_MODEL_CONFIG}"} \
   ${LLM_BACKEND_BINARY:+--backend-binary "${LLM_BACKEND_BINARY}"} \
   ${LLM_HOST:+--host "${LLM_HOST}"} \
   ${LLM_LOG_FILE:+--log-file "${LLM_LOG_FILE}"} \

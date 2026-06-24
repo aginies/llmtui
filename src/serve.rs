@@ -17,6 +17,7 @@ pub struct ServeOptions {
     pub model_path: String,
     pub profile_name: Option<String>,
     pub config_path: Option<String>,
+    pub model_config_path: Option<String>,
     pub api_port: Option<u16>,
     pub api_key: Option<String>,
     pub ws_enable: bool,
@@ -179,6 +180,21 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         config.model_overrides.keys()
     );
     let mut settings = config.resolve_settings(Some(&display_name), opts.profile_name.as_deref());
+
+    // Apply model config file override if specified
+    if let Some(model_config_path) = &opts.model_config_path {
+        let model_config_path = PathBuf::from(model_config_path);
+        if model_config_path.exists() {
+            let content = std::fs::read_to_string(&model_config_path)
+                .map_err(|e| anyhow::anyhow!("Failed to read model config {}: {}", model_config_path.display(), e))?;
+            let model_override: crate::config::ModelOverride = serde_yml::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Failed to parse model config {}: {}", model_config_path.display(), e))?;
+            model_override.apply(&mut settings);
+            tracing::info!("Applied model config from: {}", model_config_path.display());
+        } else {
+            anyhow::bail!("Model config file not found: {}", model_config_path.display());
+        }
+    }
 
     // Auto-enable MTP if supported by model and not explicitly enabled in config
     if settings.spec_type.is_empty()
