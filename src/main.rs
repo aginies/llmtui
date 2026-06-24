@@ -58,11 +58,11 @@ enum Cli {
         profile: Option<String>,
 
         /// Path to config file
-        #[arg(short, long)]
+        #[arg(short, long, env = "LLM_CONFIG")]
         config: Option<String>,
 
         /// Path to a model override YAML file to apply on top of config
-        #[arg(long)]
+        #[arg(long, env = "LLM_MODEL_CONFIG")]
         model_config: Option<String>,
 
         /// Start an API proxy server on the given port

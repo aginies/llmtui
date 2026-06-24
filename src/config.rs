@@ -494,12 +494,12 @@ impl ModelOverride {
             llama_cpp_version_cuda,
         );
 
-        // Direct Option<T> assignment (same type in both structs)
-        base.cache_type_k = self.cache_type_k;
-        base.cache_type_v = self.cache_type_v;
-        base.presence_penalty = self.presence_penalty;
-        base.frequency_penalty = self.frequency_penalty;
-        base.max_tokens = self.max_tokens;
+        // Direct Option<T> assignment (same type in both structs) — only apply if Some
+        if let Some(v) = self.cache_type_k { base.cache_type_k = Some(v); }
+        if let Some(v) = self.cache_type_v { base.cache_type_v = Some(v); }
+        if let Some(v) = self.presence_penalty { base.presence_penalty = Some(v); }
+        if let Some(v) = self.frequency_penalty { base.frequency_penalty = Some(v); }
+        base.max_tokens = self.max_tokens.or(base.max_tokens);
 
         // Special: max_concurrent_predictions uses or() for Option chaining
         base.max_concurrent_predictions = self

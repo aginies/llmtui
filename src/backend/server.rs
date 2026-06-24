@@ -101,6 +101,7 @@ pub fn build_server_cmd(
     config: &Config,
     server_mode: crate::models::ServerMode,
     router_max_models: u32,
+    model_config_used: bool,
 ) -> (Command, String) {
     let mut cmd = Command::new(binary);
     let mut parts: Vec<String> = vec![binary.display().to_string()];
@@ -146,7 +147,9 @@ pub fn build_server_cmd(
         settings.threads_batch,
     );
     let effective_ctx = (settings.context_length as f64 * settings.rope_scale as f64) as u32;
-    push_arg(&mut cmd, &mut parts, "--ctx-size", effective_ctx);
+    if !model_config_used {
+        push_arg(&mut cmd, &mut parts, "--ctx-size", effective_ctx);
+    }
     push_arg(&mut cmd, &mut parts, "--ubatch-size", settings.ubatch_size);
     if let Some(n) = settings.max_concurrent_predictions {
         push_arg(&mut cmd, &mut parts, "--parallel", n);
@@ -632,6 +635,7 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
             config,
             server_mode,
             router_max_models,
+            false,
         )
     };
 

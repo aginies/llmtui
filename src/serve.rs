@@ -12,6 +12,29 @@ use crate::backend::tls;
 use crate::config::Config;
 use crate::models::{DiscoveredModel, WsMetrics};
 
+/// Auto-detect the per-model config file path from the model path.
+/// Looks in ~/.config/llm-manager/models/<key>.yaml where key is derived
+/// from the model's display_name (path relative to model directory).
+fn auto_detect_model_config(model_path: &std::path::Path, config: &Config) -> Option<PathBuf> {
+    let display_name = model_path
+        .strip_prefix(config.models_dirs.first().unwrap_or(&PathBuf::new()))
+        .ok()
+        .and_then(|p| p.to_str())
+        .map(|s| s.to_string())?;
+
+    let key = crate::config::key_from_display(&display_name);
+    let config_dir = crate::config::config_base_dir()
+        .join("llm-manager")
+        .join("models")
+        .join(format!("{}.yaml", key));
+
+    if config_dir.exists() {
+        Some(config_dir)
+    } else {
+        None
+    }
+}
+
 #[derive(Default)]
 pub struct ServeOptions {
     pub model_path: String,
@@ -181,8 +204,12 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     );
     let mut settings = config.resolve_settings(Some(&display_name), opts.profile_name.as_deref());
 
-    // Apply model config file override if specified
-    if let Some(model_config_path) = &opts.model_config_path {
+   // Apply model config file override: explicit path or auto-detected
+    let model_config_path = opts.model_config_path.as_ref()
+        .map(|p| p.clone())
+        .or_else(|| auto_detect_model_config(&model_path, &config).map(|p| p.to_string_lossy().to_string()));
+
+    if let Some(ref model_config_path) = model_config_path {
         let model_config_path = PathBuf::from(model_config_path);
         if model_config_path.exists() {
             let content = std::fs::read_to_string(&model_config_path)
@@ -339,6 +366,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         &config,
         config.default.server_mode,
         config.default.router_max_models,
+        opts.model_config_path.is_some(),
     );
 
     // Set LD_LIBRARY_PATH so the binary can find its shared libraries

@@ -441,6 +441,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 &app.config,
                 app.server_mode,
                 app.router_max_models,
+                false,
             );
             app.ui.global_mode = GlobalMode::CmdLine { cmd_line };
             return;
