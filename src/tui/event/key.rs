@@ -321,6 +321,9 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Tab
             if app.ui.global_mode == GlobalMode::Normal => {
+                if app.has_toasts() {
+                    app.dismiss_toast();
+                }
                 if key.modifiers.contains(KeyModifiers::SHIFT) {
                     app.focus_prev();
                 } else {
@@ -475,6 +478,15 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         }
         _ => {}
+    }
+
+    // Dismiss toast on Enter (only in Normal mode, before any overlay handling)
+    if matches!(app.ui.global_mode, GlobalMode::Normal)
+        && app.has_toasts()
+        && key.code == KeyCode::Enter
+    {
+        app.dismiss_toast();
+        return;
     }
 
     // ── Mode-specific handling ────────────────────────────────────

@@ -191,7 +191,7 @@ pub struct UIState {
     pub panel_visibility: u8,
     pub panel_help: bool,
     pub panel_help_offset: usize,
-    pub active_toast: Option<Toast>,
+    pub toast_queue: VecDeque<Toast>,
     pub models_table_state: TableState,
     pub resize_state: Option<ResizeState>,
     pub left_pct: u16,

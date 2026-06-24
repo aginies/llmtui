@@ -262,6 +262,9 @@ pub fn sync_global_settings(app: &mut App) {
 }
 
 pub fn handle_fkey_focus(app: &mut App, panel_idx: u8, target_panel: ActivePanel) {
+    if app.has_toasts() {
+        app.dismiss_toast();
+    }
     app.ui.panel_visibility |= 1 << panel_idx;
     app.ui.active_panel = target_panel;
 }
@@ -274,6 +277,9 @@ pub fn handle_fkey_toggle(
 ) {
     if require_no_server && app.server.server_handle.is_some() {
         return;
+    }
+    if app.has_toasts() {
+        app.dismiss_toast();
     }
     app.toggle_panel_visibility(panel_idx);
     if app.is_panel_visible(panel_idx)

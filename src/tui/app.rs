@@ -217,7 +217,7 @@ impl App {
                 panel_visibility: 0b111111,
                 panel_help: false,
                 panel_help_offset: 0,
-                active_toast: None,
+                toast_queue: Default::default(),
                 models_table_state: Default::default(),
                 resize_state: None,
                 left_pct,
@@ -309,11 +309,42 @@ impl App {
     }
 
     pub fn tick_toasts(&mut self) {
-        if let Some(toast) = &self.ui.active_toast
-            && toast.is_expired() {
-                self.ui.active_toast = None;
-                self.ui.needs_redraw = true;
+        let mut changed = false;
+        while let Some(toast) = self.ui.toast_queue.back() {
+            if toast.is_expired() {
+                self.ui.toast_queue.pop_back();
+                changed = true;
+            } else {
+                break;
             }
+        }
+        if changed {
+            self.ui.needs_redraw = true;
+        }
+    }
+
+    pub fn add_toast(&mut self, text: impl Into<String>, level: crate::tui::toast::ToastLevel) {
+        self.ui.toast_queue.push_front(crate::tui::toast::Toast::new(text, level));
+        while self.ui.toast_queue.len() > crate::tui::toast::TOAST_MAX_ITEMS {
+            self.ui.toast_queue.pop_back();
+        }
+        self.ui.needs_redraw = true;
+    }
+
+    pub fn dismiss_toast(&mut self) {
+        self.ui.toast_queue.pop_front();
+        self.ui.needs_redraw = true;
+    }
+
+    pub fn clear_toasts(&mut self) {
+        if !self.ui.toast_queue.is_empty() {
+            self.ui.toast_queue.clear();
+            self.ui.needs_redraw = true;
+        }
+    }
+
+    pub fn has_toasts(&self) -> bool {
+        !self.ui.toast_queue.is_empty()
     }
 
     pub fn cleanup_text_scrolls(&mut self) {

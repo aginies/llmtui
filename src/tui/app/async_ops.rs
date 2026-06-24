@@ -1,6 +1,6 @@
 use super::types::App;
 use crate::backend::server::ServerHandle;
-use crate::tui::toast::{Toast, ToastLevel};
+use crate::tui::toast::ToastLevel;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8};
@@ -650,13 +650,14 @@ impl App {
         }
     }
 
-    pub fn tick_sync(&mut self) {
+   pub fn tick_sync(&mut self) {
         if let Some(last) = self.server.last_sync_tick
             && last.elapsed() < std::time::Duration::from_millis(1000) {
                 return;
             }
         self.server.last_sync_tick = Some(std::time::Instant::now());
         let mut sync_updated = false;
+        let mut should_clear_toasts = false;
         if let Some(rx) = &mut self.server.sync_rx {
             while let Ok(models) = rx.try_recv() {
                 if let Some(handle) = &self.server.server_handle {
@@ -705,44 +706,45 @@ impl App {
                                              model.display_name.clone(),
                                              crate::models::ModelState::Loaded { port, pid },
                                          );
-                                        // Clear toast on successful load
-                                          self.ui.active_toast = None;
-                                      }
+                                       should_clear_toasts = true;
+                                       }
+                                  }
+                                  matched = true;
+                              }
+                          }
+                          if !matched {
+                             let possible_names = vec![id.clone(), format!("{}.gguf", id)];
+                             for name in possible_names {
+                                 for model in &self.models {
+                                     if model.display_name == name || model.name == name {
+                                         if is_active {
+                                             let mut loaded_names =
+                                                 self.server.loaded_model_names.lock().unwrap();
+                                             if !loaded_names.contains(&model.display_name) {
+                                                 loaded_names.push(model.display_name.clone());
+                                             }
+                                             self.model_states.insert(
+                                                 model.display_name.clone(),
+                                                 crate::models::ModelState::Loaded { port, pid },
+                                             );
+                                           should_clear_toasts = true;
+                                         }
+                                         matched = true;
+                                         break;
+                                     }
                                  }
-                                 matched = true;
+                                 if matched {
+                                     break;
+                                 }
                              }
                          }
-                         if !matched {
-                            let possible_names = vec![id.clone(), format!("{}.gguf", id)];
-                            for name in possible_names {
-                                for model in &self.models {
-                                    if model.display_name == name || model.name == name {
-                                        if is_active {
-                                            let mut loaded_names =
-                                                self.server.loaded_model_names.lock().unwrap();
-                                            if !loaded_names.contains(&model.display_name) {
-                                                loaded_names.push(model.display_name.clone());
-                                            }
-                                            self.model_states.insert(
-                                                model.display_name.clone(),
-                                                crate::models::ModelState::Loaded { port, pid },
-                                            );
-                                           // Clear toast on successful load
-                                             self.ui.active_toast = None;
-                                        }
-                                        matched = true;
-                                        break;
-                                    }
-                                }
-                                if matched {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    sync_updated = true;
-                }
-            }
+                     }
+                     sync_updated = true;
+                 }
+             }
+        }
+        if should_clear_toasts {
+            self.clear_toasts();
         }
         if sync_updated {
             self.ui.needs_redraw = true;
@@ -1195,7 +1197,7 @@ impl App {
                         self.add_log(line, crate::config::LogLevel::Info);
                     }
                 }
-                self.ui.active_toast = Some(Toast::new(e, ToastLevel::Error));
+                   self.add_toast(e, ToastLevel::Error);
                 self.reset_loading_state(true);
                 self.server_ready = false;
                 self.ui.needs_redraw = true;

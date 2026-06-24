@@ -1,6 +1,5 @@
 use ratatui::{
      Frame,
-     layout::Rect,
      style::{Color, Modifier, Style},
      text::{Line, Span},
      widgets::{Block, BorderType, Borders, Paragraph},
@@ -297,13 +296,5 @@ pub fn render(f: &mut Frame, app: &mut App) {
          );
     }
 
-    if let Some(toast) = &app.ui.active_toast {
-        let toast_area = Rect {
-            x: f.area().right().saturating_sub(toast::TOAST_MAX_WIDTH).saturating_sub(2),
-            y: f.area().bottom().saturating_sub(3),
-            width: toast::TOAST_MAX_WIDTH,
-            height: 3,
-        };
-        toast::render_toast(f, toast_area, toast);
-    }
+    toast::render_toasts(f, f.area(), &app.ui.toast_queue);
 }

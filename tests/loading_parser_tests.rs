@@ -479,7 +479,7 @@ fn test_error_triggers_reset() {
         Some(ModelState::Failed { .. }) => {}
         other => panic!("Expected Failed state, got {:?}", other),
     }
-    assert!(app.ui.active_toast.is_some());
+    assert!(!app.ui.toast_queue.is_empty());
 }
 
 #[test]

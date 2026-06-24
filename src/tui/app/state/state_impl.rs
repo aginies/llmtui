@@ -3,7 +3,7 @@ use crate::config::LogLevel;
 use crate::models::ModelState;
 use crate::tui::app::types::LoadingPhase::*;
 use crate::tui::app::types::{App, LoadingPhase};
-use crate::tui::toast::{Toast, ToastLevel};
+use crate::tui::toast::ToastLevel;
 use chrono::Local;
 
 impl App {
@@ -38,17 +38,17 @@ impl App {
             self.loading.last_active_phase = Some(ServerStarting);
         }
         if LOADING_MODEL.is_match(msg) {
-            self.ui.active_toast = None;
+            self.clear_toasts();
             self.loading.loading_phases.insert(LoadingModel);
             self.loading.last_active_phase = Some(LoadingModel);
         }
         if LOADED_META.is_match(msg) {
-            self.ui.active_toast = None;
+            self.clear_toasts();
             self.loading.loading_phases.insert(LoadingMeta);
             self.loading.last_active_phase = Some(LoadingMeta);
         }
         if LOAD_TENSORS.is_match(msg) {
-            self.ui.active_toast = None;
+            self.clear_toasts();
             self.loading.loading_phases.insert(LoadingTensors);
             self.loading.last_active_phase = Some(LoadingTensors);
         }
@@ -173,7 +173,7 @@ impl App {
             format!("Failed to load model ({})", timestamp)
         };
 
-        self.ui.active_toast = Some(Toast::new(error_msg, ToastLevel::Error));
+        self.add_toast(error_msg, ToastLevel::Error);
         self.reset_loading_state(false);
     }
 
@@ -348,7 +348,7 @@ impl App {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .retain(|n| n != name);
-            let error = self.ui.active_toast.as_ref().map(|t| t.text.clone()).unwrap_or_else(|| {
+            let error = self.ui.toast_queue.front().map(|t| t.text.clone()).unwrap_or_else(|| {
                 let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
                 format!("Failed to load model ({})", timestamp)
             });
