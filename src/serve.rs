@@ -54,6 +54,7 @@ pub struct ServeOptions {
 }
 
 async fn start_metrics_polling_task(
+    effective_ctx: u32,
     host: String,
     port: u16,
     pid: u32,
@@ -104,8 +105,13 @@ async fn start_metrics_polling_task(
         };
 
         let state = "loaded";
-        let ws_metrics =
+        let mut ws_metrics =
             WsMetrics::from_metrics(&m, &model_name, state, &settings, Some(&cmd_display));
+        // Override ctx_max with effective context length (context_length * rope_scale),
+        // matching the TUI's tick_metrics() behavior.
+        if effective_ctx > 0 {
+            ws_metrics.ctx_max = effective_ctx;
+        }
 
         if let Err(e) = tx.send(ws_metrics) {
             tracing::debug!("Failed to send metrics to broadcast channel: {e}");
@@ -511,9 +517,11 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let server_port_clone = settings.port;
         let pid_clone = server_pid;
         let cmd_display_clone = cmd_display.clone();
+        let effective_ctx = (settings.context_length as f32 * settings.rope_scale) as u32;
         let ws_shutdown_rx_clone = ws_shutdown_rx.clone();
         tokio::spawn(async move {
             start_metrics_polling_task(
+                effective_ctx,
                 host_clone,
                 server_port_clone,
                 pid_clone,
