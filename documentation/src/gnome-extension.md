@@ -12,39 +12,14 @@ The GNOME Shell Extension provides real-time LLM metrics directly in your GNOME 
 
 ## Installation
 
-### Build the schema
-
-Compile the GSettings schema before installing:
+Build and install the extension:
 
 ```bash
-glib-compile-schemas llm-manager@aginies/schemas/
-```
-
-This produces `gschemas.compiled` in the same directory.
-
-### Copy the extension
-
-Copy the extension directory to the GNOME extensions folder:
-
-```bash
-cp -r llm-manager@aginies ~/.local/share/gnome-shell/extensions/llm-manager@aginies
-```
-
-### Compile the schema in place
-
-Compile the schema for the installed location:
-
-```bash
-glib-compile-schemas \
-  --strict \
-  --directory \
-  ~/.local/share/gnome-shell/extensions/llm-manager@aginies/schemas \
-  ~/.local/share/gnome-shell/extensions/llm-manager@aginies/schemas/gschemas.compiled
+gnome-extensions pack llm-manager@aginies
+gnome-extensions install llm-manager@aginies.zip --force
 ```
 
 ### Enable the extension
-
-Activate the extension using the GNOME Extensions CLI:
 
 ```bash
 gnome-extensions enable llm-manager@aginies
