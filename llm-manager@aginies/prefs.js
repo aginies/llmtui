@@ -308,8 +308,8 @@ export default class LlmManagerPreferences extends ExtensionPreferences {
         });
 
         const linkBtn = new Gtk.LinkButton({
-            uri: 'https://github.com/aginies/llm-manager',
-            label: 'https://github.com/aginies/llm-manager',
+            uri: 'https://github.com/aginies/llmtui',
+            label: 'https://github.com/aginies/llmtui',
             visible: true,
         });
         aboutBox.append(linkBtn);
