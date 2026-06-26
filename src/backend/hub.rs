@@ -237,8 +237,25 @@ pub async fn search_models(
     Ok((results, 1, raw_ids))
 }
 
+/// Validate a HuggingFace model_id for safety.
+pub fn validate_model_id(model_id: &str) -> Result<()> {
+    if model_id.is_empty() || model_id.len() > 100 {
+        anyhow::bail!("Invalid model_id");
+    }
+    if model_id.contains("..") {
+        anyhow::bail!("model_id contains '..'");
+    }
+    for c in model_id.chars() {
+        if c < ' ' || c > '~' || c == '`' || c == '$' || c == '\\' || c == '"' || c == '\'' {
+            anyhow::bail!("model_id contains invalid characters");
+        }
+    }
+    Ok(())
+}
+
 /// List all GGUF files for a model.
 pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)>> {
+    validate_model_id(model_id)?;
     let branch = "main";
     let url = format!(
         "https://huggingface.co/api/models/{}/tree/{}",
@@ -292,6 +309,7 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
 
 /// Fetch the README for a model from HuggingFace.
 pub async fn fetch_readme(model_id: &str) -> Result<String> {
+    validate_model_id(model_id)?;
     let branch = "main";
     let url = format!(
         "https://huggingface.co/{}/raw/{}/README.md",
@@ -997,7 +1015,28 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
         let file = std::fs::File::open(archive_path)?;
         let decoder = GzDecoder::new(file);
         let mut archive = Archive::new(decoder);
-        archive.unpack(&dest_dir)?;
+        let entries = archive.entries()?;
+        for entry in entries.flatten() {
+            let mut entry = entry;
+            let entry_path = entry.path()?;
+            let full_path = dest_dir.join(&entry_path);
+            if !full_path.starts_with(&dest_dir) {
+                return Err(anyhow::anyhow!(
+                    "Tar slip detected: {} tries to write to {}",
+                    entry_path.display(),
+                    full_path.display()
+                ));
+            }
+            if entry_path.to_string_lossy().ends_with('/') {
+                std::fs::create_dir_all(&full_path)?;
+            } else {
+                if let Some(parent) = full_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut outfile = std::fs::File::create(&full_path)?;
+                std::io::copy(&mut entry, &mut outfile)?;
+            }
+        }
     } else {
         anyhow::bail!("Unsupported archive format: {}", filename);
     }

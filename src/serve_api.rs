@@ -71,7 +71,7 @@ async fn auth_middleware(
     req: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    tracing::debug!("auth_middleware: api_key={:?}", state.api_key.as_deref());
+    tracing::debug!("auth_middleware: api_key={:?}", state.api_key.is_some());
     if let Some(expected) = &state.api_key {
         let provided = extract_api_key(req.headers());
         let expected_bytes = expected.as_bytes();

@@ -301,6 +301,10 @@ pub fn build_server_cmd(
                 merged.insert(k, v);
             }
         }
+        // Warn if user's kwargs already defines system_prompt
+        if merged.contains_key("system_prompt") {
+            tracing::warn!("chat_template_kwargs already contains 'system_prompt', will be overridden by settings");
+        }
         merged.insert(
             "system_prompt".to_string(),
             serde_json::Value::String(settings.system_prompt.clone()),
@@ -805,7 +809,7 @@ pub async fn get_metrics(
     // In router mode, we can specify the model via query parameter.
     let mut url = if let Some(model) = model_name {
         let name = strip_gguf(model);
-        format!("http://{}:{}/metrics?model={}", host, port, name)
+        format!("http://{}:{}/metrics?model={}", host, port, urlencoding::encode(&name))
     } else {
         format!("http://{}:{}/metrics", host, port)
     };

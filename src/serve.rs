@@ -1,13 +1,17 @@
+use std::io::Write;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use tokio::io::AsyncBufReadExt;
+use tokio::io::BufReader;
 use tokio::select;
 use tokio::signal;
 use tracing::info;
 
 use crate::backend::server;
+use crate::backend::server_logs;
 use crate::backend::tls;
 use crate::config::Config;
 use crate::models::{DiscoveredModel, WsMetrics};
@@ -55,6 +59,7 @@ pub struct ServeOptions {
 
 async fn start_metrics_polling_task(
     effective_ctx: u32,
+    mut log_metrics_rx: tokio::sync::mpsc::Receiver<server_logs::ServerLogMetrics>,
     host: String,
     port: u16,
     pid: u32,
@@ -64,6 +69,7 @@ async fn start_metrics_polling_task(
     tx: tokio::sync::broadcast::Sender<WsMetrics>,
     shutdown_rx: tokio::sync::watch::Receiver<bool>,
 ) {
+    let mut last_log_metrics = server_logs::ServerLogMetrics::default();
     let mut consecutive_failures: u32 = 0;
     let max_failures: u32 = 15;
 
@@ -71,6 +77,11 @@ async fn start_metrics_polling_task(
         // Check shutdown first
         if *shutdown_rx.borrow() {
             break;
+        }
+
+        // Drain any pending log metrics (same as TUI tick_metrics draining metrics_rx)
+        while let Ok(metrics) = log_metrics_rx.try_recv() {
+            last_log_metrics = metrics;
         }
 
         let m = match tokio::time::timeout(
@@ -111,6 +122,31 @@ async fn start_metrics_polling_task(
         // matching the TUI's tick_metrics() behavior.
         if effective_ctx > 0 {
             ws_metrics.ctx_max = effective_ctx;
+        }
+
+        // Apply log-parsed values (always, matching TUI async_ops.rs:522-529).
+        // Log values are always available during generation; API may return 0.
+        if let Some(v) = last_log_metrics.ctx_used {
+            ws_metrics.ctx_used = v;
+        }
+        if let Some(v) = last_log_metrics.decoded_tokens {
+            ws_metrics.decoded_tokens = v;
+        }
+        if let Some(v) = last_log_metrics.gen_tps {
+            ws_metrics.gen_tps = v;
+        }
+        // Prompt metrics always come from logs (not in /metrics API)
+        if let Some(v) = last_log_metrics.prompt_tokens {
+            ws_metrics.prompt_tokens = v;
+        }
+        if let Some(v) = last_log_metrics.prompt_progress {
+            ws_metrics.prompt_progress = v;
+        }
+        if let Some(v) = last_log_metrics.prompt_elapsed_ms {
+            ws_metrics.prompt_elapsed_ms = v;
+        }
+        if let Some(v) = last_log_metrics.prompt_tps_eval {
+            ws_metrics.prompt_tps_eval = v;
         }
 
         if let Err(e) = tx.send(ws_metrics) {
@@ -315,10 +351,10 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     }
 
     if ws_enable {
-        let auth_info = if let Some(ref auth) = ws_auth {
-            format!(" (auth: {})", &auth[..auth.len().min(8)])
+        let auth_info = if ws_auth.is_some() {
+            " (auth: ***)"
         } else {
-            String::new()
+            ""
         };
         info!(
             "WebSocket dashboard enabled on port {}{}",
@@ -388,36 +424,13 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         cmd.env("LD_LIBRARY_PATH", bin_dir);
     }
 
-    // Spawn the process
+    // Spawn the process with piped stdout for log parsing (same as TUI).
     info!("Command: {}", cmd_display);
 
-    let (stdout_file, stderr_file) = if let Some(path) = &opts.log_file {
-        let path = PathBuf::from(path);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).ok();
-        }
-        let file = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-            .expect("Failed to open log file for llama-server output");
-        info!("llama-server output logging to: {}", path.display());
-        let stdout = file.try_clone().expect("Failed to clone file handle");
-        let stderr = file.try_clone().expect("Failed to clone file handle");
-        (
-            std::process::Stdio::from(stdout),
-            std::process::Stdio::from(stderr),
-        )
-    } else {
-        (
-            std::process::Stdio::inherit(),
-            std::process::Stdio::inherit(),
-        )
-    };
-
+    let log_file_path = opts.log_file.clone();
     let mut child = cmd
-        .stdout(stdout_file)
-        .stderr(stderr_file)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::inherit())
         .spawn()
         .context(format!("Failed to spawn llama-server.\n\n  Command that was attempted:\n    {}\n\n  Check that the binary exists and is executable.", cmd_display))?;
 
@@ -425,6 +438,56 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     info!("Press Ctrl+C to stop the server");
 
     let server_pid = child.id().unwrap_or(0);
+
+    // Capture stdout for log parsing (same mechanism as TUI tick_server_logs).
+    // This enables all 7 metrics tracking via log line parsing when /metrics API returns 0.
+    let stdout = child.stdout.take().expect("stdout should be piped");
+    let (stdout_tx, mut stdout_rx) = tokio::sync::mpsc::channel::<String>(100);
+    let (log_metrics_tx, log_metrics_rx) = tokio::sync::mpsc::channel::<server_logs::ServerLogMetrics>(10);
+    
+    // Tee stdout to terminal and log file (if configured), while also sending to parser.
+    let log_reader_handle = tokio::spawn(async move {
+        let reader = BufReader::new(stdout);
+        let mut lines = reader.lines();
+        let mut log_file_handle = if let Some(path) = &log_file_path {
+            let path = PathBuf::from(path);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).ok();
+            }
+            Some(std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&path)
+                .expect("Failed to open log file for llama-server output"))
+        } else {
+            None
+        };
+        
+        let write_to_terminal = log_file_path.is_none();
+        let mut term = if write_to_terminal {
+            Some(std::io::stdout())
+        } else {
+            None
+        };
+        while let Ok(Some(line)) = lines.next_line().await {
+            // Send to parser channel
+            if stdout_tx.send(line.clone()).await.is_err() {
+                break;
+            }
+            
+            // Write to terminal only when --log-file is not used
+            if let Some(ref mut term) = term {
+                let _ = writeln!(term, "{}", line);
+                let _ = term.flush();
+            }
+            
+            // Write to log file if configured
+            if let Some(ref mut file) = log_file_handle {
+                let _ = writeln!(file, "{}", line);
+                let _ = file.flush();
+            }
+        }
+    });
 
     // Optionally start the API proxy server
     let (api_done_tx, api_done_rx) = tokio::sync::oneshot::channel();
@@ -510,6 +573,16 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             host_str, ws_port, auth_param
         );
 
+        // Start log parser task - parses all 7 metrics from log lines (same as TUI).
+        let parser_handle = tokio::spawn(async move {
+            let mut prev_line: Option<String> = None;
+            while let Some(line) = stdout_rx.recv().await {
+                let (metrics, _) = server_logs::parse_log_line(&line, prev_line.as_deref());
+                prev_line = Some(line);
+                let _ = log_metrics_tx.send(metrics).await;
+            }
+        });
+
         // Start metrics polling task
         let settings_clone = settings.clone();
         let model_name_clone = model.display_name.clone();
@@ -519,9 +592,13 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let cmd_display_clone = cmd_display.clone();
         let effective_ctx = (settings.context_length as f32 * settings.rope_scale) as u32;
         let ws_shutdown_rx_clone = ws_shutdown_rx.clone();
+        let log_metrics_rx_for_metrics = log_metrics_rx;
+        let log_reader_clone = log_reader_handle;
+        let parser_clone = parser_handle;
         tokio::spawn(async move {
             start_metrics_polling_task(
                 effective_ctx,
+                log_metrics_rx_for_metrics,
                 host_clone,
                 server_port_clone,
                 pid_clone,
@@ -532,6 +609,8 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 ws_shutdown_rx_clone,
             )
             .await;
+            drop(log_reader_clone);
+            drop(parser_clone);
         });
 
         Some(handle)

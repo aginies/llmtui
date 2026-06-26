@@ -1,5 +1,6 @@
 use super::types::App;
 use crate::backend::server::ServerHandle;
+use crate::backend::server_logs;
 use crate::tui::toast::ToastLevel;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -66,13 +67,28 @@ impl App {
         subdir: String,
     ) {
         let models_dirs = &self.config.models_dirs;
-        // Use the first directory as the download destination, stored under model_id subdirectory
-        let models_dir = models_dirs.first().cloned().unwrap_or_default();
+        let mut models_dir = models_dirs.first().cloned().unwrap_or_default();
+        // Canonicalize models_dir to resolve any .. or symlinks
+        if models_dir.is_absolute() {
+            models_dir = tokio::fs::canonicalize(&models_dir).await.unwrap_or(models_dir);
+        }
         let dest_dir = models_dir.join(&subdir);
+        // Create the subdir, then canonicalize to verify no traversal
+        tokio::fs::create_dir_all(&dest_dir).await.ok();
+        let dest_dir = tokio::fs::canonicalize(&dest_dir).await.unwrap_or(dest_dir);
         let basename = std::path::Path::new(&filename)
             .file_name()
             .unwrap_or_default();
         let dest = dest_dir.join(basename);
+        // Verify dest stays within models_dir
+        let dest_canonical = tokio::fs::canonicalize(&dest).await.unwrap_or(dest.clone());
+        if !dest_canonical.starts_with(&models_dir) {
+            self.add_log(
+                format!("Download destination {} escapes models directory", dest.display()),
+                crate::config::LogLevel::Warning,
+            );
+            return;
+        }
         // Create the model_id subdirectory if it doesn't exist
         tokio::fs::create_dir_all(&dest_dir).await.ok();
         let free_space = crate::backend::hub::get_free_space_bytes(&models_dir);
@@ -508,8 +524,7 @@ impl App {
         if let Some(rx) = &mut self.server.server_log_rx {
             let old_metrics = self.metrics.clone();
             while let Ok(line) = rx.try_recv() {
-                let is_generation = line.contains("n_decoded =");
-                let is_prompt_processing = line.contains("prompt processing");
+                let (metrics, is_generation) = server_logs::parse_log_line(&line, prev_line.as_deref());
                 
                 // Reset prompt progress when generation starts
                 if is_generation {
@@ -519,109 +534,14 @@ impl App {
                     self.metrics.prompt_tps_eval = 0.0;
                 }
                 
-                // Parse prompt processing metrics
-                if is_prompt_processing {
-                    // n_tokens = X
-                    if let Some(tokens_part) = line.split("n_tokens =").last() {
-                        let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
-                        if let Ok(tokens) = val_str.parse::<u64>() {
-                            self.metrics.prompt_tokens = tokens;
-                        }
-                    }
-                    // progress = Y
-                    if let Some(progress_part) = line.split("progress =").last() {
-                        let val_str = progress_part.split(',').next().unwrap_or(progress_part).trim();
-                        if let Ok(progress) = val_str.parse::<f64>() {
-                            self.metrics.prompt_progress = progress;
-                        }
-                    }
-                    // t = Z (elapsed seconds)
-                    // Try multiple patterns since log format may vary
-                    let mut parsed = false;
-                    // Pattern 1: "t = X.XX" 
-                    if let Some(t_part) = line.split("t =").last() {
-                        let val_str = t_part.split_whitespace().find(|s| !s.is_empty()).unwrap_or("").trim();
-                        if let Ok(t) = val_str.parse::<f64>() {
-                            self.metrics.prompt_elapsed_ms = t * 1000.0;
-                            parsed = true;
-                        }
-                    }
-                    // Pattern 2: "t=X.XX" (no space)
-                    if !parsed
-                        && let Some(t_part) = line.split("t=").last()
-                    {
-                        let val_str = t_part.split(|c: char| c.is_whitespace() || c == '║')
-                            .find(|s| !s.is_empty())
-                            .unwrap_or("")
-                            .trim();
-                        if let Ok(t) = val_str.parse::<f64>() {
-                            self.metrics.prompt_elapsed_ms = t * 1000.0;
-                            parsed = true;
-                        }
-                    }
-                    // Pattern 3: Parse from end of line (elapsed time always at end before "s /")
-                    if !parsed
-                        && let Some(slash_part) = line.rsplit(" s /").next()
-                    {
-                        let val_str = slash_part.split_whitespace().rfind(|s| !s.is_empty())
-                            .unwrap_or("")
-                            .trim();
-                        if let Ok(t) = val_str.parse::<f64>() {
-                            self.metrics.prompt_elapsed_ms = t * 1000.0;
-                        }
-                    }
-                    // TPS: "X.XX tokens per second" on same line or previous line
-                    let tps_str = line.contains("tokens per second")
-                        .then(|| {
-                            line.split("tokens per second").next()
-                                .and_then(|p| p.split('/').next_back())
-                                .map(|s| s.trim())
-                        })
-                        .flatten()
-                        .or(prev_line.as_deref().and_then(|prev| {
-                            prev.split("tokens per second").next()
-                                .and_then(|p| p.split('/').next_back())
-                                .map(|s| s.trim())
-                        }));
-                    if let Some(tps_str) = tps_str
-                        && let Ok(tps) = tps_str.parse::<f64>() {
-                            self.metrics.prompt_tps_eval = tps;
-                        }
-                }
-                
-                // Existing: n_tokens = → ctx_used (for generation lines)
-                if !is_prompt_processing && line.contains("n_tokens =")
-                    && let Some(tokens_part) = line.split("n_tokens =").last()
-                {
-                    let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
-                    if let Ok(tokens) = val_str.parse::<u32>() {
-                        self.metrics.ctx_used = tokens;
-                    }
-                }
-                
-                // Existing: n_decoded = → decoded_tokens
-                if line.contains("n_decoded =")
-                    && let Some(decoded_part) = line.split("n_decoded =").last()
-                {
-                    let val_str = decoded_part
-                        .split(',')
-                        .next()
-                        .unwrap_or(decoded_part)
-                        .trim();
-                    if let Ok(tokens) = val_str.parse::<u64>() {
-                        self.metrics.decoded_tokens = tokens;
-                    }
-                }
-                
-                // Existing: tg = → gen_tps
-                if line.contains("tg =")
-                    && let Some(tg_part) = line.split("tg =").last()
-                {
-                    let val_str = tg_part.trim().split(' ').next().unwrap_or(tg_part).trim();
-                    if let Ok(tg) = val_str.parse::<f64>() {
-                        self.metrics.gen_tps = tg;
-                    }
-                }
+                // Apply parsed metrics
+                if let Some(v) = metrics.prompt_tokens { self.metrics.prompt_tokens = v; }
+                if let Some(v) = metrics.prompt_progress { self.metrics.prompt_progress = v; }
+                if let Some(v) = metrics.prompt_elapsed_ms { self.metrics.prompt_elapsed_ms = v; }
+                if let Some(v) = metrics.prompt_tps_eval { self.metrics.prompt_tps_eval = v; }
+                if let Some(v) = metrics.ctx_used { self.metrics.ctx_used = v; }
+                if let Some(v) = metrics.decoded_tokens { self.metrics.decoded_tokens = v; }
+                if let Some(v) = metrics.gen_tps { self.metrics.gen_tps = v; }
                 
                 prev_line = Some(line.clone());
                 server_logs.push(line);
