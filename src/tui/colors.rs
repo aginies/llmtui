@@ -1,6 +1,11 @@
 use std::sync::LazyLock;
 
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::layout::Offset;
+use ratatui::style::{Color, Modifier, Style, Stylize};
+use ratatui::symbols::border::QUADRANT_OUTSIDE;
+use ratatui::widgets::{Block, BorderType, Borders, Padding, Shadow};
+
+use crate::config::BorderStyle;
 
 // ── Named colors ─────────────────────────────────────────────────────────────
 
@@ -66,21 +71,6 @@ pub const VRAM_RED: Color = Color::Rgb(248, 113, 113);
 
 // ── Common Style patterns ────────────────────────────────────────────────────
 
-/// Selected row / item: white text on subtle blue background.
-pub static SELECTED_ROW: LazyLock<Style> = LazyLock::new(|| {
-    Style::default()
-        .fg(WHITE)
-        .bg(BG_SELECTED)
-        .add_modifier(Modifier::BOLD)
-});
-
-/// Edit cursor: black text on accent background.
-pub static EDIT_CURSOR: LazyLock<Style> = LazyLock::new(|| {
-    Style::default()
-        .fg(BLACK)
-        .bg(ACCENT)
-});
-
 /// Panel title / section header: accent text, bold.
 pub static TITLE: LazyLock<Style> = LazyLock::new(|| {
     Style::default()
@@ -88,56 +78,57 @@ pub static TITLE: LazyLock<Style> = LazyLock::new(|| {
         .add_modifier(Modifier::BOLD)
 });
 
-/// Panel title / section header (dimmed, for disabled state).
-pub static TITLE_DIM: LazyLock<Style> = LazyLock::new(|| {
-    Style::default()
-        .fg(DIM_GRAY)
-        .add_modifier(Modifier::BOLD)
-});
-
-/// Label / field name color — uses accent for consistency.
-pub static LABEL: LazyLock<Style> = LazyLock::new(|| Style::default().fg(ACCENT));
-
-/// Default body text / values.
-pub static BODY_TEXT: LazyLock<Style> = LazyLock::new(|| Style::default().fg(WHITE));
-
 /// Secondary / dimmed text (timestamps, footers, descriptions).
 pub static DIM_TEXT: LazyLock<Style> = LazyLock::new(|| Style::default().fg(DIM_GRAY));
-
-/// Link / URL color — bold cyan for emphasis.
-pub static LINK_TEXT: LazyLock<Style> = LazyLock::new(|| {
-    Style::default()
-        .fg(CYAN)
-        .add_modifier(Modifier::BOLD)
-});
 
 /// Focused panel border color — vivid teal-green.
 pub static BORDER_FOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(LIGHT_GREEN));
 
-/// Unfocused panel border color — muted blue-gray.
-pub static BORDER_UNFOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(MID_GRAY));
+// ── Shadow helpers ───────────────────────────────────────────────────────────
 
-/// Status: success / complete / loaded.
-pub static STATUS_SUCCESS: LazyLock<Style> = LazyLock::new(|| Style::default().fg(GREEN));
+/// Create a subtle shadow for focused panels (glow effect).
+pub fn shadow_focused() -> Shadow {
+    Shadow::dark_shade()
+        .fg(ACCENT)
+        .offset(Offset::new(1, 1))
+}
 
-/// Status: loading / active / downloading.
-pub static STATUS_LOADING: LazyLock<Style> = LazyLock::new(|| Style::default().fg(ACCENT));
+/// Create a subtle shadow for unfocused panels (depth effect).
+pub fn shadow_unfocused() -> Shadow {
+    Shadow::dark_shade()
+        .fg(MID_GRAY)
+        .offset(Offset::new(1, 1))
+}
 
-/// Status: error / failed / cancelled.
-pub static STATUS_ERROR: LazyLock<Style> = LazyLock::new(|| Style::default().fg(RED));
+/// Create a floating shadow for overlays/toasts.
+pub fn shadow_overlay() -> Shadow {
+    Shadow::dark_shade()
+        .fg(DIM_GRAY)
+        .offset(Offset::new(2, 1))
+}
 
-/// Status: paused.
-pub static STATUS_PAUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(DIM_GRAY));
+// ── Border helpers ───────────────────────────────────────────────────────────
 
-/// Dirty / uncommitted setting value — warm red.
-pub static DIRTY: LazyLock<Style> = LazyLock::new(|| Style::default().fg(RED));
+/// Apply the configured border style to a Block.
+/// Uses `border_set` for QuadrantOutside, `border_type` for Rounded/Double/Plain.
+/// Hidden style removes borders by setting them to NONE.
+pub fn apply_border_style(block: Block, style: BorderStyle) -> Block {
+    match style {
+        BorderStyle::QuadrantOutside => block.border_set(QUADRANT_OUTSIDE),
+        BorderStyle::Rounded => block.border_type(BorderType::Rounded),
+        BorderStyle::Double => block.border_type(BorderType::Double),
+        BorderStyle::Plain => block.border_type(BorderType::Plain),
+        BorderStyle::Hidden => block.borders(Borders::NONE),
+    }
+}
 
-/// Disabled setting name / value.
-pub static DISABLED: LazyLock<Style> = LazyLock::new(|| {
-    Style::default()
-        .fg(GRAY)
-        .add_modifier(Modifier::DIM)
-});
-
-/// Sort direction label color.
-pub static SORT_LABEL: LazyLock<Style> = LazyLock::new(|| Style::default().fg(CYAN));
+/// Create a block with configurable border, padding, and appropriate shadow.
+/// Note: Apply border style separately using `apply_border_style()` after calling this function.
+pub fn panel_block(block: Block, is_focused: bool, _style: BorderStyle) -> Block {
+    let border_color = if is_focused { LIGHT_GREEN } else { LIGHT_GRAY };
+    block
+        .padding(Padding::horizontal(1))
+        .style(Style::default().bg(BG_BODY))
+        .border_style(Style::default().fg(border_color))
+        .shadow(if is_focused { shadow_focused() } else { shadow_unfocused() })
+}
