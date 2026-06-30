@@ -11,10 +11,10 @@
 | Severity | Open | Fixed |
 |----------|------|-------|
 | HIGH     | 0    | 3     |
-| MEDIUM   | 2    | 5     |
+| MEDIUM   | 1    | 6     |
 | LOW      | 0    | 12    |
 
-**Total findings:** 20 | **Still open:** 2 (M1, M2)
+**Total findings:** 21 | **Still open:** 1 (M2)
 
 ---
 
@@ -39,22 +39,13 @@
 
 ## MEDIUM Severity
 
-### M1. CORS allows any origin
-- **File:** `src/serve_api.rs:431`
+### M1. CORS allows any origin (FIXED)
+- **File:** `src/serve_api.rs`
 - **Severity:** MEDIUM
 - **Exploitability:** Easy (local)
 - **Description:** `CorsLayer::Any` combined with `Allow-Headers: Authorization` means any website on the user's machine can send authenticated requests to the API proxy. If the proxy binds to `0.0.0.0`, any website on the internet can do the same.
 - **Impact:** Cross-origin request forgery against the local API proxy. An attacker's website can make requests to llama-server using the user's API key.
-- **Fix:**
-```rust
-let cors = CorsLayer::new()
-    .allow_origin([
-        Origin::try_from("http://127.0.0.1").unwrap(),
-        Origin::try_from("http://localhost").unwrap(),
-    ])
-    .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
-    .allow_headers([CONTENT_TYPE, AUTHORIZATION]);
-```
+- **Fix:** Replaced `CorsLayer` with custom `cors_middleware` that validates Origin header against allowed hosts. Allows `127.0.0.1`, `localhost`, and the configured bind host. Rejects all other origins.
 
 ### M2. WebSocket auth key exposed in URL
 - **File:** `src/backend/ws_server.rs:101-110`, `dashboard.html:117`

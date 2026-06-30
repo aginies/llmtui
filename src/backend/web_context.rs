@@ -1,5 +1,5 @@
-use uuid::Uuid;
 use tracing::info;
+use uuid::Uuid;
 
 use crate::backend::web_search;
 

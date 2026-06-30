@@ -253,7 +253,10 @@ pub fn build_server_cmd(
             .and_then(|opt| opt.as_ref())
             .map(|m| m.arch.as_str())
             .unwrap_or("llama");
-        let arch = arch.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_').collect::<String>();
+        let arch = arch
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect::<String>();
         push_arg(
             &mut cmd,
             &mut parts,

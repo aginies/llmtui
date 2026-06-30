@@ -10,7 +10,6 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use futures_util::StreamExt;
-use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
@@ -345,10 +344,79 @@ async fn security_headers(
     next: axum::middleware::Next,
 ) -> impl IntoResponse {
     let mut resp = next.run(req).await;
-    resp.headers_mut().entry(axum::http::header::X_CONTENT_TYPE_OPTIONS).or_insert("nosniff".parse().unwrap());
-    resp.headers_mut().entry(axum::http::header::X_FRAME_OPTIONS).or_insert("DENY".parse().unwrap());
-    resp.headers_mut().entry(axum::http::header::CONTENT_SECURITY_POLICY).or_insert("default-src 'self'".parse().unwrap());
+    resp.headers_mut()
+        .entry(axum::http::header::X_CONTENT_TYPE_OPTIONS)
+        .or_insert("nosniff".parse().unwrap());
+    resp.headers_mut()
+        .entry(axum::http::header::X_FRAME_OPTIONS)
+        .or_insert("DENY".parse().unwrap());
+    resp.headers_mut()
+        .entry(axum::http::header::CONTENT_SECURITY_POLICY)
+        .or_insert("default-src 'self'".parse().unwrap());
     resp
+}
+
+/// Dynamic CORS middleware: validates Origin header against allowed hosts.
+/// Allows localhost, 127.0.0.1, and the configured bind host.
+async fn cors_middleware(
+    State(allowed_origins): State<Arc<Vec<String>>>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> impl IntoResponse {
+    let origin = req
+        .headers()
+        .get(axum::http::header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let allowed = origin
+        .as_ref()
+        .map(|o| {
+            let origin_host = o
+                .strip_prefix("http://")
+                .or_else(|| o.strip_prefix("https://"))
+                .and_then(|u| u.split('/').next())
+                .map(|h| h.strip_suffix(':').unwrap_or(h))
+                .unwrap_or("");
+            allowed_origins.iter().any(|a| a == origin_host)
+        })
+        .unwrap_or(false);
+
+    if req.method() == axum::http::Method::OPTIONS {
+        if allowed {
+            let mut resp = axum::response::Response::new(Body::empty());
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                origin.unwrap().parse().unwrap(),
+            );
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                "GET, POST, PUT, DELETE, OPTIONS".parse().unwrap(),
+            );
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS,
+                "Content-Type, Authorization".parse().unwrap(),
+            );
+            resp
+        } else {
+            StatusCode::METHOD_NOT_ALLOWED.into_response()
+        }
+    } else {
+        let mut resp = next.run(req).await;
+        if allowed {
+            if let Some(o) = origin {
+                resp.headers_mut().insert(
+                    axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                    o.parse().unwrap(),
+                );
+                resp.headers_mut().insert(
+                    axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS,
+                    "Content-Type, Authorization".parse().unwrap(),
+                );
+            }
+        }
+        resp
+    }
 }
 
 /// Simple health check endpoint - no auth, verifies backend
@@ -471,19 +539,13 @@ pub async fn start_api_server(
         log_callback,
     };
 
-    let cors = CorsLayer::new()
-        .allow_origin(tower_http::cors::Any)
-        .allow_methods([
-            axum::http::Method::GET,
-            axum::http::Method::POST,
-            axum::http::Method::PUT,
-            axum::http::Method::DELETE,
-            axum::http::Method::OPTIONS,
-        ])
-        .allow_headers([
-            axum::http::header::CONTENT_TYPE,
-            axum::http::header::AUTHORIZATION,
-        ]);
+    let allowed_origins: Arc<Vec<String>> = Arc::new({
+        let mut origins = vec!["127.0.0.1".into(), "localhost".into()];
+        if host != "127.0.0.1" && host != "localhost" && host != "0.0.0.0" {
+            origins.push(host.clone());
+        }
+        origins
+    });
 
     let api_key_clone = state.api_key.clone();
     let protocol = if tls_config.is_some() {
@@ -510,7 +572,10 @@ pub async fn start_api_server(
                 .route("/v1/models", get(proxy_streaming))
                 .route("/api/status", get(status))
                 .fallback(proxy_streaming)
-                .layer(cors)
+                .layer(axum::middleware::from_fn_with_state(
+                    allowed_origins.clone(),
+                    cors_middleware,
+                ))
                 .layer(TraceLayer::new_for_http()),
         )
         .layer(axum::middleware::from_fn(security_headers))
