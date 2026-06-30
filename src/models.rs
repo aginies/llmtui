@@ -891,6 +891,7 @@ pub struct ModelSettings {
     /// Use Jinja template engine for chat.
     pub jinja: bool,
     /// Auto-select chat template from GGUF architecture.
+    /// See https://huggingface.co/spiritbuun/buun-Qwen3.6-chat_template for template examples.
     pub auto_chat_template: bool,
     /// Custom chat template string.
     pub chat_template: Option<String>,

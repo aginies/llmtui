@@ -153,9 +153,7 @@ fn render_settings(
         } else if dirty {
             Style::default().fg(RED)
         } else if field.is_expert {
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::DIM)
+            Style::default().fg(MAGENTA)
         } else {
             Style::default().fg(ACCENT)
         };

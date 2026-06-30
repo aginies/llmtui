@@ -59,3 +59,7 @@ Chat template settings are stored per-model in the per-model YAML config or in t
 | `chat_template` | string/null | Custom chat template name or file path |
 | `auto_chat_template` | bool | Auto-detect template from GGUF metadata |
 | `chat_template_kwargs` | string/null | JSON string for chat template parameters |
+
+## Resources
+
+- [buun-Qwen3.6-chat_template](https://huggingface.co/spiritbuun/buun-Qwen3.6-chat_template) — Chat template examples for Qwen3.6 models
