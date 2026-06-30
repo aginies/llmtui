@@ -45,7 +45,7 @@ The extension provides a preferences dialog accessible from the GNOME Extensions
 | **Metrics URL** | `http://127.0.0.1:8080/metrics` | HTTP/HTTPS URL of the llama.cpp metrics endpoint. The WebSocket URL is derived from this (path changes to `/ws`, protocol changes to `ws://` or `wss://`). |
 | **Update Interval** | 3 seconds | Delay between WebSocket reconnection attempts when disconnected. |
 | **Panel Position** | 2 (Right) | Where the extension appears in the panel: `0`=left, `1`=center, `2`=right, `3`=far left, `4`=far right. |
-| **WebSocket Auth** | Enabled | Auto-detect and extract the `auth` query parameter from the metrics URL for WebSocket authentication. |
+| **WebSocket Auth** | (empty) | Secret key for WebSocket authentication (passed as subprotocol, not URL query parameter). |
 
 ### Testing the Connection
 
@@ -95,16 +95,17 @@ Progress bars for VRAM and context also use these colors. The VRAM progress bar 
 
 ## WebSocket Authentication
 
-When the **WebSocket Auth** setting is enabled, the extension automatically extracts the `auth` query parameter from the configured metrics URL and passes it to the WebSocket connection. This supports llama.cpp servers that require authentication for the `/ws` endpoint.
+When a **WebSocket Auth** secret is configured, the extension passes it as a WebSocket subprotocol (`Sec-WebSocket-Protocol` header) during the handshake. The auth key is NOT appended as a URL query parameter.
 
 Example:
 
 ```
-Metrics URL: http://127.0.0.1:8080/metrics?auth=mysecretkey
-WebSocket URL: ws://127.0.0.1:8080/ws?auth=mysecretkey
+Metrics URL: http://127.0.0.1:8080/metrics
+WebSocket URL: ws://127.0.0.1:8080/ws
+Subprotocol: mysecretkey
 ```
 
-The auth extraction parses query parameters from the metrics URL and appends `?auth=<value>` to the WebSocket URL when found.
+The auth key is configured in the preferences dialog under "Metrics Secret".
 
 ## Panel Display
 

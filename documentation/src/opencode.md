@@ -32,6 +32,10 @@ However, using llm-manager's API endpoint (port `49222`) provides additional fea
 
 For full feature access, use the API endpoint below.
 
+### CORS
+
+The API proxy validates the `Origin` header at runtime. Only requests from `localhost`, `127.0.0.1`, or the configured bind host are allowed. External websites are blocked.
+
 ### Auth JSON approach
 
 Set the `OPENAI_API_KEY` and `OPENAI_API_BASE` environment variables:

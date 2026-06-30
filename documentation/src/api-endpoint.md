@@ -109,7 +109,7 @@ sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keyc
 
 ## CORS
 
-CORS is enabled for all origins with GET/POST/PUT/DELETE/OPTIONS methods.
+CORS is enabled with dynamic origin validation. Only requests from `localhost`, `127.0.0.1`, or the configured bind host in `config.yaml` are allowed. External websites are blocked.
 
 ## SSE Streaming
 

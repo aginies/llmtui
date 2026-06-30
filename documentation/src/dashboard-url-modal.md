@@ -11,17 +11,14 @@ The modal displays the full dashboard URL including:
 - Host address
 - Port (default: 49223)
 - Path (`/dashboard`)
-- Auth key (if configured, appended as `?auth=<key>`)
+
+> **Note:** The auth key is NOT included in the URL. It is passed via WebSocket subprotocol header during the handshake.
 
 ## Use Cases
 
 - Share dashboard access with others
 - Paste URL into browser for remote monitoring
 - Copy for documentation or tickets
-
-## Auth Key Behavior
-
-The auth key is always included in the copied URL when configured, regardless of TLS setting.
 
 ## TLS Support
 

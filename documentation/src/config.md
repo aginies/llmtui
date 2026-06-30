@@ -249,7 +249,7 @@ Note: `--threads`, `--context`, and `--gpu-layers` are not CLI flags. They are c
 
 ### API Proxy
 
-The API proxy forwards requests to the llama.cpp server and provides OpenAI-compatible and Anthropic-compatible endpoints. It supports **SSE (Server-Sent Events) streaming** for chat completions and other streaming endpoints, and **CORS** is enabled for all origins with GET/POST/PUT/DELETE/OPTIONS methods. When `--api-key` is set, all requests require `Authorization: Bearer <key>`.
+The API proxy forwards requests to the llama.cpp server and provides OpenAI-compatible and Anthropic-compatible endpoints. It supports **SSE (Server-Sent Events) streaming** for chat completions and other streaming endpoints. **CORS** is enabled with dynamic origin validation — only requests from `localhost`, `127.0.0.1`, or the configured bind host are allowed. External websites are blocked. When `--api-key` is set, all requests require `Authorization: Bearer <key>`.
 
 ### API Endpoints
 

@@ -221,7 +221,7 @@ The modal shows:
 - Dashboard status with port
 - **API URL**: `http(s)://host:api_port`
 - **Metrics URL**: `http://host:llm_port/metrics`
-- **Dashboard URL**: `http(s)://host:ws_port/dashboard?auth=key`
+- **Dashboard URL**: `http(s)://host:ws_port/dashboard` (auth passed as WebSocket subprotocol)
 - **opencode baseURL**: `http(s)://host:api_port/v1`
 - TLS status indicator (GREEN for On, GRAY for Off)
 
@@ -292,11 +292,11 @@ The WebSocket Dashboard (`src/backend/ws_server.rs`) provides real-time metrics 
 - Built with `axum` and `tokio`
 - Creates `broadcast::channel(64)` for metrics distribution
 - Routes: `/dashboard` (serves embedded HTML), `/ws` (WebSocket for metrics), `/health`
-- Auth: query param `?auth=KEY` or `window.__WS_AUTH` in dashboard
+- Auth: WebSocket subprotocol (`Sec-WebSocket-Protocol` header)
 - TLS: supports both plain TCP and rustls TLS
 - Connection indicator: green pulsing dot (connected), red dot (disconnected, auto-reconnects every 2s)
 
-The HTML dashboard is embedded in the binary via `include_str!` and injected with the auth key.
+The HTML dashboard is embedded in the binary via `include_str!` and receives the auth key via `window.__WS_AUTH` script injection.
 
 ## Web Search
 

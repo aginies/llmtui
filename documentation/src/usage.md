@@ -553,7 +553,7 @@ Open the Server Settings panel, navigate to **Dashboard**, and press `Enter` to 
 | **TLS Cert** | Path to TLS certificate file |
 | **TLS Key** | Path to TLS private key file |
 
-When an auth key is set, clients must include it as a URL parameter: `http://localhost:49223?auth=<key>`. With TLS enabled, the URL uses `https://`.
+When an auth key is set, clients must include it as a WebSocket subprotocol (not a URL parameter). The auth key is passed via the `Sec-WebSocket-Protocol` header during the WebSocket handshake. With TLS enabled, the URL uses `https://`.
 
 ### Dashboard Display
 

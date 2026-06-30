@@ -237,10 +237,11 @@ To enable and configure the dashboard:
 
 ## Authentication
 
-When an auth key is configured, clients must include it as a query parameter:
+When an auth key is configured, clients must include it as a WebSocket subprotocol (not a URL parameter):
 
 ```
-http://localhost:49223?auth=mysecretkey
+WebSocket URL: ws://localhost:49223/ws
+Subprotocol: mysecretkey
 ```
 
 ## TLS / HTTPS
