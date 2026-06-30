@@ -127,9 +127,9 @@ pub async fn execute_confirmation(
         }
         ConfirmationKind::DeleteBackend => {
             if let Some(path) = detail {
-                // Backend deletion path encoding: "backend:tag"
-                if let Some((backend_str, tag)) = path.split_once(':') {
-                    let backend = match backend_str {
+                let parts: Vec<&str> = path.splitn(3, ':').collect();
+                if let (Some(backend_str), Some(tag)) = (parts.first(), parts.get(1)) {
+                    let backend = match backend_str.to_lowercase().as_str() {
                         "cpu" => crate::models::Backend::Cpu,
                         "vulkan" => crate::models::Backend::Vulkan,
                         "rocm" => crate::models::Backend::Rocm,

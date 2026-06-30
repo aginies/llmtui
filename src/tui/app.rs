@@ -417,6 +417,8 @@ mod tests {
             layers_loaded: None,
             tensors_total: None,
             tensors_loaded: 0,
+            model_loaded: 0,
+            model_total: None,
             buffers: vec![],
         };
         app.loading.last_spinner_time = None;

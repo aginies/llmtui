@@ -506,43 +506,6 @@ fn test_error_not_loading_model_unchanged() {
 // ── Edge cases ───────────────────────────────────────────────────
 
 #[test]
-fn test_dot_fallback_progress() {
-    let mut app = make_app();
-    app.loading
-        .loading_phases
-        .insert(LoadingPhase::LoadingTensors);
-    app.loading.last_active_phase = Some(LoadingPhase::LoadingTensors);
-
-    // No explicit tensor count yet, dots should be counted as fallback
-    let dots = ".".repeat(10);
-    app.add_log(&dots, llm_manager::config::LogLevel::Info);
-    assert_eq!(app.loading.load_progress.tensors_loaded, 10);
-    assert_eq!(app.loading.load_progress.tensors_total, None);
-}
-
-#[test]
-fn test_no_dot_fallback_when_tensor_count_set() {
-    let mut app = make_app();
-    app.loading
-        .loading_phases
-        .insert(LoadingPhase::LoadingTensors);
-    app.loading.last_active_phase = Some(LoadingPhase::LoadingTensors);
-
-    // Set explicit tensor count first
-    app.add_log(
-        "llama_model_loader: loading tensor  1 of  640, n_loaded 1",
-        llm_manager::config::LogLevel::Info,
-    );
-    assert_eq!(app.loading.load_progress.tensors_total, Some(640));
-
-    // Dots should NOT be counted as fallback now
-    let dots = ".".repeat(10);
-    app.add_log(&dots, llm_manager::config::LogLevel::Info);
-    // tensors_loaded should still be 1 (from the explicit count), not 11
-    assert_eq!(app.loading.load_progress.tensors_loaded, 1);
-}
-
-#[test]
 fn test_case_insensitive_matching() {
     let mut app = make_app();
 

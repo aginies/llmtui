@@ -628,24 +628,25 @@ fn render_confirmation(
             ],
         ),
         ConfirmationKind::DeleteBackend => {
-            let display = if let Some(d) = detail {
-                d
+            let display_name_backend = if let Some(d) = detail {
+                d.split(':').take(2).collect::<Vec<_>>().join(":")
             } else {
-                display_name
+                display_name.to_string()
             };
+            let display_line = Line::from(vec![
+                Span::raw(crate::t!("dialog.delete_backend.message")),
+                Span::raw(" "),
+                Span::styled(
+                    display_name_backend.clone(),
+                    Style::default().fg(RED).add_modifier(Modifier::BOLD),
+                ),
+                Span::raw("?"),
+            ]);
             (
                 crate::t!("dialog.delete_backend.title"),
                 vec![
                     Line::from(""),
-                    Line::from(vec![
-                        Span::raw(crate::t!("dialog.delete_backend.message")),
-                        Span::raw(" "),
-                        Span::styled(
-                            display,
-                            Style::default().fg(RED).add_modifier(Modifier::BOLD),
-                        ),
-                        Span::raw("?"),
-                    ]),
+                    display_line,
                     Line::from(""),
                     Line::from(crate::t!("dialog.delete_backend.confirm")),
                 ],

@@ -66,11 +66,12 @@ impl OverlayHandler for BackendPickerHandler {
                     KeyCode::Char('d') | KeyCode::Delete => {
                         if let Some((backend, Some(tag))) = entries.get(*selected) {
                             let backend_slug = backend.slug().to_string();
+                            let selected_idx = *selected;
                             app.ui.global_mode = GlobalMode::Confirmation {
                                 selected: false,
                                 kind: ConfirmationKind::DeleteBackend,
                                 display_name: format!("{} ({})", backend_slug, tag),
-                                detail: Some(format!("{}:{}", backend_slug, tag)),
+                                detail: Some(format!("{}:{}:{}", backend_slug, tag, selected_idx)),
                             };
                         }
                     }
