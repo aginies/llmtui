@@ -1386,6 +1386,59 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             app.ui.active_panel = ActivePanel::SearchReadme;
             return;
         }
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::ALT)
+            && !app.download.download_progress.is_empty() => {
+            let selected_idx = app.download.download_scroll_state.selected().unwrap_or(0);
+            app.cancel_download(selected_idx);
+            return;
+        }
+        KeyCode::Char('p') => {
+            if !app.download.download_progress.is_empty()
+                && let Some(idx) = app.download.download_scroll_state.selected()
+            {
+                let (is_downloading, filename) = {
+                    if let Some(state) = app.download.download_progress.get(idx) {
+                        match state.status {
+                            crate::models::DownloadStatus::Downloading => {
+                                (true, state.filename.clone())
+                            }
+                            crate::models::DownloadStatus::Paused => {
+                                (false, state.filename.clone())
+                            }
+                            _ => (false, String::new()),
+                        }
+                    } else {
+                        (false, String::new())
+                    }
+                };
+                if is_downloading {
+                    if let Some(state) = app.download.download_progress.get_mut(idx) {
+                        state.status = crate::models::DownloadStatus::Pausing;
+                        state.download_state = 4;
+                        state.bytes_per_second = 0.0;
+                        if let Some(arc) = &state.download_state_arc {
+                            arc.store(4u8, std::sync::atomic::Ordering::Relaxed);
+                        }
+                    }
+                    app.add_log(
+                        format!("Pausing download of {}", filename),
+                        crate::config::LogLevel::Info,
+                    );
+                } else if !filename.is_empty() {
+                    if let Some(state) = app.download.download_progress.get_mut(idx) {
+                        state.status = crate::models::DownloadStatus::Downloading;
+                        if let Some(arc) = &state.download_state_arc {
+                            arc.store(1u8, std::sync::atomic::Ordering::Relaxed);
+                        }
+                    }
+                    app.add_log(
+                        format!("Resumed download of {}", filename),
+                        crate::config::LogLevel::Info,
+                    );
+                }
+                return;
+            }
+        }
         _ => {}
     }
 
@@ -1532,6 +1585,59 @@ async fn handle_files_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Right => {
             app.ui.active_panel = ActivePanel::SearchReadme;
             return;
+        }
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::ALT)
+            && !app.download.download_progress.is_empty() => {
+            let selected_idx = app.download.download_scroll_state.selected().unwrap_or(0);
+            app.cancel_download(selected_idx);
+            return;
+        }
+        KeyCode::Char('p') => {
+            if !app.download.download_progress.is_empty()
+                && let Some(idx) = app.download.download_scroll_state.selected()
+            {
+                let (is_downloading, filename) = {
+                    if let Some(state) = app.download.download_progress.get(idx) {
+                        match state.status {
+                            crate::models::DownloadStatus::Downloading => {
+                                (true, state.filename.clone())
+                            }
+                            crate::models::DownloadStatus::Paused => {
+                                (false, state.filename.clone())
+                            }
+                            _ => (false, String::new()),
+                        }
+                    } else {
+                        (false, String::new())
+                    }
+                };
+                if is_downloading {
+                    if let Some(state) = app.download.download_progress.get_mut(idx) {
+                        state.status = crate::models::DownloadStatus::Pausing;
+                        state.download_state = 4;
+                        state.bytes_per_second = 0.0;
+                        if let Some(arc) = &state.download_state_arc {
+                            arc.store(4u8, std::sync::atomic::Ordering::Relaxed);
+                        }
+                    }
+                    app.add_log(
+                        format!("Pausing download of {}", filename),
+                        crate::config::LogLevel::Info,
+                    );
+                } else if !filename.is_empty() {
+                    if let Some(state) = app.download.download_progress.get_mut(idx) {
+                        state.status = crate::models::DownloadStatus::Downloading;
+                        if let Some(arc) = &state.download_state_arc {
+                            arc.store(1u8, std::sync::atomic::Ordering::Relaxed);
+                        }
+                    }
+                    app.add_log(
+                        format!("Resumed download of {}", filename),
+                        crate::config::LogLevel::Info,
+                    );
+                }
+                return;
+            }
         }
         _ => {}
     }

@@ -83,7 +83,6 @@ impl OverlayHandler for ApiEndpointPickerHandler {
                         if *selected_field == -1 {
                             *enabled = !*enabled;
                             app.settings.api_endpoint_enabled = *enabled;
-                            app.config.default.api_endpoint_enabled = *enabled;
                             sync_global_settings(app);
                             return;
                         }
