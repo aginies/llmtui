@@ -303,9 +303,17 @@ pub async fn gather_search_context(
     Ok((context, sources))
 }
 
+fn validate_url(url: &str) -> Result<()> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        anyhow::bail!("URL scheme not allowed: {}", url);
+    }
+    Ok(())
+}
+
 async fn fetch_wikipedia_content(url: &str) -> Result<String> {
     use scraper::{Html, Selector};
     info!("Web search: fetching Wikipedia: {}", url);
+    validate_url(url)?;
 
     let client = reqwest::Client::new();
     let html = client
@@ -351,6 +359,7 @@ async fn fetch_wikipedia_content(url: &str) -> Result<String> {
 async fn fetch_other_content(url: &str) -> Result<String> {
     use scraper::{Html, Selector};
     info!("Web search: fetching page: {}", url);
+    validate_url(url)?;
 
     let client = reqwest::Client::new();
     let response = client

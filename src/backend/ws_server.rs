@@ -94,6 +94,17 @@ async fn serve_dashboard(
     Html(html.replacen("</body>", &format!("{}\n</body>", auth_script), 1))
 }
 
+fn constant_time_not_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return true;
+    }
+    let mut result: u8 = 0;
+    for (x, y) in a.iter().zip(b.iter()) {
+        result |= x ^ y;
+    }
+    result != 0
+}
+
 async fn ws_handler(
     ws: WebSocketUpgrade,
     axum::extract::State(state): axum::extract::State<WsAppState>,
@@ -101,7 +112,7 @@ async fn ws_handler(
 ) -> impl IntoResponse {
     if let Some(ref expected) = state.auth_key {
         if let Some(provided) = query.get("auth").and_then(|v| urlencoding::decode(v).ok()) {
-            if provided != *expected {
+            if constant_time_not_eq(provided.as_bytes(), expected.as_bytes()) {
                 return StatusCode::UNAUTHORIZED.into_response();
             }
         } else {
