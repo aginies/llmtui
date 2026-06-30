@@ -110,7 +110,9 @@ let ws = null;
 const url = new URL(window.location);
 const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
 const host = url.host;
-const auth = window.__WS_AUTH || url.searchParams.get('auth');
+const metaAuthEl = document.querySelector('meta[name="ws-auth"]');
+const metaAuth = metaAuthEl ? JSON.parse(metaAuthEl.content) : null;
+const auth = metaAuth || url.searchParams.get('auth');
 
 function connect() {
   if (ws) ws.close();

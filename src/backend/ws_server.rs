@@ -87,10 +87,26 @@ pub fn stop_ws_server(handle: JoinHandle<()>) {
 async fn serve_dashboard(
     axum::extract::State(state): axum::extract::State<WsAppState>,
 ) -> Html<String> {
-    let auth_json = serde_json::to_string(&state.auth_key).unwrap_or("null".to_string());
-    let auth_script = format!("<script>window.__WS_AUTH={};</script>", auth_json);
+    let auth_json = serde_json::to_string(&state.auth_key).unwrap_or_else(|_| "null".to_string());
+    let escaped = html_escape_attr(&auth_json);
+    let meta_tag = format!(r#"<meta name="ws-auth" content="{}">"#, escaped);
     let html = include_str!("../dashboard.html");
-    Html(html.replacen("</body>", &format!("{}\n</body>", auth_script), 1))
+    Html(html.replacen("<body>", &format!("<body>{}", meta_tag), 1))
+}
+
+/// Escape a string for safe placement inside an HTML attribute value.
+fn html_escape_attr(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '"' => out.push_str("&quot;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 fn constant_time_not_eq(a: &[u8], b: &[u8]) -> bool {
