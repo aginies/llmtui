@@ -77,11 +77,13 @@ impl App {
             return;
         }
 
-        // Count dots from progress lines as fallback
-        if self.loading.load_progress.tensors_total.is_none() {
-            let dot_count = msg.chars().filter(|&c| c == '.').count();
-            if dot_count > 0 && dot_count <= 200 {
-                self.loading.load_progress.tensors_loaded += dot_count as u32;
+        // Parse "loading model: X of Y"
+        if let Some(caps) = LOADING_MODEL_PROGRESS.captures(msg) {
+            if let Some(n) = caps.get(1).and_then(|m| m.as_str().parse::<u32>().ok()) {
+                self.loading.load_progress.model_loaded = n;
+            }
+            if let Some(total) = caps.get(2).and_then(|m| m.as_str().parse::<u32>().ok()) {
+                self.loading.load_progress.model_total = Some(total);
             }
         }
 
@@ -237,14 +239,17 @@ impl App {
                     LoadingMeta => 0.5,
                     LoadingTensors => {
                         let mut tensor_fraction: f32 = 0.0;
-                        if let (Some(loaded), Some(total)) = (
+                        // Prefer model progress (loading model: X/Y) — most accurate
+                        if let Some(total) = self.loading.load_progress.model_total
+                            && self.loading.load_progress.model_loaded > 0
+                        {
+                            tensor_fraction = (self.loading.load_progress.model_loaded as f32 / total as f32).min(0.95);
+                        } else if let (Some(loaded), Some(total)) = (
                             self.loading.load_progress.layers_loaded,
                             self.loading.load_progress.layers_total,
                         ) {
-                            let layer_fraction = loaded as f32 / total as f32;
-                            tensor_fraction = layer_fraction.min(1.0);
-                        }
-                        if self.loading.load_progress.tensors_loaded > 0 {
+                            tensor_fraction = (loaded as f32 / total as f32).min(0.95);
+                        } else if self.loading.load_progress.tensors_loaded > 0 {
                             let estimated_total: f32 =
                                 match self.loading.load_progress.tensors_total {
                                     Some(total) => total as f32,

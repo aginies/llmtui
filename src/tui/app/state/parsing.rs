@@ -51,6 +51,10 @@ pub static MODEL_BUFFER_SIZE: LazyLock<Regex> = LazyLock::new(|| {
 pub static KV_BUFFER_SIZE: LazyLock<Regex> =
     LazyLock::new(|| compile(r"(?i)kv buffer size\s*=\s*([\d.]+)\s*MiB"));
 
+/// Matches "loading model: 12 of 345" or "loading model: 12/345"
+pub static LOADING_MODEL_PROGRESS: LazyLock<Regex> =
+    LazyLock::new(|| compile(r"(?i)loading model:\s*(\d+)\s*(?:of|out of|/)\s*(\d+)"));
+
 // ── Error detection ───────────────────────────────────────────────
 
 /// Detects whether a log line indicates a loading error.

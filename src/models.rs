@@ -1496,6 +1496,10 @@ pub struct LoadProgress {
     pub tensors_total: Option<u32>,
     /// Number of tensors loaded (counted from dot-lines in log).
     pub tensors_loaded: u32,
+    /// Number of models loaded (from "loading model: X of Y" log).
+    pub model_loaded: u32,
+    /// Total number of models to load (from "loading model: X of Y" log).
+    pub model_total: Option<u32>,
     /// GPU device buffers with their sizes.
     pub buffers: Vec<GPUBuffer>,
 }
