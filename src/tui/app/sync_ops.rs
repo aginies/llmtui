@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 impl App {
-    pub fn render<T: ratatui::backend::Backend>(
+    pub fn render<T: ratatui::backend::Backend<Error = std::io::Error>>(
         &mut self,
         terminal: &mut ratatui::Terminal<T>,
     ) -> std::io::Result<()> {

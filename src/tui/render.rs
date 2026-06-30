@@ -1,6 +1,6 @@
 use ratatui::{
      Frame,
-     style::{Color, Modifier, Style},
+     style::{Modifier, Style},
      text::{Line, Span},
      widgets::{Block, BorderType, Borders, Paragraph},
  };

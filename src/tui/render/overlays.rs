@@ -5,7 +5,6 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
-use ratatui::style::Stylize;
 use unicode_width::UnicodeWidthStr;
 
 use super::App;

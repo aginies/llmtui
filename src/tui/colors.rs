@@ -1,11 +1,6 @@
 use std::sync::LazyLock;
 
-use ratatui::layout::Offset;
-use ratatui::style::{Color, Modifier, Style, Stylize};
-use ratatui::symbols::border::QUADRANT_OUTSIDE;
-use ratatui::widgets::{Block, BorderType, Borders, Padding, Shadow};
-
-use crate::config::BorderStyle;
+use ratatui::style::{Color, Modifier, Style};
 
 // ── Named colors ─────────────────────────────────────────────────────────────
 
@@ -54,12 +49,6 @@ pub const BLUE: Color = Color::Rgb(137, 180, 250);
 /// Background color for status bar and toasts. Deep navy.
 pub const BG_DARK: Color = Color::Rgb(17, 24, 39);
 
-/// Background color for selected rows. Subtle blue tint.
-pub const BG_SELECTED: Color = Color::Rgb(30, 41, 59);
-
-/// Background color for the app body. Near-black with blue undertone.
-pub const BG_BODY: Color = Color::Rgb(15, 23, 42);
-
 /// VRAM usage bar — low utilization (0-60%). Vivid green.
 pub const VRAM_GREEN: Color = Color::Rgb(74, 222, 128);
 
@@ -83,52 +72,3 @@ pub static DIM_TEXT: LazyLock<Style> = LazyLock::new(|| Style::default().fg(DIM_
 
 /// Focused panel border color — vivid teal-green.
 pub static BORDER_FOCUSED: LazyLock<Style> = LazyLock::new(|| Style::default().fg(LIGHT_GREEN));
-
-// ── Shadow helpers ───────────────────────────────────────────────────────────
-
-/// Create a subtle shadow for focused panels (glow effect).
-pub fn shadow_focused() -> Shadow {
-    Shadow::dark_shade()
-        .fg(ACCENT)
-        .offset(Offset::new(1, 1))
-}
-
-/// Create a subtle shadow for unfocused panels (depth effect).
-pub fn shadow_unfocused() -> Shadow {
-    Shadow::dark_shade()
-        .fg(MID_GRAY)
-        .offset(Offset::new(1, 1))
-}
-
-/// Create a floating shadow for overlays/toasts.
-pub fn shadow_overlay() -> Shadow {
-    Shadow::dark_shade()
-        .fg(DIM_GRAY)
-        .offset(Offset::new(2, 1))
-}
-
-// ── Border helpers ───────────────────────────────────────────────────────────
-
-/// Apply the configured border style to a Block.
-/// Uses `border_set` for QuadrantOutside, `border_type` for Rounded/Double/Plain.
-/// Hidden style removes borders by setting them to NONE.
-pub fn apply_border_style(block: Block, style: BorderStyle) -> Block {
-    match style {
-        BorderStyle::QuadrantOutside => block.border_set(QUADRANT_OUTSIDE),
-        BorderStyle::Rounded => block.border_type(BorderType::Rounded),
-        BorderStyle::Double => block.border_type(BorderType::Double),
-        BorderStyle::Plain => block.border_type(BorderType::Plain),
-        BorderStyle::Hidden => block.borders(Borders::NONE),
-    }
-}
-
-/// Create a block with configurable border, padding, and appropriate shadow.
-/// Note: Apply border style separately using `apply_border_style()` after calling this function.
-pub fn panel_block(block: Block, is_focused: bool, _style: BorderStyle) -> Block {
-    let border_color = if is_focused { LIGHT_GREEN } else { LIGHT_GRAY };
-    block
-        .padding(Padding::horizontal(1))
-        .style(Style::default().bg(BG_BODY))
-        .border_style(Style::default().fg(border_color))
-        .shadow(if is_focused { shadow_focused() } else { shadow_unfocused() })
-}
