@@ -114,8 +114,8 @@ const auth = window.__WS_AUTH || url.searchParams.get('auth');
 
 function connect() {
   if (ws) ws.close();
-  const wsUrl = `${protocol}//${host}/ws${auth ? '?auth=' + encodeURIComponent(auth) : ''}`;
-  ws = new WebSocket(wsUrl);
+  const wsUrl = `${protocol}//${host}/ws`;
+  ws = new WebSocket(wsUrl, auth);
   
   ws.onopen = () => {
     document.getElementById('dot').className = 'dot live';

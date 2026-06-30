@@ -63,44 +63,19 @@ const METRIC_FORMATTERS = {
 
 function buildWsUrl(metricsUrl, secret) {
     try {
-        const match = metricsUrl.match(/^(https?:)\/\/([^\/?#]+)([^?#]*)(?:\?([^#]*))?/);
+        const match = metricsUrl.match(/^(https?:)\/\/([^\/?#]+)(?:\?([^#]*))?/);
         if (!match) {
             throw new Error('Invalid URL format');
         }
         const protocol = match[1];
         const host = match[2];
-        const query = match[4] || '';
 
-        // Remove existing auth param from query
-        let otherParams = '';
-        if (query) {
-            const params = query.split('&').filter(p => {
-                const [key] = p.split('=');
-                return key !== 'auth';
-            });
-            otherParams = params.length > 0 ? '&' + params.join('&') : '';
-        }
-
-        const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
-        let auth = null;
-        if (secret) {
-            auth = secret;
-        } else if (query) {
-            const params = query.split('&');
-            for (const param of params) {
-                const [key, value] = param.split('=');
-                if (key === 'auth') {
-                    auth = decodeURIComponent(value);
-                    break;
-                }
-            }
-        }
-        return {
-            wsUrl: `${wsProtocol}//${host}/ws${auth ? '?auth=' + encodeURIComponent(auth) + otherParams : otherParams}`,
-            hasAuth: !!auth,
-        };
+        const wsProtocol = protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${wsProtocol}://${host}/ws`;
+        const auth = secret || null;
+        return { wsUrl, auth, hasAuth: !!auth };
     } catch (e) {
-        return { wsUrl: 'ws://127.0.0.1:8080/ws', hasAuth: false };
+        return { wsUrl: 'ws://127.0.0.1:8080/ws', auth: null, hasAuth: false };
     }
 }
 
@@ -492,7 +467,7 @@ var LlmManagerButton = GObject.registerClass({
 
         const metricsUrl = this._settings.get_string('metrics-url');
         const metricsSecret = this._settings.get_string('metrics-secret');
-        const { wsUrl, hasAuth } = buildWsUrl(metricsUrl, metricsSecret);
+        const { wsUrl, auth, hasAuth } = buildWsUrl(metricsUrl, metricsSecret);
 
         console.log(`[llm-manager] Connecting to WebSocket: ${wsUrl}`);
 
@@ -505,10 +480,11 @@ var LlmManagerButton = GObject.registerClass({
                 return true;
             });
 
+            const protocols = auth ? [auth] : null;
             this._soupSession.websocket_connect_async(
                 message,
                 null, // origin
-                null, // protocols
+                protocols, // subprotocols (auth passed here instead of URL query param)
                 GLib.PRIORITY_DEFAULT, // io_priority
                 null, // cancellable
                 (session, result) => {

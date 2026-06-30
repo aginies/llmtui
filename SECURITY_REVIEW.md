@@ -11,10 +11,10 @@
 | Severity | Open | Fixed |
 |----------|------|-------|
 | HIGH     | 0    | 3     |
-| MEDIUM   | 1    | 6     |
+| MEDIUM   | 0    | 6     |
 | LOW      | 0    | 12    |
 
-**Total findings:** 21 | **Still open:** 1 (M2)
+**Total findings:** 21 | **Still open:** 0
 
 ---
 
@@ -47,8 +47,8 @@
 - **Impact:** Cross-origin request forgery against the local API proxy. An attacker's website can make requests to llama-server using the user's API key.
 - **Fix:** Replaced `CorsLayer` with custom `cors_middleware` that validates Origin header against allowed hosts. Allows `127.0.0.1`, `localhost`, and the configured bind host. Rejects all other origins.
 
-### M2. WebSocket auth key exposed in URL
-- **File:** `src/backend/ws_server.rs:101-110`, `dashboard.html:117`
+### M2. WebSocket auth key exposed in URL (FIXED)
+- **File:** `src/backend/ws_server.rs`, `dashboard.html`, `serve.rs`, `extension.js`
 - **Severity:** MEDIUM
 - **Exploitability:** Medium
 - **Description:** WebSocket auth key passed as `?auth=...` query parameter. Visible in:
@@ -57,7 +57,7 @@
   - Referer header when navigating away
   - Browser dev tools Network tab
 - **Impact:** Auth key leakage to anyone with access to browser history or server logs.
-- **Fix:** Pass auth via WebSocket upgrade header or use a short-lived token instead of raw key.
+- **Fix:** Auth key now passed via WebSocket subprotocol (`Sec-WebSocket-Protocol` header) instead of URL query parameter. Applied to dashboard.html, GNOME Shell extension, and backend server.
 
 ### M3. WebSocket auth timing attack (FIXED)
 - **File:** `src/backend/ws_server.rs:103`
@@ -111,5 +111,4 @@
 
 ## Recommendations Priority Order
 
-1. **M1** — Fix CORS to scoped origins (OPEN)
-2. **M2** — Move WebSocket auth from URL to header (OPEN)
+All items addressed and fixed.

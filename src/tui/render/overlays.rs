@@ -2062,7 +2062,7 @@ fn render_dashboard_url(
     ws_port: &str,
     api_port: u16,
     llm_port: u16,
-    auth_key: &str,
+    _auth_key: &str,
     ws_enabled: bool,
     tls_enabled: bool,
 ) {
@@ -2104,15 +2104,12 @@ fn render_dashboard_url(
         api_port
     );
     let metrics_url = format!("http://{}:{}/metrics", host_val, llm_port);
-    let mut dashboard_url = format!(
+    let dashboard_url = format!(
         "{}://{}:{}/dashboard",
         if tls_enabled { "https" } else { "http" },
         host,
         ws_port
     );
-    if !auth_key.is_empty() {
-        dashboard_url.push_str(&format!("?auth={}", auth_key));
-    }
     let opencode_url = format!(
         "{}://{}:{}/v1",
         if tls_enabled { "https" } else { "http" },

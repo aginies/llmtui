@@ -50,7 +50,7 @@
   "async.config_save_failed": "Échec de l'enregistrement de la configuration après suppression : {}",
   "async.dashboard_disable_persist_failed": "Échec de la persistance de l'état désactivé du tableau de bord : {}",
   "async.dashboard_disabled": "Tableau de bord désactivé",
-  "async.dashboard_enabled": "Tableau de bord activé : {}://{}:{}/dashboard{}",
+  "async.dashboard_enabled": "Tableau de bord activé : {}://{}:{}/dashboard",
   "async.dashboard_failed": "Échec du démarrage du tableau de bord sur le port {}: {}",
   "async.download_cancelled": "Téléchargement annulé : {}",
   "async.download_complete": "Téléchargement terminé : {}",

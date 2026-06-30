@@ -26,7 +26,7 @@ impl OverlayHandler for DashboardUrlHandler {
                 ws_port,
                 api_port,
                 llm_port,
-                auth_key,
+                auth_key: _,
                 ws_enabled: _,
                 tls_enabled,
             } = &app.ui.global_mode
@@ -44,15 +44,12 @@ impl OverlayHandler for DashboardUrlHandler {
                             api_port
                         );
                         let metrics_url = format!("http://{}:{}", host_val, llm_port);
-                        let mut dashboard_url = format!(
+                        let dashboard_url = format!(
                             "{}://{}:{}/dashboard",
                             if *tls_enabled { "https" } else { "http" },
                             host,
                             ws_port
                         );
-                        if !auth_key.is_empty() {
-                            dashboard_url.push_str(&format!("?auth={}", auth_key));
-                        }
                         let all_urls = format!("{}\n{}\n{}", api_url, metrics_url, dashboard_url);
                         let cb = arboard::Clipboard::new();
                         if let Ok(mut cb) = cb {

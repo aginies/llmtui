@@ -353,7 +353,7 @@
   "async.search_task_error": "Search task error: {}",
   "async.tls_generating": "Auto-generating TLS certificate and key",
   "async.dashboard_disabled": "Dashboard disabled",
-  "async.dashboard_enabled": "Dashboard enabled: {}://{}:{}/dashboard{}",
+  "async.dashboard_enabled": "Dashboard enabled: {}://{}:{}/dashboard",
   "async.dashboard_failed": "Dashboard failed to start on port {}: {}",
   "async.dashboard_disable_persist_failed": "Failed to persist dashboard-disabled state: {}",
   "async.api_disabled": "API endpoint disabled",

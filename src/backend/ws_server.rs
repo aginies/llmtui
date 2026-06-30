@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
@@ -108,11 +107,15 @@ fn constant_time_not_eq(a: &[u8], b: &[u8]) -> bool {
 async fn ws_handler(
     ws: WebSocketUpgrade,
     axum::extract::State(state): axum::extract::State<WsAppState>,
-    axum::extract::Query(query): axum::extract::Query<HashMap<String, String>>,
+    axum::http::request::Parts { headers, .. }: axum::http::request::Parts,
 ) -> impl IntoResponse {
     if let Some(ref expected) = state.auth_key {
-        if let Some(provided) = query.get("auth").and_then(|v| urlencoding::decode(v).ok()) {
-            if constant_time_not_eq(provided.as_bytes(), expected.as_bytes()) {
+        let provided = headers
+            .get(axum::http::header::SEC_WEBSOCKET_PROTOCOL)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+        if let Some(ref provided_str) = provided {
+            if constant_time_not_eq(provided_str.as_bytes(), expected.as_bytes()) {
                 return StatusCode::UNAUTHORIZED.into_response();
             }
         } else {

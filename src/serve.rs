@@ -580,19 +580,14 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         )
         .await?;
 
-        let auth_param = if let Some(ref auth) = ws_auth {
-            format!("?auth={}", urlencoding::encode(auth))
-        } else {
-            "".to_string()
-        };
         let protocol = if tls_config.is_some() {
             "https"
         } else {
             "http"
         };
         info!(
-            "Dashboard enabled: {protocol}://{}:{}/dashboard{}",
-            host_str, ws_port, auth_param
+            "Dashboard enabled: {protocol}://{}:{}/dashboard",
+            host_str, ws_port
         );
 
         // Start log parser task - parses all 7 metrics from log lines (same as TUI).

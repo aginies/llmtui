@@ -353,7 +353,7 @@
   "async.search_task_error": "Such-Task-Fehler: {}",
   "async.tls_generating": "TLS-Zertifikat und -Schlüssel automatisch generieren",
   "async.dashboard_disabled": "Dashboard deaktiviert",
-  "async.dashboard_enabled": "Dashboard aktiviert: {}://{}:{}/dashboard{}",
+  "async.dashboard_enabled": "Dashboard aktiviert: {}://{}:{}/dashboard",
   "async.dashboard_failed": "Dashboard konnte nicht auf Port {} gestartet werden: {}",
   "async.dashboard_disable_persist_failed": "Dashboard-Deaktivierungsstatus konnte nicht gespeichert werden: {}",
   "async.api_disabled": "API-Endpunkt deaktiviert",

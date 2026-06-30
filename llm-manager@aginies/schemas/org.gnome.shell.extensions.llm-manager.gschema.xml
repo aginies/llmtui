@@ -22,9 +22,9 @@
       <description>The keys of the metrics currently selected to display in the top bar and menu.</description>
     </key>
    <key name="metrics-secret" type="s">
-      <default>""</default>
-      <summary>Metrics Secret</summary>
-      <description>Secret to use for WebSocket authentication (appended as auth query parameter)</description>
-    </key>
+       <default>""</default>
+       <summary>Metrics Secret</summary>
+       <description>Secret to use for WebSocket authentication (passed as Sec-WebSocket-Protocol subprotocol)</description>
+     </key>
   </schema>
 </schemalist>
