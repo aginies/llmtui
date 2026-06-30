@@ -190,9 +190,10 @@ function render_settings(m) {
     ['Spec Type', s(m, 'spec_type')],
     ['Spec Draft N Max', s(m, 'draft_tokens')],
   ];
-  grid.innerHTML = items.map(([name, val]) =>
-    `<div class="setting-item"><div class="setting-name">${name}</div><div class="setting-val">${val}</div></div>`
-  ).join('');
+  grid.innerHTML = items.map(([name, val]) => {
+    const esc = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+    return `<div class="setting-item"><div class="setting-name">${esc(name)}</div><div class="setting-val">${esc(String(val))}</div></div>`;
+  }).join('');
 }
 function update(m) {
   const name = m.model_name || 'No model loaded';

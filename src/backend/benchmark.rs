@@ -1232,7 +1232,13 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                 "latency_per_token": r.metrics.latency_per_token,
                 "prompt_processing_time": r.metrics.prompt_processing_time,
                 "consistency": consistency_data[i],
-                "outputs": r.outputs,
+                "outputs": r.outputs.iter().map(|o| {
+                    if o.len() > 1000 {
+                        format!("{}...", &o[..1000])
+                    } else {
+                        o.clone()
+                    }
+                }).collect::<Vec<_>>(),
                 "per_iteration_metrics": r.per_iteration_metrics.iter().map(|m| {
                     serde_json::json!({
                         "prompt_tps": m.prompt_tps,

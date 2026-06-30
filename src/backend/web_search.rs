@@ -39,6 +39,7 @@ async fn search_searxng(
     max_results: usize,
     api_key: &str,
 ) -> Result<Vec<SearchResult>> {
+    validate_url(base_url)?;
     let client = reqwest::Client::new();
     let url = format!(
         "{}/search?q={}&format=json",

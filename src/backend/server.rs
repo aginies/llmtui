@@ -1,5 +1,7 @@
 use std::fmt::Display;
+use std::net::IpAddr;
 use std::process::Stdio;
+use std::str::FromStr;
 use std::sync::LazyLock;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -229,7 +231,9 @@ pub fn build_server_cmd(
     }
     for worker in &config.rpc_workers {
         if worker.selected {
-            rpc_list.push(format!("{}:{}", worker.ip, worker.port));
+            if IpAddr::from_str(&worker.ip).is_ok() {
+                rpc_list.push(format!("{}:{}", worker.ip, worker.port));
+            }
         }
     }
 
@@ -249,6 +253,7 @@ pub fn build_server_cmd(
             .and_then(|opt| opt.as_ref())
             .map(|m| m.arch.as_str())
             .unwrap_or("llama");
+        let arch = arch.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_').collect::<String>();
         push_arg(
             &mut cmd,
             &mut parts,

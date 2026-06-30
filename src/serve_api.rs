@@ -14,6 +14,8 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
+use crate::models::clean_host;
+
 use reqwest::Client;
 
 use crate::backend::web_context;
@@ -338,6 +340,18 @@ async fn handle_response(
 }
 
 /// Simple health check endpoint - no auth, verifies backend
+async fn security_headers(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> impl IntoResponse {
+    let mut resp = next.run(req).await;
+    resp.headers_mut().entry(axum::http::header::X_CONTENT_TYPE_OPTIONS).or_insert("nosniff".parse().unwrap());
+    resp.headers_mut().entry(axum::http::header::X_FRAME_OPTIONS).or_insert("DENY".parse().unwrap());
+    resp.headers_mut().entry(axum::http::header::CONTENT_SECURITY_POLICY).or_insert("default-src 'self'".parse().unwrap());
+    resp
+}
+
+/// Simple health check endpoint - no auth, verifies backend
 async fn health(State(state): State<ApiState>) -> impl IntoResponse {
     let resp = state
         .client
@@ -438,7 +452,7 @@ pub async fn start_api_server(
         .timeout(std::time::Duration::from_secs(60))
         .build()?;
     let state = ApiState {
-        server_url: format!("http://{}:{}", host, server_port),
+        server_url: format!("http://{}:{}", clean_host(&host), server_port),
         api_key,
         model_name,
         pid,
@@ -499,6 +513,7 @@ pub async fn start_api_server(
                 .layer(cors)
                 .layer(TraceLayer::new_for_http()),
         )
+        .layer(axum::middleware::from_fn(security_headers))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,

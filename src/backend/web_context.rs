@@ -1,3 +1,4 @@
+use uuid::Uuid;
 use tracing::info;
 
 use crate::backend::web_search;
@@ -259,9 +260,10 @@ pub async fn build_injected_prompt(
         search_context.len()
     );
 
+    let ctx_id = Uuid::new_v4();
     let new_content = format!(
-        "[WEB CONTEXT]\nINSTRUCTION: Cite sources using inline markdown links in your answer. Format: [source name](URL). Place links directly after the facts they support. If you find PDF link, add them to the list with brief description. Do NOT include claims you cannot verify.\n\n{}\n[END WEB CONTEXT]\n\n{}\n\n---\n\n{}",
-        search_context, sources_section, content
+        "[WEB-CTX-{}]\nINSTRUCTION: Cite sources using inline markdown links in your answer. Format: [source name](URL). Place links directly after the facts they support. If you find PDF link, add them to the list with brief description. Do NOT include claims you cannot verify.\n\n{}\n[/WEB-CTX-{}]\n\n{}\n\n---\n\n{}",
+        ctx_id, search_context, sources_section, ctx_id, content
     );
 
     if let Some(cb) = log_callback.lock().unwrap().as_ref() {

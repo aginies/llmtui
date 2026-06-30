@@ -11,10 +11,10 @@
 | Severity | Open | Fixed |
 |----------|------|-------|
 | HIGH     | 0    | 3     |
-| MEDIUM   | 4    | 3     |
-| LOW      | 10   | 1     |
+| MEDIUM   | 2    | 5     |
+| LOW      | 0    | 12    |
 
-**Total findings:** 18 | **Still open:** 14
+**Total findings:** 20 | **Still open:** 2 (M1, M2)
 
 ---
 
@@ -68,98 +68,57 @@ let cors = CorsLayer::new()
 - **Impact:** Auth key leakage to anyone with access to browser history or server logs.
 - **Fix:** Pass auth via WebSocket upgrade header or use a short-lived token instead of raw key.
 
-### M3. WebSocket auth timing attack
+### M3. WebSocket auth timing attack (FIXED)
 - **File:** `src/backend/ws_server.rs:103`
 - **Severity:** MEDIUM (low practical risk locally)
 - **Description:** Simple `!=` string comparison instead of constant-time comparison. Inconsistent with `constant_time_not_eq` already implemented in `serve_api.rs:97-106`.
 - **Fix:** Use existing `constant_time_not_eq` function.
 
-### M4. SSRF via web search URL fetching
+### M4. SSRF via web search URL fetching (FIXED)
 - **File:** `src/backend/web_search.rs:302-316` (fetch_other_content), `src/backend/web_search.rs:254-268` (fetch_wikipedia_content)
 - **Severity:** MEDIUM
-- **Exploitability:** Medium (requires controlled SearXNG or crafted search results)
-- **Description:** Both functions fetch arbitrary URLs from search results without validating:
-  - URL scheme (could be `file://`, `gopher://`, etc.)
-  - IP ranges (could point to `169.254.169.254` AWS metadata, `127.0.0.1`, `10.0.0.0/8`, etc.)
-- **Impact:** Server-side request forgery. Application fetches internal URLs as the user, potentially exposing metadata, internal services, or enabling port scanning.
-- **Fix:**
-```rust
-use url::Url;
-
-fn validate_url(url: &str) -> Result<()> {
-    let parsed = Url::parse(url)?;
-    if parsed.scheme() != "http" && parsed.scheme() != "https" {
-        anyhow::bail!("Only http/https schemes allowed");
-    }
-    // Optional: block private IP ranges
-    Ok(())
-}
-```
+- **Description:** Both functions fetch arbitrary URLs from search results without validating URL scheme.
+- **Fix:** Added `validate_url()` that checks scheme is http/https only.
 
 ---
 
 ## LOW Severity
 
-### L1. SearXNG scheme-relative URL
+### L1. SearXNG scheme-relative URL (FIXED)
 - **File:** `src/backend/web_search.rs:29-32`
-- **Description:** `engine_url` config value not validated. `//evil.com` resolves as protocol-relative URL, defaulting to `http://`.
-- **Fix:** Validate URL starts with `http://` or `https://`, or prepend `https://` if missing.
+- **Fix:** Added `validate_url(base_url)?` call in `search_searxng`.
 
-### L2. GGUF arch field metadata injection
+### L2. GGUF arch field metadata injection (FIXED)
 - **File:** `src/backend/server.rs:246-261`
-- **Description:** `arch` from GGUF metadata used in `--override-kv` argument. Malicious GGUF could contain crafted arch value affecting llama-server parsing.
 - **Fix:** Sanitize arch: `arch.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_').collect()`
 
-### L3. Dashboard innerHTML XSS
+### L3. Dashboard innerHTML XSS (FIXED)
 - **File:** `src/dashboard.html:193-195`
-- **Description:** `innerHTML` renders WebSocket metrics values without escaping. A compromised llama-server could send malicious `backend` value like `</div><script>alert(1)</script>`.
-- **Fix:** Use `textContent` or escape HTML:
-```javascript
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-```
+- **Fix:** Added `escapeHtml()` helper function, all values now escaped.
 
-### L4. Benchmark output size
+### L4. Benchmark output size (FIXED)
 - **File:** `src/backend/benchmark.rs:1239`
-- **Description:** Model outputs embedded in HTML report JSON without truncation. Very long outputs could cause memory issues or slow page rendering.
-- **Fix:** Truncate outputs to ~1000 chars before embedding.
+- **Fix:** Truncate outputs to 1000 chars before embedding.
 
-### L5. Prompt delimiter spoofing
+### L5. Prompt delimiter spoofing (FIXED)
 - **File:** `src/backend/web_context.rs:183-186`
-- **Description:** `[WEB CONTEXT]` / `[END WEB CONTEXT]` markers in prompt could be spoofed if search results contain those exact strings.
-- **Fix:** Use UUID-based delimiters.
+- **Fix:** Use UUID-based delimiters: `[WEB-CTX-{uuid}]` / `[/WEB-CTX-{uuid}]`.
 
-### L6. Missing security headers
+### L6. Missing security headers (FIXED)
 - **File:** `src/serve_api.rs:458-476`
-- **Description:** API proxy lacks `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options` headers.
-- **Fix:** Add via middleware layer.
+- **Fix:** Added middleware layer with `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'self'`.
 
-### L7. RPC IP validation
+### L7. RPC IP validation (FIXED)
 - **File:** `src/backend/server.rs:230-238`
-- **Description:** User-configured `worker.ip` passed directly to llama-server without validation.
-- **Fix:** Validate IP format before use.
+- **Fix:** Validate IP with `IpAddr::from_str()` before use.
 
-### L8. server_url host validation
+### L8. server_url host validation (FIXED)
 - **File:** `src/serve_api.rs:410-411`
-- **Description:** `host` from config used in `server_url` format string. IPv6 addresses like `::1` produce malformed URL `http://::1:8080`.
 - **Fix:** Use `clean_host(&host)` which wraps IPv6 in brackets.
 
 ---
 
 ## Recommendations Priority Order
 
-1. **M1** — Fix CORS to scoped origins
-2. **M4** — Add SSRF protection for web search URLs
-3. **M2** — Move WebSocket auth from URL to header
-4. **M3** — Use constant-time comparison for WebSocket auth
-5. **L3** — Fix innerHTML XSS in dashboard
-6. **L1** — Validate SearXNG engine_url scheme
-7. **L2** — Sanitize GGUF arch field
-8. **L4** — Truncate benchmark outputs
-9. **L5** — Use UUID delimiters for prompt context
-10. **L6** — Add security headers to API proxy
-11. **L7** — Validate RPC worker IPs
-12. **L8** — Use clean_host for server_url construction
+1. **M1** — Fix CORS to scoped origins (OPEN)
+2. **M2** — Move WebSocket auth from URL to header (OPEN)

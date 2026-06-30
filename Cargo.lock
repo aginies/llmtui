@@ -1958,6 +1958,7 @@ dependencies = [
  "tracing-subscriber",
  "unicode-width",
  "urlencoding",
+ "uuid",
  "wiremock",
  "x509-parser 0.16.0",
  "zip",
