@@ -11,24 +11,52 @@ use super::App;
 use super::onboarding;
 use crate::backend::hardware::{GpuVendor, detect_gpu_models, detect_gpu_vendors};
 use crate::tui::app::{ConfirmationKind, GlobalMode};
+use crate::tui::colors::*;
 use crate::tui::format_bench_params;
 use crate::tui::format_context_k;
 use crate::tui::panel;
 use crate::tui::render_vertical_scrollbar;
-use crate::tui::colors::*;
 use crate::tui::settings::profile_settings_parts;
+
+fn center_rect(area: Rect, w: u16, h: u16) -> Rect {
+    let x = if area.width > w {
+        (area.width - w) / 2
+    } else {
+        0
+    };
+    let y = if area.height > h {
+        (area.height - h) / 2
+    } else {
+        0
+    };
+    Rect {
+        x,
+        y,
+        width: w,
+        height: h,
+    }
+}
+
+fn render_popup(f: &mut Frame, area: Rect, title: Span, lines: Vec<Line>, border_type: BorderType) {
+    f.render_widget(Clear, area);
+    f.render_widget(
+        Paragraph::new(lines).block(
+            Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(ACCENT))
+                .border_type(border_type),
+        ),
+        area,
+    );
+}
 
 pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     if app.ui.panel_help {
         let area = f.area();
         let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
         let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
-        let help_area = Rect {
-            x: (area.width - w) / 2,
-            y: (area.height - h) / 2,
-            width: w,
-            height: h,
-        };
+        let help_area = center_rect(area, w, h);
         panel::help::render_panel(f, help_area, app);
         return true;
     }
@@ -39,8 +67,10 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         let wrapped = wrap_text(cmd_line, max_width);
         let text = Text::from(wrapped);
         let block = Block::default()
-            .title(" CmdLine — ⎋ to close  e to export ")
-            .title_style(Style::default().fg(ACCENT))
+            .title(Span::styled(
+                crate::t!("dialog.cmdline.title"),
+                Style::default().fg(ACCENT),
+            ))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(ACCENT))
             .border_type(BorderType::Rounded);
@@ -212,33 +242,33 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
-  if let GlobalMode::ApiEndpointPicker {
-          enabled,
-          port,
-          api_key,
-          tls_enabled,
-          tls_cert,
-          tls_key,
-          selected_field,
-          editing,
-          edit_buffer,
-          edit_cursor_pos: _,
-      } = &app.ui.global_mode
-     {
-         render_api_endpoint_picker(
-             f,
-             f.area(),
-             app,
-             *enabled,
-             port,
-             api_key,
-             *tls_enabled,
-             tls_cert,
-             tls_key,
-             *selected_field,
-             *editing,
-             edit_buffer,
-         );
+    if let GlobalMode::ApiEndpointPicker {
+        enabled,
+        port,
+        api_key,
+        tls_enabled,
+        tls_cert,
+        tls_key,
+        selected_field,
+        editing,
+        edit_buffer,
+        edit_cursor_pos: _,
+    } = &app.ui.global_mode
+    {
+        render_api_endpoint_picker(
+            f,
+            f.area(),
+            app,
+            *enabled,
+            port,
+            api_key,
+            *tls_enabled,
+            tls_cert,
+            tls_key,
+            *selected_field,
+            *editing,
+            edit_buffer,
+        );
         return true;
     }
 
@@ -370,24 +400,21 @@ fn render_web_search_picker(
     } else {
         15.min(area.height - 4)
     };
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = Vec::new();
 
     if selected_field < -1 {
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.web_search.help"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
         for (i, e) in engines.iter().enumerate() {
-            let marker = if i == engine_picker_selected { "> " } else { "  " };
+            let marker = if i == engine_picker_selected {
+                "> "
+            } else {
+                "  "
+            };
             let style = if i == engine_picker_selected {
                 Style::default()
                     .fg(BLACK)
@@ -401,47 +428,38 @@ fn render_web_search_picker(
                 Span::styled(e.to_string(), style),
             ]));
         }
-        f.render_widget(Clear, picker_area);
-        f.render_widget(
-            Paragraph::new(picker_lines).block(
-                Block::default()
-                    .title(Span::styled(
-                        crate::t!("dialog.web_search.title"),
-                        Style::default()
-                            .fg(ACCENT)
-                            .add_modifier(Modifier::BOLD),
-                    ))
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(ACCENT)),
-            ),
+        render_popup(
+            f,
             picker_area,
+            Span::styled(
+                crate::t!("dialog.web_search.title"),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            ),
+            picker_lines,
+            BorderType::Rounded,
         );
         return;
     }
 
     let enabled_marker = if selected_field == -1 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
-         Span::styled(enabled_marker, Style::default().fg(ACCENT)),
-         Span::styled(
-             crate::t!("dialog.web_search.enabled"),
-             Style::default().fg(ACCENT),
-         ),
-         Span::raw(": "),
-         Span::styled(
-             if enabled {
-                 crate::t!("dialog.web_search.on")
-             } else {
-                 crate::t!("dialog.web_search.off")
-             },
-             Style::default()
-                 .fg(if enabled {
-                     GREEN
-                 } else {
-                     DIM_GRAY
-                 })
-                 .add_modifier(Modifier::BOLD),
-         ),
-     ]));
+        Span::styled(enabled_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.web_search.enabled"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(
+            if enabled {
+                crate::t!("dialog.web_search.on")
+            } else {
+                crate::t!("dialog.web_search.off")
+            },
+            Style::default()
+                .fg(if enabled { GREEN } else { DIM_GRAY })
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
     picker_lines.push(Line::from(""));
     let engine_marker = if selected_field == 0 { "> " } else { "  " };
     let engine_val = if engine_marker == "> " && editing {
@@ -450,14 +468,14 @@ fn render_web_search_picker(
         engine.to_string()
     };
     picker_lines.push(Line::from(vec![
-         Span::styled(engine_marker, Style::default().fg(ACCENT)),
-         Span::styled(
-             crate::t!("dialog.web_search.engine"),
-             Style::default().fg(ACCENT),
-         ),
-         Span::raw(": "),
-         Span::styled(engine_val, Style::default().fg(WHITE)),
-     ]));
+        Span::styled(engine_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.web_search.engine"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(engine_val, Style::default().fg(WHITE)),
+    ]));
     picker_lines.push(Line::from(""));
     let url_marker = if selected_field == 1 { "> " } else { "  " };
     let url_val = if editing && selected_field == 1 {
@@ -468,14 +486,14 @@ fn render_web_search_picker(
         engine_url.to_string()
     };
     picker_lines.push(Line::from(vec![
-         Span::styled(url_marker, Style::default().fg(ACCENT)),
-         Span::styled(
-             crate::t!("dialog.web_search.engine_url"),
-             Style::default().fg(ACCENT),
-         ),
-         Span::raw(": "),
-         Span::styled(url_val, Style::default().fg(WHITE)),
-     ]));
+        Span::styled(url_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.web_search.engine_url"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(url_val, Style::default().fg(WHITE)),
+    ]));
     picker_lines.push(Line::from(""));
     let key_marker = if selected_field == 2 { "> " } else { "  " };
     let key_val = if editing && selected_field == 2 {
@@ -489,29 +507,41 @@ fn render_web_search_picker(
     } else {
         String::new()
     };
-      picker_lines.push(Line::from(vec![
-         Span::styled(key_marker, Style::default().fg(ACCENT)),
-         Span::styled(
-             crate::t!("dialog.web_search.api_key"),
-             Style::default().fg(ACCENT),
-         ),
-         Span::raw(": "),
-         Span::styled(key_val, Style::default().fg(WHITE)),
-     ]));
+    picker_lines.push(Line::from(vec![
+        Span::styled(key_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.web_search.api_key"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(key_val, Style::default().fg(WHITE)),
+    ]));
     picker_lines.push(Line::from(""));
     // Render validation status
     let validation_text = match check_status {
         Some(crate::tui::app::WebSearchCheckStatus::Checking) => {
-            format!("{}{}", crate::t!("dialog.web_search.validation"), crate::t_fmt!("dialog.web_search.checking"))
+            format!(
+                "{}{}",
+                crate::t!("dialog.web_search.validation"),
+                crate::t_fmt!("dialog.web_search.checking")
+            )
         }
         Some(crate::tui::app::WebSearchCheckStatus::Ok) => {
-            format!("{}{}", crate::t!("dialog.web_search.validation"), crate::t!("dialog.web_search.ok"))
+            format!(
+                "{}{}",
+                crate::t!("dialog.web_search.validation"),
+                crate::t!("dialog.web_search.ok")
+            )
         }
         Some(crate::tui::app::WebSearchCheckStatus::Error(e)) => {
             format!("{}{}", crate::t!("dialog.web_search.validation"), e)
         }
         None => {
-            format!("{}{}", crate::t!("dialog.web_search.validation"), crate::t!("dialog.web_search.unknown"))
+            format!(
+                "{}{}",
+                crate::t!("dialog.web_search.validation"),
+                crate::t!("dialog.web_search.unknown")
+            )
         }
     };
     picker_lines.push(Line::from(Span::styled(
@@ -521,31 +551,22 @@ fn render_web_search_picker(
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(Span::styled(
         "📖 https://aginies.github.io/llmtui/web-search.html",
-        Style::default()
-            .fg(BLUE)
-            .underlined(),
+        Style::default().fg(BLUE).underlined(),
     )));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.web_search.help"),
-        Style::default()
-            .fg(ACCENT)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
     )));
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.web_search.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT)),
-        ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.web_search.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -574,9 +595,7 @@ fn render_confirmation(
                         Span::raw(" "),
                         Span::styled(
                             format!("{}", loaded_count),
-                            Style::default()
-                                .fg(ACCENT)
-                                .add_modifier(Modifier::BOLD),
+                            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                         ),
                         Span::raw(""),
                     ]),
@@ -600,9 +619,7 @@ fn render_confirmation(
                     Span::raw(" "),
                     Span::styled(
                         display_name,
-                        Style::default()
-                            .fg(ACCENT)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                     ),
                     Span::raw("?"),
                 ]),
@@ -619,9 +636,7 @@ fn render_confirmation(
                     Span::raw(" "),
                     Span::styled(
                         display_name,
-                        Style::default()
-                            .fg(ACCENT)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                     ),
                     Span::raw("?"),
                 ]),
@@ -653,7 +668,7 @@ fn render_confirmation(
             )
         }
     };
-   let mut lines = text_lines;
+    let mut lines = text_lines;
     lines.push(Line::from(""));
     // Selected option with high contrast style and markers
     let selected_yes = selected;
@@ -680,10 +695,7 @@ fn render_confirmation(
             if selected_yes { "> " } else { "  " },
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(
-            crate::t!("dialog.confirm_yes").to_string(),
-            yes_style,
-        ),
+        Span::styled(crate::t!("dialog.confirm_yes").to_string(), yes_style),
         Span::styled(
             if selected_yes { " <" } else { "  " },
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
@@ -694,10 +706,7 @@ fn render_confirmation(
             if !selected_yes { "> " } else { "  " },
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(
-            crate::t!("dialog.confirm_no").to_string(),
-            no_style,
-        ),
+        Span::styled(crate::t!("dialog.confirm_no").to_string(), no_style),
         Span::styled(
             if !selected_yes { " <" } else { "  " },
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
@@ -706,10 +715,10 @@ fn render_confirmation(
     let w = 70u16;
     let h = (lines.len() as u16 + 6).min(area.height.saturating_sub(4));
     let popup_area = Rect {
-        x: area.width.saturating_sub(w) / 2,
+        x: (area.width.saturating_sub(w)) / 2,
         y: (area.height.saturating_sub(h)) / 2,
-        width: w,
-        height: h,
+        width: w.min(area.width),
+        height: h.min(area.height),
     };
     let block = Block::default()
         .title(title)
@@ -736,18 +745,11 @@ fn render_confirmation(
 fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], selected: usize) {
     let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
     let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.host_picker.help"),
-        Style::default()
-            .fg(ACCENT)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
     )));
     picker_lines.push(Line::from(""));
     for (i, (ip, iface)) in entries.iter().enumerate() {
@@ -767,20 +769,15 @@ fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], s
             Span::styled(format!("({iface})"), Style::default().fg(DIM_GRAY)),
         ]));
     }
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.host_picker.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT)),
-        ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.host_picker.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -796,9 +793,7 @@ fn render_profile_picker(
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.profile_picker.help"),
-        Style::default()
-            .fg(ACCENT)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
     )));
     picker_lines.push(Line::from(""));
     for (i, (name, desc)) in entries.iter().enumerate() {
@@ -830,9 +825,7 @@ fn render_profile_picker(
         )));
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.profile_picker.changed"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         )));
         if preview_parts.is_empty() {
             picker_lines.push(Line::from(Span::styled(
@@ -851,28 +844,16 @@ fn render_profile_picker(
     let content_height = picker_lines.len();
     let max_h = (area.height as usize - 4).max(10);
     let h = (content_height.min(max_h)) as u16;
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines)
-            .wrap(Wrap { trim: true })
-            .block(
-                Block::default()
-                    .title(Span::styled(
-                        crate::t!("dialog.profile_picker.title"),
-                        Style::default()
-                            .fg(ACCENT)
-                            .add_modifier(Modifier::BOLD),
-                    ))
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(ACCENT)),
-            ),
+    let picker_area = center_rect(area, w, h);
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.profile_picker.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -892,12 +873,7 @@ fn render_prompt_picker(
     } else {
         (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16
     };
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = Vec::new();
     if confirm_delete && selected < entries.len() {
         let name = &entries[selected].0;
@@ -908,9 +884,7 @@ fn render_prompt_picker(
         picker_lines.push(Line::from(""));
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.prompt_picker.confirm"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
     } else if editing {
@@ -923,9 +897,7 @@ fn render_prompt_picker(
                     crate::t!("dialog.prompt_picker.new").to_string()
                 }
             ),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
         let content_lines: Vec<&str> = edit_buffer.split('\n').collect();
@@ -945,9 +917,7 @@ fn render_prompt_picker(
                     Span::raw(before),
                     Span::styled(
                         "|",
-                        Style::default()
-                            .fg(ACCENT)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                     ),
                     Span::raw(after),
                 ]));
@@ -964,9 +934,7 @@ fn render_prompt_picker(
     } else {
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.prompt_picker.list_help"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         )));
         picker_lines.push(Line::from(""));
         for (i, (name, desc)) in entries.iter().enumerate() {
@@ -991,34 +959,22 @@ fn render_prompt_picker(
             }
         }
     }
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines)
-            .wrap(Wrap { trim: true })
-            .block(
-                Block::default()
-                    .title(Span::styled(
-                        crate::t!("dialog.prompt_picker.title"),
-                        Style::default()
-                            .fg(ACCENT)
-                            .add_modifier(Modifier::BOLD),
-                    ))
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(ACCENT)),
-            ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.prompt_picker.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
 fn render_tags(f: &mut Frame, area: Rect, app: &App) {
     let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
     let h = (app.settings.tags.len() + 8).min(area.height as usize - 4) as u16;
-    let modal_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let modal_area = center_rect(area, w, h);
     let mut modal_lines: Vec<Line> = Vec::new();
     if app.edit.tags_insert_mode {
         modal_lines.push(Line::from(Span::styled(
@@ -1038,14 +994,14 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
         } else {
             "  "
         };
-       let style = if Some(i) == app.edit.tags_selected_idx {
+        let style = if Some(i) == app.edit.tags_selected_idx {
             Style::default()
                 .fg(BLACK)
                 .bg(ACCENT)
                 .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(WHITE)
-            };
+        } else {
+            Style::default().fg(WHITE)
+        };
         modal_lines.push(Line::from(vec![
             Span::styled(marker, Style::default().fg(ACCENT)),
             Span::styled(tag.clone(), style),
@@ -1076,21 +1032,15 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
             Span::styled("_", Style::default().fg(BLACK).bg(ACCENT)),
         ]));
     }
-    f.render_widget(Clear, modal_area);
-    f.render_widget(
-        Paragraph::new(modal_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.tags.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
-                .border_type(BorderType::Rounded),
-        ),
+    render_popup(
+        f,
         modal_area,
+        Span::styled(
+            crate::t!("dialog.tags.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        modal_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -1108,19 +1058,12 @@ fn render_backend_picker(
         0
     };
     let h = (entries.len() + 4 + gpu_info_lines).min(area.height as usize - 4) as u16;
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let vendors = detect_gpu_vendors();
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
         crate::t!("dialog.backend_picker.select"),
-        Style::default()
-            .fg(ACCENT)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
     )));
     let gpu_models: Vec<String> = all_models.iter().filter_map(|m| m.clone()).collect();
     if !gpu_models.is_empty() {
@@ -1205,20 +1148,15 @@ fn render_backend_picker(
         }
         picker_lines.push(Line::from(line_spans));
     }
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.backend_picker.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT)),
-        ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.backend_picker.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -1252,9 +1190,7 @@ fn render_bench_tune_setup(
     let block = Block::default()
         .title(Span::styled(
             crate::t!("dialog.bench_config.title"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(ACCENT))
@@ -1290,9 +1226,7 @@ fn render_bench_tune_setup(
         ),
         Span::styled(
             mode_name,
-            Style::default()
-                .fg(WHITE)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
         ),
         Span::raw(" | "),
         Span::styled(
@@ -1406,9 +1340,7 @@ fn render_bench_tune_setup(
                         crate::t!("dialog.bench_config.editing"),
                         selected_name
                     ),
-                    Style::default()
-                        .fg(CYAN)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     format!(" ({}/{})", selected_variant_idx + 1, p.variants.len()),
@@ -1451,19 +1383,14 @@ fn render_bench_tune_setup(
                     Style::default().fg(ACCENT),
                 ),
                 Span::raw(")  "),
-                Span::styled(
-                    " [Tab: Min → Max → Step] ",
-                    Style::default().fg(DIM_GRAY),
-                ),
+                Span::styled(" [Tab: Min → Max → Step] ", Style::default().fg(DIM_GRAY)),
                 Span::styled(
                     format!(
                         "{} {}",
                         crate::t!("dialog.bench_config.editing"),
                         active_field_name
                     ),
-                    Style::default()
-                        .fg(CYAN)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
                 ),
             ])];
             // Validation warnings
@@ -1514,11 +1441,7 @@ fn render_bench_tune_setup(
             let is_selected = i == selected_idx;
             let checkbox = if p.name == "spec_type" {
                 if is_selected {
-                    if p.enabled {
-                        "[X]"
-                    } else {
-                        "[ ]"
-                    }
+                    if p.enabled { "[X]" } else { "[ ]" }
                 } else {
                     " - "
                 }
@@ -1615,9 +1538,7 @@ fn render_bench_tune_setup(
             };
             let desc_style = if p.name == "draft_tokens" && is_spec_off {
                 if is_selected {
-                    Style::default()
-                        .fg(DIM_GRAY)
-                        .add_modifier(Modifier::DIM)
+                    Style::default().fg(DIM_GRAY).add_modifier(Modifier::DIM)
                 } else {
                     Style::default().fg(DIM_GRAY)
                 }
@@ -1661,9 +1582,7 @@ fn render_bench_tune_setup(
             Span::raw(crate::t!("dialog.bench_config.total_tests")),
             Span::styled(
                 total_tests.to_string(),
-                Style::default()
-                    .fg(CYAN)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(""),
@@ -1744,16 +1663,10 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
     let block = Block::default()
         .title(Span::styled(
             crate::t!("dialog.rpc.title"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
-        .border_style(
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
-        )
+        .border_style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
         .border_type(BorderType::Double);
     f.render_widget(Clear, rpc_area);
     f.render_widget(Paragraph::new(visible_lines).block(block), rpc_area);
@@ -1782,16 +1695,10 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
     let block = Block::default()
         .title(Span::styled(
             crate::t!("dialog.about.title"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
-        .border_style(
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
-        )
+        .border_style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
         .border_type(BorderType::Double);
     f.render_widget(Clear, about_area);
     f.render_widget(
@@ -1805,12 +1712,7 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
 fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &str) {
     let w = 55u16;
     let h = (10.min(area.height - 4)).max(8);
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let ctx_len = app.settings.context_length;
     let entered = value.parse::<u32>().unwrap_or(0).clamp(1, 10);
     let per_model = if entered > 0 && ctx_len > 0 {
@@ -1832,9 +1734,7 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
         Span::raw(" = "),
         Span::styled(
             format!("{}", per_model),
-            Style::default()
-                .fg(GREEN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
         ),
         Span::raw(crate::t!("dialog.max_concurrent.tokens_per_model")),
     ]));
@@ -1855,20 +1755,15 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
             Style::default().fg(BLACK).bg(DIM_GRAY),
         ),
     ]));
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.max_concurrent.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT)),
-        ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.max_concurrent.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -1888,12 +1783,7 @@ fn render_dashboard_picker(
 ) {
     let w = 60u16;
     let h = 19.min(area.height - 4);
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = Vec::new();
     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
@@ -1909,9 +1799,7 @@ fn render_dashboard_picker(
             } else {
                 crate::t!("dialog.dashboard.off")
             },
-            Style::default()
-                .fg(GREEN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
         ),
     ]));
     picker_lines.push(Line::from(""));
@@ -1921,15 +1809,15 @@ fn render_dashboard_picker(
     } else {
         port.to_string()
     };
-     picker_lines.push(Line::from(vec![
-          Span::styled(port_marker, Style::default().fg(ACCENT)),
-          Span::styled(
-              crate::t!("dialog.dashboard.port"),
-              Style::default().fg(ACCENT),
-          ),
-          Span::raw(": "),
-          Span::styled(port_val, Style::default().fg(WHITE)),
-      ]));
+    picker_lines.push(Line::from(vec![
+        Span::styled(port_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.dashboard.port"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(port_val, Style::default().fg(WHITE)),
+    ]));
     picker_lines.push(Line::from(""));
     let auth_marker = if selected_field == 1i32 { "> " } else { "  " };
     let auth_val = if editing && selected_field == 1i32 {
@@ -1949,28 +1837,24 @@ fn render_dashboard_picker(
     ]));
     picker_lines.push(Line::from(""));
     let tls_enabled_marker = if selected_field == 2i32 { "> " } else { "  " };
-     picker_lines.push(Line::from(vec![
-          Span::styled(tls_enabled_marker, Style::default().fg(ACCENT)),
-          Span::styled(
-              crate::t!("dialog.dashboard.tls"),
-              Style::default().fg(ACCENT),
-          ),
-          Span::raw(": "),
-          Span::styled(
-              if tls_enabled {
-                  crate::t!("dialog.dashboard.on")
-              } else {
-                  crate::t!("dialog.dashboard.off")
-              },
-              Style::default()
-                  .fg(if tls_enabled {
-                      GREEN
-                  } else {
-                      DIM_GRAY
-                  })
-                  .add_modifier(Modifier::BOLD),
-          ),
-      ]));
+    picker_lines.push(Line::from(vec![
+        Span::styled(tls_enabled_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.dashboard.tls"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(
+            if tls_enabled {
+                crate::t!("dialog.dashboard.on")
+            } else {
+                crate::t!("dialog.dashboard.off")
+            },
+            Style::default()
+                .fg(if tls_enabled { GREEN } else { DIM_GRAY })
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
     picker_lines.push(Line::from(""));
     let tls_cert_marker = if selected_field == 3i32 { "> " } else { "  " };
     let tls_cert_val = if editing && selected_field == 3i32 {
@@ -1980,15 +1864,15 @@ fn render_dashboard_picker(
     } else {
         tls_cert.to_string()
     };
-     picker_lines.push(Line::from(vec![
-          Span::styled(tls_cert_marker, Style::default().fg(ACCENT)),
-          Span::styled(
-              crate::t!("dialog.dashboard.tls_cert"),
-              Style::default().fg(ACCENT),
-          ),
-          Span::raw(": "),
-          Span::styled(tls_cert_val, Style::default().fg(WHITE)),
-      ]));
+    picker_lines.push(Line::from(vec![
+        Span::styled(tls_cert_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.dashboard.tls_cert"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(tls_cert_val, Style::default().fg(WHITE)),
+    ]));
     picker_lines.push(Line::from(""));
     let tls_key_marker = if selected_field == 4i32 { "> " } else { "  " };
     let tls_key_val = if editing && selected_field == 4i32 {
@@ -1998,200 +1882,179 @@ fn render_dashboard_picker(
     } else {
         tls_key.to_string()
     };
-     picker_lines.push(Line::from(vec![
-          Span::styled(tls_key_marker, Style::default().fg(ACCENT)),
-          Span::styled(
-              crate::t!("dialog.dashboard.tls_key"),
-              Style::default().fg(ACCENT),
-          ),
-          Span::raw(": "),
-          Span::styled(tls_key_val, Style::default().fg(WHITE)),
-      ]));
+    picker_lines.push(Line::from(vec![
+        Span::styled(tls_key_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.dashboard.tls_key"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(tls_key_val, Style::default().fg(WHITE)),
+    ]));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::styled(
         crate::t!("dialog.dashboard.close"),
         Style::default().fg(BLACK).bg(DIM_GRAY),
     )]));
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.dashboard.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
-                .border_type(BorderType::Rounded),
+    render_popup(
+        f,
+        picker_area,
+        Span::styled(
+            crate::t!("dialog.dashboard.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
-    picker_area,
-     );
- }
+        picker_lines,
+        BorderType::Rounded,
+    );
+}
 
- fn render_api_endpoint_picker(
-     f: &mut Frame,
-     area: Rect,
-     _app: &App,
-     enabled: bool,
-     port: &str,
-     api_key: &str,
-     tls_enabled: bool,
-     tls_cert: &str,
-     tls_key: &str,
-     selected_field: i32,
-     editing: bool,
-     edit_buffer: &str,
- ) {
-     let w = 60u16;
-     let h = 22.min(area.height - 4);
-     let picker_area = Rect {
-         x: (area.width - w) / 2,
-         y: (area.height - h) / 2,
-         width: w,
-         height: h,
-     };
-     let mut picker_lines: Vec<Line> = Vec::new();
+fn render_api_endpoint_picker(
+    f: &mut Frame,
+    area: Rect,
+    _app: &App,
+    enabled: bool,
+    port: &str,
+    api_key: &str,
+    tls_enabled: bool,
+    tls_cert: &str,
+    tls_key: &str,
+    selected_field: i32,
+    editing: bool,
+    edit_buffer: &str,
+) {
+    let w = 60u16;
+    let h = 22.min(area.height - 4);
+    let picker_area = center_rect(area, w, h);
+    let mut picker_lines: Vec<Line> = Vec::new();
 
-     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
-     picker_lines.push(Line::from(vec![
-          Span::styled(enabled_marker, Style::default().fg(ACCENT)),
-          Span::styled(
-              crate::t!("dialog.dashboard.enabled"),
-              Style::default().fg(ACCENT),
-          ),
-          Span::raw(": "),
-          Span::styled(
-              if enabled {
-                  crate::t!("dialog.dashboard.on")
-              } else {
-                  crate::t!("dialog.dashboard.off")
-              },
-              Style::default()
-                  .fg(if enabled { GREEN } else { DIM_GRAY })
-                  .add_modifier(Modifier::BOLD),
-          ),
-      ]));
-     picker_lines.push(Line::from(""));
+    let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
+    picker_lines.push(Line::from(vec![
+        Span::styled(enabled_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.dashboard.enabled"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(
+            if enabled {
+                crate::t!("dialog.dashboard.on")
+            } else {
+                crate::t!("dialog.dashboard.off")
+            },
+            Style::default()
+                .fg(if enabled { GREEN } else { DIM_GRAY })
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    picker_lines.push(Line::from(""));
 
-     let port_marker = if selected_field == 0i32 { "> " } else { "  " };
-     let port_val = if editing && selected_field == 0i32 {
-         format!("{}|", edit_buffer)
-     } else {
-         port.to_string()
-     };
-     picker_lines.push(Line::from(vec![
-         Span::styled(port_marker, Style::default().fg(ACCENT)),
-         Span::styled(
-             crate::t!("dialog.dashboard.port"),
-             Style::default().fg(ACCENT),
-         ),
-         Span::styled(port_val, Style::default().fg(WHITE)),
-     ]));
-     picker_lines.push(Line::from(""));
+    let port_marker = if selected_field == 0i32 { "> " } else { "  " };
+    let port_val = if editing && selected_field == 0i32 {
+        format!("{}|", edit_buffer)
+    } else {
+        port.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(port_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.dashboard.port"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::styled(port_val, Style::default().fg(WHITE)),
+    ]));
+    picker_lines.push(Line::from(""));
 
-     let api_key_marker = if selected_field == 1i32 { "> " } else { "  " };
-     let api_key_val = if editing && selected_field == 1i32 {
-         format!("{}|", edit_buffer)
-     } else if api_key.is_empty() {
-         crate::t!("dialog.dashboard.none").to_string()
-     } else {
-         api_key.to_string()
-     };
-     picker_lines.push(Line::from(vec![
-          Span::styled(api_key_marker, Style::default().fg(ACCENT)),
-          Span::styled(
-              crate::t!("panel.server.api_key"),
-              Style::default().fg(ACCENT),
-          ),
-          Span::raw(": "),
-          Span::styled(api_key_val, Style::default().fg(WHITE)),
-      ]));
-     picker_lines.push(Line::from(""));
+    let api_key_marker = if selected_field == 1i32 { "> " } else { "  " };
+    let api_key_val = if editing && selected_field == 1i32 {
+        format!("{}|", edit_buffer)
+    } else if api_key.is_empty() {
+        crate::t!("dialog.dashboard.none").to_string()
+    } else {
+        api_key.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(api_key_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("panel.server.api_key"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(api_key_val, Style::default().fg(WHITE)),
+    ]));
+    picker_lines.push(Line::from(""));
 
-     let tls_enabled_marker = if selected_field == 2i32 { "> " } else { "  " };
-     picker_lines.push(Line::from(vec![
-         Span::styled(tls_enabled_marker, Style::default().fg(ACCENT)),
-         Span::styled(
-             crate::t!("dialog.dashboard.tls"),
-             Style::default().fg(ACCENT),
-         ),
-         Span::styled(
-             if tls_enabled {
-                 crate::t!("dialog.dashboard.on")
-             } else {
-                 crate::t!("dialog.dashboard.off")
-             },
-             Style::default()
-                 .fg(if tls_enabled {
-                     GREEN
-                 } else {
-                     DIM_GRAY
-                 })
-                 .add_modifier(Modifier::BOLD),
-         ),
-     ]));
-     picker_lines.push(Line::from(""));
+    let tls_enabled_marker = if selected_field == 2i32 { "> " } else { "  " };
+    picker_lines.push(Line::from(vec![
+        Span::styled(tls_enabled_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.dashboard.tls"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::styled(
+            if tls_enabled {
+                crate::t!("dialog.dashboard.on")
+            } else {
+                crate::t!("dialog.dashboard.off")
+            },
+            Style::default()
+                .fg(if tls_enabled { GREEN } else { DIM_GRAY })
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    picker_lines.push(Line::from(""));
 
-     let tls_cert_marker = if selected_field == 3i32 { "> " } else { "  " };
-     let tls_cert_val = if editing && selected_field == 3i32 {
-         format!("{}|", edit_buffer)
-     } else if tls_cert.is_empty() {
-         crate::t!("dialog.dashboard.tls_auto").to_string()
-     } else {
-         tls_cert.to_string()
-     };
-     picker_lines.push(Line::from(vec![
-         Span::styled(tls_cert_marker, Style::default().fg(ACCENT)),
-         Span::styled(
-             crate::t!("dialog.dashboard.tls_cert"),
-             Style::default().fg(ACCENT),
-         ),
-         Span::styled(tls_cert_val, Style::default().fg(WHITE)),
-     ]));
-     picker_lines.push(Line::from(""));
+    let tls_cert_marker = if selected_field == 3i32 { "> " } else { "  " };
+    let tls_cert_val = if editing && selected_field == 3i32 {
+        format!("{}|", edit_buffer)
+    } else if tls_cert.is_empty() {
+        crate::t!("dialog.dashboard.tls_auto").to_string()
+    } else {
+        tls_cert.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(tls_cert_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.dashboard.tls_cert"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::styled(tls_cert_val, Style::default().fg(WHITE)),
+    ]));
+    picker_lines.push(Line::from(""));
 
-     let tls_key_marker = if selected_field == 4i32 { "> " } else { "  " };
-     let tls_key_val = if editing && selected_field == 4i32 {
-         format!("{}|", edit_buffer)
-     } else if tls_key.is_empty() {
-         crate::t!("dialog.dashboard.tls_auto").to_string()
-     } else {
-         tls_key.to_string()
-     };
-     picker_lines.push(Line::from(vec![
-         Span::styled(tls_key_marker, Style::default().fg(ACCENT)),
-         Span::styled(
-             crate::t!("dialog.dashboard.tls_key"),
-             Style::default().fg(ACCENT),
-         ),
-         Span::styled(tls_key_val, Style::default().fg(WHITE)),
-     ]));
-     picker_lines.push(Line::from(""));
-     picker_lines.push(Line::from(vec![Span::styled(
-         crate::t!("dialog.dashboard.close"),
-         Style::default().fg(BLACK).bg(DIM_GRAY),
-     )]));
-     f.render_widget(Clear, picker_area);
-     f.render_widget(
-         Paragraph::new(picker_lines).block(
-             Block::default()
-                 .title(Span::styled(
-                     "API Endpoint",
-                     Style::default()
-                         .fg(ACCENT)
-                         .add_modifier(Modifier::BOLD),
-                 ))
-                 .borders(Borders::ALL)
-                 .border_style(Style::default().fg(ACCENT))
-                 .border_type(BorderType::Rounded),
-         ),
-         picker_area,
-     );
- }
+    let tls_key_marker = if selected_field == 4i32 { "> " } else { "  " };
+    let tls_key_val = if editing && selected_field == 4i32 {
+        format!("{}|", edit_buffer)
+    } else if tls_key.is_empty() {
+        crate::t!("dialog.dashboard.tls_auto").to_string()
+    } else {
+        tls_key.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(tls_key_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.dashboard.tls_key"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::styled(tls_key_val, Style::default().fg(WHITE)),
+    ]));
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(vec![Span::styled(
+        crate::t!("dialog.dashboard.close"),
+        Style::default().fg(BLACK).bg(DIM_GRAY),
+    )]));
+    render_popup(
+        f,
+        picker_area,
+        Span::styled(
+            crate::t!("panel.server.api_endpoint"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
+    );
+}
 
- fn render_dashboard_url(
+fn render_dashboard_url(
     f: &mut Frame,
     area: Rect,
     app: &App,
@@ -2240,11 +2103,7 @@ fn render_dashboard_picker(
         host_val,
         api_port
     );
-    let metrics_url = format!(
-        "http://{}:{}/metrics",
-        host_val,
-        llm_port
-    );
+    let metrics_url = format!("http://{}:{}/metrics", host_val, llm_port);
     let mut dashboard_url = format!(
         "{}://{}:{}/dashboard",
         if tls_enabled { "https" } else { "http" },
@@ -2298,15 +2157,14 @@ fn render_dashboard_picker(
         ),
         Span::styled(&mode_str, Style::default().fg(WHITE)),
     ]));
-      picker_lines.push(Line::from(vec![
+    picker_lines.push(Line::from(vec![
         Span::styled(
             format!("{} ", crate::t!("dialog.dashboard_url.tls")),
             Style::default().fg(ACCENT),
         ),
         Span::styled(
             if tls_enabled { "On" } else { "Off" },
-            Style::default()
-                .fg(if tls_enabled { WHITE } else { DIM_GRAY }),
+            Style::default().fg(if tls_enabled { WHITE } else { DIM_GRAY }),
         ),
     ]));
     picker_lines.push(Line::from(""));
@@ -2335,8 +2193,7 @@ fn render_dashboard_picker(
             } else {
                 "Disabled".to_string()
             },
-            Style::default()
-                .fg(if ws_enabled { WHITE } else { DIM_GRAY }),
+            Style::default().fg(if ws_enabled { WHITE } else { DIM_GRAY }),
         ),
     ]));
     picker_lines.push(Line::from(""));
@@ -2347,9 +2204,7 @@ fn render_dashboard_picker(
         ),
         Span::styled(
             &api_url,
-            Style::default()
-                .fg(CYAN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
         ),
     ]));
     picker_lines.push(Line::from(vec![
@@ -2359,9 +2214,7 @@ fn render_dashboard_picker(
         ),
         Span::styled(
             &metrics_url,
-            Style::default()
-                .fg(CYAN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
         ),
     ]));
     picker_lines.push(Line::from(vec![
@@ -2371,21 +2224,14 @@ fn render_dashboard_picker(
         ),
         Span::styled(
             &dashboard_url,
-            Style::default()
-                .fg(CYAN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
         ),
     ]));
     picker_lines.push(Line::from(vec![
-        Span::styled(
-            "opencode baseURL: ",
-            Style::default().fg(ACCENT),
-        ),
+        Span::styled("opencode baseURL: ", Style::default().fg(ACCENT)),
         Span::styled(
             &opencode_url,
-            Style::default()
-                .fg(CYAN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
         ),
     ]));
     picker_lines.push(Line::from(""));
@@ -2399,21 +2245,15 @@ fn render_dashboard_picker(
             Style::default().fg(BLACK).bg(DIM_GRAY),
         ),
     ]));
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.dashboard_url.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
-                .border_type(BorderType::Rounded),
-        ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.dashboard_url.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -2439,18 +2279,13 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             ),
             Span::styled(
                 p_str,
-                Style::default()
-                    .fg(CYAN)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
             ),
         ]);
         let settings = result.base_settings.as_ref();
         let param_rows: Vec<Row> = vec![
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "temperature",
-                    Style::default().fg(ACCENT),
-                )),
+                Cell::from(Span::styled("temperature", Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     settings
                         .map(|s| format!("{:.2}", s.temperature))
@@ -2493,10 +2328,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "repeat_penalty",
-                    Style::default().fg(ACCENT),
-                )),
+                Cell::from(Span::styled("repeat_penalty", Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     settings
                         .map(|s| format!("{:.2}", s.repeat_penalty))
@@ -2511,13 +2343,12 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "context_length",
-                    Style::default().fg(ACCENT),
-                )),
+                Cell::from(Span::styled("context_length", Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     settings
-                        .map(|s| format_context_k(s.context_length, s.rope_yarn_enabled, s.rope_scale))
+                        .map(|s| {
+                            format_context_k(s.context_length, s.rope_yarn_enabled, s.rope_scale)
+                        })
                         .unwrap_or_else(|| {
                             result
                                 .params
@@ -2529,10 +2360,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "batch_size",
-                    Style::default().fg(ACCENT),
-                )),
+                Cell::from(Span::styled("batch_size", Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     settings
                         .map(|s| s.batch_size.to_string())
@@ -2547,10 +2375,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "flash_attn",
-                    Style::default().fg(ACCENT),
-                )),
+                Cell::from(Span::styled("flash_attn", Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     settings
                         .map(|s| {
@@ -2590,10 +2415,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "expert_count",
-                    Style::default().fg(ACCENT),
-                )),
+                Cell::from(Span::styled("expert_count", Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     settings
                         .map(|s| s.expert_count.to_string())
@@ -2608,10 +2430,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "spec_type",
-                    Style::default().fg(ACCENT),
-                )),
+                Cell::from(Span::styled("spec_type", Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     settings
                         .as_ref()
@@ -2640,10 +2459,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "draft_tokens",
-                    Style::default().fg(ACCENT),
-                )),
+                Cell::from(Span::styled("draft_tokens", Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     settings
                         .map(|s| s.draft_tokens.to_string())
@@ -2662,15 +2478,11 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             .header(Row::new(vec![
                 Cell::from(Span::styled(
                     "Parameter",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 )),
                 Cell::from(Span::styled(
                     crate::t!("dialog.gguf.value"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 )),
             ]))
             .block(
@@ -2690,10 +2502,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             .unwrap_or(&result.metrics);
         let metric_rows: Vec<Row> = vec![
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "prompt_tps",
-                    Style::default().fg(GREEN),
-                )),
+                Cell::from(Span::styled("prompt_tps", Style::default().fg(GREEN))),
                 Cell::from(Span::styled(
                     format!("{:.2}", metrics_for_output.prompt_tps),
                     Style::default().fg(CYAN),
@@ -2707,20 +2516,14 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "combined_tps",
-                    Style::default().fg(GREEN),
-                )),
+                Cell::from(Span::styled("combined_tps", Style::default().fg(GREEN))),
                 Cell::from(Span::styled(
                     format!("{:.2}", metrics_for_output.combined_tps),
                     Style::default().fg(CYAN),
                 )),
             ]),
             Row::new(vec![
-                Cell::from(Span::styled(
-                    "latency/token",
-                    Style::default().fg(GREEN),
-                )),
+                Cell::from(Span::styled("latency/token", Style::default().fg(GREEN))),
                 Cell::from(Span::styled(
                     format!("{:.2} ms", metrics_for_output.latency_per_token),
                     Style::default().fg(CYAN),
@@ -2741,15 +2544,11 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
             .header(Row::new(vec![
                 Cell::from(Span::styled(
                     "Metric",
-                    Style::default()
-                        .fg(GREEN)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
                 )),
                 Cell::from(Span::styled(
                     crate::t!("dialog.gguf.value"),
-                    Style::default()
-                        .fg(GREEN)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
                 )),
             ]))
             .block(
@@ -2912,21 +2711,14 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
 fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usize) {
     let w: u16 = 60;
     let h: u16 = (8.min(area.height.saturating_sub(4))).max(7);
-    let popup_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let popup_area = center_rect(area, w, h);
     let clamped_pos = cursor_pos.min(buffer.len());
     let before: String = buffer.chars().take(clamped_pos).collect();
     let after: String = buffer.chars().skip(clamped_pos).collect();
     let picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
             crate::t!("dialog.search.title"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(vec![
@@ -2937,9 +2729,7 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
             Span::styled(before, Style::default().fg(WHITE)),
             Span::styled(
                 "|",
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ),
             Span::styled(after, Style::default().fg(WHITE)),
         ]),
@@ -2956,16 +2746,12 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
             ),
         ]),
     ];
-    f.render_widget(Clear, popup_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(crate::t!("panel.title.search_input"))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
-                .border_type(BorderType::Rounded),
-        ),
+    render_popup(
+        f,
         popup_area,
+        Span::raw(crate::t!("panel.title.search_input")),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -2980,28 +2766,19 @@ fn render_gguf_naming_overlay(
         .clamp(12, 35)
         .min(area.height - 4);
 
-    let popup_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let popup_area = center_rect(area, w, h);
 
     let mut lines: Vec<Line> = Vec::new();
 
     // Title
     lines.push(Line::from(Span::styled(
         &explanation.model_family,
-        Style::default()
-            .fg(ACCENT)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
     )));
     lines.push(Line::from(""));
 
     // Table header
-    let header_style = Style::default()
-        .fg(ACCENT)
-        .add_modifier(Modifier::BOLD);
+    let header_style = Style::default().fg(ACCENT).add_modifier(Modifier::BOLD);
     let segment_header = crate::t!("dialog.gguf.segment");
     let value_header = crate::t!("dialog.gguf.value");
     let desc_header = crate::t!("dialog.gguf.description");
@@ -3133,9 +2910,7 @@ fn render_gguf_naming_overlay(
     let block = Block::default()
         .title(Span::styled(
             crate::t!("dialog.gguf.title"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(ACCENT))
@@ -3181,18 +2956,11 @@ fn render_yarn_rope_picker(
 ) {
     let w: u16 = 60;
     let h: u16 = (14.min(area.height - 4)).max(8);
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
             crate::t!("dialog.yarn.help"),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
     ];
@@ -3269,25 +3037,18 @@ fn render_yarn_rope_picker(
             crate::t!("dialog.yarn.effective_context"),
             ctx_display
         ),
-        Style::default()
-            .fg(CYAN)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
     )));
 
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.yarn.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT)),
-        ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.yarn.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -3300,12 +3061,7 @@ fn render_spec_type_picker(
 ) {
     let w = 50u16;
     let h = (entries.len() as u16 + 6).min(area.height - 4);
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
             crate::t!("dialog.profile_picker.help"),
@@ -3330,20 +3086,15 @@ fn render_spec_type_picker(
         ]));
     }
 
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.spec.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT)),
-        ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.spec.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -3356,12 +3107,7 @@ fn render_chat_template_picker(
 ) {
     let w = 55u16;
     let h = (entries.len() as u16 + 8).min(area.height - 4);
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
             crate::t!("dialog.chat_template.help"),
@@ -3386,20 +3132,15 @@ fn render_chat_template_picker(
         ]));
     }
 
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.chat_template.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT)),
-        ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.chat_template.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }
 
@@ -3412,12 +3153,7 @@ fn render_chat_template_file_picker(
 ) {
     let w = 60u16;
     let h = (entries.len() as u16 + 6).min(area.height - 4);
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
+    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
             crate::t!("dialog.chat_template.file.help"),
@@ -3449,20 +3185,14 @@ fn render_chat_template_file_picker(
         }
     }
 
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(picker_lines).block(
-            Block::default()
-                .title(Span::styled(
-                    crate::t!("dialog.chat_template.file.title"),
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
-                .border_type(BorderType::Rounded),
-        ),
+    render_popup(
+        f,
         picker_area,
+        Span::styled(
+            crate::t!("dialog.chat_template.file.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
     );
 }

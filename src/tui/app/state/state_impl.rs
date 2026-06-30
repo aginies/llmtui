@@ -1,4 +1,4 @@
-  use super::parsing::*;
+use super::parsing::*;
 use crate::config::LogLevel;
 use crate::models::ModelState;
 use crate::tui::app::types::LoadingPhase::*;
@@ -243,7 +243,9 @@ impl App {
                         if let Some(total) = self.loading.load_progress.model_total
                             && self.loading.load_progress.model_loaded > 0
                         {
-                            tensor_fraction = (self.loading.load_progress.model_loaded as f32 / total as f32).min(0.95);
+                            tensor_fraction = (self.loading.load_progress.model_loaded as f32
+                                / total as f32)
+                                .min(0.95);
                         } else if let (Some(loaded), Some(total)) = (
                             self.loading.load_progress.layers_loaded,
                             self.loading.load_progress.layers_total,
@@ -353,10 +355,15 @@ impl App {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .retain(|n| n != name);
-            let error = self.ui.toast_queue.front().map(|t| t.text.clone()).unwrap_or_else(|| {
-                let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-                format!("Failed to load model ({})", timestamp)
-            });
+            let error = self
+                .ui
+                .toast_queue
+                .front()
+                .map(|t| t.text.clone())
+                .unwrap_or_else(|| {
+                    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
+                    format!("Failed to load model ({})", timestamp)
+                });
             self.model_states
                 .insert(name.clone(), ModelState::Failed { error });
         }

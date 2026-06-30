@@ -43,11 +43,7 @@ impl OverlayHandler for DashboardUrlHandler {
                             host_val,
                             api_port
                         );
-                        let metrics_url = format!(
-                            "http://{}:{}",
-                            host_val,
-                            llm_port
-                        );
+                        let metrics_url = format!("http://{}:{}", host_val, llm_port);
                         let mut dashboard_url = format!(
                             "{}://{}:{}/dashboard",
                             if *tls_enabled { "https" } else { "http" },

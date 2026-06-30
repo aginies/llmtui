@@ -197,9 +197,15 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
                         // In Normal mode, block if any model is already loaded
                         if app.server_mode == crate::models::ServerMode::Normal
-                            && app.model_states.values().any(|s| matches!(s, crate::models::ModelState::Loaded { .. }))
+                            && app
+                                .model_states
+                                .values()
+                                .any(|s| matches!(s, crate::models::ModelState::Loaded { .. }))
                         {
-                            app.add_log(crate::t!("models.already_loaded"), crate::config::LogLevel::Warning);
+                            app.add_log(
+                                crate::t!("models.already_loaded"),
+                                crate::config::LogLevel::Warning,
+                            );
                             return;
                         }
 
@@ -364,18 +370,14 @@ fn get_sorted_indices(app: &App, filtered: &[usize]) -> Vec<usize> {
                 let val_a = meta_a
                     .map(|m| {
                         let trimmed = m.model_parameters.trim();
-                        let num_str = trimmed
-                            .trim_end_matches(['B', 'b'])
-                            .trim();
+                        let num_str = trimmed.trim_end_matches(['B', 'b']).trim();
                         num_str.parse::<f64>().unwrap_or(0.0)
                     })
                     .unwrap_or(0.0);
                 let val_b = meta_b
                     .map(|m| {
                         let trimmed = m.model_parameters.trim();
-                        let num_str = trimmed
-                            .trim_end_matches(['B', 'b'])
-                            .trim();
+                        let num_str = trimmed.trim_end_matches(['B', 'b']).trim();
                         num_str.parse::<f64>().unwrap_or(0.0)
                     })
                     .unwrap_or(0.0);

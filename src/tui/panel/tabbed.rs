@@ -10,8 +10,8 @@ use ratatui::{
 use super::info;
 use super::info::ModelInfoPair;
 use super::settings;
-use crate::tui::colors::*;
 use crate::tui::app::{ActivePanel, App};
+use crate::tui::colors::*;
 use crate::tui::settings as settings_helper;
 
 /// Render a vertical "UNSAVED" watermark in red, dimmed, behind the settings content.
@@ -67,11 +67,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     let available_height = llm_area.height.saturating_sub(2);
     let start_idx = app.settings_state.settings_scroll_offset;
 
-    let _border_color = if is_focused {
-        LIGHT_GREEN
-    } else {
-        DIM_GRAY
-    };
+    let _border_color = if is_focused { LIGHT_GREEN } else { DIM_GRAY };
     let vram_text = crate::tui::format_size(app.loading.vram_estimate * 1024 * 1024);
     let title = if app.settings_state.expert_mode {
         crate::t!("panel.title.llm_expert").to_string()
@@ -687,10 +683,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
         {
             let r = &results[idx];
             let link_line = Line::from(vec![
-                Span::styled(
-                    "  https://huggingface.co/",
-                    Style::default().fg(CYAN),
-                ),
+                Span::styled("  https://huggingface.co/", Style::default().fg(CYAN)),
                 Span::styled(r.model_id.clone(), Style::default().fg(CYAN)),
             ]);
             info_lines.push(link_line);
@@ -701,10 +694,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
         && let Some(r) = selected_result
     {
         let link_line = Line::from(vec![
-            Span::styled(
-                "  https://huggingface.co/",
-                Style::default().fg(CYAN),
-            ),
+            Span::styled("  https://huggingface.co/", Style::default().fg(CYAN)),
             Span::styled(r.model_id.clone(), Style::default().fg(CYAN)),
         ]);
         info_lines.push(link_line);
@@ -714,7 +704,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
 }
 
 /// Render the info paragraph with a block and borders.
- pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
+pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
         .title(crate::t!("panel.title.model_info_active"))
         .title_style(Style::default().fg(ACCENT))
@@ -762,19 +752,13 @@ fn render_model_info_lines(
             let right_label = format!("{}: ", crate::t!(right.label));
 
             lines.push(Line::from(vec![
-                Span::styled(
-                    format!("{:<12}", left_label),
-                    Style::default().fg(ACCENT),
-                ),
+                Span::styled(format!("{:<12}", left_label), Style::default().fg(ACCENT)),
                 Span::styled(
                     format!("{:<15}", left.value),
                     Style::default().fg(left.value_style),
                 ),
                 Span::raw("  "),
-                Span::styled(
-                    format!("{:<12}", right_label),
-                    Style::default().fg(ACCENT),
-                ),
+                Span::styled(format!("{:<12}", right_label), Style::default().fg(ACCENT)),
                 Span::styled(right.value.clone(), Style::default().fg(right.value_style)),
             ]));
         } else {
@@ -885,20 +869,14 @@ fn render_search_result_info(
         Span::styled(pipeline_str.to_string(), Style::default().fg(WHITE)),
         Span::raw(" | "),
         Span::styled("Downloads: ", Style::default().fg(ACCENT)),
-        Span::styled(
-            format!("{}", r.downloads),
-            Style::default().fg(WHITE),
-        ),
+        Span::styled(format!("{}", r.downloads), Style::default().fg(WHITE)),
     ]));
     lines.push(Line::from(vec![
         Span::styled("Likes: ", Style::default().fg(ACCENT)),
         Span::styled(format!("{}", r.likes), Style::default().fg(WHITE)),
         Span::raw(" | "),
         Span::styled("Trending: ", Style::default().fg(ACCENT)),
-        Span::styled(
-            format!("{}", r.trending_score),
-            Style::default().fg(WHITE),
-        ),
+        Span::styled(format!("{}", r.trending_score), Style::default().fg(WHITE)),
     ]));
     let license: String = r.license.as_deref().unwrap_or("—").to_string();
     lines.push(Line::from(vec![

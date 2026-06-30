@@ -95,36 +95,18 @@ pub fn render_download_panel(
         .collect();
 
     let headers = vec![
-        Cell::from(crate::t!("download.headers.model")).style(
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Cell::from(crate::t!("download.headers.file")).style(
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Cell::from(crate::t!("download.headers.progress")).style(
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Cell::from(crate::t!("download.headers.speed")).style(
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Cell::from(crate::t!("download.headers.eta")).style(
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Cell::from(crate::t!("download.headers.status")).style(
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ),
+        Cell::from(crate::t!("download.headers.model"))
+            .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Cell::from(crate::t!("download.headers.file"))
+            .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Cell::from(crate::t!("download.headers.progress"))
+            .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Cell::from(crate::t!("download.headers.speed"))
+            .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Cell::from(crate::t!("download.headers.eta"))
+            .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Cell::from(crate::t!("download.headers.status"))
+            .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
     ];
 
     let widths = [
@@ -138,11 +120,7 @@ pub fn render_download_panel(
 
     let table = Table::new(rows, widths)
         .header(Row::new(headers))
-        .row_highlight_style(
-            Style::default()
-                .bg(ACCENT)
-                .add_modifier(Modifier::BOLD),
-        )
+        .row_highlight_style(Style::default().bg(ACCENT).add_modifier(Modifier::BOLD))
         .highlight_symbol(">> ");
 
     f.render_stateful_widget(table, inner, scroll_state);
@@ -198,10 +176,12 @@ pub fn scroll_text(
     }
 
     // Use cache if width and offset haven't changed
-    if state.cached_width == max_width && state.cached_offset == state.offset
-        && let Some(ref cached) = state.cached_output {
-            return cached.clone();
-        }
+    if state.cached_width == max_width
+        && state.cached_offset == state.offset
+        && let Some(ref cached) = state.cached_output
+    {
+        return cached.clone();
+    }
 
     let offset = state.offset.min(state.max_offset);
     let mut char_indices_iter = text.char_indices();
@@ -241,9 +221,7 @@ fn highlight_query(text: &str, lower_text: &str, compiled: Option<&Regex>) -> Li
         }
         spans.push(Span::styled(
             text[*hstart..*hend].to_string(),
-            Style::default()
-                .fg(CYAN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
         ));
         start = *hend;
     }
@@ -266,7 +244,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 crate::t!("panel.title.models_active").to_string()
             } else {
                 crate::t!("panel.title.models").to_string()
-           };
+            };
 
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let title_color = if is_models_focused { GREEN } else { ACCENT };
@@ -308,9 +286,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Line::from(vec![
                         Span::styled(
                             "Filter: ",
-                            Style::default()
-                                .fg(ACCENT)
-                                .add_modifier(Modifier::BOLD),
+                            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                         ),
                         Span::styled(
                             &app.search.local_filter,
@@ -338,11 +314,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 } else {
                     crate::t!("models.list_headers.model")
                 })
-                .style(
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
                 Cell::from(if *sort_by == ListSort::Params {
                     if sort_ascending {
                         "Params \u{2191}"
@@ -352,11 +324,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 } else {
                     crate::t!("models.list_headers.params")
                 })
-                .style(
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
                 Cell::from(if *sort_by == ListSort::Qual {
                     if sort_ascending {
                         "Qual \u{2191}"
@@ -366,11 +334,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 } else {
                     crate::t!("models.list_headers.quality")
                 })
-                .style(
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
                 Cell::from(
                     Line::from(if *sort_by == ListSort::Context {
                         if sort_ascending {
@@ -381,11 +345,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     } else {
                         crate::t!("models.list_headers.context")
                     })
-                    .style(
-                        Style::default()
-                            .fg(ACCENT)
-                            .add_modifier(Modifier::BOLD),
-                    )
+                    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
                     .alignment(Alignment::Center),
                 ),
             ];
@@ -399,9 +359,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let model = &app.models[idx];
                     let key = model.display_name.clone();
                     let model_state = app.model_states.get(&model.display_name);
-                     let is_selected = Some(idx) == app.selected_model_idx;
+                    let is_selected = Some(idx) == app.selected_model_idx;
 
-                    let is_loaded = matches!(model_state, Some(crate::models::ModelState::Loaded { .. }));
+                    let is_loaded =
+                        matches!(model_state, Some(crate::models::ModelState::Loaded { .. }));
 
                     let (context_length, rope_yarn_enabled, rope_scale) = ctx_cache
                         .get(model.display_name.as_str())
@@ -431,23 +392,28 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .unwrap_or_default();
                     let params_width = params_str.chars().count() as u16 + 2;
 
-                     let prefix_width = if is_loaded {
-                         crate::t!("models.list_status.loaded_prefix").chars().count() as u16
-                     } else if matches!(model_state, Some(crate::models::ModelState::Loading)) {
-                         crate::t!("models.list_status.loading_prefix").chars().count() as u16
-                     } else if matches!(model_state, Some(crate::models::ModelState::Benchmarking)) {
-                         crate::t!("models.list_status.benchmarking_prefix").chars().count() as u16
-                     } else {
-                         0
-                     };
+                    let prefix_width = if is_loaded {
+                        crate::t!("models.list_status.loaded_prefix")
+                            .chars()
+                            .count() as u16
+                    } else if matches!(model_state, Some(crate::models::ModelState::Loading)) {
+                        crate::t!("models.list_status.loading_prefix")
+                            .chars()
+                            .count() as u16
+                    } else if matches!(model_state, Some(crate::models::ModelState::Benchmarking)) {
+                        crate::t!("models.list_status.benchmarking_prefix")
+                            .chars()
+                            .count() as u16
+                    } else {
+                        0
+                    };
 
-                     let name_width =
-                        table_area
-                            .width
-                            .saturating_sub(context_str.chars().count() as u16 + 4)
-                            .saturating_sub(params_width)
-                            .saturating_sub(4)
-                            .saturating_sub(prefix_width);
+                    let name_width = table_area
+                        .width
+                        .saturating_sub(context_str.chars().count() as u16 + 4)
+                        .saturating_sub(params_width)
+                        .saturating_sub(4)
+                        .saturating_sub(prefix_width);
                     let max_offset = filename.chars().count().saturating_sub(name_width as usize);
                     let state = app.ui.text_scrolls.entry(key.clone()).or_insert_with(|| {
                         crate::tui::app::TextScrollState {
@@ -471,16 +437,18 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             .bg(ACCENT)
                             .add_modifier(Modifier::BOLD)
                     } else if is_loaded {
-                        Style::default()
-                            .fg(GREEN)
-                            .add_modifier(Modifier::BOLD)
-                    } else if matches!(model_state, Some(crate::models::ModelState::Loading) | Some(crate::models::ModelState::Benchmarking)) {
+                        Style::default().fg(GREEN).add_modifier(Modifier::BOLD)
+                    } else if matches!(
+                        model_state,
+                        Some(crate::models::ModelState::Loading)
+                            | Some(crate::models::ModelState::Benchmarking)
+                    ) {
                         Style::default().fg(ACCENT)
                     } else {
                         Style::default().fg(WHITE)
                     };
 
-                     let name_display = if is_loaded {
+                    let name_display = if is_loaded {
                         let prefix = crate::t!("models.list_status.loaded_prefix");
                         let scrolled = scroll_text(display_name, name_width, state);
                         Line::from(vec![
@@ -505,7 +473,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled("]", name_style),
                         ])
                     } else {
-                        Line::from(vec![Span::styled(scroll_text(display_name, name_width, state), name_style)])
+                        Line::from(vec![Span::styled(
+                            scroll_text(display_name, name_width, state),
+                            name_style,
+                        )])
                     };
 
                     let is_moe = meta.map(|m| m.arch.contains("moe")).unwrap_or(false);
@@ -582,7 +553,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     results.len()
                 )
             };
-             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let title_color = if is_models_focused { GREEN } else { ACCENT };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
@@ -597,36 +568,22 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .border_type(border_type);
 
             let headers = vec![
-                Cell::from(crate::t!("models.search_headers.model")).style(
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                Cell::from(crate::t!("models.search_headers.model"))
+                    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
                 Cell::from(if *sort_by == SearchSort::Downloads {
                     "⬇"
                 } else {
                     crate::t!("models.search_headers.downloads")
                 })
-                .style(
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
                 Cell::from(if *sort_by == SearchSort::Likes {
                     "♥"
                 } else {
                     crate::t!("models.search_headers.likes")
                 })
-                .style(
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Cell::from(crate::t!("models.search_headers.license")).style(
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+                Cell::from(crate::t!("models.search_headers.license"))
+                    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
             ];
 
             let query_regex = if query.trim().is_empty() {
@@ -698,8 +655,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 ]));
             } else if results.is_empty() {
                 rows.push(Row::new(vec![
-                    Cell::from("No results found for this query.")
-                        .style(Style::default().fg(RED)),
+                    Cell::from("No results found for this query.").style(Style::default().fg(RED)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
@@ -744,7 +700,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             ..
         } => {
             let title = crate::t_fmt!("models.gguf_files", model_id);
-             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
+            let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
             let title_color = if is_models_focused { GREEN } else { ACCENT };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
@@ -805,16 +761,10 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .collect();
 
             let headers = vec![
-                Cell::from(crate::t!("models.gguf_headers.file")).style(
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Cell::from(crate::t!("models.gguf_headers.size")).style(
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                Cell::from(crate::t!("models.gguf_headers.file"))
+                    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+                Cell::from(crate::t!("models.gguf_headers.size"))
+                    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
             ];
 
             let widths = [Constraint::Percentage(80), Constraint::Percentage(20)];
@@ -899,9 +849,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                                     total_tests,
                                     elapsed_str
                                 ),
-                                Style::default()
-                                    .fg(GREEN)
-                                    .add_modifier(Modifier::BOLD),
+                                Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
                             ),
                         ]));
 
@@ -947,9 +895,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::raw("Status: "),
                             Span::styled(
                                 "PARTIALLY COMPLETED",
-                                Style::default()
-                                    .fg(ACCENT)
-                                    .add_modifier(Modifier::BOLD),
+                                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                             ),
                             Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
                         ]));
@@ -958,9 +904,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::raw("Success: "),
                             Span::styled(
                                 format!("{}/{}", successful_tests, total_tests),
-                                Style::default()
-                                    .fg(ACCENT)
-                                    .add_modifier(Modifier::BOLD),
+                                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                             ),
                         ]));
                         lines.push(Line::from(vec![
@@ -991,9 +935,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::raw("Status: "),
                             Span::styled(
                                 "CANCELLED",
-                                Style::default()
-                                    .fg(ACCENT)
-                                    .add_modifier(Modifier::BOLD),
+                                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                             ),
                             Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
                         ]));
@@ -1002,9 +944,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::raw("Success: "),
                             Span::styled(
                                 format!("{}/{}", successful_tests, total_tests),
-                                Style::default()
-                                    .fg(ACCENT)
-                                    .add_modifier(Modifier::BOLD),
+                                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                             ),
                         ]));
                         lines.push(Line::from(vec![
@@ -1099,11 +1039,7 @@ fn render_benchtune_results_table(
         Cell::from("Inf t/s"),
         Cell::from("Params"),
     ])
-    .style(
-        Style::default()
-            .fg(ACCENT)
-            .add_modifier(Modifier::BOLD),
-    );
+    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD));
 
     let table = ratatui::widgets::Table::new(
         rows,
@@ -1116,11 +1052,7 @@ fn render_benchtune_results_table(
     )
     .header(header)
     .block(Block::default().borders(Borders::NONE))
-    .row_highlight_style(
-        Style::default()
-            .bg(ACCENT)
-            .add_modifier(Modifier::BOLD),
-    )
+    .row_highlight_style(Style::default().bg(ACCENT).add_modifier(Modifier::BOLD))
     .highlight_symbol("> ");
 
     let header_height = lines.len() as u16;

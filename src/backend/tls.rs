@@ -111,7 +111,9 @@ fn generate_server_cert(
 /// Ensure TLS certificates exist. If not, generates a CA + server cert pair.
 /// The server cert is issued for the given host alongside localhost/127.0.0.1.
 /// Returns the paths to the cert and key files.
-pub fn ensure_tls_certs(host: &str) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync>> {
+pub fn ensure_tls_certs(
+    host: &str,
+) -> Result<(PathBuf, PathBuf), Box<dyn std::error::Error + Send + Sync>> {
     let ca_path = ca_cert_path();
     let ca_key_path = ca_key_path();
     let server_cert_path = server_cert_path();
@@ -121,7 +123,9 @@ pub fn ensure_tls_certs(host: &str) -> Result<(PathBuf, PathBuf), Box<dyn std::e
     // If server cert exists AND version matches, return it
     let version_matches = version_path.exists()
         && std::fs::read_to_string(&version_path).ok().as_deref() == Some(TLS_VERSION);
-    if server_cert_path.exists() && server_key_path.exists() && version_matches
+    if server_cert_path.exists()
+        && server_key_path.exists()
+        && version_matches
         && try_load_tls(
             server_cert_path.to_str().unwrap(),
             server_key_path.to_str().unwrap(),

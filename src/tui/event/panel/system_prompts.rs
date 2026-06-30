@@ -58,31 +58,30 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                 app.settings_state.settings_edit_buffer.insert(byte_idx, c);
                 app.edit.edit_cursor_pos += 1;
             }
-            KeyCode::Backspace
-                if app.edit.edit_cursor_pos > 0 => {
-                    app.edit.edit_cursor_pos -= 1;
-                    let byte_idx = app
-                        .settings_state
-                        .settings_edit_buffer
-                        .char_indices()
-                        .nth(app.edit.edit_cursor_pos)
-                        .map(|(i, _)| i)
-                        .unwrap_or(0);
-                    app.settings_state.settings_edit_buffer.remove(byte_idx);
-                }
+            KeyCode::Backspace if app.edit.edit_cursor_pos > 0 => {
+                app.edit.edit_cursor_pos -= 1;
+                let byte_idx = app
+                    .settings_state
+                    .settings_edit_buffer
+                    .char_indices()
+                    .nth(app.edit.edit_cursor_pos)
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                app.settings_state.settings_edit_buffer.remove(byte_idx);
+            }
             KeyCode::Delete
                 if app.edit.edit_cursor_pos
-                    < app.settings_state.settings_edit_buffer.chars().count()
-                => {
-                    let byte_idx = app
-                        .settings_state
-                        .settings_edit_buffer
-                        .char_indices()
-                        .nth(app.edit.edit_cursor_pos)
-                        .map(|(i, _)| i)
-                        .unwrap_or(app.settings_state.settings_edit_buffer.len());
-                    app.settings_state.settings_edit_buffer.remove(byte_idx);
-                }
+                    < app.settings_state.settings_edit_buffer.chars().count() =>
+            {
+                let byte_idx = app
+                    .settings_state
+                    .settings_edit_buffer
+                    .char_indices()
+                    .nth(app.edit.edit_cursor_pos)
+                    .map(|(i, _)| i)
+                    .unwrap_or(app.settings_state.settings_edit_buffer.len());
+                app.settings_state.settings_edit_buffer.remove(byte_idx);
+            }
             KeyCode::Left => {
                 app.edit.edit_cursor_pos = app.edit.edit_cursor_pos.saturating_sub(1);
             }

@@ -89,6 +89,7 @@
   "cmdline.export": "Comando esportato in /tmp/test_llamaserver.sh",
   "cmdline.export_failed": "Errore esportazione comando: {}",
   "cmdline.export_success": "Comando esportato in /tmp/test_llamaserver.sh",
+  "dialog.cmdline.title": " CmdLine — ⎋ per chiudere  e per esportare ",
   "dialog.about.title": " About ",
   "dialog.backend_picker.cached": "(Cached)",
   "dialog.backend_picker.cpu": "CPU-only",

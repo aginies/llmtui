@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::sync::{Arc, RwLock, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
 use axum::Json;
@@ -17,9 +17,6 @@ use tracing::info;
 use reqwest::Client;
 
 use crate::backend::web_context;
-
-
-
 
 /// HTTP hop-by-hop headers to strip when proxying.
 const HOP_BY_HOP: &[&str] = &[
@@ -81,7 +78,10 @@ async fn auth_middleware(
             true
         };
         if not_equal {
-            tracing::debug!("auth_middleware: rejecting request, not_equal={}", not_equal);
+            tracing::debug!(
+                "auth_middleware: rejecting request, not_equal={}",
+                not_equal
+            );
             return (
                 StatusCode::UNAUTHORIZED,
                 Json(serde_json::json!({"error": "Unauthorized"})),
@@ -118,7 +118,9 @@ async fn proxy_streaming(
     let url = format!("{}{}", state.server_url, path);
 
     // For chat completions and completions, drain body and optionally inject web search
-    if (path == "/v1/chat/completions" || path == "/v1/completions") && method == axum::http::Method::POST {
+    if (path == "/v1/chat/completions" || path == "/v1/completions")
+        && method == axum::http::Method::POST
+    {
         info!("API: proxying {} {}", method, path);
         {
             let cb = state.log_callback.lock().unwrap();
@@ -132,7 +134,9 @@ async fn proxy_streaming(
                 info!("Failed to collect request body for {}: {}", path, e);
                 return (
                     StatusCode::BAD_GATEWAY,
-                    Json(serde_json::json!({"error": format!("Failed to read request body: {}", e)})),
+                    Json(
+                        serde_json::json!({"error": format!("Failed to read request body: {}", e)}),
+                    ),
                 )
                     .into_response();
             }
@@ -151,13 +155,19 @@ async fn proxy_streaming(
             }
         };
 
-        info!("API: web_search_enabled={}, preset='{}', engine='{}'", 
-              state.web_search_enabled, state.system_prompt_preset_name, state.web_search_engine);
+        info!(
+            "API: web_search_enabled={}, preset='{}', engine='{}'",
+            state.web_search_enabled, state.system_prompt_preset_name, state.web_search_engine
+        );
         {
             let cb = state.log_callback.lock().unwrap();
             if let Some(c) = cb.as_ref() {
-                c(format!("API: web_search_enabled={}, preset='{}', engine='{}'", 
-                    state.web_search_enabled, state.system_prompt_preset_name, state.web_search_engine));
+                c(format!(
+                    "API: web_search_enabled={}, preset='{}', engine='{}'",
+                    state.web_search_enabled,
+                    state.system_prompt_preset_name,
+                    state.web_search_engine
+                ));
             }
         }
 
@@ -169,36 +179,52 @@ async fn proxy_streaming(
             &state.web_search_engine_url,
             state.web_search_api_key.as_deref().unwrap_or(""),
             &state.log_callback,
-        ).await;
+        )
+        .await;
 
-        info!("API: web search performed={}, content_len={}", result.performed, result.content.len());
+        info!(
+            "API: web search performed={}, content_len={}",
+            result.performed,
+            result.content.len()
+        );
         {
             let cb = state.log_callback.lock().unwrap();
             if let Some(c) = cb.as_ref() {
-                c(format!("API: web search performed={}, content_len={}", result.performed, result.content.len()));
+                c(format!(
+                    "API: web search performed={}, content_len={}",
+                    result.performed,
+                    result.content.len()
+                ));
             }
         }
-        if result.performed && !result.content.is_empty()
+        if result.performed
+            && !result.content.is_empty()
             && let Some(obj) = request_json.as_object_mut()
-                && let Some(messages) = obj.get_mut("messages").and_then(|m| m.as_array_mut())
-                    && let Some(last) = messages.last_mut()
-                        && let Some(content_val) = last.get_mut("content") {
-                            *content_val = serde_json::Value::String(result.content);
-                        }
+            && let Some(messages) = obj.get_mut("messages").and_then(|m| m.as_array_mut())
+            && let Some(last) = messages.last_mut()
+            && let Some(content_val) = last.get_mut("content")
+        {
+            *content_val = serde_json::Value::String(result.content);
+        }
 
         let modified_body = request_json.clone();
 
         if let Some(messages) = modified_body.get("messages").and_then(|m| m.as_array()) {
-            let last_content = messages.last()
+            let last_content = messages
+                .last()
                 .and_then(|m| m.get("content").and_then(|c| c.as_str()))
                 .unwrap_or("");
-            info!("Prompt to llama-server: {} messages, last content ({} chars):\n{}", 
-                  messages.len(), last_content.len(), last_content);
+            info!(
+                "Prompt to llama-server: {} messages, last content ({} chars):\n{}",
+                messages.len(),
+                last_content.len(),
+                last_content
+            );
         }
 
-       let body_stream = futures_util::stream::once(async move {
+        let body_stream = futures_util::stream::once(async move {
             Ok::<Bytes, std::convert::Infallible>(Bytes::from(
-                serde_json::to_vec(&modified_body).unwrap_or(body_bytes.to_vec())
+                serde_json::to_vec(&modified_body).unwrap_or(body_bytes.to_vec()),
             ))
         });
 
@@ -208,24 +234,25 @@ async fn proxy_streaming(
         for (name, value) in headers.iter() {
             let n = name.as_str();
             if !HOP_BY_HOP.contains(&n) && n != "authorization" {
-            filtered.insert(name, value.clone());
+                filtered.insert(name, value.clone());
+            }
         }
+        request_builder = request_builder.headers(filtered);
+
+        let response = request_builder
+            .body(reqwest::Body::wrap_stream(body_stream))
+            .send()
+            .await;
+
+        let response = handle_response(response, &path).await;
+        return response.into_response();
     }
-    request_builder = request_builder.headers(filtered);
-
-    let response = request_builder
-        .body(reqwest::Body::wrap_stream(body_stream))
-        .send()
-        .await;
-
-    let response = handle_response(response, &path).await;
-    return response.into_response();
-}
 
     // Stream request body directly to backend (no drain to memory)
-    let body_stream = req.into_body().into_data_stream().map(|r| {
-        r.map_err(|e| std::io::Error::other(format!("{}", e)))
-    });
+    let body_stream = req
+        .into_body()
+        .into_data_stream()
+        .map(|r| r.map_err(|e| std::io::Error::other(format!("{}", e))));
 
     let mut request_builder = match method {
         axum::http::Method::GET => state.client.get(&url),
@@ -255,7 +282,7 @@ async fn proxy_streaming(
         .send()
         .await;
 
-     let response = handle_response(response, &path).await;
+    let response = handle_response(response, &path).await;
     response.into_response()
 }
 
@@ -358,7 +385,10 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
             {
                 Ok(resp) if resp.status().is_success() => {
                     let val: Option<serde_json::Value> = resp.json().await.ok();
-                    let data = val.as_ref().and_then(|v| v.get("data")).and_then(|d| d.as_array());
+                    let data = val
+                        .as_ref()
+                        .and_then(|v| v.get("data"))
+                        .and_then(|d| d.as_array());
                     let c = data.map(|a| a.len()).unwrap_or(0);
                     let mut cache = state.status_cache.write().unwrap();
                     cache.models = c;
@@ -385,7 +415,7 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     }))
 }
 
-  pub async fn start_api_server(
+pub async fn start_api_server(
     addr: SocketAddr,
     api_key: Option<String>,
     server_port: u16,

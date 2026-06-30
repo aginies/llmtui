@@ -44,7 +44,9 @@ impl OverlayHandler for ConfirmationHandler {
                         execute_confirmation(app, kind_copy, display_name_copy, detail_copy).await;
                         if matches!(kind_copy, ConfirmationKind::DeleteBackend) {
                             let new_entries = app.fetch_backend_picker_entries();
-                            let new_selected = picker_selected.unwrap_or(0).min(new_entries.len().saturating_sub(1));
+                            let new_selected = picker_selected
+                                .unwrap_or(0)
+                                .min(new_entries.len().saturating_sub(1));
                             app.ui.global_mode = GlobalMode::BackendPicker {
                                 entries: new_entries,
                                 selected: new_selected,
@@ -57,7 +59,9 @@ impl OverlayHandler for ConfirmationHandler {
                         app.pending.pending_api_unload = None;
                         if matches!(kind_ref, ConfirmationKind::DeleteBackend) {
                             let new_entries = app.fetch_backend_picker_entries();
-                            let new_selected = picker_selected.unwrap_or(0).min(new_entries.len().saturating_sub(1));
+                            let new_selected = picker_selected
+                                .unwrap_or(0)
+                                .min(new_entries.len().saturating_sub(1));
                             app.ui.global_mode = GlobalMode::BackendPicker {
                                 entries: new_entries,
                                 selected: new_selected,
@@ -71,10 +75,13 @@ impl OverlayHandler for ConfirmationHandler {
                         if *selected {
                             let display_name_copy = display_name.clone();
                             let detail_copy = detail.clone();
-                            execute_confirmation(app, kind_enter, display_name_copy, detail_copy).await;
+                            execute_confirmation(app, kind_enter, display_name_copy, detail_copy)
+                                .await;
                             if matches!(kind_enter, ConfirmationKind::DeleteBackend) {
                                 let new_entries = app.fetch_backend_picker_entries();
-                                let new_selected = picker_selected.unwrap_or(0).min(new_entries.len().saturating_sub(1));
+                                let new_selected = picker_selected
+                                    .unwrap_or(0)
+                                    .min(new_entries.len().saturating_sub(1));
                                 app.ui.global_mode = GlobalMode::BackendPicker {
                                     entries: new_entries,
                                     selected: new_selected,
@@ -102,7 +109,9 @@ impl OverlayHandler for ConfirmationHandler {
                         app.pending.pending_api_unload = None;
                         if matches!(kind_ref, ConfirmationKind::DeleteBackend) {
                             let new_entries = app.fetch_backend_picker_entries();
-                            let new_selected = picker_selected.unwrap_or(0).min(new_entries.len().saturating_sub(1));
+                            let new_selected = picker_selected
+                                .unwrap_or(0)
+                                .min(new_entries.len().saturating_sub(1));
                             app.ui.global_mode = GlobalMode::BackendPicker {
                                 entries: new_entries,
                                 selected: new_selected,

@@ -238,18 +238,14 @@ impl App {
                     let val_a = meta_a
                         .map(|m| {
                             let trimmed = m.model_parameters.trim();
-                            let num_str = trimmed
-                                .trim_end_matches(['B', 'b'])
-                                .trim();
+                            let num_str = trimmed.trim_end_matches(['B', 'b']).trim();
                             num_str.parse::<f64>().unwrap_or(0.0)
                         })
                         .unwrap_or(0.0);
                     let val_b = meta_b
                         .map(|m| {
                             let trimmed = m.model_parameters.trim();
-                            let num_str = trimmed
-                                .trim_end_matches(['B', 'b'])
-                                .trim();
+                            let num_str = trimmed.trim_end_matches(['B', 'b']).trim();
                             num_str.parse::<f64>().unwrap_or(0.0)
                         })
                         .unwrap_or(0.0);
@@ -323,51 +319,51 @@ fn is_quantization_suffix(suffix: &str) -> bool {
     }
     let rest = &suffix[1..];
 
-       if let Some(after_q) = rest.strip_prefix('q')
-            && after_q
+    if let Some(after_q) = rest.strip_prefix('q')
+        && after_q
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
             .unwrap_or(false)
-        {
-            return true;
-        }
-       if let Some(after_iq) = rest.strip_prefix("iq")
-            && after_iq
+    {
+        return true;
+    }
+    if let Some(after_iq) = rest.strip_prefix("iq")
+        && after_iq
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
             .unwrap_or(false)
-        {
-            return true;
-        }
-       if let Some(after_fp) = rest.strip_prefix("fp")
-            && after_fp
+    {
+        return true;
+    }
+    if let Some(after_fp) = rest.strip_prefix("fp")
+        && after_fp
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
             .unwrap_or(false)
-        {
-            return true;
-        }
-       if let Some(after_bf) = rest.strip_prefix("bf")
-            && after_bf
+    {
+        return true;
+    }
+    if let Some(after_bf) = rest.strip_prefix("bf")
+        && after_bf
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
             .unwrap_or(false)
-        {
-            return true;
-        }
-       if let Some(after_f) = rest.strip_prefix('f')
-            && after_f
+    {
+        return true;
+    }
+    if let Some(after_f) = rest.strip_prefix('f')
+        && after_f
             .chars()
             .next()
             .map(|c| c.is_ascii_digit())
             .unwrap_or(false)
-        {
-            return true;
-        }
+    {
+        return true;
+    }
     false
 }
 
@@ -401,9 +397,10 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
                 return true;
             }
             if let Some(next_char) = display_name_lower[model_id_lower.len()..].chars().next()
-                && next_char == '/' {
-                    return true;
-                }
+                && next_char == '/'
+            {
+                return true;
+            }
         }
 
         let local_parts: Vec<&str> = model.display_name.split('/').collect();
@@ -415,9 +412,10 @@ pub fn model_is_downloaded(models: &[crate::models::DiscoveredModel], model_id: 
 
         // If both authors are specified, they must match (case-insensitively)
         if let (Some(ra), Some(la)) = (repo_author, local_author)
-            && ra.to_lowercase() != la.to_lowercase() {
-                continue;
-            }
+            && ra.to_lowercase() != la.to_lowercase()
+        {
+            continue;
+        }
 
         let mut local_name = model.name.to_lowercase().replace('_', "-");
         if local_name.ends_with(".gguf") {

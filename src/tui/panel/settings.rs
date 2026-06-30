@@ -117,13 +117,9 @@ fn render_settings(
         // Section header
         if field.is_new_section(prev_section) {
             let section_style = if disabled {
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::DIM)
+                Style::default().fg(ACCENT).add_modifier(Modifier::DIM)
             } else {
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
             };
             lines.push(Line::from(vec![Span::styled(
                 format!("━━━ {} ━━━", field.section),

@@ -39,9 +39,7 @@ impl MdRenderer {
             pending: Vec::new(),
             current_style: Style::default(),
             in_code_block: false,
-            code_block_style: Style::default()
-                .fg(GREEN)
-                .add_modifier(Modifier::DIM),
+            code_block_style: Style::default().fg(GREEN).add_modifier(Modifier::DIM),
             indent: 0,
             list_marker: None,
             in_list: false,
@@ -108,23 +106,22 @@ impl MdRenderer {
 
     fn handle_start(&mut self, tag: Tag) {
         match tag {
-            Tag::CodeBlock(_)
-                if !self.in_code_block => {
-                    self.flush_line();
-                    self.in_code_block = true;
-                }
+            Tag::CodeBlock(_) if !self.in_code_block => {
+                self.flush_line();
+                self.in_code_block = true;
+            }
             Tag::Paragraph => {}
             Tag::Heading { level, .. } => {
                 self.current_style = match level {
-                    pulldown_cmark::HeadingLevel::H1 => Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                    pulldown_cmark::HeadingLevel::H2 => Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
-                    pulldown_cmark::HeadingLevel::H3 => Style::default()
-                        .fg(MAGENTA)
-                        .add_modifier(Modifier::BOLD),
+                    pulldown_cmark::HeadingLevel::H1 => {
+                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                    }
+                    pulldown_cmark::HeadingLevel::H2 => {
+                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                    }
+                    pulldown_cmark::HeadingLevel::H3 => {
+                        Style::default().fg(MAGENTA).add_modifier(Modifier::BOLD)
+                    }
                     _ => Style::default().add_modifier(Modifier::BOLD),
                 };
             }
@@ -156,12 +153,11 @@ impl MdRenderer {
 
     fn handle_end(&mut self, tag: TagEnd) {
         match tag {
-            TagEnd::CodeBlock
-                if self.in_code_block => {
-                    self.flush_code_block();
-                    self.in_code_block = false;
-                    self.current_style = Style::default();
-                }
+            TagEnd::CodeBlock if self.in_code_block => {
+                self.flush_code_block();
+                self.in_code_block = false;
+                self.current_style = Style::default();
+            }
             TagEnd::Paragraph => {
                 self.flush_line();
                 self.lines.push(Line::from(""));
@@ -173,10 +169,9 @@ impl MdRenderer {
                 self.list_marker = None;
             }
             TagEnd::Item => {}
-            TagEnd::BlockQuote(_)
-                if self.blockquote_depth > 0 => {
-                    self.blockquote_depth -= 1;
-                }
+            TagEnd::BlockQuote(_) if self.blockquote_depth > 0 => {
+                self.blockquote_depth -= 1;
+            }
             TagEnd::TableHead => {
                 self.flush_table_row();
                 self.table_is_header = false;
@@ -184,11 +179,10 @@ impl MdRenderer {
             TagEnd::TableRow => {
                 self.flush_table_row();
             }
-            TagEnd::Table
-                if self.in_table => {
-                    self.flush_table_row();
-                    self.in_table = false;
-                }
+            TagEnd::Table if self.in_table => {
+                self.flush_table_row();
+                self.in_table = false;
+            }
             TagEnd::TableCell => {}
             TagEnd::Heading(_) => {
                 self.flush_line();
@@ -430,11 +424,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
         .collect();
 
     let is_focused = app.ui.active_panel == crate::tui::app::ActivePanel::SearchReadme;
-    let border_color = if is_focused {
-        GREEN
-    } else {
-        LIGHT_GRAY
-    };
+    let border_color = if is_focused { GREEN } else { LIGHT_GRAY };
     let title_color = if is_focused { GREEN } else { ACCENT };
     let block = Block::default()
         .title(crate::t!("panel.title.readme"))

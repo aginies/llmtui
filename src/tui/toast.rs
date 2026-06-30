@@ -5,10 +5,10 @@ use ratatui::{
     text::Line,
     widgets::{Block, Borders, Paragraph},
 };
-use std::time::Instant;
 use std::collections::VecDeque;
+use std::time::Instant;
 
-use crate::tui::colors::{WHITE, BG_DARK};
+use crate::tui::colors::{BG_DARK, WHITE};
 
 pub const TOAST_MAX_WIDTH: u16 = 50;
 pub const TOAST_MAX_ITEMS: usize = 3;
@@ -73,7 +73,10 @@ pub fn render_toasts(f: &mut Frame, area: Rect, toasts: &VecDeque<Toast>) {
     for (i, toast) in toasts.iter().enumerate() {
         let y = start_y + (i as u16 * toast_height);
         let toast_area = Rect {
-            x: area.right().saturating_sub(TOAST_MAX_WIDTH).saturating_sub(2),
+            x: area
+                .right()
+                .saturating_sub(TOAST_MAX_WIDTH)
+                .saturating_sub(2),
             y,
             width: TOAST_MAX_WIDTH,
             height: toast_height.min(area.height.saturating_sub(y)),

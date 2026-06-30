@@ -303,7 +303,7 @@ impl App {
             }
         }
 
-    if changed {
+        if changed {
             self.ui.needs_redraw = true;
         }
     }
@@ -324,7 +324,9 @@ impl App {
     }
 
     pub fn add_toast(&mut self, text: impl Into<String>, level: crate::tui::toast::ToastLevel) {
-        self.ui.toast_queue.push_front(crate::tui::toast::Toast::new(text, level));
+        self.ui
+            .toast_queue
+            .push_front(crate::tui::toast::Toast::new(text, level));
         while self.ui.toast_queue.len() > crate::tui::toast::TOAST_MAX_ITEMS {
             self.ui.toast_queue.pop_back();
         }

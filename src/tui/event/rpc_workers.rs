@@ -93,31 +93,30 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.settings_state.settings_edit_buffer.insert(byte_idx, c);
                 app.edit.edit_cursor_pos += 1;
             }
-            KeyCode::Backspace
-                if app.edit.edit_cursor_pos > 0 => {
-                    app.edit.edit_cursor_pos -= 1;
-                    let byte_idx = app
-                        .settings_state
-                        .settings_edit_buffer
-                        .char_indices()
-                        .nth(app.edit.edit_cursor_pos)
-                        .map(|(i, _)| i)
-                        .unwrap_or(0);
-                    app.settings_state.settings_edit_buffer.remove(byte_idx);
-                }
+            KeyCode::Backspace if app.edit.edit_cursor_pos > 0 => {
+                app.edit.edit_cursor_pos -= 1;
+                let byte_idx = app
+                    .settings_state
+                    .settings_edit_buffer
+                    .char_indices()
+                    .nth(app.edit.edit_cursor_pos)
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                app.settings_state.settings_edit_buffer.remove(byte_idx);
+            }
             KeyCode::Delete
                 if app.edit.edit_cursor_pos
-                    < app.settings_state.settings_edit_buffer.chars().count()
-                => {
-                    let byte_idx = app
-                        .settings_state
-                        .settings_edit_buffer
-                        .char_indices()
-                        .nth(app.edit.edit_cursor_pos)
-                        .map(|(i, _)| i)
-                        .unwrap_or(app.settings_state.settings_edit_buffer.len());
-                    app.settings_state.settings_edit_buffer.remove(byte_idx);
-                }
+                    < app.settings_state.settings_edit_buffer.chars().count() =>
+            {
+                let byte_idx = app
+                    .settings_state
+                    .settings_edit_buffer
+                    .char_indices()
+                    .nth(app.edit.edit_cursor_pos)
+                    .map(|(i, _)| i)
+                    .unwrap_or(app.settings_state.settings_edit_buffer.len());
+                app.settings_state.settings_edit_buffer.remove(byte_idx);
+            }
             KeyCode::Left => {
                 app.edit.edit_cursor_pos = app.edit.edit_cursor_pos.saturating_sub(1);
             }
@@ -167,21 +166,21 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.picker.editing_rpc_worker = Some(app.picker.rpc_workers_selected_idx);
                     app.settings_state.settings_edit_buffer =
                         format!("{}, {}, {}", worker.name, worker.ip, worker.port);
-                    app.edit.edit_cursor_pos = app.settings_state.settings_edit_buffer.chars().count();
+                    app.edit.edit_cursor_pos =
+                        app.settings_state.settings_edit_buffer.chars().count();
                 }
             }
-            KeyCode::Char('d')
-                if !app.config.rpc_workers.is_empty() => {
-                    app.config
-                        .rpc_workers
-                        .remove(app.picker.rpc_workers_selected_idx);
-                    if app.picker.rpc_workers_selected_idx >= app.config.rpc_workers.len()
-                        && !app.config.rpc_workers.is_empty()
-                    {
-                        app.picker.rpc_workers_selected_idx = app.config.rpc_workers.len() - 1;
-                    }
-                    let _ = app.config.save();
+            KeyCode::Char('d') if !app.config.rpc_workers.is_empty() => {
+                app.config
+                    .rpc_workers
+                    .remove(app.picker.rpc_workers_selected_idx);
+                if app.picker.rpc_workers_selected_idx >= app.config.rpc_workers.len()
+                    && !app.config.rpc_workers.is_empty()
+                {
+                    app.picker.rpc_workers_selected_idx = app.config.rpc_workers.len() - 1;
                 }
+                let _ = app.config.save();
+            }
             _ => {}
         }
     }

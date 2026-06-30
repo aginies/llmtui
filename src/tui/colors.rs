@@ -61,11 +61,8 @@ pub const VRAM_RED: Color = Color::Rgb(248, 113, 113);
 // ── Common Style patterns ────────────────────────────────────────────────────
 
 /// Panel title / section header: accent text, bold.
-pub static TITLE: LazyLock<Style> = LazyLock::new(|| {
-    Style::default()
-        .fg(ACCENT)
-        .add_modifier(Modifier::BOLD)
-});
+pub static TITLE: LazyLock<Style> =
+    LazyLock::new(|| Style::default().fg(ACCENT).add_modifier(Modifier::BOLD));
 
 /// Secondary / dimmed text (timestamps, footers, descriptions).
 pub static DIM_TEXT: LazyLock<Style> = LazyLock::new(|| Style::default().fg(DIM_GRAY));

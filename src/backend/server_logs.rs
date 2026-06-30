@@ -48,7 +48,11 @@ pub fn parse_log_line(line: &str, prev_line: Option<&str>) -> (ServerLogMetrics,
         }
         // progress = Y
         if let Some(progress_part) = line.split("progress =").last() {
-            let val_str = progress_part.split(',').next().unwrap_or(progress_part).trim();
+            let val_str = progress_part
+                .split(',')
+                .next()
+                .unwrap_or(progress_part)
+                .trim();
             if let Ok(progress) = val_str.parse::<f64>() {
                 metrics.prompt_progress = Some(progress);
             }
@@ -57,7 +61,11 @@ pub fn parse_log_line(line: &str, prev_line: Option<&str>) -> (ServerLogMetrics,
         let mut parsed = false;
         // Pattern 1: "t = X.XX"
         if let Some(t_part) = line.split("t =").last() {
-            let val_str = t_part.split_whitespace().find(|s| !s.is_empty()).unwrap_or("").trim();
+            let val_str = t_part
+                .split_whitespace()
+                .find(|s| !s.is_empty())
+                .unwrap_or("")
+                .trim();
             if let Ok(t) = val_str.parse::<f64>() {
                 metrics.prompt_elapsed_ms = Some(t * 1000.0);
                 parsed = true;

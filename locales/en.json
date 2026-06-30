@@ -236,6 +236,7 @@
   "dialog.bench_config.generates": " Generates {} combinations ",
   "dialog.bench_config.toggle": "Toggle",
   "dialog.rpc.title": " RPC Workers Manager ",
+  "dialog.cmdline.title": " CmdLine — ⎋ to close  e to export ",
   "dialog.about.title": " About ",
   "dialog.max_concurrent.title": " Max Concurrent Predictions ",
   "dialog.max_concurrent.divides": "This divides the context length per loaded model: ",

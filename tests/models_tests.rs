@@ -353,17 +353,20 @@ fn backend_is_macos_non_macos() {
 
 #[test]
 fn backend_from_str_variants() {
-    assert_eq!(         Backend::parse_backend("cpu"), Backend::Cpu);
-    assert_eq!(         Backend::parse_backend("CPU"), Backend::Cpu);
-    assert_eq!(         Backend::parse_backend("vulkan"), Backend::Vulkan);
-    assert_eq!(         Backend::parse_backend("vk"), Backend::Vulkan);
-    assert_eq!(         Backend::parse_backend("rocm"), Backend::Rocm);
-    assert_eq!(         Backend::parse_backend("ro"), Backend::Rocm);
-    assert_eq!(         Backend::parse_backend("rocm-lemonade"), Backend::RocmLemonade);
-    assert_eq!(         Backend::parse_backend("cuda"), Backend::Cuda);
-    assert_eq!(         Backend::parse_backend("cu"), Backend::Cuda);
+    assert_eq!(Backend::parse_backend("cpu"), Backend::Cpu);
+    assert_eq!(Backend::parse_backend("CPU"), Backend::Cpu);
+    assert_eq!(Backend::parse_backend("vulkan"), Backend::Vulkan);
+    assert_eq!(Backend::parse_backend("vk"), Backend::Vulkan);
+    assert_eq!(Backend::parse_backend("rocm"), Backend::Rocm);
+    assert_eq!(Backend::parse_backend("ro"), Backend::Rocm);
+    assert_eq!(
+        Backend::parse_backend("rocm-lemonade"),
+        Backend::RocmLemonade
+    );
+    assert_eq!(Backend::parse_backend("cuda"), Backend::Cuda);
+    assert_eq!(Backend::parse_backend("cu"), Backend::Cuda);
     // Unknown defaults to Cpu
-    assert_eq!(         Backend::parse_backend("unknown"), Backend::Cpu);
+    assert_eq!(Backend::parse_backend("unknown"), Backend::Cpu);
 }
 
 #[test]
@@ -895,7 +898,7 @@ fn test_ws_metrics_from_metrics_prompt_tokens() {
         gen_tps: 0.0,
         latency_per_token_ms: 0.0,
         prompt_latency_ms: 0.0,
-        prompt_tokens: 512, // Actual prompt tokens
+        prompt_tokens: 512,   // Actual prompt tokens
         prompt_progress: 0.5, // 50% evaluated
         prompt_elapsed_ms: 120.0,
         prompt_tps_eval: 200.0,
@@ -934,8 +937,8 @@ fn test_gguf_metadata_invalid_file_no_panic() {
     let err_msg = result.unwrap_err().to_string();
     // It should fail gracefully (either because the library returns Err or because it catches a panic if any)
     assert!(
-        err_msg.contains("Failed to get GGUF container") 
-        || err_msg.contains("Failed to decode") 
-        || err_msg.contains("panicked")
+        err_msg.contains("Failed to get GGUF container")
+            || err_msg.contains("Failed to decode")
+            || err_msg.contains("panicked")
     );
 }

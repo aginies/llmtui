@@ -313,9 +313,7 @@ pub fn all_fields() -> Vec<SettingField> {
             "context_length",
             "Context",
             "Loading",
-            |s| {
-                format_context_k(s.context_length, s.rope_yarn_enabled, s.rope_scale)
-            },
+            |s| format_context_k(s.context_length, s.rope_yarn_enabled, s.rope_scale),
             |s, c| s.context_length != c.context_length,
             |s, delta, ctx_limit| {
                 let mut val = (s.context_length as i32 + delta * 128).max(128) as u32;
@@ -1215,8 +1213,7 @@ pub fn add_setting(
         Style::default().fg(ACCENT)
     };
     let val_style = if disabled {
-        Style::default()
-            .fg(GRAY)
+        Style::default().fg(GRAY)
     } else {
         Style::default().fg(WHITE)
     };
@@ -1226,22 +1223,20 @@ pub fn add_setting(
         lines.push(Line::from(vec![
             Span::styled(
                 "> ",
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(if disabled {
-                        Modifier::DIM
-                    } else {
-                        Modifier::BOLD
-                    }),
+                Style::default().fg(ACCENT).add_modifier(if disabled {
+                    Modifier::DIM
+                } else {
+                    Modifier::BOLD
+                }),
             ),
             Span::styled(format!("{name}: "), name_style),
             Span::styled(
-                 val.to_string(),
-                 Style::default()
-                     .fg(BLACK)
-                     .bg(ACCENT)
-                     .add_modifier(Modifier::BOLD),
-             ),
+                val.to_string(),
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]));
     } else {
         lines.push(Line::from(vec![
@@ -1315,13 +1310,14 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_string!(parts, s, current, tensor_split, "tensor_split");
     diff_string!(parts, s, current, rpc, "rpc");
     if s.chat_template != current.chat_template
-        && let Some(ref v) = s.chat_template {
-            let filename = std::path::Path::new(v)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or(v);
-            parts.push(format!("chat_template={}", filename));
-        }
+        && let Some(ref v) = s.chat_template
+    {
+        let filename = std::path::Path::new(v)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(v);
+        parts.push(format!("chat_template={}", filename));
+    }
     diff_option!(
         parts,
         s,

@@ -118,7 +118,7 @@ async fn main() -> Result<()> {
             profile,
             config,
             model_config,
-          api_port,
+            api_port,
             api_key,
             ws_enable,
             ws_port,
@@ -162,7 +162,7 @@ async fn main() -> Result<()> {
                 profile_name: profile,
                 config_path: config,
                 model_config_path: model_config,
-            api_port,
+                api_port,
                 api_key,
                 ws_enable,
                 ws_port,
@@ -303,7 +303,7 @@ async fn main() -> Result<()> {
                     app.tick_server_logs();
                     app.tick_metrics();
                     app.tick_sync();
-               app.tick_spinner();
+                    app.tick_spinner();
                     app.tick_loading_progress();
                     app.tick_text_scrolls();
                     app.tick_toasts();
@@ -467,7 +467,8 @@ async fn main() -> Result<()> {
                 {
                     match event {
                         crossterm::event::Event::Key(key)
-                            if key.kind != crossterm::event::KeyEventKind::Release => {
+                            if key.kind != crossterm::event::KeyEventKind::Release =>
+                        {
                             tui::event::handle_key(&mut app, key).await;
                         }
                         crossterm::event::Event::Mouse(mouse) => {

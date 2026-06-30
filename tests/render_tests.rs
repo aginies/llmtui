@@ -374,13 +374,13 @@ fn test_active_model_panel_renders() {
         total_vram_used: 8_000,
         decoded_tokens: 0,
         gen_tps: 0.0,
-      latency_per_token_ms: 0.0,
-            prompt_latency_ms: 0.0,
-            prompt_tokens: 0,
-            prompt_progress: 0.0,
-            prompt_elapsed_ms: 0.0,
-            prompt_tps_eval: 0.0,
-        };
+        latency_per_token_ms: 0.0,
+        prompt_latency_ms: 0.0,
+        prompt_tokens: 0,
+        prompt_progress: 0.0,
+        prompt_elapsed_ms: 0.0,
+        prompt_tps_eval: 0.0,
+    };
     let _terminal = make_terminal(&mut app);
 }
 
@@ -399,7 +399,7 @@ fn test_active_model_panel_router_mode_not_loaded_renders() {
     app.selected_model_idx = Some(0);
     app.pending.active_model_hint_dirty = true;
     app.ui.active_panel = ActivePanel::ActiveModel;
-    
+
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     let text: String = buffer.content.iter().map(|c| c.symbol()).collect();
@@ -420,7 +420,13 @@ fn test_active_model_panel_router_mode_loaded_renders() {
         capabilities: vec![],
     }];
     app.selected_model_idx = Some(0);
-    app.model_states.insert("test.gguf".to_string(), ModelState::Loaded { port: 8080, pid: 1234 });
+    app.model_states.insert(
+        "test.gguf".to_string(),
+        ModelState::Loaded {
+            port: 8080,
+            pid: 1234,
+        },
+    );
     app.pending.active_model_hint_dirty = true;
     app.ui.active_panel = ActivePanel::ActiveModel;
     app.metrics = ServerMetrics {
@@ -443,7 +449,7 @@ fn test_active_model_panel_router_mode_loaded_renders() {
         prompt_elapsed_ms: 0.0,
         prompt_tps_eval: 0.0,
     };
-    
+
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     let text: String = buffer.content.iter().map(|c| c.symbol()).collect();

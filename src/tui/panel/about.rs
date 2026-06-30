@@ -6,9 +6,7 @@ use ratatui::{
 
 pub fn render_about() -> Vec<Line<'static>> {
     let mut lines = Vec::new();
-    let y = Style::default()
-        .fg(ACCENT)
-        .add_modifier(Modifier::BOLD);
+    let y = Style::default().fg(ACCENT).add_modifier(Modifier::BOLD);
     let c = Style::default().fg(CYAN);
     let gray = Style::default().fg(DIM_GRAY);
 
@@ -43,9 +41,7 @@ pub fn render_about() -> Vec<Line<'static>> {
         Span::raw("License: "),
         Span::styled(
             "GNU GPLv3",
-            Style::default()
-                .fg(GREEN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
         ),
     ]));
     lines.push(Line::from(""));

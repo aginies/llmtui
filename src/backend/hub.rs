@@ -261,7 +261,7 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
         "https://huggingface.co/api/models/{}/tree/{}",
         model_id, branch
     );
-   let client = reqwest::Client::builder()
+    let client = reqwest::Client::builder()
         .user_agent(super::USER_AGENT)
         .build()
         .unwrap();
@@ -987,7 +987,9 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
         let mut archive = zip::ZipArchive::new(file)?;
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i)?;
-            let file_name = entry.enclosed_name().ok_or(anyhow::anyhow!("Invalid path in zip"))?;
+            let file_name = entry
+                .enclosed_name()
+                .ok_or(anyhow::anyhow!("Invalid path in zip"))?;
 
             let full_path = dest_dir.join(&file_name);
             if !full_path.starts_with(&dest_dir) {

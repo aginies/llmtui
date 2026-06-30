@@ -20,17 +20,13 @@ pub fn render_all<'a>(
         if selected < presets.len() {
             lines.push(Line::from(vec![Span::styled(
                 format!("Editing: {}", presets[selected].name),
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(""));
         } else {
             lines.push(Line::from(vec![Span::styled(
                 "Creating new preset",
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(""));
         }
@@ -44,10 +40,7 @@ pub fn render_all<'a>(
             let line_chars: Vec<char> = line.chars().collect();
 
             if line_chars.is_empty() && current_char_idx == edit_cursor_pos {
-                spans.push(Span::styled(
-                    "_",
-                    Style::default().fg(BLACK).bg(ACCENT),
-                ));
+                spans.push(Span::styled("_", Style::default().fg(BLACK).bg(ACCENT)));
             } else {
                 for &ch in line_chars.iter() {
                     if current_char_idx == edit_cursor_pos {
@@ -63,10 +56,7 @@ pub fn render_all<'a>(
 
                 // If cursor is at the end of this line
                 if current_char_idx == edit_cursor_pos {
-                    spans.push(Span::styled(
-                        "_",
-                        Style::default().fg(BLACK).bg(ACCENT),
-                    ));
+                    spans.push(Span::styled("_", Style::default().fg(BLACK).bg(ACCENT)));
                 }
             }
 
@@ -92,14 +82,9 @@ pub fn render_all<'a>(
         lines.push(Line::from(vec![
             Span::styled(
                 "System Prompt Presets",
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ),
-            Span::styled(
-                " — Select a preset to apply",
-                Style::default().fg(DIM_GRAY),
-            ),
+            Span::styled(" — Select a preset to apply", Style::default().fg(DIM_GRAY)),
         ]));
         lines.push(Line::from(""));
 

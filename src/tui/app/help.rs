@@ -5,9 +5,7 @@ use ratatui::text::{Line, Span};
 
 impl App {
     pub fn panel_help_lines(&self) -> Vec<Line<'static>> {
-        let y = Style::default()
-            .fg(ACCENT)
-            .add_modifier(Modifier::BOLD);
+        let y = Style::default().fg(ACCENT).add_modifier(Modifier::BOLD);
 
         match self.ui.active_panel {
             ActivePanel::Models => vec![
@@ -33,7 +31,10 @@ impl App {
                 ]),
                 Line::from(vec![
                     Span::styled("^G", y),
-                    Span::raw(format!("  {}", crate::t!("panel.help.models.gguf_explanation"))),
+                    Span::raw(format!(
+                        "  {}",
+                        crate::t!("panel.help.models.gguf_explanation")
+                    )),
                 ]),
                 Line::from(vec![
                     Span::styled("^S", y),

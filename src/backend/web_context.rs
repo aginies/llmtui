@@ -29,9 +29,18 @@ pub async fn build_injected_prompt(
     web_search_api_key: &str,
     log_callback: &std::sync::Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>,
 ) -> InjectedPrompt {
-    log(log_callback, format!("Web search: preset='{}', enabled={}", preset_name, web_search_enabled));
+    log(
+        log_callback,
+        format!(
+            "Web search: preset='{}', enabled={}",
+            preset_name, web_search_enabled
+        ),
+    );
     if !web_search_enabled {
-        log(log_callback, "Web search: disabled in config, skipping".into());
+        log(
+            log_callback,
+            "Web search: disabled in config, skipping".into(),
+        );
         return InjectedPrompt {
             content: String::new(),
             performed: false,
@@ -41,12 +50,18 @@ pub async fn build_injected_prompt(
     let messages_array = match messages.get("messages").and_then(|m| m.as_array()) {
         Some(m) => {
             info!("Web search: found {} messages", m.len());
-            log(log_callback, format!("Web search: found {} messages", m.len()));
+            log(
+                log_callback,
+                format!("Web search: found {} messages", m.len()),
+            );
             m
         }
         None => {
             info!("Web search: no messages array in request");
-            log(log_callback, "Web search: no messages array in request".into());
+            log(
+                log_callback,
+                "Web search: no messages array in request".into(),
+            );
             return InjectedPrompt {
                 content: String::new(),
                 performed: false,
@@ -67,7 +82,10 @@ pub async fn build_injected_prompt(
     let content = match user_content {
         Some(serde_json::Value::String(s)) => {
             info!("Web search: content is String ({} chars)", s.len());
-            log(log_callback, format!("Web search: content is String ({} chars)", s.len()));
+            log(
+                log_callback,
+                format!("Web search: content is String ({} chars)", s.len()),
+            );
             s.clone()
         }
         Some(serde_json::Value::Array(parts)) => {
@@ -86,20 +104,26 @@ pub async fn build_injected_prompt(
             }
             let joined = text_parts.join(" ");
             info!("Web search: joined content ({} chars)", joined.len());
-            log(log_callback, format!("Web search: joined content ({} chars)", joined.len()));
+            log(
+                log_callback,
+                format!("Web search: joined content ({} chars)", joined.len()),
+            );
             joined
         }
         _ => {
-            info!("Web search: content type is {:?}", user_content.map(|v| {
-                match v {
-                    serde_json::Value::Null => "null",
-                    serde_json::Value::Bool(_) => "bool",
-                    serde_json::Value::Number(_) => "number",
-                    serde_json::Value::String(_) => "string",
-                    serde_json::Value::Array(_) => "array",
-                    serde_json::Value::Object(_) => "object",
-                }
-            }));
+            info!(
+                "Web search: content type is {:?}",
+                user_content.map(|v| {
+                    match v {
+                        serde_json::Value::Null => "null",
+                        serde_json::Value::Bool(_) => "bool",
+                        serde_json::Value::Number(_) => "number",
+                        serde_json::Value::String(_) => "string",
+                        serde_json::Value::Array(_) => "array",
+                        serde_json::Value::Object(_) => "object",
+                    }
+                })
+            );
             log(log_callback, "Web search: unsupported content type".into());
             return InjectedPrompt {
                 content: String::new(),
@@ -109,24 +133,66 @@ pub async fn build_injected_prompt(
     };
 
     let needs = web_search::needs_search(&content);
-    info!("Web search: needs_search={} for '{}'", needs, &content[..content.char_indices().nth(80).map(|(i, _)| i).unwrap_or(content.len())]);
-    log(log_callback, format!("Web search: needs_search={} for '{}'", needs, &content[..content.char_indices().nth(80).map(|(i, _)| i).unwrap_or(content.len())]));
+    info!(
+        "Web search: needs_search={} for '{}'",
+        needs,
+        &content[..content
+            .char_indices()
+            .nth(80)
+            .map(|(i, _)| i)
+            .unwrap_or(content.len())]
+    );
+    log(
+        log_callback,
+        format!(
+            "Web search: needs_search={} for '{}'",
+            needs,
+            &content[..content
+                .char_indices()
+                .nth(80)
+                .map(|(i, _)| i)
+                .unwrap_or(content.len())]
+        ),
+    );
     if !needs {
-        log(log_callback, "Web search: no search keywords found, skipping".into());
+        log(
+            log_callback,
+            "Web search: no search keywords found, skipping".into(),
+        );
         return InjectedPrompt {
             content: String::new(),
             performed: false,
         };
     }
 
-    info!("Web search: triggering for message: {}", &content[..content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(content.len())]);
-    log(log_callback, format!("Web search: triggering for: '{}'", &content[..content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(content.len())]));
+    info!(
+        "Web search: triggering for message: {}",
+        &content[..content
+            .char_indices()
+            .nth(100)
+            .map(|(i, _)| i)
+            .unwrap_or(content.len())]
+    );
+    log(
+        log_callback,
+        format!(
+            "Web search: triggering for: '{}'",
+            &content[..content
+                .char_indices()
+                .nth(100)
+                .map(|(i, _)| i)
+                .unwrap_or(content.len())]
+        ),
+    );
 
     let query = content.to_string();
     let engine = web_search_engine.to_string();
     let engine_url = web_search_engine_url.to_string();
     let api_key = web_search_api_key.to_string();
-    log(log_callback, format!("Web search: engine={}, url={}", engine, engine_url));
+    log(
+        log_callback,
+        format!("Web search: engine={}, url={}", engine, engine_url),
+    );
     let search_handle = tokio::spawn(async move {
         web_search::gather_search_context(&query, &engine, &engine_url, &api_key).await
     });
@@ -134,7 +200,14 @@ pub async fn build_injected_prompt(
     let search_result = match tokio::time::timeout(WEB_SEARCH_TIMEOUT, search_handle).await {
         Ok(Ok(Ok((ctx, sources)))) => {
             info!("Web search: gathered context ({} chars)", ctx.len());
-            log(log_callback, format!("Web search: gathered {} chars, {} sources", ctx.len(), sources.len()));
+            log(
+                log_callback,
+                format!(
+                    "Web search: gathered {} chars, {} sources",
+                    ctx.len(),
+                    sources.len()
+                ),
+            );
             (ctx, sources)
         }
         Ok(Ok(Err(e))) => {
@@ -175,10 +248,16 @@ pub async fn build_injected_prompt(
             .map(|(i, url)| format!("{}. {}", i + 1, url))
             .collect::<Vec<_>>()
             .join("\n");
-        format!("\n\n---\n\n**Sources:**\n{}\n\n**When using information from these sources, display the original URL as a reference.**", sources_list)
+        format!(
+            "\n\n---\n\n**Sources:**\n{}\n\n**When using information from these sources, display the original URL as a reference.**",
+            sources_list
+        )
     };
 
-    info!("Web search: gathered context ({} chars)", search_context.len());
+    info!(
+        "Web search: gathered context ({} chars)",
+        search_context.len()
+    );
 
     let new_content = format!(
         "[WEB CONTEXT]\nINSTRUCTION: Cite sources using inline markdown links in your answer. Format: [source name](URL). Place links directly after the facts they support. If you find PDF link, add them to the list with brief description. Do NOT include claims you cannot verify.\n\n{}\n[END WEB CONTEXT]\n\n{}\n\n---\n\n{}",
@@ -186,7 +265,10 @@ pub async fn build_injected_prompt(
     );
 
     if let Some(cb) = log_callback.lock().unwrap().as_ref() {
-        cb(format!("Web search: results injected ({} chars)", search_context.len()));
+        cb(format!(
+            "Web search: results injected ({} chars)",
+            search_context.len()
+        ));
     }
 
     InjectedPrompt {

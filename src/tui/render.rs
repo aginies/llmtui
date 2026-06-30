@@ -1,15 +1,15 @@
 use ratatui::{
-     Frame,
-     style::{Modifier, Style},
-     text::{Line, Span},
-     widgets::{Block, BorderType, Borders, Paragraph},
- };
+    Frame,
+    style::{Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, BorderType, Borders, Paragraph},
+};
 
- use crate::tui::app::{ActivePanel, App, ModelsMode};
- use crate::tui::colors::*;
- use crate::tui::panel;
- use crate::tui::toast;
- use crate::tui::render_vertical_scrollbar;
+use crate::tui::app::{ActivePanel, App, ModelsMode};
+use crate::tui::colors::*;
+use crate::tui::panel;
+use crate::tui::render_vertical_scrollbar;
+use crate::tui::toast;
 
 mod hints;
 mod onboarding;
@@ -72,8 +72,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     };
 
     let status_lines = status::render_status_bar(app, chunks[0]);
-    let status_block = Block::default()
-        .style(Style::default().bg(BG_DARK));
+    let status_block = Block::default().style(Style::default().bg(BG_DARK));
     f.render_widget(Paragraph::new(status_lines).block(status_block), chunks[0]);
 
     if app.log.log_expanded {
@@ -227,7 +226,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             }
         }
         _ => {
-   let show_readme = matches!(app.models_mode, ModelsMode::Search { .. });
+            let show_readme = matches!(app.models_mode, ModelsMode::Search { .. });
             if show_readme {
                 panel::readme::render(f, top_chunks[1], app);
             } else {
@@ -286,14 +285,14 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .map(|d| d.bytes_per_second)
             .sum();
         let downloads_focused = app.ui.active_panel == ActivePanel::Downloads;
-    panel::models::render_download_panel(
-             f,
-             bottom_area,
-             &app.download.download_progress,
-             total_speed,
-             &mut app.download.download_scroll_state,
-             downloads_focused,
-         );
+        panel::models::render_download_panel(
+            f,
+            bottom_area,
+            &app.download.download_progress,
+            total_speed,
+            &mut app.download.download_scroll_state,
+            downloads_focused,
+        );
     }
 
     toast::render_toasts(f, f.area(), &app.ui.toast_queue);

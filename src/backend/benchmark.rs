@@ -17,11 +17,7 @@ const REQUEST_TIMEOUT_SECS: u64 = 120;
 
 /// Wait for the server to become healthy.
 /// Returns true if health check passes, false on timeout.
-async fn wait_for_server_ready(
-    host: &str,
-    port: u16,
-    log_tx: &mpsc::Sender<String>,
-) -> bool {
+async fn wait_for_server_ready(host: &str, port: u16, log_tx: &mpsc::Sender<String>) -> bool {
     for i in 0..HEALTH_CHECK_ITERATIONS {
         if crate::backend::server::check_health(host, port).await {
             return true;

@@ -52,7 +52,8 @@ impl OverlayHandler for WebSearchPickerHandler {
                             *engine_picker_selected = engine_picker_selected.saturating_sub(1);
                         }
                         KeyCode::Down | KeyCode::Char('j') => {
-                            *engine_picker_selected = (*engine_picker_selected + 1).min(engines.len() - 1);
+                            *engine_picker_selected =
+                                (*engine_picker_selected + 1).min(engines.len() - 1);
                         }
                         KeyCode::Char(c) if c.is_ascii_digit() => {
                             let idx = c.to_digit(10).unwrap() as usize;
@@ -94,69 +95,73 @@ impl OverlayHandler for WebSearchPickerHandler {
                             return;
                         }
                         match *selected_field {
-                             -1 => {
-                                 // Toggle enabled
-                                 *enabled = !*enabled;
-                                 app.config.default.web_search_enabled = *enabled;
-                                 if *enabled && !engine_url.is_empty() {
-                                     let engine = engine.clone();
-                                     let engine_url = engine_url.clone();
-                                     let api_key = api_key.clone();
-                                     *check_status = Some(WebSearchCheckStatus::Checking);
-                                     app.ui.needs_redraw = true;
-                                     let handle = tokio::spawn(async move {
-                                         check_web_search_health(&engine, &engine_url, api_key.as_deref().unwrap_or("")).await
-                                     });
-                                     app.pending.web_search_check_handle = Some(handle);
-                                 } else if *enabled {
-                                     *check_status = None;
-                                 }
-                             }
+                            -1 => {
+                                // Toggle enabled
+                                *enabled = !*enabled;
+                                app.config.default.web_search_enabled = *enabled;
+                                if *enabled && !engine_url.is_empty() {
+                                    let engine = engine.clone();
+                                    let engine_url = engine_url.clone();
+                                    let api_key = api_key.clone();
+                                    *check_status = Some(WebSearchCheckStatus::Checking);
+                                    app.ui.needs_redraw = true;
+                                    let handle = tokio::spawn(async move {
+                                        check_web_search_health(
+                                            &engine,
+                                            &engine_url,
+                                            api_key.as_deref().unwrap_or(""),
+                                        )
+                                        .await
+                                    });
+                                    app.pending.web_search_check_handle = Some(handle);
+                                } else if *enabled {
+                                    *check_status = None;
+                                }
+                            }
                             0 => {
                                 // Open engine picker
                                 let current = engine.as_str();
                                 let engines = ["searxng"];
-                                *engine_picker_selected = engines.iter().position(|e| *e == current).unwrap_or(0);
+                                *engine_picker_selected =
+                                    engines.iter().position(|e| *e == current).unwrap_or(0);
                                 *selected_field = -2; // sentinel for engine picker
                             }
                             1 => {
-                                 // Edit URL
-                                 edit_buffer.clone_from(engine_url);
-                                 *editing = true;
-                                 *edit_cursor_pos = edit_buffer.chars().count();
-                                 *check_status = None;
-                             }
-                             2 => {
-                                 // Edit API key
-                                 edit_buffer.clear();
-                                 if let Some(ref key) = *api_key {
-                                     edit_buffer.push_str(key);
-                                 }
-                                 *editing = true;
-                                 *edit_cursor_pos = edit_buffer.chars().count();
-                                 *check_status = None;
-                             }
-                             _ => {}
+                                // Edit URL
+                                edit_buffer.clone_from(engine_url);
+                                *editing = true;
+                                *edit_cursor_pos = edit_buffer.chars().count();
+                                *check_status = None;
+                            }
+                            2 => {
+                                // Edit API key
+                                edit_buffer.clear();
+                                if let Some(ref key) = *api_key {
+                                    edit_buffer.push_str(key);
+                                }
+                                *editing = true;
+                                *edit_cursor_pos = edit_buffer.chars().count();
+                                *check_status = None;
+                            }
+                            _ => {}
                         }
                         sync_global_settings(app);
                     }
                     // ── Navigation ─────────────────────────────────────
-                    KeyCode::Up | KeyCode::Char('k')
-                        if !*editing => {
-                            *selected_field = if *selected_field <= -1 {
-                                2
-                            } else {
-                                *selected_field - 1
-                            };
-                        }
-                    KeyCode::Down | KeyCode::Char('j')
-                        if !*editing => {
-                            *selected_field = if *selected_field >= 2 {
-                                -1
-                            } else {
-                                *selected_field + 1
-                            };
-                        }
+                    KeyCode::Up | KeyCode::Char('k') if !*editing => {
+                        *selected_field = if *selected_field <= -1 {
+                            2
+                        } else {
+                            *selected_field - 1
+                        };
+                    }
+                    KeyCode::Down | KeyCode::Char('j') if !*editing => {
+                        *selected_field = if *selected_field >= 2 {
+                            -1
+                        } else {
+                            *selected_field + 1
+                        };
+                    }
                     // ── Esc ────────────────────────────────────────────
                     KeyCode::Esc => {
                         if *editing {
@@ -168,44 +173,81 @@ impl OverlayHandler for WebSearchPickerHandler {
                     }
                     // ── Text editing ───────────────────────────────────
                     KeyCode::Char(c) if *editing => {
-                        TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.insert_char(c);
+                        TextEditor {
+                            buffer: edit_buffer,
+                            cursor: edit_cursor_pos,
+                        }
+                        .insert_char(c);
                     }
                     KeyCode::Backspace if *editing => {
-                        TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.backspace();
+                        TextEditor {
+                            buffer: edit_buffer,
+                            cursor: edit_cursor_pos,
+                        }
+                        .backspace();
                     }
                     KeyCode::Left if *editing => {
-                        TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.move_left();
+                        TextEditor {
+                            buffer: edit_buffer,
+                            cursor: edit_cursor_pos,
+                        }
+                        .move_left();
                     }
                     KeyCode::Right if *editing => {
-                        TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.move_right();
+                        TextEditor {
+                            buffer: edit_buffer,
+                            cursor: edit_cursor_pos,
+                        }
+                        .move_right();
                     }
                     KeyCode::Home if *editing => {
-                        TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.home();
+                        TextEditor {
+                            buffer: edit_buffer,
+                            cursor: edit_cursor_pos,
+                        }
+                        .home();
                     }
                     KeyCode::End if *editing => {
-                         TextEditor { buffer: edit_buffer, cursor: edit_cursor_pos }.end();
-                     }
-                     // ── Manual check ───────────────────────────────────
-                     KeyCode::Char('c') if !*editing
-                         && *selected_field == -1 && *enabled && !engine_url.is_empty() => {
-                             let engine = engine.clone();
-                             let engine_url = engine_url.clone();
-                             let api_key = api_key.clone();
-                             *check_status = Some(WebSearchCheckStatus::Checking);
-                             app.ui.needs_redraw = true;
-                             let handle = tokio::spawn(async move {
-                                 check_web_search_health(&engine, &engine_url, api_key.as_deref().unwrap_or("")).await
-                             });
-                             app.pending.web_search_check_handle = Some(handle);
-                         }
-                     _ => {}
+                        TextEditor {
+                            buffer: edit_buffer,
+                            cursor: edit_cursor_pos,
+                        }
+                        .end();
+                    }
+                    // ── Manual check ───────────────────────────────────
+                    KeyCode::Char('c')
+                        if !*editing
+                            && *selected_field == -1
+                            && *enabled
+                            && !engine_url.is_empty() =>
+                    {
+                        let engine = engine.clone();
+                        let engine_url = engine_url.clone();
+                        let api_key = api_key.clone();
+                        *check_status = Some(WebSearchCheckStatus::Checking);
+                        app.ui.needs_redraw = true;
+                        let handle = tokio::spawn(async move {
+                            check_web_search_health(
+                                &engine,
+                                &engine_url,
+                                api_key.as_deref().unwrap_or(""),
+                            )
+                            .await
+                        });
+                        app.pending.web_search_check_handle = Some(handle);
+                    }
+                    _ => {}
                 }
             }
         })
     }
 }
 
-pub async fn check_web_search_health(_engine: &str, engine_url: &str, api_key: &str) -> Result<(), String> {
+pub async fn check_web_search_health(
+    _engine: &str,
+    engine_url: &str,
+    api_key: &str,
+) -> Result<(), String> {
     let client = reqwest::Client::new();
     let url = format!(
         "{}/search?q=test&format=json",
@@ -224,13 +266,23 @@ pub async fn check_web_search_health(_engine: &str, engine_url: &str, api_key: &
         request = request.header("Authorization", format!("Bearer {}", api_key));
     }
 
-    let response = request.send().await.map_err(|e| format!("Connection failed: {}", e))?;
+    let response = request
+        .send()
+        .await
+        .map_err(|e| format!("Connection failed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("HTTP {}: {}", response.status(), response.status().canonical_reason().unwrap_or("Unknown")));
+        return Err(format!(
+            "HTTP {}: {}",
+            response.status(),
+            response.status().canonical_reason().unwrap_or("Unknown")
+        ));
     }
 
-    let body = response.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
 
     match body.parse::<serde_json::Value>() {
         Ok(_) => Ok(()),

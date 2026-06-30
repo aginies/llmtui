@@ -17,9 +17,7 @@ pub fn render_all<'a>(
     lines.push(Line::from(vec![
         Span::styled(
             "Profiles",
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             " — Select a profile to apply its settings",

@@ -20,14 +20,9 @@ pub fn render_all<'a>(
         lines.push(Line::from(vec![
             Span::styled(
                 "Editing RPC Worker",
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ),
-            Span::styled(
-                " — Format: [Name], IP, Port",
-                Style::default().fg(DIM_GRAY),
-            ),
+            Span::styled(" — Format: [Name], IP, Port", Style::default().fg(DIM_GRAY)),
         ]));
         lines.push(Line::from(""));
 
@@ -37,7 +32,7 @@ pub fn render_all<'a>(
             let after: String = edit_content.chars().skip(edit_cursor_pos + 1).collect();
 
             spans.push(Span::raw(before));
-            spans.push(           Span::styled(
+            spans.push(Span::styled(
                 c.to_string(),
                 Style::default().fg(BLACK).bg(ACCENT),
             ));
@@ -46,10 +41,7 @@ pub fn render_all<'a>(
             spans.push(Span::raw(edit_content.to_string()));
         }
         if edit_cursor_pos == edit_content.chars().count() {
-            spans.push(Span::styled(
-                "_",
-                Style::default().fg(BLACK).bg(ACCENT),
-            ));
+            spans.push(Span::styled("_", Style::default().fg(BLACK).bg(ACCENT)));
         }
         lines.push(Line::from(spans));
 
@@ -63,9 +55,7 @@ pub fn render_all<'a>(
         lines.push(Line::from(vec![
             Span::styled(
                 "RPC Workers",
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 " — Space: Toggle | n: New | e: Edit | d: Delete",
@@ -97,11 +87,7 @@ pub fn render_all<'a>(
                 Span::styled(marker, Style::default().fg(ACCENT)),
                 Span::styled(
                     checkbox,
-                    Style::default().fg(if worker.selected {
-                        GREEN
-                    } else {
-                        DIM_GRAY
-                    }),
+                    Style::default().fg(if worker.selected { GREEN } else { DIM_GRAY }),
                 ),
                 Span::styled(
                     format!("{:<15} | {}:{}", name_display, worker.ip, worker.port),

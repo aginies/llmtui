@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-     widgets::{Block, BorderType, Borders, Gauge, Paragraph, Wrap},
+    widgets::{Block, BorderType, Borders, Gauge, Paragraph, Wrap},
 };
 
 const TOTAL_STEPS: usize = 8;
@@ -24,9 +24,7 @@ fn highlight_keys(text: &str) -> Vec<Span<'static>> {
         } else if in_key {
             spans.push(Span::styled(
                 ch.to_string(),
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ));
         } else {
             current.push(ch);
@@ -104,9 +102,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     // Title
     lines.push(Line::from(Span::styled(
         title,
-        Style::default()
-            .fg(ACCENT)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
     )));
     lines.push(Line::from(description));
     lines.push(Line::from(""));
@@ -115,9 +111,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     if !keys_text.is_empty() {
         lines.push(Line::from(Span::styled(
             "── KEY SHORTCUTS ──",
-            Style::default()
-                .fg(CYAN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
         )));
         let key_spans = highlight_keys(keys_text);
         if !key_spans.is_empty() {
@@ -152,7 +146,12 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
         .ratio(ratio.min(1.0))
         .label(format!(" Step {}/{}", step + 1, TOTAL_STEPS))
         .style(Style::default().fg(BLACK).bg(WHITE))
-        .gauge_style(Style::default().fg(BLACK).bg(GREEN).add_modifier(Modifier::BOLD));
+        .gauge_style(
+            Style::default()
+                .fg(BLACK)
+                .bg(GREEN)
+                .add_modifier(Modifier::BOLD),
+        );
     f.render_widget(progress_bar, bar_area);
 
     // Footer

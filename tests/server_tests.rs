@@ -47,7 +47,8 @@ fn test_build_server_cmd_normal_includes_model_path() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("qwen.gguf"));
@@ -66,7 +67,8 @@ fn test_build_server_cmd_normal_includes_alias() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--alias"));
@@ -79,8 +81,15 @@ fn test_build_server_cmd_normal_no_model() {
     let settings = make_settings();
     let config = make_config();
 
-    let (_cmd, display) =
-        build_server_cmd(&binary, None, &settings, &config, ServerMode::Normal, 0, false);
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        None,
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
 
     assert!(!display.contains(".gguf"));
 }
@@ -100,7 +109,8 @@ fn test_build_server_cmd_router_includes_models_max() {
         &settings,
         &config,
         ServerMode::Router,
-        4, false,
+        4,
+        false,
     );
 
     assert!(display.contains("--models-max"));
@@ -120,7 +130,8 @@ fn test_build_server_cmd_router_no_model_path() {
         &settings,
         &config,
         ServerMode::Router,
-        0, false,
+        0,
+        false,
     );
 
     assert!(!display.contains("test.gguf"));
@@ -139,7 +150,8 @@ fn test_build_server_cmd_router_includes_models_dir() {
         &settings,
         &config,
         ServerMode::Router,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--models-dir"));
@@ -161,7 +173,8 @@ fn test_build_server_cmd_includes_threads() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--threads"));
@@ -181,7 +194,8 @@ fn test_build_server_cmd_includes_context_size() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--ctx-size"));
@@ -200,7 +214,8 @@ fn test_build_server_cmd_includes_no_warmup() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--no-warmup"));
@@ -220,7 +235,8 @@ fn test_build_server_cmd_includes_mlock_when_set() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--mlock"));
@@ -240,7 +256,8 @@ fn test_build_server_cmd_includes_no_mmap_when_not_set() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--no-mmap"));
@@ -260,7 +277,8 @@ fn test_build_server_cmd_includes_gpu_layers_specific() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("-ngl"));
@@ -281,7 +299,8 @@ fn test_build_server_cmd_includes_gpu_layers_all() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("-ngl"));
@@ -302,7 +321,8 @@ fn test_build_server_cmd_no_gpu_layers_for_auto() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     // Auto mode should not include -ngl
@@ -322,7 +342,8 @@ fn test_build_server_cmd_includes_sampling_params() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--temp"));
@@ -343,7 +364,8 @@ fn test_build_server_cmd_includes_repetition_params() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     // Check for sampling params that are always included
@@ -366,7 +388,8 @@ fn test_build_server_cmd_includes_mtp_flags() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--spec-type"));
@@ -390,7 +413,8 @@ fn test_build_server_cmd_display_contains_binary() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("llama-server"));
@@ -409,7 +433,8 @@ fn test_build_server_cmd_display_contains_model() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("qwen2.5-7b.gguf"));
@@ -428,7 +453,8 @@ fn test_build_server_cmd_display_contains_settings() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
 
     assert!(display.contains("--threads"));
@@ -449,7 +475,8 @@ fn test_build_server_cmd_includes_system_prompt() {
         &settings,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
     assert!(display.contains("--chat-template-kwargs"));
     assert!(display.contains("system_prompt"));
@@ -464,7 +491,8 @@ fn test_build_server_cmd_includes_system_prompt() {
         &settings_empty,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
     assert!(!display_empty.contains("system_prompt"));
 
@@ -477,7 +505,8 @@ fn test_build_server_cmd_includes_system_prompt() {
         &settings_custom,
         &config,
         ServerMode::Normal,
-        0, false,
+        0,
+        false,
     );
     assert!(display_custom.contains("--chat-template-kwargs"));
     assert!(display_custom.contains("You are a custom AI."));

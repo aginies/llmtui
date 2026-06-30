@@ -246,22 +246,40 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     );
     let mut settings = config.resolve_settings(Some(&display_name), opts.profile_name.as_deref());
 
-   // Apply model config file override: explicit path or auto-detected
-    let model_config_path = opts.model_config_path.as_ref()
+    // Apply model config file override: explicit path or auto-detected
+    let model_config_path = opts
+        .model_config_path
+        .as_ref()
         .map(|p| p.clone())
-        .or_else(|| auto_detect_model_config(&model_path, &config).map(|p| p.to_string_lossy().to_string()));
+        .or_else(|| {
+            auto_detect_model_config(&model_path, &config).map(|p| p.to_string_lossy().to_string())
+        });
 
     if let Some(ref model_config_path) = model_config_path {
         let model_config_path = PathBuf::from(model_config_path);
         if model_config_path.exists() {
-            let content = std::fs::read_to_string(&model_config_path)
-                .map_err(|e| anyhow::anyhow!("Failed to read model config {}: {}", model_config_path.display(), e))?;
+            let content = std::fs::read_to_string(&model_config_path).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to read model config {}: {}",
+                    model_config_path.display(),
+                    e
+                )
+            })?;
             let model_override: crate::config::ModelOverride = serde_yml::from_str(&content)
-                .map_err(|e| anyhow::anyhow!("Failed to parse model config {}: {}", model_config_path.display(), e))?;
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "Failed to parse model config {}: {}",
+                        model_config_path.display(),
+                        e
+                    )
+                })?;
             model_override.apply(&mut settings);
             tracing::info!("Applied model config from: {}", model_config_path.display());
         } else {
-            anyhow::bail!("Model config file not found: {}", model_config_path.display());
+            anyhow::bail!(
+                "Model config file not found: {}",
+                model_config_path.display()
+            );
         }
     }
 
@@ -302,7 +320,8 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 }
             }
         } else {
-            let (cert, key) = tls::ensure_tls_certs(&settings.host).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
+            let (cert, key) =
+                tls::ensure_tls_certs(&settings.host).map_err(|e| anyhow::anyhow!("TLS: {}", e))?;
             (
                 cert.to_string_lossy().to_string(),
                 key.to_string_lossy().to_string(),
@@ -443,8 +462,9 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     // This enables all 7 metrics tracking via log line parsing when /metrics API returns 0.
     let stdout = child.stdout.take().expect("stdout should be piped");
     let (stdout_tx, mut stdout_rx) = tokio::sync::mpsc::channel::<String>(100);
-    let (log_metrics_tx, log_metrics_rx) = tokio::sync::mpsc::channel::<server_logs::ServerLogMetrics>(10);
-    
+    let (log_metrics_tx, log_metrics_rx) =
+        tokio::sync::mpsc::channel::<server_logs::ServerLogMetrics>(10);
+
     // Tee stdout to terminal and log file (if configured), while also sending to parser.
     let log_reader_handle = tokio::spawn(async move {
         let reader = BufReader::new(stdout);
@@ -454,15 +474,17 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent).ok();
             }
-            Some(std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&path)
-                .expect("Failed to open log file for llama-server output"))
+            Some(
+                std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&path)
+                    .expect("Failed to open log file for llama-server output"),
+            )
         } else {
             None
         };
-        
+
         let write_to_terminal = log_file_path.is_none();
         let mut term = if write_to_terminal {
             Some(std::io::stdout())
@@ -474,13 +496,13 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             if stdout_tx.send(line.clone()).await.is_err() {
                 break;
             }
-            
+
             // Write to terminal only when --log-file is not used
             if let Some(ref mut term) = term {
                 let _ = writeln!(term, "{}", line);
                 let _ = term.flush();
             }
-            
+
             // Write to log file if configured
             if let Some(ref mut file) = log_file_handle {
                 let _ = writeln!(file, "{}", line);

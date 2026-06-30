@@ -12,9 +12,9 @@ pub mod event;
 pub mod gguf_naming;
 pub mod i18n;
 pub mod panel;
- pub mod render;
- pub mod settings;
- pub mod toast;
+pub mod render;
+pub mod settings;
+pub mod toast;
 
 /// Format a byte count into a human-readable size string.
 pub fn format_size(bytes: u64) -> String {

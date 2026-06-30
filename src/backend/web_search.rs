@@ -8,15 +8,24 @@ pub struct SearchResult {
 }
 
 pub fn needs_search(message: &str) -> bool {
-    message.rfind("$web").map(|i| {
-        if i == 0 {
-            return true;
-        }
-        !message[..i].chars().last().unwrap().is_alphanumeric()
-    }).unwrap_or(false)
+    message
+        .rfind("$web")
+        .map(|i| {
+            if i == 0 {
+                return true;
+            }
+            !message[..i].chars().last().unwrap().is_alphanumeric()
+        })
+        .unwrap_or(false)
 }
 
-pub async fn search_web(query: &str, max_results: usize, engine: &str, engine_url: &str, api_key: &str) -> Result<Vec<SearchResult>> {
+pub async fn search_web(
+    query: &str,
+    max_results: usize,
+    engine: &str,
+    engine_url: &str,
+    api_key: &str,
+) -> Result<Vec<SearchResult>> {
     if engine == "searxng" && !engine_url.is_empty() {
         search_searxng(engine_url, query, max_results, api_key).await
     } else {
@@ -24,7 +33,12 @@ pub async fn search_web(query: &str, max_results: usize, engine: &str, engine_ur
     }
 }
 
-async fn search_searxng(base_url: &str, query: &str, max_results: usize, api_key: &str) -> Result<Vec<SearchResult>> {
+async fn search_searxng(
+    base_url: &str,
+    query: &str,
+    max_results: usize,
+    api_key: &str,
+) -> Result<Vec<SearchResult>> {
     let client = reqwest::Client::new();
     let url = format!(
         "{}/search?q={}&format=json",
@@ -45,17 +59,28 @@ async fn search_searxng(base_url: &str, query: &str, max_results: usize, api_key
         request = request.header("Authorization", format!("Bearer {}", api_key));
     }
 
-    let response = request.send().await.map_err(|e| anyhow::anyhow!("SearXNG search request failed: {}", e))?;
+    let response = request
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("SearXNG search request failed: {}", e))?;
 
     let status = response.status();
-    let body = response.text().await
+    let body = response
+        .text()
+        .await
         .map_err(|e| anyhow::anyhow!("SearXNG response read failed: {}", e))?;
 
     if !body.starts_with('{') && !body.starts_with('[') {
-        info!("Web search: SearXNG returned non-JSON (status {}, body len {}): {}", status, body.len(), &body[..body.len().min(300)]);
+        info!(
+            "Web search: SearXNG returned non-JSON (status {}, body len {}): {}",
+            status,
+            body.len(),
+            &body[..body.len().min(300)]
+        );
     }
 
-    let json: serde_json::Value = body.parse()
+    let json: serde_json::Value = body
+        .parse()
         .map_err(|e| anyhow::anyhow!("SearXNG response parse failed (status {}): {}", status, e))?;
 
     let results_array = json
@@ -67,9 +92,18 @@ async fn search_searxng(base_url: &str, query: &str, max_results: usize, api_key
     let search_results: Vec<SearchResult> = results_array
         .into_iter()
         .filter_map(|r| {
-            let title = r.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let url = r.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let snippet = r.get("content")
+            let title = r
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let url = r
+                .get("url")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let snippet = r
+                .get("content")
                 .or_else(|| r.get("snippet"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
@@ -78,13 +112,20 @@ async fn search_searxng(base_url: &str, query: &str, max_results: usize, api_key
             if url.is_empty() || title.is_empty() {
                 None
             } else {
-                Some(SearchResult { title, url, snippet })
+                Some(SearchResult {
+                    title,
+                    url,
+                    snippet,
+                })
             }
         })
         .take(max_results)
         .collect();
 
-    info!("Web search: SearXNG returned {} results", search_results.len());
+    info!(
+        "Web search: SearXNG returned {} results",
+        search_results.len()
+    );
     Ok(search_results)
 }
 
@@ -108,13 +149,23 @@ pub async fn check_health(engine_url: &str, api_key: &str) -> Result<(), String>
         request = request.header("Authorization", format!("Bearer {}", api_key));
     }
 
-    let response = request.send().await.map_err(|e| format!("Connection failed: {}", e))?;
+    let response = request
+        .send()
+        .await
+        .map_err(|e| format!("Connection failed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("HTTP {}: {}", response.status(), response.status().canonical_reason().unwrap_or("Unknown")));
+        return Err(format!(
+            "HTTP {}: {}",
+            response.status(),
+            response.status().canonical_reason().unwrap_or("Unknown")
+        ));
     }
 
-    let body = response.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
 
     body.parse::<serde_json::Value>()
         .map(|_| ())
@@ -131,7 +182,7 @@ fn extract_source_url(content: &str) -> Option<String> {
         if let Some(stripped) = line.strip_prefix("[")
             && let Some(pos) = stripped.rfind("](")
         {
-            return Some(stripped[pos+2..].to_string());
+            return Some(stripped[pos + 2..].to_string());
         }
         None
     })
@@ -162,8 +213,12 @@ fn collapse_whitespace(text: &str) -> String {
         .to_string()
 }
 
-
-pub async fn gather_search_context(query: &str, engine: &str, engine_url: &str, api_key: &str) -> Result<(String, Vec<String>)> {
+pub async fn gather_search_context(
+    query: &str,
+    engine: &str,
+    engine_url: &str,
+    api_key: &str,
+) -> Result<(String, Vec<String>)> {
     info!("Web search: gathering context for '{}'", query);
 
     let search_results = search_web(query, 10, engine, engine_url, api_key).await?;
@@ -174,15 +229,7 @@ pub async fn gather_search_context(query: &str, engine: &str, engine_url: &str, 
     let results_summary: String = search_results
         .iter()
         .enumerate()
-        .map(|(i, r)| {
-            format!(
-                "{}. **{}** - {}\n   {}",
-                i + 1,
-                r.title,
-                r.url,
-                r.snippet
-            )
-        })
+        .map(|(i, r)| format!("{}. **{}** - {}\n   {}", i + 1, r.title, r.url, r.snippet))
         .collect::<Vec<_>>()
         .join("\n\n");
 
@@ -191,7 +238,7 @@ pub async fn gather_search_context(query: &str, engine: &str, engine_url: &str, 
         .find(|r| is_wikipedia(&r.url))
         .map(|r| r.url.clone());
 
-      let other_urls: Vec<String> = search_results
+    let other_urls: Vec<String> = search_results
         .iter()
         .filter(|r| !is_wikipedia(&r.url))
         .take(5)
@@ -201,15 +248,13 @@ pub async fn gather_search_context(query: &str, engine: &str, engine_url: &str, 
     let mut tasks = Vec::new();
 
     if let Some(url) = wikipedia_url {
-        tasks.push(tokio::spawn(async move {
-            fetch_wikipedia_content(&url).await
-        }));
+        tasks.push(tokio::spawn(
+            async move { fetch_wikipedia_content(&url).await },
+        ));
     }
 
     for url in other_urls {
-        tasks.push(tokio::spawn(async move {
-            fetch_other_content(&url).await
-        }));
+        tasks.push(tokio::spawn(async move { fetch_other_content(&url).await }));
     }
 
     let mut context_parts = Vec::new();
@@ -219,17 +264,17 @@ pub async fn gather_search_context(query: &str, engine: &str, engine_url: &str, 
 
     let results = futures_util::future::join_all(tasks).await;
     for result in results {
-       match result {
-             Ok(Ok(content)) => {
-                 if content.is_empty() {
-                     continue;
-                 }
-                 success_count += 1;
-                 if let Some(url) = extract_source_url(&content) {
-                     sources.push(url);
-                 }
-                 context_parts.push(content);
-             }
+        match result {
+            Ok(Ok(content)) => {
+                if content.is_empty() {
+                    continue;
+                }
+                success_count += 1;
+                if let Some(url) = extract_source_url(&content) {
+                    sources.push(url);
+                }
+                context_parts.push(content);
+            }
             Ok(Err(e)) => {
                 info!("Web search: page fetch failed: {}", e);
                 failed_count += 1;
@@ -241,13 +286,20 @@ pub async fn gather_search_context(query: &str, engine: &str, engine_url: &str, 
         }
     }
 
-    info!("Web search: fetch complete - {} succeeded, {} failed", success_count, failed_count);
+    info!(
+        "Web search: fetch complete - {} succeeded, {} failed",
+        success_count, failed_count
+    );
     if context_parts.is_empty() {
         info!("Web search: no context gathered (all fetches failed or returned empty)");
         return Ok((String::new(), Vec::new()));
     }
 
-    let context = format!("## Search Results\n{}\n\n---\n\n## Web Context\n{}", results_summary, context_parts.join("\n\n---\n\n"));
+    let context = format!(
+        "## Search Results\n{}\n\n---\n\n## Web Context\n{}",
+        results_summary,
+        context_parts.join("\n\n---\n\n")
+    );
     Ok((context, sources))
 }
 
@@ -272,8 +324,10 @@ async fn fetch_wikipedia_content(url: &str) -> Result<String> {
 
     let document = Html::parse_document(&html);
 
-    let title_selector = Selector::parse("#firstHeading").map_err(|e| anyhow::anyhow!("Selector error: {}", e))?;
-    let content_selector = Selector::parse("#mw-content-text").map_err(|e| anyhow::anyhow!("Selector error: {}", e))?;
+    let title_selector =
+        Selector::parse("#firstHeading").map_err(|e| anyhow::anyhow!("Selector error: {}", e))?;
+    let content_selector = Selector::parse("#mw-content-text")
+        .map_err(|e| anyhow::anyhow!("Selector error: {}", e))?;
 
     let title = document
         .select(&title_selector)
@@ -291,12 +345,7 @@ async fn fetch_wikipedia_content(url: &str) -> Result<String> {
         clean_html_text(&html)
     };
 
-    Ok(format!(
-        "## [{}]({})\n\n{}",
-        title,
-        url,
-        content_text
-    ))
+    Ok(format!("## [{}]({})\n\n{}", title, url, content_text))
 }
 
 async fn fetch_other_content(url: &str) -> Result<String> {
@@ -331,17 +380,30 @@ async fn fetch_other_content(url: &str) -> Result<String> {
         .context(format!("Failed to read page content: {}", url))?;
 
     if html.len() < 500 {
-        return Err(anyhow::anyhow!("Page too short ({} bytes), likely blocked or empty: {}", html.len(), url));
+        return Err(anyhow::anyhow!(
+            "Page too short ({} bytes), likely blocked or empty: {}",
+            html.len(),
+            url
+        ));
     }
 
     let lower_html = html.to_lowercase();
-    if lower_html.contains("attention required") || lower_html.contains("access denied") || lower_html.contains("enable javascript") || lower_html.contains("challenge-error") || lower_html.contains("reference #") {
-        return Err(anyhow::anyhow!("Page blocked by Cloudflare or security filter: {}", url));
+    if lower_html.contains("attention required")
+        || lower_html.contains("access denied")
+        || lower_html.contains("enable javascript")
+        || lower_html.contains("challenge-error")
+        || lower_html.contains("reference #")
+    {
+        return Err(anyhow::anyhow!(
+            "Page blocked by Cloudflare or security filter: {}",
+            url
+        ));
     }
 
     let document = Html::parse_document(&html);
 
-    let title_selector = Selector::parse("title").map_err(|e| anyhow::anyhow!("Selector error: {}", e))?;
+    let title_selector =
+        Selector::parse("title").map_err(|e| anyhow::anyhow!("Selector error: {}", e))?;
 
     let title = document
         .select(&title_selector)
@@ -355,14 +417,14 @@ async fn fetch_other_content(url: &str) -> Result<String> {
     let text = extract_main_content(&document, url);
     let text = truncate_content(&text, 3000);
 
-    info!("Web search: fetched {} from {} ({} chars)", title, url, text.len());
-
-    Ok(format!(
-        "## [{}]({})\n\n{}",
+    info!(
+        "Web search: fetched {} from {} ({} chars)",
         title,
         url,
-        text
-    ))
+        text.len()
+    );
+
+    Ok(format!("## [{}]({})\n\n{}", title, url, text))
 }
 
 fn extract_main_content(document: &scraper::Html, url: &str) -> String {
@@ -393,8 +455,16 @@ fn extract_main_content(document: &scraper::Html, url: &str) -> String {
     }
 
     // Try common article/content selectors
-    let selectors = [".post-content", ".article-content", ".entry-content",
-                     ".content", "#content", "article", ".post", ".article"];
+    let selectors = [
+        ".post-content",
+        ".article-content",
+        ".entry-content",
+        ".content",
+        "#content",
+        "article",
+        ".post",
+        ".article",
+    ];
     for sel in &selectors {
         if let Ok(selector) = Selector::parse(sel) {
             let text: String = document
@@ -409,7 +479,19 @@ fn extract_main_content(document: &scraper::Html, url: &str) -> String {
     }
 
     // Fallback: extract text from specific content-bearing elements only
-    let content_selectors = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "td", "th", "blockquote"];
+    let content_selectors = [
+        "p",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "li",
+        "td",
+        "th",
+        "blockquote",
+    ];
     let mut text_parts = Vec::new();
     for sel in &content_selectors {
         if let Ok(selector) = Selector::parse(sel) {

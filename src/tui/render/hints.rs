@@ -263,20 +263,14 @@ pub fn render_hints_line(app: &App, panel_area: ratatui::layout::Rect) -> Line<'
             truncated.push(span.clone());
         } else if total_width > 0 {
             // Add ellipsis
-            truncated.push(Span::styled(
-                " ...",
-                Style::default().fg(DIM_GRAY),
-            ));
+            truncated.push(Span::styled(" ...", Style::default().fg(DIM_GRAY)));
             break;
         }
     }
 
     if truncated.is_empty() {
         // Even first hint doesn't fit, show abbreviated version
-        truncated.push(Span::styled(
-            "...",
-            Style::default().fg(DIM_GRAY),
-        ));
+        truncated.push(Span::styled("...", Style::default().fg(DIM_GRAY)));
     }
 
     Line::from(truncated)

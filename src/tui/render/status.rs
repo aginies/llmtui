@@ -10,22 +10,36 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
 
     // Line 1: mode + server status
     let mode_name: String = match &app.models_mode {
-        ModelsMode::List { sort_by } => format!("{} | sort:{}", crate::t!("status.list"), sort_by.label().to_lowercase()),
-        ModelsMode::Search { results, sort_by, .. } => format!("{} {} | sort:{}", crate::t!("status.search"), crate::t_fmt!("status.search_count", results.len()), sort_by.label().to_lowercase()),
-        ModelsMode::Files { model_id, .. } => format!("{} | {}", crate::t!("status.files"), model_id),
+        ModelsMode::List { sort_by } => format!(
+            "{} | sort:{}",
+            crate::t!("status.list"),
+            sort_by.label().to_lowercase()
+        ),
+        ModelsMode::Search {
+            results, sort_by, ..
+        } => format!(
+            "{} {} | sort:{}",
+            crate::t!("status.search"),
+            crate::t_fmt!("status.search_count", results.len()),
+            sort_by.label().to_lowercase()
+        ),
+        ModelsMode::Files { model_id, .. } => {
+            format!("{} | {}", crate::t!("status.files"), model_id)
+        }
         ModelsMode::BenchTune => crate::t!("status.bench_tune").to_string(),
     };
     let mut status_parts: Vec<Span<'static>> = Vec::new();
-    
-    status_parts.push(Span::styled(format!("[Mode: {}]", mode_name), Style::default().fg(WHITE)));
+
+    status_parts.push(Span::styled(
+        format!("[Mode: {}]", mode_name),
+        Style::default().fg(WHITE),
+    ));
 
     if app.is_settings_dirty() {
         status_parts.push(Span::raw(" │ "));
         status_parts.push(Span::styled(
             crate::t!("hints.unsaved_watermark").to_string(),
-            Style::default()
-                .fg(RED)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(RED).add_modifier(Modifier::BOLD),
         ));
     }
 
@@ -38,7 +52,10 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
             } else {
                 ""
             };
-            format!("API:{} llama.cpp:{}{}", app.settings.api_endpoint_port, handle.port, tls)
+            format!(
+                "API:{} llama.cpp:{}{}",
+                app.settings.api_endpoint_port, handle.port, tls
+            )
         } else {
             format!("{} {}", handle.port, app.server_mode)
         };
@@ -159,27 +176,21 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         status_parts.push(Span::raw("  "));
         status_parts.push(Span::styled(
             crate::t!("status.host_picker").to_string(),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ));
     }
     if matches!(app.ui.global_mode, GlobalMode::RpcManager) {
         status_parts.push(Span::raw("  "));
         status_parts.push(Span::styled(
             crate::t!("status.rpc_manager").to_string(),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ));
     }
     if matches!(app.ui.global_mode, GlobalMode::About) {
         status_parts.push(Span::raw("  "));
         status_parts.push(Span::styled(
             crate::t!("status.about").to_string(),
-            Style::default()
-                .fg(ACCENT)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ));
     }
     if let GlobalMode::BenchTuneSetup { editing_prompt, .. } = &app.ui.global_mode {
@@ -187,19 +198,15 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         if *editing_prompt {
             status_parts.push(Span::styled(
                 crate::t!("status.editing_prompt").to_string(),
-                Style::default()
-                    .fg(CYAN)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
             ));
         } else {
             status_parts.push(Span::styled(
                 crate::t!("status.bench_setup").to_string(),
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ));
         }
-        }
+    }
 
     // Panel visibility indicator right-aligned at end of line
     let indicator = render_panel_visibility(app);

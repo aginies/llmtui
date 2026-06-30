@@ -1,8 +1,8 @@
 use crate::backend::server::ServerHandle;
 use crate::config::LogEntry;
-use crate::tui::toast::Toast;
 use crate::models::Backend;
 use crate::models::{BenchTuneConfig, BenchTuneProgress, BenchTuneResult, LoadProgress};
+use crate::tui::toast::Toast;
 
 use ratatui::widgets::TableState;
 use std::collections::{BTreeMap, HashMap, VecDeque};
@@ -150,7 +150,7 @@ pub struct PendingOperations {
     /// for the async kill operation.
     pub pending_kill: Option<ServerHandle>,
     /// Backend resolution state — moved here from old PendingOperations.
-   pub backend_resolving: bool,
+    pub backend_resolving: bool,
     pub backend_resolve_handle: Option<tokio::task::JoinHandle<Result<std::path::PathBuf, String>>>,
     /// Web search health check handle.
     pub web_search_check_handle: Option<tokio::task::JoinHandle<Result<(), String>>>,

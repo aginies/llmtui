@@ -495,10 +495,18 @@ impl ModelOverride {
         );
 
         // Direct Option<T> assignment (same type in both structs) — only apply if Some
-        if let Some(v) = self.cache_type_k { base.cache_type_k = Some(v); }
-        if let Some(v) = self.cache_type_v { base.cache_type_v = Some(v); }
-        if let Some(v) = self.presence_penalty { base.presence_penalty = Some(v); }
-        if let Some(v) = self.frequency_penalty { base.frequency_penalty = Some(v); }
+        if let Some(v) = self.cache_type_k {
+            base.cache_type_k = Some(v);
+        }
+        if let Some(v) = self.cache_type_v {
+            base.cache_type_v = Some(v);
+        }
+        if let Some(v) = self.presence_penalty {
+            base.presence_penalty = Some(v);
+        }
+        if let Some(v) = self.frequency_penalty {
+            base.frequency_penalty = Some(v);
+        }
         base.max_tokens = self.max_tokens.or(base.max_tokens);
 
         // Special: max_concurrent_predictions uses or() for Option chaining
@@ -1004,7 +1012,7 @@ impl Default for DefaultParams {
             llama_cpp_version_cuda: None,
             api_endpoint_enabled: false,
             api_endpoint_port: 49222,
-          api_endpoint_key: None,
+            api_endpoint_key: None,
             web_search_engine: "searxng".to_string(),
             web_search_engine_url: String::new(),
             web_search_enabled: false,

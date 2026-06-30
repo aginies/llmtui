@@ -6,9 +6,9 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Gauge, Paragraph},
 };
 
-use crate::tui::colors::*;
 use crate::models::{ModelState, model_filename};
 use crate::tui::app::App;
+use crate::tui::colors::*;
 use crate::tui::format_size;
 
 /// Build a VRAM usage bar for the panel title.
@@ -24,9 +24,10 @@ fn vram_bar_line(used: u64, total: u64, panel_width: u16) -> Option<Line<'static
 
     // Narrow terminal: just show percentage
     if panel_width < 20 {
-        return Some(Line::from(vec![
-            Span::styled(format!("{pct}%"), vram_color(pct)),
-        ]));
+        return Some(Line::from(vec![Span::styled(
+            format!("{pct}%"),
+            vram_color(pct),
+        )]));
     }
 
     // Medium terminal: show bar + percentage, no byte values
@@ -54,11 +55,7 @@ fn vram_bar_line(used: u64, total: u64, panel_width: u16) -> Option<Line<'static
 fn vram_progress_bar(width: usize, pct: usize) -> String {
     let filled = width * pct / 100;
     let empty = width - filled;
-    format!(
-        "[{}{}]",
-        "█".repeat(filled),
-        "░".repeat(empty),
-    )
+    format!("[{}{}]", "█".repeat(filled), "░".repeat(empty),)
 }
 
 /// Get the appropriate color for a VRAM usage percentage.
@@ -86,7 +83,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         // Otherwise fall back to first loaded model.
         let hint = if app.server_mode == crate::models::ServerMode::Router {
             if let Some(selected) = app.selected_model() {
-                let state = app.model_states.get(&selected.display_name).cloned().unwrap_or(ModelState::Available);
+                let state = app
+                    .model_states
+                    .get(&selected.display_name)
+                    .cloned()
+                    .unwrap_or(ModelState::Available);
                 Some((selected.display_name.clone(), state))
             } else {
                 result.first().cloned()
@@ -116,7 +117,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         }
         let hint = if app.server_mode == crate::models::ServerMode::Router {
             if let Some(selected) = app.selected_model() {
-                let state = app.model_states.get(&selected.display_name).cloned().unwrap_or(ModelState::Available);
+                let state = app
+                    .model_states
+                    .get(&selected.display_name)
+                    .cloned()
+                    .unwrap_or(ModelState::Available);
                 Some((selected.display_name.clone(), state))
             } else {
                 result.first().cloned()
@@ -154,10 +159,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     if app.metrics.total_vram_used > 0 {
         title_spans.push(Span::styled("[ ", Style::default().fg(WHITE)));
-        title_spans.push(Span::styled(
-            "Total VRAM: ",
-            Style::default().fg(ACCENT),
-        ));
+        title_spans.push(Span::styled("Total VRAM: ", Style::default().fg(ACCENT)));
 
         if let Some(bar_line) = vram_bar_line(
             app.metrics.total_vram_used,
@@ -165,10 +167,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             area.width,
         ) {
             for span in bar_line.spans.iter() {
-                title_spans.push(Span::styled(
-                    span.content.clone(),
-                    span.style,
-                ));
+                title_spans.push(Span::styled(span.content.clone(), span.style));
             }
         } else {
             title_spans.push(Span::styled(
@@ -204,29 +203,25 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Robust check for Benchmarking - prioritize global flag
     if app.bench_tune.bench_tune_running {
-   let display_name = if let Some(m) = app.selected_model() {
-             model_filename(&m.name)
-         } else {
-             "Benchmarking".to_string()
-         };
+        let display_name = if let Some(m) = app.selected_model() {
+            model_filename(&m.name)
+        } else {
+            "Benchmarking".to_string()
+        };
 
-                lines.push(Line::from(vec![
-                     Span::styled(" Model:  ", Style::default().fg(ACCENT)),
-                     Span::styled(
-                         display_name,
-                         Style::default()
-                             .fg(WHITE)
-                             .add_modifier(Modifier::BOLD),
-                     ),
-                 ]));
+        lines.push(Line::from(vec![
+            Span::styled(" Model:  ", Style::default().fg(ACCENT)),
+            Span::styled(
+                display_name,
+                Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
+            ),
+        ]));
 
         lines.push(Line::from(vec![
             Span::styled(" Status: ", Style::default().fg(ACCENT)),
             Span::styled(
                 "BENCHMARKING",
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ),
         ]));
 
@@ -252,10 +247,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     ]));
                     lines.push(Line::from(vec![
                         Span::styled(" Test: ", Style::default().fg(ACCENT)),
-                        Span::styled(
-                            format!("{}/{}", current, total),
-                            Style::default().fg(WHITE),
-                        ),
+                        Span::styled(format!("{}/{}", current, total), Style::default().fg(WHITE)),
                     ]));
 
                     let p_str = crate::tui::format_bench_params(current_params, false).join(", ");
@@ -345,10 +337,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         } else {
             lines.push(Line::from(vec![
                 Span::styled(" Info:   ", Style::default().fg(ACCENT)),
-                Span::styled(
-                    "Starting first test...",
-                    Style::default().fg(DIM_GRAY),
-                ),
+                Span::styled("Starting first test...", Style::default().fg(DIM_GRAY)),
             ]));
         }
     } else if let Some((name, state)) = loaded_models.first() {
@@ -369,9 +358,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
-                        Style::default()
-                            .fg(WHITE)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
                     ),
                 ]));
 
@@ -417,12 +404,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                 lines.push(Line::from(tps_parts));
 
-             let mut context_parts = vec![
-                      Span::styled(" [ ", Style::default().fg(WHITE)),
-                      Span::styled("Context: ", Style::default().fg(ACCENT)),
-                      Span::styled(token_str, Style::default().fg(CYAN)),
-                      Span::styled(" ]", Style::default().fg(WHITE)),
-                  ];
+                let mut context_parts = vec![
+                    Span::styled(" [ ", Style::default().fg(WHITE)),
+                    Span::styled("Context: ", Style::default().fg(ACCENT)),
+                    Span::styled(token_str, Style::default().fg(CYAN)),
+                    Span::styled(" ]", Style::default().fg(WHITE)),
+                ];
 
                 if app.metrics.prompt_progress > 0.0 {
                     let bar_width = 20usize;
@@ -434,20 +421,22 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     );
                     let prompt_token_str = format!(
                         "{} tokens ({:.0} t/s)",
-                        app.metrics.prompt_tokens,
-                        app.metrics.prompt_tps_eval,
+                        app.metrics.prompt_tokens, app.metrics.prompt_tps_eval,
                     );
                     context_parts.push(Span::styled(" ", Style::default().fg(WHITE)));
                     context_parts.push(Span::styled(" [Progress: ", Style::default().fg(ACCENT)));
                     context_parts.push(Span::styled(prompt_bar, Style::default().fg(CYAN)));
                     context_parts.push(Span::styled(" ", Style::default().fg(CYAN)));
-                    context_parts.push(Span::styled(format!("{}%", (app.metrics.prompt_progress * 100.0) as usize), Style::default().fg(CYAN)));
+                    context_parts.push(Span::styled(
+                        format!("{}%", (app.metrics.prompt_progress * 100.0) as usize),
+                        Style::default().fg(CYAN),
+                    ));
                     context_parts.push(Span::styled(" ", Style::default().fg(CYAN)));
                     context_parts.push(Span::styled(prompt_token_str, Style::default().fg(CYAN)));
                     context_parts.push(Span::styled(" ]", Style::default().fg(WHITE)));
                 }
 
-                  lines.push(Line::from(context_parts));
+                lines.push(Line::from(context_parts));
 
                 lines.push(Line::from(vec![
                     Span::styled(" [ ", Style::default().fg(WHITE)),
@@ -459,10 +448,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(" ]", Style::default().fg(WHITE)),
                     Span::styled("  [ ", Style::default().fg(WHITE)),
                     Span::styled("RAM: ", Style::default().fg(ACCENT)),
-                    Span::styled(
-                        format_size(app.metrics.ram_used),
-                        Style::default().fg(CYAN),
-                    ),
+                    Span::styled(format_size(app.metrics.ram_used), Style::default().fg(CYAN)),
                     Span::styled(" ]", Style::default().fg(WHITE)),
                     Span::styled("  [ ", Style::default().fg(WHITE)),
                     Span::styled("VRAM: ", Style::default().fg(ACCENT)),
@@ -483,9 +469,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
-                        Style::default()
-                            .fg(WHITE)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
                     ),
                 ]));
 
@@ -493,9 +477,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(" Status: ", Style::default().fg(ACCENT)),
                     Span::styled(
                         "BENCHMARKING",
-                        Style::default()
-                            .fg(ACCENT)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                     ),
                 ]));
             }
@@ -504,9 +486,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
-                        Style::default()
-                            .fg(WHITE)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
                     ),
                 ]));
 
@@ -516,12 +496,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 } else {
                     "LOADING".to_string()
                 };
-          lines.push(Line::from(vec![
-                     Span::styled(" Status: ", Style::default().fg(ACCENT)),
-                     Span::styled(status_content, Style::default().fg(ACCENT)),
-                 ]));
+                lines.push(Line::from(vec![
+                    Span::styled(" Status: ", Style::default().fg(ACCENT)),
+                    Span::styled(status_content, Style::default().fg(ACCENT)),
+                ]));
 
-                 if app.loading.loading_progress > 0.0 && app.loading.loading_progress <= 1.0 {
+                if app.loading.loading_progress > 0.0 && app.loading.loading_progress <= 1.0 {
                     let ratio = app.loading.loading_progress as f64;
                     let bar_area = Rect {
                         x: area.x,
@@ -534,7 +514,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .label(format!("{:.0}%", ratio * 100.0))
                         .gauge_style(Style::default().fg(ACCENT));
                     f.render_widget(gauge, bar_area);
-                 } else {
+                } else {
                     let bar_area = Rect {
                         x: area.x,
                         y: area.y + 4,
@@ -546,9 +526,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .label("0%")
                         .gauge_style(Style::default().fg(DIM_GRAY));
                     f.render_widget(gauge, bar_area);
-                 }
+                }
 
-                 let mut detail_parts = Vec::new();
+                let mut detail_parts = Vec::new();
                 if let (Some(loaded), Some(total)) = (
                     app.loading.load_progress.layers_loaded,
                     app.loading.load_progress.layers_total,
@@ -594,9 +574,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
-                        Style::default()
-                            .fg(WHITE)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
                     ),
                 ]));
                 lines.push(Line::from(vec![
@@ -616,18 +594,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
-                        Style::default()
-                            .fg(WHITE)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
                     ),
                 ]));
                 lines.push(Line::from(vec![
                     Span::styled(" Status: ", Style::default().fg(ACCENT)),
                     Span::styled(
                         "NOT LOADED",
-                        Style::default()
-                            .fg(DIM_GRAY)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(DIM_GRAY).add_modifier(Modifier::BOLD),
                     ),
                 ]));
             }
@@ -638,9 +612,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                 Span::styled(
                     "llama-server",
-                    Style::default()
-                        .fg(WHITE)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     crate::t!("active.no_model_loaded"),
