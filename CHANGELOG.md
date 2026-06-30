@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-06-24
+
+### Added
+
+- **llm-acme Let's Encrypt certificate manager** — standalone tool for managing TLS certificates (`5546ab2`)
+- **--model-config CLI arg** — per-model YAML overrides via command line (`4b704dc`)
+- **Environment variable support** — `--config` and `--model-config` env vars, auto-detect model config (`a45bbf1`)
+- **Improved toast system** — queue, stacking, and dismissal (`f4c2511`)
+- **Host in server cert SANs** — TLS cert validation includes host, validates cert files exist (`6fbb021`)
+
+### Changed
+
+- **Service description** — updated to 'LLM Manager Server' (`293a2b6`)
+- **GitHub URL in GNOME extension** — updated to llmtui repo (`fa4662f`)
+
+### Fixed
+
+- **ctx_max override in serve mode** — matches TUI behavior (`8173e3f`)
+- **Missing config validation fields** — added to validation list (`a3a506b`)
+- **Service file and llm-acme clippy warnings** — cleanup (`3286447`)
+- **High and medium severity security issues** — (`a3af63b`)
+
+### Documentation
+
+- **Systemd Deployment guide** — .env and service file setup (`656859a`)
+- **API TLS and custom certificates** — usage guide (`5483952`)
+- **Let's Encrypt certificate management** — guide (`9839946`)
+- **GNOME extension install simplified** — gnome-extensions pack (`543e6a9`)
+
+## [1.7.0] - 2026-06-19
+
+### Added
+
+- **Resizable Server Settings panel** — resize with Shift+Up/Down (`b69db58`)
+- **Kill server hint** — added to status bar (`9a8ab38`)
+
+### Changed
+
+- **Refactor clippy warnings and unsafe patterns** — (`1b7a070`)
+
+### Fixed
+
+- **Onboarding progress bar visibility** — (`7106724`)
+
+### Documentation
+
+- **Server settings screenshot** — updated (`cecf90c`)
+- **Shift+Up/Down panel resize shortcut** — documented (`8942cd2`)
+- **Cargo.lock update, Inference section removed** — intro cleaned up, status bar rendering updated (`098dac9`)
+- **API proxy features** — added to api-endpoint docs (`6fe2298`)
+- **All documentation screenshots** — updated (`d7c6786`)
+
 ## [1.6.6] - 2026-06-19
 
 ### Added
@@ -196,6 +248,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GNOME extension: fixed real-time metrics display
 - Dashboard: fixed WebSocket connection issues
 
+[1.8.0]: https://github.com/aginies/llmtui/compare/v1.7.0...v1.8.0
+[1.7.0]: https://github.com/aginies/llmtui/compare/v1.6.6...v1.7.0
 [1.6.6]: https://github.com/aginies/llmtui/compare/v1.6.1...v1.6.6
 [1.6.1]: https://github.com/aginies/llmtui/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/aginies/llmtui/compare/v1.5.1...v1.6.0

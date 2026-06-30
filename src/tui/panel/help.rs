@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Layout, Rect},
-    style::{Modifier, Style},
+    style::Style,
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Paragraph, Wrap},
 };
@@ -21,15 +21,16 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
 
     // Title
     let title = Paragraph::new(Line::from(vec![
-        Span::styled("Help", Style::default().add_modifier(Modifier::BOLD)),
-        Span::styled(" — ", Style::default().fg(DIM_GRAY)),
-        Span::styled("⎋ to close", Style::default().fg(DIM_GRAY)),
+        Span::styled("Help", *TITLE),
+        Span::raw(" — "),
+        Span::styled("⎋ to close", *DIM_TEXT),
     ]))
     .block(
         Block::default()
             .borders(Borders::ALL)
             .title(" ")
-            .border_type(BorderType::Rounded),
+            .border_type(BorderType::Double)
+            .border_style(*BORDER_FOCUSED),
     )
     .style(Style::default().fg(WHITE));
     f.render_widget(title, chunks[0]);
@@ -41,7 +42,8 @@ pub fn render_panel(f: &mut Frame, area: Rect, app: &App) {
             Block::default()
                 .borders(Borders::ALL)
                 .title(" ")
-                .border_type(BorderType::Rounded),
+                .border_type(BorderType::Double)
+                .border_style(*BORDER_FOCUSED),
         )
         .wrap(Wrap { trim: true })
         .scroll((app.ui.panel_help_offset as u16, 0));

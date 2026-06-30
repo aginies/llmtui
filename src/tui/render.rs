@@ -73,7 +73,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
     let status_lines = status::render_status_bar(app, chunks[0]);
     let status_block = Block::default()
-        .style(Style::default().bg(Color::Rgb(20, 20, 20)));
+        .style(Style::default().bg(BG_DARK));
     f.render_widget(Paragraph::new(status_lines).block(status_block), chunks[0]);
 
     if app.log.log_expanded {
@@ -165,7 +165,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             let block = Block::default()
                 .title(crate::t!("panel.title.profiles"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(YELLOW))
+                .border_style(Style::default().fg(ACCENT))
                 .border_type(BorderType::Rounded);
             let paragraph = Paragraph::new(visible_lines).block(block);
             f.render_widget(paragraph, area);
@@ -210,7 +210,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             let block = Block::default()
                 .title(crate::t!("panel.title.presets"))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(YELLOW))
+                .border_style(Style::default().fg(ACCENT))
                 .border_type(BorderType::Rounded);
             let paragraph = Paragraph::new(visible_lines).block(block);
             f.render_widget(paragraph, area);

@@ -909,3 +909,33 @@ fn test_ws_metrics_from_metrics_prompt_tokens() {
     assert_eq!(ws_metrics.prompt_elapsed_ms, 120.0);
     assert_eq!(ws_metrics.prompt_tps_eval, 200.0);
 }
+
+// ── GgufMetadata from_path tests ────────────────────────────────
+
+#[test]
+fn test_gguf_metadata_nonexistent_file() {
+    let result = GgufMetadata::from_path(std::path::Path::new("nonexistent_file_12345.gguf"));
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains("Failed to get GGUF container") || err_msg.contains("panicked"));
+}
+
+#[test]
+fn test_gguf_metadata_invalid_file_no_panic() {
+    // Create a temporary invalid file to test parsing
+    let temp_dir = std::env::temp_dir();
+    let temp_file = temp_dir.join("invalid_model_test.gguf");
+    std::fs::write(&temp_file, b"INVALID_GGUF_MAGIC_AND_DATA_1234567890").unwrap();
+
+    let result = GgufMetadata::from_path(&temp_file);
+    let _ = std::fs::remove_file(temp_file);
+
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    // It should fail gracefully (either because the library returns Err or because it catches a panic if any)
+    assert!(
+        err_msg.contains("Failed to get GGUF container") 
+        || err_msg.contains("Failed to decode") 
+        || err_msg.contains("panicked")
+    );
+}

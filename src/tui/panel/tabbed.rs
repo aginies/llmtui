@@ -26,7 +26,7 @@ fn render_unsaved_watermark(f: &mut Frame, area: Rect, app: &App) {
         .map(|c| {
             Line::from(vec![Span::styled(
                 format!("{} ", c),
-                Style::default().fg(ratatui::style::Color::Rgb(255, 130, 130)).add_modifier(Modifier::BOLD),
+                Style::default().fg(RED).add_modifier(Modifier::BOLD),
             )])
         })
         .collect();
@@ -79,9 +79,9 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
         crate::t!("panel.title.llm_active").to_string()
     };
     let is_llm_focused = app.ui.active_panel == crate::tui::app::ActivePanel::LlmSettings;
-    let title_color = if is_llm_focused { GREEN } else { YELLOW };
+    let title_color = if is_llm_focused { GREEN } else { ACCENT };
     let border_color = if app.is_settings_dirty() {
-        ratatui::style::Color::Rgb(255, 130, 130)
+        RED
     } else if is_llm_focused {
         LIGHT_GREEN
     } else {
@@ -97,7 +97,7 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
             Span::raw(title),
             Span::styled(
                 format!("(VRAM ~= {}) ", vram_text),
-                Style::default().fg(YELLOW),
+                Style::default().fg(ACCENT),
             ),
         ]))
         .title_style(Style::default().fg(title_color))
@@ -435,7 +435,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         crate::t!("panel.title.server_active")
     };
     let is_server_focused = app.ui.active_panel == crate::tui::app::ActivePanel::ServerSettings;
-    let title_color = if is_server_focused { GREEN } else { YELLOW };
+    let title_color = if is_server_focused { GREEN } else { ACCENT };
     let (border_type, border_color) = if is_server_focused {
         (BorderType::Double, LIGHT_GREEN)
     } else {
@@ -470,7 +470,7 @@ pub fn render_server_only(f: &mut Frame, area: Rect, app: &mut App) {
 pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
     let is_llm_focused = app.ui.active_panel == ActivePanel::LlmSettings;
     let border_color = if app.is_settings_dirty() {
-        ratatui::style::Color::Rgb(255, 130, 130)
+        RED
     } else if is_llm_focused {
         LIGHT_GREEN
     } else {
@@ -488,7 +488,7 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
             Span::raw(title),
             Span::styled(
                 format!("(VRAM ~= {}) ", vram_text),
-                Style::default().fg(YELLOW),
+                Style::default().fg(ACCENT),
             ),
         ]))
         .borders(Borders::ALL)
@@ -632,7 +632,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                 && let Some((filename, _, _url)) = files.get(*idx)
             {
                 lines.push(Line::from(vec![
-                    Span::styled("File: ", Style::default().fg(YELLOW)),
+                    Span::styled("File: ", Style::default().fg(ACCENT)),
                     Span::styled(filename.clone(), Style::default().fg(WHITE)),
                 ]));
             }
@@ -717,7 +717,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
  pub fn render_info_with_lines(f: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     let block = Block::default()
         .title(crate::t!("panel.title.model_info_active"))
-        .title_style(Style::default().fg(YELLOW))
+        .title_style(Style::default().fg(ACCENT))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(LIGHT_GRAY))
         .border_type(BorderType::Rounded);
@@ -746,7 +746,7 @@ fn render_model_info_lines(
         let value_width = width.saturating_sub(label.len() as u16 + 1);
         let value_display = crate::tui::panel::models::scroll_text(&value, value_width, state);
         lines.push(Line::from(vec![
-            Span::styled(label, Style::default().fg(YELLOW)),
+            Span::styled(label, Style::default().fg(ACCENT)),
             Span::styled(value_display, Style::default().fg(first.value_style)),
         ]));
     }
@@ -764,7 +764,7 @@ fn render_model_info_lines(
             lines.push(Line::from(vec![
                 Span::styled(
                     format!("{:<12}", left_label),
-                    Style::default().fg(YELLOW),
+                    Style::default().fg(ACCENT),
                 ),
                 Span::styled(
                     format!("{:<15}", left.value),
@@ -773,7 +773,7 @@ fn render_model_info_lines(
                 Span::raw("  "),
                 Span::styled(
                     format!("{:<12}", right_label),
-                    Style::default().fg(YELLOW),
+                    Style::default().fg(ACCENT),
                 ),
                 Span::styled(right.value.clone(), Style::default().fg(right.value_style)),
             ]));
@@ -781,7 +781,7 @@ fn render_model_info_lines(
             // Single item in last row
             let label = format!("{}: ", crate::t!(left.label));
             lines.push(Line::from(vec![
-                Span::styled(label, Style::default().fg(YELLOW)),
+                Span::styled(label, Style::default().fg(ACCENT)),
                 Span::styled(left.value.clone(), Style::default().fg(left.value_style)),
             ]));
         }
@@ -864,37 +864,37 @@ fn render_search_result_info(
         .join(", ");
 
     let mut lines = vec![Line::from(vec![
-        Span::styled("Model: ", Style::default().fg(YELLOW)),
+        Span::styled("Model: ", Style::default().fg(ACCENT)),
         Span::styled(r.model_id.clone(), Style::default().fg(WHITE)),
     ])];
     if let Some(s) = size_str.clone() {
         lines.push(Line::from(vec![
-            Span::styled("Size: ", Style::default().fg(YELLOW)),
+            Span::styled("Size: ", Style::default().fg(ACCENT)),
             Span::styled(s, Style::default().fg(WHITE)),
         ]));
     }
     lines.push(Line::from(vec![
-        Span::styled("Params: ", Style::default().fg(YELLOW)),
+        Span::styled("Params: ", Style::default().fg(ACCENT)),
         Span::styled(params_str.clone(), Style::default().fg(WHITE)),
         Span::raw(" | "),
-        Span::styled("Type: ", Style::default().fg(YELLOW)),
+        Span::styled("Type: ", Style::default().fg(ACCENT)),
         Span::styled(cap_str.clone(), Style::default().fg(WHITE)),
     ]));
     lines.push(Line::from(vec![
-        Span::styled("Pipeline: ", Style::default().fg(YELLOW)),
+        Span::styled("Pipeline: ", Style::default().fg(ACCENT)),
         Span::styled(pipeline_str.to_string(), Style::default().fg(WHITE)),
         Span::raw(" | "),
-        Span::styled("Downloads: ", Style::default().fg(YELLOW)),
+        Span::styled("Downloads: ", Style::default().fg(ACCENT)),
         Span::styled(
             format!("{}", r.downloads),
             Style::default().fg(WHITE),
         ),
     ]));
     lines.push(Line::from(vec![
-        Span::styled("Likes: ", Style::default().fg(YELLOW)),
+        Span::styled("Likes: ", Style::default().fg(ACCENT)),
         Span::styled(format!("{}", r.likes), Style::default().fg(WHITE)),
         Span::raw(" | "),
-        Span::styled("Trending: ", Style::default().fg(YELLOW)),
+        Span::styled("Trending: ", Style::default().fg(ACCENT)),
         Span::styled(
             format!("{}", r.trending_score),
             Style::default().fg(WHITE),
@@ -902,17 +902,17 @@ fn render_search_result_info(
     ]));
     let license: String = r.license.as_deref().unwrap_or("—").to_string();
     lines.push(Line::from(vec![
-        Span::styled("License: ", Style::default().fg(YELLOW)),
+        Span::styled("License: ", Style::default().fg(ACCENT)),
         Span::styled(license, Style::default().fg(WHITE)),
     ]));
     if let Some(created) = &r.created_at {
         lines.push(Line::from(vec![
-            Span::styled("Created: ", Style::default().fg(YELLOW)),
+            Span::styled("Created: ", Style::default().fg(ACCENT)),
             Span::styled(created.clone(), Style::default().fg(WHITE)),
         ]));
     }
     lines.push(Line::from(vec![
-        Span::styled("Tags: ", Style::default().fg(YELLOW)),
+        Span::styled("Tags: ", Style::default().fg(ACCENT)),
         Span::styled(tag_str, Style::default().fg(WHITE)),
     ]));
     lines

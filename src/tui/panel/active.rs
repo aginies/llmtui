@@ -156,7 +156,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         title_spans.push(Span::styled("[ ", Style::default().fg(WHITE)));
         title_spans.push(Span::styled(
             "Total VRAM: ",
-            Style::default().fg(YELLOW),
+            Style::default().fg(ACCENT),
         ));
 
         if let Some(bar_line) = vram_bar_line(
@@ -192,7 +192,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         (BorderType::Rounded, LIGHT_GRAY)
     };
 
-    let title_color = if is_active_focused { GREEN } else { YELLOW };
+    let title_color = if is_active_focused { GREEN } else { ACCENT };
     let block = Block::default()
         .title(Line::from(title_spans))
         .title_style(Style::default().fg(title_color))
@@ -211,7 +211,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
          };
 
                 lines.push(Line::from(vec![
-                     Span::styled(" Model:  ", Style::default().fg(YELLOW)),
+                     Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                      Span::styled(
                          display_name,
                          Style::default()
@@ -221,11 +221,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                  ]));
 
         lines.push(Line::from(vec![
-            Span::styled(" Status: ", Style::default().fg(YELLOW)),
+            Span::styled(" Status: ", Style::default().fg(ACCENT)),
             Span::styled(
                 "BENCHMARKING",
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD),
             ),
         ]));
@@ -247,11 +247,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         p
                     );
                     lines.push(Line::from(vec![
-                        Span::styled(" Progress: ", Style::default().fg(YELLOW)),
-                        Span::styled(bar, Style::default().fg(YELLOW)),
+                        Span::styled(" Progress: ", Style::default().fg(ACCENT)),
+                        Span::styled(bar, Style::default().fg(ACCENT)),
                     ]));
                     lines.push(Line::from(vec![
-                        Span::styled(" Test: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Test: ", Style::default().fg(ACCENT)),
                         Span::styled(
                             format!("{}/{}", current, total),
                             Style::default().fg(WHITE),
@@ -261,7 +261,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let p_str = crate::tui::format_bench_params(current_params, false).join(", ");
 
                     lines.push(Line::from(vec![
-                        Span::styled(" Current: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Current: ", Style::default().fg(ACCENT)),
                         Span::styled(p_str, Style::default().fg(CYAN)),
                     ]));
                 }
@@ -272,14 +272,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 } => {
                     let elapsed_str = format!("{}s", elapsed.as_secs());
                     lines.push(Line::from(vec![
-                        Span::styled(" Results: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Results: ", Style::default().fg(ACCENT)),
                         Span::styled(
                             format!("{}/{} tests successful", successful_tests, total_tests),
                             Style::default().fg(WHITE),
                         ),
                     ]));
                     lines.push(Line::from(vec![
-                        Span::styled(" Total Time: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Total Time: ", Style::default().fg(ACCENT)),
                         Span::styled(elapsed_str, Style::default().fg(WHITE)),
                     ]));
                 }
@@ -291,21 +291,21 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 } => {
                     let elapsed_str = format!("{}s", elapsed.as_secs());
                     lines.push(Line::from(vec![
-                        Span::styled(" Results: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Results: ", Style::default().fg(ACCENT)),
                         Span::styled(
                             format!("{}/{} tests successful", successful_tests, total_tests),
-                            Style::default().fg(YELLOW),
+                            Style::default().fg(ACCENT),
                         ),
                     ]));
                     lines.push(Line::from(vec![
-                        Span::styled(" Failed: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Failed: ", Style::default().fg(ACCENT)),
                         Span::styled(
                             format!("{} test(s)", failed_tests),
                             Style::default().fg(RED),
                         ),
                     ]));
                     lines.push(Line::from(vec![
-                        Span::styled(" Total Time: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Total Time: ", Style::default().fg(ACCENT)),
                         Span::styled(elapsed_str, Style::default().fg(WHITE)),
                     ]));
                 }
@@ -317,21 +317,21 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 } => {
                     let elapsed_str = format!("{}s", elapsed.as_secs());
                     lines.push(Line::from(vec![
-                        Span::styled(" Results: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Results: ", Style::default().fg(ACCENT)),
                         Span::styled(
                             format!("{}/{} tests successful", successful_tests, total_tests),
-                            Style::default().fg(YELLOW),
+                            Style::default().fg(ACCENT),
                         ),
                     ]));
                     lines.push(Line::from(vec![
-                        Span::styled(" Failed: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Failed: ", Style::default().fg(ACCENT)),
                         Span::styled(
                             format!("{} test(s)", failed_tests),
                             Style::default().fg(RED),
                         ),
                     ]));
                     lines.push(Line::from(vec![
-                        Span::styled(" Total Time: ", Style::default().fg(YELLOW)),
+                        Span::styled(" Total Time: ", Style::default().fg(ACCENT)),
                         Span::styled(elapsed_str, Style::default().fg(WHITE)),
                     ]));
                 }
@@ -344,7 +344,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             }
         } else {
             lines.push(Line::from(vec![
-                Span::styled(" Info:   ", Style::default().fg(YELLOW)),
+                Span::styled(" Info:   ", Style::default().fg(ACCENT)),
                 Span::styled(
                     "Starting first test...",
                     Style::default().fg(DIM_GRAY),
@@ -366,7 +366,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 );
 
                 lines.push(Line::from(vec![
-                    Span::styled(" Model:  ", Style::default().fg(YELLOW)),
+                    Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
                         Style::default()
@@ -391,25 +391,25 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                 let tps_parts = vec![
                     Span::styled(" [ ", Style::default().fg(WHITE)),
-                    Span::styled("Tokens/s: ", Style::default().fg(YELLOW)),
+                    Span::styled("Tokens/s: ", Style::default().fg(ACCENT)),
                     Span::styled(tps_str, tps_style),
                     if !latency_str.is_empty() {
                         Span::styled(latency_str, Style::default().fg(CYAN))
                     } else {
                         Span::styled(" ".repeat(10), Style::default().fg(DIM_GRAY))
                     },
-                    Span::styled(" (prompt: ", Style::default().fg(YELLOW)),
+                    Span::styled(" (prompt: ", Style::default().fg(ACCENT)),
                     Span::styled(prompt_str, prompt_style),
-                    Span::styled(")", Style::default().fg(YELLOW)),
+                    Span::styled(")", Style::default().fg(ACCENT)),
                     Span::styled(" ]", Style::default().fg(WHITE)),
                     Span::styled("  [ ", Style::default().fg(WHITE)),
-                    Span::styled("Decoded: ", Style::default().fg(YELLOW)),
+                    Span::styled("Decoded: ", Style::default().fg(ACCENT)),
                     Span::styled(
                         format!("{}", app.metrics.decoded_tokens),
                         Style::default().fg(CYAN),
                     ),
                     Span::styled("  ", Style::default().fg(WHITE)),
-                    Span::styled("Gen: ", Style::default().fg(YELLOW)),
+                    Span::styled("Gen: ", Style::default().fg(ACCENT)),
                     Span::styled(format!("{:.1}", app.metrics.gen_tps), gen_tps_style),
                     Span::styled(" t/s", Style::default().fg(CYAN)),
                     Span::styled(" ]", Style::default().fg(WHITE)),
@@ -419,7 +419,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
              let mut context_parts = vec![
                       Span::styled(" [ ", Style::default().fg(WHITE)),
-                      Span::styled("Context: ", Style::default().fg(YELLOW)),
+                      Span::styled("Context: ", Style::default().fg(ACCENT)),
                       Span::styled(token_str, Style::default().fg(CYAN)),
                       Span::styled(" ]", Style::default().fg(WHITE)),
                   ];
@@ -438,7 +438,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         app.metrics.prompt_tps_eval,
                     );
                     context_parts.push(Span::styled(" ", Style::default().fg(WHITE)));
-                    context_parts.push(Span::styled(" [Progress: ", Style::default().fg(YELLOW)));
+                    context_parts.push(Span::styled(" [Progress: ", Style::default().fg(ACCENT)));
                     context_parts.push(Span::styled(prompt_bar, Style::default().fg(CYAN)));
                     context_parts.push(Span::styled(" ", Style::default().fg(CYAN)));
                     context_parts.push(Span::styled(format!("{}%", (app.metrics.prompt_progress * 100.0) as usize), Style::default().fg(CYAN)));
@@ -451,21 +451,21 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                 lines.push(Line::from(vec![
                     Span::styled(" [ ", Style::default().fg(WHITE)),
-                    Span::styled("CPU: ", Style::default().fg(YELLOW)),
+                    Span::styled("CPU: ", Style::default().fg(ACCENT)),
                     Span::styled(
                         format!("{:.1}%", app.metrics.cpu_usage),
                         Style::default().fg(CYAN),
                     ),
                     Span::styled(" ]", Style::default().fg(WHITE)),
                     Span::styled("  [ ", Style::default().fg(WHITE)),
-                    Span::styled("RAM: ", Style::default().fg(YELLOW)),
+                    Span::styled("RAM: ", Style::default().fg(ACCENT)),
                     Span::styled(
                         format_size(app.metrics.ram_used),
                         Style::default().fg(CYAN),
                     ),
                     Span::styled(" ]", Style::default().fg(WHITE)),
                     Span::styled("  [ ", Style::default().fg(WHITE)),
-                    Span::styled("VRAM: ", Style::default().fg(YELLOW)),
+                    Span::styled("VRAM: ", Style::default().fg(ACCENT)),
                     Span::styled(
                         format_size(app.metrics.gpu_mem_used),
                         Style::default().fg(CYAN),
@@ -480,7 +480,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             }
             ModelState::Benchmarking => {
                 lines.push(Line::from(vec![
-                    Span::styled(" Model:  ", Style::default().fg(YELLOW)),
+                    Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
                         Style::default()
@@ -490,18 +490,18 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 ]));
 
                 lines.push(Line::from(vec![
-                    Span::styled(" Status: ", Style::default().fg(YELLOW)),
+                    Span::styled(" Status: ", Style::default().fg(ACCENT)),
                     Span::styled(
                         "BENCHMARKING",
                         Style::default()
-                            .fg(YELLOW)
+                            .fg(ACCENT)
                             .add_modifier(Modifier::BOLD),
                     ),
                 ]));
             }
             ModelState::Loading => {
                 lines.push(Line::from(vec![
-                    Span::styled(" Model:  ", Style::default().fg(YELLOW)),
+                    Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
                         Style::default()
@@ -517,8 +517,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     "LOADING".to_string()
                 };
           lines.push(Line::from(vec![
-                     Span::styled(" Status: ", Style::default().fg(YELLOW)),
-                     Span::styled(status_content, Style::default().fg(YELLOW)),
+                     Span::styled(" Status: ", Style::default().fg(ACCENT)),
+                     Span::styled(status_content, Style::default().fg(ACCENT)),
                  ]));
 
                  if app.loading.loading_progress > 0.0 && app.loading.loading_progress <= 1.0 {
@@ -532,7 +532,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let gauge = Gauge::default()
                         .ratio(ratio)
                         .label(format!("{:.0}%", ratio * 100.0))
-                        .gauge_style(Style::default().fg(YELLOW));
+                        .gauge_style(Style::default().fg(ACCENT));
                     f.render_widget(gauge, bar_area);
                  } else {
                     let bar_area = Rect {
@@ -591,7 +591,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             }
             ModelState::Failed { error } => {
                 lines.push(Line::from(vec![
-                    Span::styled(" Model:  ", Style::default().fg(YELLOW)),
+                    Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
                         Style::default()
@@ -600,7 +600,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     ),
                 ]));
                 lines.push(Line::from(vec![
-                    Span::styled(" Status: ", Style::default().fg(YELLOW)),
+                    Span::styled(" Status: ", Style::default().fg(ACCENT)),
                     Span::styled(
                         "FAILED",
                         Style::default().fg(RED).add_modifier(Modifier::BOLD),
@@ -613,7 +613,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             }
             ModelState::Available => {
                 lines.push(Line::from(vec![
-                    Span::styled(" Model:  ", Style::default().fg(YELLOW)),
+                    Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                     Span::styled(
                         model_filename(name),
                         Style::default()
@@ -622,7 +622,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     ),
                 ]));
                 lines.push(Line::from(vec![
-                    Span::styled(" Status: ", Style::default().fg(YELLOW)),
+                    Span::styled(" Status: ", Style::default().fg(ACCENT)),
                     Span::styled(
                         "NOT LOADED",
                         Style::default()
@@ -635,7 +635,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     } else {
         if app.server.server_handle.is_some() {
             lines.push(Line::from(vec![
-                Span::styled(" Model:  ", Style::default().fg(YELLOW)),
+                Span::styled(" Model:  ", Style::default().fg(ACCENT)),
                 Span::styled(
                     "llama-server",
                     Style::default()

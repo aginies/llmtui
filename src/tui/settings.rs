@@ -1212,7 +1212,7 @@ pub fn add_setting(
     let name_style = if disabled {
         Style::default().fg(GRAY)
     } else {
-        Style::default().fg(YELLOW)
+        Style::default().fg(ACCENT)
     };
     let val_style = if disabled {
         Style::default()
@@ -1227,7 +1227,7 @@ pub fn add_setting(
             Span::styled(
                 "> ",
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(if disabled {
                         Modifier::DIM
                     } else {
@@ -1239,7 +1239,7 @@ pub fn add_setting(
                  val.to_string(),
                  Style::default()
                      .fg(BLACK)
-                     .bg(YELLOW)
+                     .bg(ACCENT)
                      .add_modifier(Modifier::BOLD),
              ),
         ]));

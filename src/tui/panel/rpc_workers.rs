@@ -21,7 +21,7 @@ pub fn render_all<'a>(
             Span::styled(
                 "Editing RPC Worker",
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
@@ -39,7 +39,7 @@ pub fn render_all<'a>(
             spans.push(Span::raw(before));
             spans.push(           Span::styled(
                 c.to_string(),
-                Style::default().fg(BLACK).bg(YELLOW),
+                Style::default().fg(BLACK).bg(ACCENT),
             ));
             spans.push(Span::raw(after));
         } else {
@@ -48,7 +48,7 @@ pub fn render_all<'a>(
         if edit_cursor_pos == edit_content.chars().count() {
             spans.push(Span::styled(
                 "_",
-                Style::default().fg(BLACK).bg(YELLOW),
+                Style::default().fg(BLACK).bg(ACCENT),
             ));
         }
         lines.push(Line::from(spans));
@@ -64,7 +64,7 @@ pub fn render_all<'a>(
             Span::styled(
                 "RPC Workers",
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
@@ -81,7 +81,7 @@ pub fn render_all<'a>(
             let row_style = if i == selected {
                 Style::default()
                     .fg(BLACK)
-                    .bg(YELLOW)
+                    .bg(ACCENT)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(WHITE)
@@ -94,7 +94,7 @@ pub fn render_all<'a>(
             };
 
             lines.push(Line::from(vec![
-                Span::styled(marker, Style::default().fg(YELLOW)),
+                Span::styled(marker, Style::default().fg(ACCENT)),
                 Span::styled(
                     checkbox,
                     Style::default().fg(if worker.selected {

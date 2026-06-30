@@ -21,7 +21,7 @@ pub fn render_all<'a>(
             lines.push(Line::from(vec![Span::styled(
                 format!("Editing: {}", presets[selected].name),
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(""));
@@ -29,7 +29,7 @@ pub fn render_all<'a>(
             lines.push(Line::from(vec![Span::styled(
                 "Creating new preset",
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(""));
@@ -46,14 +46,14 @@ pub fn render_all<'a>(
             if line_chars.is_empty() && current_char_idx == edit_cursor_pos {
                 spans.push(Span::styled(
                     "_",
-                    Style::default().fg(BLACK).bg(YELLOW),
+                    Style::default().fg(BLACK).bg(ACCENT),
                 ));
             } else {
                 for &ch in line_chars.iter() {
                     if current_char_idx == edit_cursor_pos {
                         spans.push(Span::styled(
                             ch.to_string(),
-                            Style::default().fg(BLACK).bg(YELLOW),
+                            Style::default().fg(BLACK).bg(ACCENT),
                         ));
                     } else {
                         spans.push(Span::raw(ch.to_string()));
@@ -65,7 +65,7 @@ pub fn render_all<'a>(
                 if current_char_idx == edit_cursor_pos {
                     spans.push(Span::styled(
                         "_",
-                        Style::default().fg(BLACK).bg(YELLOW),
+                        Style::default().fg(BLACK).bg(ACCENT),
                     ));
                 }
             }
@@ -78,7 +78,7 @@ pub fn render_all<'a>(
         if edit_content.ends_with('\n') && current_char_idx - 1 == edit_cursor_pos {
             lines.push(Line::from(Span::styled(
                 "_",
-                Style::default().fg(BLACK).bg(YELLOW),
+                Style::default().fg(BLACK).bg(ACCENT),
             )));
         }
 
@@ -93,7 +93,7 @@ pub fn render_all<'a>(
             Span::styled(
                 "System Prompt Presets",
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
@@ -108,13 +108,13 @@ pub fn render_all<'a>(
             let name_style = if i == selected {
                 Style::default()
                     .fg(BLACK)
-                    .bg(YELLOW)
+                    .bg(ACCENT)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(WHITE)
             };
             lines.push(Line::from(vec![
-                Span::styled(marker, Style::default().fg(YELLOW)),
+                Span::styled(marker, Style::default().fg(ACCENT)),
                 Span::styled(&preset.name, name_style),
             ]));
             lines.push(Line::from(vec![

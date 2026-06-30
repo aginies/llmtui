@@ -1054,11 +1054,17 @@ pub struct GgufMetadata {
 impl GgufMetadata {
     pub fn from_path(path: &std::path::Path) -> anyhow::Result<Self> {
         let path_str = path.to_string_lossy();
-        let mut container = gguf_rs::get_gguf_container(&path_str)
-            .map_err(|e| anyhow::anyhow!("Failed to get GGUF container: {}", e))?;
-        let model_data = container
-            .decode()
-            .map_err(|e| anyhow::anyhow!("Failed to decode GGUF: {}", e))?;
+        
+        let model_data_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            gguf_rs::get_gguf_container(&path_str).map(|mut container| container.decode())
+        }));
+
+        let model_data = match model_data_res {
+            Ok(Ok(Ok(data))) => data,
+            Ok(Ok(Err(e))) => return Err(anyhow::anyhow!("Failed to decode GGUF: {}", e)),
+            Ok(Err(e)) => return Err(anyhow::anyhow!("Failed to get GGUF container: {}", e)),
+            Err(_) => return Err(anyhow::anyhow!("GGUF library panicked during parsing/decoding (likely due to unsupported tensor/GGML type)")),
+        };
 
         let mut meta = Self::default();
 

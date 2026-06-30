@@ -18,7 +18,7 @@ pub fn render_all<'a>(
         Span::styled(
             "Profiles",
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
@@ -33,13 +33,13 @@ pub fn render_all<'a>(
         let name_style = if i == selected {
             Style::default()
                 .fg(BLACK)
-                .bg(YELLOW)
+                .bg(ACCENT)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(WHITE)
         };
         lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(YELLOW)),
+            Span::styled(marker, Style::default().fg(ACCENT)),
             Span::styled(&profile.name, name_style),
         ]));
 

@@ -7,7 +7,7 @@ use ratatui::{
 pub fn render_about() -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     let y = Style::default()
-        .fg(YELLOW)
+        .fg(ACCENT)
         .add_modifier(Modifier::BOLD);
     let c = Style::default().fg(CYAN);
     let gray = Style::default().fg(DIM_GRAY);

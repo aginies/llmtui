@@ -39,7 +39,7 @@ pub fn render_download_panel(
     } else {
         (BorderType::Rounded, LIGHT_GRAY)
     };
-    let title_color = if is_focused { GREEN } else { YELLOW };
+    let title_color = if is_focused { GREEN } else { ACCENT };
     let block = Block::default()
         .title(title)
         .title_style(Style::default().fg(title_color))
@@ -75,8 +75,8 @@ pub fn render_download_panel(
             };
 
             let status_color = match &d.status {
-                crate::models::DownloadStatus::Downloading => YELLOW,
-                crate::models::DownloadStatus::Pausing => YELLOW,
+                crate::models::DownloadStatus::Downloading => ACCENT,
+                crate::models::DownloadStatus::Pausing => ACCENT,
                 crate::models::DownloadStatus::Paused => WHITE,
                 crate::models::DownloadStatus::Complete => GREEN,
                 crate::models::DownloadStatus::Cancelled => RED,
@@ -97,32 +97,32 @@ pub fn render_download_panel(
     let headers = vec![
         Cell::from(crate::t!("download.headers.model")).style(
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.file")).style(
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.progress")).style(
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.speed")).style(
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.eta")).style(
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
         Cell::from(crate::t!("download.headers.status")).style(
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
     ];
@@ -140,7 +140,7 @@ pub fn render_download_panel(
         .header(Row::new(headers))
         .row_highlight_style(
             Style::default()
-                .bg(YELLOW)
+                .bg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">> ");
@@ -269,7 +269,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
            };
 
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
-            let title_color = if is_models_focused { GREEN } else { YELLOW };
+            let title_color = if is_models_focused { GREEN } else { ACCENT };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
             } else {
@@ -309,14 +309,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         Span::styled(
                             "Filter: ",
                             Style::default()
-                                .fg(YELLOW)
+                                .fg(ACCENT)
                                 .add_modifier(Modifier::BOLD),
                         ),
                         Span::styled(
                             &app.search.local_filter,
-                            Style::default().fg(BLACK).bg(YELLOW),
+                            Style::default().fg(BLACK).bg(ACCENT),
                         ),
-                        Span::styled("_", Style::default().fg(BLACK).bg(YELLOW)),
+                        Span::styled("_", Style::default().fg(BLACK).bg(ACCENT)),
                     ])
                 } else {
                     Line::from(vec![
@@ -340,7 +340,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == ListSort::Params {
@@ -354,7 +354,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == ListSort::Qual {
@@ -368,7 +368,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(
@@ -383,7 +383,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     })
                     .style(
                         Style::default()
-                            .fg(YELLOW)
+                            .fg(ACCENT)
                             .add_modifier(Modifier::BOLD),
                     )
                     .alignment(Alignment::Center),
@@ -468,14 +468,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let name_style = if is_selected {
                         Style::default()
                             .fg(BLACK)
-                            .bg(YELLOW)
+                            .bg(ACCENT)
                             .add_modifier(Modifier::BOLD)
                     } else if is_loaded {
                         Style::default()
                             .fg(GREEN)
                             .add_modifier(Modifier::BOLD)
                     } else if matches!(model_state, Some(crate::models::ModelState::Loading) | Some(crate::models::ModelState::Benchmarking)) {
-                        Style::default().fg(YELLOW)
+                        Style::default().fg(ACCENT)
                     } else {
                         Style::default().fg(WHITE)
                     };
@@ -546,7 +546,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .row_highlight_style(
                     Style::default()
                         .fg(BLACK)
-                        .bg(YELLOW)
+                        .bg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
@@ -583,7 +583,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 )
             };
              let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
-            let title_color = if is_models_focused { GREEN } else { YELLOW };
+            let title_color = if is_models_focused { GREEN } else { ACCENT };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
             } else {
@@ -599,7 +599,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let headers = vec![
                 Cell::from(crate::t!("models.search_headers.model")).style(
                     Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == SearchSort::Downloads {
@@ -609,7 +609,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(if *sort_by == SearchSort::Likes {
@@ -619,12 +619,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .style(
                     Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(crate::t!("models.search_headers.license")).style(
                     Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
             ];
@@ -691,7 +691,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             // Add informational rows
             if *loading {
                 rows.push(Row::new(vec![
-                    Cell::from("Loading more results...").style(Style::default().fg(YELLOW)),
+                    Cell::from("Loading more results...").style(Style::default().fg(ACCENT)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
@@ -726,7 +726,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .row_highlight_style(
                     Style::default()
                         .fg(BLACK)
-                        .bg(YELLOW)
+                        .bg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
@@ -745,7 +745,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         } => {
             let title = crate::t_fmt!("models.gguf_files", model_id);
              let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
-            let title_color = if is_models_focused { GREEN } else { YELLOW };
+            let title_color = if is_models_focused { GREEN } else { ACCENT };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
             } else {
@@ -807,12 +807,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let headers = vec![
                 Cell::from(crate::t!("models.gguf_headers.file")).style(
                     Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Cell::from(crate::t!("models.gguf_headers.size")).style(
                     Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
             ];
@@ -824,7 +824,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .row_highlight_style(
                     Style::default()
                         .fg(BLACK)
-                        .bg(YELLOW)
+                        .bg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
@@ -836,7 +836,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         ModelsMode::BenchTune => {
             let title = crate::t!("panel.title.bench_tune").to_string();
             let is_models_focused = app.ui.active_panel == crate::tui::app::ActivePanel::Models;
-            let title_color = if is_models_focused { GREEN } else { YELLOW };
+            let title_color = if is_models_focused { GREEN } else { ACCENT };
             let (border_type, border_color) = if is_models_focused {
                 (BorderType::Double, LIGHT_GREEN)
             } else {
@@ -908,7 +908,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         let success_style = if successful_tests == total_tests {
                             Style::default().fg(GREEN)
                         } else if *successful_tests > 0 {
-                            Style::default().fg(YELLOW)
+                            Style::default().fg(ACCENT)
                         } else {
                             Style::default().fg(RED)
                         };
@@ -948,7 +948,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(
                                 "PARTIALLY COMPLETED",
                                 Style::default()
-                                    .fg(YELLOW)
+                                    .fg(ACCENT)
                                     .add_modifier(Modifier::BOLD),
                             ),
                             Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
@@ -959,7 +959,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(
                                 format!("{}/{}", successful_tests, total_tests),
                                 Style::default()
-                                    .fg(YELLOW)
+                                    .fg(ACCENT)
                                     .add_modifier(Modifier::BOLD),
                             ),
                         ]));
@@ -992,7 +992,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(
                                 "CANCELLED",
                                 Style::default()
-                                    .fg(YELLOW)
+                                    .fg(ACCENT)
                                     .add_modifier(Modifier::BOLD),
                             ),
                             Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
@@ -1003,7 +1003,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(
                                 format!("{}/{}", successful_tests, total_tests),
                                 Style::default()
-                                    .fg(YELLOW)
+                                    .fg(ACCENT)
                                     .add_modifier(Modifier::BOLD),
                             ),
                         ]));
@@ -1016,7 +1016,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         ]));
                         lines.push(Line::from(Span::styled(
                             "Benchmark was cancelled by user.",
-                            Style::default().fg(YELLOW),
+                            Style::default().fg(ACCENT),
                         )));
 
                         if !app.bench_tune.bench_tune_results.is_empty() {
@@ -1101,7 +1101,7 @@ fn render_benchtune_results_table(
     ])
     .style(
         Style::default()
-            .fg(YELLOW)
+            .fg(ACCENT)
             .add_modifier(Modifier::BOLD),
     );
 
@@ -1118,7 +1118,7 @@ fn render_benchtune_results_table(
     .block(Block::default().borders(Borders::NONE))
     .row_highlight_style(
         Style::default()
-            .bg(YELLOW)
+            .bg(ACCENT)
             .add_modifier(Modifier::BOLD),
     )
     .highlight_symbol("> ");

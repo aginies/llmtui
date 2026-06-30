@@ -25,7 +25,7 @@ fn highlight_keys(text: &str) -> Vec<Span<'static>> {
             spans.push(Span::styled(
                 ch.to_string(),
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD),
             ));
         } else {
@@ -105,7 +105,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     lines.push(Line::from(Span::styled(
         title,
         Style::default()
-            .fg(YELLOW)
+            .fg(ACCENT)
             .add_modifier(Modifier::BOLD),
     )));
     lines.push(Line::from(description));
@@ -128,7 +128,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
     let block = Block::default()
         .title(format!(" {} — {} ", title, step_indicator))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(YELLOW))
+        .border_style(Style::default().fg(ACCENT))
         .border_type(BorderType::Rounded);
 
     f.render_widget(ratatui::widgets::Clear, popup_area);

@@ -118,11 +118,11 @@ fn render_settings(
         if field.is_new_section(prev_section) {
             let section_style = if disabled {
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::DIM)
             } else {
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD)
             };
             lines.push(Line::from(vec![Span::styled(
@@ -154,20 +154,20 @@ fn render_settings(
             Style::default().fg(RED)
         } else if field.is_expert {
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::DIM)
         } else {
-            Style::default().fg(YELLOW)
+            Style::default().fg(ACCENT)
         };
         let indicator_style = if visually_disabled {
             Style::default().fg(GRAY)
         } else {
-            Style::default().fg(YELLOW)
+            Style::default().fg(ACCENT)
         };
         let final_val_style = if *total_count == selected {
             Style::default()
                 .fg(BLACK)
-                .bg(YELLOW)
+                .bg(ACCENT)
                 .add_modifier(Modifier::BOLD)
         } else if visually_disabled {
             Style::default().fg(GRAY)

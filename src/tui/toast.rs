@@ -8,7 +8,7 @@ use ratatui::{
 use std::time::Instant;
 use std::collections::VecDeque;
 
-use crate::tui::colors::WHITE;
+use crate::tui::colors::{WHITE, BG_DARK};
 
 pub const TOAST_MAX_WIDTH: u16 = 50;
 pub const TOAST_MAX_ITEMS: usize = 3;
@@ -34,7 +34,7 @@ impl ToastLevel {
     pub fn border_style(&self) -> Style {
         match self {
             ToastLevel::Error => Style::default().fg(crate::tui::colors::RED),
-            ToastLevel::Warning => Style::default().fg(crate::tui::colors::YELLOW),
+            ToastLevel::Warning => Style::default().fg(crate::tui::colors::ACCENT),
             ToastLevel::Info => Style::default().fg(crate::tui::colors::DIM_GRAY),
         }
     }
@@ -86,7 +86,7 @@ pub fn render_toasts(f: &mut Frame, area: Rect, toasts: &VecDeque<Toast>) {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(toast.level.border_style())
-            .style(Style::default().bg(Color::Rgb(15, 15, 15)));
+            .style(Style::default().bg(BG_DARK));
         let text = Line::from(toast.text.clone())
             .style(Style::default().fg(WHITE).add_modifier(Modifier::BOLD));
         f.render_widget(Paragraph::new(text).block(block), toast_area);

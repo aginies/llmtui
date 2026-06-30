@@ -117,10 +117,10 @@ impl MdRenderer {
             Tag::Heading { level, .. } => {
                 self.current_style = match level {
                     pulldown_cmark::HeadingLevel::H1 => Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                     pulldown_cmark::HeadingLevel::H2 => Style::default()
-                        .fg(YELLOW)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                     pulldown_cmark::HeadingLevel::H3 => Style::default()
                         .fg(MAGENTA)
@@ -435,7 +435,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
     } else {
         LIGHT_GRAY
     };
-    let title_color = if is_focused { GREEN } else { YELLOW };
+    let title_color = if is_focused { GREEN } else { ACCENT };
     let block = Block::default()
         .title(crate::t!("panel.title.readme"))
         .title_style(Style::default().fg(title_color))

@@ -30,7 +30,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     } else {
         (BorderType::Rounded, LIGHT_GRAY)
     };
-    let title_color = if is_log_focused { GREEN } else { YELLOW };
+    let title_color = if is_log_focused { GREEN } else { ACCENT };
     let block = Block::default()
         .title(title)
         .title_style(Style::default().fg(title_color))
@@ -42,7 +42,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     for e in &app.log.log_entries {
         let level_color = match e.level {
             crate::config::LogLevel::Info => CYAN,
-            crate::config::LogLevel::Warning => YELLOW,
+            crate::config::LogLevel::Warning => ACCENT,
             crate::config::LogLevel::Error => RED,
         };
 

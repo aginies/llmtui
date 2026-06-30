@@ -17,14 +17,14 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
     };
     let mut status_parts: Vec<Span<'static>> = Vec::new();
     
-    status_parts.push(Span::styled(format!("[Mode: {}] ", mode_name), Style::default().fg(WHITE)));
+    status_parts.push(Span::styled(format!("[Mode: {}]", mode_name), Style::default().fg(WHITE)));
 
     if app.is_settings_dirty() {
-        status_parts.push(Span::raw("  "));
+        status_parts.push(Span::raw(" │ "));
         status_parts.push(Span::styled(
             crate::t!("hints.unsaved_watermark").to_string(),
             Style::default()
-                .fg(ratatui::style::Color::Rgb(255, 130, 130))
+                .fg(RED)
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -47,6 +47,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
             content.push_str(" SEARXNG");
         }
         status_parts.push(Span::styled(content, Style::default().fg(GREEN)));
+        status_parts.push(Span::raw(" │ "));
     } else if app.server_mode == crate::models::ServerMode::BenchTune {
         if let Some(progress) = &app.bench_tune.bench_tune_progress {
             match progress {
@@ -64,7 +65,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
                     );
                     status_parts.push(Span::styled(
                         format!("● {}", progress_str),
-                        Style::default().fg(YELLOW),
+                        Style::default().fg(ACCENT),
                     ));
                 }
                 crate::models::BenchTuneProgress::Completed {
@@ -100,7 +101,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
                     );
                     status_parts.push(Span::styled(
                         format!("● {}", progress_str),
-                        Style::default().fg(YELLOW),
+                        Style::default().fg(ACCENT),
                     ));
                 }
                 crate::models::BenchTuneProgress::Cancelled {
@@ -119,7 +120,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
                     );
                     status_parts.push(Span::styled(
                         format!("● {}", progress_str),
-                        Style::default().fg(YELLOW),
+                        Style::default().fg(ACCENT),
                     ));
                 }
                 crate::models::BenchTuneProgress::Error { error } => {
@@ -132,14 +133,16 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         } else {
             status_parts.push(Span::styled(
                 format!("● {}", crate::t!("status.bench_tune_ready")),
-                Style::default().fg(YELLOW),
+                Style::default().fg(ACCENT),
             ));
         }
+        status_parts.push(Span::raw(" │ "));
     } else {
         status_parts.push(Span::styled(
             "[ N/A ]".to_string(),
             Style::default().fg(GREEN),
         ));
+        status_parts.push(Span::raw(" │ "));
     }
 
     if app.server.server_handle.is_some() {
@@ -157,7 +160,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         status_parts.push(Span::styled(
             crate::t!("status.host_picker").to_string(),
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -166,7 +169,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         status_parts.push(Span::styled(
             crate::t!("status.rpc_manager").to_string(),
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -175,7 +178,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         status_parts.push(Span::styled(
             crate::t!("status.about").to_string(),
             Style::default()
-                .fg(YELLOW)
+                .fg(ACCENT)
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -192,7 +195,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
             status_parts.push(Span::styled(
                 crate::t!("status.bench_setup").to_string(),
                 Style::default()
-                    .fg(YELLOW)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD),
             ));
         }
@@ -239,7 +242,7 @@ fn render_panel_visibility(app: &App) -> Vec<Span<'static>> {
 
         if visible {
             let style = if focused {
-                Style::default().fg(YELLOW).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(GREEN)
             };

@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 impl App {
     pub fn panel_help_lines(&self) -> Vec<Line<'static>> {
         let y = Style::default()
-            .fg(YELLOW)
+            .fg(ACCENT)
             .add_modifier(Modifier::BOLD);
 
         match self.ui.active_panel {

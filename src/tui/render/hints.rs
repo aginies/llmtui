@@ -16,7 +16,7 @@ fn hint_about() -> &'static str {
 const HINT_SEP: &str = "  ";
 
 pub fn render_hints(app: &App) -> Vec<Span<'static>> {
-    let y = Style::default().fg(YELLOW);
+    let y = Style::default().fg(ACCENT);
     let c = Style::default().fg(CYAN);
     let r = Style::default().fg(RED);
 
@@ -50,7 +50,7 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 parts.push(Span::raw(HINT_SEP));
                 parts.push(Span::styled(
                     crate::t!("hints.loading"),
-                    Style::default().fg(YELLOW),
+                    Style::default().fg(ACCENT),
                 ));
             }
             parts
