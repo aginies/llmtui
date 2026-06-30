@@ -1118,6 +1118,7 @@ impl App {
                     }
                 }
                    self.add_toast(e, ToastLevel::Error);
+                self.server.server_handle = None;
                 self.reset_loading_state(true);
                 self.server_ready = false;
                 self.ui.needs_redraw = true;
@@ -1128,6 +1129,7 @@ impl App {
                     crate::t_fmt!("async.spawn_task_panic", e),
                     crate::config::LogLevel::Error,
                 );
+                self.server.server_handle = None;
                 self.server_ready = false;
                 self.ui.needs_redraw = true;
             }
