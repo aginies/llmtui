@@ -504,7 +504,15 @@ pub fn build_server_cmd(
     if !settings.webui {
         push_flag(&mut cmd, &mut parts, "--no-webui");
     }
-    push_arg(&mut cmd, &mut parts, "--log-level", &config.default.log_level);
+    let lv = match config.default.log_level.as_str() {
+        "error" => 0,
+        "warn" => 1,
+        "info" => 2,
+        "debug" => 3,
+        "trace" => 4,
+        _ => 1,
+    };
+    push_arg(&mut cmd, &mut parts, "-lv", lv);
 
     // ── General ──────────────────────────────────────────────
 

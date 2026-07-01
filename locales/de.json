@@ -736,6 +736,7 @@
   "dialog.llama_server.cycle_log": "[↵: durchlaufen]",
   "dialog.llama_server.close": "[⎋] Schließen",
   "field.help.llama_server_options": "LLaMA-Server-Optionen konfigurieren: Port, Threads, Threads Batch und Modus. Enter drücken, um den Optionen-Dialog zu öffnen. Änderungen werden sofort übernommen.",
+  "panel.llama_server.section": "LLaMA Server",
   "active.prompt": "Fortschritt: {} {} {} tokens ({:.0} t/s)",
   "panel.help.models.gguf_explanation": "GGUF Dateiname Erklärung"
 }

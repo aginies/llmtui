@@ -315,7 +315,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         &mut selected_line_idx,
         &mut selected_content_line,
         4,
-        "LLaMA Server Options",
+        crate::t!("panel.llama_server.section"),
         &llama_options_val,
         selected,
         "",
