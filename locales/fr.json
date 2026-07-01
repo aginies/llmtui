@@ -263,6 +263,7 @@
   "download.title": " Téléchargement ({}) ",
   "field.help.backend_version": "Sélectionnez le binaire backend llama.cpp (CPU / Vulkan / ROCm / CUDA). Appuyez sur Entrée pour ouvrir un sélecteur de version. Différents backends prennent en charge différents types de GPU et fonctionnalités.",
   "field.help.cache_prompt": "Mettre en cache le préfixe de l'invite pour des temps de réponse plus rapides. Lorsqu'activé, le préfixe de l'invite est mis en cache pour réduire le calcul redondant. Basculer activé/désactivé avec Entrée.",
+  "field.help.log_level": "Niveau de journalisation pour la sortie du serveur llama-server. Cycle : error → warn (défaut) → info → trace → debug. Une verbosité plus élevée montre plus d'état interne et de détails d'inférence.",
   "field.help.embedding": "Activer la génération d'embeddings. Utilisé pour la recherche vectorielle, la similarité sémantique et les applications RAG. Basculer activé/désactivé avec Entrée.",
   "field.help.lora": "Chemin vers un fichier adaptateur LoRA (Low-Rank Adaptation). Applique des poids affinés sans charger un nouveau modèle. Appuyez sur Entrée pour sélectionner un fichier.",
   "field.help.lora_scaled": "Chemin vers un adaptateur LoRA avec un facteur d'échelle personnalisé. Format : chemin:échelle (ex : '/chemin/vers/lora.safetensors:1.0'). L'échelle contrôle la force de l'adaptateur. Appuyez sur Entrée pour modifier.",

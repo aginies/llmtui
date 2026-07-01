@@ -1925,6 +1925,14 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         crate::config::LogLevel::Info,
                     );
                 }
+                10 => {
+                    let levels = ["error", "warn", "info", "trace", "debug"];
+                    let current = &app.config.default.log_level;
+                    if let Some(pos) = levels.iter().position(|l| l == current) {
+                        let next = levels[(pos + 1) % levels.len()];
+                        app.config.default.log_level = next.to_string();
+                    }
+                }
                 _ => {}
             }
             sync_global_settings(app);
@@ -1937,7 +1945,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.settings_state.server_settings_selected_idx =
-                (app.settings_state.server_settings_selected_idx + 1).min(9);
+                (app.settings_state.server_settings_selected_idx + 1).min(10);
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.settings_state.server_settings_selected_idx {

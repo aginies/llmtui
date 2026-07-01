@@ -504,6 +504,7 @@ pub fn build_server_cmd(
     if !settings.webui {
         push_flag(&mut cmd, &mut parts, "--no-webui");
     }
+    push_arg(&mut cmd, &mut parts, "--log-level", &config.default.log_level);
 
     // ── General ──────────────────────────────────────────────
 

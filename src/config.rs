@@ -804,6 +804,8 @@ pub struct DefaultParams {
     pub router_max_models: u32,
     #[serde(default)]
     pub server_mode: crate::models::ServerMode,
+    #[serde(default = "default_log_level")]
+    pub log_level: String,
 
     // Other
     #[serde(default = "default_max_tokens")]
@@ -889,6 +891,10 @@ fn default_ws_server_port() -> u16 {
 
 fn default_server_tls_enabled() -> bool {
     true
+}
+
+fn default_log_level() -> String {
+    "warn".to_string()
 }
 
 fn default_gpu_layers_mode() -> crate::models::GpuLayersMode {
@@ -980,6 +986,7 @@ impl Default for DefaultParams {
             server_tls_key: None,
             router_max_models: 4,
             server_mode: crate::models::ServerMode::Normal,
+            log_level: "warn".to_string(),
 
             // Other
             max_tokens: None,
@@ -1145,6 +1152,7 @@ impl Config {
             "server_tls_key",
             "router_max_models",
             "server_mode",
+            "log_level",
             "max_tokens",
             "cache_type",
             "backend",

@@ -263,6 +263,7 @@
   "download.title": " Download ({}) ",
   "field.help.backend_version": "Seleziona il backend llama.cpp (CPU / Vulkan / ROCm / CUDA). Premi Invio per aprire il selettore versione. Backend diversi supportano GPU diverse e funzionalità diverse.",
   "field.help.cache_prompt": "Cache del prefisso prompt per tempi di risposta più rapidi. Quando abilitato, il prefisso prompt viene memorizzato nella cache per ridurre i calcoli ridondanti. Attiva/Disattiva con Invio.",
+  "field.help.log_level": "Livello di log per l'output del server llama-server. Ciclo: error → warn (default) → info → trace → debug. Maggiore verbosità mostra più stato interno e dettagli di inferenza.",
   "field.help.embedding": "Abilita generazione embedding. Utilizzato per ricerca vettoriale, similarità semantica e applicazioni RAG. Attiva/Disattiva con Invio.",
   "field.help.lora": "Percorso per un file adapter LoRA (Low-Rank Adaptation). Applica pesi affinati senza caricare un nuovo modello. Premi Invio per selezionare un file.",
   "field.help.lora_scaled": "Percorso per un adapter LoRA con fattore di scala personalizzato. Formato: percorso:scala (es. '/percorso/a/lora.safetensors:1.0'). La scala controlla la forza dell'adapter. Premi Invio per modificare.",

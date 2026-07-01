@@ -296,7 +296,7 @@ The WebSocket Dashboard (`src/backend/ws_server.rs`) provides real-time metrics 
 - TLS: supports both plain TCP and rustls TLS
 - Connection indicator: green pulsing dot (connected), red dot (disconnected, auto-reconnects every 2s)
 
-The HTML dashboard is embedded in the binary via `include_str!` and receives the auth key via `window.__WS_AUTH` script injection.
+The HTML dashboard is embedded in the binary via `include_str!` and receives the auth key via a `<meta name="ws-auth" content="...">` tag injected into the `<body>`. The value is HTML-escaped for safe attribute placement. The dashboard JavaScript reads the meta tag with `JSON.parse(metaEl.content)` and falls back to `?auth=` URL parameter.
 
 ## Web Search
 

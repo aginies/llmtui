@@ -144,6 +144,7 @@
   "field.help.tags": "Comma-separated labels for the model (e.g., 'coding, chat, reasoning'). Used for filtering and organization. Press Enter to open a tag editor.",
   "field.help.backend_version": "Select the llama.cpp backend binary (CPU / Vulkan / ROCm / CUDA). Press Enter to open a version picker. Different backends support different GPU types and features.",
   "field.help.cache_prompt": "Cache prompt prefix for faster response times. When enabled, the prompt prefix is cached to reduce redundant computation. Toggle on/off with Enter.",
+  "field.help.log_level": "Log level for llama-server output. Cycle through: error → warn (default) → info → trace → debug. Higher verbosity shows more internal state and inference details.",
   "field.help.embedding": "Enable embedding generation. Use for vector search, semantic similarity, and RAG applications. Toggle on/off with Enter.",
   "field.help.lora": "Path to a LoRA (Low-Rank Adaptation) adapter file. Applies fine-tuned weights without loading a new model. Press Enter to select a file.",
   "field.help.lora_scaled": "Path to a LoRA adapter with a custom scale factor. Format: path:scale (e.g., '/path/to/lora.safetensors:1.0'). Scale controls adapter strength. Press Enter to edit.",

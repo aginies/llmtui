@@ -144,6 +144,7 @@
   "field.help.tags": "Kommagetrennte Labels für das Modell (z.B. 'coding, chat, reasoning'). Wird zum Filtern und Organisieren verwendet. Enter drücken, um einen Tag-Editor zu öffnen.",
   "field.help.backend_version": "Wählen Sie das llama.cpp-Backend-Binary (CPU / Vulkan / ROCm / CUDA). Enter drücken, um einen Version-Picker zu öffnen. Verschiedene Backends unterstützen verschiedene GPU-Typen und Funktionen.",
   "field.help.cache_prompt": "Prompt-Präfix cachen für schnellere Antwortzeiten. Wenn aktiviert, wird das Prompt-Präfix zwischengespeichert, um redundante Berechnungen zu reduzieren. Mit Enter umschalten.",
+  "field.help.log_level": "Log-Level für llama-server-Ausgabe. Durchlaufen: error → warn (Standard) → info → trace → debug. Höhere Ausführlichkeit zeigt mehr internen Zustand und Inferenzdetails.",
   "field.help.embedding": "Embedding-Generierung aktivieren. Verwenden für Vektorsuche, semantische Ähnlichkeit und RAG-Anwendungen. Mit Enter umschalten.",
   "field.help.lora": "Pfad zu einer LoRA (Low-Rank Adaptation)-Adapter-Datei. Wendet feinabgestimmte Gewichte an, ohne ein neues Modell zu laden. Enter drücken, um eine Datei auszuwählen.",
   "field.help.lora_scaled": "Pfad zu einem LoRA-Adapter mit benutzerdefiniertem Skalierungsfaktor. Format: Pfad:Skalierung (z.B. '/pfad/zur/lora.safetensors:1,0'). Skalierung steuert Adapterstärke. Enter drücken zum Bearbeiten.",
