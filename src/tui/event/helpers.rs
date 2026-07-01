@@ -8,6 +8,22 @@ pub fn picker_nav_down(selected: &mut usize, len: usize) {
     *selected = (*selected + 1).min(len.saturating_sub(1));
 }
 
+pub fn wrap_field_picker(selected: &mut i32, first: i32, last: i32, up: bool) {
+    if up {
+        if *selected <= first {
+            *selected = last;
+        } else {
+            *selected -= 1;
+        }
+    } else {
+        if *selected >= last {
+            *selected = first;
+        } else {
+            *selected += 1;
+        }
+    }
+}
+
 pub struct TextEditor<'a> {
     pub buffer: &'a mut String,
     pub cursor: &'a mut usize,

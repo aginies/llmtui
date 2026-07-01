@@ -1090,8 +1090,12 @@ fn render_backend_picker(
     let vendors = detect_gpu_vendors();
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
-        crate::t!("dialog.backend_picker.select"),
-        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+         crate::t!("dialog.backend_picker.select"),
+         Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+     )));
+    picker_lines.push(Line::from(Span::styled(
+        crate::t!("dialog.backend_picker.help"),
+        Style::default().fg(ACCENT),
     )));
     let gpu_models: Vec<String> = all_models.iter().filter_map(|m| m.clone()).collect();
     if !gpu_models.is_empty() {
@@ -2065,6 +2069,11 @@ fn render_api_endpoint_picker(
         ),
         Span::styled(tls_key_val, Style::default().fg(WHITE)),
     ]));
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(Span::styled(
+        crate::t!("dialog.api_endpoint.help"),
+        Style::default().fg(ACCENT),
+    )));
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::styled(
         crate::t!("dialog.dashboard.close"),
@@ -3089,7 +3098,7 @@ fn render_spec_type_picker(
     let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            crate::t!("dialog.profile_picker.help"),
+            crate::t!("dialog.spec.help"),
             Style::default().fg(ACCENT),
         )),
         Line::from(""),

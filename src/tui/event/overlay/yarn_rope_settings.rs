@@ -3,7 +3,7 @@ use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use super::super::helpers::TextEditor;
+use super::super::helpers::{TextEditor, sync_global_settings, wrap_field_picker};
 use crate::tui::app::{App, GlobalMode};
 
 use super::OverlayHandler;
@@ -57,6 +57,7 @@ impl OverlayHandler for YarnRoPESettingsHandler {
                                 _ => {}
                             }
                             *editing = false;
+                            sync_global_settings(app);
                             return;
                         }
                         if *selected_field == -1 {
@@ -89,18 +90,10 @@ impl OverlayHandler for YarnRoPESettingsHandler {
                         app.settings.rope_yarn_enabled = !app.settings.rope_yarn_enabled;
                     }
                     KeyCode::Up | KeyCode::Char('k') if !*editing => {
-                        *selected_field = if *selected_field <= -1 {
-                            2
-                        } else {
-                            *selected_field - 1
-                        };
+                        wrap_field_picker(selected_field, -1, 2, true);
                     }
                     KeyCode::Down | KeyCode::Char('j') if !*editing => {
-                        *selected_field = if *selected_field >= 2 {
-                            -1
-                        } else {
-                            *selected_field + 1
-                        };
+                        wrap_field_picker(selected_field, -1, 2, false);
                     }
                     KeyCode::Esc => {
                         if *editing {

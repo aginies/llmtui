@@ -4,7 +4,7 @@ use std::pin::Pin;
 use crossterm::event::{KeyCode, KeyEvent};
 use reqwest;
 
-use super::super::helpers::{TextEditor, sync_global_settings};
+use super::super::helpers::{TextEditor, sync_global_settings, wrap_field_picker};
 use crate::tui::app::{App, GlobalMode, WebSearchCheckStatus};
 
 use super::OverlayHandler;
@@ -149,18 +149,10 @@ impl OverlayHandler for WebSearchPickerHandler {
                     }
                     // ── Navigation ─────────────────────────────────────
                     KeyCode::Up | KeyCode::Char('k') if !*editing => {
-                        *selected_field = if *selected_field <= -1 {
-                            2
-                        } else {
-                            *selected_field - 1
-                        };
+                        wrap_field_picker(selected_field, -1, 2, true);
                     }
                     KeyCode::Down | KeyCode::Char('j') if !*editing => {
-                        *selected_field = if *selected_field >= 2 {
-                            -1
-                        } else {
-                            *selected_field + 1
-                        };
+                        wrap_field_picker(selected_field, -1, 2, false);
                     }
                     // ── Esc ────────────────────────────────────────────
                     KeyCode::Esc => {

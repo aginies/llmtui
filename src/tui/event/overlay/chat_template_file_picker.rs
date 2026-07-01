@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use std::future::Future;
 use std::pin::Pin;
 
-use super::super::helpers::mark_settings_dirty;
+use super::super::helpers::{mark_settings_dirty, picker_nav_down, picker_nav_up};
 use crate::config::LogLevel;
 use crate::tui::app::{App, GlobalMode};
 
@@ -40,12 +40,8 @@ impl OverlayHandler for ChatTemplateFilePickerHandler {
                         mark_settings_dirty(app, false);
                         app.ui.global_mode = GlobalMode::Normal;
                     }
-                    KeyCode::Up => {
-                        *selected = selected.saturating_sub(1);
-                    }
-                    KeyCode::Down => {
-                        *selected = (*selected + 1).min(entries.len().saturating_sub(1));
-                    }
+                    KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
+                    KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
                     KeyCode::Esc => {
                         app.ui.global_mode = GlobalMode::ChatTemplatePicker {
                             entries: crate::models::get_available_chat_templates(),

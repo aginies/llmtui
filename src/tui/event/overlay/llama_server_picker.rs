@@ -3,7 +3,7 @@ use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use super::super::helpers::{TextEditor, sync_global_settings};
+use super::super::helpers::{TextEditor, sync_global_settings, wrap_field_picker};
 use crate::tui::app::{App, GlobalMode};
 
 use super::OverlayHandler;
@@ -92,18 +92,10 @@ impl OverlayHandler for LlamaServerPickerHandler {
                         }
                     }
                     KeyCode::Up | KeyCode::Char('k') if !*editing => {
-                        *selected_field = if *selected_field <= -1 {
-                            3
-                        } else {
-                            *selected_field - 1
-                        };
+                        wrap_field_picker(selected_field, -1, 3, true);
                     }
                     KeyCode::Down | KeyCode::Char('j') if !*editing => {
-                        *selected_field = if *selected_field >= 3 {
-                            -1
-                        } else {
-                            *selected_field + 1
-                        };
+                        wrap_field_picker(selected_field, -1, 3, false);
                     }
                     KeyCode::Right | KeyCode::Char('l') if !*editing && *selected_field == 2 => {
                         let modes = crate::models::ServerMode::all();
