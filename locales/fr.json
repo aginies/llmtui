@@ -721,7 +721,7 @@
   "model_info.capabilities": "Capabilités",
   "dialog.web_search.validation": "Validation: ",
   "dialog.web_search.unknown": "Inconnu",
-  "dialog.llama_server.title": " Options du serveur LLaMA ",
+  "dialog.llama_server.title": " Serveur LLaMA ",
   "dialog.llama_server.port": "Port",
   "dialog.llama_server.threads": "Threads",
   "dialog.llama_server.threads_batch": "Threads Batch",
