@@ -723,6 +723,16 @@
   "model_info.capabilities": "Funktionen",
   "dialog.web_search.validation": "Validierung: ",
   "dialog.web_search.unknown": "Unbekannt",
+  "dialog.llama_server.title": " LLaMA Server Optionen ",
+  "dialog.llama_server.port": "Port",
+  "dialog.llama_server.threads": "Threads",
+  "dialog.llama_server.threads_batch": "Threads Batch",
+  "dialog.llama_server.mode": "Modus",
+  "dialog.llama_server.nav_mode": "[←/→: durchlaufen]",
+  "dialog.llama_server.log_level": "Log-Stufe",
+  "dialog.llama_server.cycle_log": "[↵: durchlaufen]",
+  "dialog.llama_server.close": "[⎋] Schließen",
+  "field.help.llama_server_options": "LLaMA-Server-Optionen konfigurieren: Port, Threads, Threads Batch und Modus. Enter drücken, um den Optionen-Dialog zu öffnen. Änderungen werden sofort übernommen.",
   "active.prompt": "Fortschritt: {} {} {} tokens ({:.0} t/s)",
   "panel.help.models.gguf_explanation": "GGUF Dateiname Erklärung"
 }

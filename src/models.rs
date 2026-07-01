@@ -800,6 +800,12 @@ impl std::fmt::Display for ServerMode {
     }
 }
 
+impl ServerMode {
+    pub fn all() -> &'static [Self] {
+        &[Self::Normal, Self::Router, Self::Bench, Self::BenchTune]
+    }
+}
+
 // ── ModelSettings ─────────────────────────────────────────────
 //
 // WHEN ADDING A NEW PARAMETER to ModelSettings, update ALL of these locations:

@@ -1074,6 +1074,7 @@ impl Config {
             "search_limit",
             "active_panel",
             "left_pct",
+            "server_settings_height",
             "language",
             "onboarding_complete",
         ]
@@ -1172,7 +1173,6 @@ impl Config {
             "spec_type",
             "draft_tokens",
             "tags",
-            "server_settings_height",
             "auto_chat_template",
         ]
     }

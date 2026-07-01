@@ -213,6 +213,17 @@ pub enum GlobalMode {
         edit_cursor_pos: usize,
         check_status: Option<WebSearchCheckStatus>,
     },
+    LlamaServerOptionsPicker {
+        port: String,
+        threads: u32,
+        threads_batch: u32,
+        log_level: String,
+        selected_field: i32, // -1=port, 0=threads, 1=threads_batch, 2=mode, 3=log_level
+        mode_picker_selected: usize,
+        editing: bool,
+        edit_buffer: String,
+        edit_cursor_pos: usize,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

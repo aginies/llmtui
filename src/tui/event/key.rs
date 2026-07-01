@@ -1802,20 +1802,6 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     };
                 }
                 2 => {
-                    app.settings.threads = (app.settings.threads % app.max_threads) + 1;
-                }
-                3 => {
-                    app.settings.threads_batch = (app.settings.threads_batch % 32) + 1;
-                }
-                4 => {
-                    app.server_mode = match app.server_mode {
-                        crate::models::ServerMode::Normal => crate::models::ServerMode::Router,
-                        crate::models::ServerMode::Router => crate::models::ServerMode::Bench,
-                        crate::models::ServerMode::Bench => crate::models::ServerMode::BenchTune,
-                        crate::models::ServerMode::BenchTune => crate::models::ServerMode::Normal,
-                    };
-                }
-                5 => {
                     app.ui.global_mode = GlobalMode::ApiEndpointPicker {
                         enabled: app.settings.api_endpoint_enabled,
                         port: app.settings.api_endpoint_port.to_string(),
@@ -1844,7 +1830,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         edit_cursor_pos: 0,
                     };
                 }
-                6 => {
+                3 => {
                     app.ui.global_mode = GlobalMode::DashboardPicker {
                         enabled: app.config.default.ws_server_enabled,
                         port: app.config.default.ws_server_port.to_string(),
@@ -1873,12 +1859,25 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         edit_cursor_pos: 0,
                     };
                 }
-                7 => {
+                4 => {
+                    app.ui.global_mode = GlobalMode::LlamaServerOptionsPicker {
+                        port: app.settings.port.to_string(),
+                        threads: app.settings.threads,
+                        threads_batch: app.settings.threads_batch,
+                        log_level: app.config.default.log_level.clone(),
+                        selected_field: -1,
+                        mode_picker_selected: app.server_mode as usize,
+                        editing: false,
+                        edit_buffer: String::new(),
+                        edit_cursor_pos: 0,
+                    };
+                }
+                5 => {
                     app.ui.global_mode = GlobalMode::RpcManager;
                     app.picker.rpc_workers_selected_idx = 0;
                     app.picker.editing_rpc_worker = None;
                 }
-                8 => {
+                6 => {
                     let engine_url = app.config.default.web_search_engine_url.clone();
                     let engine = app.config.default.web_search_engine.clone();
                     let api_key = app.config.default.web_search_api_key.clone();
@@ -1910,7 +1909,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.pending.web_search_check_handle = Some(handle);
                     }
                 }
-                9 => {
+                7 => {
                     let current = crate::tui::i18n::get_language();
                     let next = match current.as_str() {
                         "fr" => "it",
@@ -1925,14 +1924,6 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         crate::config::LogLevel::Info,
                     );
                 }
-                10 => {
-                    let levels = ["error", "warn", "info", "trace", "debug"];
-                    let current = &app.config.default.log_level;
-                    if let Some(pos) = levels.iter().position(|l| l == current) {
-                        let next = levels[(pos + 1) % levels.len()];
-                        app.config.default.log_level = next.to_string();
-                    }
-                }
                 _ => {}
             }
             sync_global_settings(app);
@@ -1945,7 +1936,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.settings_state.server_settings_selected_idx =
-                (app.settings_state.server_settings_selected_idx + 1).min(10);
+                (app.settings_state.server_settings_selected_idx + 1).min(7);
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.settings_state.server_settings_selected_idx {
@@ -1953,6 +1944,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 3 => {
                     app.settings.threads_batch = app.settings.threads_batch.saturating_sub(1).max(1)
                 }
+                7 => {}
                 _ => {}
             }
             mark_settings_dirty(app, true);
@@ -1962,6 +1954,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             match app.settings_state.server_settings_selected_idx {
                 2 => app.settings.threads = (app.settings.threads + 1).min(app.max_threads),
                 3 => app.settings.threads_batch = (app.settings.threads_batch + 1).min(64),
+                7 => {}
                 _ => {}
             }
             mark_settings_dirty(app, true);

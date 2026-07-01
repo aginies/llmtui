@@ -376,6 +376,34 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::LlamaServerOptionsPicker {
+        port,
+        threads,
+        threads_batch,
+        log_level,
+        selected_field,
+        mode_picker_selected,
+        editing,
+        edit_buffer,
+        edit_cursor_pos: _,
+    } = &app.ui.global_mode
+    {
+        render_llama_server_picker(
+            f,
+            f.area(),
+            app,
+            port,
+            *threads,
+            *threads_batch,
+            log_level,
+            *selected_field,
+            *mode_picker_selected,
+            *editing,
+            edit_buffer,
+        );
+        return true;
+    }
+
     false
 }
 
@@ -3187,6 +3215,128 @@ fn render_chat_template_file_picker(
         picker_area,
         Span::styled(
             crate::t!("dialog.chat_template.file.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        picker_lines,
+        BorderType::Rounded,
+    );
+}
+
+fn render_llama_server_picker(
+    f: &mut Frame,
+    area: Rect,
+    _app: &App,
+    port: &str,
+    threads: u32,
+    threads_batch: u32,
+    log_level: &str,
+    selected_field: i32,
+    mode_picker_selected: usize,
+    editing: bool,
+    edit_buffer: &str,
+) {
+    let w = 55u16;
+    let h = 26.min(area.height - 4);
+    let picker_area = center_rect(area, w, h);
+    let mut picker_lines: Vec<Line> = Vec::new();
+
+    let port_marker = if selected_field == -1i32 { "> " } else { "  " };
+    let port_val = if editing && selected_field == -1i32 {
+        format!("{}|", edit_buffer)
+    } else {
+        port.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(port_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.llama_server.port"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(port_val, Style::default().fg(WHITE)),
+    ]));
+    picker_lines.push(Line::from(""));
+
+    let threads_marker = if selected_field == 0i32 { "> " } else { "  " };
+    let threads_val = if editing && selected_field == 0i32 {
+        format!("{}|", edit_buffer)
+    } else {
+        threads.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(threads_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.llama_server.threads"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(threads_val, Style::default().fg(WHITE)),
+    ]));
+    picker_lines.push(Line::from(""));
+
+    let threads_batch_marker = if selected_field == 1i32 { "> " } else { "  " };
+    let threads_batch_val = if editing && selected_field == 1i32 {
+        format!("{}|", edit_buffer)
+    } else {
+        threads_batch.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(threads_batch_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.llama_server.threads_batch"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(threads_batch_val, Style::default().fg(WHITE)),
+    ]));
+    picker_lines.push(Line::from(""));
+
+    let mode_marker = if selected_field == 2i32 { "> " } else { "  " };
+    let modes = crate::models::ServerMode::all();
+    let mode_val = modes.get(mode_picker_selected)
+        .map(|m| format!("{}", m))
+        .unwrap_or_else(|| "Normal".to_string());
+    picker_lines.push(Line::from(vec![
+        Span::styled(mode_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.llama_server.mode"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(mode_val, Style::default().fg(WHITE)),
+        Span::raw("  "),
+        Span::styled(
+            crate::t!("dialog.llama_server.nav_mode"),
+            Style::default().fg(DIM_GRAY),
+        ),
+    ]));
+    picker_lines.push(Line::from(""));
+
+    let log_level_marker = if selected_field == 3i32 { "> " } else { "  " };
+    picker_lines.push(Line::from(vec![
+        Span::styled(log_level_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.llama_server.log_level"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(log_level.to_uppercase(), Style::default().fg(WHITE)),
+        Span::raw("  "),
+        Span::styled(
+            crate::t!("dialog.llama_server.cycle_log"),
+            Style::default().fg(DIM_GRAY),
+        ),
+    ]));
+    picker_lines.push(Line::from(""));
+    picker_lines.push(Line::from(vec![Span::styled(
+        crate::t!("dialog.llama_server.close"),
+        Style::default().fg(BLACK).bg(DIM_GRAY),
+    )]));
+    render_popup(
+        f,
+        picker_area,
+        Span::styled(
+            crate::t!("dialog.llama_server.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
         picker_lines,

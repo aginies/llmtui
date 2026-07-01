@@ -18,6 +18,7 @@ mod dashboard_url;
 mod directory_picker;
 mod gguf_naming;
 mod host_picker;
+mod llama_server_picker;
 mod max_concurrent_picker;
 mod onboarding;
 mod profile_picker;
@@ -40,6 +41,7 @@ pub use dashboard_picker::DashboardPickerHandler;
 pub use dashboard_url::DashboardUrlHandler;
 pub use gguf_naming::GgufNamingHandler;
 pub use host_picker::HostPickerHandler;
+pub use llama_server_picker::LlamaServerPickerHandler;
 pub use max_concurrent_picker::MaxConcurrentPickerHandler;
 pub use onboarding::OnboardingHandler;
 pub use profile_picker::ProfilePickerHandler;
@@ -87,6 +89,7 @@ impl OverlayRegistry {
             Box::new(RpcManagerHandler),
             Box::new(GgufNamingHandler),
             Box::new(WebSearchPickerHandler),
+            Box::new(LlamaServerPickerHandler),
         ];
 
         Self { handlers }
