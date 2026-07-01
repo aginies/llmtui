@@ -97,6 +97,8 @@ impl App {
                 rpc_workers_selected_idx: 0,
                 editing_rpc_worker: None,
                 rpc_workers_scroll_offset: 0,
+                rpc_worker_edit_buffer: String::new(),
+                rpc_worker_edit_cursor_pos: 0,
                 readme_scroll_offset: 0,
             },
             download: DownloadState {

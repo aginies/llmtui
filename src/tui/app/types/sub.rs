@@ -48,6 +48,8 @@ pub struct PickerState {
     pub rpc_workers_selected_idx: usize,
     pub editing_rpc_worker: Option<usize>,
     pub rpc_workers_scroll_offset: usize,
+    pub rpc_worker_edit_buffer: String,
+    pub rpc_worker_edit_cursor_pos: usize,
     pub readme_scroll_offset: usize,
 }
 

@@ -894,7 +894,7 @@ fn default_server_tls_enabled() -> bool {
 }
 
 fn default_log_level() -> String {
-    "warn".to_string()
+    "trace".to_string()
 }
 
 fn default_gpu_layers_mode() -> crate::models::GpuLayersMode {
@@ -986,7 +986,7 @@ impl Default for DefaultParams {
             server_tls_key: None,
             router_max_models: 4,
             server_mode: crate::models::ServerMode::Normal,
-            log_level: "warn".to_string(),
+            log_level: "trace".to_string(),
 
             // Other
             max_tokens: None,

@@ -1677,8 +1677,8 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
         workers,
         app.picker.rpc_workers_selected_idx,
         app.picker.editing_rpc_worker.is_some(),
-        &app.settings_state.settings_edit_buffer,
-        app.edit.edit_cursor_pos,
+        &app.picker.rpc_worker_edit_buffer,
+        app.picker.rpc_worker_edit_cursor_pos,
     );
     let available_height = rpc_area.height.saturating_sub(2);
     let max_offset = worker_lines.len().saturating_sub(available_height as usize) as u16;
@@ -3336,6 +3336,13 @@ fn render_llama_server_picker(
             Style::default().fg(DIM_GRAY),
         ),
     ]));
+    if log_level != "trace" && log_level != "debug" {
+        picker_lines.push(Line::from(""));
+        picker_lines.push(Line::from(vec![Span::styled(
+            crate::t!("dialog.llama_server.log_level_warning"),
+            Style::default().fg(ACCENT),
+        )]));
+    }
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(vec![Span::styled(
         crate::t!("dialog.llama_server.close"),

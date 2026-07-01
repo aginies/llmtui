@@ -730,6 +730,7 @@
   "dialog.llama_server.log_level": "Niveau de journalisation",
   "dialog.llama_server.cycle_log": "[↵: cycle]",
   "dialog.llama_server.close": "[⎋] Fermer",
+  "dialog.llama_server.log_level_warning": "⚠ Des niveaux de log plus bas réduisent les métriques (TPS, stats de décodage, etc.)",
   "field.help.llama_server_options": "Configurer les options du serveur LLaMA : Port, Threads, Threads Batch et Mode. Appuyez sur Entrée pour ouvrir le sélecteur d'options. Les modifications sont appliquées immédiatement.",
   "panel.llama_server.section": "Serveur LLaMA",
   "active.prompt": "Progression: {} {} {} tokens ({:.0} t/s)",

@@ -1675,31 +1675,16 @@ impl App {
     }
 
     pub fn tick_metrics_model_name(&mut self) {
-        // Debounce: skip mutex acquisition if cached value unchanged and recent
+        // Throttle: skip mutex acquisition if cached value unchanged and recent
         if self.pending.metrics_model_name_cache.is_some()
             && let Some(ref last) = self.pending.metrics_model_name_last
-            && last.elapsed() < std::time::Duration::from_millis(200)
+            && last.elapsed() < std::time::Duration::from_millis(1000)
         {
             return;
         }
 
         let active_loaded_model = if let Some(model) = self.selected_model() {
-            // In router mode, only use selected model if it is in Loaded state to avoid triggering
-            // auto-loading and concurrent loading conflicts in llama-server router.
-            if self.server_mode == crate::models::ServerMode::Router {
-                if let Some(crate::models::ModelState::Loaded { .. }) =
-                    self.model_states.get(&model.display_name)
-                {
-                    Some(model.display_name.clone())
-                } else {
-                    let lock = self
-                        .server
-                        .loaded_model_names
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner());
-                    lock.first().cloned()
-                }
-            } else if self.is_model_loaded(&model.display_name) {
+            if self.is_model_loaded(&model.display_name) {
                 Some(model.display_name.clone())
             } else {
                 let lock = self
@@ -1724,12 +1709,14 @@ impl App {
             .clone_from(&active_loaded_model);
         self.pending.metrics_model_name_last = Some(std::time::Instant::now());
 
-        let mut lock = self
-            .server
-            .metrics_model_name
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        *lock = active_loaded_model;
+        {
+            let mut lock = self
+                .server
+                .metrics_model_name
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            *lock = active_loaded_model;
+        }
     }
 
     pub fn ensure_download_channel(

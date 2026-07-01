@@ -735,6 +735,7 @@
   "dialog.llama_server.log_level": "Log-Stufe",
   "dialog.llama_server.cycle_log": "[↵: durchlaufen]",
   "dialog.llama_server.close": "[⎋] Schließen",
+  "dialog.llama_server.log_level_warning": "⚠ Niedrigere Log-Stufen reduzieren Metrik-Daten (TPS, Decode-Statistiken, etc.)",
   "field.help.llama_server_options": "LLaMA-Server-Optionen konfigurieren: Port, Threads, Threads Batch und Modus. Enter drücken, um den Optionen-Dialog zu öffnen. Änderungen werden sofort übernommen.",
   "panel.llama_server.section": "LLaMA Server",
   "active.prompt": "Fortschritt: {} {} {} tokens ({:.0} t/s)",

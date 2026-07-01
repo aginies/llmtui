@@ -1112,22 +1112,6 @@ pub fn all_fields() -> Vec<SettingField> {
             "Speculative decoding method for faster inference. Options: Off, draft-mtp (MTP-based), draft-simple, draft-eagle3, ngram-simple, ngram-map-k, ngram-map-k4v, ngram-mod, ngram-cache. Draft-mtp requires a compatible model with MTP architecture.",
         ),
         expert_field(
-            "spec_type",
-            "Spec Type",
-            "Speculative",
-            |s| {
-                if s.spec_type.is_empty() {
-                    "Off".to_string()
-                } else {
-                    s.spec_type.clone()
-                }
-            },
-            |s, c| s.spec_type != c.spec_type,
-            |_, _, _| {},
-            |_, _| {},
-            "Speculative decoding method for faster inference. Options: Off, draft-mtp (MTP-based), draft-simple, draft-eagle3, ngram-simple, ngram-map-k, ngram-map-k4v, ngram-mod, ngram-cache. Draft-mtp requires a compatible model with MTP architecture.",
-        ),
-        expert_field(
             "draft_tokens",
             "Spec Draft N Max",
             "Speculative",

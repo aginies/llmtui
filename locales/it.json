@@ -731,6 +731,7 @@
   "dialog.llama_server.log_level": "Livello di log",
   "dialog.llama_server.cycle_log": "[↵: cicla]",
   "dialog.llama_server.close": "[⎋] Chiudi",
+  "dialog.llama_server.log_level_warning": "⚠ Livelli di log più bassi riducono i dati delle metriche (TPS, statistiche di decodifica, ecc.)",
   "field.help.llama_server_options": "Configura le opzioni del server LLaMA: Porta, Threads, Threads Batch e Modalità. Premi Invio per aprire il selettore opzioni. Le modifiche vengono applicate immediatamente.",
   "panel.llama_server.section": "Server LLaMA",
   "active.prompt": "Progresso: {} {} {} tokens ({:.0} t/s)",

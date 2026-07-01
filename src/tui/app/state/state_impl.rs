@@ -429,6 +429,9 @@ impl App {
         if self.bench_tune.bench_tune_running {
             return false;
         }
+        if self.server.server_handle.is_some() {
+            return false;
+        }
         if self.server.spawn_task_handle.is_some() {
             return false;
         }
