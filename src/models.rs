@@ -1647,7 +1647,7 @@ impl WsMetrics {
             ubatch_size: settings.ubatch_size,
             batch_size: settings.batch_size,
             temperature: settings.temperature,
-            top_k: settings.top_k as u32,
+            top_k: (settings.top_k.max(0)) as u32,
             top_p: settings.top_p,
             min_p: settings.min_p,
             typical_p: settings.typical_p,
