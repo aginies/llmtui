@@ -65,7 +65,7 @@ pub fn physical_cores() -> u32 {
             }
         }
     }
-    seen.len() as u32
+    seen.len().max(1) as u32
 }
 
 /// A remote RPC worker for distributed inference.
@@ -347,7 +347,7 @@ impl ModelOverride {
             threads_batch: Some(s.threads_batch),
             parallel: Some(s.parallel),
             gpu_layers: Some(match s.gpu_layers_mode {
-                crate::models::GpuLayersMode::Auto => 0,
+                crate::models::GpuLayersMode::Auto => -2,
                 crate::models::GpuLayersMode::Specific(n) => n as i32,
                 crate::models::GpuLayersMode::All => -1,
             }),
@@ -516,8 +516,10 @@ impl ModelOverride {
 
         // Special: gpu_layers converts i32 legacy field to GpuLayersMode enum
         // Only applies when gpu_layers is explicitly set in the override.
+        // -2 is sentinel for Auto (preserves round-trip from from_settings).
         if let Some(n) = self.gpu_layers {
             base.gpu_layers_mode = match n {
+                -2 => crate::models::GpuLayersMode::Auto,
                 n if n < 0 => crate::models::GpuLayersMode::All,
                 n => crate::models::GpuLayersMode::Specific(n as u32),
             };
@@ -1209,6 +1211,7 @@ impl Config {
             "kv_cache_offload",
             "flash_attn",
             "jinja",
+            "auto_chat_template",
             "chat_template",
             "chat_template_kwargs",
             "expert_count",
@@ -1562,26 +1565,6 @@ impl Config {
                 severity: ValidationSeverity::Warning,
             });
         }
-        if let Some(cert) = &default.server_tls_cert
-            && !cert.is_empty()
-            && !std::path::Path::new(cert).exists()
-        {
-            warnings.push(ValidationWarning {
-                field: "default.server_tls_cert".to_string(),
-                message: format!("TLS cert path does not exist: {}", cert),
-                severity: ValidationSeverity::Warning,
-            });
-        }
-        if let Some(key) = &default.server_tls_key
-            && !key.is_empty()
-            && !std::path::Path::new(key).exists()
-        {
-            warnings.push(ValidationWarning {
-                field: "default.server_tls_key".to_string(),
-                message: format!("TLS key path does not exist: {}", key),
-                severity: ValidationSeverity::Warning,
-            });
-        }
         if self.llama_server.is_absolute() && !self.llama_server.exists() {
             warnings.push(ValidationWarning {
                 field: "llama_server".to_string(),
@@ -1809,37 +1792,7 @@ impl Config {
 
     pub fn load_from(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         if path.exists() {
-            let content = std::fs::read_to_string(&path)?;
-
-            // Phase 1: Parse as Value to check for unknown fields
-            let parsed: serde_yml::Value = serde_yml::from_str(&content)
-                .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
-            let mut warnings = Self::validate_unknown_fields(&parsed);
-
-            // Phase 2: Deserialize normally
-            let config: Config = serde_yml::from_str(&content)
-                .map_err(|e| format!("Failed to parse config file {}: {}", path.display(), e))?;
-            let config = Self::normalize_config(config);
-            let config = config.auto_detect_platform();
-
-            // Phase 3: Value validation
-            warnings.extend(config.validate());
-
-            if !warnings.is_empty() {
-                eprintln!("Config validation warnings:");
-                for warning in &warnings {
-                    eprintln!(
-                        "  [{}] {}: {}",
-                        match warning.severity {
-                            ValidationSeverity::Warning => "WARN",
-                            ValidationSeverity::Error => "ERROR",
-                        },
-                        warning.field,
-                        warning.message
-                    );
-                }
-            }
-            Ok(config)
+            Self::load_impl(&path)
         } else {
             Err(format!("Config file not found: {}", path.display()).into())
         }
