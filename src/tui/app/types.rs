@@ -218,7 +218,8 @@ pub enum GlobalMode {
         threads: u32,
         threads_batch: u32,
         log_level: String,
-        selected_field: i32, // -1=port, 0=threads, 1=threads_batch, 2=mode, 3=log_level
+        webui: bool,
+        selected_field: i32, // -1=port, 0=threads, 1=threads_batch, 2=mode, 3=log_level, 4=webui
         mode_picker_selected: usize,
         editing: bool,
         edit_buffer: String,

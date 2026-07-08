@@ -381,6 +381,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         threads,
         threads_batch,
         log_level,
+        webui,
         selected_field,
         mode_picker_selected,
         editing,
@@ -396,6 +397,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             *threads,
             *threads_batch,
             log_level,
+            *webui,
             *selected_field,
             *mode_picker_selected,
             *editing,
@@ -3239,6 +3241,7 @@ fn render_llama_server_picker(
     threads: u32,
     threads_batch: u32,
     log_level: &str,
+    webui: bool,
     selected_field: i32,
     mode_picker_selected: usize,
     editing: bool,
@@ -3333,6 +3336,24 @@ fn render_llama_server_picker(
         Span::raw("  "),
         Span::styled(
             crate::t!("dialog.llama_server.cycle_log"),
+            Style::default().fg(DIM_GRAY),
+        ),
+    ]));
+    picker_lines.push(Line::from(""));
+
+    let webui_marker = if selected_field == 4i32 { "> " } else { "  " };
+    let webui_val = if webui { "Enabled" } else { "Disabled" };
+    picker_lines.push(Line::from(vec![
+        Span::styled(webui_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.llama_server.webui"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(webui_val, Style::default().fg(WHITE)),
+        Span::raw("  "),
+        Span::styled(
+            crate::t!("dialog.llama_server.toggle_webui"),
             Style::default().fg(DIM_GRAY),
         ),
     ]));

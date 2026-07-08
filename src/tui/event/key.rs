@@ -1865,6 +1865,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         threads: app.settings.threads,
                         threads_batch: app.settings.threads_batch,
                         log_level: app.config.default.log_level.clone(),
+                        webui: app.settings.webui,
                         selected_field: -1,
                         mode_picker_selected: app.server_mode as usize,
                         editing: false,

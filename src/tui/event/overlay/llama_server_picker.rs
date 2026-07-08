@@ -26,6 +26,7 @@ impl OverlayHandler for LlamaServerPickerHandler {
                 threads,
                 threads_batch,
                 log_level,
+                webui,
                 selected_field,
                 mode_picker_selected,
                 editing,
@@ -88,14 +89,19 @@ impl OverlayHandler for LlamaServerPickerHandler {
                                     log_level.clone_from(&next.to_string());
                                 }
                             }
+                            4 => {
+                                *webui = !*webui;
+                                app.settings.webui = *webui;
+                                sync_global_settings(app);
+                            }
                             _ => {}
                         }
                     }
                     KeyCode::Up | KeyCode::Char('k') if !*editing => {
-                        wrap_field_picker(selected_field, -1, 3, true);
+                        wrap_field_picker(selected_field, -1, 4, true);
                     }
                     KeyCode::Down | KeyCode::Char('j') if !*editing => {
-                        wrap_field_picker(selected_field, -1, 3, false);
+                        wrap_field_picker(selected_field, -1, 4, false);
                     }
                     KeyCode::Right | KeyCode::Char('l') if !*editing && *selected_field == 2 => {
                         let modes = crate::models::ServerMode::all();
