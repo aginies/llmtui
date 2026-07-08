@@ -1925,11 +1925,6 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         crate::config::LogLevel::Info,
                     );
                 }
-                8 => {
-                    app.settings.webui = !app.settings.webui;
-                    mark_settings_dirty(app, true);
-                    sync_global_settings(app);
-                }
                 _ => {}
             }
             sync_global_settings(app);
@@ -1942,7 +1937,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.settings_state.server_settings_selected_idx =
-                (app.settings_state.server_settings_selected_idx + 1).min(8);
+                (app.settings_state.server_settings_selected_idx + 1).min(7);
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.settings_state.server_settings_selected_idx {
