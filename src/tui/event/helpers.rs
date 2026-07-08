@@ -188,6 +188,14 @@ pub fn sync_global_settings(app: &mut App) {
     app.config.default.router_max_models = app.router_max_models;
 
     if has_model {
+        if let Some(model) = app.selected_model() {
+            let name = model.display_name.clone();
+            app.config.model_overrides.update_fields(
+                &name,
+                Some(app.settings.webui),
+                Some(app.settings.cache_prompt),
+            );
+        }
         sync_model_cache_fields(&mut app.model_settings_cache, &app.settings);
     } else {
         app.config.default.parallel = app.settings.parallel;
@@ -220,6 +228,8 @@ fn common_fields_changed(
         || source.llama_cpp_version_rocm != target.llama_cpp_version_rocm
         || source.llama_cpp_version_rocm_lemonade != target.llama_cpp_version_rocm_lemonade
         || source.llama_cpp_version_cuda != target.llama_cpp_version_cuda
+        || source.webui != target.webui
+        || source.cache_prompt != target.cache_prompt
 }
 
 fn sync_config_common_fields(
@@ -237,6 +247,8 @@ fn sync_config_common_fields(
     target.llama_cpp_version_rocm = source.llama_cpp_version_rocm.clone();
     target.llama_cpp_version_rocm_lemonade = source.llama_cpp_version_rocm_lemonade.clone();
     target.llama_cpp_version_cuda = source.llama_cpp_version_cuda.clone();
+    target.webui = source.webui;
+    target.cache_prompt = source.cache_prompt;
 }
 
 fn sync_model_cache_fields(
@@ -254,6 +266,8 @@ fn sync_model_cache_fields(
     target.llama_cpp_version_rocm = source.llama_cpp_version_rocm.clone();
     target.llama_cpp_version_rocm_lemonade = source.llama_cpp_version_rocm_lemonade.clone();
     target.llama_cpp_version_cuda = source.llama_cpp_version_cuda.clone();
+    target.webui = source.webui;
+    target.cache_prompt = source.cache_prompt;
 }
 
 pub fn handle_fkey_focus(app: &mut App, panel_idx: u8, target_panel: ActivePanel) {

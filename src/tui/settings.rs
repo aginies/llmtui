@@ -1155,6 +1155,28 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _| {},
             "Select the llama.cpp backend binary (CPU / Vulkan / ROCm / CUDA). Press Enter to open a version picker. Different backends support different GPU types and features.",
         ),
+        ultra_field_with_toggle(
+            "webui",
+            "WebUI",
+            "Server",
+            |s| s.webui.to_string(),
+            |s, c| s.webui != c.webui,
+            |_, _, _| {},
+            |_, _| {},
+            |s| s.webui = !s.webui,
+            "Toggle the llama.cpp built-in web UI. When enabled, the server serves its web interface. When disabled, only the API endpoints are available with no web interface.",
+        ),
+        ultra_field_with_toggle(
+            "cache_prompt",
+            "Cache Prompt",
+            "Server",
+            |s| s.cache_prompt.to_string(),
+            |s, c| s.cache_prompt != c.cache_prompt,
+            |_, _, _| {},
+            |_, _| {},
+            |s| s.cache_prompt = !s.cache_prompt,
+            "Enable caching of the prompt (conversation history). When enabled, the prompt is cached to disk for faster reloading. When disabled, the full prompt is sent each time.",
+        ),
     ]
 }
 

@@ -76,6 +76,20 @@ impl ModelConfigStore {
         self.cache.insert(key, config.clone());
     }
 
+    /// Update specific fields in a model override.
+    pub fn update_fields(&mut self, display_name: &str, webui: Option<bool>, cache_prompt: Option<bool>) {
+        let key = key_from_display(display_name);
+        if let Some(cfg) = self.cache.get_mut(&key) {
+            if let Some(v) = webui {
+                cfg.webui = Some(v);
+            }
+            if let Some(v) = cache_prompt {
+                cfg.cache_prompt = Some(v);
+            }
+            save_yaml(&key, cfg, &self.models_dir, &self.unused_dir);
+        }
+    }
+
     /// Delete a model config by its display_name.
     pub fn delete(&mut self, display_name: &str) {
         let key = key_from_display(display_name);

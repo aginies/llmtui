@@ -373,6 +373,26 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         false,
         server_running,
     );
+    let webui_val = if app.settings.webui {
+        "Enabled".to_string()
+    } else {
+        "Disabled".to_string()
+    };
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        8,
+        "WebUI",
+        &webui_val,
+        selected,
+        "",
+        false,
+        server_running,
+    );
 
     let total_settings = lines.len();
     let available_height = area.height.saturating_sub(2);
