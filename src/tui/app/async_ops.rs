@@ -98,14 +98,14 @@ impl App {
         tokio::fs::create_dir_all(&dest_dir).await.ok();
         let free_space = crate::backend::hub::get_free_space_bytes(&models_dir);
         if file_size > free_space {
-            self.add_log(
+            self.add_toast(
                 crate::t_fmt!(
                     "async.not_enough_disk",
                     filename,
                     crate::tui::format_size(file_size),
                     crate::tui::format_size(free_space)
                 ),
-                crate::config::LogLevel::Warning,
+                crate::tui::toast::ToastLevel::Warning,
             );
             return;
         }
