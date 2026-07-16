@@ -427,55 +427,7 @@ pub fn detect_gpu_models() -> Vec<Option<String>> {
 pub fn detect_all_gpus() -> Vec<GpuInfo> {
     #[cfg(target_os = "linux")]
     {
-        let card_paths = drm_card_paths();
-        if card_paths.is_empty() {
-            return Vec::new();
-        }
-
-        let amd_gfx_targets = detect_amd_gfx_targets();
-        let mut amd_card_idx: usize = 0;
-        let mut result = Vec::new();
-
-        for card_path in &card_paths {
-            let vendor_path = card_path.join("device/vendor");
-            if let Ok(vendor_id) = fs::read_to_string(vendor_path) {
-                let vendor_id = vendor_id.trim();
-                let vendor = match vendor_id {
-                    "0x1002" => GpuVendor::Amd,
-                    "0x10de" => GpuVendor::Nvidia,
-                    "0x8086" => GpuVendor::Intel,
-                    _ => continue,
-                };
-
-                let vendor_name = match vendor {
-                    GpuVendor::Amd => "AMD",
-                    GpuVendor::Nvidia => "NVIDIA",
-                    GpuVendor::Intel => "Intel",
-                    _ => continue,
-                };
-
-                let name = if vendor == GpuVendor::Amd {
-                    if let Some(gfx) = amd_gfx_targets.get(amd_card_idx % amd_gfx_targets.len()) {
-                        format!("{} ({})", vendor_name, gfx)
-                    } else {
-                        vendor_name.to_string()
-                    }
-                } else {
-                    let name_path = card_path.join("device/name");
-                    let name = fs::read_to_string(&name_path)
-                        .map(|s| s.trim().to_string())
-                        .unwrap_or_else(|_| vendor_name.to_string());
-                    name
-                };
-
-                result.push(GpuInfo { vendor, name });
-
-                if vendor == GpuVendor::Amd {
-                    amd_card_idx += 1;
-                }
-            }
-        }
-        result
+        detect_all_gpus_linux()
     }
 
     #[cfg(target_os = "windows")]
@@ -503,6 +455,161 @@ pub fn detect_all_gpus() -> Vec<GpuInfo> {
         }
         result
     }
+}
+
+#[cfg(target_os = "linux")]
+fn detect_all_gpus_linux() -> Vec<GpuInfo> {
+    // Try lspci first for full model names
+    let gpu_lines = match std::process::Command::new("lspci")
+        .output()
+    {
+        Ok(out) if out.status.success() => {
+            let output = String::from_utf8_lossy(&out.stdout).to_string();
+            parse_lspci_gpus(&output)
+        }
+        _ => Vec::new(),
+    };
+
+    if !gpu_lines.is_empty() {
+        return gpu_lines;
+    }
+
+    // Fallback to sysfs
+    detect_all_gpus_sysfs()
+}
+
+#[cfg(target_os = "linux")]
+fn parse_lspci_gpus(output: &str) -> Vec<GpuInfo> {
+    let mut result = Vec::new();
+
+    for line in output.lines() {
+        let line = line.trim();
+        let lower = line.to_lowercase();
+        
+        let is_gpu = lower.contains("vga") || lower.contains("3d") || lower.contains("display");
+        if !is_gpu {
+            continue;
+        }
+
+        if let Some(info) = parse_lspci_line(line) {
+            result.push(info);
+        }
+    }
+
+    result
+}
+
+#[cfg(target_os = "linux")]
+fn parse_lspci_line(line: &str) -> Option<GpuInfo> {
+    // Format: "c4:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] HawkPoint1 (rev d2)"
+    // or: "01:00.0 VGA compatible controller: NVIDIA Corporation GA102 [GeForce RTX 3090] (rev a1)"
+    let colon_idx = line.find(':')?;
+    let rest = &line[colon_idx + 1..];
+    let colon2_idx = rest.find(':')?;
+    let class = &rest[..colon2_idx];
+    let rest = &rest[colon2_idx + 1..].trim();
+
+    let is_gpu = class.to_lowercase().contains("vga")
+        || class.to_lowercase().contains("3d")
+        || class.to_lowercase().contains("display");
+    
+    if !is_gpu {
+        return None;
+    }
+
+    let lower = rest.to_lowercase();
+    let vendor = if lower.contains("nvidia") {
+        GpuVendor::Nvidia
+    } else if lower.contains("amd") || lower.contains("[ati]") || lower.contains("radeon") {
+        GpuVendor::Amd
+    } else if lower.contains("intel") {
+        GpuVendor::Intel
+    } else {
+        return None;
+    };
+
+    let vendor_name = match vendor {
+        GpuVendor::Amd => "AMD",
+        GpuVendor::Nvidia => "NVIDIA",
+        GpuVendor::Intel => "Intel",
+        _ => "Unknown",
+    };
+
+    // For AMD, append GFX target version
+    if vendor == GpuVendor::Amd {
+        let amd_gfx_targets = detect_amd_gfx_targets();
+        if let Some(gfx) = amd_gfx_targets.first() {
+            Some(GpuInfo {
+                vendor,
+                name: format!("{} ({})", vendor_name, gfx),
+            })
+        } else {
+            // Remove "(rev XX)" suffix for clean name
+            let name = rest.trim_end_matches(|c: char| c.is_ascii_digit() || c == ' ').to_string();
+            Some(GpuInfo { vendor, name })
+        }
+    } else {
+        // Remove "(rev XX)" suffix
+        let name = if let Some(paren_idx) = rest.rfind("(rev ") {
+            rest[..paren_idx].trim().to_string()
+        } else {
+            rest.to_string()
+        };
+        Some(GpuInfo { vendor, name: name.trim().to_string() })
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn detect_all_gpus_sysfs() -> Vec<GpuInfo> {
+    let card_paths = drm_card_paths();
+    if card_paths.is_empty() {
+        return Vec::new();
+    }
+
+    let amd_gfx_targets = detect_amd_gfx_targets();
+    let mut amd_card_idx: usize = 0;
+    let mut result = Vec::new();
+
+    for card_path in &card_paths {
+        let vendor_path = card_path.join("device/vendor");
+        if let Ok(vendor_id) = fs::read_to_string(vendor_path) {
+            let vendor_id = vendor_id.trim();
+            let vendor = match vendor_id {
+                "0x1002" => GpuVendor::Amd,
+                "0x10de" => GpuVendor::Nvidia,
+                "0x8086" => GpuVendor::Intel,
+                _ => continue,
+            };
+
+            let vendor_name = match vendor {
+                GpuVendor::Amd => "AMD",
+                GpuVendor::Nvidia => "NVIDIA",
+                GpuVendor::Intel => "Intel",
+                _ => continue,
+            };
+
+            let name = if vendor == GpuVendor::Amd {
+                if let Some(gfx) = amd_gfx_targets.get(amd_card_idx % amd_gfx_targets.len()) {
+                    format!("{} ({})", vendor_name, gfx)
+                } else {
+                    vendor_name.to_string()
+                }
+            } else {
+                let name_path = card_path.join("device/name");
+                let name = fs::read_to_string(&name_path)
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_else(|_| vendor_name.to_string());
+                name
+            };
+
+            result.push(GpuInfo { vendor, name });
+
+            if vendor == GpuVendor::Amd {
+                amd_card_idx += 1;
+            }
+        }
+    }
+    result
 }
 
 #[allow(dead_code)]
@@ -692,5 +799,53 @@ mod tests {
             }
         }
         vendors
+    }
+
+    #[cfg(target_os = "linux")]
+    fn test_parse_lspci_line(input: &str) -> Option<GpuInfo> {
+        super::parse_lspci_line(input)
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_parse_lspci_nvidia() {
+        let input = "01:00.0 VGA compatible controller: NVIDIA Corporation GA102 [GeForce RTX 3090] (rev a1)";
+        let info = test_parse_lspci_line(input).unwrap();
+        assert_eq!(info.vendor, GpuVendor::Nvidia);
+        assert!(info.name.contains("GeForce RTX 3090"));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_parse_lspci_amd() {
+        let input = "c4:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] HawkPoint1 (rev d2)";
+        let info = test_parse_lspci_line(input).unwrap();
+        assert_eq!(info.vendor, GpuVendor::Amd);
+        // AMD gets GFX version appended
+        assert!(info.name.starts_with("AMD"));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_parse_lspci_intel() {
+        let input = "00:02.0 VGA compatible controller: Intel Corporation Alder Lake-P GT1 [UHD Graphics]";
+        let info = test_parse_lspci_line(input).unwrap();
+        assert_eq!(info.vendor, GpuVendor::Intel);
+        assert!(info.name.contains("Alder Lake"));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_parse_lspci_non_gpu() {
+        let input = "00:00.0 Host bridge: Intel Corporation 12th Gen Core Processor";
+        assert!(test_parse_lspci_line(input).is_none());
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_parse_lspci_3d_controller() {
+        let input = "02:00.0 3D controller: NVIDIA Corporation GP104XL Tesla Pascal (rev a1)";
+        let info = test_parse_lspci_line(input).unwrap();
+        assert_eq!(info.vendor, GpuVendor::Nvidia);
     }
 }
