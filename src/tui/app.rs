@@ -88,6 +88,7 @@ impl App {
                 host_picker_selected: 0,
                 backend_picker_entries: Vec::new(),
                 backend_picker_selected: 0,
+                backend_picker_scroll_offset: 0,
                 prompt_picker_entries: Vec::new(),
                 prompt_picker_selected: 0,
                 profile_picker_entries: Vec::new(),

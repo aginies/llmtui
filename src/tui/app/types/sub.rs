@@ -39,6 +39,7 @@ pub struct PickerState {
     pub host_picker_selected: usize,
     pub backend_picker_entries: Vec<(Backend, Option<String>)>,
     pub backend_picker_selected: usize,
+    pub backend_picker_scroll_offset: usize,
     pub prompt_picker_entries: Vec<(String, String)>,
     pub prompt_picker_selected: usize,
     pub profile_picker_entries: Vec<(String, String)>,

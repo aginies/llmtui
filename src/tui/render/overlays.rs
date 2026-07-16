@@ -150,7 +150,32 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     }
 
     if let GlobalMode::BackendPicker { entries, selected } = &app.ui.global_mode {
-        render_backend_picker(f, f.area(), entries, *selected);
+        let available_height = f.area().height.saturating_sub(4) as usize;
+        let total_entries = entries.len();
+        if total_entries > available_height {
+            let max_scroll = total_entries.saturating_sub(available_height - 3);
+            let actual_scroll = app.picker.backend_picker_scroll_offset.min(max_scroll);
+            
+            // Auto-scroll: keep selected item visible
+            let header_lines = 3;
+            let visible_range = actual_scroll..actual_scroll + (available_height - header_lines);
+            if *selected < actual_scroll {
+                app.picker.backend_picker_scroll_offset = *selected;
+            } else if *selected >= visible_range.end {
+                app.picker.backend_picker_scroll_offset = *selected - (available_height - header_lines) + 1;
+                if app.picker.backend_picker_scroll_offset > max_scroll {
+                    app.picker.backend_picker_scroll_offset = max_scroll;
+                }
+            }
+        }
+        
+        render_backend_picker(
+            f,
+            f.area(),
+            entries,
+            *selected,
+            app.picker.backend_picker_scroll_offset,
+        );
         return true;
     }
 
@@ -1079,6 +1104,7 @@ fn render_backend_picker(
     area: Rect,
     entries: &[(crate::models::Backend, Option<String>)],
     selected: usize,
+    scroll_offset: usize,
 ) {
     let w = (area.width as f64 * 0.5).clamp(50.0, 70.0) as u16;
     let all_models = detect_gpu_models();
@@ -1087,9 +1113,22 @@ fn render_backend_picker(
     } else {
         0
     };
-    let h = (entries.len() + 4 + gpu_info_lines).min(area.height as usize - 4) as u16;
+    let total_lines = entries.len() + 4 + gpu_info_lines;
+    let h = total_lines.min(area.height as usize - 4) as u16;
     let picker_area = center_rect(area, w, h);
     let vendors = detect_gpu_vendors();
+    
+    let _header_lines = 3 + gpu_info_lines;
+    let max_scroll = entries.len().saturating_sub(h as usize - 3);
+    let actual_scroll = scroll_offset.min(max_scroll);
+    
+    let visible_entries: Vec<(&crate::models::Backend, Option<&String>)> = entries
+        .iter()
+        .skip(actual_scroll)
+        .take(h as usize - 3)
+        .map(|(b, t)| (b, t.as_ref()))
+        .collect();
+    
     let mut picker_lines: Vec<Line> = Vec::new();
     picker_lines.push(Line::from(Span::styled(
          crate::t!("dialog.backend_picker.select"),
@@ -1107,12 +1146,14 @@ fn render_backend_picker(
         ]));
     }
     picker_lines.push(Line::from(""));
-    for (i, (backend, tag)) in entries.iter().enumerate() {
-        let marker = if i == selected { "> " } else { "  " };
+    
+    for (i, (backend, tag)) in visible_entries.iter().enumerate() {
+        let real_idx = actual_scroll + i;
+        let marker = if real_idx == selected { "> " } else { "  " };
         let is_installed = if tag.is_some() {
             true
         } else {
-            crate::backend::hub::is_backend_any_version_installed(*backend)
+            crate::backend::hub::is_backend_any_version_installed(**backend)
         };
         let is_recommended = vendors.iter().any(|v| {
             matches!(
@@ -1126,7 +1167,7 @@ fn render_backend_picker(
                     | (GpuVendor::Apple, crate::models::Backend::Cpu, None)
             )
         });
-        let style = if i == selected {
+        let style = if real_idx == selected {
             Style::default()
                 .fg(BLACK)
                 .bg(ACCENT)
@@ -1182,6 +1223,7 @@ fn render_backend_picker(
         }
         picker_lines.push(Line::from(line_spans));
     }
+    
     render_popup(
         f,
         picker_area,
@@ -1192,6 +1234,19 @@ fn render_backend_picker(
         picker_lines,
         BorderType::Rounded,
     );
+    
+    if total_lines > (area.height as usize - 4) {
+        let max_scroll = entries.len().saturating_sub(h as usize - 3);
+        let actual_scroll = scroll_offset.min(max_scroll);
+        render_vertical_scrollbar(
+            f,
+            picker_area,
+            entries.len(),
+            actual_scroll,
+            1,
+            1,
+        );
+    }
 }
 
 fn render_bench_tune_setup(

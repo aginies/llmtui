@@ -28,6 +28,20 @@ impl OverlayHandler for BackendPickerHandler {
                     }
                     KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
                     KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
+                    KeyCode::PageUp => {
+                        app.picker.backend_picker_scroll_offset = app
+                            .picker
+                            .backend_picker_scroll_offset
+                            .saturating_sub(3);
+                    }
+                    KeyCode::PageDown => {
+                        let max_scroll = entries.len().saturating_sub(3);
+                        app.picker.backend_picker_scroll_offset = app
+                            .picker
+                            .backend_picker_scroll_offset
+                            .saturating_add(3)
+                            .min(max_scroll);
+                    }
                     KeyCode::Enter => {
                         let (backend, tag) = entries[*selected].clone();
                         app.settings.backend = backend;
