@@ -1396,6 +1396,48 @@ async fn test_backend_picker_esc_exits() {
     assert!(matches!(app.ui.global_mode, GlobalMode::Normal));
 }
 
+#[tokio::test]
+async fn test_backend_picker_mouse_scroll() {
+    let mut app = make_app();
+    app.picker.backend_picker_entries = vec![
+        (Backend::Cpu, Some("b1".into())),
+        (Backend::Vulkan, Some("b2".into())),
+        (Backend::Cuda, Some("b3".into())),
+    ];
+    app.ui.global_mode = GlobalMode::BackendPicker {
+        entries: app.picker.backend_picker_entries.clone(),
+        selected: 1,
+    };
+    
+    // Test scroll down (increases selected index)
+    let scroll_down_event = crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::ScrollDown,
+        column: 0,
+        row: 0,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    llm_manager::tui::event::handle_mouse(&mut app, scroll_down_event, ratatui::layout::Rect::new(0, 0, 80, 24));
+    if let GlobalMode::BackendPicker { selected, .. } = app.ui.global_mode {
+        assert_eq!(selected, 2);
+    } else {
+        panic!("GlobalMode is not BackendPicker");
+    }
+
+    // Test scroll up (decreases selected index)
+    let scroll_up_event = crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::ScrollUp,
+        column: 0,
+        row: 0,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    llm_manager::tui::event::handle_mouse(&mut app, scroll_up_event, ratatui::layout::Rect::new(0, 0, 80, 24));
+    if let GlobalMode::BackendPicker { selected, .. } = app.ui.global_mode {
+        assert_eq!(selected, 1);
+    } else {
+        panic!("GlobalMode is not BackendPicker");
+    }
+}
+
 // ── MaxConcurrentPicker ─────────────────────────────────────────
 
 #[tokio::test]

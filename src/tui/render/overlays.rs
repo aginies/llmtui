@@ -154,8 +154,9 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         let gpu_info_lines = if all_models.iter().any(|m| m.is_some()) { 1 } else { 0 };
         let total_entries = entries.len();
         let header_lines = 3 + gpu_info_lines;
-        let content_area = (f.area().height as usize).saturating_sub(4).saturating_sub(3);
-        let visible_count = content_area.saturating_sub(header_lines);
+        let total_lines = total_entries + 5 + gpu_info_lines;
+        let h = total_lines.min(f.area().height as usize - 4);
+        let visible_count = h.saturating_sub(2).saturating_sub(header_lines);
         
         if total_entries > visible_count {
             let max_scroll = total_entries.saturating_sub(visible_count);
@@ -1119,14 +1120,13 @@ fn render_backend_picker(
     } else {
         0
     };
-    let total_lines = entries.len() + 4 + gpu_info_lines;
+    let total_lines = entries.len() + 5 + gpu_info_lines;
     let h = total_lines.min(area.height as usize - 4) as u16;
     let picker_area = center_rect(area, w, h);
     let vendors = detect_gpu_vendors();
     
     let header_lines = 3 + gpu_info_lines;
-    let content_area = (h as usize).saturating_sub(3);
-    let visible_count = content_area.saturating_sub(header_lines);
+    let visible_count = (h as usize).saturating_sub(2).saturating_sub(header_lines);
     let max_scroll = entries.len().saturating_sub(visible_count);
     let actual_scroll = scroll_offset.min(max_scroll);
     
@@ -1250,7 +1250,7 @@ fn render_backend_picker(
             entries.len(),
             actual_scroll,
             1,
-            1,
+            2,
         );
     }
 }

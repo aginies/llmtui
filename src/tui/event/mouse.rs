@@ -6,6 +6,19 @@ use crate::tui::app::{ActivePanel, App};
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
     let pos = Position::new(mouse.column, mouse.row);
 
+    if let crate::tui::app::GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode {
+        match mouse.kind {
+            MouseEventKind::ScrollUp => {
+                crate::tui::event::helpers::picker_nav_up(selected);
+            }
+            MouseEventKind::ScrollDown => {
+                crate::tui::event::helpers::picker_nav_down(selected, entries.len());
+            }
+            _ => {}
+        }
+        return;
+    }
+
     if app.log.log_expanded {
         let chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)

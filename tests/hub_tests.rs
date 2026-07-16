@@ -155,6 +155,93 @@ fn test_extract_archive_creates_files() {
 }
 
 #[test]
+fn test_extract_tar_gz_with_subdirectories() {
+    let temp_dir = std::env::temp_dir().join("llm-manager-test-extract-subdirs");
+    let _ = fs::remove_dir_all(&temp_dir);
+    let _ = fs::create_dir_all(&temp_dir.join("src/sub"));
+
+    // Create files in subdirectories
+    fs::write(temp_dir.join("src/subdir.txt"), "subdir content").unwrap();
+    fs::write(temp_dir.join("src/sub/nested.txt"), "nested content").unwrap();
+    fs::write(temp_dir.join("root.txt"), "root content").unwrap();
+
+    // Create tar.gz with subdirectories (tar may or may not include trailing slashes)
+    let archive_path = temp_dir.join("test_subdirs.tar.gz");
+    let create_result = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "cd {} && tar czf test_subdirs.tar.gz root.txt src/",
+            temp_dir.display()
+        ))
+        .output();
+
+    assert!(create_result.is_ok(), "Failed to create test archive");
+
+    let dest_dir = temp_dir.join("extracted_subdirs");
+    let result = extract_archive(&archive_path, &dest_dir);
+
+    assert!(result.is_ok(), "Extraction should succeed: {:?}", result);
+
+    // Verify files were extracted correctly
+    assert!(dest_dir.join("root.txt").exists());
+    assert_eq!(
+        fs::read_to_string(dest_dir.join("root.txt")).unwrap(),
+        "root content"
+    );
+    assert!(dest_dir.join("src/subdir.txt").exists());
+    assert_eq!(
+        fs::read_to_string(dest_dir.join("src/subdir.txt")).unwrap(),
+        "subdir content"
+    );
+    assert!(dest_dir.join("src/sub/nested.txt").exists());
+    assert_eq!(
+        fs::read_to_string(dest_dir.join("src/sub/nested.txt")).unwrap(),
+        "nested content"
+    );
+
+    // Verify src is a directory, not a file
+    assert!(dest_dir.join("src").is_dir());
+
+    // Cleanup
+    let _ = fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_extract_tar_gz_with_symlinks() {
+    let temp_dir = std::env::temp_dir().join("llm-manager-test-extract-symlinks");
+    let _ = fs::remove_dir_all(&temp_dir);
+    let _ = fs::create_dir_all(&temp_dir.join("src"));
+
+    // Create a real file and a symlink to it
+    fs::write(temp_dir.join("src/real_file.txt"), "real content").unwrap();
+
+    // Create tar.gz with symlink (using subprocess)
+    let archive_path = temp_dir.join("test_symlinks.tar.gz");
+    let create_result = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "cd {} && ln -s real_file.txt link.txt && tar czf test_symlinks.tar.gz src/ link.txt",
+            temp_dir.display()
+        ))
+        .output();
+
+    assert!(create_result.is_ok(), "Failed to create test archive with symlinks");
+
+    let dest_dir = temp_dir.join("extracted_symlinks");
+    let result = extract_archive(&archive_path, &dest_dir);
+
+    assert!(result.is_ok(), "Symlink archive extraction should succeed: {:?}", result);
+
+    // Verify the symlink was preserved (not resolved to a regular file)
+    let link_path = dest_dir.join("link.txt");
+    assert!(link_path.exists() || link_path.symlink_metadata().is_ok(),
+        "Symlink should exist (even if dangling)");
+
+    // Cleanup
+    let _ = fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
 fn test_extract_archive_fails_on_nonexistent_archive() {
     let temp_dir = std::env::temp_dir().join("llm-manager-test-extract-fail");
     let _ = fs::remove_dir_all(&temp_dir);

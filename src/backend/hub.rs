@@ -428,6 +428,14 @@ pub async fn download_file(
     progress.status = crate::models::DownloadStatus::Complete;
     let _ = tx.send(progress.clone());
 
+    // Check that we actually downloaded something
+    if progress.downloaded_bytes == 0 && progress.total_bytes > 0 {
+        anyhow::bail!(
+            "Downloaded file is empty (0 bytes), expected {} bytes",
+            progress.total_bytes
+        );
+    }
+
     Ok(sha256)
 }
 
@@ -848,119 +856,181 @@ pub async fn resolve_backend_binary(
         sha256
     };
 
-    // Verify SHA256 if we received it from the GitHub CDN
-    if let Some(expected) = &expected_sha256 {
-        let actual = file_sha256(&tmp_path)?;
-        if actual != expected.to_lowercase() {
-            return Err(anyhow::anyhow!(
-                "SHA256 mismatch for downloaded binary ({}): expected {}, got {}",
-                download_url,
-                expected,
-                actual
-            ));
-        }
-        tracing::info!("  -> SHA256 verified successfully");
-    } else {
-        tracing::warn!("  -> No sha2-256 header from GitHub, skipping integrity check");
+    // Verify archive file is not empty
+    let archive_size = std::fs::metadata(&tmp_path)?.len();
+    if archive_size == 0 {
+        return Err(anyhow::anyhow!(
+            "Downloaded archive is empty (0 bytes) from URL: {}",
+            download_url
+        ));
     }
+    tracing::info!("  -> archive downloaded, size: {} bytes", archive_size);
 
-    tracing::info!("  -> download complete, extracting...");
-
-    // Extract the archive to a temp directory, then pull out the binary and shared libs
     let extract_dir = bin_dir.join(format!("llama-server-{}-{}.extract", backend.slug(), tag));
 
-    if let Some(tx) = &log_tx {
-        let _ = tx.send("Extracting backend...".to_string()).await;
-    }
+    let setup_res: Result<std::path::PathBuf> = async {
+        // Verify SHA256 if we received it from the GitHub CDN
+        if let Some(expected) = &expected_sha256 {
+            let actual = file_sha256(&tmp_path)?;
+            if actual != expected.to_lowercase() {
+                return Err(anyhow::anyhow!(
+                    "SHA256 mismatch for downloaded binary ({}): expected {}, got {}",
+                    download_url,
+                    expected,
+                    actual
+                ));
+            }
+            tracing::info!("  -> SHA256 verified successfully");
+        } else {
+            tracing::warn!("  -> No sha2-256 header from GitHub, skipping integrity check");
+        }
 
-    extract_archive(&tmp_path, &extract_dir)?;
+        tracing::info!("  -> download complete, extracting...");
 
-    if let Some(tx) = &log_tx {
-        let _ = tx.send("Finalizing installation...".to_string()).await;
-    }
+        if let Some(tx) = &log_tx {
+            let _ = tx.send("Extracting backend...".to_string()).await;
+        }
 
-    // The archive contains llama-xxx/bin/llama-server; find it and move into bin_dir
-    let extracted_bin = extract_dir.join(bin_name);
-    tracing::info!(
-        "  -> looking for binary in extracted archive at: {}",
-        extracted_bin.display()
-    );
-    if extracted_bin.exists() {
-        tracing::info!(
-            "  -> found binary at expected location, moving to {}",
-            bin_path.display()
-        );
-        std::fs::rename(&extracted_bin, &bin_path)?;
-    } else {
-        // Try searching recursively for the binary name
-        tracing::info!("  -> binary not at expected location, searching recursively...");
-        let mut found = None;
+        extract_archive(&tmp_path, &extract_dir)?;
+
+        // Log extracted archive structure for debugging
+        let mut file_count = 0usize;
+        let mut dir_count = 0usize;
         walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
-            if entry.file_name().to_str() == Some(bin_name) {
-                tracing::info!("  -> found binary at: {}", entry.path().display());
-                found = Some(entry.path().to_path_buf());
+            if entry.path().is_dir() {
+                dir_count += 1;
+            } else {
+                file_count += 1;
             }
         });
-        if let Some(path) = found {
-            std::fs::rename(path, &bin_path)?;
+        tracing::info!(
+            "  -> archive extracted: {} files, {} directories in {}",
+            file_count,
+            dir_count,
+            extract_dir.display()
+        );
+
+        if let Some(tx) = &log_tx {
+            let _ = tx.send("Finalizing installation...".to_string()).await;
+        }
+
+        // The archive contains llama-xxx/bin/llama-server; find it and move into bin_dir
+        let extracted_bin = extract_dir.join(bin_name);
+        tracing::info!(
+            "  -> looking for binary in extracted archive at: {}",
+            extracted_bin.display()
+        );
+        if extracted_bin.exists() {
+            tracing::info!(
+                "  -> found binary at expected location, moving to {}",
+                bin_path.display()
+            );
+            std::fs::rename(&extracted_bin, &bin_path)?;
         } else {
+            // Try searching recursively for the binary name
+            tracing::info!("  -> binary not at expected location, searching recursively...");
+            let mut found = None;
+            walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
+                if entry.file_name().to_str() == Some(bin_name) {
+                    tracing::info!("  -> found binary at: {}", entry.path().display());
+                    found = Some(entry.path().to_path_buf());
+                }
+            });
+            if let Some(path) = found {
+                let path_display = path.display().to_string();
+                std::fs::rename(&path, &bin_path)?;
+                let bin_size = std::fs::metadata(&bin_path)?.len();
+                if bin_size == 0 {
+                    anyhow::bail!(
+                        "Extracted {} is empty (0 bytes) at {}",
+                        bin_name,
+                        path_display
+                    );
+                }
+                tracing::info!("  -> extracted {} ({} bytes)", bin_name, bin_size);
+            } else {
+                anyhow::bail!(
+                    "Could not find {} binary in archive at {}",
+                    bin_name,
+                    extract_dir.display()
+                );
+            }
+        }
+
+        // Also try to extract llama-bench if it exists
+        let bench_bin_path = bin_dir.join("llama-bench");
+        let mut bench_found = None;
+        walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
+            if entry
+                .file_name()
+                .to_str()
+                .map(|n| n == "llama-bench")
+                .unwrap_or(false)
+            {
+                bench_found = Some(entry.path().to_path_buf());
+            }
+        });
+        if let Some(path) = bench_found {
+            let _ = std::fs::rename(path, &bench_bin_path);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ =
+                    std::fs::set_permissions(&bench_bin_path, std::fs::Permissions::from_mode(0o755));
+            }
+        }
+
+        // Also extract shared libraries from the archive into bin_dir
+        let lib_ext = lib_extension();
+        let lib_name = lib_sentinel_name();
+        let mut libs_found = Vec::new();
+        walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.ends_with(lib_ext)
+                || name_str.contains(&format!(".{}", lib_ext.trim_start_matches('.')))
+            {
+                libs_found.push(name_str.to_string());
+                let dest = bin_dir.join(name);
+                // Preserve symlinks: if source is a symlink, create a symlink at dest
+                // pointing to the same target (which is relative within the archive)
+                if let Ok(metadata) = entry.path().symlink_metadata() {
+                    if metadata.file_type().is_symlink() {
+                        if let Ok(target) = std::fs::read_link(entry.path()) {
+                            let _ = std::os::unix::fs::symlink(&target, &dest);
+                        }
+                    } else {
+                        let _ = std::fs::copy(entry.path(), dest);
+                    }
+                } else {
+                    let _ = std::fs::copy(entry.path(), dest);
+                }
+            }
+        });
+        tracing::info!("  -> extracted {} shared libraries: {:?}", libs_found.len(), libs_found);
+        if !bin_dir.join(lib_name).exists() {
             anyhow::bail!(
-                "Could not find {} binary in archive at {}",
-                bin_name,
-                extract_dir.display()
+                "Expected library '{}' not found in archive (found: {:?})",
+                lib_name,
+                libs_found
             );
         }
-    }
 
-    // Also try to extract llama-bench if it exists
-    let bench_bin_path = bin_dir.join("llama-bench");
-    let mut bench_found = None;
-    walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
-        if entry
-            .file_name()
-            .to_str()
-            .map(|n| n == "llama-bench")
-            .unwrap_or(false)
-        {
-            bench_found = Some(entry.path().to_path_buf());
-        }
-    });
-    if let Some(path) = bench_found {
-        let _ = std::fs::rename(path, &bench_bin_path);
+        // Make executable (Unix-only)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ =
-                std::fs::set_permissions(&bench_bin_path, std::fs::Permissions::from_mode(0o755));
+            std::fs::set_permissions(&bin_path, std::fs::Permissions::from_mode(0o755))?;
         }
-    }
 
-    // Also extract shared libraries from the archive into bin_dir
-    let lib_ext = lib_extension();
-    walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
-        let name = entry.file_name();
-        let name_str = name.to_string_lossy();
-        if name_str.ends_with(lib_ext)
-            || name_str.contains(&format!(".{}", lib_ext.trim_start_matches('.')))
-        {
-            let dest = bin_dir.join(name);
-            // Use std::fs::copy which follows symlinks and creates a regular file at dest
-            let _ = std::fs::copy(entry.path(), dest);
-        }
-    });
-
-    // Make executable (Unix-only)
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&bin_path, std::fs::Permissions::from_mode(0o755))?;
-    }
+        Ok(bin_path)
+    }.await;
 
     // Clean up temp files
     let _ = tokio::fs::remove_file(&tmp_path).await;
     let _ = tokio::fs::remove_dir_all(&extract_dir).await;
 
-    Ok(bin_path)
+    setup_res
 }
 
 /// Compute the SHA256 hash of a file.
@@ -1018,8 +1088,8 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
         let decoder = GzDecoder::new(file);
         let mut archive = Archive::new(decoder);
         let entries = archive.entries()?;
-        for entry in entries.flatten() {
-            let mut entry = entry;
+        for entry in entries {
+            let mut entry = entry?;
             let entry_path = entry.path()?;
             let full_path = dest_dir.join(&entry_path);
             if !full_path.starts_with(&dest_dir) {
@@ -1029,8 +1099,26 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
                     full_path.display()
                 ));
             }
-            if entry_path.to_string_lossy().ends_with('/') {
+            // Detect directory entries by tar header type, not path suffix
+            let is_dir = entry.header().entry_type().is_dir();
+            if is_dir {
                 std::fs::create_dir_all(&full_path)?;
+            } else if entry.header().entry_type().is_symlink() {
+                // Preserve symlinks: read the symlink target and create a symlink at dest
+                let header = entry.header();
+                if let Ok(Some(link_target)) = header.link_name() {
+                    if let Some(parent) = full_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    #[cfg(unix)]
+                    {
+                        let _ = std::os::unix::fs::symlink(&link_target, &full_path);
+                    }
+                    #[cfg(windows)]
+                    {
+                        let _ = std::os::windows::fs::symlink_file(&link_target, &full_path);
+                    }
+                }
             } else {
                 if let Some(parent) = full_path.parent() {
                     std::fs::create_dir_all(parent)?;
