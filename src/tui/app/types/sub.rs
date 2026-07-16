@@ -97,6 +97,9 @@ pub struct ServerState {
     pub last_server_logs_tick: Option<std::time::Instant>,
     /// Last time tick_sync ran (throttled to ~1000ms).
     pub last_sync_tick: Option<std::time::Instant>,
+    /// Cooldown period after server exit to avoid disabling API endpoint
+    /// on transient port-in-use (llama-server hasn't released port yet).
+    pub server_exit_cooldown_until: Option<std::time::Instant>,
 }
 
 pub struct BenchTuneState {

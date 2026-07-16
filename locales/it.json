@@ -30,6 +30,7 @@
   "app.starting": "Starting llm-manager...",
   "async.api_disabled": "API endpoint disabled",
  "async.api_failed": "API endpoint failed to start on {}:{}: {}",
+  "async.api_failed_port_releasing": "API endpoint bind failed on {}:{} (server just exited, port still releasing): {}",
    "async.api_invalid_address": "API endpoint failed to start: invalid address {}:{}: {}",
    "async.api_tls_error": "Errore TLS: {}",
    "async.api_started": "{} endpoint started on {}:{}{}",

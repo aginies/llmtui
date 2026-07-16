@@ -362,6 +362,7 @@
   "async.api_disabled": "API-Endpunkt deaktiviert",
   "async.api_invalid_address": "API-Endpunkt konnte nicht gestartet werden: ungültige Adresse {}:{}: {}",
 "async.api_failed": "API-Endpunkt konnte nicht auf {}:{} gestartet werden: {}",
+  "async.api_failed_port_releasing": "API-Endpunkt Bind-Fehler auf {}:{} (Server gerade beendet, Port wird noch freigegeben): {}",
    "async.api_tls_error": "TLS-Fehler: {}",
    "async.no_model_loaded": " (noch kein Modell geladen)",
    "async.api_started": "{}-Endpunkt gestartet auf {}:{}{}",

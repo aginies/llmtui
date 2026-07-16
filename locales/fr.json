@@ -30,6 +30,7 @@
   "app.starting": "Démarrage de llm-manager...",
   "async.api_disabled": "Point de terminaison API désactivé",
  "async.api_failed": "Échec du démarrage du point de terminaison API sur {}:{}: {}",
+  "async.api_failed_port_releasing": "Échec de liaison du point de terminaison API sur {}:{} (serveur vient de quitter, port en cours de libération) : {}",
    "async.api_invalid_address": "Échec du démarrage du point de terminaison API : adresse invalide {}:{}: {}",
    "async.api_tls_error": "Erreur TLS : {}",
    "async.api_started": "Point de terminaison {} démarré sur {}:{}{}",

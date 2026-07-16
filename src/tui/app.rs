@@ -142,6 +142,7 @@ impl App {
                 api_shutdown_tx: None,
                 last_server_logs_tick: None,
                 last_sync_tick: None,
+                server_exit_cooldown_until: None,
             },
             bench_tune: BenchTuneState {
                 bench_tune_progress: None,

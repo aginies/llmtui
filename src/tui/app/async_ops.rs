@@ -1993,17 +1993,30 @@ impl App {
             };
 
             // Pre-bind to detect port-in-use before spawning.
+            let in_cooldown = self.server.server_exit_cooldown_until
+                .map(|t| std::time::Instant::now() < t)
+                .unwrap_or(false);
             match tokio::net::TcpListener::bind(addr).await {
-                Ok(listener) => drop(listener),
+                Ok(listener) => {
+                    drop(listener);
+                    self.server.server_exit_cooldown_until = None;
+                }
                 Err(e) => {
-                    self.add_log(
-                        crate::t_fmt!("async.api_failed", host, port, e),
-                        crate::config::LogLevel::Error,
-                    );
-                    self.settings.api_endpoint_enabled = false;
-                    self.config.default.api_endpoint_enabled = false;
-                    let _ = self.config.save();
-                    return;
+                    if in_cooldown {
+                        self.add_log(
+                            crate::t_fmt!("async.api_failed_port_releasing", host, port, e),
+                            crate::config::LogLevel::Info,
+                        );
+                    } else {
+                        self.add_log(
+                            crate::t_fmt!("async.api_failed", host, port, e),
+                            crate::config::LogLevel::Error,
+                        );
+                        self.settings.api_endpoint_enabled = false;
+                        self.config.default.api_endpoint_enabled = false;
+                        let _ = self.config.save();
+                        return;
+                    }
                 }
             }
 
