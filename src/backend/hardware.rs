@@ -20,6 +20,14 @@ pub enum GpuVendor {
     Unknown,
 }
 
+/// Combined GPU info: vendor + model name per device.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct GpuInfo {
+    pub vendor: GpuVendor,
+    pub name: String,
+}
+
 /// Detect the current operating system platform.
 pub fn detect_platform() -> Platform {
     match std::env::consts::OS {
@@ -412,6 +420,126 @@ pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
 #[cfg(target_os = "macos")]
 pub fn detect_gpu_models() -> Vec<Option<String>> {
     detect_gpu_models_macos()
+}
+
+/// Detect all GPUs with vendor + model name per device.
+/// Returns one entry per detected GPU card.
+pub fn detect_all_gpus() -> Vec<GpuInfo> {
+    #[cfg(target_os = "linux")]
+    {
+        let card_paths = drm_card_paths();
+        if card_paths.is_empty() {
+            return Vec::new();
+        }
+
+        let amd_gfx_targets = detect_amd_gfx_targets();
+        let mut amd_card_idx: usize = 0;
+        let mut result = Vec::new();
+
+        for card_path in &card_paths {
+            let vendor_path = card_path.join("device/vendor");
+            if let Ok(vendor_id) = fs::read_to_string(vendor_path) {
+                let vendor_id = vendor_id.trim();
+                let vendor = match vendor_id {
+                    "0x1002" => GpuVendor::Amd,
+                    "0x10de" => GpuVendor::Nvidia,
+                    "0x8086" => GpuVendor::Intel,
+                    _ => continue,
+                };
+
+                let vendor_name = match vendor {
+                    GpuVendor::Amd => "AMD",
+                    GpuVendor::Nvidia => "NVIDIA",
+                    GpuVendor::Intel => "Intel",
+                    _ => continue,
+                };
+
+                let name = if vendor == GpuVendor::Amd {
+                    if let Some(gfx) = amd_gfx_targets.get(amd_card_idx % amd_gfx_targets.len()) {
+                        format!("{} ({})", vendor_name, gfx)
+                    } else {
+                        vendor_name.to_string()
+                    }
+                } else {
+                    let name_path = card_path.join("device/name");
+                    let name = fs::read_to_string(&name_path)
+                        .map(|s| s.trim().to_string())
+                        .unwrap_or_else(|_| vendor_name.to_string());
+                    name
+                };
+
+                result.push(GpuInfo { vendor, name });
+
+                if vendor == GpuVendor::Amd {
+                    amd_card_idx += 1;
+                }
+            }
+        }
+        result
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let models = detect_gpu_models_windows();
+        let mut result = Vec::new();
+        for model in models {
+            if let Some(name) = model {
+                let vendor = parse_gpu_name_for_vendor_impl(&name);
+                result.push(GpuInfo { vendor, name });
+            }
+        }
+        result
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let models = detect_gpu_models_macos();
+        let mut result = Vec::new();
+        for model in models {
+            if let Some(name) = model {
+                let vendor = parse_macos_gpu_name_impl(&name);
+                result.push(GpuInfo { vendor, name });
+            }
+        }
+        result
+    }
+}
+
+#[allow(dead_code)]
+fn parse_gpu_name_for_vendor_impl(name: &str) -> GpuVendor {
+    let lower = name.to_lowercase();
+    if lower.contains("nvidia") {
+        GpuVendor::Nvidia
+    } else if lower.contains("amd") || lower.contains("radeon") || lower.contains("rx ") {
+        GpuVendor::Amd
+    } else if lower.contains("intel") {
+        GpuVendor::Intel
+    } else {
+        GpuVendor::Unknown
+    }
+}
+
+#[allow(dead_code)]
+fn parse_macos_gpu_name_impl(name: &str) -> GpuVendor {
+    let lower = name.to_lowercase();
+    if lower.contains("apple")
+        && (lower.contains("m1")
+            || lower.contains("m2")
+            || lower.contains("m3")
+            || lower.contains("m4")
+            || lower.contains("apple gpu")
+            || lower.contains("apple silicon"))
+    {
+        GpuVendor::Apple
+    } else if lower.contains("nvidia") {
+        GpuVendor::Nvidia
+    } else if lower.contains("amd") || lower.contains("radeon") || lower.contains("firepro") {
+        GpuVendor::Amd
+    } else if lower.contains("intel") {
+        GpuVendor::Intel
+    } else {
+        GpuVendor::Unknown
+    }
 }
 
 #[cfg(test)]

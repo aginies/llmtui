@@ -300,7 +300,7 @@
   "field.help.is_mtp": "Speculative decoding method for faster inference. Options: Off, draft-mtp (MTP-based), draft-simple, draft-eagle3, ngram-simple, ngram-map-k, ngram-map-k4v, ngram-mod, ngram-cache. Draft-mtp requires a compatible model with MTP architecture.",
   "field.help.keep": "Number of layers to keep in memory when swapping (negative = all). Useful for fast reloading of the same model. Typical: -1 (all) or 0 (none).",
   "field.help.kv_cache_offload": "Offload KV cache to RAM when GPU memory is full. Allows larger batch sizes and contexts at the cost of some speed. Useful when VRAM is limited but you still want longer conversations.",
-  "field.help.main_gpu": "Index of the main GPU (0-based). Handles initial model loading and some computations. Typical: 0 for single GPU, 0 for primary in multi-GPU setups.",
+  "field.help.main_gpu": "Indice della GPU principale (0-based). Visualizzazione: 'indice - nome_gpu' (es. '0 - NVIDIA GeForce RTX 4090'). Gestisce il caricamento iniziale del modello e alcuni calcoli. Tipico: 0 per GPU singola, 0 per primaria in configurazioni multi-GPU.",
   "field.help.max_concurrent_predictions": "Maximum number of models that can run simultaneously. Press Enter to open a picker that shows how context length divides per model. Each model needs its own VRAM/CPU resources.",
   "field.help.max_tokens": "Maximum number of tokens to generate in the response. Prevents runaway responses. Set to 0 or Disabled for no limit. Typical: 4096-8192 for chat, higher for code generation.",
   "field.help.min_p": "Minimum probability threshold relative to the most likely token. Tokens below min_p * max_prob are excluded. A filter that's more principled than top-k/top-p for controlling diversity. Typical: 0.01-0.1.",

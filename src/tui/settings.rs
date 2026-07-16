@@ -220,6 +220,16 @@ fn toggle_expert_count(settings: &mut ModelSettings) {
         _ => -1,
     };
 }
+
+fn format_main_gpu_display(main_gpu: i32) -> String {
+    let gpus = crate::backend::hardware::detect_all_gpus();
+    if main_gpu >= 0 && (main_gpu as usize) < gpus.len() {
+        let gpu = &gpus[main_gpu as usize];
+        format!("{} - {}", main_gpu, gpu.name)
+    } else {
+        format!("{}", main_gpu)
+    }
+}
 fn toggle_presence_penalty(settings: &mut ModelSettings) {
     settings.presence_penalty = settings.presence_penalty.map_or(Some(0.0), |_| None);
 }
@@ -528,7 +538,7 @@ pub fn all_fields() -> Vec<SettingField> {
             "main_gpu",
             "Main GPU",
             "GPU Offload",
-            |s| s.main_gpu.to_string(),
+            |s| format_main_gpu_display(s.main_gpu),
             |s, c| s.main_gpu != c.main_gpu,
             |s, delta, _| {
                 s.main_gpu = (s.main_gpu + delta).max(0);
@@ -538,7 +548,7 @@ pub fn all_fields() -> Vec<SettingField> {
                     s.main_gpu = v;
                 }
             },
-            "Index of the main GPU (0-based). Handles initial model loading and some computations. Typical: 0 for single GPU, 0 for primary in multi-GPU setups.",
+            "Index of the main GPU (0-based). Display shows 'index - gpu_name' (e.g. '0 - NVIDIA GeForce RTX 4090'). Handles initial model loading and some computations. Typical: 0 for single GPU, 0 for primary in multi-GPU setups.",
         ),
         field_with_toggle(
             "fit",
