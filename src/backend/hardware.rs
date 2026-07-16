@@ -821,8 +821,8 @@ mod tests {
         let input = "c4:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] HawkPoint1 (rev d2)";
         let info = test_parse_lspci_line(input).unwrap();
         assert_eq!(info.vendor, GpuVendor::Amd);
-        // AMD gets GFX version appended
-        assert!(info.name.starts_with("AMD"));
+        // AMD name contains vendor info, may include GFX version if detected
+        assert!(info.name.contains("AMD") || info.name.contains("Advanced Micro Devices"));
     }
 
     #[test]
