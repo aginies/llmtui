@@ -150,23 +150,29 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     }
 
     if let GlobalMode::BackendPicker { entries, selected } = &app.ui.global_mode {
-        let available_height = f.area().height.saturating_sub(4) as usize;
+        let all_models = detect_gpu_models();
+        let gpu_info_lines = if all_models.iter().any(|m| m.is_some()) { 1 } else { 0 };
         let total_entries = entries.len();
-        if total_entries > available_height {
-            let max_scroll = total_entries.saturating_sub(available_height - 3);
+        let header_lines = 3 + gpu_info_lines;
+        let content_area = (f.area().height as usize).saturating_sub(4).saturating_sub(3);
+        let visible_count = content_area.saturating_sub(header_lines);
+        
+        if total_entries > visible_count {
+            let max_scroll = total_entries.saturating_sub(visible_count);
             let actual_scroll = app.picker.backend_picker_scroll_offset.min(max_scroll);
             
             // Auto-scroll: keep selected item visible
-            let header_lines = 3;
-            let visible_range = actual_scroll..actual_scroll + (available_height - header_lines);
+            let visible_range = actual_scroll..actual_scroll + visible_count;
             if *selected < actual_scroll {
                 app.picker.backend_picker_scroll_offset = *selected;
             } else if *selected >= visible_range.end {
-                app.picker.backend_picker_scroll_offset = *selected - (available_height - header_lines) + 1;
+                app.picker.backend_picker_scroll_offset = *selected - visible_count + 1;
                 if app.picker.backend_picker_scroll_offset > max_scroll {
                     app.picker.backend_picker_scroll_offset = max_scroll;
                 }
             }
+        } else {
+            app.picker.backend_picker_scroll_offset = 0;
         }
         
         render_backend_picker(
@@ -1118,14 +1124,16 @@ fn render_backend_picker(
     let picker_area = center_rect(area, w, h);
     let vendors = detect_gpu_vendors();
     
-    let _header_lines = 3 + gpu_info_lines;
-    let max_scroll = entries.len().saturating_sub(h as usize - 3);
+    let header_lines = 3 + gpu_info_lines;
+    let content_area = (h as usize).saturating_sub(3);
+    let visible_count = content_area.saturating_sub(header_lines);
+    let max_scroll = entries.len().saturating_sub(visible_count);
     let actual_scroll = scroll_offset.min(max_scroll);
     
     let visible_entries: Vec<(&crate::models::Backend, Option<&String>)> = entries
         .iter()
         .skip(actual_scroll)
-        .take(h as usize - 3)
+        .take(visible_count)
         .map(|(b, t)| (b, t.as_ref()))
         .collect();
     
@@ -1235,9 +1243,7 @@ fn render_backend_picker(
         BorderType::Rounded,
     );
     
-    if total_lines > (area.height as usize - 4) {
-        let max_scroll = entries.len().saturating_sub(h as usize - 3);
-        let actual_scroll = scroll_offset.min(max_scroll);
+    if entries.len() > visible_count {
         render_vertical_scrollbar(
             f,
             picker_area,
