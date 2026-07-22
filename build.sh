@@ -114,15 +114,18 @@ cmd_servedoc() {
 }
 
 cmd_gnome_ext() {
-    echo "Installing gnome extension..."
+    echo "Packing gnome extension..."
     local ext_src="llm-manager@aginies"
-    local ext_dest="$HOME/.local/share/gnome/extensions/$ext_src"
-    mkdir -p "$ext_dest"
-    cp -a "$ext_src"/. "$ext_dest"/
-    echo "Extension installed to $ext_dest"
+    gnome-extensions pack "$ext_src" --extra-source="$ext_src" -f
+    echo "Removing old extension..."
+    gnome-extensions uninstall "$ext_src" 2>/dev/null || rm -rf "$HOME/.local/share/gnome/extensions/$ext_src"
+    echo "Installing gnome extension..."
+    gnome-extensions install "$ext_src.shell-extension.zip" --force
+    echo "Enabling gnome extension..."
+    gnome-extensions enable "$ext_src" 2>/dev/null || echo "Enable skipped (GNOME Shell session not tracking)"
     echo "Compiling schemas..."
     glib-compile-schemas --strict "$ext_src/schemas/"
-    echo "Schemas compiled successfully"
+    echo "Extension installed, schemas compiled successfully"
 }
 
 case "${1:-help}" in
