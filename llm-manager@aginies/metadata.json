@@ -5,5 +5,5 @@
   "shell-version": [ "45", "46", "47", "48", "49", "50" ],
   "settings-schema": "org.gnome.shell.extensions.llm-manager",
   "prefs-formats": [{"uuid": "llm-manager@aginies", "path": "prefs.js", "type": "builtin"}],
-  "version": 1
+  "version": 10100
 }
