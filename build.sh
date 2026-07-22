@@ -116,7 +116,18 @@ cmd_servedoc() {
 cmd_gnome_ext() {
     echo "Packing gnome extension..."
     local ext_src="llm-manager@aginies"
-    gnome-extensions pack "$ext_src" --extra-source="$ext_src" -f
+    local ext_dir
+    ext_dir=$(find target/package -mindepth 1 -maxdepth 1 -type d -name "llm-manager-*" | sort -r | head -1)
+    if [[ -z "$ext_dir" ]]; then
+        echo "Error: no target/package directory found"
+        exit 1
+    fi
+    local src_path="$ext_dir/$ext_src"
+    if [[ ! -d "$src_path" ]]; then
+        echo "Error: extension source not found at $src_path"
+        exit 1
+    fi
+    gnome-extensions pack "$src_path" --extra-source="$ext_dir" -f
     echo "Removing old extension..."
     gnome-extensions uninstall "$ext_src" 2>/dev/null || rm -rf "$HOME/.local/share/gnome/extensions/$ext_src"
     echo "Installing gnome extension..."
@@ -124,7 +135,7 @@ cmd_gnome_ext() {
     echo "Enabling gnome extension..."
     gnome-extensions enable "$ext_src" 2>/dev/null || echo "Enable skipped (GNOME Shell session not tracking)"
     echo "Compiling schemas..."
-    glib-compile-schemas --strict "$ext_src/schemas/"
+    glib-compile-schemas --strict "$src_path/schemas/"
     echo "Extension installed, schemas compiled successfully"
 }
 
