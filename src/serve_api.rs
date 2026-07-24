@@ -517,7 +517,7 @@ pub async fn start_api_server(
     let start_time = Instant::now();
     let client = Client::builder()
         .pool_max_idle_per_host(20)
-        .timeout(std::time::Duration::from_secs(60))
+        .timeout(std::time::Duration::from_secs(600))
         .build()?;
     let state = ApiState {
         server_url: format!("http://{}:{}", clean_host(&host), server_port),
