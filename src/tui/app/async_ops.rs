@@ -2010,11 +2010,8 @@ impl App {
                     } else {
                         self.add_log(
                             crate::t_fmt!("async.api_failed", host, port, e),
-                            crate::config::LogLevel::Error,
+                            crate::config::LogLevel::Warning,
                         );
-                        self.settings.api_endpoint_enabled = false;
-                        self.config.default.api_endpoint_enabled = false;
-                        let _ = self.config.save();
                         return;
                     }
                 }

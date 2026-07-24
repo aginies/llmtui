@@ -303,6 +303,12 @@ impl App {
             self.server.server_exit_cooldown_until =
                 Some(std::time::Instant::now() + std::time::Duration::from_secs(2));
 
+            if let Some(task) = self.server.metrics_task_handle.take() {
+                task.abort();
+            }
+            if let Some(task) = self.server.sync_task_handle.take() {
+                task.abort();
+            }
             if !self.bench_tune.bench_tune_running {
                 for state in self.model_states.values_mut() {
                     *state = crate::models::ModelState::Available;
