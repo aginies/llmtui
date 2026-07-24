@@ -1234,7 +1234,13 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                 "consistency": consistency_data[i],
                 "outputs": r.outputs.iter().map(|o| {
                     if o.len() > 1000 {
-                        format!("{}...", &o[..1000])
+                        let truncated = &o[..1000];
+                        let char_boundary = truncated
+                            .char_indices()
+                            .last()
+                            .map(|(i, _)| i)
+                            .unwrap_or(0);
+                        format!("{}...", &truncated[..char_boundary])
                     } else {
                         o.clone()
                     }
