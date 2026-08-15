@@ -566,13 +566,16 @@ pub fn builtin_profiles() -> Vec<Profile> {
             description: "Optimized for Qwen MoE models (35B-A3B)".into(),
             settings: ModelOverride {
                 context_length: Some(131072),
-                temperature: Some(0.8),
+                temperature: Some(0.6),
                 top_k: Some(20),
                 top_p: Some(0.95),
                 max_tokens: Some(4096),
                 presence_penalty: Some(1.5),
                 uniform_cache: Some(true),
                 jinja: Some(true),
+                spec_type: Some("draft-mtp".into()),
+                draft_tokens: Some(2),
+                repeat_last_n: Some(0),
                 ..Default::default()
             },
         },
