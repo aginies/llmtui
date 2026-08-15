@@ -505,6 +505,38 @@ async fn test_confirmation_right_toggles_selection() {
 }
 
 #[tokio::test]
+async fn test_confirmation_up_toggles_selection() {
+    let mut app = make_app();
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: true,
+        kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
+    };
+    let key = make_key(KeyCode::Up);
+    handle_key(&mut app, key).await;
+    if let GlobalMode::Confirmation { selected, .. } = app.ui.global_mode {
+        assert!(!selected);
+    }
+}
+
+#[tokio::test]
+async fn test_confirmation_down_toggles_selection() {
+    let mut app = make_app();
+    app.ui.global_mode = GlobalMode::Confirmation {
+        selected: false,
+        kind: ConfirmationKind::Exit,
+        detail: None,
+        display_name: String::new(),
+    };
+    let key = make_key(KeyCode::Down);
+    handle_key(&mut app, key).await;
+    if let GlobalMode::Confirmation { selected, .. } = app.ui.global_mode {
+        assert!(selected);
+    }
+}
+
+#[tokio::test]
 async fn test_confirmation_enter_with_selected_confirms() {
     let mut app = make_app();
     app.model_states.insert(

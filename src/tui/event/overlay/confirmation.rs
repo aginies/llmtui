@@ -93,7 +93,7 @@ impl OverlayHandler for ConfirmationHandler {
                         }
                         app.ui.global_mode = GlobalMode::Normal;
                     }
-                    KeyCode::Tab | KeyCode::Left | KeyCode::Right => {
+                    KeyCode::Tab | KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down => {
                         app.ui.global_mode = GlobalMode::Confirmation {
                             selected: !*selected,
                             kind: kind_ref,

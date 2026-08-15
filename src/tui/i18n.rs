@@ -203,4 +203,24 @@ mod tests {
         let it_val = *it_map.get("panel.title.models_active").unwrap();
         assert_ne!(it_val, " MODELS (F1) ");
     }
+
+    #[test]
+    fn test_confirm_yes_uses_y_in_all_locales() {
+        // The confirmation handler only accepts 'y'/'n' — every locale label
+        // must advertise [y], not a localized letter like [o] or [j].
+        for lang in ["en", "fr", "it", "de"] {
+            let map = TRANSLATIONS
+                .get(lang)
+                .unwrap_or_else(|| panic!("{} translations not found", lang));
+            let yes = map
+                .get("dialog.confirm_yes")
+                .unwrap_or_else(|| panic!("{} missing dialog.confirm_yes", lang));
+            assert!(
+                yes.contains("[y]"),
+                "{} dialog.confirm_yes should use [y], got: {}",
+                lang,
+                yes
+            );
+        }
+    }
 }
