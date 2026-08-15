@@ -648,21 +648,23 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             // Add informational rows
             if *loading {
                 rows.push(Row::new(vec![
-                    Cell::from("Loading more results...").style(Style::default().fg(ACCENT)),
+                    Cell::from(crate::t!("log.loading_more")).style(Style::default().fg(ACCENT)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
                 ]));
             } else if results.is_empty() {
                 rows.push(Row::new(vec![
-                    Cell::from("No results found for this query.").style(Style::default().fg(RED)),
+                    Cell::from(crate::t!("models.search_no_results"))
+                        .style(Style::default().fg(RED)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),
                 ]));
             } else if !has_more {
                 rows.push(Row::new(vec![
-                    Cell::from("No more results").style(Style::default().fg(DIM_GRAY)),
+                    Cell::from(crate::t!("models.search_no_more"))
+                        .style(Style::default().fg(DIM_GRAY)),
                     Cell::from(""),
                     Cell::from(""),
                     Cell::from(""),

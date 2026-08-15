@@ -1193,33 +1193,37 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Enter | KeyCode::Char('f')
             if key.modifiers.contains(KeyModifiers::CONTROL) || key.code == KeyCode::Enter =>
         {
-            let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
-                app.search
-                    .search_results_idx
-                    .and_then(|idx| results.get(idx).map(|r| r.model_id.clone()))
-            } else {
-                None
-            };
-            if let Some(ref model_id) = model_id {
-                // Fetch and display README first
-                app.add_log(
-                    format!("Fetching README for {}...", model_id),
-                    crate::config::LogLevel::Info,
-                );
-                fetch_and_store_readme(app, model_id.clone()).await;
+            let (model_id, readme_present) =
+                if let ModelsMode::Search { results, .. } = &app.models_mode {
+                    app.search.search_results_idx.and_then(|idx| results.get(idx)).map_or(
+                        (String::new(), false),
+                        |r| (r.model_id.clone(), r.readme.is_some()),
+                    )
+                } else {
+                    (String::new(), false)
+                };
+            if !model_id.is_empty() {
+                // Fetch README only if not already cached
+                if !readme_present {
+                    app.add_log(
+                        crate::t_fmt!("log.fetching_readme", model_id),
+                        crate::config::LogLevel::Info,
+                    );
+                    fetch_and_store_readme(app, model_id.clone()).await;
+                }
                 if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
                     *show_readme = true;
                 }
                 app.ui.active_panel = ActivePanel::Models;
 
                 app.add_log(
-                    format!("Loading files for {}...", model_id),
+                    crate::t_fmt!("log.loading_files", model_id),
                     crate::config::LogLevel::Info,
                 );
-                match hub::list_gguf_files(model_id).await {
+                match hub::list_gguf_files(&model_id).await {
                     Ok(files) => {
                         app.add_log(
-                            format!("Found {} GGUF files", files.len()),
+                            crate::t_fmt!("log.found_gguf_files", files.len()),
                             crate::config::LogLevel::Info,
                         );
                         if let ModelsMode::Search { query, results, .. } = &app.models_mode {
@@ -1240,7 +1244,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     }
                     Err(e) => {
                         app.add_log(
-                            format!("No GGUF files: {}", e),
+                            crate::t_fmt!("log.no_gguf_files", e),
                             crate::config::LogLevel::Info,
                         );
                     }
@@ -1282,9 +1286,9 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 } else {
                     String::new()
                 };
-                let offset = (*page as u32 - 1) * 50;
+                let offset = (*page as u32 - 1) * app.config.search_limit;
                 app.add_log(
-                    format!("Loading page {}...", *page - 1),
+                    crate::t_fmt!("log.loading_page", *page - 1),
                     crate::config::LogLevel::Info,
                 );
                 if let ModelsMode::Search { page, .. } = &mut app.models_mode {
@@ -1300,32 +1304,36 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Down | KeyCode::Char('j') => {
             let len = app.search_results_len();
+            let at_end = matches!(app.search.search_results_idx, Some(idx) if idx + 1 >= len);
+            let can_load_more = matches!(
+                &app.models_mode,
+                ModelsMode::Search {
+                    has_more, loading, ..
+                } if *has_more && !*loading
+            );
+            if at_end
+                && can_load_more
+                && let ModelsMode::Search {
+                    query,
+                    page,
+                    loading,
+                    ..
+                } = &mut app.models_mode
+            {
+                *page += 1;
+                *loading = true;
+                let query = query.clone();
+                let offset = *page as u32 * app.config.search_limit;
+                app.add_log(crate::t!("log.loading_more"), crate::config::LogLevel::Info);
+                let _ = app
+                    .pending_tx
+                    .send(PendingEvent::Search { query, offset })
+                    .await;
+                return;
+            }
             match app.search.search_results_idx {
                 Some(idx) if idx + 1 < len => app.search.search_results_idx = Some(idx + 1),
-                Some(idx) => {
-                    if idx + 1 >= len
-                        && let ModelsMode::Search {
-                            has_more,
-                            loading,
-                            page,
-                            ..
-                        } = &app.models_mode
-                        && !*loading
-                        && *has_more
-                    {
-                        let query = if let ModelsMode::Search { query, .. } = &app.models_mode {
-                            query.clone()
-                        } else {
-                            String::new()
-                        };
-                        let offset = (*page as u32 + 1) * 50;
-                        app.add_log(crate::t!("log.loading_more"), crate::config::LogLevel::Info);
-                        let _ = app
-                            .pending_tx
-                            .send(PendingEvent::Search { query, offset })
-                            .await;
-                        return;
-                    }
+                Some(_) => {
                     app.search.search_results_idx = Some(len.saturating_sub(1));
                 }
                 None if len > 0 => app.search.search_results_idx = Some(0),
@@ -1355,8 +1363,9 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 None
             };
             if let Some(ref model_id) = model_id {
+                // Explicit refresh: always re-fetch
                 app.add_log(
-                    format!("Fetching README for {}...", model_id),
+                    crate::t_fmt!("log.fetching_readme", model_id),
                     crate::config::LogLevel::Info,
                 );
                 app.add_log(
@@ -1372,19 +1381,23 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
             return;
         }
         KeyCode::Right => {
-            let model_id = if let ModelsMode::Search { results, .. } = &app.models_mode {
-                app.search
-                    .search_results_idx
-                    .and_then(|idx| results.get(idx).map(|r| r.model_id.clone()))
-            } else {
-                None
-            };
-            if let Some(ref model_id) = model_id {
-                app.add_log(
-                    format!("Fetching README for {}...", model_id),
-                    crate::config::LogLevel::Info,
-                );
-                fetch_and_store_readme(app, model_id.clone()).await;
+            let (model_id, readme_present) =
+                if let ModelsMode::Search { results, .. } = &app.models_mode {
+                    app.search.search_results_idx.and_then(|idx| results.get(idx)).map_or(
+                        (String::new(), false),
+                        |r| (r.model_id.clone(), r.readme.is_some()),
+                    )
+                } else {
+                    (String::new(), false)
+                };
+            if !model_id.is_empty() {
+                if !readme_present {
+                    app.add_log(
+                        crate::t_fmt!("log.fetching_readme", model_id),
+                        crate::config::LogLevel::Info,
+                    );
+                    fetch_and_store_readme(app, model_id.clone()).await;
+                }
                 if let ModelsMode::Search { show_readme, .. } = &mut app.models_mode {
                     *show_readme = true;
                 }

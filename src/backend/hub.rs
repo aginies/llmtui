@@ -113,11 +113,13 @@ fn resolve_backend_key(backend: &crate::models::Backend) -> Option<(&'static str
 ///
 /// `limit` is the number of results per page (default 10, max 200).
 /// `offset` is the number of results to skip (for pagination).
+/// Returns the (post-filter) results and the raw number of models returned
+/// by the API (pre-filter), used for pagination `has_more` detection.
 pub async fn search_models(
     query: &str,
     limit: u32,
     offset: u32,
-) -> Result<(Vec<crate::models::SearchResult>, usize, Vec<String>)> {
+) -> Result<(Vec<crate::models::SearchResult>, usize)> {
     let url = format!(
         "https://huggingface.co/api/models?search={}&limit={}&offset={}&filter=gguf&expand=config&expand=gguf&expand=downloads&expand=likes&expand=tags&expand=pipeline_tag&expand=trendingScore&expand=createdAt",
         urlencoding::encode(query),
@@ -128,6 +130,7 @@ pub async fn search_models(
 
     let resp = reqwest::Client::builder()
         .user_agent(super::USER_AGENT)
+        .timeout(std::time::Duration::from_secs(30))
         .build()
         .unwrap()
         .get(&url)
@@ -135,13 +138,9 @@ pub async fn search_models(
         .await?
         .error_for_status()?;
     let models: Vec<serde_json::Value> = resp.json().await?;
+    let raw_count = models.len();
 
     let query_words: Vec<String> = query.split_whitespace().map(|w| w.to_lowercase()).collect();
-    let raw_ids: Vec<String> = models
-        .iter()
-        .filter_map(|m| m.get("id").and_then(|v| v.as_str()))
-        .map(|s| s.to_string())
-        .collect();
     let results: Vec<crate::models::SearchResult> = models
         .into_iter()
         .filter_map(|m| {
@@ -234,7 +233,7 @@ pub async fn search_models(
         })
         .collect();
 
-    Ok((results, 1, raw_ids))
+    Ok((results, raw_count))
 }
 
 /// Validate a HuggingFace model_id for safety.
@@ -263,17 +262,20 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
     );
     let client = reqwest::Client::builder()
         .user_agent(super::USER_AGENT)
+        .timeout(std::time::Duration::from_secs(30))
         .build()
         .unwrap();
-    let resp = client.get(&url).send().await;
-    let resp = match resp {
-        Ok(r) => r.error_for_status(),
-        Err(_) => {
-            let url2 = format!("https://huggingface.co/api/models/{}/tree/master", model_id);
-            Ok(client.get(&url2).send().await?.error_for_status()?)
-        }
+    let resp = match client.get(&url).send().await {
+        Ok(r) if r.status().is_success() => r,
+        _ => client
+            .get(&format!(
+                "https://huggingface.co/api/models/{}/tree/master",
+                model_id
+            ))
+            .send()
+            .await?,
     };
-    let resp = resp?;
+    let resp = resp.error_for_status()?;
     let files: Vec<serde_json::Value> = resp.json().await?;
 
     let mut gguf_files = Vec::new();
@@ -310,28 +312,18 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
 /// Fetch the README for a model from HuggingFace.
 pub async fn fetch_readme(model_id: &str) -> Result<String> {
     validate_model_id(model_id)?;
-    let branch = "main";
-    let url = format!(
-        "https://huggingface.co/{}/raw/{}/README.md",
-        model_id, branch
-    );
-    let resp = reqwest::Client::new()
-        .get(&url)
-        .header("User-Agent", super::USER_AGENT)
-        .send()
-        .await;
-    let resp = match resp {
-        Ok(r) => r.error_for_status(),
-        Err(_) => {
-            let url2 = format!("https://huggingface.co/{}/raw/master/README.md", model_id);
-            Ok(reqwest::Client::new()
-                .get(&url2)
-                .header("User-Agent", super::USER_AGENT)
-                .send()
-                .await?
-                .error_for_status()?)
-        }
-    }?;
+    let client = reqwest::Client::builder()
+        .user_agent(super::USER_AGENT)
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap();
+    let url = format!("https://huggingface.co/{}/raw/main/README.md", model_id);
+    let url_master = format!("https://huggingface.co/{}/raw/master/README.md", model_id);
+    let resp = match client.get(&url).send().await {
+        Ok(r) if r.status().is_success() => r,
+        _ => client.get(&url_master).send().await?,
+    };
+    let resp = resp.error_for_status()?;
     let text = resp.text().await?;
     Ok(text)
 }

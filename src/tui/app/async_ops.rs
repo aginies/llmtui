@@ -1619,7 +1619,7 @@ impl App {
             crate::backend::hub::search_models(&query_clone, search_limit, offset_clone).await
         });
         match search_handle.await {
-            Ok(Ok((res, _, _))) => {
+            Ok(Ok((res, raw_count))) => {
                 let query_str = &query;
                 let raw_len = res.len();
                 if is_append {
@@ -1631,13 +1631,17 @@ impl App {
                     } = &mut self.models_mode
                     {
                         for r in res {
+                            if results
+                                .iter()
+                                .any(|existing| existing.model_id == r.model_id)
+                            {
+                                continue;
+                            }
                             let downloaded =
                                 super::sync_ops::model_is_downloaded(&self.models, &r.model_id);
                             results.push(crate::models::SearchResult { downloaded, ..r });
                         }
-                        if raw_len < self.config.search_limit as usize {
-                            *has_more = false;
-                        }
+                        *has_more = raw_count >= self.config.search_limit as usize;
                         *loading = false;
                     }
                 } else {
@@ -1661,7 +1665,7 @@ impl App {
                         } else {
                             self.search.search_results_idx = None;
                         }
-                        *has_more = raw_len >= self.config.search_limit as usize;
+                        *has_more = raw_count >= self.config.search_limit as usize;
                         *loading = false;
                     }
                 }

@@ -36,12 +36,14 @@ impl OverlayHandler for SearchInputHandler {
 
                         if let ModelsMode::Search {
                             query: q,
+                            results,
                             page,
                             has_more,
                             ..
                         } = &mut app.models_mode
                         {
                             *q = query.clone();
+                            results.clear();
                             *page = 0;
                             *has_more = true;
                         }
@@ -50,7 +52,7 @@ impl OverlayHandler for SearchInputHandler {
                             return;
                         }
                         app.add_log(
-                            format!("Searching for '{}'...", query),
+                            crate::t_fmt!("log.searching", query),
                             crate::config::LogLevel::Info,
                         );
                         let _ = app

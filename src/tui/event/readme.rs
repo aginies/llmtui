@@ -11,7 +11,7 @@ pub async fn fetch_and_store_readme(app: &mut App, model_id: String) {
             {
                 r.readme = Some(readme);
             }
-            app.add_log("README loaded.", crate::config::LogLevel::Info);
+            app.add_log(crate::t!("readme.loaded"), crate::config::LogLevel::Info);
         }
         Err(e) => {
             app.add_log(
@@ -34,7 +34,7 @@ pub async fn fetch_readme_for_selected(app: &mut App, model_id: String) {
         && r.readme.is_none()
     {
         app.add_log(
-            format!("Fetching README for {}...", model_id),
+            crate::t_fmt!("log.fetching_readme", model_id),
             crate::config::LogLevel::Info,
         );
         fetch_and_store_readme(app, model_id).await;

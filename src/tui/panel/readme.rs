@@ -390,7 +390,7 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
             app.picker.readme_scroll_offset = 0;
             // Text is Some but empty
             vec![Line::from(Span::styled(
-                "no README available",
+                crate::t!("readme.no_readme"),
                 Style::default().fg(RED),
             ))]
         }
@@ -398,13 +398,13 @@ pub fn render(f: &mut Frame<'_>, area: Rect, app: &mut App) {
             app.picker.readme_scroll_offset = 0;
             // Not yet fetched
             vec![Line::from(Span::styled(
-                "Press -> to Fetch the README.md",
+                crate::t!("readme.fetch_hint"),
                 Style::default().fg(GREEN),
             ))]
         }
         None => {
             app.picker.readme_scroll_offset = 0;
-            vec![Line::raw("Select a model to view README.")]
+            vec![Line::from(crate::t!("readme.select_model"))]
         }
     };
 
