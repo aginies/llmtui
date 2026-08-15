@@ -569,7 +569,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 temperature: Some(0.6),
                 top_k: Some(20),
                 top_p: Some(0.95),
-                max_tokens: Some(4096),
                 presence_penalty: Some(1.5),
                 uniform_cache: Some(true),
                 jinja: Some(true),
