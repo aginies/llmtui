@@ -367,36 +367,17 @@ pub async fn download_file(
 
     let mut last_update = std::time::Instant::now();
     let mut last_bytes = 0u64;
+    let mut stream_done = false;
 
-    while let Some(chunk) = stream.next().await {
-        let chunk = match chunk {
-            Ok(c) => c,
-            Err(e) => {
-                drop(file);
-                let _ = tokio::fs::remove_file(dest).await;
-                return Err(anyhow::anyhow!("Stream error: {}", e));
-            }
-        };
-
-        if let Err(e) = file.write_all(&chunk).await {
-            drop(file);
-            let _ = tokio::fs::remove_file(dest).await;
-            return Err(anyhow::anyhow!("Write error: {}", e));
-        }
-
-        progress.downloaded_bytes += chunk.len() as u64;
-
-        // Calculate speed
-        let elapsed = progress.start_time.elapsed().as_secs_f64();
-        if elapsed > 0.0 {
-            progress.bytes_per_second = progress.downloaded_bytes as f64 / elapsed;
-        }
-
+    loop {
         let state = download_state.load(std::sync::atomic::Ordering::Relaxed);
         if state == DOWNLOAD_STATE_CANCELLED {
             drop(file);
             let _ = tokio::fs::remove_file(dest).await;
             return Err(anyhow::anyhow!("Download cancelled"));
+        }
+        if stream_done {
+            break;
         }
         if state == DOWNLOAD_STATE_PAUSING {
             download_state.store(DOWNLOAD_STATE_PAUSED, std::sync::atomic::Ordering::Relaxed);
@@ -413,6 +394,33 @@ pub async fn download_file(
         // Reset status when resuming from paused state
         if progress.status == crate::models::DownloadStatus::Paused {
             progress.status = crate::models::DownloadStatus::Downloading;
+        }
+
+        let chunk = match stream.next().await {
+            Some(Ok(c)) => c,
+            Some(Err(e)) => {
+                drop(file);
+                let _ = tokio::fs::remove_file(dest).await;
+                return Err(anyhow::anyhow!("Stream error: {}", e));
+            }
+            None => {
+                stream_done = true;
+                continue;
+            }
+        };
+
+        if let Err(e) = file.write_all(&chunk).await {
+            drop(file);
+            let _ = tokio::fs::remove_file(dest).await;
+            return Err(anyhow::anyhow!("Write error: {}", e));
+        }
+
+        progress.downloaded_bytes += chunk.len() as u64;
+
+        // Calculate speed
+        let elapsed = progress.start_time.elapsed().as_secs_f64();
+        if elapsed > 0.0 {
+            progress.bytes_per_second = progress.downloaded_bytes as f64 / elapsed;
         }
 
         // Send progress update at most every 100ms and only if bytes changed

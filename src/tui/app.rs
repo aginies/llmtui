@@ -62,7 +62,6 @@ impl App {
             model_states: Default::default(),
             metrics: Default::default(),
             max_threads: physical_cores(),
-            cancelled: None,
             server_mode,
             router_max_models,
             ws_server_handle: None,
@@ -108,7 +107,6 @@ impl App {
                 download_rx: None,
                 download_scroll_state: Default::default(),
                 downloading: false,
-                last_progress_update: std::time::Instant::now(),
             },
             server: ServerState {
                 server_handle: None,

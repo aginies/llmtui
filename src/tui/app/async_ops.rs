@@ -8,8 +8,6 @@ use std::sync::atomic::{AtomicBool, AtomicU8};
 
 use super::types::sub::{BenchTuneTaskHandle, SpawnTaskHandle};
 
-const DOWNLOAD_PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_millis(1000);
-
 impl App {
     pub fn cancel_download(&mut self, idx: usize) {
         if idx >= self.download.download_progress.len() {
@@ -112,22 +110,16 @@ impl App {
         let model_id_clone = model_id.clone();
         let filename_clone = filename.clone();
         let url_clone = download_url.clone();
-        let cancelled = Arc::new(AtomicBool::new(false));
-        let cancelled_clone = cancelled.clone();
+        let cancel_token = Arc::new(AtomicBool::new(false));
         self.add_log(
             crate::t_fmt!("async.downloading", model_id),
             crate::config::LogLevel::Info,
         );
         let tx = self.ensure_download_channel();
         let tx_clone = tx.clone();
-        let cancelled_for_state = cancelled_clone.clone();
         let download_state = Arc::new(AtomicU8::new(1));
         let download_state_clone = download_state.clone();
         let dest_path = dest.clone();
-        self.download.download_progress.last_mut().and_then(|d| {
-            d.dest = Some(dest_path.clone());
-            None::<()>
-        });
 
         tokio::spawn(async move {
             let mut state = crate::models::DownloadState::new(
@@ -135,7 +127,7 @@ impl App {
                 filename_clone.clone(),
                 0,
             );
-            state.cancel_token = Some(cancelled_for_state);
+            state.cancel_token = Some(cancel_token);
             state.download_state = 1;
             state.dest = Some(dest_path);
             state.download_state_arc = Some(download_state_clone.clone());
@@ -150,13 +142,20 @@ impl App {
             )
             .await;
             if let Err(e) = result {
-                state.status = crate::models::DownloadStatus::Error(e.to_string());
+                let cancelled = state
+                    .cancel_token
+                    .as_ref()
+                    .map(|t| t.load(std::sync::atomic::Ordering::Relaxed))
+                    .unwrap_or(false);
+                state.status = if cancelled {
+                    crate::models::DownloadStatus::Cancelled
+                } else {
+                    crate::models::DownloadStatus::Error(e.to_string())
+                };
                 let _ = tx.send(state);
             }
         });
         self.download.downloading = true;
-        self.cancelled = Some(cancelled);
-        self.download.download_scroll_state.select(Some(0));
         self.ui.needs_redraw = true;
     }
 
@@ -328,61 +327,79 @@ impl App {
     }
 
     pub fn tick_download_progress(&mut self) {
-        if self.download.last_progress_update.elapsed() < DOWNLOAD_PROGRESS_INTERVAL {
-            return;
-        }
-
         let mut redraw = false;
         let mut download_logs = Vec::new();
-        let mut received_any = false;
-        if let Some(rx) = &mut self.download.download_rx {
-            while let Ok(state) = rx.try_recv() {
-                received_any = true;
-                if let Some(idx) = self
-                    .download
-                    .download_progress
-                    .iter()
-                    .position(|d| d.model_id == state.model_id && d.filename == state.filename)
-                {
-                    if state.total_bytes > 0 {
-                        let old_pct = (self.download.download_progress[idx].downloaded_bytes as f32
-                            / self.download.download_progress[idx].total_bytes as f32
-                            * 100.0) as u32;
-                        let new_pct = (state.downloaded_bytes as f32 / state.total_bytes as f32
-                            * 100.0) as u32;
-                        if new_pct / 5 > old_pct / 5 && new_pct < 100 {
-                            let speed_mib = state.bytes_per_second / (1024.0 * 1024.0);
-                            let total_mib = state.total_bytes as f64 / (1024.0 * 1024.0);
-                            let name = if state.model_id == "llama-server" {
-                                "backend"
+        let mut lagged_total = 0u64;
+        if let Some(mut rx) = self.download.download_rx.take() {
+            loop {
+                match rx.try_recv() {
+                    Ok(state) => {
+                        if let Some(idx) = self
+                            .download
+                            .download_progress
+                            .iter()
+                            .position(|d| d.model_id == state.model_id && d.filename == state.filename)
+                        {
+                            if state.total_bytes > 0 {
+                                let old_pct = (self.download.download_progress[idx].downloaded_bytes
+                                    as f32
+                                    / self.download.download_progress[idx].total_bytes as f32
+                                    * 100.0) as u32;
+                                let new_pct = (state.downloaded_bytes as f32
+                                    / state.total_bytes as f32
+                                    * 100.0) as u32;
+                                if new_pct / 5 > old_pct / 5 && new_pct < 100 {
+                                    let speed_mib = state.bytes_per_second / (1024.0 * 1024.0);
+                                    let total_mib = state.total_bytes as f64 / (1024.0 * 1024.0);
+                                    let name = if state.model_id == "llama-server" {
+                                        "backend"
+                                    } else {
+                                        &state.filename
+                                    };
+                                    download_logs.push(crate::t_fmt!(
+                                        "async.downloading_progress",
+                                        name,
+                                        new_pct,
+                                        format!("{:.1}", total_mib),
+                                        format!("{:.2}", speed_mib)
+                                    ));
+                                }
+                            }
+                            self.download.download_progress[idx] = state;
+                            redraw = true;
+                        } else if !matches!(
+                            state.status,
+                            crate::models::DownloadStatus::Cancelled
+                        ) {
+                            if state.model_id == "llama-server" {
+                                download_logs
+                                    .push(crate::t!("async.starting_backend_download").to_string());
                             } else {
-                                &state.filename
-                            };
-                            download_logs.push(crate::t_fmt!(
-                                "async.downloading_progress",
-                                name,
-                                new_pct,
-                                format!("{:.1}", total_mib),
-                                format!("{:.2}", speed_mib)
-                            ));
+                                download_logs
+                                    .push(crate::t_fmt!("async.starting_download", state.filename));
+                            }
+                            self.download.download_progress.push(state);
+                            redraw = true;
                         }
                     }
-                    self.download.download_progress[idx] = state;
-                } else {
-                    if state.model_id == "llama-server" {
-                        download_logs
-                            .push(crate::t!("async.starting_backend_download").to_string());
-                    } else {
-                        download_logs
-                            .push(crate::t_fmt!("async.starting_download", state.filename));
+                    Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
+                    Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+                    Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+                        lagged_total += n;
+                        continue;
                     }
-                    self.download.download_progress.push(state);
                 }
-                redraw = true;
             }
+            self.download.download_rx = Some(rx);
         }
-        if received_any {
-            self.download.last_progress_update = std::time::Instant::now();
+        if lagged_total > 0 {
+            self.add_log(
+                format!(
+                    "Download progress channel lagged, dropped {} update(s)",
+                    lagged_total
+                ),
+                crate::config::LogLevel::Warning,
+            );
         }
         for log in download_logs {
             self.add_log(log, crate::config::LogLevel::Info);
@@ -1723,7 +1740,7 @@ impl App {
         &mut self,
     ) -> tokio::sync::broadcast::Sender<crate::models::DownloadState> {
         if self.download.download_rx.is_none() {
-            let (tx, rx) = tokio::sync::broadcast::channel(10);
+            let (tx, rx) = tokio::sync::broadcast::channel(64);
             self.download.download_tx = Some(tx);
             self.download.download_rx = Some(rx);
         }

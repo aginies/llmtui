@@ -10,8 +10,7 @@ use ratatui::layout::Rect;
 use ratatui::text::Line;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 // Re-export sub-structs
 pub use sub::{
@@ -297,7 +296,6 @@ pub struct App {
     pub model_states: HashMap<String, ModelState>,
     pub metrics: ServerMetrics,
     pub max_threads: u32,
-    pub cancelled: Option<Arc<AtomicBool>>,
     pub server_mode: crate::models::ServerMode,
     pub router_max_models: u32,
     pub ws_server_handle: Option<tokio::task::JoinHandle<()>>,
