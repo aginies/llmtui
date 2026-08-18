@@ -997,7 +997,14 @@ pub async fn resolve_backend_binary(
                 if let Ok(metadata) = entry.path().symlink_metadata() {
                     if metadata.file_type().is_symlink() {
                         if let Ok(target) = std::fs::read_link(entry.path()) {
-                            let _ = std::os::unix::fs::symlink(&target, &dest);
+                            #[cfg(unix)]
+                            {
+                                let _ = std::os::unix::fs::symlink(&target, &dest);
+                            }
+                            #[cfg(windows)]
+                            {
+                                let _ = std::os::windows::fs::symlink_file(&target, &dest);
+                            }
                         }
                     } else {
                         let _ = std::fs::copy(entry.path(), dest);
