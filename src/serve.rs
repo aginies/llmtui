@@ -8,7 +8,7 @@ use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::select;
 use tokio::signal;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::backend::server;
 use crate::backend::server_logs;
@@ -512,11 +512,24 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     });
 
     // Optionally start the API proxy server
-    let (api_done_tx, api_done_rx) = tokio::sync::oneshot::channel();
+    let (api_done_tx, api_done_rx) = tokio::sync::oneshot::channel::<Result<(), String>>();
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     let mut api_server_handle = if let Some(port) = opts.api_port {
         let host_str = &settings.host;
-        let addr: SocketAddr = format!("{}:{}", host_str, port).parse()?;
+        let addr: SocketAddr = match format!("{}:{}", host_str, port).parse() {
+            Ok(addr) => addr,
+            Err(e) => {
+                // Don't orphan llama-server on a bad bind address
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                return Err(anyhow::anyhow!(
+                    "Invalid API bind address {}:{}: {}",
+                    host_str,
+                    port,
+                    e
+                ));
+            }
+        };
         let model_name = model.display_name.clone();
         let server_port = settings.port;
         let api_key_clone = opts.api_key.clone();
@@ -531,7 +544,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let log_cb = Arc::new(std::sync::Mutex::new(None));
         let log_cb_clone = log_cb.clone();
         let handle = tokio::spawn(async move {
-            let _ = crate::serve_api::start_api_server(
+            let result = crate::serve_api::start_api_server(
                 addr,
                 api_key_clone,
                 server_port,
@@ -548,7 +561,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 log_cb_clone,
             )
             .await;
-            let _ = api_done_tx.send(());
+            let _ = api_done_tx.send(result.map_err(|e| e.to_string()));
         });
         let api_protocol = if tls_config.is_some() {
             "https"
@@ -570,7 +583,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let (tx, rx) = tokio::sync::broadcast::channel(64);
         let ws_rx = std::sync::Arc::new(rx);
         let host_str = &settings.host;
-        let handle = crate::backend::ws_server::start_ws_server(
+        let handle = match crate::backend::ws_server::start_ws_server(
             ws_port,
             ws_rx,
             ws_auth.clone(),
@@ -578,7 +591,16 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             host_str.clone(),
             ws_shutdown_rx.clone(),
         )
-        .await?;
+        .await
+        {
+            Ok(handle) => handle,
+            Err(e) => {
+                // Don't orphan llama-server when the dashboard fails to start
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                return Err(e.context("Failed to start WebSocket dashboard server"));
+            }
+        };
 
         let protocol = if tls_config.is_some() {
             "https"
@@ -636,6 +658,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     };
 
     // Wait for either llama-server, API server, or Ctrl+C
+    let mut api_error: Option<String> = None;
     let status = loop {
         select! {
             exit_result = child.wait() => {
@@ -653,11 +676,27 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                         .expect("failed to get exit status")
                 });
             }
-            _ = async {
+            api_result = async {
                 let (_, rx, _) = api_server_handle.as_mut().unwrap();
-                let _ = rx.await;
+                rx.await
             }, if api_server_handle.is_some() => {
-                // API server exited — gracefully shut down, then wait for llama-server
+                match api_result {
+                    Ok(Ok(())) => {
+                        // API server shut down normally (llama-server exited first)
+                    }
+                    Ok(Err(e)) => {
+                        // API server failed (e.g. bind error) — fail fast
+                        error!("API proxy server failed: {e} — stopping llama-server");
+                        api_error = Some(e);
+                    }
+                    Err(_) => {
+                        error!("API proxy task failed unexpectedly — stopping llama-server");
+                        api_error = Some("API proxy task failed unexpectedly".to_string());
+                    }
+                }
+                if api_error.is_some() {
+                    let _ = child.kill().await;
+                }
                 let _ = ws_shutdown_tx.send(true);
                 if let Some((_, _, tx)) = &mut api_server_handle {
                     let _ = tx.send(true);
@@ -690,6 +729,11 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     // Abort the WebSocket dashboard server
     if let Some(handle) = ws_server_handle {
         handle.abort();
+    }
+
+    // Fail fast if the API proxy never came up (e.g. port already in use)
+    if let Some(e) = api_error {
+        anyhow::bail!("API proxy server failed: {e}");
     }
 
     if status.success() {

@@ -942,3 +942,97 @@ fn test_gguf_metadata_invalid_file_no_panic() {
             || err_msg.contains("panicked")
     );
 }
+
+// ── file_type mapping (regression: must match llama.cpp llama_ftype) ──
+
+#[test]
+fn file_type_name_matches_llama_ftype_enum() {
+    // Values verified against the `llama_ftype` enum in llama.cpp include/llama.h
+    assert_eq!(GgufMetadata::file_type_name(0), "F32");
+    assert_eq!(GgufMetadata::file_type_name(1), "F16");
+    assert_eq!(GgufMetadata::file_type_name(2), "Q4_0");
+    assert_eq!(GgufMetadata::file_type_name(3), "Q4_1");
+    assert_eq!(GgufMetadata::file_type_name(7), "Q8_0");
+    assert_eq!(GgufMetadata::file_type_name(8), "Q5_0");
+    assert_eq!(GgufMetadata::file_type_name(9), "Q5_1");
+    assert_eq!(GgufMetadata::file_type_name(10), "Q2_K");
+    assert_eq!(GgufMetadata::file_type_name(11), "Q3_K_S");
+    assert_eq!(GgufMetadata::file_type_name(12), "Q3_K_M");
+    assert_eq!(GgufMetadata::file_type_name(13), "Q3_K_L");
+    assert_eq!(GgufMetadata::file_type_name(14), "Q4_K_S");
+    assert_eq!(GgufMetadata::file_type_name(15), "Q4_K_M");
+    assert_eq!(GgufMetadata::file_type_name(16), "Q5_K_S");
+    assert_eq!(GgufMetadata::file_type_name(17), "Q5_K_M");
+    assert_eq!(GgufMetadata::file_type_name(18), "Q6_K");
+    assert_eq!(GgufMetadata::file_type_name(19), "IQ2_XXS");
+    assert_eq!(GgufMetadata::file_type_name(20), "IQ2_XS");
+    assert_eq!(GgufMetadata::file_type_name(21), "Q2_K_S");
+    assert_eq!(GgufMetadata::file_type_name(22), "IQ3_XS");
+    assert_eq!(GgufMetadata::file_type_name(23), "IQ3_XXS");
+    assert_eq!(GgufMetadata::file_type_name(24), "IQ1_S");
+    assert_eq!(GgufMetadata::file_type_name(25), "IQ4_NL");
+    assert_eq!(GgufMetadata::file_type_name(26), "IQ3_S");
+    assert_eq!(GgufMetadata::file_type_name(27), "IQ3_M");
+    assert_eq!(GgufMetadata::file_type_name(28), "IQ2_S");
+    assert_eq!(GgufMetadata::file_type_name(29), "IQ2_M");
+    assert_eq!(GgufMetadata::file_type_name(30), "IQ4_XS");
+    assert_eq!(GgufMetadata::file_type_name(31), "IQ1_M");
+    assert_eq!(GgufMetadata::file_type_name(32), "BF16");
+    assert_eq!(GgufMetadata::file_type_name(36), "TQ1_0");
+    assert_eq!(GgufMetadata::file_type_name(37), "TQ2_0");
+    assert_eq!(GgufMetadata::file_type_name(38), "MXFP4_MOE");
+    assert_eq!(GgufMetadata::file_type_name(39), "NVFP4");
+    assert_eq!(GgufMetadata::file_type_name(40), "Q1_0");
+    assert_eq!(GgufMetadata::file_type_name(41), "Q2_0");
+    assert_eq!(GgufMetadata::file_type_name(1024), "Guessed");
+    assert_eq!(GgufMetadata::file_type_name(999), "Unknown (999)");
+}
+
+#[test]
+fn file_type_quality_rank_ordering() {
+    // Higher bits/quality => higher rank
+    let f32 = GgufMetadata::file_type_quality_rank(0);
+    let f16 = GgufMetadata::file_type_quality_rank(1);
+    let q8_0 = GgufMetadata::file_type_quality_rank(7);
+    let q5_1 = GgufMetadata::file_type_quality_rank(9);
+    let bf16 = GgufMetadata::file_type_quality_rank(32);
+    assert_eq!(f32, 4);
+    assert_eq!(f16, 4);
+    assert_eq!(q8_0, 4);
+    assert_eq!(q5_1, 4);
+    assert_eq!(bf16, 4);
+
+    let q6_k = GgufMetadata::file_type_quality_rank(18);
+    let q5_k_m = GgufMetadata::file_type_quality_rank(17);
+    let q5_0 = GgufMetadata::file_type_quality_rank(8);
+    assert_eq!(q6_k, 3);
+    assert_eq!(q5_k_m, 3);
+    assert_eq!(q5_0, 3);
+
+    let q4_k_m = GgufMetadata::file_type_quality_rank(15);
+    let q4_0 = GgufMetadata::file_type_quality_rank(2);
+    let iq4_nl = GgufMetadata::file_type_quality_rank(25);
+    let iq3_s = GgufMetadata::file_type_quality_rank(26);
+    assert_eq!(q4_k_m, 2);
+    assert_eq!(q4_0, 2);
+    assert_eq!(iq4_nl, 2);
+    assert_eq!(iq3_s, 2);
+
+    let q3_k_m = GgufMetadata::file_type_quality_rank(12);
+    let q2_k = GgufMetadata::file_type_quality_rank(10);
+    let iq2_s = GgufMetadata::file_type_quality_rank(28);
+    assert_eq!(q3_k_m, 1);
+    assert_eq!(q2_k, 1);
+    assert_eq!(iq2_s, 1);
+
+    let iq2_xxs = GgufMetadata::file_type_quality_rank(19);
+    let iq1_s = GgufMetadata::file_type_quality_rank(24);
+    let q1_0 = GgufMetadata::file_type_quality_rank(40);
+    assert_eq!(iq2_xxs, 0);
+    assert_eq!(iq1_s, 0);
+    assert_eq!(q1_0, 0);
+
+    // Monotonic: F32 >= Q8_0 >= Q5_1 >= Q6_K >= Q4_K_M >= Q3_K_M >= IQ2_S >= IQ1_S
+    assert!(f32 >= q8_0 && q8_0 >= q5_1 && q5_1 >= q6_k && q6_k >= q4_k_m);
+    assert!(q4_k_m >= q3_k_m && q3_k_m >= iq2_s && iq2_s >= iq1_s);
+}

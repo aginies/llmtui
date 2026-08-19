@@ -95,7 +95,9 @@ impl App {
         // Create the model_id subdirectory if it doesn't exist
         tokio::fs::create_dir_all(&dest_dir).await.ok();
         let free_space = crate::backend::hub::get_free_space_bytes(&models_dir);
-        if file_size > free_space {
+        if let Some(free_space) = free_space
+            && file_size > free_space
+        {
             self.add_toast(
                 crate::t_fmt!(
                     "async.not_enough_disk",

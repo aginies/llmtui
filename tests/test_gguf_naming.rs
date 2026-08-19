@@ -457,13 +457,11 @@ fn extract_param_info(stem: &str) -> (Option<String>, Option<String>) {
             }
         }
     }
-    let upper = stem.to_uppercase();
-    for i in (0..stem.len()).rev() {
-        let ch = upper.chars().nth(i).unwrap();
+    for (i, ch) in stem.char_indices().rev() {
         if ch.is_ascii_digit() || ch == '.' {
             continue;
         }
-        if ch == 'B' || ch == 'A' {
+        if ch == 'B' || ch == 'b' || ch == 'A' || ch == 'a' {
             let start = if let Some(dash_pos) = stem[..=i].rfind('-') {
                 dash_pos + 1
             } else {
@@ -995,5 +993,19 @@ mod tests {
         ];
         populate_cache(&filenames, &mut cache);
         assert_eq!(cache.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_non_ascii_filename_no_panic() {
+        // Regression: extract_param_info mixed byte indices (stem.len()) with
+        // char indices (upper.chars().nth(i)) and panicked on non-ASCII names.
+        let explanation = parse_gguf_filename("Qwen2.5-Modèle-8B-Q8_0.gguf");
+        assert!(explanation.model_family.contains("Qwen2.5"));
+        assert!(explanation.model_family.contains("8B"));
+
+        // Same regression against the library implementation
+        let lib_exp = llm_manager::tui::gguf_naming::parse_gguf_filename("Qwen2.5-Modèle-8B-Q8_0.gguf");
+        assert!(lib_exp.model_family.contains("Qwen2.5"));
+        assert!(lib_exp.model_family.contains("8B"));
     }
 }

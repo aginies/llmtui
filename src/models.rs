@@ -1125,52 +1125,8 @@ impl GgufMetadata {
         }
 
         if let Some(v) = extract_num("general.file_type") {
-            meta.file_type = match v {
-                0 => "F32".to_string(),
-                1 => "F16".to_string(),
-                2 => "Q4_0".to_string(),
-                3 => "Q4_1".to_string(),
-                4 => "Q4_1 (F16)".to_string(),
-                5 => "Q4_1 (F16)".to_string(),
-                6 => "Q5_0".to_string(),
-                7 => "Q8_0".to_string(),
-                8 => "Q5_0".to_string(),
-                9 => "Q8_1".to_string(),
-                10 => "Q2_K".to_string(),
-                11 => "Q3_K_S".to_string(),
-                12 => "Q3_K_M".to_string(),
-                13 => "Q3_K_L".to_string(),
-                14 => "Q4_K_S".to_string(),
-                15 => "Q4_K_M".to_string(),
-                16 => "Q5_K_S".to_string(),
-                17 => "Q5_K_M".to_string(),
-                18 => "Q6_K".to_string(),
-                19 => "IQ2_XXS".to_string(),
-                20 => "IQ2_XS".to_string(),
-                21 => "IQ3_XXS".to_string(),
-                22 => "IQ1_S".to_string(),
-                23 => "IQ4_NL".to_string(),
-                24 => "IQ3_S".to_string(),
-                25 => "IQ2_S".to_string(),
-                26 => "IQ4_XS".to_string(),
-                27 => "F64".to_string(),
-                29 => "IQ1_M".to_string(),
-                30 => "BF16".to_string(),
-                31 => "IQ2_L".to_string(),
-                32 => "IQ3_L".to_string(),
-                33 => "IQ4_M".to_string(),
-                34 => "TQ1_0".to_string(),
-                35 => "TQ2_0".to_string(),
-                39 => "MXFP4".to_string(),
-                _ => format!("Unknown ({})", v),
-            };
-            meta.quality_rank = match v {
-                0 | 1 | 7 | 9 | 30 | 27 => 4,
-                6 | 8 | 16 | 17 | 18 => 3,
-                2 | 3 | 4 | 5 | 14 | 15 | 23 | 26 | 33 | 32 | 24 | 31 => 2,
-                11 | 12 | 13 | 21 | 10 | 19 | 20 | 22 | 25 | 29 => 1,
-                _ => 0,
-            };
+            meta.file_type = Self::file_type_name(v);
+            meta.quality_rank = Self::file_type_quality_rank(v);
         }
 
         if let Some(value) = model_data.metadata().get("general.capabilities")
@@ -1195,6 +1151,72 @@ impl GgufMetadata {
         meta.model_parameters = model_data.model_parameters();
 
         Ok(meta)
+    }
+
+    /// Map a GGUF `general.file_type` value to a display name.
+    ///
+    /// Follows the `llama_ftype` enum in llama.cpp's `include/llama.h`.
+    /// Values 4-6 are legacy (removed from the enum; kept for old GGUF files).
+    pub fn file_type_name(v: u64) -> String {
+        match v {
+            0 => "F32".to_string(),
+            1 => "F16".to_string(),
+            2 => "Q4_0".to_string(),
+            3 => "Q4_1".to_string(),
+            4 => "Q4_1 (F16)".to_string(),
+            5 => "Q4_2".to_string(),
+            6 => "Q4_3".to_string(),
+            7 => "Q8_0".to_string(),
+            8 => "Q5_0".to_string(),
+            9 => "Q5_1".to_string(),
+            10 => "Q2_K".to_string(),
+            11 => "Q3_K_S".to_string(),
+            12 => "Q3_K_M".to_string(),
+            13 => "Q3_K_L".to_string(),
+            14 => "Q4_K_S".to_string(),
+            15 => "Q4_K_M".to_string(),
+            16 => "Q5_K_S".to_string(),
+            17 => "Q5_K_M".to_string(),
+            18 => "Q6_K".to_string(),
+            19 => "IQ2_XXS".to_string(),
+            20 => "IQ2_XS".to_string(),
+            21 => "Q2_K_S".to_string(),
+            22 => "IQ3_XS".to_string(),
+            23 => "IQ3_XXS".to_string(),
+            24 => "IQ1_S".to_string(),
+            25 => "IQ4_NL".to_string(),
+            26 => "IQ3_S".to_string(),
+            27 => "IQ3_M".to_string(),
+            28 => "IQ2_S".to_string(),
+            29 => "IQ2_M".to_string(),
+            30 => "IQ4_XS".to_string(),
+            31 => "IQ1_M".to_string(),
+            32 => "BF16".to_string(),
+            36 => "TQ1_0".to_string(),
+            37 => "TQ2_0".to_string(),
+            38 => "MXFP4_MOE".to_string(),
+            39 => "NVFP4".to_string(),
+            40 => "Q1_0".to_string(),
+            41 => "Q2_0".to_string(),
+            1024 => "Guessed".to_string(),
+            _ => format!("Unknown ({})", v),
+        }
+    }
+
+    /// Map a GGUF `general.file_type` value to a quality rank (0 = worst, 4 = best).
+    pub fn file_type_quality_rank(v: u64) -> u8 {
+        match v {
+            // 4: near-lossless (F32/F16/BF16) and 8-bit
+            0 | 1 | 7 | 9 | 32 => 4,
+            // 3: 5-6 bit quants and modern 4-bit FP formats
+            8 | 16 | 17 | 18 | 38 | 39 => 3,
+            // 2: 4-bit quants and strong 3-bit
+            2 | 3 | 4 | 14 | 15 | 25 | 26 | 27 | 30 | 37 => 2,
+            // 1: 3-bit and 2-bit quants
+            5 | 6 | 10 | 11 | 12 | 13 | 21 | 22 | 23 | 28 | 29 | 36 | 41 => 1,
+            // 0: 1-2 bit extreme compression
+            _ => 0,
+        }
     }
 }
 

@@ -89,6 +89,7 @@ fn default_rpc_port() -> u16 {
 pub struct Config {
     pub models_dirs: Vec<PathBuf>,
     pub llama_server: PathBuf,
+    #[serde(default)]
     pub default: DefaultParams,
     /// Per-model overrides (keyed by display_name/path relative to model dir, stored as YAML in models/).
     #[serde(default, skip)]
@@ -657,15 +658,15 @@ pub fn builtin_profiles() -> Vec<Profile> {
 #[serde(default)]
 pub struct DefaultParams {
     // Loading
-    #[serde(default)]
+    #[serde(default = "default_context_length")]
     pub context_length: u32,
-    #[serde(default)]
+    #[serde(default = "default_threads")]
     pub threads: u32,
-    #[serde(default)]
+    #[serde(default = "default_threads_batch")]
     pub threads_batch: u32,
-    #[serde(default)]
+    #[serde(default = "default_batch_size")]
     pub batch_size: u32,
-    #[serde(default)]
+    #[serde(default = "default_ubatch_size")]
     pub ubatch_size: u32,
     #[serde(default = "default_cache_type_k")]
     pub cache_type_k: Option<CacheTypeK>,
@@ -677,24 +678,24 @@ pub struct DefaultParams {
     pub swa_full: bool,
     #[serde(default)]
     pub mlock: bool,
-    #[serde(default)]
+    #[serde(default = "default_mmap")]
     pub mmap: bool,
     #[serde(default)]
     pub numa: NumMode,
-    #[serde(default)]
+    #[serde(default = "default_uniform_cache")]
     pub uniform_cache: bool,
-    #[serde(default)]
+    #[serde(default = "default_kv_cache_offload")]
     pub kv_cache_offload: bool,
-    #[serde(default)]
+    #[serde(default = "default_parallel")]
     pub parallel: u32,
     #[serde(default)]
     pub max_concurrent_predictions: Option<u32>,
-    #[serde(default)]
+    #[serde(default = "default_system_prompt")]
     pub system_prompt: String,
     #[serde(default = "default_system_prompt_preset_name")]
     pub system_prompt_preset_name: String,
     // GPU
-    #[serde(default)]
+    #[serde(default = "default_gpu_layers")]
     pub gpu_layers: i32,
     #[serde(default = "default_gpu_layers_mode")]
     pub gpu_layers_mode: crate::models::GpuLayersMode,
@@ -704,7 +705,7 @@ pub struct DefaultParams {
     pub tensor_split: String,
     #[serde(default)]
     pub main_gpu: i32,
-    #[serde(default)]
+    #[serde(default = "default_fit")]
     pub fit: bool,
     #[serde(default)]
     pub lora: Option<PathBuf>,
@@ -714,9 +715,9 @@ pub struct DefaultParams {
     pub rpc: String,
     #[serde(default)]
     pub embedding: bool,
-    #[serde(default)]
+    #[serde(default = "default_flash_attn")]
     pub flash_attn: bool,
-    #[serde(default)]
+    #[serde(default = "default_jinja")]
     pub jinja: bool,
     #[serde(default)]
     pub auto_chat_template: bool,
@@ -724,27 +725,27 @@ pub struct DefaultParams {
     pub chat_template: Option<String>,
     #[serde(default)]
     pub chat_template_kwargs: Option<String>,
-    #[serde(default)]
+    #[serde(default = "default_expert_count")]
     pub expert_count: i32,
 
     // Sampling
-    #[serde(default)]
+    #[serde(default = "default_seed")]
     pub seed: i32,
-    #[serde(default)]
+    #[serde(default = "default_temperature")]
     pub temperature: f32,
-    #[serde(default)]
+    #[serde(default = "default_top_k")]
     pub top_k: i32,
-    #[serde(default)]
+    #[serde(default = "default_top_p")]
     pub top_p: f32,
     #[serde(default)]
     pub min_p: f32,
-    #[serde(default)]
+    #[serde(default = "default_typical_p")]
     pub typical_p: f32,
     #[serde(default)]
     pub mirostat: Mirostat,
-    #[serde(default)]
+    #[serde(default = "default_mirostat_lr")]
     pub mirostat_lr: f32,
-    #[serde(default)]
+    #[serde(default = "default_mirostat_ent")]
     pub mirostat_ent: f32,
     #[serde(default)]
     pub ignore_eos: bool,
@@ -752,9 +753,9 @@ pub struct DefaultParams {
     pub samplers: Samplers,
 
     // Repetition
-    #[serde(default)]
+    #[serde(default = "default_repeat_penalty")]
     pub repeat_penalty: f32,
-    #[serde(default)]
+    #[serde(default = "default_repeat_last_n")]
     pub repeat_last_n: i32,
     #[serde(default = "default_presence_penalty")]
     pub presence_penalty: Option<f32>,
@@ -762,31 +763,31 @@ pub struct DefaultParams {
     pub frequency_penalty: Option<f32>,
     #[serde(default)]
     pub dry_multiplier: f32,
-    #[serde(default)]
+    #[serde(default = "default_dry_base")]
     pub dry_base: f32,
-    #[serde(default)]
+    #[serde(default = "default_dry_allowed_length")]
     pub dry_allowed_length: i32,
-    #[serde(default)]
+    #[serde(default = "default_dry_penalty_last_n")]
     pub dry_penalty_last_n: i32,
 
     // RoPE
     #[serde(default)]
     pub rope_scaling: RopeScaling,
-    #[serde(default)]
+    #[serde(default = "default_rope_scale")]
     pub rope_scale: f32,
     #[serde(default)]
     pub rope_freq_base: f32,
-    #[serde(default)]
+    #[serde(default = "default_rope_freq_scale")]
     pub rope_freq_scale: f32,
     #[serde(default)]
     pub rope_yarn_enabled: bool,
 
     // Server
-    #[serde(default)]
+    #[serde(default = "default_host")]
     pub host: String,
-    #[serde(default)]
+    #[serde(default = "default_port")]
     pub port: u16,
-    #[serde(default)]
+    #[serde(default = "default_timeout")]
     pub timeout: u32,
     #[serde(default = "default_cache_prompt")]
     pub cache_prompt: bool,
@@ -804,7 +805,7 @@ pub struct DefaultParams {
     pub server_tls_cert: Option<String>,
     #[serde(default)]
     pub server_tls_key: Option<String>,
-    #[serde(default)]
+    #[serde(default = "default_router_max_models")]
     pub router_max_models: u32,
     #[serde(default)]
     pub server_mode: crate::models::ServerMode,
@@ -816,7 +817,7 @@ pub struct DefaultParams {
     pub max_tokens: Option<u32>,
     #[serde(default)]
     pub cache_type: CacheType,
-    #[serde(default)]
+    #[serde(default = "default_backend")]
     pub backend: Backend,
     /// Platform override: "linux", "windows", or "macos". If None, auto-detected.
     #[serde(default)]
@@ -868,7 +869,7 @@ fn default_web_search_enabled() -> bool {
 }
 
 fn default_system_prompt_preset_name() -> String {
-    "General".to_string()
+    "Coder".to_string()
 }
 
 fn default_cache_type_k() -> Option<CacheTypeK> {
@@ -905,116 +906,220 @@ fn default_gpu_layers_mode() -> crate::models::GpuLayersMode {
     crate::models::GpuLayersMode::Auto
 }
 
+// Per-field defaults for DefaultParams. These are the single source of truth
+// used both by `impl Default for DefaultParams` and by serde when a field is
+// missing from a (partial) `default:` section in config.yaml.
+fn default_context_length() -> u32 {
+    131072
+}
+fn default_threads() -> u32 {
+    physical_cores()
+}
+fn default_threads_batch() -> u32 {
+    8
+}
+fn default_batch_size() -> u32 {
+    512
+}
+fn default_ubatch_size() -> u32 {
+    512
+}
+fn default_mmap() -> bool {
+    true
+}
+fn default_uniform_cache() -> bool {
+    true
+}
+fn default_kv_cache_offload() -> bool {
+    true
+}
+fn default_parallel() -> u32 {
+    1
+}
+fn default_system_prompt() -> String {
+    DEFAULT_SYSTEM_PROMPT.to_string()
+}
+fn default_gpu_layers() -> i32 {
+    -1
+}
+fn default_fit() -> bool {
+    true
+}
+fn default_flash_attn() -> bool {
+    true
+}
+fn default_jinja() -> bool {
+    true
+}
+fn default_expert_count() -> i32 {
+    -1
+}
+fn default_seed() -> i32 {
+    -1
+}
+fn default_temperature() -> f32 {
+    0.8
+}
+fn default_top_k() -> i32 {
+    40
+}
+fn default_top_p() -> f32 {
+    0.95
+}
+fn default_typical_p() -> f32 {
+    1.0
+}
+fn default_mirostat_lr() -> f32 {
+    0.1
+}
+fn default_mirostat_ent() -> f32 {
+    5.0
+}
+fn default_repeat_penalty() -> f32 {
+    1.1
+}
+fn default_repeat_last_n() -> i32 {
+    64
+}
+fn default_dry_base() -> f32 {
+    1.75
+}
+fn default_dry_allowed_length() -> i32 {
+    2
+}
+fn default_dry_penalty_last_n() -> i32 {
+    -1
+}
+fn default_rope_scale() -> f32 {
+    1.0
+}
+fn default_rope_freq_scale() -> f32 {
+    1.0
+}
+fn default_host() -> String {
+    "127.0.0.1".to_string()
+}
+fn default_port() -> u16 {
+    8080
+}
+fn default_timeout() -> u32 {
+    600
+}
+fn default_router_max_models() -> u32 {
+    4
+}
+fn default_backend() -> Backend {
+    use crate::backend::hardware::{detect_gpu_vendors, GpuVendor};
+    let vendors = detect_gpu_vendors();
+    let mut result = Backend::Cpu;
+    for v in &vendors {
+        if matches!(v, GpuVendor::Nvidia) {
+            result = Backend::Cuda;
+            break;
+        }
+        if matches!(v, GpuVendor::Amd) {
+            result = Backend::Rocm;
+            break;
+        }
+        if matches!(v, GpuVendor::Intel) {
+            result = Backend::Vulkan;
+            break;
+        }
+    }
+    result
+}
+
 impl Default for DefaultParams {
     fn default() -> Self {
         Self {
             // Loading
-            context_length: 131072,
-            threads: physical_cores(),
-            threads_batch: 8,
-            batch_size: 512,
-            ubatch_size: 512,
-            cache_type_k: None,
-            cache_type_v: None,
+            context_length: default_context_length(),
+            threads: default_threads(),
+            threads_batch: default_threads_batch(),
+            batch_size: default_batch_size(),
+            ubatch_size: default_ubatch_size(),
+            cache_type_k: default_cache_type_k(),
+            cache_type_v: default_cache_type_v(),
             keep: 0,
             swa_full: false,
             mlock: false,
-            mmap: true,
+            mmap: default_mmap(),
             numa: NumMode::None,
-            uniform_cache: true,
-            kv_cache_offload: true,
-            parallel: 1,
+            uniform_cache: default_uniform_cache(),
+            kv_cache_offload: default_kv_cache_offload(),
+            parallel: default_parallel(),
             max_concurrent_predictions: None,
-            system_prompt: DEFAULT_SYSTEM_PROMPT.to_string(),
-            system_prompt_preset_name: "Coder".to_string(),
+            system_prompt: default_system_prompt(),
+            system_prompt_preset_name: default_system_prompt_preset_name(),
 
             // GPU
-            gpu_layers: -1,
-            gpu_layers_mode: crate::models::GpuLayersMode::Auto,
+            gpu_layers: default_gpu_layers(),
+            gpu_layers_mode: default_gpu_layers_mode(),
             split_mode: SplitMode::Layer,
             tensor_split: String::new(),
             main_gpu: 0,
-            fit: true,
+            fit: default_fit(),
             lora: None,
             lora_scaled: None,
             rpc: String::new(),
             embedding: false,
-            flash_attn: true,
-            jinja: true,
+            flash_attn: default_flash_attn(),
+            jinja: default_jinja(),
             auto_chat_template: false,
             chat_template: None,
             chat_template_kwargs: None,
-            expert_count: -1,
+            expert_count: default_expert_count(),
 
             // Sampling
-            seed: -1,
-            temperature: 0.8,
-            top_k: 40,
-            top_p: 0.95,
+            seed: default_seed(),
+            temperature: default_temperature(),
+            top_k: default_top_k(),
+            top_p: default_top_p(),
             min_p: 0.0,
-            typical_p: 1.0,
+            typical_p: default_typical_p(),
             mirostat: Mirostat::Off,
-            mirostat_lr: 0.1,
-            mirostat_ent: 5.0,
+            mirostat_lr: default_mirostat_lr(),
+            mirostat_ent: default_mirostat_ent(),
             ignore_eos: false,
             samplers: Samplers::default(),
 
             // Repetition
-            repeat_penalty: 1.1,
-            repeat_last_n: 64,
-            presence_penalty: None,
-            frequency_penalty: None,
+            repeat_penalty: default_repeat_penalty(),
+            repeat_last_n: default_repeat_last_n(),
+            presence_penalty: default_presence_penalty(),
+            frequency_penalty: default_frequency_penalty(),
             dry_multiplier: 0.0,
-            dry_base: 1.75,
-            dry_allowed_length: 2,
-            dry_penalty_last_n: -1,
+            dry_base: default_dry_base(),
+            dry_allowed_length: default_dry_allowed_length(),
+            dry_penalty_last_n: default_dry_penalty_last_n(),
 
             // RoPE
             rope_scaling: RopeScaling::None,
-            rope_scale: 1.0,
+            rope_scale: default_rope_scale(),
             rope_freq_base: 0.0,
-            rope_freq_scale: 1.0,
+            rope_freq_scale: default_rope_freq_scale(),
             rope_yarn_enabled: false,
 
             // Server
-            host: "127.0.0.1".to_string(),
-            port: 8080,
-            timeout: 600,
-            cache_prompt: true,
+            host: default_host(),
+            port: default_port(),
+            timeout: default_timeout(),
+            cache_prompt: default_cache_prompt(),
             cache_reuse: 0,
             webui: false,
             ws_server_enabled: false,
-            ws_server_port: 49223,
-            server_tls_enabled: true,
+            ws_server_port: default_ws_server_port(),
+            server_tls_enabled: default_server_tls_enabled(),
             server_tls_cert: None,
             server_tls_key: None,
-            router_max_models: 4,
+            router_max_models: default_router_max_models(),
             server_mode: crate::models::ServerMode::Normal,
-            log_level: "trace".to_string(),
+            log_level: default_log_level(),
 
             // Other
-            max_tokens: None,
+            max_tokens: default_max_tokens(),
             cache_type: CacheType::F16,
-            backend: {
-                use crate::backend::hardware::{GpuVendor, detect_gpu_vendors};
-                let vendors = detect_gpu_vendors();
-                let mut result = Backend::Cpu;
-                for v in &vendors {
-                    if matches!(v, GpuVendor::Nvidia) {
-                        result = Backend::Cuda;
-                        break;
-                    }
-                    if matches!(v, GpuVendor::Amd) {
-                        result = Backend::Rocm;
-                        break;
-                    }
-                    if matches!(v, GpuVendor::Intel) {
-                        result = Backend::Vulkan;
-                        break;
-                    }
-                }
-                result
-            },
+            backend: default_backend(),
             platform: None,
             llama_cpp_version_cpu: None,
             llama_cpp_version_vulkan: None,
@@ -1022,11 +1127,11 @@ impl Default for DefaultParams {
             llama_cpp_version_rocm_lemonade: None,
             llama_cpp_version_cuda: None,
             api_endpoint_enabled: false,
-            api_endpoint_port: 49222,
+            api_endpoint_port: default_api_endpoint_port(),
             api_endpoint_key: None,
-            web_search_engine: "searxng".to_string(),
+            web_search_engine: default_web_search_engine(),
             web_search_engine_url: String::new(),
-            web_search_enabled: false,
+            web_search_enabled: default_web_search_enabled(),
             web_search_api_key: None,
             spec_type: String::new(),
             draft_tokens: 0,

@@ -37,9 +37,10 @@ enum Cli {
         #[arg(short, long, default_value = "llama-server")]
         llama_server: String,
 
-        /// Backend to use (cpu, vulkan, rocm, rocm-lemonade, cuda)
-        #[arg(short, long, default_value = "vulkan")]
-        backend: String,
+        /// Backend to use (cpu, vulkan, rocm, rocm-lemonade, cuda).
+        /// Only overrides the config when explicitly provided.
+        #[arg(short, long)]
+        backend: Option<String>,
 
         /// Path to config file
         #[arg(short, long)]
@@ -225,9 +226,10 @@ async fn main() -> Result<()> {
                 config.models_dirs = resolve_models_dirs(dirs);
             }
 
-            // Apply CLI backend override
-            let backend = Backend::parse_backend(&backend);
-            config.default.backend = backend;
+            // Apply CLI backend override (only when explicitly provided on the CLI)
+            if let Some(backend) = backend {
+                config.default.backend = Backend::parse_backend(&backend);
+            }
 
             // Ensure models directories exist
             for dir in &config.models_dirs {

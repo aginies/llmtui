@@ -14,31 +14,79 @@ pub const DOWNLOAD_STATE_PAUSED: u8 = 2;
 pub const DOWNLOAD_STATE_CANCELLED: u8 = 3;
 
 /// Get the amount of free disk space (in bytes) at the given path.
-/// Uses `statvfs` on Linux; returns 0 on other platforms.
-pub fn get_free_space_bytes(path: &std::path::Path) -> u64 {
+/// Returns `None` if the free space cannot be determined (callers should
+/// skip the space check in that case rather than assuming zero space).
+pub fn get_free_space_bytes(path: &std::path::Path) -> Option<u64> {
     #[cfg(target_os = "linux")]
     {
         let path_str = path.to_string_lossy();
-        let c_path = match std::ffi::CString::new(path_str.as_ref()) {
-            Ok(c) => c,
-            Err(_) => return 0,
-        };
+        let c_path = std::ffi::CString::new(path_str.as_ref()).ok()?;
 
         let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
         let result = unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) };
 
         if result != 0 {
-            return 0;
+            return None;
         }
 
         // f_bavail = free blocks available to unprivileged user
         // f_frsize = fundamental filesystem block size
-        stat.f_bavail * stat.f_frsize
+        Some(stat.f_bavail * stat.f_frsize)
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        let path_str = path.to_string_lossy();
+        let c_path = std::ffi::CString::new(path_str.as_ref()).ok()?;
+
+        let mut stat: libc::statfs = unsafe { std::mem::zeroed() };
+        let result = unsafe { libc::statfs(c_path.as_ptr(), &mut stat) };
+
+        if result != 0 {
+            return None;
+        }
+
+        // f_bavail = free blocks available to unprivileged user
+        // f_bsize = fundamental filesystem block size
+        Some(stat.f_bavail as u64 * stat.f_bsize as u64)
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        let wide: Vec<u16> = path
+            .to_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        extern "system" {
+            fn GetDiskFreeSpaceExW(
+                lp_directory_name: *const u16,
+                lp_free_bytes_available_to_caller: *mut u64,
+                lp_total_number_of_bytes: *mut u64,
+                lp_free_number_of_bytes: *mut u64,
+            ) -> i32;
+        }
+
+        let mut free_bytes: u64 = 0;
+        let result = unsafe {
+            GetDiskFreeSpaceExW(
+                wide.as_ptr(),
+                &mut free_bytes,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        };
+
+        if result != 0 {
+            Some(free_bytes)
+        } else {
+            None
+        }
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
         let _ = path;
-        0
+        None
     }
 }
 

@@ -461,13 +461,11 @@ fn extract_param_info(stem: &str) -> (Option<String>, Option<String>) {
         }
     }
     // Look for plain param count like "35B", "8B"
-    let upper = stem.to_uppercase();
-    for i in (0..stem.len()).rev() {
-        let ch = upper.chars().nth(i).unwrap();
+    for (i, ch) in stem.char_indices().rev() {
         if ch.is_ascii_digit() || ch == '.' {
             continue;
         }
-        if ch == 'B' || ch == 'A' {
+        if ch == 'B' || ch == 'b' || ch == 'A' || ch == 'a' {
             let start = if let Some(dash_pos) = stem[..=i].rfind('-') {
                 dash_pos + 1
             } else {

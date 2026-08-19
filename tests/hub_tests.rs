@@ -19,15 +19,15 @@ use std::fs;
 #[test]
 fn test_get_free_space_bytes_returns_positive_for_tmp() {
     let space = get_free_space_bytes(std::path::Path::new("/tmp"));
-    assert!(space > 0);
+    assert!(matches!(space, Some(s) if s > 0));
 }
 
 #[test]
-fn test_get_free_space_bytes_returns_zero_for_nonexistent() {
+fn test_get_free_space_bytes_returns_none_for_nonexistent() {
     let space = get_free_space_bytes(std::path::Path::new(
         "/nonexistent/path/that/does/not/exist",
     ));
-    assert_eq!(space, 0);
+    assert!(space.is_none());
 }
 
 // ── Binary names ────────────────────────────────────────────────

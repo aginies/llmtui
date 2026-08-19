@@ -781,3 +781,53 @@ fn model_config_store_get_miss() {
     let retrieved = store.get("nonexistent/model");
     assert!(retrieved.is_none());
 }
+
+// ── Partial `default:` section (regression) ─────────────────────
+
+#[test]
+fn partial_default_section_keeps_meaningful_defaults() {
+    // A hand-edited or old-version config with only a few fields set must not
+    // zero out the other settings (missing fields fall back to the same values
+    // as DefaultParams::default(), not to type defaults like 0/false/"").
+    let yaml = r#"
+models_dirs:
+  - /tmp/models
+llama_server: llama-server
+default:
+  port: 9090
+"#;
+    let config: Config = serde_yml::from_str(yaml).expect("partial default: should deserialize");
+    assert_eq!(config.default.port, 9090);
+    // Fields missing from the partial section keep their meaningful defaults
+    assert_eq!(config.default.context_length, 131072);
+    assert!(config.default.threads > 0);
+    assert_eq!(config.default.threads_batch, 8);
+    assert_eq!(config.default.batch_size, 512);
+    assert_eq!(config.default.host, "127.0.0.1");
+    assert!(config.default.mmap);
+    assert!(config.default.uniform_cache);
+    assert!(config.default.flash_attn);
+    assert!(config.default.jinja);
+    assert_eq!(config.default.gpu_layers, -1);
+    assert_eq!(config.default.seed, -1);
+    assert!((config.default.temperature - 0.8).abs() < f32::EPSILON);
+    assert_eq!(config.default.top_k, 40);
+    assert!((config.default.repeat_penalty - 1.1).abs() < f32::EPSILON);
+    assert_eq!(config.default.system_prompt_preset_name, "Coder");
+    assert!(!config.default.system_prompt.is_empty());
+}
+
+#[test]
+fn missing_default_section_uses_full_defaults() {
+    // A config with no `default:` key at all must load with full defaults.
+    let yaml = r#"
+models_dirs:
+  - /tmp/models
+llama_server: llama-server
+"#;
+    let config: Config = serde_yml::from_str(yaml).expect("missing default: should deserialize");
+    assert_eq!(config.default.context_length, 131072);
+    assert_eq!(config.default.host, "127.0.0.1");
+    assert_eq!(config.default.port, 8080);
+    assert!(config.default.mmap);
+}

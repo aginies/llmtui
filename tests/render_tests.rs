@@ -721,3 +721,15 @@ fn test_model_list_with_bench_tune_mode() {
     }];
     let _terminal = make_terminal(&mut app);
 }
+
+// ── tabbed: extract_params_from_filename ─────────────────────────
+
+#[test]
+fn extract_params_from_filename_non_ascii_no_panic() {
+    // Regression: byte/char index mismatch used to panic on non-ASCII names
+    let params = llm_manager::tui::panel::tabbed::extract_params_from_filename("Modèle-8B.gguf");
+    assert_eq!(params, "8B");
+
+    let params = llm_manager::tui::panel::tabbed::extract_params_from_filename("Qwen2.5-Modèle-32B-A3B.gguf");
+    assert_eq!(params, "A3B");
+}

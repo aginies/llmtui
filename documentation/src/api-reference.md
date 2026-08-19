@@ -79,7 +79,8 @@ pub async fn download_file(
 ) -> Result<()>
 
 /// Get available free disk space in bytes for a given path.
-pub fn get_free_space_bytes(path: &Path) -> u64
+/// Returns `None` if the free space cannot be determined.
+pub fn get_free_space_bytes(path: &Path) -> Option<u64>
 
 /// Resolve the llama-server binary path for a given backend.
 /// Downloads the binary from GitHub releases if not already cached.

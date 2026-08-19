@@ -749,18 +749,16 @@ fn render_model_info_lines(
     lines
 }
 
-fn extract_params_from_filename(filename: &str) -> String {
+pub fn extract_params_from_filename(filename: &str) -> String {
     let stem = crate::models::strip_gguf(filename.rsplit('/').next().unwrap_or(filename));
 
     // Look for patterns like "30B", "8B", "4B", "14B", "70B", "405B", "30B-A3B"
     // Search from end to find the size token
-    let upper = stem.to_uppercase();
-    for i in (0..stem.len()).rev() {
-        let ch = upper.chars().nth(i).unwrap();
+    for (i, ch) in stem.char_indices().rev() {
         if ch.is_ascii_digit() || ch == '.' {
             continue;
         }
-        if ch == 'B' || ch == 'A' {
+        if ch == 'B' || ch == 'b' || ch == 'A' || ch == 'a' {
             // Extract the token ending at position i
             let start = if let Some(dash_pos) = stem[..=i].rfind('-') {
                 dash_pos + 1
