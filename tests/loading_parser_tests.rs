@@ -559,3 +559,190 @@ fn test_phases_not_reset_on_new_lines() {
             .contains(&LoadingPhase::LoadingTensors)
     );
 }
+
+// ── Load failure: active model card reset ───────────────────────
+
+#[test]
+fn test_error_stores_real_error_in_failed_state() {
+    let mut app = make_app();
+    app.model_states
+        .insert("test-model".to_string(), ModelState::Loading);
+
+    app.add_log(
+        "ERROR: failed to load model: Vulkan0: out of device memory",
+        llm_manager::config::LogLevel::Error,
+    );
+
+    match app.model_states.get("test-model") {
+        Some(ModelState::Failed { error }) => {
+            assert!(
+                error.contains("out of device memory"),
+                "expected real error, got: {}",
+                error
+            );
+        }
+        other => panic!("Expected Failed state, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_error_resets_metrics_when_no_loaded_model() {
+    let mut app = make_app();
+    app.model_states
+        .insert("test-model".to_string(), ModelState::Loading);
+    app.metrics.tps = 12.5;
+    app.metrics.ctx_used = 4096;
+    app.metrics.total_vram_used = 1024;
+
+    app.add_log(
+        "ERROR: failed to load model: out of memory",
+        llm_manager::config::LogLevel::Error,
+    );
+
+    assert_eq!(app.metrics.tps, 0.0);
+    assert_eq!(app.metrics.ctx_used, 0);
+    assert_eq!(app.metrics.total_vram_used, 0);
+    assert!(app.pending.active_model_hint_dirty);
+}
+
+#[test]
+fn test_error_keeps_metrics_when_other_model_loaded() {
+    let mut app = make_app();
+    app.model_states.insert(
+        "model-a".to_string(),
+        ModelState::Loaded { port: 8080, pid: 1 },
+    );
+    app.model_states
+        .insert("model-b".to_string(), ModelState::Loading);
+    app.metrics.tps = 12.5;
+
+    app.add_log(
+        "ERROR: failed to load model: out of memory",
+        llm_manager::config::LogLevel::Error,
+    );
+
+    assert!(matches!(
+        app.model_states.get("model-b"),
+        Some(ModelState::Failed { .. })
+    ));
+    assert!(matches!(
+        app.model_states.get("model-a"),
+        Some(ModelState::Loaded { .. })
+    ));
+    // Other model still loaded: metrics must be preserved.
+    assert_eq!(app.metrics.tps, 12.5);
+}
+
+#[tokio::test]
+async fn test_server_exit_loading_model_becomes_failed() {
+    let mut app = make_app();
+    app.model_states
+        .insert("test-model".to_string(), ModelState::Loading);
+    app.metrics.tps = 5.0;
+
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    app.server.server_exit_rx = Some(rx);
+    tx.send(()).await.unwrap();
+    app.tick_server_exit();
+
+    match app.model_states.get("test-model") {
+        Some(ModelState::Failed { error }) => assert!(!error.is_empty()),
+        other => panic!("Expected Failed state, got {:?}", other),
+    }
+    assert!(app.pending.active_model_hint_dirty);
+    assert_eq!(app.metrics.tps, 0.0);
+}
+
+#[tokio::test]
+async fn test_server_exit_loaded_model_becomes_available() {
+    let mut app = make_app();
+    app.model_states.insert(
+        "test-model".to_string(),
+        ModelState::Loaded { port: 8080, pid: 1 },
+    );
+    app.metrics.tps = 5.0;
+
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    app.server.server_exit_rx = Some(rx);
+    tx.send(()).await.unwrap();
+    app.tick_server_exit();
+
+    assert!(matches!(
+        app.model_states.get("test-model"),
+        Some(ModelState::Available)
+    ));
+    assert!(app.pending.active_model_hint_dirty);
+    assert_eq!(app.metrics.tps, 0.0);
+}
+
+#[tokio::test]
+async fn test_server_exit_preserves_existing_failed_state() {
+    let mut app = make_app();
+    app.model_states.insert(
+        "test-model".to_string(),
+        ModelState::Failed {
+            error: "real error".to_string(),
+        },
+    );
+
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    app.server.server_exit_rx = Some(rx);
+    tx.send(()).await.unwrap();
+    app.tick_server_exit();
+
+    match app.model_states.get("test-model") {
+        Some(ModelState::Failed { error }) => assert_eq!(error, "real error"),
+        other => panic!("Expected Failed with original error, got {:?}", other),
+    }
+    assert!(app.pending.active_model_hint_dirty);
+}
+
+#[tokio::test]
+async fn test_api_load_error_sets_failed_with_real_error() {
+    let mut app = make_app();
+    app.model_states
+        .insert("model-a.gguf".to_string(), ModelState::Loading);
+
+    let (tx, rx) = tokio::sync::mpsc::channel(16);
+    app.server.api_load_error_rx = Some(rx);
+    tx.send((
+        "model-a.gguf".to_string(),
+        "Server returned 500: not enough VRAM".to_string(),
+    ))
+    .await
+    .unwrap();
+
+    app.try_execute_api_load();
+
+    match app.model_states.get("model-a.gguf") {
+        Some(ModelState::Failed { error }) => {
+            assert!(
+                error.contains("not enough VRAM"),
+                "expected real error, got: {}",
+                error
+            );
+        }
+        other => panic!("Expected Failed state, got {:?}", other),
+    }
+    assert!(app.pending.active_model_hint_dirty);
+}
+
+#[tokio::test]
+async fn test_api_load_error_ignored_when_not_loading() {
+    let mut app = make_app();
+    app.model_states
+        .insert("model-a.gguf".to_string(), ModelState::Available);
+
+    let (tx, rx) = tokio::sync::mpsc::channel(16);
+    app.server.api_load_error_rx = Some(rx);
+    tx.send(("model-a.gguf".to_string(), "boom".to_string()))
+        .await
+        .unwrap();
+
+    app.try_execute_api_load();
+
+    assert!(matches!(
+        app.model_states.get("model-a.gguf"),
+        Some(ModelState::Available)
+    ));
+}

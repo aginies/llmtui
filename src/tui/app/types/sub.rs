@@ -92,6 +92,9 @@ pub struct ServerState {
     pub spawned_context_length: u32,
     pub server_exit_rx: Option<tokio::sync::mpsc::Receiver<()>>,
     pub server_exit_tx: Option<tokio::sync::mpsc::Sender<()>>,
+    /// API load failures: (model display name, error) reported by the load task.
+    pub api_load_error_tx: Option<tokio::sync::mpsc::Sender<(String, String)>>,
+    pub api_load_error_rx: Option<tokio::sync::mpsc::Receiver<(String, String)>>,
     pub api_shutdown_tx: Option<tokio::sync::watch::Sender<bool>>,
     /// Last time tick_server_logs ran (throttled to ~500ms).
     pub last_server_logs_tick: Option<std::time::Instant>,

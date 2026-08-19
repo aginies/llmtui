@@ -138,6 +138,8 @@ impl App {
                 spawned_context_length: 0,
                 server_exit_rx: None,
                 server_exit_tx: None,
+                api_load_error_tx: None,
+                api_load_error_rx: None,
                 api_shutdown_tx: None,
                 last_server_logs_tick: None,
                 last_sync_tick: None,

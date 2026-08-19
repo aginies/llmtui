@@ -170,13 +170,13 @@ impl App {
 
         let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
         let error_msg = if is_oom_error(msg) {
-            format!("Failed to load model (OOM - {})", timestamp)
+            crate::t_fmt!("async.load_failed_oom", timestamp)
         } else {
-            format!("Failed to load model ({})", timestamp)
+            crate::t_fmt!("async.load_failed_generic", timestamp)
         };
 
         self.add_toast(error_msg, ToastLevel::Error);
-        self.reset_loading_state(false);
+        self.reset_loading_state(false, Some(msg.to_string()));
     }
 
     pub(crate) fn compute_progress(&mut self) {
@@ -302,6 +302,8 @@ impl App {
             self.loading.phase_start_time = None;
             self.server.server_exit_cooldown_until =
                 Some(std::time::Instant::now() + std::time::Duration::from_secs(2));
+            self.metrics = Default::default();
+            crate::backend::server::invalidate_vram_cache();
 
             if let Some(task) = self.server.metrics_task_handle.take() {
                 task.abort();
@@ -311,8 +313,21 @@ impl App {
             }
             if !self.bench_tune.bench_tune_running {
                 for state in self.model_states.values_mut() {
-                    *state = crate::models::ModelState::Available;
+                    match state {
+                        // Load in flight when server died: mark as failed.
+                        crate::models::ModelState::Loading => {
+                            *state = crate::models::ModelState::Failed {
+                                error: crate::t!("async.server_exited_load").to_string(),
+                            };
+                        }
+                        crate::models::ModelState::Loaded { .. } => {
+                            *state = crate::models::ModelState::Available;
+                        }
+                        // Keep existing Failed states (real error text).
+                        _ => {}
+                    }
                 }
+                self.pending.active_model_hint_dirty = true;
                 self.ui.needs_redraw = true;
             }
         }
@@ -332,7 +347,7 @@ impl App {
     }
 
     /// Reset loading state (progress bar and model status) on failure.
-    pub fn reset_loading_state(&mut self, is_crash: bool) {
+    pub fn reset_loading_state(&mut self, is_crash: bool, error: Option<String>) {
         self.loading.loading_phases.clear();
         self.loading.last_active_phase = None;
         self.loading.loading_progress = 0.0;
@@ -363,19 +378,30 @@ impl App {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .retain(|n| n != name);
-            let error = self
-                .ui
-                .toast_queue
-                .front()
-                .map(|t| t.text.clone())
-                .unwrap_or_else(|| {
-                    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-                    format!("Failed to load model ({})", timestamp)
-                });
+            let error = error.clone().unwrap_or_else(|| {
+                self.ui
+                    .toast_queue
+                    .front()
+                    .map(|t| t.text.clone())
+                    .unwrap_or_else(|| {
+                        let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
+                        crate::t_fmt!("async.load_failed_generic", timestamp)
+                    })
+            });
             self.model_states
                 .insert(name.clone(), ModelState::Failed { error });
         }
         self.pending.active_model_hint_dirty = true;
+
+        // No model left loaded: metrics are stale, reset them.
+        if !self
+            .model_states
+            .values()
+            .any(|s| matches!(s, ModelState::Loaded { .. }))
+        {
+            self.metrics = Default::default();
+            crate::backend::server::invalidate_vram_cache();
+        }
     }
 
     pub fn tick_spinner(&mut self) {

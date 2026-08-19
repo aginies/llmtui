@@ -996,6 +996,9 @@ impl App {
         let (exit_tx, exit_rx) = tokio::sync::mpsc::channel(1);
         self.server.server_exit_tx = Some(exit_tx.clone());
         self.server.server_exit_rx = Some(exit_rx);
+        let (load_error_tx, load_error_rx) = tokio::sync::mpsc::channel(16);
+        self.server.api_load_error_tx = Some(load_error_tx);
+        self.server.api_load_error_rx = Some(load_error_rx);
         let config_clone = self.config.clone();
         let model_clone = model_opt.clone();
         let settings_clone = settings.clone();
@@ -1164,9 +1167,9 @@ impl App {
                         self.add_log(line, crate::config::LogLevel::Info);
                     }
                 }
-                self.add_toast(e, ToastLevel::Error);
+                self.add_toast(e.clone(), ToastLevel::Error);
                 self.server.server_handle = None;
-                self.reset_loading_state(true);
+                self.reset_loading_state(true, Some(e));
                 self.server_ready = false;
                 self.ui.needs_redraw = true;
             }
@@ -1177,6 +1180,7 @@ impl App {
                     crate::config::LogLevel::Error,
                 );
                 self.server.server_handle = None;
+                self.reset_loading_state(true, Some(e.to_string()));
                 self.server_ready = false;
                 self.ui.needs_redraw = true;
             }
@@ -1400,6 +1404,26 @@ impl App {
     }
 
     pub fn try_execute_api_load(&mut self) {
+        // Drain API load failures reported by the spawned load task.
+        if let Some(rx) = &mut self.server.api_load_error_rx {
+            let mut failures = Vec::new();
+            while let Ok(item) = rx.try_recv() {
+                failures.push(item);
+            }
+            for (name, err) in failures {
+                if self
+                    .model_states
+                    .get(&name)
+                    .is_some_and(|s| matches!(s, crate::models::ModelState::Loading))
+                {
+                    self.add_toast(
+                        crate::t_fmt!("async.load_failed", name, err),
+                        ToastLevel::Error,
+                    );
+                    self.reset_loading_state(false, Some(err));
+                }
+            }
+        }
         if !self.server_ready {
             return;
         }
@@ -1423,7 +1447,9 @@ impl App {
                     *lock = Some(model_id.clone());
                 }
                 let log_tx = self.server.spawn_log_tx.clone();
+                let load_error_tx = self.server.api_load_error_tx.clone();
                 let model_name_err = model_name_clone.clone();
+                let model_name_state = model_name_clone.clone();
                 self.metrics.ctx_used = 0;
                 crate::backend::server::invalidate_vram_cache();
                 let model_id_for_api = model_id.clone();
@@ -1433,9 +1459,12 @@ impl App {
                     {
                         let err_msg = crate::t_fmt!("async.load_failed", model_name_err, e);
                         if let Some(tx) = log_tx {
-                            let _ = tx.send(err_msg.clone()).await;
+                            let _ = tx.send(err_msg).await;
                         } else {
-                            tracing::error!("{}", err_msg);
+                            tracing::error!("{}", e);
+                        }
+                        if let Some(tx) = load_error_tx {
+                            let _ = tx.send((model_name_state, e)).await;
                         }
                     }
                 });
@@ -1598,6 +1627,7 @@ impl App {
                 self.loading.loading_phases = std::collections::HashSet::new();
                 self.loading.loading_progress = 0.0;
                 self.loading.progress_target = 0.0;
+                self.pending.active_model_hint_dirty = true;
                 self.ui.needs_full_redraw = true;
                 self.ui.needs_redraw = true;
             }
