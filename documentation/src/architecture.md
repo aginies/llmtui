@@ -395,7 +395,7 @@ Metrics (TPS, VRAM, context) are now collected exclusively from the `/metrics` a
 
 Metrics are collected from the `/metrics` and `/health` endpoints, which provide accurate real-time data. Loading completion is detected via the `/health` endpoint (polling for `"status": "ok"` and non-empty slots).
 
-Each log entry is stored in `log_entries: VecDeque<LogEntry>` with a max of 500 entries. The log panel supports scrolling, expansion (Enter/Esc), and two modes: **Following** (auto-scroll to bottom) and **Manual** (free scroll). Press `f` to toggle modes.
+Each log entry is stored in `log_entries: VecDeque<LogEntry>` with a max of 500 entries. The log panel supports scrolling, expansion (Enter/Esc), and two modes: **Following** (auto-scroll to bottom) and **Manual** (free scroll). Press `f` to toggle modes. Follow mode is automatically re-armed when the user scrolls back to the bottom; stale scroll offsets are clamped when log content shrinks.
 
 ## Search
 
@@ -450,7 +450,7 @@ Errors are detected from log patterns:
 - **OOM**: "OUTOFDEVICEMEMORY" / "OUT OF MEMORY"
 - **General error**: "ERROR", "FAILED TO LOAD", "EXCEPTION"
 
-Server exit is detected via a dedicated channel (not log parsing). On error, affected models are marked as `Failed` with the error message.
+Server exit is detected via a dedicated channel (not log parsing). On error, affected models are marked as `Failed` with the error message. API load failures are likewise reported through a dedicated channel carrying the model name and the real error, so the `Failed` state carries the actual error (e.g. OOM) instead of generic toast text. Loading state is reset on failure (server exit, spawn panic, pending kill), so a model never stays stuck in `Loading`.
 
 ## Confirmation Dialogs
 

@@ -126,6 +126,8 @@ The progress bar tracks:
 
 During tensor loading, the progress bar shows offloaded layers (e.g., `16/32`) parsed from llama.cpp's log output.
 
+If loading fails (out of memory, server exit, API error), the model is marked **Failed** with the actual error message and the loading state is reset — the card never gets stuck in the **Loading** state.
+
 ## Settings
 
 ### Server Settings
@@ -509,6 +511,20 @@ Models → (Server Settings / README / Profiles / Presets) → Active Model → 
 | `Alt+C` | Edit chat template kwargs / Cancel confirmation |
 | `Space` | Toggle selection (RPC workers, benchmark parameters) |
 
+### Picker Modals
+
+All picker modals (Host, Backend, Profile, Prompt, Chat Template, etc.) share the same layout and key bindings:
+
+| Key | Action |
+|-----|--------|
+| `Up` / `Down` / `j` / `k` | Navigate entries |
+| `PageUp` / `PageDown` | Scroll a page (Host, Profile, Backend pickers) |
+| Mouse wheel | Scroll entries (Host, Profile, Prompt, Backend pickers) |
+| `Enter` | Select entry |
+| `Esc` | Cancel and close |
+
+The popup is 60 columns wide with content-based height, clamped to 80% of the terminal height.
+
 ## Log Panel
 
 The Log panel displays live output from the llama.cpp server with level-based coloring.
@@ -518,7 +534,7 @@ The Log panel displays live output from the llama.cpp server with level-based co
 | Mode | Behavior |
 |------|----------|
 | **Following** (default) | Auto-scrolls to the bottom as new entries arrive. Press `g` to exit. |
-| **Manual** | Allows manual scrolling through log history. Press `G` to return to bottom. |
+| **Manual** | Allows manual scrolling through log history. Press `G` to return to bottom. Follow mode is automatically re-armed when you scroll back to the bottom. |
 
 Press `f` in the Log panel to toggle between modes. The current mode is shown in the panel title. Expand the log to fullscreen with `Enter`; collapse with `Esc`.
 
@@ -685,7 +701,7 @@ Dialogs require a minimum terminal height of 12 lines. Height is calculated as c
 
 ## Mouse Support
 
-Mouse interactions are supported: clicking on panels to focus them, and scrolling in the log panel, README panel, settings, profiles, and presets panels.
+Mouse interactions are supported: clicking on panels to focus them, and scrolling in the log panel, README panel, settings, profiles, presets panels, and picker modals.
 
 ## Panel Resize
 
