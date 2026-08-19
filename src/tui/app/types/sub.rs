@@ -127,6 +127,7 @@ pub struct LogState {
     pub log_scroll_offset: usize,
     pub log_follow: bool,
     pub log_total_lines: usize,
+    pub log_inner_height: usize,
 }
 
 pub struct LoadingState {

@@ -17,6 +17,7 @@ impl App {
         self.log
             .log_entries
             .push_back(crate::config::LogEntry::new(msg, level));
+        self.ui.needs_redraw = true;
     }
 
     fn log_message(&mut self, msg: &str, level: LogLevel) {

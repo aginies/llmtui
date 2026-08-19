@@ -275,8 +275,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
 fn handle_log_scroll(app: &mut App, scroll_up: bool) {
     if scroll_up {
         app.log.log_scroll_offset = app.log.log_scroll_offset.saturating_sub(1);
+        app.log.log_follow = false;
     } else {
         app.log.log_scroll_offset += 1;
     }
-    app.log.log_follow = app.log.log_scroll_offset >= app.log.log_total_lines.saturating_sub(5);
 }

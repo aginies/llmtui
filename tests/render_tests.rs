@@ -337,6 +337,81 @@ fn test_log_panel_renders() {
 }
 
 #[test]
+fn test_log_follow_auto_scrolls_to_bottom() {
+    let mut app = make_app();
+    app.log.log_expanded = true;
+    for i in 0..30 {
+        app.add_log(format!("log line {i}"), llm_manager::config::LogLevel::Info);
+    }
+    let _terminal = make_terminal(&mut app);
+    assert!(app.log.log_follow);
+    assert!(app.log.log_total_lines > app.log.log_inner_height);
+    assert_eq!(
+        app.log.log_scroll_offset,
+        app.log.log_total_lines - app.log.log_inner_height
+    );
+}
+
+#[test]
+fn test_log_rearm_follow_when_scrolled_back_to_bottom() {
+    let mut app = make_app();
+    app.log.log_expanded = true;
+    for i in 0..30 {
+        app.add_log(format!("log line {i}"), llm_manager::config::LogLevel::Info);
+    }
+    let mut terminal = make_terminal(&mut app);
+    let max_offset = app.log.log_total_lines - app.log.log_inner_height;
+    assert!(max_offset > 5);
+    // User scrolls up: manual mode stays manual
+    app.log.log_follow = false;
+    app.log.log_scroll_offset = max_offset - 5;
+    terminal.draw(|f| render(f, &mut app)).unwrap();
+    assert!(!app.log.log_follow);
+    // User scrolls back to the bottom: follow re-arms
+    app.log.log_scroll_offset = max_offset;
+    terminal.draw(|f| render(f, &mut app)).unwrap();
+    assert!(app.log.log_follow);
+    assert_eq!(app.log.log_scroll_offset, max_offset);
+}
+
+#[test]
+fn test_log_offset_clamped_when_exceeding_content() {
+    let mut app = make_app();
+    app.log.log_expanded = true;
+    for i in 0..30 {
+        app.add_log(format!("log line {i}"), llm_manager::config::LogLevel::Info);
+    }
+    let mut terminal = make_terminal(&mut app);
+    let max_offset = app.log.log_total_lines - app.log.log_inner_height;
+    // Simulate a stale offset (e.g. after a resize reduced wrapped lines)
+    app.log.log_follow = false;
+    app.log.log_scroll_offset = 10_000;
+    terminal.draw(|f| render(f, &mut app)).unwrap();
+    assert_eq!(app.log.log_scroll_offset, max_offset);
+    // Landing at the bottom re-arms follow
+    assert!(app.log.log_follow);
+}
+
+#[test]
+fn test_log_follow_keeps_bottom_on_new_entry() {
+    let mut app = make_app();
+    app.log.log_expanded = true;
+    for i in 0..30 {
+        app.add_log(format!("log line {i}"), llm_manager::config::LogLevel::Info);
+    }
+    let mut terminal = make_terminal(&mut app);
+    let offset_before = app.log.log_scroll_offset;
+    app.add_log("new line", llm_manager::config::LogLevel::Info);
+    terminal.draw(|f| render(f, &mut app)).unwrap();
+    assert!(app.log.log_follow);
+    assert_eq!(
+        app.log.log_scroll_offset,
+        app.log.log_total_lines - app.log.log_inner_height
+    );
+    assert!(app.log.log_scroll_offset >= offset_before);
+}
+
+#[test]
 fn test_downloads_panel_renders() {
     let mut app = make_app();
     app.ui.active_panel = ActivePanel::Downloads;

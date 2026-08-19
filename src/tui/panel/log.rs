@@ -87,6 +87,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
     let inner_area = block.inner(log_area);
     let width = inner_area.width.max(1) as usize;
+    let inner_height = inner_area.height as usize;
 
     // Calculate total lines after wrapping (estimation since line_count is unstable/private)
     let total_screen_lines = lines
@@ -95,10 +96,23 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .sum::<usize>();
 
     app.log.log_total_lines = total_screen_lines;
+    app.log.log_inner_height = inner_height;
+
+    let max_offset = total_screen_lines.saturating_sub(inner_height);
+
+    // Clamp manual scroll into valid range (e.g. after resize or log trim)
+    if app.log.log_scroll_offset > max_offset {
+        app.log.log_scroll_offset = max_offset;
+    }
+
+    // Auto re-arm follow when user is back at the bottom
+    if !app.log.log_follow && app.log.log_scroll_offset >= max_offset {
+        app.log.log_follow = true;
+    }
 
     // Auto-scroll to bottom if follow is enabled
     if app.log.log_follow {
-        app.log.log_scroll_offset = total_screen_lines.saturating_sub(inner_area.height as usize);
+        app.log.log_scroll_offset = max_offset;
     }
 
     let paragraph = Paragraph::new(lines)
@@ -106,7 +120,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .wrap(Wrap { trim: false });
 
     f.render_widget(
-        paragraph.scroll((app.log.log_scroll_offset as u16, 0)),
+        paragraph.scroll((app.log.log_scroll_offset.min(u16::MAX as usize) as u16, 0)),
         log_area,
     );
 

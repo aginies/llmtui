@@ -1251,6 +1251,104 @@ async fn test_log_up_decreases_scroll() {
 }
 
 #[tokio::test]
+async fn test_log_up_disarms_follow() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Log;
+    app.log.log_follow = true;
+    let key = make_key(KeyCode::Up);
+    handle_key(&mut app, key).await;
+    assert!(!app.log.log_follow);
+}
+
+#[tokio::test]
+async fn test_log_down_at_bottom_keeps_follow() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Log;
+    app.log.log_total_lines = 100;
+    app.log.log_inner_height = 20;
+    app.log.log_scroll_offset = 80; // at bottom
+    app.log.log_follow = true;
+    let key = make_key(KeyCode::Down);
+    handle_key(&mut app, key).await;
+    assert_eq!(app.log.log_scroll_offset, 81);
+    // Handler must not disarm follow; render clamps and keeps following
+    assert!(app.log.log_follow);
+}
+
+#[tokio::test]
+async fn test_log_down_in_manual_mode_does_not_force_follow() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Log;
+    app.log.log_total_lines = 100;
+    app.log.log_inner_height = 20;
+    app.log.log_scroll_offset = 94;
+    app.log.log_follow = false;
+    let key = make_key(KeyCode::Down);
+    handle_key(&mut app, key).await;
+    // Follow re-arm is decided by render when user reaches the bottom
+    assert!(!app.log.log_follow);
+}
+
+#[tokio::test]
+async fn test_log_page_down_at_bottom_keeps_follow() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Log;
+    app.log.log_total_lines = 100;
+    app.log.log_inner_height = 20;
+    app.log.log_scroll_offset = 80; // at bottom
+    app.log.log_follow = true;
+    let key = make_key(KeyCode::PageDown);
+    handle_key(&mut app, key).await;
+    assert_eq!(app.log.log_scroll_offset, 95);
+    assert!(app.log.log_follow);
+}
+
+#[tokio::test]
+async fn test_log_page_up_disarms_follow() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Log;
+    app.log.log_follow = true;
+    let key = make_key(KeyCode::PageUp);
+    handle_key(&mut app, key).await;
+    assert!(!app.log.log_follow);
+}
+
+#[tokio::test]
+async fn test_log_g_jumps_top_and_disarms_follow() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Log;
+    app.log.log_scroll_offset = 50;
+    app.log.log_follow = true;
+    let key = make_key(KeyCode::Char('g'));
+    handle_key(&mut app, key).await;
+    assert_eq!(app.log.log_scroll_offset, 0);
+    assert!(!app.log.log_follow);
+}
+
+#[tokio::test]
+async fn test_log_capital_g_enables_follow() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Log;
+    app.log.log_follow = false;
+    let key = make_key(KeyCode::Char('G'));
+    handle_key(&mut app, key).await;
+    assert!(app.log.log_follow);
+}
+
+#[tokio::test]
+async fn test_log_f_toggles_follow() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Log;
+    app.log.log_follow = true;
+    let key = make_key(KeyCode::Char('f'));
+    handle_key(&mut app, key).await;
+    assert!(!app.log.log_follow);
+    let key = make_key(KeyCode::Char('f'));
+    handle_key(&mut app, key).await;
+    assert!(app.log.log_follow);
+}
+
+#[tokio::test]
 async fn test_esc_collapses_log() {
     let mut app = make_app();
     app.log.log_expanded = true;

@@ -166,6 +166,7 @@ impl App {
                 log_scroll_offset: 0,
                 log_follow: true,
                 log_total_lines: 0,
+                log_inner_height: 0,
             },
             loading: LoadingState {
                 loading_phases: Default::default(),
