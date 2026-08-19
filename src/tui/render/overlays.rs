@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
+    widgets::{Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table, Wrap},
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -45,10 +45,116 @@ fn render_popup(f: &mut Frame, area: Rect, title: Span, lines: Vec<Line>, border
                 .title(title)
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(ACCENT))
-                .border_type(border_type),
+                .border_type(border_type)
+                .padding(PADDING),
         ),
         area,
     );
+}
+
+const PICKER_WIDTH: u16 = 60;
+const PADDING: Padding = Padding {
+    left: 1,
+    right: 1,
+    top: 1,
+    bottom: 1,
+};
+
+fn picker_max_height(area: Rect) -> usize {
+    ((area.height as f64 * 0.8).floor() as usize).max(10)
+}
+
+/// Compute the visible window for a scrollable picker list.
+/// `blocks` are the full entry blocks (1-2 lines each), `chrome_lines` are
+/// non-list lines (help block, preview block, footer block).
+/// Returns (visible_blocks, scroll_offset, box_height).
+fn picker_block_window(
+    area: Rect,
+    blocks: &[Vec<Line>],
+    selected: usize,
+    offset: &mut usize,
+    chrome_lines: usize,
+) -> (usize, usize, u16) {
+    let max_h = picker_max_height(area);
+    let visible_lines = max_h.saturating_sub(4 + chrome_lines);
+    let total_lines: usize = blocks.iter().map(|b| b.len()).sum();
+    if total_lines <= visible_lines {
+        *offset = 0;
+        return (blocks.len(), 0, (total_lines + chrome_lines + 4).clamp(10, max_h) as u16);
+    }
+    let total = blocks.len();
+    let mut off = (*offset).min(total.saturating_sub(1));
+    let mut fit = 0usize;
+    let mut used = 0usize;
+    for b in blocks.iter().skip(off) {
+        if fit > 0 && used + b.len() > visible_lines {
+            break;
+        }
+        fit += 1;
+        used += b.len();
+    }
+    if fit == 0 {
+        fit = 1;
+    }
+    if selected < off {
+        off = selected;
+    } else if selected >= off + fit {
+        off = selected + 1 - fit;
+    }
+    *offset = off;
+    (fit, off, max_h as u16)
+}
+
+fn render_picker_popup(
+    f: &mut Frame,
+    area: Rect,
+    title: Span,
+    help: Option<Line>,
+    lines: Vec<Line>,
+    footer: Option<Line>,
+    scroll: Option<(usize, usize, usize)>,
+) {
+    let help_block = usize::from(help.is_some()) * 2;
+    let footer_block = usize::from(footer.is_some()) * 2;
+    let content = lines.len() + help_block + footer_block;
+    let h = (content + 4).clamp(10, picker_max_height(area)) as u16;
+    let w = PICKER_WIDTH.min(area.width);
+    let h = h.min(area.height);
+    let picker_area = center_rect(area, w, h);
+    let mut all_lines = Vec::new();
+    if let Some(help) = help {
+        all_lines.push(help);
+        all_lines.push(Line::from(""));
+    }
+    all_lines.extend(lines);
+    if let Some(footer) = footer {
+        all_lines.push(Line::from(""));
+        all_lines.push(footer);
+    }
+    f.render_widget(Clear, picker_area);
+    f.render_widget(
+        Paragraph::new(all_lines).block(
+            Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(ACCENT))
+                .border_type(BorderType::Rounded)
+                .padding(PADDING),
+        ),
+        picker_area,
+    );
+    if let Some((total, offset, visible)) = scroll
+        && total > visible
+    {
+        render_vertical_scrollbar(
+            f,
+            picker_area,
+            total,
+            offset,
+            (2 + help_block) as u16,
+            (4 + help_block + footer_block) as u16,
+        );
+    }
 }
 
 pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
@@ -100,7 +206,13 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     }
 
     if let GlobalMode::HostPicker { entries, selected } = &app.ui.global_mode {
-        render_host_picker(f, f.area(), entries, *selected);
+        render_host_picker(
+            f,
+            f.area(),
+            entries,
+            *selected,
+            &mut app.picker.host_picker_scroll_offset,
+        );
         return true;
     }
 
@@ -118,6 +230,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             *selected,
             &app.settings,
             selected_profile,
+            &mut app.picker.profile_picker_scroll_offset,
         );
         return true;
     }
@@ -140,6 +253,7 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             edit_buffer,
             *edit_cursor_pos,
             *confirm_delete,
+            &mut app.picker.prompt_picker_scroll_offset,
         );
         return true;
     }
@@ -150,38 +264,12 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     }
 
     if let GlobalMode::BackendPicker { entries, selected } = &app.ui.global_mode {
-        let all_models = detect_gpu_models();
-        let gpu_info_lines = if all_models.iter().any(|m| m.is_some()) { 1 } else { 0 };
-        let total_entries = entries.len();
-        let header_lines = 3 + gpu_info_lines;
-        let total_lines = total_entries + 5 + gpu_info_lines;
-        let h = total_lines.min(f.area().height as usize - 4);
-        let visible_count = h.saturating_sub(2).saturating_sub(header_lines);
-        
-        if total_entries > visible_count {
-            let max_scroll = total_entries.saturating_sub(visible_count);
-            let actual_scroll = app.picker.backend_picker_scroll_offset.min(max_scroll);
-            
-            // Auto-scroll: keep selected item visible
-            let visible_range = actual_scroll..actual_scroll + visible_count;
-            if *selected < actual_scroll {
-                app.picker.backend_picker_scroll_offset = *selected;
-            } else if *selected >= visible_range.end {
-                app.picker.backend_picker_scroll_offset = *selected - visible_count + 1;
-                if app.picker.backend_picker_scroll_offset > max_scroll {
-                    app.picker.backend_picker_scroll_offset = max_scroll;
-                }
-            }
-        } else {
-            app.picker.backend_picker_scroll_offset = 0;
-        }
-        
         render_backend_picker(
             f,
             f.area(),
             entries,
             *selected,
-            app.picker.backend_picker_scroll_offset,
+            &mut app.picker.backend_picker_scroll_offset,
         );
         return true;
     }
@@ -456,21 +544,9 @@ fn render_web_search_picker(
     check_status: &Option<crate::tui::app::WebSearchCheckStatus>,
 ) {
     let engines = ["searxng"];
-    let w = 65u16;
-    let h = if selected_field < -1 {
-        8.min(area.height - 4)
-    } else {
-        15.min(area.height - 4)
-    };
-    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = Vec::new();
 
     if selected_field < -1 {
-        picker_lines.push(Line::from(Span::styled(
-            crate::t!("dialog.web_search.help"),
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        )));
-        picker_lines.push(Line::from(""));
         for (i, e) in engines.iter().enumerate() {
             let marker = if i == engine_picker_selected {
                 "> "
@@ -490,15 +566,20 @@ fn render_web_search_picker(
                 Span::styled(e.to_string(), style),
             ]));
         }
-        render_popup(
+        render_picker_popup(
             f,
-            picker_area,
+            area,
             Span::styled(
                 crate::t!("dialog.web_search.title"),
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ),
+            Some(Line::from(Span::styled(
+                crate::t!("dialog.web_search.help"),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            ))),
             picker_lines,
-            BorderType::Rounded,
+            None,
+            None,
         );
         return;
     }
@@ -620,15 +701,17 @@ fn render_web_search_picker(
         crate::t!("dialog.web_search.help"),
         Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
     )));
-    render_popup(
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.web_search.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        None,
         picker_lines,
-        BorderType::Rounded,
+        None,
+        None,
     );
 }
 
@@ -804,42 +887,55 @@ fn render_confirmation(
     );
 }
 
-fn render_host_picker(f: &mut Frame, area: Rect, entries: &[(String, String)], selected: usize) {
-    let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
-    let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
-    let picker_area = center_rect(area, w, h);
-    let mut picker_lines: Vec<Line> = Vec::new();
-    picker_lines.push(Line::from(Span::styled(
-        crate::t!("dialog.host_picker.help"),
-        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-    )));
-    picker_lines.push(Line::from(""));
-    for (i, (ip, iface)) in entries.iter().enumerate() {
-        let marker = if i == selected { "> " } else { "  " };
-        let style = if i == selected {
-            Style::default()
-                .fg(BLACK)
-                .bg(ACCENT)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(WHITE)
-        };
-        picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(ACCENT)),
-            Span::styled(ip.to_string(), style),
-            Span::raw("  "),
-            Span::styled(format!("({iface})"), Style::default().fg(DIM_GRAY)),
-        ]));
-    }
-    render_popup(
+fn render_host_picker(
+    f: &mut Frame,
+    area: Rect,
+    entries: &[(String, String)],
+    selected: usize,
+    scroll_offset: &mut usize,
+) {
+    let blocks: Vec<Vec<Line>> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, (ip, iface))| {
+            let marker = if i == selected { "> " } else { "  " };
+            let style = if i == selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            vec![Line::from(vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(ip.to_string(), style),
+                Span::raw("  "),
+                Span::styled(format!("({iface})"), Style::default().fg(DIM_GRAY)),
+            ])]
+        })
+        .collect();
+    let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2);
+    let lines: Vec<Line> = blocks.iter().skip(off).take(fit).flatten().cloned().collect();
+    let scroll = if entries.len() > fit {
+        Some((entries.len(), off, fit))
+    } else {
+        None
+    };
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.host_picker.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
-        picker_lines,
-        BorderType::Rounded,
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.host_picker.help"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ))),
+        lines,
+        None,
+        scroll,
     );
 }
 
@@ -850,72 +946,81 @@ fn render_profile_picker(
     selected: usize,
     current_settings: &crate::models::ModelSettings,
     selected_profile: Option<&crate::config::Profile>,
+    scroll_offset: &mut usize,
 ) {
-    let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
-    let mut picker_lines: Vec<Line> = Vec::new();
-    picker_lines.push(Line::from(Span::styled(
-        crate::t!("dialog.profile_picker.help"),
-        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-    )));
-    picker_lines.push(Line::from(""));
-    for (i, (name, desc)) in entries.iter().enumerate() {
-        let marker = if i == selected { "> " } else { "  " };
-        let style = if i == selected {
-            Style::default()
-                .fg(BLACK)
-                .bg(ACCENT)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(WHITE)
-        };
-        picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(ACCENT)),
-            Span::styled(name, style),
-        ]));
-        if !desc.is_empty() {
-            picker_lines.push(Line::from(Span::styled(
-                format!("        {}", desc),
-                Style::default().fg(DIM_GRAY),
-            )));
-        }
-    }
+    let blocks: Vec<Vec<Line>> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, (name, desc))| {
+            let marker = if i == selected { "> " } else { "  " };
+            let style = if i == selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            let mut block = vec![Line::from(vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(name.to_string(), style),
+            ])];
+            if !desc.is_empty() {
+                block.push(Line::from(Span::styled(
+                    format!("    {}", desc),
+                    Style::default().fg(DIM_GRAY),
+                )));
+            }
+            block
+        })
+        .collect();
+    let mut preview: Vec<Line> = Vec::new();
     if let Some(profile) = selected_profile {
         let preview_parts = profile_settings_parts(profile, current_settings);
-        picker_lines.push(Line::from(Span::styled(
+        preview.push(Line::from(Span::styled(
             "────────────────────────────────────────────────────────",
             Style::default().fg(DIM_GRAY),
         )));
-        picker_lines.push(Line::from(Span::styled(
+        preview.push(Line::from(Span::styled(
             crate::t!("dialog.profile_picker.changed"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         )));
         if preview_parts.is_empty() {
-            picker_lines.push(Line::from(Span::styled(
+            preview.push(Line::from(Span::styled(
                 crate::t!("dialog.profile_picker.no_changes"),
                 Style::default().fg(DIM_GRAY),
             )));
         } else {
             for part in preview_parts {
-                picker_lines.push(Line::from(Span::styled(
+                preview.push(Line::from(Span::styled(
                     format!("    {}", part),
                     Style::default().fg(CYAN),
                 )));
             }
         }
     }
-    let content_height = picker_lines.len();
-    let max_h = (area.height as usize - 4).max(10);
-    let h = (content_height.min(max_h)) as u16;
-    let picker_area = center_rect(area, w, h);
-    render_popup(
+    let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2 + preview.len());
+    let mut lines: Vec<Line> = blocks.iter().skip(off).take(fit).flatten().cloned().collect();
+    lines.extend(preview);
+    let scroll = if entries.len() > fit {
+        Some((entries.len(), off, fit))
+    } else {
+        None
+    };
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.profile_picker.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
-        picker_lines,
-        BorderType::Rounded,
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.profile_picker.help"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ))),
+        lines,
+        None,
+        scroll,
     );
 }
 
@@ -928,31 +1033,30 @@ fn render_prompt_picker(
     edit_buffer: &str,
     _edit_cursor_pos: usize,
     confirm_delete: bool,
+    scroll_offset: &mut usize,
 ) {
-    let w = (area.width as f64 * 0.7).clamp(60.0, 80.0) as u16;
-    let h = if editing {
-        (area.height as f64 * 0.8).clamp(25.0, 40.0) as u16
-    } else {
-        (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16
-    };
-    let picker_area = center_rect(area, w, h);
-    let mut picker_lines: Vec<Line> = Vec::new();
+    let title = Span::styled(
+        crate::t!("dialog.prompt_picker.title"),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+    );
     if confirm_delete && selected < entries.len() {
         let name = &entries[selected].0;
-        picker_lines.push(Line::from(Span::styled(
+        let mut picker_lines: Vec<Line> = vec![Line::from(Span::styled(
             format!("{} {}", crate::t!("dialog.prompt_picker.delete"), name),
             Style::default().fg(RED).add_modifier(Modifier::BOLD),
-        )));
+        ))];
         picker_lines.push(Line::from(""));
         picker_lines.push(Line::from(Span::styled(
             crate::t!("dialog.prompt_picker.confirm"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         )));
-        picker_lines.push(Line::from(""));
-    } else if editing {
-        picker_lines.push(Line::from(Span::styled(
+        render_picker_popup(f, area, title, None, picker_lines, None, None);
+        return;
+    }
+    if editing {
+        let mut picker_lines: Vec<Line> = vec![Line::from(Span::styled(
             format!(
-                " Editing: {}",
+                "Editing: {}",
                 if selected < entries.len() {
                     entries[selected].0.clone()
                 } else {
@@ -960,10 +1064,10 @@ fn render_prompt_picker(
                 }
             ),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        )));
+        ))];
         picker_lines.push(Line::from(""));
         let content_lines: Vec<&str> = edit_buffer.split('\n').collect();
-        let max_lines = (h as usize).saturating_sub(6);
+        let max_lines = picker_max_height(area).saturating_sub(8);
         let cursor_pos = _edit_cursor_pos;
         let mut current_char_idx = 0usize;
         for line in content_lines.iter().take(max_lines) {
@@ -993,13 +1097,13 @@ fn render_prompt_picker(
             crate::t!("dialog.prompt_picker.edit_help"),
             Style::default().fg(CYAN),
         )));
-    } else {
-        picker_lines.push(Line::from(Span::styled(
-            crate::t!("dialog.prompt_picker.list_help"),
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        )));
-        picker_lines.push(Line::from(""));
-        for (i, (name, desc)) in entries.iter().enumerate() {
+        render_picker_popup(f, area, title, None, picker_lines, None, None);
+        return;
+    }
+    let blocks: Vec<Vec<Line>> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, (name, desc))| {
             let marker = if i == selected { "> " } else { "  " };
             let style = if i == selected {
                 Style::default()
@@ -1009,47 +1113,51 @@ fn render_prompt_picker(
             } else {
                 Style::default().fg(WHITE)
             };
-            picker_lines.push(Line::from(vec![
+            let mut block = vec![Line::from(vec![
                 Span::styled(marker, Style::default().fg(ACCENT)),
-                Span::styled(name, style),
-            ]));
+                Span::styled(name.to_string(), style),
+            ])];
             if !desc.is_empty() {
-                picker_lines.push(Line::from(Span::styled(
-                    format!("        {}", desc),
+                block.push(Line::from(Span::styled(
+                    format!("    {}", desc),
                     Style::default().fg(DIM_GRAY),
                 )));
             }
-        }
-    }
-    render_popup(
+            block
+        })
+        .collect();
+    let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2);
+    let lines: Vec<Line> = blocks.iter().skip(off).take(fit).flatten().cloned().collect();
+    let scroll = if entries.len() > fit {
+        Some((entries.len(), off, fit))
+    } else {
+        None
+    };
+    render_picker_popup(
         f,
-        picker_area,
-        Span::styled(
-            crate::t!("dialog.prompt_picker.title"),
+        area,
+        title,
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.prompt_picker.list_help"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        ),
-        picker_lines,
-        BorderType::Rounded,
+        ))),
+        lines,
+        None,
+        scroll,
     );
 }
 
 fn render_tags(f: &mut Frame, area: Rect, app: &App) {
-    let w = (area.width as f64 * 0.5).clamp(40.0, 60.0) as u16;
-    let h = (app.settings.tags.len() + 8).min(area.height as usize - 4) as u16;
-    let modal_area = center_rect(area, w, h);
-    let mut modal_lines: Vec<Line> = Vec::new();
-    if app.edit.tags_insert_mode {
-        modal_lines.push(Line::from(Span::styled(
-            crate::t!("dialog.tags.add_help"),
-            Style::default().fg(DIM_GRAY),
-        )));
+    let help_key = if app.edit.tags_insert_mode {
+        "dialog.tags.add_help"
     } else {
-        modal_lines.push(Line::from(Span::styled(
-            crate::t!("dialog.tags.edit_help"),
-            Style::default().fg(DIM_GRAY),
-        )));
-    }
-    modal_lines.push(Line::from(""));
+        "dialog.tags.edit_help"
+    };
+    let help = Line::from(Span::styled(
+        crate::t!(help_key),
+        Style::default().fg(DIM_GRAY),
+    ));
+    let mut modal_lines: Vec<Line> = Vec::new();
     for (i, tag) in app.settings.tags.iter().enumerate() {
         let marker = if Some(i) == app.edit.tags_selected_idx {
             "> "
@@ -1094,15 +1202,17 @@ fn render_tags(f: &mut Frame, area: Rect, app: &App) {
             Span::styled("_", Style::default().fg(BLACK).bg(ACCENT)),
         ]));
     }
-    render_popup(
+    render_picker_popup(
         f,
-        modal_area,
+        area,
         Span::styled(
             crate::t!("dialog.tags.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        Some(help),
         modal_lines,
-        BorderType::Rounded,
+        None,
+        None,
     );
 }
 
@@ -1111,42 +1221,113 @@ fn render_backend_picker(
     area: Rect,
     entries: &[(crate::models::Backend, Option<String>)],
     selected: usize,
-    scroll_offset: usize,
+    scroll_offset: &mut usize,
 ) {
-    let w = (area.width as f64 * 0.5).clamp(50.0, 70.0) as u16;
     let all_models = detect_gpu_models();
     let gpu_info_lines = if all_models.iter().any(|m| m.is_some()) {
         1
     } else {
         0
     };
-    let total_lines = entries.len() + 5 + gpu_info_lines;
-    let h = total_lines.min(area.height as usize - 4) as u16;
-    let picker_area = center_rect(area, w, h);
     let vendors = detect_gpu_vendors();
-    
-    let header_lines = 3 + gpu_info_lines;
-    let visible_count = (h as usize).saturating_sub(2).saturating_sub(header_lines);
-    let max_scroll = entries.len().saturating_sub(visible_count);
-    let actual_scroll = scroll_offset.min(max_scroll);
-    
-    let visible_entries: Vec<(&crate::models::Backend, Option<&String>)> = entries
-        .iter()
-        .skip(actual_scroll)
-        .take(visible_count)
-        .map(|(b, t)| (b, t.as_ref()))
-        .collect();
-    
-    let mut picker_lines: Vec<Line> = Vec::new();
-    picker_lines.push(Line::from(Span::styled(
-         crate::t!("dialog.backend_picker.select"),
-         Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-     )));
-    picker_lines.push(Line::from(Span::styled(
-        crate::t!("dialog.backend_picker.help"),
-        Style::default().fg(ACCENT),
-    )));
     let gpu_models: Vec<String> = all_models.iter().filter_map(|m| m.clone()).collect();
+
+    let blocks: Vec<Vec<Line>> = entries
+        .iter()
+        .enumerate()
+        .map(|(real_idx, (backend, tag))| {
+            let marker = if real_idx == selected { "> " } else { "  " };
+            let is_installed = if tag.is_some() {
+                true
+            } else {
+                crate::backend::hub::is_backend_any_version_installed(*backend)
+            };
+            let is_recommended = vendors.iter().any(|v| {
+                matches!(
+                    (v, backend, tag),
+                    (GpuVendor::Amd, crate::models::Backend::Rocm, None)
+                        | (GpuVendor::Amd, crate::models::Backend::RocmLemonade, None)
+                        | (GpuVendor::Nvidia, crate::models::Backend::Cuda, None)
+                        | (GpuVendor::Nvidia, crate::models::Backend::Vulkan, None)
+                        | (GpuVendor::Intel, crate::models::Backend::Vulkan, None)
+                        | (GpuVendor::Unknown, crate::models::Backend::Cpu, None)
+                        | (GpuVendor::Apple, crate::models::Backend::Cpu, None)
+                )
+            });
+            let style = if real_idx == selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            let label = match backend {
+                crate::models::Backend::Cpu => crate::t!("dialog.backend_picker.cpu"),
+                crate::models::Backend::Vulkan => crate::t!("dialog.backend_picker.vulkan"),
+                crate::models::Backend::Rocm => crate::t!("dialog.backend_picker.rocm"),
+                crate::models::Backend::RocmLemonade => {
+                    crate::t!("dialog.backend_picker.rocm_lemonade")
+                }
+                crate::models::Backend::Cuda => crate::t!("dialog.backend_picker.cuda"),
+                crate::models::Backend::CpuArm64 => crate::t!("dialog.backend_picker.cpu_arm64"),
+                crate::models::Backend::CpuWindows => crate::t!("dialog.backend_picker.cpu_windows"),
+                crate::models::Backend::VulkanWindows => {
+                    crate::t!("dialog.backend_picker.vulkan_windows")
+                }
+                crate::models::Backend::CudaWindows12_4 => {
+                    crate::t!("dialog.backend_picker.cuda_124")
+                }
+                crate::models::Backend::CudaWindows13_1 => {
+                    crate::t!("dialog.backend_picker.cuda_131")
+                }
+                crate::models::Backend::HipWindows => crate::t!("dialog.backend_picker.hip_windows"),
+                crate::models::Backend::CpuMacosArm64 => {
+                    crate::t!("dialog.backend_picker.cpu_macos_arm64")
+                }
+                crate::models::Backend::CpuMacosX64 => {
+                    crate::t!("dialog.backend_picker.cpu_macos_intel")
+                }
+            };
+            let display_label = if let Some(t) = tag {
+                format!("{} ({})", label, t)
+            } else {
+                format!("{} (latest/auto)", label)
+            };
+            let mut line_spans = vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(display_label, style),
+            ];
+            if tag.is_none() && is_installed {
+                line_spans.push(Span::raw("  "));
+                line_spans.push(Span::styled(
+                    crate::t!("dialog.backend_picker.cached"),
+                    Style::default().fg(BLUE),
+                ));
+            }
+            if is_recommended {
+                line_spans.push(Span::raw("  "));
+                line_spans.push(Span::styled(
+                    crate::t!("dialog.backend_picker.recommended"),
+                    Style::default().fg(GREEN),
+                ));
+            }
+            vec![Line::from(line_spans)]
+        })
+        .collect();
+
+    let (fit, actual_scroll, _) =
+        picker_block_window(area, &blocks, selected, scroll_offset, 3 + gpu_info_lines);
+    let mut picker_lines: Vec<Line> = vec![
+        Line::from(Span::styled(
+            crate::t!("dialog.backend_picker.select"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(Span::styled(
+            crate::t!("dialog.backend_picker.help"),
+            Style::default().fg(ACCENT),
+        )),
+    ];
     if !gpu_models.is_empty() {
         picker_lines.push(Line::from(vec![
             Span::raw(crate::t!("dialog.backend_picker.hardware")),
@@ -1154,105 +1335,24 @@ fn render_backend_picker(
         ]));
     }
     picker_lines.push(Line::from(""));
-    
-    for (i, (backend, tag)) in visible_entries.iter().enumerate() {
-        let real_idx = actual_scroll + i;
-        let marker = if real_idx == selected { "> " } else { "  " };
-        let is_installed = if tag.is_some() {
-            true
-        } else {
-            crate::backend::hub::is_backend_any_version_installed(**backend)
-        };
-        let is_recommended = vendors.iter().any(|v| {
-            matches!(
-                (v, backend, tag),
-                (GpuVendor::Amd, crate::models::Backend::Rocm, None)
-                    | (GpuVendor::Amd, crate::models::Backend::RocmLemonade, None)
-                    | (GpuVendor::Nvidia, crate::models::Backend::Cuda, None)
-                    | (GpuVendor::Nvidia, crate::models::Backend::Vulkan, None)
-                    | (GpuVendor::Intel, crate::models::Backend::Vulkan, None)
-                    | (GpuVendor::Unknown, crate::models::Backend::Cpu, None)
-                    | (GpuVendor::Apple, crate::models::Backend::Cpu, None)
-            )
-        });
-        let style = if real_idx == selected {
-            Style::default()
-                .fg(BLACK)
-                .bg(ACCENT)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(WHITE)
-        };
-        let label = match backend {
-            crate::models::Backend::Cpu => crate::t!("dialog.backend_picker.cpu"),
-            crate::models::Backend::Vulkan => crate::t!("dialog.backend_picker.vulkan"),
-            crate::models::Backend::Rocm => crate::t!("dialog.backend_picker.rocm"),
-            crate::models::Backend::RocmLemonade => {
-                crate::t!("dialog.backend_picker.rocm_lemonade")
-            }
-            crate::models::Backend::Cuda => crate::t!("dialog.backend_picker.cuda"),
-            crate::models::Backend::CpuArm64 => crate::t!("dialog.backend_picker.cpu_arm64"),
-            crate::models::Backend::CpuWindows => crate::t!("dialog.backend_picker.cpu_windows"),
-            crate::models::Backend::VulkanWindows => {
-                crate::t!("dialog.backend_picker.vulkan_windows")
-            }
-            crate::models::Backend::CudaWindows12_4 => crate::t!("dialog.backend_picker.cuda_124"),
-            crate::models::Backend::CudaWindows13_1 => crate::t!("dialog.backend_picker.cuda_131"),
-            crate::models::Backend::HipWindows => crate::t!("dialog.backend_picker.hip_windows"),
-            crate::models::Backend::CpuMacosArm64 => {
-                crate::t!("dialog.backend_picker.cpu_macos_arm64")
-            }
-            crate::models::Backend::CpuMacosX64 => {
-                crate::t!("dialog.backend_picker.cpu_macos_intel")
-            }
-        };
-        let display_label = if let Some(t) = tag {
-            format!("{} ({})", label, t)
-        } else {
-            format!("{} (latest/auto)", label)
-        };
-        let mut line_spans = vec![
-            Span::styled(marker, Style::default().fg(ACCENT)),
-            Span::styled(display_label, style),
-        ];
-        if tag.is_none() && is_installed {
-            line_spans.push(Span::raw("  "));
-            line_spans.push(Span::styled(
-                crate::t!("dialog.backend_picker.cached"),
-                Style::default().fg(BLUE),
-            ));
-        }
-        if is_recommended {
-            line_spans.push(Span::raw("  "));
-            line_spans.push(Span::styled(
-                crate::t!("dialog.backend_picker.recommended"),
-                Style::default().fg(GREEN),
-            ));
-        }
-        picker_lines.push(Line::from(line_spans));
-    }
-    
-    render_popup(
+    picker_lines.extend(blocks.iter().skip(actual_scroll).take(fit).flatten().cloned());
+    let scroll = if entries.len() > fit {
+        Some((entries.len(), actual_scroll, fit))
+    } else {
+        None
+    };
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.backend_picker.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        None,
         picker_lines,
-        BorderType::Rounded,
+        None,
+        scroll,
     );
-    
-    if entries.len() > visible_count {
-        render_vertical_scrollbar(
-            f,
-            picker_area,
-            entries.len(),
-            actual_scroll,
-            1,
-            2,
-        );
-    }
 }
 
 fn render_bench_tune_setup(
@@ -1805,9 +1905,6 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
 }
 
 fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &str) {
-    let w = 55u16;
-    let h = (10.min(area.height - 4)).max(8);
-    let picker_area = center_rect(area, w, h);
     let ctx_len = app.settings.context_length;
     let entered = value.parse::<u32>().unwrap_or(0).clamp(1, 10);
     let per_model = if entered > 0 && ctx_len > 0 {
@@ -1838,8 +1935,7 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
         Span::raw(crate::t!("dialog.max_concurrent.value_label")),
         Span::styled(value, Style::default().fg(BLACK).bg(ACCENT)),
     ]));
-    picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(vec![
+    let footer = Line::from(vec![
         Span::styled(
             crate::t!("dialog.max_concurrent.confirm"),
             Style::default().fg(BLACK).bg(ACCENT),
@@ -1849,16 +1945,18 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
             crate::t!("dialog.max_concurrent.cancel"),
             Style::default().fg(BLACK).bg(DIM_GRAY),
         ),
-    ]));
-    render_popup(
+    ]);
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.max_concurrent.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        None,
         picker_lines,
-        BorderType::Rounded,
+        Some(footer),
+        None,
     );
 }
 
@@ -1876,9 +1974,6 @@ fn render_dashboard_picker(
     editing: bool,
     edit_buffer: &str,
 ) {
-    let w = 60u16;
-    let h = 19.min(area.height - 4);
-    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = Vec::new();
     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
@@ -1986,20 +2081,21 @@ fn render_dashboard_picker(
         Span::raw(": "),
         Span::styled(tls_key_val, Style::default().fg(WHITE)),
     ]));
-    picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(vec![Span::styled(
+    let footer = Line::from(vec![Span::styled(
         crate::t!("dialog.dashboard.close"),
         Style::default().fg(BLACK).bg(DIM_GRAY),
-    )]));
-    render_popup(
+    )]);
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.dashboard.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        None,
         picker_lines,
-        BorderType::Rounded,
+        Some(footer),
+        None,
     );
 }
 
@@ -2017,9 +2113,6 @@ fn render_api_endpoint_picker(
     editing: bool,
     edit_buffer: &str,
 ) {
-    let w = 60u16;
-    let h = 22.min(area.height - 4);
-    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = Vec::new();
 
     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
@@ -2137,20 +2230,21 @@ fn render_api_endpoint_picker(
         crate::t!("dialog.api_endpoint.help"),
         Style::default().fg(ACCENT),
     )));
-    picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(vec![Span::styled(
+    let footer = Line::from(vec![Span::styled(
         crate::t!("dialog.dashboard.close"),
         Style::default().fg(BLACK).bg(DIM_GRAY),
-    )]));
-    render_popup(
+    )]);
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("panel.server.api_endpoint"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        None,
         picker_lines,
-        BorderType::Rounded,
+        Some(footer),
+        None,
     );
 }
 
@@ -2174,7 +2268,7 @@ fn render_dashboard_url(
     };
     f.render_widget(Clear, modal_area);
     let w = 72u16;
-    let h = 20.min(area.height - 4);
+    let h = 22.min(area.height - 4);
     let picker_area = Rect {
         x: (area.width - w) / 2,
         y: (area.height - h) / 2,
@@ -2807,7 +2901,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
 
 fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usize) {
     let w: u16 = 60;
-    let h: u16 = (8.min(area.height.saturating_sub(4))).max(7);
+    let h: u16 = (9.min(area.height.saturating_sub(4))).max(7);
     let popup_area = center_rect(area, w, h);
     let clamped_pos = cursor_pos.min(buffer.len());
     let before: String = buffer.chars().take(clamped_pos).collect();
@@ -3051,16 +3145,7 @@ fn render_yarn_rope_picker(
     edit_buffer: &str,
     edit_cursor_pos: usize,
 ) {
-    let w: u16 = 60;
-    let h: u16 = (14.min(area.height - 4)).max(8);
-    let picker_area = center_rect(area, w, h);
-    let mut picker_lines: Vec<Line> = vec![
-        Line::from(Span::styled(
-            crate::t!("dialog.yarn.help"),
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-    ];
+    let mut picker_lines: Vec<Line> = Vec::new();
 
     let fields = [
         (
@@ -3123,7 +3208,7 @@ fn render_yarn_rope_picker(
     picker_lines.push(Line::from(""));
     picker_lines.push(Line::from(Span::styled(
         format!(
-            "  scale={:.2} base={:.2} scale_f={:.2}",
+            "scale={:.2} base={:.2} scale_f={:.2}",
             rope_scale_display, freq_base_val, freq_scale_val
         ),
         Style::default().fg(DIM_GRAY),
@@ -3137,15 +3222,20 @@ fn render_yarn_rope_picker(
         Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
     )));
 
-    render_popup(
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.yarn.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.yarn.help"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ))),
         picker_lines,
-        BorderType::Rounded,
+        None,
+        None,
     );
 }
 
@@ -3156,16 +3246,7 @@ fn render_spec_type_picker(
     entries: &[String],
     selected: usize,
 ) {
-    let w = 50u16;
-    let h = (entries.len() as u16 + 6).min(area.height - 4);
-    let picker_area = center_rect(area, w, h);
-    let mut picker_lines: Vec<Line> = vec![
-        Line::from(Span::styled(
-            crate::t!("dialog.spec.help"),
-            Style::default().fg(ACCENT),
-        )),
-        Line::from(""),
-    ];
+    let mut picker_lines: Vec<Line> = Vec::new();
 
     for (i, entry) in entries.iter().enumerate() {
         let marker = if i == selected { "> " } else { "  " };
@@ -3183,15 +3264,20 @@ fn render_spec_type_picker(
         ]));
     }
 
-    render_popup(
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.spec.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.spec.help"),
+            Style::default().fg(ACCENT),
+        ))),
         picker_lines,
-        BorderType::Rounded,
+        None,
+        None,
     );
 }
 
@@ -3202,16 +3288,7 @@ fn render_chat_template_picker(
     entries: &[String],
     selected: usize,
 ) {
-    let w = 55u16;
-    let h = (entries.len() as u16 + 8).min(area.height - 4);
-    let picker_area = center_rect(area, w, h);
-    let mut picker_lines: Vec<Line> = vec![
-        Line::from(Span::styled(
-            crate::t!("dialog.chat_template.help"),
-            Style::default().fg(ACCENT),
-        )),
-        Line::from(""),
-    ];
+    let mut picker_lines: Vec<Line> = Vec::new();
 
     for (i, entry) in entries.iter().enumerate() {
         let marker = if i == selected { "> " } else { "  " };
@@ -3229,15 +3306,20 @@ fn render_chat_template_picker(
         ]));
     }
 
-    render_popup(
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.chat_template.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.chat_template.help"),
+            Style::default().fg(ACCENT),
+        ))),
         picker_lines,
-        BorderType::Rounded,
+        None,
+        None,
     );
 }
 
@@ -3248,16 +3330,7 @@ fn render_chat_template_file_picker(
     entries: &[(String, String)],
     selected: usize,
 ) {
-    let w = 60u16;
-    let h = (entries.len() as u16 + 6).min(area.height - 4);
-    let picker_area = center_rect(area, w, h);
-    let mut picker_lines: Vec<Line> = vec![
-        Line::from(Span::styled(
-            crate::t!("dialog.chat_template.file.help"),
-            Style::default().fg(ACCENT),
-        )),
-        Line::from(""),
-    ];
+    let mut picker_lines: Vec<Line> = Vec::new();
 
     if entries.is_empty() {
         picker_lines.push(Line::from(Span::styled(
@@ -3282,15 +3355,20 @@ fn render_chat_template_file_picker(
         }
     }
 
-    render_popup(
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.chat_template.file.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.chat_template.file.help"),
+            Style::default().fg(ACCENT),
+        ))),
         picker_lines,
-        BorderType::Rounded,
+        None,
+        None,
     );
 }
 
@@ -3308,9 +3386,6 @@ fn render_llama_server_picker(
     editing: bool,
     edit_buffer: &str,
 ) {
-    let w = 55u16;
-    let h = 26.min(area.height - 4);
-    let picker_area = center_rect(area, w, h);
     let mut picker_lines: Vec<Line> = Vec::new();
 
     let port_marker = if selected_field == -1i32 { "> " } else { "  " };
@@ -3425,19 +3500,20 @@ fn render_llama_server_picker(
             Style::default().fg(ACCENT),
         )]));
     }
-    picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(vec![Span::styled(
+    let footer = Line::from(vec![Span::styled(
         crate::t!("dialog.llama_server.close"),
         Style::default().fg(BLACK).bg(DIM_GRAY),
-    )]));
-    render_popup(
+    )]);
+    render_picker_popup(
         f,
-        picker_area,
+        area,
         Span::styled(
             crate::t!("dialog.llama_server.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
+        None,
         picker_lines,
-        BorderType::Rounded,
+        Some(footer),
+        None,
     );
 }

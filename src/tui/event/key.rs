@@ -708,6 +708,14 @@ pub(super) fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::Key
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
             KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
+            KeyCode::PageUp => {
+                app.picker.prompt_picker_scroll_offset =
+                    app.picker.prompt_picker_scroll_offset.saturating_sub(5);
+            }
+            KeyCode::PageDown => {
+                app.picker.prompt_picker_scroll_offset =
+                    app.picker.prompt_picker_scroll_offset.saturating_add(5);
+            }
             KeyCode::Enter if *selected < entries.len() => {
                 let (name, _) = entries[*selected].clone();
                 app.settings.system_prompt_preset_name = name.clone();

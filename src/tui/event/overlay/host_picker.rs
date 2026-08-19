@@ -25,6 +25,16 @@ impl OverlayHandler for HostPickerHandler {
                 match key.code {
                     KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
                     KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
+                    KeyCode::PageUp => {
+                        app.picker.host_picker_scroll_offset = app
+                            .picker
+                            .host_picker_scroll_offset
+                            .saturating_sub(5);
+                    }
+                    KeyCode::PageDown => {
+                        app.picker.host_picker_scroll_offset =
+                            app.picker.host_picker_scroll_offset.saturating_add(5);
+                    }
                     KeyCode::Enter if *selected < entries.len() => {
                         let (ip, _) = entries[*selected].clone();
                         app.settings.host = ip;
@@ -34,6 +44,7 @@ impl OverlayHandler for HostPickerHandler {
                     KeyCode::Char('d') => {
                         *entries = App::fetch_host_picker_entries();
                         *selected = 0;
+                        app.picker.host_picker_scroll_offset = 0;
                     }
                     KeyCode::Esc => {
                         app.ui.global_mode = GlobalMode::Normal;

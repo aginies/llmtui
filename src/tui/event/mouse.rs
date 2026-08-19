@@ -6,16 +6,26 @@ use crate::tui::app::{ActivePanel, App};
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
     let pos = Position::new(mouse.column, mouse.row);
 
-    if let crate::tui::app::GlobalMode::BackendPicker { entries, selected } = &mut app.ui.global_mode {
-        match mouse.kind {
-            MouseEventKind::ScrollUp => {
-                crate::tui::event::helpers::picker_nav_up(selected);
-            }
-            MouseEventKind::ScrollDown => {
-                crate::tui::event::helpers::picker_nav_down(selected, entries.len());
-            }
-            _ => {}
+    let picker_handled = match &mut app.ui.global_mode {
+        crate::tui::app::GlobalMode::BackendPicker { entries, selected } => {
+            picker_wheel_nav(selected, entries.len(), &mouse.kind);
+            true
         }
+        crate::tui::app::GlobalMode::HostPicker { entries, selected } => {
+            picker_wheel_nav(selected, entries.len(), &mouse.kind);
+            true
+        }
+        crate::tui::app::GlobalMode::PromptPicker { entries, selected, .. } => {
+            picker_wheel_nav(selected, entries.len(), &mouse.kind);
+            true
+        }
+        crate::tui::app::GlobalMode::ProfilePicker { entries, selected, .. } => {
+            picker_wheel_nav(selected, entries.len(), &mouse.kind);
+            true
+        }
+        _ => false,
+    };
+    if picker_handled {
         return;
     }
 
@@ -278,5 +288,15 @@ fn handle_log_scroll(app: &mut App, scroll_up: bool) {
         app.log.log_follow = false;
     } else {
         app.log.log_scroll_offset += 1;
+    }
+}
+
+fn picker_wheel_nav(selected: &mut usize, len: usize, kind: &MouseEventKind) {
+    match kind {
+        MouseEventKind::ScrollUp => crate::tui::event::helpers::picker_nav_up(selected),
+        MouseEventKind::ScrollDown => {
+            crate::tui::event::helpers::picker_nav_down(selected, len)
+        }
+        _ => {}
     }
 }
