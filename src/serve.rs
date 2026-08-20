@@ -16,15 +16,26 @@ use crate::backend::tls;
 use crate::config::Config;
 use crate::models::{DiscoveredModel, WsMetrics};
 
+/// Strip the matching models-directory prefix from a model path, returning
+/// the relative path (display name). Tries every configured models dir, not
+/// just the first, so models in any configured directory are found.
+fn relative_model_path(model_path: &std::path::Path, config: &Config) -> Option<String> {
+    for dir in &config.models_dirs {
+        if let Ok(rel) = model_path.strip_prefix(dir)
+            && let Some(s) = rel.to_str()
+            && !s.is_empty()
+        {
+            return Some(s.to_string());
+        }
+    }
+    None
+}
+
 /// Auto-detect the per-model config file path from the model path.
 /// Looks in ~/.config/llm-manager/models/<key>.yaml where key is derived
 /// from the model's display_name (path relative to model directory).
 fn auto_detect_model_config(model_path: &std::path::Path, config: &Config) -> Option<PathBuf> {
-    let display_name = model_path
-        .strip_prefix(config.models_dirs.first().unwrap_or(&PathBuf::new()))
-        .ok()
-        .and_then(|p| p.to_str())
-        .map(|s| s.to_string())?;
+    let display_name = relative_model_path(model_path, config)?;
 
     let key = crate::config::key_from_display(&display_name);
     let config_dir = crate::config::config_base_dir()
@@ -222,12 +233,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
-    let display_name = model_path
-        .strip_prefix(config.models_dirs.first().unwrap_or(&PathBuf::new()))
-        .ok()
-        .and_then(|p| p.to_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| name.clone());
+    let display_name = relative_model_path(&model_path, &config).unwrap_or_else(|| name.clone());
 
     let model = DiscoveredModel {
         path: model_path.clone(),
@@ -518,16 +524,34 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let host_str = &settings.host;
         let addr: SocketAddr = match format!("{}:{}", host_str, port).parse() {
             Ok(addr) => addr,
-            Err(e) => {
-                // Don't orphan llama-server on a bad bind address
-                let _ = child.kill().await;
-                let _ = child.wait().await;
-                return Err(anyhow::anyhow!(
-                    "Invalid API bind address {}:{}: {}",
-                    host_str,
-                    port,
-                    e
-                ));
+            Err(_) => {
+                // Not a plain "ip:port": hostname (e.g. "localhost") or
+                // unbracketed IPv6. Resolve to a concrete address.
+                match tokio::net::lookup_host((host_str.as_str(), port)).await {
+                    Ok(mut addrs) => match addrs.next() {
+                        Some(a) => a,
+                        None => {
+                            // Don't orphan llama-server on a bad bind address
+                            let _ = child.kill().await;
+                            let _ = child.wait().await;
+                            return Err(anyhow::anyhow!(
+                                "Could not resolve host '{}' for API bind address",
+                                host_str
+                            ));
+                        }
+                    },
+                    Err(e) => {
+                        // Don't orphan llama-server on a bad bind address
+                        let _ = child.kill().await;
+                        let _ = child.wait().await;
+                        return Err(anyhow::anyhow!(
+                            "Invalid API bind address {}:{}: {}",
+                            host_str,
+                            port,
+                            e
+                        ));
+                    }
+                }
             }
         };
         let model_name = model.display_name.clone();

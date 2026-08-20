@@ -52,6 +52,11 @@ pub static TRANSLATIONS: LazyLock<HashMap<String, HashMap<&'static str, &'static
 
 static CURRENT_LANG: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
+/// Interned fallback for missing translation keys: each unique key is leaked
+/// exactly once, so repeated lookups of a missing key do not grow memory.
+static MISSING_KEYS: LazyLock<std::sync::Mutex<HashMap<String, &'static str>>> =
+    LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
+
 fn locale_dir() -> std::path::PathBuf {
     if let Ok(exe) = std::env::current_exe()
         && let Some(dir) = exe.parent()
@@ -104,7 +109,15 @@ pub fn t(key: &str) -> &'static str {
         return value;
     }
 
-    Box::leak(key.to_string().into_boxed_str())
+    // Missing key: intern it so the fallback string is leaked once per unique
+    // key instead of once per call (render paths call t!() constantly).
+    let mut missing = MISSING_KEYS.lock().unwrap();
+    if let Some(&value) = missing.get(key) {
+        return value;
+    }
+    let leaked: &'static str = Box::leak(key.to_string().into_boxed_str());
+    missing.insert(key.to_string(), leaked);
+    leaked
 }
 
 #[macro_export]
@@ -121,12 +134,23 @@ pub fn field_help(field_id: &str) -> String {
 
 pub fn t_fmt(key: &str, args: &[String]) -> String {
     let template = t(key);
-    let mut result = template.to_string();
+    // Single pass: replace each "{}" left-to-right with the next argument.
+    // Already-substituted argument text is never re-scanned, so arguments
+    // containing "{}" cannot be consumed by later placeholders.
+    let mut result =
+        String::with_capacity(template.len() + args.iter().map(|a| a.len()).sum::<usize>());
+    let mut rest = template;
     for arg in args {
-        if let Some(pos) = result.find("{}") {
-            result.replace_range(pos..pos + 2, arg);
+        match rest.find("{}") {
+            Some(pos) => {
+                result.push_str(&rest[..pos]);
+                result.push_str(arg);
+                rest = &rest[pos + 2..];
+            }
+            None => break,
         }
     }
+    result.push_str(rest);
     result
 }
 
@@ -168,6 +192,43 @@ mod tests {
     fn test_t_falls_back_to_key() {
         let result = t("nonexistent.key.xyz");
         assert_eq!(result, "nonexistent.key.xyz");
+    }
+
+    #[test]
+    fn test_missing_key_is_interned() {
+        // Repeated lookups of a missing key must return the same &'static str
+        // (leaked once), not a fresh allocation each call.
+        let a = t("nonexistent.intern.key");
+        let b = t("nonexistent.intern.key");
+        assert_eq!(a, b);
+        assert!(
+            std::ptr::eq(a.as_ptr(), b.as_ptr()),
+            "missing key fallback should be interned"
+        );
+    }
+
+    #[test]
+    fn test_t_fmt_basic() {
+        // Missing key falls back to the key itself as the template.
+        let result = t_fmt("hello {} and {}", &["world".to_string(), "x".to_string()]);
+        assert_eq!(result, "hello world and x");
+    }
+
+    #[test]
+    fn test_t_fmt_arg_containing_placeholder() {
+        // An argument containing "{}" must not be consumed by the next
+        // placeholder substitution.
+        let result = t_fmt("a {} b {}", &["x{}y".to_string(), "z".to_string()]);
+        assert_eq!(result, "a x{}y b z");
+    }
+
+    #[test]
+    fn test_t_fmt_extra_args_ignored() {
+        let result = t_fmt(
+            "only {}",
+            &["one".to_string(), "two".to_string(), "three".to_string()],
+        );
+        assert_eq!(result, "only one");
     }
 
     #[test]

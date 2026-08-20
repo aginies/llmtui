@@ -515,9 +515,12 @@ pub async fn start_api_server(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
+    // No overall request timeout: it applies to the whole response, which
+    // would cut off streaming (SSE) completions running longer than the
+    // limit. Only bound the connect phase to llama-server.
     let client = Client::builder()
         .pool_max_idle_per_host(20)
-        .timeout(std::time::Duration::from_secs(600))
+        .connect_timeout(std::time::Duration::from_secs(30))
         .build()?;
     let state = ApiState {
         server_url: format!("http://{}:{}", clean_host(&host), server_port),
@@ -562,6 +565,8 @@ pub async fn start_api_server(
     }
 
     let app = Router::new()
+        // /health and /metrics stay open (monitoring, keyless checks);
+        // auth applies only to the proxied API routes below.
         .route("/health", get(health))
         .route("/metrics", get(proxy_streaming))
         .merge(
@@ -576,13 +581,13 @@ pub async fn start_api_server(
                     allowed_origins.clone(),
                     cors_middleware,
                 ))
+                .layer(axum::middleware::from_fn_with_state(
+                    state.clone(),
+                    auth_middleware,
+                ))
                 .layer(TraceLayer::new_for_http()),
         )
         .layer(axum::middleware::from_fn(security_headers))
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth_middleware,
-        ))
         .with_state(state);
 
     match tls_config {

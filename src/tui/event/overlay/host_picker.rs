@@ -26,10 +26,8 @@ impl OverlayHandler for HostPickerHandler {
                     KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
                     KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
                     KeyCode::PageUp => {
-                        app.picker.host_picker_scroll_offset = app
-                            .picker
-                            .host_picker_scroll_offset
-                            .saturating_sub(5);
+                        app.picker.host_picker_scroll_offset =
+                            app.picker.host_picker_scroll_offset.saturating_sub(5);
                     }
                     KeyCode::PageDown => {
                         app.picker.host_picker_scroll_offset =

@@ -336,12 +336,9 @@ impl App {
             loop {
                 match rx.try_recv() {
                     Ok(state) => {
-                        if let Some(idx) = self
-                            .download
-                            .download_progress
-                            .iter()
-                            .position(|d| d.model_id == state.model_id && d.filename == state.filename)
-                        {
+                        if let Some(idx) = self.download.download_progress.iter().position(|d| {
+                            d.model_id == state.model_id && d.filename == state.filename
+                        }) {
                             if state.total_bytes > 0 {
                                 let old_pct = (self.download.download_progress[idx].downloaded_bytes
                                     as f32
@@ -369,10 +366,8 @@ impl App {
                             }
                             self.download.download_progress[idx] = state;
                             redraw = true;
-                        } else if !matches!(
-                            state.status,
-                            crate::models::DownloadStatus::Cancelled
-                        ) {
+                        } else if !matches!(state.status, crate::models::DownloadStatus::Cancelled)
+                        {
                             if state.model_id == "llama-server" {
                                 download_logs
                                     .push(crate::t!("async.starting_backend_download").to_string());
@@ -582,9 +577,6 @@ impl App {
 
                 prev_line = Some(line.clone());
                 server_logs.push(line);
-                if server_logs.len() > 100 {
-                    break;
-                }
             }
 
             let metrics_changed = self.metrics.prompt_tokens != old_metrics.prompt_tokens
@@ -2046,7 +2038,9 @@ impl App {
             };
 
             // Pre-bind to detect port-in-use before spawning.
-            let in_cooldown = self.server.server_exit_cooldown_until
+            let in_cooldown = self
+                .server
+                .server_exit_cooldown_until
                 .map(|t| std::time::Instant::now() < t)
                 .unwrap_or(false);
             match tokio::net::TcpListener::bind(addr).await {

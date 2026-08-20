@@ -15,11 +15,15 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
             picker_wheel_nav(selected, entries.len(), &mouse.kind);
             true
         }
-        crate::tui::app::GlobalMode::PromptPicker { entries, selected, .. } => {
+        crate::tui::app::GlobalMode::PromptPicker {
+            entries, selected, ..
+        } => {
             picker_wheel_nav(selected, entries.len(), &mouse.kind);
             true
         }
-        crate::tui::app::GlobalMode::ProfilePicker { entries, selected, .. } => {
+        crate::tui::app::GlobalMode::ProfilePicker {
+            entries, selected, ..
+        } => {
             picker_wheel_nav(selected, entries.len(), &mouse.kind);
             true
         }
@@ -294,9 +298,7 @@ fn handle_log_scroll(app: &mut App, scroll_up: bool) {
 fn picker_wheel_nav(selected: &mut usize, len: usize, kind: &MouseEventKind) {
     match kind {
         MouseEventKind::ScrollUp => crate::tui::event::helpers::picker_nav_up(selected),
-        MouseEventKind::ScrollDown => {
-            crate::tui::event::helpers::picker_nav_down(selected, len)
-        }
+        MouseEventKind::ScrollDown => crate::tui::event::helpers::picker_nav_down(selected, len),
         _ => {}
     }
 }

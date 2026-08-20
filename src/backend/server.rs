@@ -749,15 +749,22 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
             tokio::select! {
                 _ = kill_rx.recv() => {
                     let _ = child.kill().await;
-                    if let Some(h) = std_out.take() { let _ = h.await; }
-                    if let Some(h) = std_err.take() { let _ = h.await; }
+                    // Do NOT await the reader tasks here: a reader blocked on
+                    // a full channel can never finish while this task is the
+                    // only consumer (deadlock). Aborting drops its sender and
+                    // the pipe, which is fine on the shutdown path.
+                    if let Some(h) = std_out.take() { h.abort(); }
+                    if let Some(h) = std_err.take() { h.abort(); }
                     break;
                 }
                 line = stdout_rx.recv() => {
-                    if let Some(line) = line { let _ = log_tx_inner.send(line).await; } else { break; }
+                    // Best-effort: never block on the UI log channel, or a
+                    // full channel (e.g. at shutdown with no consumer) would
+                    // stall this task and the kill branch above.
+                    if let Some(line) = line { let _ = log_tx_inner.try_send(line); } else { break; }
                 }
                 line = stderr_rx.recv() => {
-                    if let Some(line) = line { let _ = log_tx_inner.send(line).await; } else { break; }
+                    if let Some(line) = line { let _ = log_tx_inner.try_send(line); } else { break; }
                 }
                 else => break,
             }

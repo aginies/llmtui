@@ -38,7 +38,9 @@ pub fn config_base_dir() -> PathBuf {
 }
 
 /// Count physical CPU cores on Linux (ignores hyperthreading).
-/// Falls back to 1 if the file can't be read or parsing fails.
+/// Falls back to `available_parallelism` when the file can't be read,
+/// parsing yields nothing (e.g. ARM64, which has no `physical id`/`core id`
+/// fields), or that also fails.
 pub fn physical_cores() -> u32 {
     let content = match std::fs::read_to_string("/proc/cpuinfo") {
         Ok(c) => c,
@@ -64,6 +66,11 @@ pub fn physical_cores() -> u32 {
                 seen.insert((phys, core));
             }
         }
+    }
+    if seen.is_empty() {
+        return std::thread::available_parallelism()
+            .map(|p| p.get() as u32)
+            .unwrap_or(1);
     }
     seen.len().max(1) as u32
 }
@@ -1009,7 +1016,7 @@ fn default_router_max_models() -> u32 {
     4
 }
 fn default_backend() -> Backend {
-    use crate::backend::hardware::{detect_gpu_vendors, GpuVendor};
+    use crate::backend::hardware::{GpuVendor, detect_gpu_vendors};
     let vendors = detect_gpu_vendors();
     let mut result = Backend::Cpu;
     for v in &vendors {
@@ -1925,12 +1932,17 @@ impl Config {
             std::fs::create_dir_all(parent)?;
         }
         let content = serde_yml::to_string(self)?;
-        std::fs::write(&path, content)?;
+        // Atomic write: a crash or power loss mid-write must not truncate
+        // the live config file. Write to a temp file in the same directory,
+        // then rename over the original.
+        let tmp_path = path.with_extension("yaml.tmp");
+        std::fs::write(&tmp_path, &content)?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+            std::fs::set_permissions(&tmp_path, std::fs::Permissions::from_mode(0o600))?;
         }
+        std::fs::rename(&tmp_path, &path)?;
         // Persist model configs to individual YAML files
         let entries: Vec<(String, ModelOverride)> = self
             .model_overrides

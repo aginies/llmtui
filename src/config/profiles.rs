@@ -33,8 +33,15 @@ impl ProfileStore {
     }
 
     /// Save (or update) a profile.
-    pub fn save(&mut self, profile: &Profile) {
-        self.inner.save(&profile.name, profile)
+    /// Returns `false` if the name collides with a built-in profile:
+    /// a user file with a built-in's name would shadow the built-in in
+    /// `get()`, be invisible in the UI, and be undeletable.
+    pub fn save(&mut self, profile: &Profile) -> bool {
+        if builtin_profiles().iter().any(|b| b.name == profile.name) {
+            return false;
+        }
+        self.inner.save(&profile.name, profile);
+        true
     }
 
     /// Insert a built-in profile into the in-memory cache only (no disk I/O).
@@ -72,5 +79,23 @@ impl ProfileStore {
 impl Default for ProfileStore {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::ModelOverride;
+
+    #[test]
+    fn save_rejects_builtin_name() {
+        let mut store = ProfileStore::new();
+        let profile = Profile {
+            name: "Qwen".to_string(),
+            description: "shadow attempt".to_string(),
+            settings: ModelOverride::default(),
+        };
+        // Reject path performs no disk I/O.
+        assert!(!store.save(&profile));
     }
 }

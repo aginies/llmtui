@@ -1538,7 +1538,7 @@ async fn test_backend_picker_mouse_scroll() {
         entries: app.picker.backend_picker_entries.clone(),
         selected: 1,
     };
-    
+
     // Test scroll down (increases selected index)
     let scroll_down_event = crossterm::event::MouseEvent {
         kind: crossterm::event::MouseEventKind::ScrollDown,
@@ -1546,7 +1546,11 @@ async fn test_backend_picker_mouse_scroll() {
         row: 0,
         modifiers: crossterm::event::KeyModifiers::empty(),
     };
-    llm_manager::tui::event::handle_mouse(&mut app, scroll_down_event, ratatui::layout::Rect::new(0, 0, 80, 24));
+    llm_manager::tui::event::handle_mouse(
+        &mut app,
+        scroll_down_event,
+        ratatui::layout::Rect::new(0, 0, 80, 24),
+    );
     if let GlobalMode::BackendPicker { selected, .. } = app.ui.global_mode {
         assert_eq!(selected, 2);
     } else {
@@ -1560,7 +1564,11 @@ async fn test_backend_picker_mouse_scroll() {
         row: 0,
         modifiers: crossterm::event::KeyModifiers::empty(),
     };
-    llm_manager::tui::event::handle_mouse(&mut app, scroll_up_event, ratatui::layout::Rect::new(0, 0, 80, 24));
+    llm_manager::tui::event::handle_mouse(
+        &mut app,
+        scroll_up_event,
+        ratatui::layout::Rect::new(0, 0, 80, 24),
+    );
     if let GlobalMode::BackendPicker { selected, .. } = app.ui.global_mode {
         assert_eq!(selected, 1);
     } else {

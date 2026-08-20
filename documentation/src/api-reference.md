@@ -20,6 +20,8 @@ cargo doc --open
 | `SearchResult` | `models` | A model found via HuggingFace search |
 | `DownloadState` | `models` | Download progress tracking with cancellation support |
 | `GgufMetadata` | `models` | Parsed GGUF metadata (layers, hidden size, context, etc.) |
+| `GgufHeader` | `gguf` | Parsed GGUF header: metadata KV pairs + total parameter count (sum of tensor shapes) |
+| `GgufValue` | `gguf` | GGUF metadata value (u8/i8/u16/i16/u32/i32/f32/bool/string/array/u64/i64/f64) |
 | `ServerMetrics` | `models` | Metrics from the llama.cpp server (TPS, VRAM, CPU, context, latency, prompt progress) |
 | `WsMetrics` | `models` | WebSocket-friendly metrics snapshot (serializable, includes settings, command display, timestamp) |
 | `LogEntry` | `config` | A single log entry with timestamp, level, and message |

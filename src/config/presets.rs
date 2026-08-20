@@ -38,8 +38,18 @@ impl PresetStore {
     }
 
     /// Save (or update) a preset.
-    pub fn save(&mut self, preset: &SystemPromptPreset) {
-        self.inner.save(&preset.name, preset)
+    /// Returns `false` if the name collides with a built-in preset:
+    /// a user file with a built-in's name would shadow the built-in in
+    /// `get()`, be invisible in the UI, and be undeletable.
+    pub fn save(&mut self, preset: &SystemPromptPreset) -> bool {
+        if builtin_system_prompt_presets()
+            .iter()
+            .any(|b| b.name == preset.name)
+        {
+            return false;
+        }
+        self.inner.save(&preset.name, preset);
+        true
     }
 
     /// Insert a built-in preset into the in-memory cache only (no disk I/O).
@@ -70,5 +80,22 @@ impl PresetStore {
 impl Default for PresetStore {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn save_rejects_builtin_name() {
+        let mut store = PresetStore::new();
+        let preset = SystemPromptPreset {
+            name: "Coder".to_string(),
+            description: "shadow attempt".to_string(),
+            content: String::new(),
+        };
+        // Reject path performs no disk I/O.
+        assert!(!store.save(&preset));
     }
 }

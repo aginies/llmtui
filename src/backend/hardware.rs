@@ -139,7 +139,9 @@ fn detect_gpu_models_linux_impl() -> Vec<Option<String>> {
             };
 
             if vendor == GpuVendor::Amd {
-                if let Some(gfx) = amd_gfx_targets.get(amd_card_idx % amd_gfx_targets.len()) {
+                if !amd_gfx_targets.is_empty()
+                    && let Some(gfx) = amd_gfx_targets.get(amd_card_idx % amd_gfx_targets.len())
+                {
                     models.push(Some(format!("{} ({})", vendor_name, gfx)));
                 } else {
                     models.push(Some(vendor_name.to_string()));
@@ -460,9 +462,7 @@ pub fn detect_all_gpus() -> Vec<GpuInfo> {
 #[cfg(target_os = "linux")]
 fn detect_all_gpus_linux() -> Vec<GpuInfo> {
     // Try lspci first for full model names
-    let gpu_lines = match std::process::Command::new("lspci")
-        .output()
-    {
+    let gpu_lines = match std::process::Command::new("lspci").output() {
         Ok(out) if out.status.success() => {
             let output = String::from_utf8_lossy(&out.stdout).to_string();
             parse_lspci_gpus(&output)
@@ -485,7 +485,7 @@ fn parse_lspci_gpus(output: &str) -> Vec<GpuInfo> {
     for line in output.lines() {
         let line = line.trim();
         let lower = line.to_lowercase();
-        
+
         let is_gpu = lower.contains("vga") || lower.contains("3d") || lower.contains("display");
         if !is_gpu {
             continue;
@@ -512,7 +512,7 @@ fn parse_lspci_line(line: &str) -> Option<GpuInfo> {
     let is_gpu = class.to_lowercase().contains("vga")
         || class.to_lowercase().contains("3d")
         || class.to_lowercase().contains("display");
-    
+
     if !is_gpu {
         return None;
     }
@@ -545,7 +545,9 @@ fn parse_lspci_line(line: &str) -> Option<GpuInfo> {
             })
         } else {
             // Remove "(rev XX)" suffix for clean name
-            let name = rest.trim_end_matches(|c: char| c.is_ascii_digit() || c == ' ').to_string();
+            let name = rest
+                .trim_end_matches(|c: char| c.is_ascii_digit() || c == ' ')
+                .to_string();
             Some(GpuInfo { vendor, name })
         }
     } else {
@@ -555,7 +557,10 @@ fn parse_lspci_line(line: &str) -> Option<GpuInfo> {
         } else {
             rest.to_string()
         };
-        Some(GpuInfo { vendor, name: name.trim().to_string() })
+        Some(GpuInfo {
+            vendor,
+            name: name.trim().to_string(),
+        })
     }
 }
 
@@ -589,7 +594,9 @@ fn detect_all_gpus_sysfs() -> Vec<GpuInfo> {
             };
 
             let name = if vendor == GpuVendor::Amd {
-                if let Some(gfx) = amd_gfx_targets.get(amd_card_idx % amd_gfx_targets.len()) {
+                if !amd_gfx_targets.is_empty()
+                    && let Some(gfx) = amd_gfx_targets.get(amd_card_idx % amd_gfx_targets.len())
+                {
                     format!("{} ({})", vendor_name, gfx)
                 } else {
                     vendor_name.to_string()
@@ -828,7 +835,8 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_parse_lspci_intel() {
-        let input = "00:02.0 VGA compatible controller: Intel Corporation Alder Lake-P GT1 [UHD Graphics]";
+        let input =
+            "00:02.0 VGA compatible controller: Intel Corporation Alder Lake-P GT1 [UHD Graphics]";
         let info = test_parse_lspci_line(input).unwrap();
         assert_eq!(info.vendor, GpuVendor::Intel);
         assert!(info.name.contains("Alder Lake"));

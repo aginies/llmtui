@@ -50,7 +50,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         let port = if let Some(handle) = &app.server.server_handle {
             handle.port
         } else {
-            0
+            app.settings.port
         };
         app.ui.global_mode = GlobalMode::DashboardUrl {
             host: app.settings.host.clone(),
@@ -659,6 +659,7 @@ pub(super) fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::Key
                 }
                 KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     let mut saved = false;
+                    let mut name_conflict = false;
                     if *selected < entries.len() {
                         let name = entries[*selected].0.clone();
                         let content = edit_buffer.clone();
@@ -666,22 +667,32 @@ pub(super) fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::Key
                             app.config.system_prompt_presets.get(&name).cloned()
                         {
                             preset.content = content;
-                            app.config.system_prompt_presets.save(&preset);
-                            saved = app.config.save().is_ok();
+                            if app.config.system_prompt_presets.save(&preset) {
+                                saved = app.config.save().is_ok();
+                            } else {
+                                name_conflict = true;
+                            }
                         }
                     }
-                    let log_msg = if saved {
-                        "Saved preset"
-                    } else {
-                        "Failed to save preset"
-                    };
-                    let log_level = if saved {
-                        crate::config::LogLevel::Info
-                    } else {
-                        crate::config::LogLevel::Error
-                    };
                     *editing = false;
-                    app.add_log(log_msg, log_level);
+                    if name_conflict {
+                        app.add_log(
+                            crate::t!("presets.name_conflict"),
+                            crate::config::LogLevel::Warning,
+                        );
+                    } else {
+                        let log_msg = if saved {
+                            "Saved preset"
+                        } else {
+                            "Failed to save preset"
+                        };
+                        let log_level = if saved {
+                            crate::config::LogLevel::Info
+                        } else {
+                            crate::config::LogLevel::Error
+                        };
+                        app.add_log(log_msg, log_level);
+                    }
                 }
                 KeyCode::Char(c) => {
                     TextEditor {
@@ -744,7 +755,13 @@ pub(super) fn handle_prompt_picker_key(app: &mut App, key: crossterm::event::Key
                     description: "User-defined preset".into(),
                     content: String::new(),
                 };
-                app.config.system_prompt_presets.save(&preset);
+                if !app.config.system_prompt_presets.save(&preset) {
+                    app.add_log(
+                        crate::t!("presets.name_conflict"),
+                        crate::config::LogLevel::Warning,
+                    );
+                    return;
+                }
                 entries.push((name.clone(), "User-defined preset".into()));
                 *selected = entries.len() - 1;
                 *editing = true;
@@ -1203,10 +1220,12 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         {
             let (model_id, readme_present) =
                 if let ModelsMode::Search { results, .. } = &app.models_mode {
-                    app.search.search_results_idx.and_then(|idx| results.get(idx)).map_or(
-                        (String::new(), false),
-                        |r| (r.model_id.clone(), r.readme.is_some()),
-                    )
+                    app.search
+                        .search_results_idx
+                        .and_then(|idx| results.get(idx))
+                        .map_or((String::new(), false), |r| {
+                            (r.model_id.clone(), r.readme.is_some())
+                        })
                 } else {
                     (String::new(), false)
                 };
@@ -1391,10 +1410,12 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Right => {
             let (model_id, readme_present) =
                 if let ModelsMode::Search { results, .. } = &app.models_mode {
-                    app.search.search_results_idx.and_then(|idx| results.get(idx)).map_or(
-                        (String::new(), false),
-                        |r| (r.model_id.clone(), r.readme.is_some()),
-                    )
+                    app.search
+                        .search_results_idx
+                        .and_then(|idx| results.get(idx))
+                        .map_or((String::new(), false), |r| {
+                            (r.model_id.clone(), r.readme.is_some())
+                        })
                 } else {
                     (String::new(), false)
                 };

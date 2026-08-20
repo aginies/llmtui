@@ -43,9 +43,13 @@ pub async fn start_ws_server(
 
     match tls_config {
         Some(tls_cfg) => {
-            let socket_addr: std::net::SocketAddr = addr
-                .parse()
-                .map_err(|e| anyhow!("Invalid bind address {addr} for TLS: {e}"))?;
+            // rustls binding needs a concrete SocketAddr, so resolve
+            // hostnames (e.g. "localhost", unbracketed IPv6) first.
+            let socket_addr = tokio::net::lookup_host((host.as_str(), port))
+                .await
+                .with_context(|| format!("Failed to resolve host '{host}'"))?
+                .next()
+                .ok_or_else(|| anyhow!("No addresses found for host '{host}'"))?;
             let tls_listener = axum_server::bind_rustls(socket_addr, tls_cfg);
             let shutdown_fut = async move {
                 let _ = shutdown_rx.wait_for(|v| *v).await;
@@ -84,14 +88,31 @@ pub fn stop_ws_server(handle: JoinHandle<()>) {
     handle.abort();
 }
 
+/// Check whether a dashboard request is authorized. When no auth key is
+/// configured, access is open; otherwise the provided key must match.
+fn dashboard_auth_ok(auth_key: &Option<String>, provided: &str) -> bool {
+    match auth_key {
+        None => true,
+        Some(expected) => !constant_time_not_eq(provided.as_bytes(), expected.as_bytes()),
+    }
+}
+
 async fn serve_dashboard(
     axum::extract::State(state): axum::extract::State<WsAppState>,
-) -> Html<String> {
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> impl IntoResponse {
+    // When auth is configured, the key must be provided as ?key=... —
+    // otherwise anyone who can reach the port could read the key from the
+    // HTML and connect to /ws unauthenticated.
+    let provided = params.get("key").map(|s| s.as_str()).unwrap_or("");
+    if !dashboard_auth_ok(&state.auth_key, provided) {
+        return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
+    }
     let auth_json = serde_json::to_string(&state.auth_key).unwrap_or_else(|_| "null".to_string());
     let escaped = html_escape_attr(&auth_json);
     let meta_tag = format!(r#"<meta name="ws-auth" content="{}">"#, escaped);
     let html = include_str!("../dashboard.html");
-    Html(html.replacen("<body>", &format!("<body>{}", meta_tag), 1))
+    Html(html.replacen("<body>", &format!("<body>{}", meta_tag), 1)).into_response()
 }
 
 /// Escape a string for safe placement inside an HTML attribute value.
@@ -176,5 +197,24 @@ async fn handle_socket(socket: WebSocket, state: WsAppState) {
                 }
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dashboard_open_when_no_auth_configured() {
+        assert!(dashboard_auth_ok(&None, ""));
+        assert!(dashboard_auth_ok(&None, "anything"));
+    }
+
+    #[test]
+    fn dashboard_requires_matching_key() {
+        let key = Some("secret-key".to_string());
+        assert!(dashboard_auth_ok(&key, "secret-key"));
+        assert!(!dashboard_auth_ok(&key, ""));
+        assert!(!dashboard_auth_ok(&key, "wrong-key"));
     }
 }

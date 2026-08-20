@@ -77,11 +77,7 @@ pub fn get_free_space_bytes(path: &std::path::Path) -> Option<u64> {
             )
         };
 
-        if result != 0 {
-            Some(free_bytes)
-        } else {
-            None
-        }
+        if result != 0 { Some(free_bytes) } else { None }
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
@@ -127,7 +123,12 @@ fn resolve_backend_key(backend: &crate::models::Backend) -> Option<(&'static str
             Some(("ggml-org/llama.cpp", "bin-ubuntu-vulkan-x64.tar.gz"))
         }
         crate::models::Backend::Rocm => {
-            Some(("ggml-org/llama.cpp", "bin-ubuntu-rocm-7.2-x64.tar.gz"))
+            // The exact ROCm asset name has changed over time
+            // (bin-ubuntu-rocm-x64, bin-ubuntu-rocm-7.2-x64, ...) and recent
+            // releases no longer publish the old name, so match any ubuntu
+            // ROCm asset and resolve the exact name per release at download
+            // time (see resolve_backend_binary).
+            Some(("ggml-org/llama.cpp", "bin-ubuntu-rocm"))
         }
         // Linux ARM64
         crate::models::Backend::CpuArm64 => Some(("ggml-org/llama.cpp", "bin-ubuntu-arm64.tar.gz")),
@@ -315,13 +316,15 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
         .unwrap();
     let resp = match client.get(&url).send().await {
         Ok(r) if r.status().is_success() => r,
-        _ => client
-            .get(&format!(
-                "https://huggingface.co/api/models/{}/tree/master",
-                model_id
-            ))
-            .send()
-            .await?,
+        _ => {
+            client
+                .get(&format!(
+                    "https://huggingface.co/api/models/{}/tree/master",
+                    model_id
+                ))
+                .send()
+                .await?
+        }
     };
     let resp = resp.error_for_status()?;
     let files: Vec<serde_json::Value> = resp.json().await?;
@@ -387,8 +390,23 @@ pub async fn download_file(
     download_state: std::sync::Arc<std::sync::atomic::AtomicU8>,
     tx: tokio::sync::broadcast::Sender<crate::models::DownloadState>,
 ) -> Result<Option<String>> {
-    let client = reqwest::Client::new();
-    let resp = client.get(url).send().await?.error_for_status()?;
+    // No overall request timeout: files are large and stream for minutes.
+    // Instead bound the connect phase and detect stalled streams per chunk.
+    let client = reqwest::Client::builder()
+        .user_agent(super::USER_AGENT)
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))?;
+    let resp = match tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        client.get(url).send(),
+    )
+    .await
+    {
+        Ok(r) => r?,
+        Err(_) => anyhow::bail!("Connection timed out"),
+    };
+    let resp = resp.error_for_status()?;
 
     // Capture the sha2-256 header from the response (GitHub CDN provides this)
     let sha256 = resp
@@ -436,18 +454,29 @@ pub async fn download_file(
             progress.status = crate::models::DownloadStatus::Downloading;
         }
 
-        let chunk = match stream.next().await {
-            Some(Ok(c)) => c,
-            Some(Err(e)) => {
-                drop(file);
-                let _ = tokio::fs::remove_file(dest).await;
-                return Err(anyhow::anyhow!("Stream error: {}", e));
-            }
-            None => {
-                stream_done = true;
-                continue;
-            }
-        };
+        // Bound each chunk read: a stalled TCP stream (no data, no error)
+        // would otherwise block here forever, and cancel/pause are only
+        // checked at the top of this loop.
+        let chunk =
+            match tokio::time::timeout(std::time::Duration::from_secs(60), stream.next()).await {
+                Ok(Some(Ok(c))) => c,
+                Ok(Some(Err(e))) => {
+                    drop(file);
+                    let _ = tokio::fs::remove_file(dest).await;
+                    return Err(anyhow::anyhow!("Stream error: {}", e));
+                }
+                Ok(None) => {
+                    stream_done = true;
+                    continue;
+                }
+                Err(_) => {
+                    drop(file);
+                    let _ = tokio::fs::remove_file(dest).await;
+                    return Err(anyhow::anyhow!(
+                        "Download stalled: no data received for 60s"
+                    ));
+                }
+            };
 
         if let Err(e) = file.write_all(&chunk).await {
             drop(file);
@@ -476,12 +505,18 @@ pub async fn download_file(
     progress.status = crate::models::DownloadStatus::Complete;
     let _ = tx.send(progress.clone());
 
-    // Check that we actually downloaded something
-    if progress.downloaded_bytes == 0 && progress.total_bytes > 0 {
-        anyhow::bail!(
-            "Downloaded file is empty (0 bytes), expected {} bytes",
-            progress.total_bytes
-        );
+    // Check that we actually downloaded something. A 0-byte file is invalid
+    // even when the server omitted Content-Length (total_bytes == 0).
+    if progress.downloaded_bytes == 0 {
+        drop(file);
+        let _ = tokio::fs::remove_file(dest).await;
+        if progress.total_bytes > 0 {
+            anyhow::bail!(
+                "Downloaded file is empty (0 bytes), expected {} bytes",
+                progress.total_bytes
+            );
+        }
+        anyhow::bail!("Downloaded file is empty (0 bytes)");
     }
 
     Ok(sha256)
@@ -774,12 +809,23 @@ pub async fn resolve_backend_binary(
             ),
             false,
         ),
-        crate::models::Backend::Rocm => (
-            format!(
-                "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz"
-            ),
-            false,
-        ),
+        crate::models::Backend::Rocm => {
+            // The ROCm asset name is not stable across releases (rocm-x64,
+            // rocm-7.2-x64, ...) and recent releases dropped it entirely.
+            // Look up the actual asset name for this tag; fall back to the
+            // last known name if the lookup fails (e.g. offline).
+            let asset_name =
+                fetch_release_asset_name("ggml-org/llama.cpp", &tag, "bin-ubuntu-rocm")
+                    .await
+                    .unwrap_or_else(|| format!("llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz"));
+            (
+                format!(
+                    "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{}",
+                    asset_name
+                ),
+                false,
+            )
+        }
         crate::models::Backend::RocmLemonade => {
             use crate::backend::hardware::{detect_amd_gfx_target, get_lemonade_gfx_suffix};
             let gfx = detect_amd_gfx_target().unwrap_or_else(|| "gfx1100".to_string());
@@ -1023,8 +1069,10 @@ pub async fn resolve_backend_binary(
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                let _ =
-                    std::fs::set_permissions(&bench_bin_path, std::fs::Permissions::from_mode(0o755));
+                let _ = std::fs::set_permissions(
+                    &bench_bin_path,
+                    std::fs::Permissions::from_mode(0o755),
+                );
             }
         }
 
@@ -1062,7 +1110,11 @@ pub async fn resolve_backend_binary(
                 }
             }
         });
-        tracing::info!("  -> extracted {} shared libraries: {:?}", libs_found.len(), libs_found);
+        tracing::info!(
+            "  -> extracted {} shared libraries: {:?}",
+            libs_found.len(),
+            libs_found
+        );
         if !bin_dir.join(lib_name).exists() {
             anyhow::bail!(
                 "Expected library '{}' not found in archive (found: {:?})",
@@ -1079,7 +1131,8 @@ pub async fn resolve_backend_binary(
         }
 
         Ok(bin_path)
-    }.await;
+    }
+    .await;
 
     // Clean up temp files
     let _ = tokio::fs::remove_file(&tmp_path).await;
@@ -1098,6 +1151,22 @@ pub fn file_sha256(path: &std::path::Path) -> Result<String> {
 }
 
 /// Extract a .tar.gz or .zip archive into a directory.
+/// Lexically normalize a path (resolve `.` and `..` without touching the
+/// filesystem). Only sound for absolute paths.
+fn normalize_path(p: &std::path::Path) -> std::path::PathBuf {
+    let mut out: Vec<&std::ffi::OsStr> = Vec::new();
+    for comp in p.components() {
+        match comp {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            c => out.push(c.as_os_str()),
+        }
+    }
+    out.iter().copied().collect()
+}
+
 pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Path) -> Result<()> {
     let filename = archive_path
         .file_name()
@@ -1143,6 +1212,9 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
         let decoder = GzDecoder::new(file);
         let mut archive = Archive::new(decoder);
         let entries = archive.entries()?;
+        // Symlinks created so far: used to reject entries whose path passes
+        // through a symlinked parent (which would write outside dest_dir).
+        let mut symlinked: Vec<std::path::PathBuf> = Vec::new();
         for entry in entries {
             let mut entry = entry?;
             let entry_path = entry.path()?;
@@ -1154,25 +1226,61 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
                     full_path.display()
                 ));
             }
+            // Reject entries that would follow a symlink created earlier in
+            // the archive (e.g. "link" -> "../outside" then "link/file").
+            if let Ok(rel) = full_path.strip_prefix(&dest_dir) {
+                let mut ancestor = rel;
+                while let Some(parent) = ancestor.parent() {
+                    if parent.as_os_str().is_empty() {
+                        break;
+                    }
+                    if symlinked.contains(&dest_dir.join(parent)) {
+                        return Err(anyhow::anyhow!(
+                            "Tar entry {} follows a symlink inside the archive",
+                            entry_path.display()
+                        ));
+                    }
+                    ancestor = parent;
+                }
+            }
             // Detect directory entries by tar header type, not path suffix
             let is_dir = entry.header().entry_type().is_dir();
             if is_dir {
                 std::fs::create_dir_all(&full_path)?;
             } else if entry.header().entry_type().is_symlink() {
-                // Preserve symlinks: read the symlink target and create a symlink at dest
+                // Preserve symlinks, but only if the target stays inside
+                // dest_dir — an escaping target would let later entries (or
+                // the user) read/write outside the extraction directory.
                 let header = entry.header();
                 if let Ok(Some(link_target)) = header.link_name() {
+                    let link_target = link_target.into_owned();
+                    let target = if link_target.is_absolute() {
+                        link_target.clone()
+                    } else if let Some(parent) = full_path.parent() {
+                        parent.join(&link_target)
+                    } else {
+                        link_target.clone()
+                    };
+                    let normalized = normalize_path(&target);
+                    if !normalized.starts_with(&dest_dir) {
+                        return Err(anyhow::anyhow!(
+                            "Tar symlink escape detected: {} -> {}",
+                            full_path.display(),
+                            link_target.display()
+                        ));
+                    }
                     if let Some(parent) = full_path.parent() {
                         std::fs::create_dir_all(parent)?;
                     }
                     #[cfg(unix)]
                     {
-                        let _ = std::os::unix::fs::symlink(&link_target, &full_path);
+                        std::os::unix::fs::symlink(&link_target, &full_path)?;
                     }
                     #[cfg(windows)]
                     {
-                        let _ = std::os::windows::fs::symlink_file(&link_target, &full_path);
+                        std::os::windows::fs::symlink_file(&link_target, &full_path)?;
                     }
+                    symlinked.push(full_path.clone());
                 }
             } else {
                 if let Some(parent) = full_path.parent() {
@@ -1220,6 +1328,39 @@ async fn latest_release_with_asset(repo: &str, asset_pattern: &str, fallback: &s
         repo
     );
     latest_release_with_asset_inner(&client, &url, asset_pattern, fallback).await
+}
+
+/// Fetch the name of the first asset in a specific release whose name
+/// contains `pattern`. Returns `None` on any error or when no asset matches.
+async fn fetch_release_asset_name(repo: &str, tag: &str, pattern: &str) -> Option<String> {
+    let client = reqwest::Client::new();
+    let url = format!(
+        "https://api.github.com/repos/{}/releases/tags/{}",
+        repo, tag
+    );
+    fetch_release_asset_name_inner(&client, &url, pattern).await
+}
+
+async fn fetch_release_asset_name_inner(
+    client: &reqwest::Client,
+    url: &str,
+    pattern: &str,
+) -> Option<String> {
+    let resp = client
+        .get(url)
+        .header("Accept", "application/vnd.github.v3+json")
+        .header("User-Agent", super::USER_AGENT)
+        .send()
+        .await
+        .ok()?;
+    let release: serde_json::Value = resp.error_for_status().ok()?.json().await.ok()?;
+    release.get("assets")?.as_array()?.iter().find_map(|asset| {
+        asset
+            .get("name")
+            .and_then(|n| n.as_str())
+            .filter(|n| n.contains(pattern))
+            .map(|s| s.to_string())
+    })
 }
 
 async fn latest_release_with_asset_inner(
@@ -1443,6 +1584,76 @@ mod tests {
         assert_eq!(result, "v3081");
     }
 
+    #[tokio::test]
+    async fn test_fetch_release_asset_name_finds_rocm() {
+        let server = MockServer::start().await;
+        let release = serde_json::json!({
+            "tag_name": "b1234",
+            "assets": [
+                {"name": "llama-b1234-bin-ubuntu-x64.tar.gz"},
+                {"name": "llama-b1234-bin-ubuntu-rocm-x64.tar.gz"}
+            ]
+        });
+        Mock::given(method("GET"))
+            .and(path("/org/repo/releases/tags/b1234"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(release.to_string()))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+        let url = format!("{}/org/repo/releases/tags/b1234", server.uri());
+        let name = fetch_release_asset_name_inner(&client, &url, "bin-ubuntu-rocm").await;
+        assert_eq!(
+            name,
+            Some("llama-b1234-bin-ubuntu-rocm-x64.tar.gz".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_fetch_release_asset_name_no_match() {
+        let server = MockServer::start().await;
+        let release = serde_json::json!({
+            "tag_name": "b1234",
+            "assets": [
+                {"name": "llama-b1234-bin-ubuntu-x64.tar.gz"}
+            ]
+        });
+        Mock::given(method("GET"))
+            .and(path("/org/repo/releases/tags/b1234"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(release.to_string()))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+        let url = format!("{}/org/repo/releases/tags/b1234", server.uri());
+        let name = fetch_release_asset_name_inner(&client, &url, "bin-ubuntu-rocm").await;
+        assert_eq!(name, None);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_release_asset_name_error_returns_none() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/org/repo/releases/tags/b1234"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+        let url = format!("{}/org/repo/releases/tags/b1234", server.uri());
+        let name = fetch_release_asset_name_inner(&client, &url, "bin-ubuntu-rocm").await;
+        assert_eq!(name, None);
+    }
+
     #[test]
     fn test_extract_version_number() {
         assert_eq!(extract_version_number("v3081"), 3081);
@@ -1458,5 +1669,110 @@ mod tests {
         assert_eq!(compare_versions("v3081", "v3081"), "v3081");
         assert_eq!(compare_versions("b9266", "b9279"), "b9279");
         assert_eq!(compare_versions("b9279", "b9266"), "b9279");
+    }
+
+    fn tmp_dir(tag: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "llm-manager-test-{}-{}-{}",
+            std::process::id(),
+            tag,
+            nanos
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn append_symlink(tar: &mut tar::Builder<impl std::io::Write>, path: &str, target: &str) {
+        let mut hdr = tar::Header::new_gnu();
+        hdr.set_path(path).unwrap();
+        hdr.set_link_name(target).unwrap();
+        hdr.set_entry_type(tar::EntryType::Symlink);
+        hdr.set_size(0);
+        hdr.set_cksum();
+        tar.append(&hdr, std::io::empty()).unwrap();
+    }
+
+    fn append_file(tar: &mut tar::Builder<impl std::io::Write>, path: &str, content: &[u8]) {
+        let mut hdr = tar::Header::new_gnu();
+        hdr.set_path(path).unwrap();
+        hdr.set_size(content.len() as u64);
+        hdr.set_cksum();
+        tar.append(&hdr, content).unwrap();
+    }
+
+    fn build_tar_gz(
+        path: &std::path::Path,
+        prepare: impl FnOnce(&mut tar::Builder<flate2::write::GzEncoder<std::fs::File>>),
+    ) {
+        let file = std::fs::File::create(path).unwrap();
+        let enc = flate2::write::GzEncoder::new(file, flate2::Compression::default());
+        let mut tar = tar::Builder::new(enc);
+        prepare(&mut tar);
+        tar.into_inner().unwrap().finish().unwrap();
+    }
+
+    #[test]
+    fn test_extract_rejects_symlink_escape() {
+        let dir = tmp_dir("tar-symlink-escape");
+        let archive = dir.join("evil.tar.gz");
+        let dest = dir.join("dest");
+        std::fs::create_dir_all(&dest).unwrap();
+
+        build_tar_gz(&archive, |tar| {
+            // "link" -> "../outside" escapes the extraction directory
+            append_symlink(tar, "link", "../outside");
+            // "link/evil.txt" would follow the symlink and write outside
+            append_file(tar, "link/evil.txt", b"pwned");
+        });
+
+        let res = extract_archive(&archive, &dest);
+        assert!(res.is_err(), "symlink escape must be rejected: {:?}", res);
+        assert!(
+            !dir.join("outside").exists(),
+            "nothing may be written outside dest"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_extract_rejects_absolute_symlink_target() {
+        let dir = tmp_dir("tar-symlink-abs");
+        let archive = dir.join("evil.tar.gz");
+        let dest = dir.join("dest");
+        std::fs::create_dir_all(&dest).unwrap();
+
+        build_tar_gz(&archive, |tar| {
+            append_symlink(tar, "etc", "/etc");
+        });
+
+        let res = extract_archive(&archive, &dest);
+        assert!(
+            res.is_err(),
+            "absolute symlink target must be rejected: {:?}",
+            res
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_extract_allows_internal_symlink() {
+        let dir = tmp_dir("tar-symlink-ok");
+        let archive = dir.join("ok.tar.gz");
+        let dest = dir.join("dest");
+        std::fs::create_dir_all(&dest).unwrap();
+
+        build_tar_gz(&archive, |tar| {
+            append_file(tar, "a.txt", b"hello");
+            append_symlink(tar, "link", "a.txt");
+        });
+
+        let res = extract_archive(&archive, &dest);
+        assert!(res.is_ok(), "internal symlink must be allowed: {:?}", res);
+        assert_eq!(std::fs::read_to_string(dest.join("link")).unwrap(), "hello");
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

@@ -370,6 +370,35 @@ fn backend_from_str_variants() {
 }
 
 #[test]
+fn backend_slug_from_slug_roundtrip() {
+    // Every variant must round-trip through slug() -> from_slug().
+    let all = [
+        Backend::Cpu,
+        Backend::Vulkan,
+        Backend::Rocm,
+        Backend::RocmLemonade,
+        Backend::Cuda,
+        Backend::CpuArm64,
+        Backend::CpuWindows,
+        Backend::VulkanWindows,
+        Backend::CudaWindows12_4,
+        Backend::CudaWindows13_1,
+        Backend::HipWindows,
+        Backend::CpuMacosArm64,
+        Backend::CpuMacosX64,
+    ];
+    for b in all {
+        assert_eq!(
+            Backend::from_slug(b.slug()),
+            Some(b),
+            "roundtrip failed for slug {}",
+            b.slug()
+        );
+    }
+    assert_eq!(Backend::from_slug("nonexistent"), None);
+}
+
+#[test]
 fn backend_default_is_cpu() {
     assert_eq!(Backend::default(), Backend::Cpu);
 }
@@ -409,7 +438,16 @@ fn bench_tune_mode_default_is_full() {
 fn estimate_vram_cpu_only_returns_zero() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::Specific(0);
-    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
+    let result = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
     assert_eq!(result, 0);
 }
 
@@ -417,13 +455,22 @@ fn estimate_vram_cpu_only_returns_zero() {
 fn estimate_vram_all_layers_uses_all() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::All;
-    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
+    let result = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
     // Should be significantly higher than auto since all layers are in VRAM
     assert!(result > 0);
 }
 
 #[test]
-fn estimate_vram_flash_attn_reduces_vram() {
+fn estimate_vram_flash_attn_no_effect() {
     let mut settings_no_flash = ModelSettings::default();
     settings_no_flash.flash_attn = false;
     let settings_flash = ModelSettings::default(); // default has flash_attn = true
@@ -436,6 +483,7 @@ fn estimate_vram_flash_attn_reduces_vram() {
         Some(32),
         Some(8),
         8192,
+        &ArchVramInfo::default(),
     );
     let flash = estimate_vram_mib(
         4000,
@@ -445,17 +493,23 @@ fn estimate_vram_flash_attn_reduces_vram() {
         Some(32),
         Some(8),
         8192,
+        &ArchVramInfo::default(),
     );
-    // Flash attention should reduce VRAM (approximately 2x KV cache)
-    assert!(flash < no_flash);
+    // Flash attention is a compute optimization; it does not change KV cache size.
+    assert_eq!(flash, no_flash);
 }
 
 #[test]
 fn estimate_vram_unified_cache_reduces_vram() {
-    let settings_normal = ModelSettings::default();
+    let mut settings_normal = ModelSettings::default();
+    settings_normal.gpu_layers_mode = GpuLayersMode::All;
+    settings_normal.context_length = 8192;
+    settings_normal.max_concurrent_predictions = Some(4);
     let mut settings_unified = ModelSettings::default();
+    settings_unified.gpu_layers_mode = GpuLayersMode::All;
+    settings_unified.context_length = 8192;
+    settings_unified.max_concurrent_predictions = Some(4);
     settings_unified.uniform_cache = true;
-    settings_unified.parallel = 4;
 
     let normal = estimate_vram_mib(
         4000,
@@ -465,6 +519,7 @@ fn estimate_vram_unified_cache_reduces_vram() {
         Some(32),
         Some(8),
         8192,
+        &ArchVramInfo::default(),
     );
     let unified = estimate_vram_mib(
         4000,
@@ -474,7 +529,9 @@ fn estimate_vram_unified_cache_reduces_vram() {
         Some(32),
         Some(8),
         8192,
+        &ArchVramInfo::default(),
     );
+    // Unified cache shares one buffer across all slots instead of one per slot.
     assert!(unified < normal);
 }
 
@@ -482,9 +539,27 @@ fn estimate_vram_unified_cache_reduces_vram() {
 fn estimate_vram_gqa_reduces_kv_cache() {
     // Model with GQA: 32 query heads, 8 KV heads (ratio 0.25)
     let settings = ModelSettings::default();
-    let with_gqa = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
+    let with_gqa = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
     // Model without GQA: 32 query heads, 32 KV heads (ratio 1.0)
-    let without_gqa = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(32), 8192);
+    let without_gqa = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(4096),
+        Some(32),
+        Some(32),
+        8192,
+        &ArchVramInfo::default(),
+    );
     assert!(with_gqa < without_gqa);
 }
 
@@ -498,17 +573,43 @@ fn estimate_vram_quantization_affects_size() {
     settings_q4.cache_type_k = Some(CacheTypeK::Q4_0);
     settings_q4.cache_type_v = Some(CacheTypeV::Q4_0);
 
-    let f32_vram = estimate_vram_mib(4000, &settings_f32, 32, Some(4096), Some(32), Some(8), 8192);
-    let q4_vram = estimate_vram_mib(4000, &settings_q4, 32, Some(4096), Some(32), Some(8), 8192);
+    let f32_vram = estimate_vram_mib(
+        4000,
+        &settings_f32,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    let q4_vram = estimate_vram_mib(
+        4000,
+        &settings_q4,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
     assert!(q4_vram < f32_vram);
 }
 
 #[test]
 fn estimate_vram_zero_total_layers() {
     let settings = ModelSettings::default();
-    // With 0 total layers, the KV cache formula has 0/0 = NaN, which becomes 0 when cast to u64
-    let result = estimate_vram_mib(4000, &settings, 0, None, None, None, 0);
-    // Due to NaN from 0/0 in KV cache formula, result is 0
+    // No layer metadata: the estimate can't be computed and returns 0.
+    let result = estimate_vram_mib(
+        4000,
+        &settings,
+        0,
+        None,
+        None,
+        None,
+        0,
+        &ArchVramInfo::default(),
+    );
     assert_eq!(result, 0);
 }
 
@@ -527,6 +628,7 @@ fn estimate_vram_increases_with_context_length() {
         Some(32),
         Some(8),
         8192,
+        &ArchVramInfo::default(),
     );
     let large = estimate_vram_mib(
         4000,
@@ -536,6 +638,7 @@ fn estimate_vram_increases_with_context_length() {
         Some(32),
         Some(8),
         8192,
+        &ArchVramInfo::default(),
     );
     assert!(large > small);
 }
@@ -555,6 +658,7 @@ fn estimate_vram_increases_with_batch_size() {
         Some(32),
         Some(8),
         8192,
+        &ArchVramInfo::default(),
     );
     let large = estimate_vram_mib(
         4000,
@@ -564,24 +668,167 @@ fn estimate_vram_increases_with_batch_size() {
         Some(32),
         Some(8),
         8192,
+        &ArchVramInfo::default(),
     );
     assert!(large > small);
 }
 
 #[test]
-fn estimate_vram_auto_uses_heuristic() {
+fn estimate_vram_auto_uses_fit_heuristic() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::Auto;
-    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
-    // Auto should use ~60% heuristic (19 layers out of 32)
+    let result = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    // Auto solves the layer count that fits in the GPU; result must be positive.
     assert!(result > 0);
+}
+
+#[test]
+fn estimate_vram_auto_fits_all_layers() {
+    let mut settings = ModelSettings::default();
+    settings.gpu_layers_mode = GpuLayersMode::Auto;
+    settings.context_length = 4096;
+    // Small model on a big GPU: everything fits, so all 32 layers are offloaded.
+    // Weights 1000 + KV 32*4 + activation 4 + overhead 300 = 1432 MiB.
+    let result = estimate_vram_mib(
+        1000,
+        &settings,
+        32,
+        Some(1024),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    assert_eq!(result, 1432);
+}
+
+#[test]
+fn estimate_vram_auto_partial_fit() {
+    let mut settings_auto = ModelSettings::default();
+    settings_auto.gpu_layers_mode = GpuLayersMode::Auto;
+    settings_auto.context_length = 8192;
+    let mut settings_all = ModelSettings::default();
+    settings_all.context_length = 8192;
+    settings_all.gpu_layers_mode = GpuLayersMode::All;
+
+    // 8 GiB model on an 8 GiB GPU with 1 GiB KV: not all layers fit.
+    let auto = estimate_vram_mib(
+        8000,
+        &settings_auto,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    let all = estimate_vram_mib(
+        8000,
+        &settings_all,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    assert!(auto < all);
+}
+
+#[test]
+fn estimate_vram_kv_offload_full_cache() {
+    let mut settings_off = ModelSettings::default();
+    settings_off.kv_cache_offload = false;
+    settings_off.gpu_layers_mode = GpuLayersMode::Specific(16);
+    settings_off.context_length = 8192;
+    let mut settings_on = ModelSettings::default();
+    settings_on.kv_cache_offload = true;
+    settings_on.gpu_layers_mode = GpuLayersMode::Specific(16);
+    settings_on.context_length = 8192;
+
+    let off = estimate_vram_mib(
+        4000,
+        &settings_off,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    let on = estimate_vram_mib(
+        4000,
+        &settings_on,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    // Offload puts the KV of CPU-resident layers on the GPU as well.
+    assert!(on > off);
+    // Difference is exactly the KV of the 16 non-offloaded layers: 16 * 32 MiB.
+    assert_eq!(on - off, 16 * 32);
+}
+
+#[test]
+fn estimate_vram_parallel_multiplier() {
+    let mut settings_single = ModelSettings::default();
+    settings_single.gpu_layers_mode = GpuLayersMode::All;
+    settings_single.context_length = 8192;
+    let mut settings_parallel = ModelSettings::default();
+    settings_parallel.gpu_layers_mode = GpuLayersMode::All;
+    settings_parallel.context_length = 8192;
+    settings_parallel.max_concurrent_predictions = Some(4);
+
+    let single = estimate_vram_mib(
+        4000,
+        &settings_single,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    let parallel = estimate_vram_mib(
+        4000,
+        &settings_parallel,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    // Each slot gets its own full context: KV scales with the parallel count.
+    assert_eq!(parallel - single, 3 * 32 * 32);
 }
 
 #[test]
 fn estimate_vram_specific_layers() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::Specific(16);
-    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
+    let result = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
     assert!(result > 0);
 }
 
@@ -589,16 +836,226 @@ fn estimate_vram_specific_layers() {
 fn estimate_vram_specific_zero_returns_zero() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::Specific(0);
-    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 8192);
+    let result = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
     assert_eq!(result, 0);
 }
 
 #[test]
 fn estimate_vram_no_gpu_memory_total() {
-    let settings = ModelSettings::default();
-    // gpu_mem_total_mib = 0 should use 500 MiB fallback
-    let result = estimate_vram_mib(4000, &settings, 32, Some(4096), Some(32), Some(8), 0);
+    let mut settings = ModelSettings::default();
+    settings.gpu_layers_mode = GpuLayersMode::Auto;
+    // gpu_mem_total_mib = 0: Auto falls back to the 60% layer heuristic
+    let result = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(4096),
+        Some(32),
+        Some(8),
+        0,
+        &ArchVramInfo::default(),
+    );
     assert!(result > 0);
+}
+
+// ── estimate_vram_mib: hybrid (linear attention) models ─────────
+
+fn hybrid_settings() -> ModelSettings {
+    let mut settings = ModelSettings::default();
+    settings.gpu_layers_mode = GpuLayersMode::All;
+    settings.context_length = 8192;
+    settings
+}
+
+#[test]
+fn estimate_vram_hybrid_kv_only_full_attention_layers() {
+    // 64 layers, full attention every 4th layer -> KV cache for 16 layers.
+    let settings = hybrid_settings();
+    let dense = estimate_vram_mib(
+        4000,
+        &settings,
+        64,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    let hybrid = estimate_vram_mib(
+        4000,
+        &settings,
+        64,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &ArchVramInfo {
+            full_attention_interval: 4,
+            ..Default::default()
+        },
+    );
+    // KV per layer is 32 MiB; 48 layers fewer in the hybrid model.
+    assert_eq!(dense - hybrid, 48 * 32);
+}
+
+#[test]
+fn estimate_vram_hybrid_explicit_head_dim() {
+    // Expanded heads: head_dim (256) != hidden / n_head (5120 / 24 ~= 213).
+    let settings = hybrid_settings();
+    let derived = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(5120),
+        Some(24),
+        Some(4),
+        8192,
+        &ArchVramInfo::default(),
+    );
+    let explicit = estimate_vram_mib(
+        4000,
+        &settings,
+        32,
+        Some(5120),
+        Some(24),
+        Some(4),
+        8192,
+        &ArchVramInfo {
+            head_dim: 256,
+            ..Default::default()
+        },
+    );
+    // n_embd_kv: 4 * 256 = 1024 > 5120 * 4 / 24 ~= 853
+    assert!(explicit > derived);
+}
+
+#[test]
+fn estimate_vram_hybrid_ssm_state() {
+    // SSM recurrent state is fixed-size per layer and per slot.
+    let mut settings = hybrid_settings();
+    // Unified cache so the KV term stays constant while slots change.
+    settings.uniform_cache = true;
+    let arch = ArchVramInfo {
+        full_attention_interval: 4,
+        ssm_inner: 6144,
+        ssm_state: 128,
+        ssm_conv: 4,
+        ..Default::default()
+    };
+    let single = estimate_vram_mib(
+        4000,
+        &settings,
+        64,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &arch,
+    );
+
+    settings.max_concurrent_predictions = Some(4);
+    let multi = estimate_vram_mib(
+        4000,
+        &settings,
+        64,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &arch,
+    );
+
+    // 48 SSM layers * 6144 * 132 * 4 bytes ~= 148.5 MiB per slot.
+    assert!(multi > single);
+    assert!((444..448).contains(&(multi - single)));
+}
+
+#[test]
+fn estimate_vram_hybrid_mtp_draft_context() {
+    // MTP speculative decoding adds one KV cache per nextn layer.
+    let mut settings = hybrid_settings();
+    let arch = ArchVramInfo {
+        full_attention_interval: 4,
+        nextn_layers: 1,
+        ..Default::default()
+    };
+    let without_spec = estimate_vram_mib(
+        4000,
+        &settings,
+        64,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &arch,
+    );
+
+    settings.spec_type = "draft-mtp".to_string();
+    settings.draft_tokens = 2;
+    let with_spec = estimate_vram_mib(
+        4000,
+        &settings,
+        64,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &arch,
+    );
+
+    // 1 nextn layer * 32 MiB KV + 256 MiB compute overhead.
+    assert_eq!(with_spec - without_spec, 32 + 256);
+}
+
+#[test]
+fn estimate_vram_hybrid_qwen35_scenario() {
+    // Regression: Qwen3.8-27B (qwen35 arch) on a 32 GB GPU.
+    // 65 layers (64 + 1 MTP), full attention every 4th layer, Gated
+    // DeltaNet SSM layers, expanded heads (key_length 256), 192K ctx,
+    // MTP speculative decoding. Real measured usage: ~30.9 GB.
+    let mut settings = ModelSettings::default();
+    settings.gpu_layers_mode = GpuLayersMode::All;
+    settings.context_length = 196560;
+    settings.batch_size = 512;
+    settings.uniform_cache = true;
+    settings.kv_cache_offload = true;
+    settings.spec_type = "draft-mtp".to_string();
+    settings.draft_tokens = 2;
+
+    let arch = ArchVramInfo {
+        full_attention_interval: 4,
+        head_dim: 256,
+        ssm_inner: 6144,
+        ssm_state: 128,
+        ssm_conv: 4,
+        nextn_layers: 1,
+    };
+
+    // 16.34 GiB file, 32607 MiB GPU.
+    let result = estimate_vram_mib(
+        16732,
+        &settings,
+        65,
+        Some(5120),
+        Some(24),
+        Some(4),
+        32607,
+        &arch,
+    );
+
+    // Weights 16.3 GB + KV 12.3 GB (16 layers) + SSM 0.4 GB + MTP 1.0 GB
+    // + overhead ~= 30.8 GB. Must be far below the old dense estimate
+    // of ~57.3 GB.
+    assert!((29_000..33_000).contains(&result), "got {result} MiB");
 }
 
 // ── DownloadState ───────────────────────────────────────────────
@@ -920,7 +1377,7 @@ fn test_gguf_metadata_nonexistent_file() {
     let result = GgufMetadata::from_path(std::path::Path::new("nonexistent_file_12345.gguf"));
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("Failed to get GGUF container") || err_msg.contains("panicked"));
+    assert!(err_msg.contains("cannot open"));
 }
 
 #[test]
@@ -935,12 +1392,8 @@ fn test_gguf_metadata_invalid_file_no_panic() {
 
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
-    // It should fail gracefully (either because the library returns Err or because it catches a panic if any)
-    assert!(
-        err_msg.contains("Failed to get GGUF container")
-            || err_msg.contains("Failed to decode")
-            || err_msg.contains("panicked")
-    );
+    // It should fail gracefully with a descriptive error, never panic
+    assert!(err_msg.contains("not a GGUF file"));
 }
 
 // ── file_type mapping (regression: must match llama.cpp llama_ftype) ──

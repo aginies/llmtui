@@ -6,6 +6,7 @@
 // Re-declare modules so they're available as `pub mod` in the library target.
 pub mod backend;
 pub mod config;
+pub mod gguf;
 pub mod models;
 pub mod serve;
 pub mod serve_api;

@@ -183,7 +183,15 @@ fn extract_source_url(content: &str) -> Option<String> {
         if let Some(stripped) = line.strip_prefix("[")
             && let Some(pos) = stripped.rfind("](")
         {
-            return Some(stripped[pos + 2..].to_string());
+            // The URL ends at the first closing paren; anything after it
+            // (trailing text on the line) is not part of the URL.
+            let rest = &stripped[pos + 2..];
+            let url = rest.split(')').next().unwrap_or(rest);
+            let url = url.trim();
+            if url.is_empty() {
+                return None;
+            }
+            return Some(url.to_string());
         }
         None
     })
@@ -517,4 +525,43 @@ fn extract_main_content(document: &scraper::Html, url: &str) -> String {
     }
 
     collapse_whitespace(&text_parts.join(" "))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_source_url_plain_link() {
+        assert_eq!(
+            extract_source_url("[Source](https://example.com/article)"),
+            Some("https://example.com/article".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_source_url_trailing_text_stripped() {
+        assert_eq!(
+            extract_source_url("[Source](https://example.com/article) some trailing text"),
+            Some("https://example.com/article".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_source_url_heading_prefix() {
+        assert_eq!(
+            extract_source_url("## [Docs](https://example.com/docs)"),
+            Some("https://example.com/docs".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_source_url_no_link() {
+        assert_eq!(extract_source_url("plain text without a link"), None);
+    }
+
+    #[test]
+    fn extract_source_url_empty_url() {
+        assert_eq!(extract_source_url("[Source]()"), None);
+    }
 }

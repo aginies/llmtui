@@ -92,11 +92,12 @@ The Active Model panel shows:
 ### VRAM Estimation
 
 The app computes VRAM estimates based on:
-- Model file size (with MoE expert ratio applied to FFN portion for mixture-of-experts models)
-- GPU layers mode (Auto/Specific/All)
-- KV cache settings (Flash Attention, quantization, YaRN RoPE scale)
+- Model file size and GPU layers mode (Auto/Specific/All)
+- KV cache settings (quantization, YaRN RoPE scale, unified cache)
+- Hybrid attention: only full-attention layers carry a KV cache; linear-attention layers carry a fixed-size SSM state
+- MTP speculative draft context (when enabled)
 - Activation overhead (8× multiplier)
-- Fixed overhead (3.8% of max VRAM)
+- Fixed overhead (300 MiB)
 
 The estimate is shown in the LLM Settings title (e.g., "VRAM ~= 8.2 GB").
 

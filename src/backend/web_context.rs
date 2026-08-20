@@ -263,7 +263,7 @@ pub async fn build_injected_prompt(
     let ctx_id = Uuid::new_v4();
     let new_content = format!(
         "[WEB-CTX-{}]\nINSTRUCTION: Cite sources using inline markdown links in your answer. Format: [source name](URL). Place links directly after the facts they support. If you find PDF link, add them to the list with brief description. Do NOT include claims you cannot verify.\n\n{}\n[/WEB-CTX-{}]\n\n{}\n\n---\n\n{}",
-        ctx_id, search_context, sources_section, ctx_id, content
+        ctx_id, search_context, ctx_id, sources_section, content
     );
 
     if let Some(cb) = log_callback.lock().unwrap().as_ref() {

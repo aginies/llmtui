@@ -1,5 +1,6 @@
 mod backend;
 mod config;
+mod gguf;
 mod models;
 mod serve;
 mod serve_api;
@@ -502,6 +503,12 @@ async fn main() -> Result<()> {
             tracing::info!("Shutting down all processes...");
             if let Some(handle) = app.server.server_handle.take() {
                 let _ = server::kill_server(handle).await;
+                // Wait for the server task to actually kill the child before
+                // exiting, so llama-server is not orphaned by a scheduling race.
+                if let Some(mut exit_rx) = app.server.server_exit_rx.take() {
+                    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), exit_rx.recv())
+                        .await;
+                }
             }
             if let Some(task) = app.server.metrics_task_handle.take() {
                 task.abort();

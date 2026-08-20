@@ -755,6 +755,54 @@ fn key_display_roundtrip() {
 }
 
 #[test]
+fn key_collision_between_separator_and_double_underscore() {
+    // "a/b" and flat "a__b" used to produce the same key ("a__b");
+    // they must now be distinct.
+    let with_sep = key_from_display("a/b");
+    let flat = key_from_display("a__b");
+    assert_ne!(with_sep, flat);
+    assert_eq!(with_sep, "a__b");
+    assert_eq!(flat, "a%5F%5Fb");
+    // Both round-trip back to their original display names.
+    assert_eq!(display_from_key(&with_sep), "a/b");
+    assert_eq!(display_from_key(&flat), "a__b");
+}
+
+#[test]
+fn key_roundtrip_special_characters() {
+    let display_names = vec![
+        "single_underscore",
+        "double__underscore",
+        "percent%name",
+        "mix%of__all",
+        "sub/dir.with__double",
+        "triple___underscore",
+        "Qwen3-8B.Q4_K_M",
+    ];
+    for display in display_names {
+        let key = key_from_display(display);
+        let back = display_from_key(&key);
+        assert_eq!(back, display, "roundtrip failed for: {}", display);
+    }
+}
+
+#[test]
+fn key_backward_compatible_with_old_scheme() {
+    // Names without "__" or "%" produce exactly the old-style keys, so
+    // existing config files on disk keep matching.
+    assert_eq!(key_from_display("Qwen3-8B.Q4_K_M"), "Qwen3-8B.Q4_K_M");
+    assert_eq!(
+        key_from_display("qwen/Qwen3-8B.Q4_K_M"),
+        "qwen__Qwen3-8B.Q4_K_M"
+    );
+    // Old-style keys decode exactly as before.
+    assert_eq!(
+        display_from_key("qwen__Qwen3-8B.Q4_K_M"),
+        "qwen/Qwen3-8B.Q4_K_M"
+    );
+}
+
+#[test]
 fn model_config_store_keys_return_display_names() {
     let mut store = ModelConfigStore::new();
     store.save("subdir/model", &ModelOverride::default());

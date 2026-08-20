@@ -228,9 +228,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         _ => {
             let show_readme = match &app.models_mode {
                 ModelsMode::Search { .. } => true,
-                ModelsMode::Files { .. } => {
-                    app.ui.active_panel == ActivePanel::SearchReadme
-                }
+                ModelsMode::Files { .. } => app.ui.active_panel == ActivePanel::SearchReadme,
                 _ => false,
             };
             if show_readme {

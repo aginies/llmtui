@@ -133,7 +133,12 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug + NamedI
     }
 
     pub fn delete(&mut self, name: &str, builtin_names: &[String]) -> bool {
-        if builtin_names.iter().any(|b| b == name) {
+        let is_builtin_name = builtin_names.iter().any(|b| b == name);
+        // A user file may shadow a built-in name (placed by hand or written
+        // by an older version). It is invisible in the UI and would be
+        // undeletable forever, so allow deleting it when the file exists.
+        let has_user_file = self.dir.join(format!("{}.yaml", name)).exists();
+        if is_builtin_name && !has_user_file {
             return false;
         }
         move_to_unused(name, &self.dir, &self.unused_dir);
@@ -185,5 +190,71 @@ pub(crate) fn move_to_unused(name: &str, active_dir: &Path, unused_dir: &Path) {
                 e
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{ModelOverride, Profile};
+
+    fn tmp_dir(tag: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "llm-manager-test-{}-{}-{}",
+            std::process::id(),
+            tag,
+            nanos
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn profile(name: &str) -> Profile {
+        Profile {
+            name: name.to_string(),
+            description: "test".to_string(),
+            settings: ModelOverride::default(),
+        }
+    }
+
+    #[test]
+    fn delete_rejects_builtin_without_user_file() {
+        let dir = tmp_dir("del-builtin");
+        let unused = dir.join("unused");
+        let mut store: NamedStore<Profile> = NamedStore::new(dir.clone(), unused.clone());
+        let builtin_names = vec!["Coder".to_string()];
+        assert!(!store.delete("Coder", &builtin_names));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn delete_allows_shadowing_user_file() {
+        let dir = tmp_dir("del-shadow");
+        let unused = dir.join("unused");
+        let mut store: NamedStore<Profile> = NamedStore::new(dir.clone(), unused.clone());
+        // A user file that shadows the built-in name "Coder"
+        store.save("Coder", &profile("Coder"));
+        assert!(dir.join("Coder.yaml").exists());
+        let builtin_names = vec!["Coder".to_string()];
+        assert!(store.delete("Coder", &builtin_names));
+        assert!(!dir.join("Coder.yaml").exists());
+        assert!(unused.join("Coder.yaml").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn delete_allows_regular_user_item() {
+        let dir = tmp_dir("del-user");
+        let unused = dir.join("unused");
+        let mut store: NamedStore<Profile> = NamedStore::new(dir.clone(), unused.clone());
+        store.save("MyProfile", &profile("MyProfile"));
+        let builtin_names = vec!["Coder".to_string()];
+        assert!(store.delete("MyProfile", &builtin_names));
+        assert!(unused.join("MyProfile.yaml").exists());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

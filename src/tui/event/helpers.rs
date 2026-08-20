@@ -145,13 +145,15 @@ pub async fn execute_confirmation(
             if let Some(path) = detail {
                 let parts: Vec<&str> = path.splitn(3, ':').collect();
                 if let (Some(backend_str), Some(tag)) = (parts.first(), parts.get(1)) {
-                    let backend = match backend_str.to_lowercase().as_str() {
-                        "cpu" => crate::models::Backend::Cpu,
-                        "vulkan" => crate::models::Backend::Vulkan,
-                        "rocm" => crate::models::Backend::Rocm,
-                        "rocm-lemonade" => crate::models::Backend::RocmLemonade,
-                        "cuda" => crate::models::Backend::Cuda,
-                        _ => return,
+                    let backend = match crate::models::Backend::from_slug(backend_str) {
+                        Some(b) => b,
+                        None => {
+                            app.add_log(
+                                crate::t_fmt!("backend.delete_unknown", backend_str),
+                                crate::config::LogLevel::Warning,
+                            );
+                            return;
+                        }
                     };
                     let _ = app
                         .pending_tx

@@ -110,6 +110,12 @@ pub fn render_model_lines(
         }
 
         let mut all_capabilities: Vec<String> = meta.capabilities.clone();
+        // Hybrid attention (linear-attention + full-attention layers).
+        if (meta.full_attention_interval > 1 || meta.ssm_inner > 0)
+            && !all_capabilities.iter().any(|c| c == "hybrid")
+        {
+            all_capabilities.push("hybrid".to_string());
+        }
         if let Some(pipeline) = crate::models::arch_to_pipeline_tag(&meta.arch) {
             let pipeline_str = pipeline.to_string();
             if !all_capabilities.contains(&pipeline_str) {

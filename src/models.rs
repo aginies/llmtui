@@ -720,6 +720,27 @@ impl Backend {
         }
     }
 
+    /// Parse a backend from its slug — the exact inverse of `slug()`.
+    /// Unlike `parse_backend`, this is lossless for all 13 variants.
+    pub fn from_slug(s: &str) -> Option<Self> {
+        match s {
+            "cpu" => Some(Backend::Cpu),
+            "vulkan" => Some(Backend::Vulkan),
+            "rocm" => Some(Backend::Rocm),
+            "rocm-lemonade" => Some(Backend::RocmLemonade),
+            "cuda" => Some(Backend::Cuda),
+            "cpu-arm64" => Some(Backend::CpuArm64),
+            "win-cpu" => Some(Backend::CpuWindows),
+            "win-vulkan" => Some(Backend::VulkanWindows),
+            "win-cuda-12.4" => Some(Backend::CudaWindows12_4),
+            "win-cuda-13.1" => Some(Backend::CudaWindows13_1),
+            "win-hip" => Some(Backend::HipWindows),
+            "macos-arm64" => Some(Backend::CpuMacosArm64),
+            "macos-x64" => Some(Backend::CpuMacosX64),
+            _ => None,
+        }
+    }
+
     /// Returns true if this backend is for Linux.
     pub fn is_linux(self) -> bool {
         matches!(
@@ -1056,39 +1077,36 @@ pub struct GgufMetadata {
     pub tokenizer: String,
     pub draft_tokens: u32,
     pub quality_rank: u8,
+    /// Interval between full-attention layers (hybrid models); 0 = not present.
+    pub full_attention_interval: u32,
+    /// K/V head dimension (`attention.key_length`); 0 = not present.
+    pub key_length: u32,
+    /// SSM (linear attention) inner size; 0 = no linear-attention layers.
+    pub ssm_inner: u32,
+    /// SSM state size.
+    pub ssm_state: u32,
+    /// SSM conv kernel size.
+    pub ssm_conv: u32,
+    /// MTP (multi-token prediction) layer count.
+    pub nextn_layers: u32,
 }
 
 impl GgufMetadata {
     pub fn from_path(path: &std::path::Path) -> anyhow::Result<Self> {
-        let path_str = path.to_string_lossy();
-
-        let model_data_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            gguf_rs::get_gguf_container(&path_str).map(|mut container| container.decode())
-        }));
-
-        let model_data = match model_data_res {
-            Ok(Ok(Ok(data))) => data,
-            Ok(Ok(Err(e))) => return Err(anyhow::anyhow!("Failed to decode GGUF: {}", e)),
-            Ok(Err(e)) => return Err(anyhow::anyhow!("Failed to get GGUF container: {}", e)),
-            Err(_) => {
-                return Err(anyhow::anyhow!(
-                    "GGUF library panicked during parsing/decoding (likely due to unsupported tensor/GGML type)"
-                ));
-            }
-        };
+        let header = crate::gguf::parse_header(path)?;
 
         let mut meta = Self::default();
 
         let extract_str = |key: &str| -> String {
-            model_data
-                .metadata()
+            header
+                .kv
                 .get(key)
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
                 .unwrap_or_default()
         };
 
         let extract_num = |key: &str| -> Option<u64> {
-            model_data.metadata().get(key).and_then(|v| {
+            header.kv.get(key).and_then(|v| {
                 v.as_u64()
                     .or_else(|| v.as_i64().map(|x| x as u64))
                     .or_else(|| v.as_f64().map(|x| x as u64))
@@ -1119,6 +1137,12 @@ impl GgufMetadata {
         meta.n_ctx_train = get_num_with_fallback("context_length");
         meta.n_head = get_num_with_fallback("attention.head_count");
         meta.n_kv_head = get_num_with_fallback("attention.head_count_kv");
+        meta.full_attention_interval = get_num_with_fallback("full_attention_interval");
+        meta.key_length = get_num_with_fallback("attention.key_length");
+        meta.ssm_inner = get_num_with_fallback("ssm.inner_size");
+        meta.ssm_state = get_num_with_fallback("ssm.state_size");
+        meta.ssm_conv = get_num_with_fallback("ssm.conv_kernel");
+        meta.nextn_layers = get_num_with_fallback("nextn_predict_layers");
 
         if meta.arch == "mtp" {
             meta.draft_tokens = extract_num("mtp.draft_tokens").unwrap_or(0) as u32;
@@ -1129,7 +1153,7 @@ impl GgufMetadata {
             meta.quality_rank = Self::file_type_quality_rank(v);
         }
 
-        if let Some(value) = model_data.metadata().get("general.capabilities")
+        if let Some(value) = header.kv.get("general.capabilities")
             && let Some(arr) = value.as_array()
         {
             for v in arr {
@@ -1139,18 +1163,31 @@ impl GgufMetadata {
             }
         }
 
-        if model_data
-            .metadata()
-            .contains_key("tokenizer.chat_template")
-        {
+        if header.kv.contains_key("tokenizer.chat_template") {
             meta.capabilities.push("chat".to_string());
         }
 
         meta.tokenizer = extract_str("tokenizer.ggml.model");
         meta.domain = extract_str("general.domain");
-        meta.model_parameters = model_data.model_parameters();
+        meta.model_parameters = if header.parameters > 0 {
+            crate::gguf::human_number(header.parameters)
+        } else {
+            "unknown".to_string()
+        };
 
         Ok(meta)
+    }
+
+    /// Extract the architecture parameters used by the VRAM estimator.
+    pub fn arch_vram_info(&self) -> ArchVramInfo {
+        ArchVramInfo {
+            full_attention_interval: self.full_attention_interval,
+            head_dim: self.key_length,
+            ssm_inner: self.ssm_inner,
+            ssm_state: self.ssm_state,
+            ssm_conv: self.ssm_conv,
+            nextn_layers: self.nextn_layers,
+        }
     }
 
     /// Map a GGUF `general.file_type` value to a display name.
@@ -1707,17 +1744,62 @@ impl WsMetrics {
     }
 }
 
+/// Fixed overhead for the GPU driver, CUDA context, and memory fragmentation.
+const FIXED_VRAM_OVERHEAD_MIB: f64 = 300.0;
+
+/// Fallback GQA ratio when the model's head counts are unknown.
+/// Most modern decoder models use 4:1 GQA (e.g. 32 query / 8 KV heads).
+const FALLBACK_GQA_RATIO: f64 = 0.25;
+
+/// Compute-buffer overhead of an MTP (draft) speculative context, in MiB.
+const MTP_COMPUTE_OVERHEAD_MIB: f64 = 256.0;
+
+/// Architecture parameters that affect VRAM usage beyond the dense
+/// transformer assumption (every layer has a KV cache sized by
+/// `hidden * n_kv_head / n_head`).
+///
+/// Zero values mean "not present" and the estimator falls back to the
+/// dense-attention assumptions.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ArchVramInfo {
+    /// Interval between full-attention layers. 0 or 1 = every layer has a
+    /// KV cache. Hybrid models (e.g. Gated DeltaNet) only keep a KV cache
+    /// on 1 in N layers; the rest are linear-attention layers.
+    pub full_attention_interval: u32,
+    /// K/V head dimension (GGUF `attention.key_length`). Some models use
+    /// expanded heads where `head_dim != hidden / n_head`. 0 = derive.
+    pub head_dim: u32,
+    /// SSM (linear attention) inner size. 0 = no linear-attention layers.
+    pub ssm_inner: u32,
+    /// SSM state size.
+    pub ssm_state: u32,
+    /// SSM conv kernel size.
+    pub ssm_conv: u32,
+    /// MTP (multi-token prediction) layer count.
+    pub nextn_layers: u32,
+}
+
 /// Estimate VRAM usage (in MiB) for a model with the given settings.
 ///
-/// Model file size is the size of the GGUF file in MiB. The model itself
-/// takes 1x its size in VRAM (loaded as-is). KV cache is the dominant
-/// variable cost — it scales with context_length, batch_size, and layers.
+/// Model file size is the size of the GGUF file in MiB. Weights placed on
+/// the GPU take 1x their file size in VRAM. The KV cache is the dominant
+/// variable cost — it scales with context_length and layer count.
 ///
 /// The KV cache formula accounts for:
-/// - Actual GQA ratio from model metadata (n_kv_head / n_head)
-/// - FlashAttention: reduces KV cache storage by ~2x
-/// - Unified KV cache: shares KV across sequences, dividing by parallel count
+/// - Actual GQA ratio from model metadata (n_kv_head / n_head), 0.25 fallback
+/// - Explicit head dimension (`attention.key_length`) when present
+/// - Hybrid attention: only full-attention layers carry a KV cache
+///   (`full_attention_interval`); linear-attention layers carry a
+///   fixed-size SSM recurrent state instead
+/// - Parallel slots: llama-server allocates one full context per slot
+/// - Unified KV cache: a single buffer shared across all slots
 /// - KV cache quantization (q4_0, q5_0, q8_0, etc.)
+/// - MTP speculative draft context (one KV cache per nextn layer)
+///
+/// With `kv_cache_offload` the whole KV cache lives on the GPU even when
+/// some layers stay on the CPU. In Auto mode the GPU layer count is solved
+/// so weights + KV fit in the available VRAM, mirroring llama.cpp.
+#[allow(clippy::too_many_arguments)]
 pub fn estimate_vram_mib(
     model_mib: u64,
     settings: &ModelSettings,
@@ -1726,46 +1808,16 @@ pub fn estimate_vram_mib(
     n_head_opt: Option<u32>,
     n_kv_head_opt: Option<u32>,
     gpu_mem_total_mib: u64,
+    arch: &ArchVramInfo,
 ) -> u64 {
     let model_mib_f = model_mib as f64;
 
-    // Compute how much of the model is loaded into VRAM based on GPU layers.
-    let gpu_layers = match settings.gpu_layers_mode {
-        GpuLayersMode::Auto => {
-            // Heuristic: ~60% of layers when Auto (llama.cpp will decide at runtime)
-            if total_layers > 0 {
-                (total_layers as f64 * 0.6) as u32
-            } else {
-                20
-            }
-        }
-        GpuLayersMode::Specific(n) => {
-            if total_layers > 0 {
-                n.min(total_layers)
-            } else {
-                n
-            }
-        }
-        GpuLayersMode::All => {
-            if total_layers > 0 {
-                total_layers
-            } else {
-                32
-            }
-        }
-    };
-
-    // Model weights loaded into VRAM: proportional to GPU layers.
-    let model_vram = if total_layers > 0 && gpu_layers > 0 {
-        model_mib_f * (gpu_layers as f64 / total_layers as f64).min(1.0)
-    } else if gpu_layers > 0 {
-        model_mib_f
-    } else {
-        0.0
-    };
-
     if matches!(settings.gpu_layers_mode, GpuLayersMode::Specific(0)) {
         return 0; // CPU only
+    }
+
+    if total_layers == 0 {
+        return 0; // No layer metadata: KV cache can't be estimated.
     }
 
     // Heuristic for hidden_size if not provided:
@@ -1778,66 +1830,169 @@ pub fn estimate_vram_mib(
         }
     };
 
-    // ── KV cache estimation ─────────────────────────────────────
-
     // GQA ratio: real KV heads vs query heads.
     // If n_kv_head == n_head, ratio = 1.0 (no reduction).
     // If n_kv_head < n_head, ratio < 1.0 (KV cache is smaller).
     let gqa_ratio = match (n_head_opt, n_kv_head_opt) {
         (Some(n_head), Some(n_kv_head)) if n_head > 0 => n_kv_head as f64 / n_head as f64,
-        _ => 1.0, // fallback: assume no GQA
-    };
-
-    // FlashAttention reduces KV cache storage by ~2x because it doesn't
-    // need to keep the full attention matrix in memory.
-    let flash_attn_factor = if settings.flash_attn { 0.5 } else { 1.0 };
-
-    // Unified KV cache shares a single KV buffer across all sequences.
-    let uniform_cache_factor = if settings.uniform_cache {
-        1.0 / settings.parallel as f64
-    } else {
-        1.0
+        _ => FALLBACK_GQA_RATIO,
     };
 
     // Effective context length: YaRN RoPE scale extends the usable context.
     let effective_ctx = settings.context_length as f64 * settings.rope_scale as f64;
 
-    // KV cache in MiB:
-    // Formula: 2 * n_layer * n_ctx * n_embd_kv * sizeof(type)
-    // n_embd_kv = hidden_size * gqa_ratio
-    // The KV cache is allocated for the total number of model layers,
-    // not just the number layers loaded into the GPU (gpu_layers).
-    // However only gpu_layers * sizeof(type) contributes to the VRAM cost.
-    let kv_mib = (2.0
-        * hidden_size
+    // Hybrid models (Gated DeltaNet & co.) only keep a KV cache on the
+    // full-attention layers; the remaining layers are linear-attention
+    // layers with a fixed-size recurrent state. MTP layers are excluded
+    // from the main stack (they have their own draft context).
+    let main_layers = total_layers.saturating_sub(arch.nextn_layers);
+    let interval = arch.full_attention_interval.max(1);
+    let kv_layers_main = main_layers / interval;
+    let has_ssm = arch.ssm_inner > 0 && arch.ssm_state > 0;
+    let ssm_layers = if has_ssm {
+        main_layers - kv_layers_main
+    } else {
+        0
+    };
+
+    // KV cache embedding size per layer. Models may use expanded heads
+    // (head_dim != hidden / n_head), so prefer the explicit GGUF head
+    // dimension when available.
+    let n_embd_kv = match (n_kv_head_opt, arch.head_dim) {
+        (Some(n_kv_head), head_dim) if n_kv_head > 0 && head_dim > 0 => {
+            n_kv_head as f64 * head_dim as f64
+        }
+        _ => hidden_size * gqa_ratio,
+    };
+
+    // KV cache per layer in MiB:
+    // Formula: 2 * n_ctx * n_embd_kv * sizeof(type), n_embd_kv = KV heads * head dim
+    let kv_mib_per_layer = (2.0
+        * n_embd_kv
         * effective_ctx
-        * total_layers as f64
-        * gqa_ratio
-        * gpu_layers as f64
-        / total_layers as f64  // VRAM cost: only GPU-loaded portion of KV cache
-        * flash_attn_factor
-        * uniform_cache_factor
         * kv_quant_bytes(
             settings.cache_type_k.unwrap_or(CacheTypeK::F16),
-            settings.cache_type_v.unwrap_or(CacheTypeV::F16)
+            settings.cache_type_v.unwrap_or(CacheTypeV::F16),
         ))
         / (1024.0 * 1024.0);
 
-    // Activation overhead during inference (proportional to batch * hidden).
-    // Increased multiplier to 8.0 (from 2.0) to be more pessimistic about scratch buffers.
-    let activation_mib = (settings.batch_size as f64 * hidden_size * 8.0) / (1024.0 * 1024.0);
-
-    // Fixed overhead for driver, fragmentation, and small meta buffers.
-    // Use 3.8% of max VRAM, falling back to 500MiB if unknown.
-    let fixed_overhead = if gpu_mem_total_mib > 0 {
-        gpu_mem_total_mib as f64 * 0.038
+    // Parallel slots: llama-server allocates one full context per slot.
+    // A unified KV cache shares a single buffer across all slots.
+    let parallel_slots = settings.max_concurrent_predictions.unwrap_or(1).max(1);
+    let slot_factor = if settings.uniform_cache {
+        1.0
     } else {
-        500.0
+        parallel_slots as f64
     };
 
-    let total_mib = model_vram + kv_mib + activation_mib + fixed_overhead + 550.0;
+    // With kv_cache_offload the whole KV cache lives on the GPU regardless
+    // of which layers are offloaded; otherwise only the KV of GPU layers.
+    let kv_full = settings.kv_cache_offload;
+
+    // Activation overhead during inference (proportional to batch * hidden).
+    let activation_mib = (settings.batch_size as f64 * hidden_size * 8.0) / (1024.0 * 1024.0);
+
+    // SSM (linear attention) recurrent state: fixed size per layer and per
+    // sequence, independent of context length. llama.cpp allocates
+    // d_inner * (d_conv + d_state) f32 elements per layer per slot, times
+    // (1 + n_rs_seq) rows; n_rs_seq equals the draft token count for MTP
+    // and EAGLE-style speculative decoding.
+    let spec_enabled = !settings.spec_type.is_empty() && settings.draft_tokens > 0;
+    let rs_seq = if spec_enabled {
+        settings.draft_tokens as f64
+    } else {
+        0.0
+    };
+    let ssm_mib = if ssm_layers > 0 {
+        ssm_layers as f64
+            * (arch.ssm_inner as f64 * (arch.ssm_conv as f64 + arch.ssm_state as f64))
+            * 4.0
+            * parallel_slots as f64
+            * (1.0 + rs_seq)
+            / (1024.0 * 1024.0)
+    } else {
+        0.0
+    };
+
+    // MTP draft context: one KV cache per nextn layer plus a compute buffer.
+    let mtp_mib = if spec_enabled && arch.nextn_layers > 0 {
+        arch.nextn_layers as f64 * kv_mib_per_layer * slot_factor + MTP_COMPUTE_OVERHEAD_MIB
+    } else {
+        0.0
+    };
+
+    let gpu_layers = match settings.gpu_layers_mode {
+        GpuLayersMode::Auto => auto_gpu_layers(
+            model_mib_f,
+            total_layers,
+            main_layers,
+            kv_layers_main,
+            kv_mib_per_layer,
+            slot_factor,
+            kv_full,
+            activation_mib + ssm_mib + mtp_mib,
+            gpu_mem_total_mib,
+        ),
+        GpuLayersMode::Specific(n) => n.min(total_layers),
+        GpuLayersMode::All => total_layers,
+    };
+
+    // Model weights loaded into VRAM: proportional to GPU layers.
+    let model_vram = model_mib_f * (gpu_layers as f64 / total_layers as f64);
+
+    // KV cache on the GPU, across all slots.
+    let kv_layers = if kv_full {
+        kv_layers_main
+    } else {
+        gpu_layers / interval
+    };
+    let kv_mib = kv_mib_per_layer * kv_layers as f64 * slot_factor;
+
+    let total_mib =
+        model_vram + kv_mib + ssm_mib + mtp_mib + activation_mib + FIXED_VRAM_OVERHEAD_MIB;
 
     total_mib.ceil() as u64
+}
+
+/// Solve how many layers llama.cpp's auto offload would place on the GPU:
+/// the largest count whose weights + KV cache fit in the available VRAM.
+#[allow(clippy::too_many_arguments)]
+fn auto_gpu_layers(
+    model_mib: f64,
+    total_layers: u32,
+    main_layers: u32,
+    kv_layers_main: u32,
+    kv_mib_per_layer: f64,
+    slot_factor: f64,
+    kv_full: bool,
+    fixed_mib: f64,
+    gpu_mem_total_mib: u64,
+) -> u32 {
+    if gpu_mem_total_mib == 0 {
+        // Unknown GPU size: fall back to the 60% heuristic.
+        return (total_layers as f64 * 0.6) as u32;
+    }
+    let available = gpu_mem_total_mib as f64 - FIXED_VRAM_OVERHEAD_MIB - fixed_mib;
+    let weight_per_layer = model_mib / total_layers as f64;
+    let fit = if kv_full {
+        // Whole KV cache is on the GPU regardless of offloaded layers.
+        let for_weights = available - kv_mib_per_layer * kv_layers_main as f64 * slot_factor;
+        if for_weights <= 0.0 {
+            0
+        } else {
+            (for_weights / weight_per_layer) as u32
+        }
+    } else {
+        // KV cost only applies to full-attention layers: average it over
+        // the whole stack.
+        let kv_per_layer_avg = if main_layers > 0 {
+            kv_mib_per_layer * (kv_layers_main as f64 / main_layers as f64) * slot_factor
+        } else {
+            0.0
+        };
+        (available / (weight_per_layer + kv_per_layer_avg)) as u32
+    };
+    fit.min(total_layers)
 }
 
 /// Return the average KV cache element size in bytes for the given K/V types.

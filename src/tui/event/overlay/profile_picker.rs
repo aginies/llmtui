@@ -29,10 +29,8 @@ impl OverlayHandler for ProfilePickerHandler {
                     KeyCode::Up | KeyCode::Char('k') => picker_nav_up(selected),
                     KeyCode::Down | KeyCode::Char('j') => picker_nav_down(selected, entries.len()),
                     KeyCode::PageUp => {
-                        app.picker.profile_picker_scroll_offset = app
-                            .picker
-                            .profile_picker_scroll_offset
-                            .saturating_sub(5);
+                        app.picker.profile_picker_scroll_offset =
+                            app.picker.profile_picker_scroll_offset.saturating_sub(5);
                     }
                     KeyCode::PageDown => {
                         app.picker.profile_picker_scroll_offset =

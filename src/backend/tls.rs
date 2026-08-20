@@ -95,10 +95,24 @@ fn generate_server_cert(
         SanType::IpAddress([127, 0, 0, 1].into()),
     ];
     if host != "localhost" {
+        // Accept bare ("127.0.0.1", "::1") and bracketed ("[::1]") IPv6 forms.
+        let unbracketed = host.trim_start_matches('[').trim_end_matches(']');
         if let Ok(ip) = host.parse::<std::net::IpAddr>() {
             san_entries.push(SanType::IpAddress(ip));
+        } else if let Ok(ip) = unbracketed.parse::<std::net::IpAddr>() {
+            san_entries.push(SanType::IpAddress(ip));
         } else {
-            san_entries.push(SanType::DnsName(host.try_into().unwrap()));
+            match unbracketed.try_into() {
+                Ok(dns) => san_entries.push(SanType::DnsName(dns)),
+                Err(_) => {
+                    // Invalid DNS name (bad characters): skip rather than
+                    // panic. The cert still covers localhost/127.0.0.1.
+                    tracing::warn!(
+                        "Skipping invalid SAN host '{}': not an IP address or valid DNS name",
+                        host
+                    );
+                }
+            }
         }
     }
     params.subject_alt_names = san_entries;

@@ -225,17 +225,26 @@ fn test_extract_tar_gz_with_symlinks() {
         ))
         .output();
 
-    assert!(create_result.is_ok(), "Failed to create test archive with symlinks");
+    assert!(
+        create_result.is_ok(),
+        "Failed to create test archive with symlinks"
+    );
 
     let dest_dir = temp_dir.join("extracted_symlinks");
     let result = extract_archive(&archive_path, &dest_dir);
 
-    assert!(result.is_ok(), "Symlink archive extraction should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Symlink archive extraction should succeed: {:?}",
+        result
+    );
 
     // Verify the symlink was preserved (not resolved to a regular file)
     let link_path = dest_dir.join("link.txt");
-    assert!(link_path.exists() || link_path.symlink_metadata().is_ok(),
-        "Symlink should exist (even if dangling)");
+    assert!(
+        link_path.exists() || link_path.symlink_metadata().is_ok(),
+        "Symlink should exist (even if dangling)"
+    );
 
     // Cleanup
     let _ = fs::remove_dir_all(&temp_dir);

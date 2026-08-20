@@ -1004,7 +1004,8 @@ mod tests {
         assert!(explanation.model_family.contains("8B"));
 
         // Same regression against the library implementation
-        let lib_exp = llm_manager::tui::gguf_naming::parse_gguf_filename("Qwen2.5-Modèle-8B-Q8_0.gguf");
+        let lib_exp =
+            llm_manager::tui::gguf_naming::parse_gguf_filename("Qwen2.5-Modèle-8B-Q8_0.gguf");
         assert!(lib_exp.model_family.contains("Qwen2.5"));
         assert!(lib_exp.model_family.contains("8B"));
     }

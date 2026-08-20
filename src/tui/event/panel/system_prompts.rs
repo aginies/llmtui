@@ -28,6 +28,8 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
                 // Save
+                let mut saved = false;
+                let mut name_conflict = false;
                 if let Some(preset_idx) = app.edit.editing_preset {
                     let all_presets = app.config.merged_presets();
                     if let Some(preset) = all_presets.get(preset_idx)
@@ -35,12 +37,23 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                             app.config.system_prompt_presets.get(&preset.name).cloned()
                     {
                         p.content = app.settings_state.settings_edit_buffer.clone();
-                        app.config.system_prompt_presets.save(&p);
+                        if app.config.system_prompt_presets.save(&p) {
+                            saved = true;
+                        } else {
+                            name_conflict = true;
+                        }
                     }
                 }
                 app.edit.editing_preset = None;
-                app.add_log(crate::t!("presets.saved"), crate::config::LogLevel::Info);
-                if let Err(e) = app.config.save() {
+                if name_conflict {
+                    app.add_log(
+                        crate::t!("presets.name_conflict"),
+                        crate::config::LogLevel::Warning,
+                    );
+                } else if saved {
+                    app.add_log(crate::t!("presets.saved"), crate::config::LogLevel::Info);
+                }
+                if saved && let Err(e) = app.config.save() {
                     app.add_log(
                         format!("Failed to save: {}", e),
                         crate::config::LogLevel::Error,
@@ -151,7 +164,13 @@ pub fn handle_system_prompt_presets_key(app: &mut App, key: crossterm::event::Ke
                 description: "User-defined preset".into(),
                 content: String::new(),
             };
-            app.config.system_prompt_presets.save(&preset);
+            if !app.config.system_prompt_presets.save(&preset) {
+                app.add_log(
+                    crate::t!("presets.name_conflict"),
+                    crate::config::LogLevel::Warning,
+                );
+                return;
+            }
             // Select the new preset and enter edit mode
             app.settings_state.settings_selected_idx = app.config.merged_presets().len() - 1;
             app.settings_state.settings_edit_buffer = String::new();

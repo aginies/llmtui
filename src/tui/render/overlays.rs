@@ -37,10 +37,21 @@ fn center_rect(area: Rect, w: u16, h: u16) -> Rect {
     }
 }
 
-fn render_popup(f: &mut Frame, area: Rect, title: Span, lines: Vec<Line>, border_type: BorderType) {
+fn render_popup(
+    f: &mut Frame,
+    area: Rect,
+    title: Span,
+    lines: Vec<Line>,
+    border_type: BorderType,
+    wrap: bool,
+) {
     f.render_widget(Clear, area);
+    let mut paragraph = Paragraph::new(lines);
+    if wrap {
+        paragraph = paragraph.wrap(Wrap { trim: false });
+    }
     f.render_widget(
-        Paragraph::new(lines).block(
+        paragraph.block(
             Block::default()
                 .title(title)
                 .borders(Borders::ALL)
@@ -80,7 +91,11 @@ fn picker_block_window(
     let total_lines: usize = blocks.iter().map(|b| b.len()).sum();
     if total_lines <= visible_lines {
         *offset = 0;
-        return (blocks.len(), 0, (total_lines + chrome_lines + 4).clamp(10, max_h) as u16);
+        return (
+            blocks.len(),
+            0,
+            (total_lines + chrome_lines + 4).clamp(10, max_h) as u16,
+        );
     }
     let total = blocks.len();
     let mut off = (*offset).min(total.saturating_sub(1));
@@ -916,7 +931,13 @@ fn render_host_picker(
         })
         .collect();
     let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2);
-    let lines: Vec<Line> = blocks.iter().skip(off).take(fit).flatten().cloned().collect();
+    let lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
     let scroll = if entries.len() > fit {
         Some((entries.len(), off, fit))
     } else {
@@ -999,8 +1020,15 @@ fn render_profile_picker(
             }
         }
     }
-    let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2 + preview.len());
-    let mut lines: Vec<Line> = blocks.iter().skip(off).take(fit).flatten().cloned().collect();
+    let (fit, off, _) =
+        picker_block_window(area, &blocks, selected, scroll_offset, 2 + preview.len());
+    let mut lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
     lines.extend(preview);
     let scroll = if entries.len() > fit {
         Some((entries.len(), off, fit))
@@ -1127,7 +1155,13 @@ fn render_prompt_picker(
         })
         .collect();
     let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2);
-    let lines: Vec<Line> = blocks.iter().skip(off).take(fit).flatten().cloned().collect();
+    let lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
     let scroll = if entries.len() > fit {
         Some((entries.len(), off, fit))
     } else {
@@ -1271,7 +1305,9 @@ fn render_backend_picker(
                 }
                 crate::models::Backend::Cuda => crate::t!("dialog.backend_picker.cuda"),
                 crate::models::Backend::CpuArm64 => crate::t!("dialog.backend_picker.cpu_arm64"),
-                crate::models::Backend::CpuWindows => crate::t!("dialog.backend_picker.cpu_windows"),
+                crate::models::Backend::CpuWindows => {
+                    crate::t!("dialog.backend_picker.cpu_windows")
+                }
                 crate::models::Backend::VulkanWindows => {
                     crate::t!("dialog.backend_picker.vulkan_windows")
                 }
@@ -1281,7 +1317,9 @@ fn render_backend_picker(
                 crate::models::Backend::CudaWindows13_1 => {
                     crate::t!("dialog.backend_picker.cuda_131")
                 }
-                crate::models::Backend::HipWindows => crate::t!("dialog.backend_picker.hip_windows"),
+                crate::models::Backend::HipWindows => {
+                    crate::t!("dialog.backend_picker.hip_windows")
+                }
                 crate::models::Backend::CpuMacosArm64 => {
                     crate::t!("dialog.backend_picker.cpu_macos_arm64")
                 }
@@ -1335,7 +1373,14 @@ fn render_backend_picker(
         ]));
     }
     picker_lines.push(Line::from(""));
-    picker_lines.extend(blocks.iter().skip(actual_scroll).take(fit).flatten().cloned());
+    picker_lines.extend(
+        blocks
+            .iter()
+            .skip(actual_scroll)
+            .take(fit)
+            .flatten()
+            .cloned(),
+    );
     let scroll = if entries.len() > fit {
         Some((entries.len(), actual_scroll, fit))
     } else {
@@ -2256,7 +2301,7 @@ fn render_dashboard_url(
     ws_port: &str,
     api_port: u16,
     llm_port: u16,
-    _auth_key: &str,
+    auth_key: &str,
     ws_enabled: bool,
     tls_enabled: bool,
 ) {
@@ -2267,14 +2312,6 @@ fn render_dashboard_url(
         height: area.height,
     };
     f.render_widget(Clear, modal_area);
-    let w = 72u16;
-    let h = 22.min(area.height - 4);
-    let picker_area = Rect {
-        x: (area.width - w) / 2,
-        y: (area.height - h) / 2,
-        width: w,
-        height: h,
-    };
     let host_val = crate::models::format_host(host);
     let backend_str = format!("{}", app.settings.backend);
     let threads_str = app.settings.threads.to_string();
@@ -2298,12 +2335,17 @@ fn render_dashboard_url(
         api_port
     );
     let metrics_url = format!("http://{}:{}/metrics", host_val, llm_port);
-    let dashboard_url = format!(
+    let webui_url = format!("http://{}:{}/", host_val, llm_port);
+    let mut dashboard_url = format!(
         "{}://{}:{}/dashboard",
         if tls_enabled { "https" } else { "http" },
         host,
         ws_port
     );
+    // The dashboard requires the auth key as a query param.
+    if !auth_key.is_empty() {
+        dashboard_url.push_str(&format!("?key={}", auth_key));
+    }
     let opencode_url = format!(
         "{}://{}:{}/v1",
         if tls_enabled { "https" } else { "http" },
@@ -2410,6 +2452,16 @@ fn render_dashboard_url(
     ]));
     picker_lines.push(Line::from(vec![
         Span::styled(
+            format!("{} ", crate::t!("dialog.dashboard_url.webui_url")),
+            Style::default().fg(ACCENT),
+        ),
+        Span::styled(
+            &webui_url,
+            Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    picker_lines.push(Line::from(vec![
+        Span::styled(
             format!("{} ", crate::t!("dialog.dashboard_url.dashboard_url")),
             Style::default().fg(ACCENT),
         ),
@@ -2426,16 +2478,21 @@ fn render_dashboard_url(
         ),
     ]));
     picker_lines.push(Line::from(""));
-    picker_lines.push(Line::from(vec![
-        Span::styled(
-            crate::t!("dialog.dashboard_url.copy"),
-            Style::default().fg(BLACK).bg(ACCENT),
-        ),
-        Span::styled(
-            crate::t!("dialog.dashboard_url.close"),
-            Style::default().fg(BLACK).bg(DIM_GRAY),
-        ),
-    ]));
+    picker_lines.push(Line::from(vec![Span::styled(
+        crate::t!("dialog.dashboard_url.close"),
+        Style::default().fg(BLACK).bg(DIM_GRAY),
+    )]));
+    let longest_line = picker_lines.iter().map(|l| l.width()).max().unwrap_or(0);
+    let w = 72u16
+        .max(longest_line.saturating_add(4).min(u16::MAX as usize) as u16)
+        .min(area.width);
+    let h = 25u16.min(area.height.saturating_sub(4));
+    let picker_area = Rect {
+        x: area.width.saturating_sub(w) / 2,
+        y: area.height.saturating_sub(h) / 2,
+        width: w,
+        height: h,
+    };
     render_popup(
         f,
         picker_area,
@@ -2445,6 +2502,7 @@ fn render_dashboard_url(
         ),
         picker_lines,
         BorderType::Rounded,
+        true,
     );
 }
 
@@ -2943,6 +3001,7 @@ fn render_search_input(f: &mut Frame, area: Rect, buffer: &str, cursor_pos: usiz
         Span::raw(crate::t!("panel.title.search_input")),
         picker_lines,
         BorderType::Rounded,
+        false,
     );
 }
 
@@ -3441,7 +3500,8 @@ fn render_llama_server_picker(
 
     let mode_marker = if selected_field == 2i32 { "> " } else { "  " };
     let modes = crate::models::ServerMode::all();
-    let mode_val = modes.get(mode_picker_selected)
+    let mode_val = modes
+        .get(mode_picker_selected)
         .map(|m| format!("{}", m))
         .unwrap_or_else(|| "Normal".to_string());
     picker_lines.push(Line::from(vec![

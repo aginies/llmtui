@@ -8,6 +8,7 @@ src/
 ├── lib.rs               # Library root
 ├── config.rs            # Config loading/saving, YAML-based, profiles, presets, RPC workers
 ├── models.rs            # Domain types (SearchResult, DownloadState, ModelSettings, ServerMetrics, etc.)
+├── gguf.rs              # Minimal GGUF header parser (metadata KV + tensor shapes, no tensor data)
 ├── serve.rs             # Standalone serve mode CLI (--model, --profile, --api-port, --api-key, --ws-enable)
 ├── serve_api.rs         # Axum-based API proxy server for serve mode
 ├── config/
@@ -419,14 +420,16 @@ A post-filter checks that the model_id contains the search query (case-insensiti
 The `estimate_vram_mib()` function in `src/models.rs` estimates VRAM usage:
 
 ```
-total = model_vram + kv_cache + activation + fixed_overhead + 550
+total = model_vram + kv_cache + ssm_state + mtp_context + activation + fixed_overhead
 ```
 
 Where:
-- **model_vram** — proportional to GPU layers loaded, with MoE expert ratio applied to FFN portion (~60%) for mixture-of-experts models
-- **kv_cache** — `2 * n_layer * n_ctx * n_embd_kv * sizeof(type)` with GQA ratio, FlashAttention factor, and effective context (context_length × rope_scale)
-- **activation** — proportional to batch size and hidden size
-- **fixed_overhead** — 3.8% of max VRAM (or 500 MiB if unknown)
+- **model_vram** — file size × (GPU layers / total layers); in Auto mode the layer count is solved so weights + KV fit in the available VRAM (60% heuristic when the GPU size is unknown)
+- **kv_cache** — `2 * n_kv_layers * n_ctx * n_embd_kv * sizeof(type)` per slot; only full-attention layers carry a KV cache on hybrid models (`full_attention_interval`), `n_embd_kv` uses the explicit GGUF head dimension (`attention.key_length`) when present, otherwise the GQA ratio (n_kv_head / n_head, 0.25 fallback); effective context = context_length × rope_scale
+- **ssm_state** — for hybrid (linear-attention) models: `n_ssm_layers * d_inner * (d_conv + d_state) * 4 bytes * slots * (1 + n_rs_seq)`; fixed size, independent of context length
+- **mtp_context** — for MTP/EAGLE speculative decoding: one KV cache per nextn layer + 256 MiB compute buffer
+- **activation** — proportional to batch size and hidden size (8× multiplier)
+- **fixed_overhead** — 300 MiB (GPU driver, context, fragmentation)
 
 ## Loading Progress
 

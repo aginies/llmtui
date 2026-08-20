@@ -82,7 +82,8 @@ impl OverlayHandler for LlamaServerPickerHandler {
                             }
                             3 => {
                                 let levels = ["error", "warn", "info", "trace", "debug"];
-                                if let Some(pos) = levels.iter().position(|l| *l == log_level.as_str())
+                                if let Some(pos) =
+                                    levels.iter().position(|l| *l == log_level.as_str())
                                 {
                                     let next = levels[(pos + 1) % levels.len()];
                                     app.config.default.log_level = next.to_string();

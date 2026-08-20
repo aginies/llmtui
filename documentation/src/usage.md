@@ -685,7 +685,7 @@ Each backend has its own independently configurable llama.cpp version. Switching
 
 ## VRAM Estimate
 
-The app computes a detailed VRAM estimate based on model size, GPU layers, KV cache, activation overhead, and fixed overhead. The formula accounts for GQA ratio, FlashAttention (0.5× KV cache reduction), unified KV cache, KV cache quantization bytes, activation overhead (8× multiplier), YaRN RoPE scale (effective context = context_length * rope_scale), MoE expert ratio (applied to FFN portion only), and fixed overhead (3.8% of max VRAM or 500 MiB fallback). The estimate is shown in the LLM Settings title (e.g., "VRAM ~= 8.2 GB").
+The app computes a detailed VRAM estimate based on model size, GPU layers, KV cache, SSM state, MTP draft context, activation overhead, and fixed overhead. The formula accounts for the GQA ratio (n_kv_head / n_head, 0.25 fallback), explicit head dimension (`attention.key_length` for models with expanded heads), hybrid attention (only full-attention layers carry a KV cache, per `full_attention_interval`; linear-attention layers carry a fixed-size SSM recurrent state instead), unified KV cache, KV cache quantization bytes, YaRN RoPE scale (effective context = context_length * rope_scale), MTP speculative draft context, activation overhead (8× multiplier), and a fixed 300 MiB overhead. The estimate is shown in the LLM Settings title (e.g., "VRAM ~= 8.2 GB").
 
 ## Confirmation Dialogs
 

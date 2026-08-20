@@ -11,8 +11,10 @@
 ```
 src/
 ├── main.rs          # Entry point, event loop, model discovery, metrics polling
+├── lib.rs           # Library root (re-exports for integration tests)
 ├── config.rs        # Config loading/saving, YAML-based, profiles, presets
 ├── models.rs        # Domain types (SearchResult, DownloadState, ModelSettings, etc.)
+├── gguf.rs          # Minimal GGUF header parser (metadata + tensor shapes)
 ├── serve.rs         # Standalone serve mode CLI
 ├── serve_api.rs     # Axum-based API proxy server
 ├── backend/         # HuggingFace API, server spawning, benchmark, hardware, TLS, WS
@@ -26,6 +28,7 @@ src/
 - Key handling is hierarchical — each branch calls `return` to prevent fallthrough
 - Config is YAML-based in `~/.config/llm-manager/`, indexed by field
 - Download runs in a tokio task; cancellation via `Arc<AtomicBool>`
+- GGUF metadata is parsed by the built-in header parser (`src/gguf.rs`): reads only metadata KV + tensor shapes, keeps tensor GGML types as raw `u32`, so new quantization types (e.g. NVFP4) never break parsing. Do not reintroduce a third-party GGUF decoder that enum-maps tensor types.
 
 ## Rules
 
