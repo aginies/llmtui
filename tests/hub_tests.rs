@@ -9,7 +9,7 @@
 use llm_manager::backend::hub::{
     binary_name, extract_archive, get_backend_dir, get_bin_base, get_free_space_bytes,
     is_backend_any_version_installed, is_backend_version_installed, lib_extension,
-    lib_sentinel_name, list_installed_backends, walk_dir_recursive,
+    lib_sentinel_name, is_lib_sentinel_present, list_installed_backends, walk_dir_recursive,
 };
 use llm_manager::models::Backend;
 use std::fs;
@@ -47,6 +47,47 @@ fn test_lib_sentinel_name_returns_correct_for_platform() {
     assert_eq!(name, "libllama.dylib");
     #[cfg(target_os = "windows")]
     assert_eq!(name, "libllama.dll");
+}
+
+#[test]
+fn test_is_lib_sentinel_present() {
+    let mut temp_dir = std::env::temp_dir();
+    temp_dir.push(format!("llm-manager-test-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&temp_dir).unwrap();
+    
+    // Initially false
+    assert!(!is_lib_sentinel_present(&temp_dir));
+
+    // Platform-specific setup
+    #[cfg(target_os = "windows")]
+    {
+        // On Windows, either llama.dll or libllama.dll makes it true
+        let lib_path1 = temp_dir.join("libllama.dll");
+        let lib_path2 = temp_dir.join("llama.dll");
+        
+        fs::write(&lib_path1, "dummy").unwrap();
+        assert!(is_lib_sentinel_present(&temp_dir));
+        
+        fs::remove_file(&lib_path1).unwrap();
+        assert!(!is_lib_sentinel_present(&temp_dir));
+        
+        fs::write(&lib_path2, "dummy").unwrap();
+        assert!(is_lib_sentinel_present(&temp_dir));
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let lib_path = temp_dir.join("libllama.dylib");
+        fs::write(&lib_path, "dummy").unwrap();
+        assert!(is_lib_sentinel_present(&temp_dir));
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let lib_path = temp_dir.join("libllama.so");
+        fs::write(&lib_path, "dummy").unwrap();
+        assert!(is_lib_sentinel_present(&temp_dir));
+    }
+
+    let _ = fs::remove_dir_all(&temp_dir);
 }
 
 #[test]

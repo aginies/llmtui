@@ -546,6 +546,15 @@ pub fn lib_sentinel_name() -> &'static str {
     }
 }
 
+/// Check if the shared library sentinel exists in the given directory.
+pub fn is_lib_sentinel_present(bin_dir: &std::path::Path) -> bool {
+    match std::env::consts::OS {
+        "windows" => bin_dir.join("libllama.dll").exists() || bin_dir.join("llama.dll").exists(),
+        "macos" => bin_dir.join("libllama.dylib").exists(),
+        _ => bin_dir.join("libllama.so").exists(),
+    }
+}
+
 /// Get the shared library extension for matching during extraction
 pub fn lib_extension() -> &'static str {
     match std::env::consts::OS {
@@ -570,7 +579,6 @@ pub fn is_backend_any_version_installed(backend: crate::models::Backend) -> bool
     let prefix = format!("llama-server-{}-", backend.slug());
 
     let bin_name = binary_name();
-    let lib_name = lib_sentinel_name();
 
     if let Ok(entries) = std::fs::read_dir(bin_base) {
         for entry in entries.flatten() {
@@ -578,8 +586,7 @@ pub fn is_backend_any_version_installed(backend: crate::models::Backend) -> bool
             let name_str = name.to_string_lossy();
             if name_str.starts_with(&prefix) {
                 let bin_path = entry.path().join(bin_name);
-                let lib_sentinel = entry.path().join(lib_name);
-                if bin_path.exists() && lib_sentinel.exists() {
+                if bin_path.exists() && is_lib_sentinel_present(&entry.path()) {
                     return true;
                 }
             }
@@ -601,11 +608,9 @@ pub fn is_backend_version_installed(backend: crate::models::Backend, tag: Option
 
     let bin_dir = get_backend_dir(backend, tag);
     let bin_name = binary_name();
-    let lib_name = lib_sentinel_name();
     let bin_path = bin_dir.join(bin_name);
-    let lib_sentinel = bin_dir.join(lib_name);
 
-    bin_path.exists() && lib_sentinel.exists()
+    bin_path.exists() && is_lib_sentinel_present(&bin_dir)
 }
 
 /// List all installed backends and their versions.
@@ -774,15 +779,14 @@ pub async fn resolve_backend_binary(
     );
 
     // Check if both the binary and at least one shared library exist
-    let lib_name = lib_sentinel_name();
-    let lib_sentinel = bin_dir.join(lib_name);
+    let lib_present = is_lib_sentinel_present(&bin_dir);
     tracing::info!(
-        "  -> checking binary existence: bin_path={} lib_sentinel={}",
+        "  -> checking binary existence: bin_path={} lib_present={}",
         bin_path.exists(),
-        lib_sentinel.exists()
+        lib_present
     );
 
-    if bin_path.exists() && lib_sentinel.exists() {
+    if bin_path.exists() && lib_present {
         tracing::info!("  -> binary already exists, returning cached path");
         return Ok(bin_path);
     }
@@ -1078,7 +1082,6 @@ pub async fn resolve_backend_binary(
 
         // Also extract shared libraries from the archive into bin_dir
         let lib_ext = lib_extension();
-        let lib_name = lib_sentinel_name();
         let mut libs_found = Vec::new();
         walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
             let name = entry.file_name();
@@ -1115,10 +1118,10 @@ pub async fn resolve_backend_binary(
             libs_found.len(),
             libs_found
         );
-        if !bin_dir.join(lib_name).exists() {
+        if !is_lib_sentinel_present(&bin_dir) {
             anyhow::bail!(
-                "Expected library '{}' not found in archive (found: {:?})",
-                lib_name,
+                "Expected library (e.g., '{}') not found in archive (found: {:?})",
+                lib_sentinel_name(),
                 libs_found
             );
         }
