@@ -53,12 +53,12 @@ pub fn get_free_space_bytes(path: &std::path::Path) -> Option<u64> {
     {
         use std::os::windows::ffi::OsStrExt;
         let wide: Vec<u16> = path
-            .to_os_str()
+            .as_os_str()
             .encode_wide()
             .chain(std::iter::once(0))
             .collect();
 
-        extern "system" {
+        unsafe extern "system" {
             fn GetDiskFreeSpaceExW(
                 lp_directory_name: *const u16,
                 lp_free_bytes_available_to_caller: *mut u64,
