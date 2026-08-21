@@ -771,6 +771,22 @@ impl Backend {
         matches!(self, Backend::CpuMacosArm64 | Backend::CpuMacosX64)
     }
 
+    /// Returns true if this backend uses CUDA.
+    pub fn is_cuda(self) -> bool {
+        matches!(
+            self,
+            Backend::Cuda | Backend::CudaWindows12_4 | Backend::CudaWindows13_1
+        )
+    }
+
+    /// Returns true if this backend uses ROCm/HIP.
+    pub fn is_rocm(self) -> bool {
+        matches!(
+            self,
+            Backend::Rocm | Backend::RocmLemonade | Backend::HipWindows
+        )
+    }
+
     /// Parse backend from string representation.
     pub fn parse_backend(s: &str) -> Self {
         let s = s.to_lowercase();

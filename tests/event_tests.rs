@@ -609,10 +609,17 @@ async fn test_cmdline_e_exports_script() {
     };
     let key = make_key(KeyCode::Char('e'));
     handle_key(&mut app, key).await;
-    // Script should have been written to /tmp/test_llamaserver.sh
-    assert!(std::path::Path::new("/tmp/test_llamaserver.sh").exists());
+    
+    let is_windows = cfg!(target_os = "windows");
+    let script_path = if is_windows {
+        std::env::temp_dir().join("test_llamaserver.bat")
+    } else {
+        std::env::temp_dir().join("test_llamaserver.sh")
+    };
+    
+    assert!(script_path.exists());
     // Clean up
-    let _ = std::fs::remove_file("/tmp/test_llamaserver.sh");
+    let _ = std::fs::remove_file(script_path);
 }
 
 // ── Search mode ─────────────────────────────────────────────────

@@ -459,6 +459,45 @@ pub fn detect_all_gpus() -> Vec<GpuInfo> {
     }
 }
 
+/// Map a global GPU index (from detect_all_gpus) to a backend-specific index.
+/// This is needed because some llama-server backends (like CUDA and ROCm) only see GPUs of their
+/// respective platforms (e.g. CUDA only sees NVIDIA devices, ROCm only sees AMD devices).
+pub fn map_main_gpu_to_backend(global_index: i32, backend: crate::models::Backend) -> i32 {
+    if global_index <= 0 {
+        return 0;
+    }
+
+    let is_cuda = backend.is_cuda();
+    let is_rocm = backend.is_rocm();
+
+    if !is_cuda && !is_rocm {
+        return global_index;
+    }
+
+    let gpus = detect_all_gpus();
+    let target_vendor = if is_cuda {
+        GpuVendor::Nvidia
+    } else {
+        GpuVendor::Amd
+    };
+
+    let mut vendor_index = -1;
+    for (i, gpu) in gpus.iter().enumerate() {
+        if gpu.vendor == target_vendor {
+            vendor_index += 1;
+        }
+        if i == global_index as usize {
+            break;
+        }
+    }
+
+    if vendor_index >= 0 {
+        vendor_index
+    } else {
+        0
+    }
+}
+
 #[cfg(target_os = "linux")]
 fn detect_all_gpus_linux() -> Vec<GpuInfo> {
     // Try lspci first for full model names
