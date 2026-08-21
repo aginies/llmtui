@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::process::ExitStatus;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -693,11 +694,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 }
                 break exit_result.unwrap_or_else(|e| {
                     tracing::error!("Failed to wait for llama-server: {}", e);
-                    std::process::Command::new("sh")
-                        .arg("-c")
-                        .arg("exit 1")
-                        .status()
-                        .expect("failed to get exit status")
+                    failed_exit_status()
                 });
             }
             api_result = async {
@@ -727,11 +724,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 }
                 break child.wait().await.unwrap_or_else(|e| {
                     tracing::error!("Failed to wait for llama-server: {}", e);
-                    std::process::Command::new("sh")
-                        .arg("-c")
-                        .arg("exit 1")
-                        .status()
-                        .expect("failed to get exit status")
+                    failed_exit_status()
                 });
             }
             _ = signal::ctrl_c() => {
@@ -770,5 +763,24 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         Ok(())
     } else {
         anyhow::bail!("llama-server exited with status: {}", status)
+    }
+}
+
+/// Create a cross-platform failed `ExitStatus` (exit code 1).
+fn failed_exit_status() -> ExitStatus {
+    #[cfg(windows)]
+    {
+        std::process::Command::new("cmd")
+            .args(&["/c", "exit", "1"])
+            .status()
+            .expect("cmd not found")
+    }
+    #[cfg(not(windows))]
+    {
+        std::process::Command::new("sh")
+            .arg("-c")
+            .arg("exit 1")
+            .status()
+            .expect("sh not found")
     }
 }
