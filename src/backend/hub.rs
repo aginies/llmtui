@@ -304,39 +304,62 @@ pub fn validate_model_id(model_id: &str) -> Result<()> {
 /// List all GGUF files for a model.
 pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)>> {
     validate_model_id(model_id)?;
-    let branch = "main";
-    let url = format!(
-        "https://huggingface.co/api/models/{}/tree/{}?recursive=true",
-        model_id, branch
-    );
     let client = reqwest::Client::builder()
         .user_agent(super::USER_AGENT)
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .unwrap();
-    let resp = match client.get(&url).send().await {
-        Ok(r) if r.status().is_success() => r,
-        _ => {
-            client
-                .get(&format!(
-                    "https://huggingface.co/api/models/{}/tree/master?recursive=true",
-                    model_id
-                ))
-                .send()
-                .await?
+    // Try main first, fall back to master. Track which branch actually worked
+    // so resolve URLs use the right one.
+    let mut branch: Option<&str> = None;
+    let mut files: Vec<serde_json::Value> = Vec::new();
+    for candidate in ["main", "master"] {
+        branch = Some(candidate);
+        // Paginate: HF tree API caps at 1000 entries per page.
+        let mut url: Option<String> = Some(format!(
+            "https://huggingface.co/api/models/{}/tree/{}?recursive=true&limit=1000",
+            model_id, candidate
+        ));
+        let mut page_files = Vec::new();
+        while let Some(u) = url.take() {
+            let resp = client.get(&u).send().await?;
+            if !resp.status().is_success() {
+                break;
+            }
+            let resp = resp.error_for_status()?;
+            // Extract next-page URL from Link header before consuming body.
+            let next_url = resp
+                .headers()
+                .get("link")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| {
+                    v.split(',')
+                        .find(|part| part.contains("rel=\"next\""))
+                        .and_then(|part| {
+                            part.split('<').nth(1)?.split('>').next().map(String::from)
+                        })
+                });
+            let next: Vec<serde_json::Value> = resp.json().await?;
+            url = next_url;
+            page_files.extend(next);
         }
-    };
-    let resp = resp.error_for_status()?;
-    let files: Vec<serde_json::Value> = resp.json().await?;
+        if !page_files.is_empty() {
+            files = page_files;
+            break;
+        }
+    }
+    let branch = branch.unwrap();
 
     let mut gguf_files = Vec::new();
     for file in &files {
         let path = file.get("path").and_then(|p| p.as_str()).unwrap_or("");
         if path.ends_with(".gguf") {
+            // LFS files carry size under lfs.size; regular files under size.
             let size = file
                 .get("lfs")
                 .and_then(|l| l.get("size"))
                 .and_then(|s| s.as_u64())
+                .or_else(|| file.get("size").and_then(|s| s.as_u64()))
                 .unwrap_or(0);
             let lfs_url = file
                 .get("lfs")
