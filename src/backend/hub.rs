@@ -306,7 +306,7 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
     validate_model_id(model_id)?;
     let branch = "main";
     let url = format!(
-        "https://huggingface.co/api/models/{}/tree/{}",
+        "https://huggingface.co/api/models/{}/tree/{}?recursive=true",
         model_id, branch
     );
     let client = reqwest::Client::builder()
@@ -319,7 +319,7 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
         _ => {
             client
                 .get(&format!(
-                    "https://huggingface.co/api/models/{}/tree/master",
+                    "https://huggingface.co/api/models/{}/tree/master?recursive=true",
                     model_id
                 ))
                 .send()
