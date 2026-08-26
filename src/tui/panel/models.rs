@@ -582,6 +582,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     crate::t!("models.search_headers.likes")
                 })
                 .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+                Cell::from(crate::t!("models.search_headers.date"))
+                    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
                 Cell::from(crate::t!("models.search_headers.license"))
                     .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
             ];
@@ -640,6 +642,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         Cell::from(Line::from(name_spans)),
                         Cell::from(format_number(result.downloads)),
                         Cell::from(format_number(result.likes)),
+                        Cell::from(result.created_at.clone().unwrap_or_default()),
                         Cell::from(license.to_string()),
                     ])
                 })

@@ -857,9 +857,12 @@ fn render_search_result_info(
         Span::styled(license, Style::default().fg(WHITE)),
     ]));
     if let Some(created) = &r.created_at {
+        let formatted = chrono::DateTime::parse_from_rfc3339(created)
+            .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+            .unwrap_or_else(|_| created.clone());
         lines.push(Line::from(vec![
-            Span::styled("Created: ", Style::default().fg(ACCENT)),
-            Span::styled(created.clone(), Style::default().fg(WHITE)),
+            Span::styled(crate::t!("settings.info_created"), Style::default().fg(ACCENT)),
+            Span::styled(formatted, Style::default().fg(WHITE)),
         ]));
     }
     lines.push(Line::from(vec![

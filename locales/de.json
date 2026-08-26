@@ -551,7 +551,7 @@
   "settings.info_likes": "Likes: ",
   "settings.info_trending": "Trend: ",
   "settings.info_license": "Lizenz: ",
-  "settings.info_created": "Erstellt: ",
+  "settings.info_created": "Erstellt (Repo): ",
   "settings.info_tags": "Tags: ",
   "profiles.title": "Profile",
   "profiles.hint": " -- Profil auswählen, um Einstellungen zu übernehmen",

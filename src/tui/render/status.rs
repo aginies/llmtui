@@ -23,8 +23,25 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
             crate::t_fmt!("status.search_count", results.len()),
             sort_by.label().to_lowercase()
         ),
-        ModelsMode::Files { model_id, .. } => {
-            format!("{} | {}", crate::t!("status.files"), model_id)
+        ModelsMode::Files {
+            model_id,
+            files,
+            selected_result,
+            ..
+        } => {
+            let mut s = format!(
+                "{} | {}",
+                crate::t_fmt!("status.files", files.len()),
+                model_id
+            );
+            if let Some(result) = selected_result {
+                if let Some(ref created) = result.created_at {
+                    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(created) {
+                        s.push_str(&format!(" | {}", dt.format("%Y-%m-%d %H:%M")));
+                    }
+                }
+            }
+            s
         }
         ModelsMode::BenchTune => crate::t!("status.bench_tune").to_string(),
     };
