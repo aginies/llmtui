@@ -178,6 +178,7 @@
   "dialog.dashboard_url.metrics_url": "URL des métriques : ",
   "dialog.dashboard_url.webui_url": "URL WebUI : ",
   "dialog.dashboard_url.dashboard_url": "URL du tableau de bord : ",
+  "dialog.dashboard_url.chat_url": "URL Chat : ",
   "dialog.dashboard_url.host": "Hôte : ",
   "dialog.dashboard_url.mode": "Mode : ",
   "dialog.dashboard_url.rpc_workers": "Workers RPC : ",

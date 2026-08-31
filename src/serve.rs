@@ -2,7 +2,7 @@ use std::io::Write;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitStatus;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use anyhow::{Context, Result};
 use tokio::io::AsyncBufReadExt;
@@ -134,6 +134,10 @@ async fn start_metrics_polling_task(
         // matching the TUI's tick_metrics() behavior.
         if effective_ctx > 0 {
             ws_metrics.ctx_max = effective_ctx;
+        }
+        // Calculate latency per token from tps (matching TUI async_ops.rs:733)
+        if m.tps > 0.0 {
+            ws_metrics.latency_per_token_ms = 1000.0 / m.tps;
         }
 
         // Apply log-parsed values (always, matching TUI async_ops.rs:522-529).
@@ -469,6 +473,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     // This enables all 7 metrics tracking via log line parsing when /metrics API returns 0.
     let stdout = child.stdout.take().expect("stdout should be piped");
     let (stdout_tx, mut stdout_rx) = tokio::sync::mpsc::channel::<String>(100);
+    let (api_stdout_tx, api_stdout_rx) = tokio::sync::mpsc::channel::<String>(1000);
     let (log_metrics_tx, log_metrics_rx) =
         tokio::sync::mpsc::channel::<server_logs::ServerLogMetrics>(10);
 
@@ -503,6 +508,10 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             if stdout_tx.send(line.clone()).await.is_err() {
                 break;
             }
+            // Send to API proxy channel (for /api/status metrics).
+            // try_send: drop lines when the API side is not draining /api/status,
+            // so the bounded channel never backs up the log reader.
+            let _ = api_stdout_tx.try_send(line.clone());
 
             // Write to terminal only when --log-file is not used
             if let Some(ref mut term) = term {
@@ -562,12 +571,17 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let host_clone = host_str.clone();
         let tls_for_api = tls_config.clone();
         let preset_name = settings.system_prompt_preset_name.clone();
-        let search_engine = settings.web_search_engine.clone();
-        let search_engine_url = settings.web_search_engine_url.clone();
-        let web_search_enabled = config.default.web_search_enabled;
-        let web_search_api_key = config.default.web_search_api_key.clone();
+        let web_search_config = Arc::new(RwLock::new(crate::serve_api::WebSearchConfig {
+            engine: settings.web_search_engine.clone(),
+            engine_url: settings.web_search_engine_url.clone(),
+            enabled: config.default.web_search_enabled,
+            api_key: config.default.web_search_api_key.clone(),
+        }));
         let log_cb = Arc::new(std::sync::Mutex::new(None));
         let log_cb_clone = log_cb.clone();
+        let api_log_rx = Some(Arc::new(std::sync::Mutex::new(api_stdout_rx)));
+        let ws_port_for_api = if ws_enable { ws_port } else { 0 };
+        let ws_auth_for_api = if ws_enable { ws_auth.clone() } else { None };
         let handle = tokio::spawn(async move {
             let result = crate::serve_api::start_api_server(
                 addr,
@@ -579,11 +593,11 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 host_clone,
                 tls_for_api,
                 preset_name,
-                search_engine,
-                search_engine_url,
-                web_search_enabled,
-                web_search_api_key,
+                web_search_config,
                 log_cb_clone,
+                api_log_rx,
+                ws_port_for_api,
+                ws_auth_for_api,
             )
             .await;
             let _ = api_done_tx.send(result.map_err(|e| e.to_string()));

@@ -11,10 +11,11 @@ pub fn needs_search(message: &str) -> bool {
     message
         .rfind("$web")
         .map(|i| {
-            if i == 0 {
-                return true;
-            }
-            !message[..i].chars().last().unwrap().is_alphanumeric()
+            let before_ok = i == 0 || !message[..i].chars().last().unwrap().is_alphanumeric();
+            let after_pos = i + "$web".len();
+            let after_ok = after_pos >= message.len()
+                || !message[after_pos..].chars().next().unwrap().is_alphanumeric();
+            before_ok && after_ok
         })
         .unwrap_or(false)
 }
@@ -563,5 +564,43 @@ mod tests {
     #[test]
     fn extract_source_url_empty_url() {
         assert_eq!(extract_source_url("[Source]()"), None);
+    }
+
+    #[test]
+    fn needs_search_standalone_at_start() {
+        assert!(needs_search("$web find info"));
+    }
+
+    #[test]
+    fn needs_search_standalone_in_middle() {
+        assert!(needs_search("hello $web world"));
+    }
+
+    #[test]
+    fn needs_search_standalone_at_end() {
+        assert!(needs_search("search $web"));
+    }
+
+    #[test]
+    fn needs_search_not_in_webui() {
+        assert!(!needs_search("using llama.cpp webui"));
+    }
+
+    #[test]
+    fn needs_search_not_in_compound() {
+        assert!(!needs_search("sounds like $webui do not work"));
+    }
+
+    #[test]
+    fn needs_search_standalone_after_webui() {
+        assert!(needs_search("sounds like $web do not work"));
+    }
+
+    #[test]
+    fn needs_search_with_punctuation() {
+        assert!(!needs_search("check$thisweb"));
+        assert!(needs_search("$web."));
+        assert!(needs_search("$web,"));
+        assert!(needs_search("ask $web?"));
     }
 }

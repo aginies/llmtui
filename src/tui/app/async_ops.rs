@@ -4,6 +4,7 @@ use crate::backend::server_logs;
 use crate::tui::toast::ToastLevel;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU8};
 
 use super::types::sub::{BenchTuneTaskHandle, SpawnTaskHandle};
@@ -575,6 +576,15 @@ impl App {
                     self.metrics.gen_tps = v;
                 }
 
+                // Forward to API proxy for /api/status metrics (only when proxy is running).
+                // Bounded channel + try_send: drops lines when the API side is not
+                // draining, so memory stays flat even if /api/status is never polled.
+                if self.server.api_proxy_handle.is_some()
+                    && let Some(api_tx) = &self.server.api_log_tx
+                {
+                    let _ = api_tx.try_send(line.clone());
+                }
+
                 prev_line = Some(line.clone());
                 server_logs.push(line);
             }
@@ -987,6 +997,9 @@ impl App {
     ) {
         let (tx, rx) = tokio::sync::mpsc::channel(100);
         self.server.server_log_rx = Some(rx);
+        let (api_tx, api_rx) = tokio::sync::mpsc::channel::<String>(1000);
+        self.server.api_log_rx = Some(api_rx);
+        self.server.api_log_tx = Some(api_tx);
         let (exit_tx, exit_rx) = tokio::sync::mpsc::channel(1);
         self.server.server_exit_tx = Some(exit_tx.clone());
         self.server.server_exit_rx = Some(exit_rx);
@@ -1604,6 +1617,8 @@ impl App {
                 if let Some(proxy) = self.server.api_proxy_handle.take() {
                     proxy.abort();
                 }
+                self.server.api_log_tx = None;
+                self.server.api_log_rx = None;
                 let mut names_to_reset = Vec::new();
                 for (name, state) in &self.model_states {
                     if !matches!(state, crate::models::ModelState::Available)
@@ -2000,7 +2015,9 @@ impl App {
 
         let settings_changed = self.server.running_api_port != Some(port)
             || self.server.running_api_server_port != Some(server_port)
-            || self.server.running_api_model.as_deref() != Some(model_name.as_str());
+            || self.server.running_api_model.as_deref() != Some(model_name.as_str())
+            || self.server.running_api_ws_port != Some(self.server.running_ws_port.unwrap_or(0))
+            || self.server.running_api_ws_auth.as_ref() != self.server.running_ws_auth.as_ref();
 
         // Stop if disabled or settings/model changed.
         if self.server.api_proxy_handle.is_some() && (!enabled || settings_changed) {
@@ -2010,9 +2027,13 @@ impl App {
             if let Some(handle) = self.server.api_proxy_handle.take() {
                 handle.abort();
             }
+            self.server.api_log_tx = None;
+            self.server.api_log_rx = None;
             self.server.running_api_port = None;
             self.server.running_api_server_port = None;
             self.server.running_api_model = None;
+            self.server.running_api_ws_port = None;
+            self.server.running_api_ws_auth = None;
             if !enabled {
                 self.add_log(
                     crate::t!("async.api_disabled"),
@@ -2162,9 +2183,26 @@ impl App {
             let host_clone = host.clone();
             let model_name_clone = model_name.clone();
             let preset_name = self.settings.system_prompt_preset_name.clone();
-            let search_engine = self.config.default.web_search_engine.clone();
-            let search_engine_url = self.config.default.web_search_engine_url.clone();
+            {
+                let mut ws = self.server.web_search_config.write().unwrap();
+                ws.engine = self.config.default.web_search_engine.clone();
+                ws.engine_url = self.config.default.web_search_engine_url.clone();
+                ws.enabled = self.config.default.web_search_enabled;
+                ws.api_key = self.config.default.web_search_api_key.clone();
+            }
+            let web_search_config = self.server.web_search_config.clone();
+            // Recreate the API log channel each start: the previous receiver was
+            // moved into the old API server task (via .take() below), so a
+            // restart without a new channel would leave /api/status without logs.
+            let (api_tx, api_rx) = tokio::sync::mpsc::channel::<String>(1000);
+            self.server.api_log_tx = Some(api_tx);
+            self.server.api_log_rx = Some(api_rx);
             let log_tx = self.server.spawn_log_tx.clone();
+            let log_rx = self
+                .server
+                .api_log_rx
+                .take()
+                .map(|rx| Arc::new(Mutex::new(rx)));
             let log_cb = Arc::new(std::sync::Mutex::new({
                 log_tx.map(|tx| {
                     Box::new(move |msg: String| {
@@ -2173,9 +2211,11 @@ impl App {
                 })
             }));
             let log_cb_clone = log_cb.clone();
-            let ws_enabled = self.config.default.web_search_enabled;
-            let ws_api_key = self.config.default.web_search_api_key.clone();
             let tls_cfg_for_api = tls_cfg.clone();
+            // Pass WS dashboard port/auth so /api/status can advertise it to the frontend.
+            let ws_port_for_api = self.server.running_ws_port.unwrap_or(0);
+            let ws_auth_for_api = self.server.running_ws_auth.clone();
+            let ws_auth_for_api_clone = ws_auth_for_api.clone();
             let handle = tokio::spawn(async move {
                 let _ = crate::serve_api::start_api_server(
                     addr,
@@ -2187,11 +2227,11 @@ impl App {
                     host_clone,
                     tls_cfg_for_api,
                     preset_name,
-                    search_engine,
-                    search_engine_url,
-                    ws_enabled,
-                    ws_api_key,
+                    web_search_config,
                     log_cb_clone,
+                    log_rx,
+                    ws_port_for_api,
+                    ws_auth_for_api_clone,
                 )
                 .await;
             });
@@ -2199,6 +2239,8 @@ impl App {
             self.server.running_api_port = Some(port);
             self.server.running_api_server_port = Some(server_port);
             self.server.running_api_model = Some(model_name);
+            self.server.running_api_ws_port = Some(ws_port_for_api);
+            self.server.running_api_ws_auth = ws_auth_for_api;
             let status = if server_port == 0 {
                 " (no model loaded yet)"
             } else {

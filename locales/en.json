@@ -273,6 +273,7 @@
   "dialog.dashboard_url.metrics_url": "Metrics URL: ",
   "dialog.dashboard_url.webui_url": "WebUI URL: ",
   "dialog.dashboard_url.dashboard_url": "Dashboard URL: ",
+  "dialog.dashboard_url.chat_url": "Chat URL: ",
   "dialog.dashboard_url.close": "[⎋] close",
   "dialog.bench_result.title": " BenchTune Result: ",
   "dialog.bench_result.no_output": "No output captured.",

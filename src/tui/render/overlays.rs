@@ -2346,6 +2346,14 @@ fn render_dashboard_url(
     if !auth_key.is_empty() {
         dashboard_url.push_str(&format!("?key={}", auth_key));
     }
+    // Chat URL shown without the key: the page prompts for it (stored in
+    // browser localStorage) instead of leaking the key in the URL.
+    let chat_url = format!(
+        "{}://{}:{}/chat",
+        if tls_enabled { "https" } else { "http" },
+        host_val,
+        api_port
+    );
     let opencode_url = format!(
         "{}://{}:{}/v1",
         if tls_enabled { "https" } else { "http" },
@@ -2471,6 +2479,16 @@ fn render_dashboard_url(
         ),
     ]));
     picker_lines.push(Line::from(vec![
+        Span::styled(
+            format!("{} ", crate::t!("dialog.dashboard_url.chat_url")),
+            Style::default().fg(ACCENT),
+        ),
+        Span::styled(
+            &chat_url,
+            Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    picker_lines.push(Line::from(vec![
         Span::styled("opencode baseURL: ", Style::default().fg(ACCENT)),
         Span::styled(
             &opencode_url,
@@ -2486,7 +2504,7 @@ fn render_dashboard_url(
     let w = 72u16
         .max(longest_line.saturating_add(4).min(u16::MAX as usize) as u16)
         .min(area.width);
-    let h = 25u16.min(area.height.saturating_sub(4));
+    let h = 27u16.min(area.height.saturating_sub(4));
     let picker_area = Rect {
         x: area.width.saturating_sub(w) / 2,
         y: area.height.saturating_sub(h) / 2,

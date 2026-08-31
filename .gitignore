@@ -3,3 +3,5 @@ documentation/book/
 CHANGELOG.md
 .shell-extension.zip
 llm-manager@aginies.shell-extension.zip
+.rtk/
+graphify-out/

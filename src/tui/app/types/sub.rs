@@ -6,7 +6,7 @@ use crate::tui::toast::Toast;
 
 use ratatui::widgets::TableState;
 use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use super::{
     ActivePanel, GlobalMode, LoadingPhase, ResizeState, SettingsRenderCache, TextScrollState,
@@ -72,6 +72,8 @@ pub struct ServerState {
     pub spawn_task_handle: Option<SpawnTaskHandle>,
     pub bench_tune_task_handle: Option<BenchTuneTaskHandle>,
     pub server_log_rx: Option<tokio::sync::mpsc::Receiver<String>>,
+    pub api_log_rx: Option<tokio::sync::mpsc::Receiver<String>>,
+    pub api_log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     pub metrics_rx: Option<tokio::sync::mpsc::Receiver<crate::models::ServerMetrics>>,
     pub sync_rx: Option<SyncRx>,
     pub spawn_log_tx: Option<tokio::sync::mpsc::Sender<String>>,
@@ -85,6 +87,8 @@ pub struct ServerState {
     pub running_api_port: Option<u16>,
     pub running_api_server_port: Option<u16>,
     pub running_api_model: Option<String>,
+    pub running_api_ws_port: Option<u16>,
+    pub running_api_ws_auth: Option<String>,
     pub running_server_tls_cfg: Option<axum_server::tls_rustls::RustlsConfig>,
     pub running_server_tls_cert_path: Option<String>,
     pub running_server_tls_key_path: Option<String>,
@@ -99,6 +103,7 @@ pub struct ServerState {
     pub api_load_error_tx: Option<tokio::sync::mpsc::Sender<(String, String)>>,
     pub api_load_error_rx: Option<tokio::sync::mpsc::Receiver<(String, String)>>,
     pub api_shutdown_tx: Option<tokio::sync::watch::Sender<bool>>,
+    pub web_search_config: Arc<RwLock<crate::serve_api::WebSearchConfig>>,
     /// Last time tick_server_logs ran (throttled to ~500ms).
     pub last_server_logs_tick: Option<std::time::Instant>,
     /// Last time tick_sync ran (throttled to ~1000ms).

@@ -36,11 +36,26 @@ const HOP_BY_HOP: &[&str] = &[
 pub struct StatusCache {
     pub models: usize,
     pub cached_at: Instant,
+    pub metrics: Option<crate::models::ServerMetrics>,
+    pub metrics_at: Instant,
+    pub log_metrics: crate::backend::server_logs::ServerLogMetrics,
+    pub log_metrics_at: Instant,
+    /// Last raw log line, kept for cross-line parsing (e.g. tokens-per-second).
+    pub log_prev_line: Option<String>,
+}
+
+pub struct WebSearchConfig {
+    pub engine: String,
+    pub engine_url: String,
+    pub enabled: bool,
+    pub api_key: Option<String>,
 }
 
 #[derive(Clone)]
 pub struct ApiState {
     pub server_url: String,
+    pub server_host: String,
+    pub server_port: u16,
     pub api_key: Option<String>,
     pub model_name: String,
     pub pid: u32,
@@ -48,12 +63,15 @@ pub struct ApiState {
     pub port: u16,
     pub client: reqwest::Client,
     pub status_cache: Arc<RwLock<StatusCache>>,
+    pub log_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<String>>>>,
     pub system_prompt_preset_name: String,
-    pub web_search_engine: String,
-    pub web_search_engine_url: String,
-    pub web_search_enabled: bool,
-    pub web_search_api_key: Option<String>,
+    pub web_search_config: Arc<RwLock<WebSearchConfig>>,
     pub log_callback: Arc<Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>>,
+    /// WebSocket dashboard port (0 = disabled). Exposed via /api/status so
+    /// the web chat can connect to the WS metrics channel for full stats.
+    pub ws_port: u16,
+    /// WebSocket dashboard auth key (None = no auth).
+    pub ws_auth: Option<String>,
 }
 
 fn extract_api_key(headers: &axum::http::HeaderMap) -> Option<String> {
@@ -156,18 +174,27 @@ async fn proxy_streaming(
             }
         };
 
+        let (ws_enabled, ws_engine, ws_engine_url, ws_api_key) = {
+            let ws_cfg = state.web_search_config.read().unwrap();
+            (
+                ws_cfg.enabled,
+                ws_cfg.engine.clone(),
+                ws_cfg.engine_url.clone(),
+                ws_cfg.api_key.clone().unwrap_or_default(),
+            )
+        };
         info!(
             "API: web_search_enabled={}, preset='{}', engine='{}'",
-            state.web_search_enabled, state.system_prompt_preset_name, state.web_search_engine
+            ws_enabled, state.system_prompt_preset_name, ws_engine
         );
         {
             let cb = state.log_callback.lock().unwrap();
             if let Some(c) = cb.as_ref() {
                 c(format!(
                     "API: web_search_enabled={}, preset='{}', engine='{}'",
-                    state.web_search_enabled,
+                    ws_enabled,
                     state.system_prompt_preset_name,
-                    state.web_search_engine
+                    ws_engine
                 ));
             }
         }
@@ -175,10 +202,10 @@ async fn proxy_streaming(
         let result = web_context::build_injected_prompt(
             &state.system_prompt_preset_name,
             &request_json,
-            state.web_search_enabled,
-            &state.web_search_engine,
-            &state.web_search_engine_url,
-            state.web_search_api_key.as_deref().unwrap_or(""),
+            ws_enabled,
+            &ws_engine,
+            &ws_engine_url,
+            &ws_api_key,
             &state.log_callback,
         )
         .await;
@@ -352,7 +379,7 @@ async fn security_headers(
         .or_insert("DENY".parse().unwrap());
     resp.headers_mut()
         .entry(axum::http::header::CONTENT_SECURITY_POLICY)
-        .or_insert("default-src 'self'".parse().unwrap());
+        .or_insert("default-src 'self' blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' ws: wss:".parse().unwrap());
     resp
 }
 
@@ -487,6 +514,109 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
         }
     };
 
+    let metrics = {
+        let stale = state
+            .status_cache
+            .read()
+            .unwrap()
+            .metrics_at
+            .elapsed()
+            >= STATUS_CACHE_TTL;
+        if state.server_port == 0 {
+            // No backend server port yet — nothing to fetch.
+            None
+        } else if !stale {
+            state.status_cache.read().unwrap().metrics.clone()
+        } else {
+            let m = crate::backend::server::get_metrics(
+                &state.server_host,
+                state.server_port,
+                Some(&state.model_name),
+                Some(state.pid),
+            )
+            .await
+            .ok();
+            let mut cache = state.status_cache.write().unwrap();
+            cache.metrics = m.clone();
+            cache.metrics_at = Instant::now();
+            m
+        }
+    };
+
+    // Drain llama-server log lines (if wired) and parse metrics from them.
+    // Log-parsed ctx_used/decoded_tokens/gen_tps are the source of truth when
+    // the /metrics API returns 0 (same strategy as TUI tick_metrics).
+    // Values expire after STATUS_CACHE_TTL so a stopped server doesn't show stale ctx.
+    let mut log_metrics = crate::backend::server_logs::ServerLogMetrics::default();
+    let log_stale = state
+        .status_cache
+        .read()
+        .unwrap()
+        .log_metrics_at
+        .elapsed()
+        >= STATUS_CACHE_TTL;
+    if let Some(rx_arc) = &state.log_rx {
+        // Seed prev_line from cache so cross-line patterns (e.g. tokens-per-second)
+        // keep working across polls, like the TUI tick_server_logs does.
+        let mut prev_line = state.status_cache.read().unwrap().log_prev_line.clone();
+        let mut any = false;
+        let mut rx = rx_arc.lock().unwrap();
+        while let Ok(line) = rx.try_recv() {
+            let (m, _is_gen) = crate::backend::server_logs::parse_log_line(&line, prev_line.as_deref());
+            // Merge field-by-field so a line with only ctx_used doesn't clobber gen_tps.
+            if m.ctx_used.is_some() {
+                log_metrics.ctx_used = m.ctx_used;
+                any = true;
+            }
+            if m.decoded_tokens.is_some() {
+                log_metrics.decoded_tokens = m.decoded_tokens;
+                any = true;
+            }
+            if m.gen_tps.is_some() {
+                log_metrics.gen_tps = m.gen_tps;
+                any = true;
+            }
+            prev_line = Some(line);
+        }
+        // Always persist prev_line (even when no line parsed) so cross-line
+        // patterns (e.g. tokens-per-second) keep working across polls.
+        {
+            let mut cache = state.status_cache.write().unwrap();
+            if any {
+                cache.log_metrics = log_metrics.clone();
+                cache.log_metrics_at = Instant::now();
+            }
+            cache.log_prev_line = prev_line;
+        }
+        if !any && !log_stale {
+            log_metrics = state.status_cache.read().unwrap().log_metrics.clone();
+        }
+    } else if !log_stale {
+        log_metrics = state.status_cache.read().unwrap().log_metrics.clone();
+    }
+
+    let metrics_json = metrics.as_ref().map(|m| {
+        let ctx_used = log_metrics.ctx_used.unwrap_or(m.ctx_used);
+        let decoded_tokens = log_metrics.decoded_tokens.unwrap_or(m.decoded_tokens);
+        let gen_tps = log_metrics.gen_tps.unwrap_or(m.gen_tps);
+        serde_json::json!({
+            "tps": m.tps,
+            "prompt_tps": m.prompt_tps,
+            "gen_tps": gen_tps,
+            "latency_ms": if gen_tps > 0.0 { 1000.0 / gen_tps } else { 0.0 },
+            "latency_per_token_ms": if gen_tps > 0.0 { 1000.0 / gen_tps } else { 0.0 },
+            "ctx_used": ctx_used,
+            "ctx_max": m.ctx_max,
+            "vram_used": m.total_vram_used,
+            "vram_total": m.gpu_mem_total,
+            "ram_used": m.ram_used,
+            "cpu_usage": m.cpu_usage,
+            "decoded_tokens": decoded_tokens,
+            "prompt_progress": 0.0,
+            "prompt_tps_eval": 0.0,
+        })
+    });
+
     Json(serde_json::json!({
         "status": "running",
         "pid": state.pid,
@@ -494,7 +624,18 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
         "model": state.model_name,
         "uptime_seconds": uptime_secs,
         "loaded_models": loaded_models,
+        "metrics": metrics_json,
+        "ws_port": state.ws_port,
+        "ws_auth": state.ws_auth,
     }))
+}
+
+/// Serve the chat HTML page.
+async fn chat_handler() -> impl IntoResponse {
+    (
+        [(axum::http::header::CACHE_CONTROL, "no-store")],
+        axum::response::Html(include_str!("chat.html").to_string()),
+    )
 }
 
 pub async fn start_api_server(
@@ -507,11 +648,11 @@ pub async fn start_api_server(
     host: String,
     tls_config: Option<axum_server::tls_rustls::RustlsConfig>,
     system_prompt_preset_name: String,
-    web_search_engine: String,
-    web_search_engine_url: String,
-    web_search_enabled: bool,
-    web_search_api_key: Option<String>,
+    web_search_config: Arc<RwLock<WebSearchConfig>>,
     log_callback: Arc<Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>>,
+    log_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<String>>>>,
+    ws_port: u16,
+    ws_auth: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
@@ -524,6 +665,8 @@ pub async fn start_api_server(
         .build()?;
     let state = ApiState {
         server_url: format!("http://{}:{}", clean_host(&host), server_port),
+        server_host: clean_host(&host),
+        server_port,
         api_key,
         model_name,
         pid,
@@ -533,13 +676,18 @@ pub async fn start_api_server(
         status_cache: Arc::new(RwLock::new(StatusCache {
             models: 0,
             cached_at: Instant::now() - std::time::Duration::from_secs(10),
+            metrics: None,
+            metrics_at: Instant::now() - std::time::Duration::from_secs(10),
+            log_metrics: crate::backend::server_logs::ServerLogMetrics::default(),
+            log_metrics_at: Instant::now() - std::time::Duration::from_secs(10),
+            log_prev_line: None,
         })),
+        log_rx,
         system_prompt_preset_name,
-        web_search_engine,
-        web_search_engine_url,
-        web_search_enabled,
-        web_search_api_key,
+        web_search_config,
         log_callback,
+        ws_port,
+        ws_auth,
     };
 
     let allowed_origins: Arc<Vec<String>> = Arc::new({
@@ -565,10 +713,11 @@ pub async fn start_api_server(
     }
 
     let app = Router::new()
-        // /health and /metrics stay open (monitoring, keyless checks);
+        // /health, /metrics, /chat stay open (no auth);
         // auth applies only to the proxied API routes below.
         .route("/health", get(health))
         .route("/metrics", get(proxy_streaming))
+        .route("/chat", get(chat_handler))
         .merge(
             Router::new()
                 .route("/v1/chat/completions", post(proxy_streaming))

@@ -22,6 +22,7 @@ impl OverlayHandler for WebSearchPickerHandler {
         key: KeyEvent,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
+            let mut ws_changed = false;
             if let GlobalMode::WebSearchPicker {
                 enabled,
                 engine,
@@ -44,6 +45,7 @@ impl OverlayHandler for WebSearchPickerHandler {
                                 let chosen = engines[*engine_picker_selected].to_string();
                                 *engine = chosen.clone();
                                 app.config.default.web_search_engine = chosen;
+                                ws_changed = true;
                                 let _ = app.config.save();
                             }
                             *selected_field = 0;
@@ -66,170 +68,190 @@ impl OverlayHandler for WebSearchPickerHandler {
                         }
                         _ => {}
                     }
-                    return;
-                }
-
-                match key.code {
-                    // ── Main picker Enter ──────────────────────────────
-                    KeyCode::Enter => {
-                        if *editing {
-                            // Commit text edit
-                            if *selected_field == 1 {
-                                app.config.default.web_search_engine_url = edit_buffer.clone();
-                                engine_url.clone_from(edit_buffer);
+                } else {
+                    match key.code {
+                        // ── Main picker Enter ──────────────────────────────
+                        KeyCode::Enter => {
+                            if *editing {
+                                // Commit text edit
+                                if *selected_field == 1 {
+                                    app.config.default.web_search_engine_url = edit_buffer.clone();
+                                    engine_url.clone_from(edit_buffer);
+                                }
+                                if *selected_field == 2 {
+                                    app.config.default.web_search_api_key = if edit_buffer.is_empty() {
+                                        None
+                                    } else {
+                                        Some(edit_buffer.clone())
+                                    };
+                                    *api_key = if edit_buffer.is_empty() {
+                                        None
+                                    } else {
+                                        Some(edit_buffer.clone())
+                                    };
+                                }
+                                *editing = false;
+                                {
+                                    let mut ws = app.server.web_search_config.write().unwrap();
+                                    ws.enabled = *enabled;
+                                    ws.engine = engine.clone();
+                                    ws.engine_url = engine_url.clone();
+                                    ws.api_key = api_key.clone();
+                                }
+                                sync_global_settings(app);
+                                return;
                             }
-                            if *selected_field == 2 {
-                                app.config.default.web_search_api_key = if edit_buffer.is_empty() {
-                                    None
-                                } else {
-                                    Some(edit_buffer.clone())
-                                };
-                                *api_key = if edit_buffer.is_empty() {
-                                    None
-                                } else {
-                                    Some(edit_buffer.clone())
-                                };
-                            }
-                            *editing = false;
-                            sync_global_settings(app);
-                            return;
-                        }
-                        match *selected_field {
-                            -1 => {
-                                // Toggle enabled
-                                *enabled = !*enabled;
-                                app.config.default.web_search_enabled = *enabled;
-                                if *enabled && !engine_url.is_empty() {
-                                    let engine = engine.clone();
-                                    let engine_url = engine_url.clone();
-                                    let api_key = api_key.clone();
-                                    *check_status = Some(WebSearchCheckStatus::Checking);
-                                    app.ui.needs_redraw = true;
-                                    let handle = tokio::spawn(async move {
-                                        check_web_search_health(
-                                            &engine,
-                                            &engine_url,
-                                            api_key.as_deref().unwrap_or(""),
-                                        )
-                                        .await
-                                    });
-                                    app.pending.web_search_check_handle = Some(handle);
-                                } else if *enabled {
+                            match *selected_field {
+                                -1 => {
+                                    // Toggle enabled
+                                    *enabled = !*enabled;
+                                    app.config.default.web_search_enabled = *enabled;
+                                    ws_changed = true;
+                                    if *enabled && !engine_url.is_empty() {
+                                        let engine = engine.clone();
+                                        let engine_url = engine_url.clone();
+                                        let api_key = api_key.clone();
+                                        *check_status = Some(WebSearchCheckStatus::Checking);
+                                        app.ui.needs_redraw = true;
+                                        let handle = tokio::spawn(async move {
+                                            check_web_search_health(
+                                                &engine,
+                                                &engine_url,
+                                                api_key.as_deref().unwrap_or(""),
+                                            )
+                                            .await
+                                        });
+                                        app.pending.web_search_check_handle = Some(handle);
+                                    } else if *enabled {
+                                        *check_status = None;
+                                    }
+                                }
+                                0 => {
+                                    // Open engine picker
+                                    let current = engine.as_str();
+                                    let engines = ["searxng"];
+                                    *engine_picker_selected =
+                                        engines.iter().position(|e| *e == current).unwrap_or(0);
+                                    *selected_field = -2; // sentinel for engine picker
+                                }
+                                1 => {
+                                    // Edit URL
+                                    edit_buffer.clone_from(engine_url);
+                                    *editing = true;
+                                    *edit_cursor_pos = edit_buffer.chars().count();
                                     *check_status = None;
                                 }
-                            }
-                            0 => {
-                                // Open engine picker
-                                let current = engine.as_str();
-                                let engines = ["searxng"];
-                                *engine_picker_selected =
-                                    engines.iter().position(|e| *e == current).unwrap_or(0);
-                                *selected_field = -2; // sentinel for engine picker
-                            }
-                            1 => {
-                                // Edit URL
-                                edit_buffer.clone_from(engine_url);
-                                *editing = true;
-                                *edit_cursor_pos = edit_buffer.chars().count();
-                                *check_status = None;
-                            }
-                            2 => {
-                                // Edit API key
-                                edit_buffer.clear();
-                                if let Some(ref key) = *api_key {
-                                    edit_buffer.push_str(key);
+                                2 => {
+                                    // Edit API key
+                                    edit_buffer.clear();
+                                    if let Some(ref key) = *api_key {
+                                        edit_buffer.push_str(key);
+                                    }
+                                    *editing = true;
+                                    *edit_cursor_pos = edit_buffer.chars().count();
+                                    *check_status = None;
                                 }
-                                *editing = true;
-                                *edit_cursor_pos = edit_buffer.chars().count();
-                                *check_status = None;
+                                _ => {}
                             }
-                            _ => {}
+                            sync_global_settings(app);
                         }
-                        sync_global_settings(app);
-                    }
-                    // ── Navigation ─────────────────────────────────────
-                    KeyCode::Up | KeyCode::Char('k') if !*editing => {
-                        wrap_field_picker(selected_field, -1, 2, true);
-                    }
-                    KeyCode::Down | KeyCode::Char('j') if !*editing => {
-                        wrap_field_picker(selected_field, -1, 2, false);
-                    }
-                    // ── Esc ────────────────────────────────────────────
-                    KeyCode::Esc => {
-                        if *editing {
-                            *editing = false;
-                            edit_buffer.clear();
-                        } else {
-                            app.ui.global_mode = GlobalMode::Normal;
+                        // ── Navigation ─────────────────────────────────────
+                        KeyCode::Up | KeyCode::Char('k') if !*editing => {
+                            wrap_field_picker(selected_field, -1, 2, true);
                         }
-                    }
-                    // ── Text editing ───────────────────────────────────
-                    KeyCode::Char(c) if *editing => {
-                        TextEditor {
-                            buffer: edit_buffer,
-                            cursor: edit_cursor_pos,
+                        KeyCode::Down | KeyCode::Char('j') if !*editing => {
+                            wrap_field_picker(selected_field, -1, 2, false);
                         }
-                        .insert_char(c);
-                    }
-                    KeyCode::Backspace if *editing => {
-                        TextEditor {
-                            buffer: edit_buffer,
-                            cursor: edit_cursor_pos,
+                        // ── Esc ────────────────────────────────────────────
+                        KeyCode::Esc => {
+                            if *editing {
+                                *editing = false;
+                                edit_buffer.clear();
+                            } else {
+                                app.ui.global_mode = GlobalMode::Normal;
+                            }
                         }
-                        .backspace();
-                    }
-                    KeyCode::Left if *editing => {
-                        TextEditor {
-                            buffer: edit_buffer,
-                            cursor: edit_cursor_pos,
+                        // ── Text editing ───────────────────────────────────
+                        KeyCode::Char(c) if *editing => {
+                            TextEditor {
+                                buffer: edit_buffer,
+                                cursor: edit_cursor_pos,
+                            }
+                            .insert_char(c);
                         }
-                        .move_left();
-                    }
-                    KeyCode::Right if *editing => {
-                        TextEditor {
-                            buffer: edit_buffer,
-                            cursor: edit_cursor_pos,
+                        KeyCode::Backspace if *editing => {
+                            TextEditor {
+                                buffer: edit_buffer,
+                                cursor: edit_cursor_pos,
+                            }
+                            .backspace();
                         }
-                        .move_right();
-                    }
-                    KeyCode::Home if *editing => {
-                        TextEditor {
-                            buffer: edit_buffer,
-                            cursor: edit_cursor_pos,
+                        KeyCode::Left if *editing => {
+                            TextEditor {
+                                buffer: edit_buffer,
+                                cursor: edit_cursor_pos,
+                            }
+                            .move_left();
                         }
-                        .home();
-                    }
-                    KeyCode::End if *editing => {
-                        TextEditor {
-                            buffer: edit_buffer,
-                            cursor: edit_cursor_pos,
+                        KeyCode::Right if *editing => {
+                            TextEditor {
+                                buffer: edit_buffer,
+                                cursor: edit_cursor_pos,
+                            }
+                            .move_right();
                         }
-                        .end();
+                        KeyCode::Home if *editing => {
+                            TextEditor {
+                                buffer: edit_buffer,
+                                cursor: edit_cursor_pos,
+                            }
+                            .home();
+                        }
+                        KeyCode::End if *editing => {
+                            TextEditor {
+                                buffer: edit_buffer,
+                                cursor: edit_cursor_pos,
+                            }
+                            .end();
+                        }
+                        // ── Manual check ───────────────────────────────────
+                        KeyCode::Char('c')
+                            if !*editing
+                                && *selected_field == -1
+                                && *enabled
+                                && !engine_url.is_empty() =>
+                        {
+                            let engine = engine.clone();
+                            let engine_url = engine_url.clone();
+                            let api_key = api_key.clone();
+                            *check_status = Some(WebSearchCheckStatus::Checking);
+                            app.ui.needs_redraw = true;
+                            let handle = tokio::spawn(async move {
+                                check_web_search_health(
+                                    &engine,
+                                    &engine_url,
+                                    api_key.as_deref().unwrap_or(""),
+                                )
+                                .await
+                            });
+                            app.pending.web_search_check_handle = Some(handle);
+                        }
+                        _ => {}
                     }
-                    // ── Manual check ───────────────────────────────────
-                    KeyCode::Char('c')
-                        if !*editing
-                            && *selected_field == -1
-                            && *enabled
-                            && !engine_url.is_empty() =>
-                    {
-                        let engine = engine.clone();
-                        let engine_url = engine_url.clone();
-                        let api_key = api_key.clone();
-                        *check_status = Some(WebSearchCheckStatus::Checking);
-                        app.ui.needs_redraw = true;
-                        let handle = tokio::spawn(async move {
-                            check_web_search_health(
-                                &engine,
-                                &engine_url,
-                                api_key.as_deref().unwrap_or(""),
-                            )
-                            .await
-                        });
-                        app.pending.web_search_check_handle = Some(handle);
-                    }
-                    _ => {}
                 }
+            }
+            if ws_changed {
+                let (en, eng, url, key) = (
+                    app.config.default.web_search_enabled,
+                    app.config.default.web_search_engine.clone(),
+                    app.config.default.web_search_engine_url.clone(),
+                    app.config.default.web_search_api_key.clone(),
+                );
+                let mut ws = app.server.web_search_config.write().unwrap();
+                ws.enabled = en;
+                ws.engine = eng;
+                ws.engine_url = url;
+                ws.api_key = key;
             }
         })
     }

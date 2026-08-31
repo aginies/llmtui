@@ -186,7 +186,21 @@ pub async fn build_injected_prompt(
         ),
     );
 
-    let query = content.to_string();
+    let query = content
+        .replace("$web", " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if query.is_empty() {
+        log(
+            log_callback,
+            "Web search: no query text after removing $web, skipping".into(),
+        );
+        return InjectedPrompt {
+            content: String::new(),
+            performed: false,
+        };
+    }
     let engine = web_search_engine.to_string();
     let engine_url = web_search_engine_url.to_string();
     let api_key = web_search_api_key.to_string();
@@ -261,9 +275,21 @@ pub async fn build_injected_prompt(
     );
 
     let ctx_id = Uuid::new_v4();
+
+    let search_status = if search_context.is_empty() {
+        "Web search: enabled but returned NO usable results (all page fetches failed or empty). Answer from your own knowledge and state that web search yielded no usable content."
+            .to_string()
+    } else {
+        format!(
+            "Web search: enabled and USED. {} source(s) fetched successfully. Start your answer with the line: 'Web search: used ({} source(s))'.",
+            sources.len().max(1),
+            sources.len().max(1)
+        )
+    };
+
     let new_content = format!(
-        "[WEB-CTX-{}]\nINSTRUCTION: Cite sources using inline markdown links in your answer. Format: [source name](URL). Place links directly after the facts they support. If you find PDF link, add them to the list with brief description. Do NOT include claims you cannot verify.\n\n{}\n[/WEB-CTX-{}]\n\n{}\n\n---\n\n{}",
-        ctx_id, search_context, ctx_id, sources_section, content
+        "[WEB-CTX-{}]\nINSTRUCTION: {}\n\nCite sources using inline markdown links in your answer. Format: [source name](URL). Place links directly after the facts they support. If you find PDF link, add them to the list with brief description. Do NOT include claims you cannot verify.\n\n{}\n[/WEB-CTX-{}]\n\n{}\n\n---\n\n{}",
+        ctx_id, search_status, search_context, ctx_id, sources_section, content
     );
 
     if let Some(cb) = log_callback.lock().unwrap().as_ref() {
