@@ -746,6 +746,10 @@ impl App {
                 if m.gen_tps == 0.0 && self.metrics.gen_tps > 0.0 {
                     m.gen_tps = self.metrics.gen_tps;
                 }
+                // gen_tps from logs is live during generation; override latency with it.
+                if m.gen_tps > 0.0 {
+                    m.latency_per_token_ms = 1000.0 / m.gen_tps;
+                }
                 if m.cpu_usage == 0.0 && self.metrics.cpu_usage > 0.0 {
                     m.cpu_usage = self.metrics.cpu_usage;
                 }

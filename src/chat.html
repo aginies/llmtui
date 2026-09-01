@@ -68,7 +68,7 @@ body { font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace; backgro
 #jump-bottom { position: sticky; bottom: 14px; float: right; margin-right: 4px; background: var(--panel2); border: 1px solid var(--border); color: var(--muted); width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 1.1rem; display: none; z-index: 10; align-items: center; justify-content: center; }
 #jump-bottom.show { display: flex; }
 #jump-bottom:hover { color: var(--accent); border-color: var(--accent); }
-.msg { margin-bottom: 18px; display: flex; flex-direction: column; max-width: 85%; min-width: 0; }
+.msg { margin-bottom: 18px; display: flex; flex-direction: column; max-width: min(95%, 900px); min-width: 0; }
 .msg.user { align-self: flex-end; align-items: flex-end; margin-right: 12px; }
 .msg.assistant { align-self: flex-start; align-items: flex-start; }
 .msg-header { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
@@ -659,6 +659,7 @@ function renderAttachChips() {
       const img = document.createElement('img');
       img.src = att.data;
       img.alt = att.name;
+      img.loading = 'lazy';
       chip.appendChild(img);
     }
     const name = document.createElement('span');
@@ -746,6 +747,29 @@ function scrollToBottom(container) {
   container.scrollTop = container.scrollHeight;
 }
 
+function smoothScrollToBottom(container) {
+  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+}
+
+let streamFlushPending = false;
+let streamFullText = '';
+let streamFullReasoning = '';
+let streamFlushTarget = null;
+function scheduleStreamFlush(stream) {
+  if (streamFlushPending) return;
+  streamFlushPending = true;
+  streamFlushTarget = stream;
+  requestAnimationFrame(() => {
+    streamFlushPending = false;
+    const s = streamFlushTarget;
+    streamFlushTarget = null;
+    if (!s) return;
+    s.thinkingBody.textContent = streamFullReasoning;
+    s.bodyEl.textContent = streamFullText;
+    if (shouldAutoScroll(DOM.messages)) scrollToBottom(DOM.messages);
+  });
+}
+
 let jumpBtn = null;
 function ensureJumpBtn(container) {
   if (jumpBtn) return;
@@ -753,7 +777,7 @@ function ensureJumpBtn(container) {
   jumpBtn.id = 'jump-bottom';
   jumpBtn.title = t('jump.latest');
   jumpBtn.textContent = '\u2193';
-  jumpBtn.addEventListener('click', () => scrollToBottom(container));
+  jumpBtn.addEventListener('click', () => smoothScrollToBottom(container));
   container.parentNode.appendChild(jumpBtn);
 }
 function updateJumpBtn(container) {
@@ -832,8 +856,7 @@ function renderMarkdown(el, text) {
             div.className = 'katex-block';
             katex.render(block.inner, div, {
               displayMode: block.display,
-              throwOnError: false,
-              trust: true
+              throwOnError: false
             });
             return div.outerHTML;
           } catch (e) { return match; }
@@ -1172,6 +1195,7 @@ function buildMsgEl(msg, msgIndex) {
           img.src = att.data;
           img.alt = att.name;
           img.title = att.name;
+          img.loading = 'lazy';
           chip.appendChild(img);
         }
         const name = document.createElement('span');
@@ -1374,10 +1398,21 @@ function exportMsgToPdf(msg) {
   msgDiv.appendChild(roleEl);
   const bodyEl = document.createElement('div');
   bodyEl.className = 'pdf-body';
-  if (window.marked) {
-    try { bodyEl.innerHTML = sanitizeHtml(marked.parse(msg.content || '')); } catch (e) { bodyEl.textContent = msg.content || ''; }
+  const fences = extractHtmlFences(msg.content);
+  if (fences.length > 0) {
+    const pre = document.createElement('pre');
+    const code = document.createElement('code');
+    code.className = 'language-html';
+    code.textContent = fences.map(f => f.body).join('\n');
+    pre.appendChild(code);
+    bodyEl.appendChild(pre);
+    if (window.hljs) {
+      hljs.highlightElement(code);
+      code.dataset.hljs = '1';
+    }
   } else {
-    bodyEl.textContent = msg.content || '';
+    renderMarkdown(bodyEl, msg.content || '');
+    bodyEl.querySelectorAll('.code-copy-btn').forEach(b => b.remove());
   }
   msgDiv.appendChild(bodyEl);
   overlay.appendChild(msgDiv);
@@ -1407,6 +1442,8 @@ async function streamAssistantReply() {
   const startTime = Date.now();
   let tokenCount = 0;
   let usageTokens = null;
+  streamFullText = '';
+  streamFullReasoning = '';
 
   const apiMsgs = getConvMessages().filter(m => !m.error).map(m => {
     if (m.role === 'user' && m.attachments && m.attachments.length > 0) {
@@ -1457,8 +1494,6 @@ async function streamAssistantReply() {
 
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
-    let fullText = '';
-    let fullReasoning = '';
     let buffer = '';
 
     while (true) {
@@ -1482,25 +1517,27 @@ async function streamAssistantReply() {
           }
           const delta = json.choices?.[0]?.delta;
           if (delta?.reasoning_content) {
-            fullReasoning += delta.reasoning_content;
+            streamFullReasoning += delta.reasoning_content;
             stream.thinkingEl.style.display = '';
-            stream.thinkingBody.textContent = fullReasoning;
-            if (shouldAutoScroll(DOM.messages)) scrollToBottom(DOM.messages);
+            scheduleStreamFlush(stream);
           }
           if (delta?.content) {
-            fullText += delta.content;
+            streamFullText += delta.content;
             tokenCount++;
-            stream.bodyEl.textContent = fullText;
-            if (shouldAutoScroll(DOM.messages)) scrollToBottom(DOM.messages);
+            scheduleStreamFlush(stream);
           }
         } catch (e) { /* skip malformed JSON */ }
       }
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    updateLastMessage(fullText, fullReasoning || undefined, usageTokens ?? tokenCount, elapsed);
+    if (streamFlushPending) {
+      streamFlushPending = false;
+      streamFlushTarget = null;
+    }
+    updateLastMessage(streamFullText, streamFullReasoning || undefined, usageTokens ?? tokenCount, elapsed);
     saveConversations();
-    finalizeStreamingMessage(stream, fullText, fullReasoning, elapsed, usageTokens ?? tokenCount);
+    finalizeStreamingMessage(stream, streamFullText, streamFullReasoning, elapsed, usageTokens ?? tokenCount);
 
   } catch (e) {
     if (e.name === 'AbortError') {
@@ -1672,8 +1709,12 @@ function hideAllMetrics() {
 
 function renderMetrics(m) {
   if (!m) { hideAllMetrics(); return; }
-  setMetric('m-tps', m.tps > 0 ? m.tps.toFixed(1) + ' t/s' : '--', m.tps <= 0);
-  setMetric('m-lat', m.latency_per_token_ms > 0 ? m.latency_per_token_ms.toFixed(1) + ' ms/tok' : '--', m.latency_per_token_ms <= 0);
+  // gen_tps (from llama.cpp logs) is live during generation; tps (from /metrics API)
+  // is often 0 mid-generation. Prefer gen_tps, fall back to tps.
+  const speed = (m.gen_tps > 0) ? m.gen_tps : m.tps;
+  const latMs = (m.gen_tps > 0) ? 1000.0 / m.gen_tps : (m.tps > 0 ? 1000.0 / m.tps : 0);
+  setMetric('m-tps', speed > 0 ? speed.toFixed(1) + ' t/s' : '--', speed <= 0);
+  setMetric('m-lat', latMs > 0 ? latMs.toFixed(1) + ' ms/tok' : '--', latMs <= 0);
   setMetric('m-ptps', m.prompt_tps > 0 ? m.prompt_tps.toFixed(1) + ' t/s' : '--', m.prompt_tps <= 0);
   setMetric('m-dec', m.decoded_tokens > 0 ? m.decoded_tokens.toLocaleString() : '--', m.decoded_tokens <= 0);
   const ctxOk = m.ctx_max > 0;

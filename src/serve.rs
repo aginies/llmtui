@@ -150,6 +150,10 @@ async fn start_metrics_polling_task(
         }
         if let Some(v) = last_log_metrics.gen_tps {
             ws_metrics.gen_tps = v;
+            // gen_tps is live during generation; override latency with it.
+            if v > 0.0 {
+                ws_metrics.latency_per_token_ms = 1000.0 / v;
+            }
         }
         // Prompt metrics always come from logs (not in /metrics API)
         if let Some(v) = last_log_metrics.prompt_tokens {
