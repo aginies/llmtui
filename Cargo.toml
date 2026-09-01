@@ -1,6 +1,6 @@
 [package]
 name = "llm-manager"
-version = "2.1.1"
+version = "3.0.0"
 edition = "2024"
 description = "Terminal UI for managing LLMs"
 license = "GPL-3.0-or-later"
