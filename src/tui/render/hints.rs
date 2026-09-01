@@ -256,11 +256,11 @@ pub fn render_hints_line(app: &App, panel_area: ratatui::layout::Rect) -> Line<'
     let mut truncated: Vec<Span> = Vec::new();
     let mut total_width: usize = 0;
 
-    for span in &hints {
+    for span in hints {
         let span_width = span.width();
         if total_width + span_width <= available_width {
             total_width += span_width;
-            truncated.push(span.clone());
+            truncated.push(span);
         } else if total_width > 0 {
             // Add ellipsis
             truncated.push(Span::styled(" ...", Style::default().fg(DIM_GRAY)));

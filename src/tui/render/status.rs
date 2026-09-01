@@ -235,11 +235,11 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         status_parts.push(Span::raw(" ".repeat(padding)));
     }
     status_parts.push(Span::styled("[", Style::default().fg(DIM_GRAY)));
-    for (i, span) in indicator.iter().enumerate() {
+    for (i, span) in indicator.into_iter().enumerate() {
         if i > 0 {
             status_parts.push(Span::raw(" "));
         }
-        status_parts.push(span.clone());
+        status_parts.push(span);
     }
     status_parts.push(Span::styled("]", Style::default().fg(DIM_GRAY)));
 

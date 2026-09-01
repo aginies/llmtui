@@ -2525,8 +2525,7 @@ fn render_dashboard_url(
 }
 
 fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: usize) {
-    let results = app.bench_tune.bench_tune_results.clone();
-    if let Some(result) = results.get(result_idx) {
+    if let Some(result) = app.bench_tune.bench_tune_results.get(result_idx) {
         let modal_area = Rect {
             x: 0,
             y: 0,
@@ -2939,7 +2938,7 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
         }
         let mut absolute_idx = 0;
         let mut total_outputs = 0;
-        for (r_idx, r) in results.iter().enumerate() {
+        for (r_idx, r) in app.bench_tune.bench_tune_results.iter().enumerate() {
             if r_idx < result_idx {
                 absolute_idx += r.outputs.len();
             }

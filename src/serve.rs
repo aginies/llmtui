@@ -504,10 +504,6 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             None
         };
         while let Ok(Some(line)) = lines.next_line().await {
-            // Send to parser channel
-            if stdout_tx.send(line.clone()).await.is_err() {
-                break;
-            }
             // Send to API proxy channel (for /api/status metrics).
             // try_send: drop lines when the API side is not draining /api/status,
             // so the bounded channel never backs up the log reader.
@@ -523,6 +519,11 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             if let Some(ref mut file) = log_file_handle {
                 let _ = writeln!(file, "{}", line);
                 let _ = file.flush();
+            }
+
+            // Send to parser channel, consuming the owned line String
+            if stdout_tx.send(line).await.is_err() {
+                break;
             }
         }
     });

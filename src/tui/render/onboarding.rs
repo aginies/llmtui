@@ -17,8 +17,7 @@ fn highlight_keys(text: &str) -> Vec<Span<'static>> {
     for ch in text.chars() {
         if ch == '`' {
             if !in_key && !current.is_empty() {
-                spans.push(Span::raw(current.clone()));
-                current.clear();
+                spans.push(Span::raw(std::mem::take(&mut current)));
             }
             in_key = !in_key;
         } else if in_key {
