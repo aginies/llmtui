@@ -491,11 +491,7 @@ pub fn map_main_gpu_to_backend(global_index: i32, backend: crate::models::Backen
         }
     }
 
-    if vendor_index >= 0 {
-        vendor_index
-    } else {
-        0
-    }
+    if vendor_index >= 0 { vendor_index } else { 0 }
 }
 
 #[cfg(target_os = "linux")]

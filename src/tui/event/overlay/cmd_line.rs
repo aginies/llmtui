@@ -36,7 +36,10 @@ impl OverlayHandler for CmdLineHandler {
                             let script = if is_windows {
                                 format!("@echo off\n:: Exported from llm-manager\n\n{}\n", cmd_line)
                             } else {
-                                format!("#!/bin/bash\n# Exported from llm-manager\n\n{}\n", cmd_line)
+                                format!(
+                                    "#!/bin/bash\n# Exported from llm-manager\n\n{}\n",
+                                    cmd_line
+                                )
                             };
                             if let Err(e) = std::fs::write(&script_path, &script) {
                                 app.add_log(

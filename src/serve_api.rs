@@ -72,6 +72,8 @@ pub struct ApiState {
     pub ws_port: u16,
     /// WebSocket dashboard auth key (None = no auth).
     pub ws_auth: Option<String>,
+    /// Effective context length (context_length * rope_scale), 0 = use raw ctx_max.
+    pub effective_ctx: u32,
 }
 
 fn extract_api_key(headers: &axum::http::HeaderMap) -> Option<String> {
@@ -192,9 +194,7 @@ async fn proxy_streaming(
             if let Some(c) = cb.as_ref() {
                 c(format!(
                     "API: web_search_enabled={}, preset='{}', engine='{}'",
-                    ws_enabled,
-                    state.system_prompt_preset_name,
-                    ws_engine
+                    ws_enabled, state.system_prompt_preset_name, ws_engine
                 ));
             }
         }
@@ -515,13 +515,7 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     };
 
     let metrics = {
-        let stale = state
-            .status_cache
-            .read()
-            .unwrap()
-            .metrics_at
-            .elapsed()
-            >= STATUS_CACHE_TTL;
+        let stale = state.status_cache.read().unwrap().metrics_at.elapsed() >= STATUS_CACHE_TTL;
         if state.server_port == 0 {
             // No backend server port yet — nothing to fetch.
             None
@@ -548,13 +542,7 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     // the /metrics API returns 0 (same strategy as TUI tick_metrics).
     // Values expire after STATUS_CACHE_TTL so a stopped server doesn't show stale ctx.
     let mut log_metrics = crate::backend::server_logs::ServerLogMetrics::default();
-    let log_stale = state
-        .status_cache
-        .read()
-        .unwrap()
-        .log_metrics_at
-        .elapsed()
-        >= STATUS_CACHE_TTL;
+    let log_stale = state.status_cache.read().unwrap().log_metrics_at.elapsed() >= STATUS_CACHE_TTL;
     if let Some(rx_arc) = &state.log_rx {
         // Seed prev_line from cache so cross-line patterns (e.g. tokens-per-second)
         // keep working across polls, like the TUI tick_server_logs does.
@@ -562,7 +550,8 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
         let mut any = false;
         let mut rx = rx_arc.lock().unwrap();
         while let Ok(line) = rx.try_recv() {
-            let (m, _is_gen) = crate::backend::server_logs::parse_log_line(&line, prev_line.as_deref());
+            let (m, _is_gen) =
+                crate::backend::server_logs::parse_log_line(&line, prev_line.as_deref());
             // Merge field-by-field so a line with only ctx_used doesn't clobber gen_tps.
             if m.ctx_used.is_some() {
                 log_metrics.ctx_used = m.ctx_used;
@@ -599,6 +588,7 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
         let ctx_used = log_metrics.ctx_used.unwrap_or(m.ctx_used);
         let decoded_tokens = log_metrics.decoded_tokens.unwrap_or(m.decoded_tokens);
         let gen_tps = log_metrics.gen_tps.unwrap_or(m.gen_tps);
+        let ctx_max = if state.effective_ctx > 0 { state.effective_ctx } else { m.ctx_max };
         serde_json::json!({
             "tps": m.tps,
             "prompt_tps": m.prompt_tps,
@@ -606,9 +596,9 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
             "latency_ms": if gen_tps > 0.0 { 1000.0 / gen_tps } else if m.tps > 0.0 { 1000.0 / m.tps } else { 0.0 },
             "latency_per_token_ms": if gen_tps > 0.0 { 1000.0 / gen_tps } else if m.tps > 0.0 { 1000.0 / m.tps } else { 0.0 },
             "ctx_used": ctx_used,
-            "ctx_max": m.ctx_max,
-            "vram_used": m.total_vram_used,
-            "vram_total": m.gpu_mem_total,
+            "ctx_max": ctx_max,
+            "gpu_mem_used": m.gpu_mem_used,
+            "gpu_mem_total": m.gpu_mem_total,
             "ram_used": m.ram_used,
             "cpu_usage": m.cpu_usage,
             "decoded_tokens": decoded_tokens,
@@ -653,6 +643,7 @@ pub async fn start_api_server(
     log_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<String>>>>,
     ws_port: u16,
     ws_auth: Option<String>,
+    effective_ctx: u32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
@@ -688,6 +679,7 @@ pub async fn start_api_server(
         log_callback,
         ws_port,
         ws_auth,
+        effective_ctx,
     };
 
     let allowed_origins: Arc<Vec<String>> = Arc::new({

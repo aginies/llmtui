@@ -47,10 +47,10 @@ body { font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace; backgro
 #conv-search { margin: 0 10px 8px; padding: 8px 12px; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.85rem; font-family: inherit; outline: none; transition: border-color 0.15s; }
 #conv-search:focus { border-color: var(--accent); }
 #conv-search::placeholder { color: var(--muted); }
-#conv-list { flex: 1; overflow-y: auto; list-style: none; padding: 0 6px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+#conv-list { flex: 1; overflow-y: auto; list-style: none; padding: 0 6px; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
 #conv-list::-webkit-scrollbar { width: 6px; }
 #conv-list::-webkit-scrollbar-track { background: transparent; }
-#conv-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#conv-list::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
 #conv-list li { padding: 9px 12px; margin: 2px 0; cursor: pointer; font-size: 0.9rem; color: var(--fg); border-radius: 8px; display: flex; align-items: center; gap: 6px; transition: background 0.12s; border-left: 3px solid transparent; }
 #conv-list li:hover { background: var(--hover); }
 #conv-list li.active { background: var(--panel2); color: var(--green); border-left-color: var(--accent); }
@@ -69,10 +69,10 @@ body { font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace; backgro
 #theme-toggle:hover { color: var(--accent); background: var(--hover); border-color: var(--accent); }
 #lang-toggle { background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; font-size: 0.75rem; font-weight: bold; letter-spacing: 0.05em; padding: 4px 10px; border-radius: 6px; min-height: 28px; font-family: inherit; transition: color 0.15s, border-color 0.15s, background 0.15s; }
 #lang-toggle:hover { color: var(--accent); background: var(--hover); border-color: var(--accent); }
-#messages { flex: 1; overflow-y: auto; padding: 24px 28px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; position: relative; }
+#messages { flex: 1; overflow-y: auto; padding: 24px 28px; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; position: relative; }
 #messages::-webkit-scrollbar { width: 8px; }
 #messages::-webkit-scrollbar-track { background: transparent; }
-#messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+#messages::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
 #messages::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 #messages:empty::after { content: attr(data-empty); position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--muted); font-size: 1.05rem; text-align: center; pointer-events: none; }
 #jump-bottom { position: sticky; bottom: 14px; float: right; margin-right: 4px; background: var(--panel2); border: 1px solid var(--border); color: var(--muted); width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 1.1rem; display: none; z-index: 10; align-items: center; justify-content: center; }
@@ -236,7 +236,7 @@ pre:hover .code-copy-btn { opacity: 1; }
     <div id="input-row">
       <button id="attach-btn" title="Attach files">&#128206;</button>
       <input type="file" id="file-input" multiple hidden />
-      <input id="input" placeholder="Type message... Use $web for search" autocomplete="off" />
+      <input id="input" placeholder="Type message... Use $web for search, paste URLs to fetch" autocomplete="off" />
       <button id="send">Send</button>
     </div>
   </div>
@@ -266,6 +266,7 @@ let wsConnected = false;
 let wsRetryTimer = null;
 let wsPort = 0;
 let wsAuth = null;
+let lastValidCtxUsed = 0;
 let libsReady = false;
 let apiKey = localStorage.getItem('llm-manager-api-key') || new URLSearchParams(window.location.search).get('key') || '';
 if (new URLSearchParams(window.location.search).get('key')) {
@@ -288,7 +289,7 @@ const I18N = {
     'toggle.sidebar': 'Toggle sidebar',
     'toggle.theme': 'Toggle theme',
     'attach.files': 'Attach files',
-    'input.placeholder': 'Type message... Use $web for search',
+    'input.placeholder': 'Type message... Use $web for search, paste URLs to fetch',
     'send': 'Send',
     'stop': 'Stop',
     'model': 'Model',
@@ -337,7 +338,7 @@ const I18N = {
     'toggle.sidebar': 'Afficher/masquer le panneau lat\u00e9ral',
     'toggle.theme': 'Changer de th\u00e8me',
     'attach.files': 'Joindre des fichiers',
-    'input.placeholder': 'Saisir un message... Utilisez $web pour rechercher',
+    'input.placeholder': 'Saisir un message... Utilisez $web pour rechercher, collez des URL pour les fetch',
     'send': 'Envoyer',
     'stop': 'Arr\u00eater',
     'model': 'Mod\u00e8le',
@@ -387,7 +388,7 @@ const I18N = {
     'toggle.sidebar': 'Mostra/nascondi barra laterale',
     'toggle.theme': 'Cambia tema',
     'attach.files': 'Allega file',
-    'input.placeholder': 'Scrivi un messaggio... Usa $web per cercare',
+    'input.placeholder': 'Scrivi un messaggio... Usa $web per cercare, incolla URL per fetch',
     'send': 'Invia',
     'stop': 'Ferma',
     'model': 'Modello',
@@ -706,18 +707,21 @@ function clearAttachments() {
   if (DOM.fileInput) DOM.fileInput.value = '';
 }
 
-// Detect HTML in assistant content. Returns [{name, body}].
+// Detect HTML in assistant content. Returns { fences: [{name, body}], text }.
+// text is the original content with the matched HTML fence spans removed,
+// so the surrounding prose can be rendered without duplicating the code.
 // Matches ```html, ```html5, ```htm, ```web (optional :filename), plain ```
 // fences whose body looks like an HTML document, and raw (unfenced) HTML
 // documents that make up the bulk of the message.
 function extractHtmlFences(content) {
   const fences = [];
-  if (!content) return fences;
+  if (!content) return { fences, text: '' };
   const looksHtmlBody = (body) => /<!doctype\s+html|<html[\s>]/i.test(body);
   const re = /```[ \t]*(html5?|htm|web)?(?::([^\s`]+))?[ \t]*\r?\n([\s\S]*?)```/g;
   let m;
   let sawFence = false;
   let fenceCounter = 0;
+  const spans = [];
   while ((m = re.exec(content)) !== null) {
     sawFence = true;
     const lang = (m[1] || '').toLowerCase();
@@ -728,20 +732,31 @@ function extractHtmlFences(content) {
     if (!looksHtml) continue;
     const name = m[2] || ('index_' + (fenceCounter++).toString(36) + '_' + Date.now().toString(36) + '.html');
     fences.push({ name: name, body: body });
+    spans.push([m.index, m[0].length]);
   }
+  let text = content;
   // Fallback: model dumped raw HTML with no code fence at all.
   // Extract from the first <!DOCTYPE or <html to the end of the message.
-  const trimmed = content.trim();
   if (fences.length === 0 && !sawFence && looksHtmlBody(content)) {
-    const start = trimmed.search(/<!doctype\s+html|<html[\s>]/i);
+    const start = content.search(/<!doctype\s+html|<html[\s>]/i);
     if (start !== -1) {
       fences.push({
         name: 'index_' + Date.now().toString(36) + '.html',
-        body: trimmed.slice(start)
+        body: content.slice(start)
       });
+      text = content.slice(0, start);
     }
+  } else if (spans.length > 0) {
+    let out = '';
+    let pos = 0;
+    for (const [s, len] of spans) {
+      out += content.slice(pos, s);
+      pos = s + len;
+    }
+    out += content.slice(pos);
+    text = out;
   }
-  return fences;
+  return { fences, text };
 }
 
 function openHtmlFence(body) {
@@ -785,8 +800,12 @@ function scheduleStreamFlush(stream) {
     streamFlushTarget = null;
     if (!s) return;
     s.thinkingBody.textContent = streamFullReasoning;
-    s.bodyEl.textContent = streamFullText;
-    if (shouldAutoScroll(DOM.messages)) scrollToBottom(DOM.messages);
+    renderMarkdownLive(s.bodyEl, streamFullText);
+    if (autoScroll) {
+      scrollToBottom(DOM.messages);
+    } else if (isNearBottom(DOM.messages)) {
+      scrollToBottom(DOM.messages);
+    }
   });
 }
 
@@ -808,6 +827,16 @@ function updateJumpBtn(container) {
 function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function fmtDuration(sec) {
+  sec = Math.round(parseFloat(sec) || 0);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? h + ':' + mm + ':' + ss : mm + ':' + ss;
 }
 
 function sanitizeHtml(html) {
@@ -851,6 +880,17 @@ function extractMath(text) {
     return pre + placeholder;
   });
   return { text, blocks };
+}
+
+function renderMarkdownLive(el, text) {
+  if (!text) { el.textContent = ''; return; }
+  if (window.marked) {
+    try {
+      el.innerHTML = sanitizeHtml(marked.parse(text));
+      return;
+    } catch (e) { /* fallback below */ }
+  }
+  el.textContent = text;
 }
 
 function renderMarkdown(el, text) {
@@ -1025,6 +1065,7 @@ function startRenameConversation(id, nameEl) {
   input.style.margin = '0';
   input.style.outline = 'none';
   nameEl.replaceWith(input);
+  input.addEventListener('click', (e) => e.stopPropagation());
   input.focus();
   input.select();
 
@@ -1032,16 +1073,6 @@ function startRenameConversation(id, nameEl) {
     const newName = input.value.trim() || t('new.chat');
     conversations[id].name = newName;
     debouncedSave();
-    const span = document.createElement('span');
-    span.className = 'conv-name';
-    span.textContent = newName;
-    span.title = newName;
-    span.addEventListener('click', () => switchConversation(id));
-    span.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      startRenameConversation(id, span);
-    });
-    input.replaceWith(span);
     renderConvList();
   }
 
@@ -1052,7 +1083,7 @@ function startRenameConversation(id, nameEl) {
   });
 }
 
-function updateLastMessage(content, reasoning, newTokens, newElapsed) {
+function updateLastMessage(content, reasoning, newTokens, newElapsed, newThinkingElapsed) {
   if (!conversations[currentConvId]) return;
   const msgs = conversations[currentConvId].messages;
   if (msgs.length > 0) {
@@ -1063,6 +1094,7 @@ function updateLastMessage(content, reasoning, newTokens, newElapsed) {
     if (reasoning !== undefined) last.reasoning = reasoning;
     if (newTokens !== undefined) last.tokens = newTokens;
     if (newElapsed !== undefined) last.elapsed = newElapsed;
+    if (newThinkingElapsed !== undefined) last.thinkingElapsed = newThinkingElapsed;
     // Update incremental totals only when tokens/elapsed are provided
     const conv = conversations[currentConvId];
     if (newTokens !== undefined) {
@@ -1086,13 +1118,13 @@ function renderConvList() {
     const li = document.createElement('li');
     li.className = 'conv-item';
     li.dataset.id = id;
+    li.addEventListener('click', () => switchConversation(id));
     const meta = document.createElement('div');
     meta.className = 'conv-meta';
     const name = document.createElement('span');
     name.className = 'conv-name';
     name.textContent = conversations[id].name;
     name.title = conversations[id].name;
-    name.addEventListener('click', () => switchConversation(id));
     name.addEventListener('dblclick', (e) => {
       e.stopPropagation();
       startRenameConversation(id, name);
@@ -1131,7 +1163,7 @@ function buildMsgEl(msg, msgIndex) {
     stats.className = 'msg-stats';
     const parts = [];
     if (msg.tokens) parts.push(msg.tokens + ' tok');
-    if (msg.elapsed) parts.push(msg.elapsed + 's');
+    if (msg.elapsed) parts.push(fmtDuration(msg.elapsed));
     if (msg.tokens && msg.elapsed) {
       const tps = msg.tokens / parseFloat(msg.elapsed);
       if (tps > 0) parts.push(tps.toFixed(1) + ' tok/s');
@@ -1144,7 +1176,9 @@ function buildMsgEl(msg, msgIndex) {
     const details = document.createElement('details');
     details.className = 'msg-thinking';
     const summary = document.createElement('summary');
-    summary.textContent = t('thinking');
+    summary.textContent = msg.thinkingElapsed > 0
+      ? t('thinking') + ' \u00b7 ' + fmtDuration(msg.thinkingElapsed)
+      : t('thinking');
     const thinkingBody = document.createElement('div');
     thinkingBody.className = 'thinking-body';
     thinkingBody.textContent = msg.reasoning;
@@ -1155,7 +1189,8 @@ function buildMsgEl(msg, msgIndex) {
   const body = document.createElement('div');
   body.className = 'msg-bubble';
   if (msg.role === 'assistant') {
-    const fences = extractHtmlFences(msg.content);
+    const { fences, text } = extractHtmlFences(msg.content);
+    renderMarkdown(body, text || '');
     if (fences.length > 0) {
       // HTML doc: render as an escaped code block, not live DOM.
       const pre = document.createElement('pre');
@@ -1168,8 +1203,6 @@ function buildMsgEl(msg, msgIndex) {
         hljs.highlightElement(code);
         code.dataset.hljs = '1';
       }
-    } else {
-      renderMarkdown(body, msg.content || '');
     }
     const actions = document.createElement('div');
     actions.className = 'msg-actions';
@@ -1306,22 +1339,26 @@ function appendStreamingMessage(role, initialText) {
   div.appendChild(bodyEl);
   container.appendChild(div);
   scrollToBottom(container);
-  return { bodyEl: bodyEl, thinkingEl: thinkingEl, thinkingBody: thinkingBody, roleEl: roleEl };
+  return { bodyEl: bodyEl, thinkingEl: thinkingEl, thinkingBody: thinkingBody, roleEl: roleEl, summary: summary };
 }
 
 function removeStreamingClass(el) {
   el.classList.remove('streaming');
 }
 
-function finalizeStreamingMessage(stream, content, reasoning, elapsed, tokenCount, isAbort) {
+function finalizeStreamingMessage(stream, content, reasoning, elapsed, tokenCount, isAbort, thinkingElapsed) {
   removeStreamingClass(stream.bodyEl);
   removeStreamingClass(stream.thinkingBody);
+
+  if (thinkingElapsed > 0) {
+    stream.summary.textContent = t('thinking') + ' \u00b7 ' + fmtDuration(thinkingElapsed);
+  }
 
   // Build stats
   const tps = elapsed > 0 ? (tokenCount / parseFloat(elapsed)).toFixed(1) : '';
   const statsParts = [];
   if (tokenCount) statsParts.push(tokenCount + ' tok');
-  if (elapsed) statsParts.push(elapsed + 's');
+  if (elapsed) statsParts.push(fmtDuration(elapsed));
   if (tokenCount && elapsed && parseFloat(tps) > 0) statsParts.push(tps + ' tok/s');
   const statsText = statsParts.join(' \u00b7 ');
 
@@ -1338,23 +1375,21 @@ function finalizeStreamingMessage(stream, content, reasoning, elapsed, tokenCoun
   }
 
   // Extract HTML fences
-  const fences = extractHtmlFences(content);
+  const { fences, text } = extractHtmlFences(content);
 
   // Render body content
+  renderMarkdown(stream.bodyEl, text);
   if (fences.length > 0) {
     const pre = document.createElement('pre');
     const code = document.createElement('code');
     code.className = 'language-html';
     code.textContent = fences.map(f => f.body).join('\n');
     pre.appendChild(code);
-    stream.bodyEl.innerHTML = '';
     stream.bodyEl.appendChild(pre);
     if (window.hljs) {
       hljs.highlightElement(code);
       code.dataset.hljs = '1';
     }
-  } else {
-    renderMarkdown(stream.bodyEl, content);
   }
 
   // Add actions for assistant messages
@@ -1424,7 +1459,11 @@ function exportMsgToPdf(msg) {
   msgDiv.appendChild(roleEl);
   const bodyEl = document.createElement('div');
   bodyEl.className = 'pdf-body';
-  const fences = extractHtmlFences(msg.content);
+  const { fences, text } = extractHtmlFences(msg.content);
+  if (text.trim()) {
+    renderMarkdown(bodyEl, text);
+    bodyEl.querySelectorAll('.code-copy-btn').forEach(b => b.remove());
+  }
   if (fences.length > 0) {
     const pre = document.createElement('pre');
     const code = document.createElement('code');
@@ -1436,9 +1475,6 @@ function exportMsgToPdf(msg) {
       hljs.highlightElement(code);
       code.dataset.hljs = '1';
     }
-  } else {
-    renderMarkdown(bodyEl, msg.content || '');
-    bodyEl.querySelectorAll('.code-copy-btn').forEach(b => b.remove());
   }
   msgDiv.appendChild(bodyEl);
   overlay.appendChild(msgDiv);
@@ -1468,6 +1504,9 @@ async function streamAssistantReply() {
   const startTime = Date.now();
   let tokenCount = 0;
   let usageTokens = null;
+  let thinkingStart = null;
+  let thinkingElapsed = 0;
+  let thinkingTimer = null;
   streamFullText = '';
   streamFullReasoning = '';
 
@@ -1505,6 +1544,7 @@ async function streamAssistantReply() {
     });
 
     if (!resp.ok) {
+      if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null; }
       const err = await resp.text();
       const errMsg = t('error.prefix') + ' ' + err;
       updateLastMessage(errMsg, undefined, undefined, undefined);
@@ -1543,11 +1583,23 @@ async function streamAssistantReply() {
           }
           const delta = json.choices?.[0]?.delta;
           if (delta?.reasoning_content) {
+            if (thinkingStart === null) {
+              thinkingStart = Date.now();
+              thinkingTimer = setInterval(() => {
+                stream.summary.textContent = t('thinking') + ' \u00b7 ' + fmtDuration((Date.now() - thinkingStart) / 1000);
+              }, 1000);
+            }
             streamFullReasoning += delta.reasoning_content;
             stream.thinkingEl.style.display = '';
             scheduleStreamFlush(stream);
           }
           if (delta?.content) {
+            if (thinkingStart !== null) {
+              thinkingElapsed = (Date.now() - thinkingStart) / 1000;
+              clearInterval(thinkingTimer);
+              thinkingTimer = null;
+              stream.summary.textContent = t('thinking') + ' \u00b7 ' + fmtDuration(thinkingElapsed);
+            }
             streamFullText += delta.content;
             tokenCount++;
             scheduleStreamFlush(stream);
@@ -1556,23 +1608,30 @@ async function streamAssistantReply() {
       }
     }
 
+    if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null; }
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     if (streamFlushPending) {
       streamFlushPending = false;
       streamFlushTarget = null;
     }
-    updateLastMessage(streamFullText, streamFullReasoning || undefined, usageTokens ?? tokenCount, elapsed);
+    updateLastMessage(streamFullText, streamFullReasoning || undefined, usageTokens ?? tokenCount, elapsed, thinkingElapsed);
     saveConversations();
-    finalizeStreamingMessage(stream, streamFullText, streamFullReasoning, elapsed, usageTokens ?? tokenCount);
+    finalizeStreamingMessage(stream, streamFullText, streamFullReasoning, elapsed, usageTokens ?? tokenCount, false, thinkingElapsed);
 
   } catch (e) {
     if (e.name === 'AbortError') {
+      if (thinkingTimer) {
+        thinkingElapsed = (Date.now() - thinkingStart) / 1000;
+        clearInterval(thinkingTimer);
+        thinkingTimer = null;
+      }
       const stoppedContent = (getConvMessages()[getConvMessages().length - 1]?.content || '') + t('stopped');
       const abortElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      updateLastMessage(stoppedContent, undefined, usageTokens ?? tokenCount, abortElapsed);
+      updateLastMessage(stoppedContent, undefined, usageTokens ?? tokenCount, abortElapsed, thinkingElapsed);
       saveConversations();
-      finalizeStreamingMessage(stream, stoppedContent, undefined, abortElapsed, usageTokens ?? tokenCount, true);
+      finalizeStreamingMessage(stream, stoppedContent, undefined, abortElapsed, usageTokens ?? tokenCount, true, thinkingElapsed);
     } else {
+      if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null; }
       updateLastMessage(t('error.prefix') + ' ' + e.message, undefined, undefined, undefined);
       const last = getConvMessages()[getConvMessages().length - 1];
       if (last) last.error = true;
@@ -1711,7 +1770,7 @@ function updateTotals() {
   if (totalTokens > 0) {
     DOM.miTot.hidden = false;
     const tps = totalTime > 0 ? (totalTokens / totalTime).toFixed(1) + ' tok/s' : '';
-    DOM.mTot.textContent = totalTokens.toLocaleString() + ' tok \u00b7 ' + totalTime.toFixed(1) + 's' + (tps ? ' \u00b7 ' + tps : '');
+    DOM.mTot.textContent = totalTokens.toLocaleString() + ' tok \u00b7 ' + fmtDuration(totalTime) + (tps ? ' \u00b7 ' + tps : '');
   } else {
     DOM.miTot.hidden = true;
   }
@@ -1727,6 +1786,7 @@ function fmtBytes(n) {
 }
 
 function hideAllMetrics() {
+  lastValidCtxUsed = 0;
   ['miTps','miLat','miPtps','miDec','miCtx','miProg','miCpu','miRam','miVram'].forEach(k => {
     if (DOM[k] && !DOM[k].hidden) return;
     if (DOM[k]) DOM[k].hidden = true;
@@ -1749,6 +1809,11 @@ function renderMetrics(m) {
     const pct = m.ctx_used / m.ctx_max;
     if (pct > 0.9) ctxColor = 'crit';
     else if (pct > 0.7) ctxColor = 'warn';
+  }
+  if (m.ctx_used > 0) {
+    lastValidCtxUsed = m.ctx_used;
+  } else if (lastValidCtxUsed > 0) {
+    m.ctx_used = lastValidCtxUsed;
   }
   const fmtCtx = (n) => n >= 1024 ? Math.round(n / 1024) + 'K' : n;
   setMetric('m-ctx', ctxOk ? fmtCtx(m.ctx_used) + '/' + fmtCtx(m.ctx_max) : '--', !ctxOk, ctxColor);
@@ -1862,12 +1927,9 @@ async function pollMetrics() {
         wsAuth = data.ws_auth || null;
         if (wsPort > 0) connectWs();
       }
-      // Render from WS metrics if connected (full data), else fall back to poll metrics.
-      if (wsConnected && wsMetrics) {
-        renderMetrics(wsMetrics);
-      } else {
-        renderMetrics(data.metrics);
-      }
+      // Render from poll metrics (always fresh). WS onmessage handles
+      // low-latency updates between polls; stale WS cache no longer blocks.
+      renderMetrics(data.metrics);
       // Model is running: show "Connected" regardless of WS status.
       // WS status (Live/Polling) is a secondary detail.
       if (wsConnected) {
@@ -1910,12 +1972,6 @@ function applyTheme(theme) {
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheDOM();
-  document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-      e.preventDefault();
-      createConversation();
-    }
-  });
   DOM.newConv.addEventListener('click', () => {
     createConversation();
     if (window.matchMedia('(max-width: 768px)').matches) setSidebarVisible(false);

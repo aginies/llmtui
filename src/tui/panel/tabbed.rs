@@ -861,7 +861,10 @@ fn render_search_result_info(
             .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
             .unwrap_or_else(|_| created.clone());
         lines.push(Line::from(vec![
-            Span::styled(crate::t!("settings.info_created"), Style::default().fg(ACCENT)),
+            Span::styled(
+                crate::t!("settings.info_created"),
+                Style::default().fg(ACCENT),
+            ),
             Span::styled(formatted, Style::default().fg(WHITE)),
         ]));
     }

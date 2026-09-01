@@ -2220,6 +2220,7 @@ impl App {
             let ws_port_for_api = self.server.running_ws_port.unwrap_or(0);
             let ws_auth_for_api = self.server.running_ws_auth.clone();
             let ws_auth_for_api_clone = ws_auth_for_api.clone();
+            let effective_ctx_for_api = self.server.spawned_context_length;
             let handle = tokio::spawn(async move {
                 let _ = crate::serve_api::start_api_server(
                     addr,
@@ -2236,6 +2237,7 @@ impl App {
                     log_rx,
                     ws_port_for_api,
                     ws_auth_for_api_clone,
+                    effective_ctx_for_api,
                 )
                 .await;
             });

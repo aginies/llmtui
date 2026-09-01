@@ -207,7 +207,8 @@ pub fn build_server_cmd(
         );
     }
     if settings.main_gpu != 0 {
-        let mapped_gpu = crate::backend::hardware::map_main_gpu_to_backend(settings.main_gpu, settings.backend);
+        let mapped_gpu =
+            crate::backend::hardware::map_main_gpu_to_backend(settings.main_gpu, settings.backend);
         push_arg(&mut cmd, &mut parts, "--main-gpu", mapped_gpu);
     }
     if settings.fit {

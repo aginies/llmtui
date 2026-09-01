@@ -79,11 +79,12 @@ impl OverlayHandler for WebSearchPickerHandler {
                                     engine_url.clone_from(edit_buffer);
                                 }
                                 if *selected_field == 2 {
-                                    app.config.default.web_search_api_key = if edit_buffer.is_empty() {
-                                        None
-                                    } else {
-                                        Some(edit_buffer.clone())
-                                    };
+                                    app.config.default.web_search_api_key =
+                                        if edit_buffer.is_empty() {
+                                            None
+                                        } else {
+                                            Some(edit_buffer.clone())
+                                        };
                                     *api_key = if edit_buffer.is_empty() {
                                         None
                                     } else {

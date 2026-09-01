@@ -587,6 +587,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let api_log_rx = Some(Arc::new(std::sync::Mutex::new(api_stdout_rx)));
         let ws_port_for_api = if ws_enable { ws_port } else { 0 };
         let ws_auth_for_api = if ws_enable { ws_auth.clone() } else { None };
+        let effective_ctx_for_api = (settings.context_length as f32 * settings.rope_scale) as u32;
         let handle = tokio::spawn(async move {
             let result = crate::serve_api::start_api_server(
                 addr,
@@ -603,6 +604,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 api_log_rx,
                 ws_port_for_api,
                 ws_auth_for_api,
+                effective_ctx_for_api,
             )
             .await;
             let _ = api_done_tx.send(result.map_err(|e| e.to_string()));
