@@ -7,6 +7,7 @@
 ## Usage
 - [Usage](usage.md)
 - [opencode](opencode.md)
+- [Web Chat](web-chat.md)
 
 ## User Configuration
 - [Configuration](config.md)

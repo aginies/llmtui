@@ -56,6 +56,7 @@ The proxy handles these endpoints explicitly:
 |----------|--------|-------------|
 | `/health` | GET | Health check |
 | `/metrics` | GET | Prometheus metrics |
+| `/chat` | GET | Built-in web chat UI (no auth) |
 | `/v1/chat/completions` | POST | Chat completions (OpenAI) |
 | `/v1/completions` | POST | Completions (OpenAI) |
 | `/v1/embeddings` | POST | Embeddings |
@@ -63,6 +64,10 @@ The proxy handles these endpoints explicitly:
 | `/api/status` | GET | Server status |
 
 All other paths are proxied to llama-server (chat completions, embeddings, reranking, tokenization, etc.).
+
+## Web Chat UI
+
+Served at `/chat` on this same port (default `http://localhost:49222/chat`), the built-in web chat UI offers conversation history, Markdown/code/math rendering, and streaming with a stop button. See [Web Chat](web-chat.md).
 
 ## Authentication
 

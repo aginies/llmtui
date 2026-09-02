@@ -308,6 +308,12 @@ Web search (`src/backend/web_search.rs`) integrates with SearXNG for research qu
 - Configuration: `web_search_enabled`, `web_search_engine`, `web_search_engine_url`, `web_search_api_key`
 - Supports custom SearXNG instances with Docker/Podman deployment
 - Injected context format: `[WEB CONTEXT]...[END WEB CONTEXT]` block prepended to user message
+- Concurrent: `$web` search and URL page-fetching run as separate spawned tasks, both bounded by the 15s timeout
+- SSRF protection: URLs are resolved and any IP in a blocked range (loopback, private, link-local/cloud-metadata, unspecified) is rejected before fetching
+
+## Web Chat UI
+
+The built-in web chat UI (`src/chat.html`, embedded via `include_str!`) is served at `/chat` by the API proxy (`serve_api.rs`), requiring the API Endpoint enabled. It streams completions from `/v1/chat/completions`, polls `/api/status` for model/metrics, and connects to the WebSocket dashboard when available. It renders Markdown (marked.js), syntax-highlighted code (highlight.js), and math (KaTeX), supports conversation history in `localStorage`, and prompts for the API key when one is configured. See [Web Chat](web-chat.md).
 
 ## Configuration
 

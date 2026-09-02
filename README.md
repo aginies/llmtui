@@ -15,6 +15,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - Search & download GGUF models from HuggingFace
 - Load/unload models via llama.cpp server with real-time metrics
 - Chat with loaded models via OpenAI-compatible API proxy
+- Web Chat UI — browser-based chat with conversation history, Markdown, code highlighting, and math rendering
 - WebSocket Dashboard — real-time metrics in a web browser
 - Benchmark Tuning — auto-tune model parameters for optimal performance
 - Profiles & Presets — save and switch between named settings

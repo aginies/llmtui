@@ -98,6 +98,16 @@ curl http://localhost:49222/v1/chat/completions \
 
 See the [opencode documentation](opencode.md) for configuring opencode to use llm-manager's API endpoint.
 
+### Web Chat UI
+
+Open the built-in web chat UI in your browser (requires the API Endpoint enabled):
+
+```
+http://localhost:49222/chat
+```
+
+It offers conversation history, Markdown/code/math rendering, and streaming. See the [Web Chat documentation](web-chat.md).
+
 ### Dashboard
 
 Open the WebSocket Dashboard in your browser:

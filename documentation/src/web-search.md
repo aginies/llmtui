@@ -81,10 +81,26 @@ Model-level settings override the global defaults.
 When a message matches a trigger keyword:
 
 1. **Query extraction** — the full user message is used as the search query
-2. **SearXNG search** — HTTP GET request to `{engine_url}/search?q={query}&format=json`
-3. **Result parsing** — expects JSON with a `results` array; each result needs `title`, `url`, and `content`/`snippet` fields
-4. **Page fetching** — Wikipedia results and up to 5 other URLs have their page content fetched in parallel
-5. **Context injection** — results are prepended to the message as a `[WEB CONTEXT]...[END WEB CONTEXT]` block
+2. **SearXNG search** — HTTP GET request to `{engine_url}/search?q={query}&format=json` (only when the message contains `$web`)
+3. **URL extraction** — any URLs found in the message are collected for page fetching (independent of `$web`)
+4. **Concurrent gathering** — the SearXNG search and the URL page-fetching run as separate tasks in parallel, both bounded by the 15-second timeout
+5. **Result parsing** — expects JSON with a `results` array; each result needs `title`, `url`, and `content`/`snippet` fields
+6. **Page fetching** — Wikipedia results and up to 5 other URLs have their page content fetched in parallel
+7. **Context injection** — results are prepended to the message as a `[WEB CONTEXT]...[END WEB CONTEXT]` block
+
+## Concurrent Fetching & SSRF Protection
+
+Fetching page content from arbitrary URLs in a message is powerful but risky: a malicious link could point at an internal service (e.g. a cloud metadata endpoint or an intranet server). To prevent this, every URL is validated before fetching:
+
+- **Scheme check** — only `http` and `https` are allowed
+- **DNS resolution + IP block list** — the hostname is resolved and **every** resolved IP is checked. Addresses in blocked ranges are rejected:
+  - loopback (`127.0.0.0/8`, `::1`)
+  - private (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7`)
+  - link-local / cloud metadata (`169.254.0.0/16`)
+  - unspecified (`0.0.0.0`, `::`)
+  - IPv4-mapped addresses are decoded and checked as v4
+
+If any resolved IP is blocked, the URL is skipped with a logged warning rather than fetched. Pages that come back too short (likely blocked or empty) or are blocked by Cloudflare / a security filter are also skipped and counted. The SearXNG search and the URL fetch run concurrently, so adding URLs does not wait for (or block) a `$web` search and vice versa.
 
 ### Request Details
 
