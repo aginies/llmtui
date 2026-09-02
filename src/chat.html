@@ -267,6 +267,7 @@ let wsRetryTimer = null;
 let wsPort = 0;
 let wsAuth = null;
 let lastValidCtxUsed = 0;
+let lastValidCtxMax = 0;
 let libsReady = false;
 let apiKey = localStorage.getItem('llm-manager-api-key') || new URLSearchParams(window.location.search).get('key') || '';
 if (new URLSearchParams(window.location.search).get('key')) {
@@ -1787,6 +1788,7 @@ function fmtBytes(n) {
 
 function hideAllMetrics() {
   lastValidCtxUsed = 0;
+  lastValidCtxMax = 0;
   ['miTps','miLat','miPtps','miDec','miCtx','miProg','miCpu','miRam','miVram'].forEach(k => {
     if (DOM[k] && !DOM[k].hidden) return;
     if (DOM[k]) DOM[k].hidden = true;
@@ -1803,6 +1805,11 @@ function renderMetrics(m) {
   setMetric('m-lat', latMs > 0 ? latMs.toFixed(1) + ' ms/tok' : '--', latMs <= 0);
   setMetric('m-ptps', m.prompt_tps > 0 ? m.prompt_tps.toFixed(1) + ' t/s' : '--', m.prompt_tps <= 0);
   setMetric('m-dec', m.decoded_tokens > 0 ? m.decoded_tokens.toLocaleString() : '--', m.decoded_tokens <= 0);
+  if (m.ctx_max > 0) {
+    lastValidCtxMax = m.ctx_max;
+  } else if (lastValidCtxMax > 0) {
+    m.ctx_max = lastValidCtxMax;
+  }
   const ctxOk = m.ctx_max > 0;
   let ctxColor = '';
   if (ctxOk && m.ctx_max > 0) {
