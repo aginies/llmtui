@@ -148,7 +148,11 @@ pub fn build_server_cmd(
         "--threads-batch",
         settings.threads_batch,
     );
-    let effective_ctx = (settings.context_length as f64 * settings.rope_scale as f64) as u32;
+    let effective_ctx = if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
+        (settings.context_length as f64 * settings.rope_scale as f64) as u32
+    } else {
+        settings.context_length
+    };
     if !model_config_used {
         push_arg(&mut cmd, &mut parts, "--ctx-size", effective_ctx);
     }

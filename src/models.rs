@@ -1855,7 +1855,11 @@ pub fn estimate_vram_mib(
     };
 
     // Effective context length: YaRN RoPE scale extends the usable context.
-    let effective_ctx = settings.context_length as f64 * settings.rope_scale as f64;
+    let effective_ctx = if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
+        settings.context_length as f64 * settings.rope_scale as f64
+    } else {
+        settings.context_length as f64
+    };
 
     // Hybrid models (Gated DeltaNet & co.) only keep a KV cache on the
     // full-attention layers; the remaining layers are linear-attention

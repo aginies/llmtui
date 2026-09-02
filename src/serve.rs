@@ -587,7 +587,11 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let api_log_rx = Some(Arc::new(std::sync::Mutex::new(api_stdout_rx)));
         let ws_port_for_api = if ws_enable { ws_port } else { 0 };
         let ws_auth_for_api = if ws_enable { ws_auth.clone() } else { None };
-        let effective_ctx_for_api = (settings.context_length as f32 * settings.rope_scale) as u32;
+        let effective_ctx_for_api = if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
+            (settings.context_length as f32 * settings.rope_scale) as u32
+        } else {
+            settings.context_length as u32
+        };
         let handle = tokio::spawn(async move {
             let result = crate::serve_api::start_api_server(
                 addr,
@@ -675,7 +679,11 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let server_port_clone = settings.port;
         let pid_clone = server_pid;
         let cmd_display_clone = cmd_display.clone();
-        let effective_ctx = (settings.context_length as f32 * settings.rope_scale) as u32;
+        let effective_ctx = if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
+            (settings.context_length as f32 * settings.rope_scale) as u32
+        } else {
+            settings.context_length as u32
+        };
         let ws_shutdown_rx_clone = ws_shutdown_rx.clone();
         let log_metrics_rx_for_metrics = log_metrics_rx;
         let log_reader_clone = log_reader_handle;

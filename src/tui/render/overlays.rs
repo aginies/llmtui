@@ -3271,8 +3271,12 @@ fn render_yarn_rope_picker(
     let freq_scale_val = freq_scale.parse::<f32>().unwrap_or(1.0);
     let rope_scale_display = rope_scale_val;
     let ctx = app.settings.context_length;
-    let effective_ctx = (ctx as f64 * rope_scale_display as f64) as u32;
-    let ctx_display = if rope_scale_display > 1.001 {
+    let effective_ctx = if app.settings.rope_yarn_enabled && rope_scale_display > 1.0 {
+        (ctx as f64 * rope_scale_display as f64) as u32
+    } else {
+        ctx
+    };
+    let ctx_display = if app.settings.rope_yarn_enabled && rope_scale_display > 1.001 {
         format!(
             "{} * {:.2} = {} tokens",
             ctx, rope_scale_display, effective_ctx
