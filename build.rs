@@ -103,7 +103,6 @@ fn main() {
     // available next to the built binary at runtime.
     // OUT_DIR is like target/release/build/llm-manager-xxx/, so parent().parent()
     // gives us target/release/ where the binary lands.
-    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let locales_src = Path::new(&crate_dir).join("locales");
     let out_dir = env::var("OUT_DIR").unwrap();
     let locales_dst = Path::new(&out_dir)
@@ -111,18 +110,6 @@ fn main() {
         .and_then(|p| p.parent())
         .expect("OUT_DIR should have two parents")
         .join("locales");
-
-    // Debug: write to a file to trace execution
-    let _ = fs::write(
-        "/tmp/build-debug.log",
-        format!(
-            "locales_src={:?} out_dir={} locales_dst={:?} is_dir={}\n",
-            locales_src,
-            out_dir,
-            locales_dst,
-            locales_src.is_dir()
-        ),
-    );
 
     if locales_src.is_dir() {
         copy_dir_recursive(&locales_src, &locales_dst).unwrap_or_else(|e| {

@@ -1,4 +1,5 @@
 {
+  "about.author": "Auteur: ",
   "about.close": "[⎋/N'importe quelle touche] Fermer",
   "about.description": "Une TUI haute performance pour gérer les serveurs llama.cpp.",
   "about.license": "Licence : ",
@@ -479,6 +480,7 @@
   "models.benchtune_progress": "Progression : {}/{} ({}%)",
   "models.benchtune_results": " Résultats BenchTune (triés par vitesse de génération) :",
   "models.benchtune_success": "Succès : ",
+  "models.benchtune_test_count": "{} test(s)",
   "models.benchtune_view_details": " (Appuyez sur [↵] pour voir les détails du résultat sélectionné)",
   "models.benchtune_warning": "Avertissement : {} test(s) ont échoué. Vérifiez le Journal (F6) pour les détails.",
   "models.gguf_files": " {} - Fichiers GGUF ",
@@ -753,5 +755,11 @@
   "panel.llama_server.section": "Serveur LLaMA",
   "active.prompt": "Progression: {} {} {} tokens ({:.0} t/s)",
   "models.already_loaded": "Un modèle est déjà chargé. Déchargez-le d'abord.",
-  "panel.help.models.gguf_explanation": "Explication du nom de fichier GGUF"
+  "panel.help.models.gguf_explanation": "Explication du nom de fichier GGUF",
+  "loading.server_starting": "Démarrage du serveur...",
+  "loading.loading_weights": "Chargement des poids du modèle...",
+  "loading.loading_metadata": "Chargement des métadonnées...",
+  "loading.loading_tensors": "Chargement des tenseurs...",
+  "loading.server_listening": "Serveur en écoute...",
+  "loading.ready": "Prêt"
 }

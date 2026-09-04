@@ -273,12 +273,12 @@ pub enum LoadingPhase {
 impl LoadingPhase {
     pub fn label(&self) -> &'static str {
         match self {
-            LoadingPhase::ServerStarting => "Server starting...",
-            LoadingPhase::LoadingModel => "Loading model weights...",
-            LoadingPhase::LoadingMeta => "Loading metadata...",
-            LoadingPhase::LoadingTensors => "Loading tensors...",
-            LoadingPhase::ServerListening => "Server listening...",
-            LoadingPhase::Complete => "Ready",
+            LoadingPhase::ServerStarting => crate::t!("loading.server_starting"),
+            LoadingPhase::LoadingModel => crate::t!("loading.loading_weights"),
+            LoadingPhase::LoadingMeta => crate::t!("loading.loading_metadata"),
+            LoadingPhase::LoadingTensors => crate::t!("loading.loading_tensors"),
+            LoadingPhase::ServerListening => crate::t!("loading.server_listening"),
+            LoadingPhase::Complete => crate::t!("loading.ready"),
         }
     }
 }

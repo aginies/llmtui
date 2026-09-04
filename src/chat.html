@@ -844,7 +844,7 @@ function sanitizeHtml(html) {
   if (window.DOMPurify) {
     return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
   }
-  return html;
+  return null; // fail closed: never inject raw HTML without a sanitizer
 }
 
 function renderMath(el, opts = {}) {
@@ -887,8 +887,11 @@ function renderMarkdownLive(el, text) {
   if (!text) { el.textContent = ''; return; }
   if (window.marked) {
     try {
-      el.innerHTML = sanitizeHtml(marked.parse(text));
-      return;
+      const safe = sanitizeHtml(marked.parse(text));
+      if (safe !== null) {
+        el.innerHTML = safe;
+        return;
+      }
     } catch (e) { /* fallback below */ }
   }
   el.textContent = text;
@@ -906,6 +909,10 @@ function renderMarkdown(el, text) {
         breaks: true
       });
       let html = sanitizeHtml(marked.parse(extracted.text));
+      if (html === null) {
+        el.textContent = text;
+        return;
+      }
       
       // Replace placeholders with KaTeX-rendered math
       for (const block of extracted.blocks) {

@@ -14,7 +14,7 @@ pub struct InjectedPrompt {
 }
 
 fn log(cb: &std::sync::Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>, msg: String) {
-    if let Some(c) = cb.lock().unwrap().as_ref() {
+    if let Some(c) = cb.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         c(msg);
     }
 }

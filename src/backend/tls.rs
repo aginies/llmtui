@@ -137,15 +137,16 @@ pub fn ensure_tls_certs(
     // If server cert exists AND version matches, return it
     let version_matches = version_path.exists()
         && std::fs::read_to_string(&version_path).ok().as_deref() == Some(TLS_VERSION);
-    if server_cert_path.exists()
-        && server_key_path.exists()
-        && version_matches
-        && try_load_tls(
-            server_cert_path.to_str().unwrap(),
-            server_key_path.to_str().unwrap(),
-        )
-        .is_ok()
-    {
+    let certs_valid = match (server_cert_path.to_str(), server_key_path.to_str()) {
+        (Some(cert), Some(key)) => {
+            server_cert_path.exists()
+                && server_key_path.exists()
+                && version_matches
+                && try_load_tls(cert, key).is_ok()
+        }
+        _ => false, // non-UTF-8 path: treat as invalid, regenerate
+    };
+    if certs_valid {
         return Ok((server_cert_path, server_key_path));
     }
     // Certs corrupt or version mismatch — fall through to regenerate
@@ -198,12 +199,11 @@ pub fn ensure_tls_certs(
 
     // Validate just-written certs immediately; delete and regenerate on failure
     // to avoid leaving the user with corrupt files that pass the version check.
-    if try_load_tls(
-        server_cert_path.to_str().unwrap(),
-        server_key_path.to_str().unwrap(),
-    )
-    .is_err()
-    {
+    let validation_failed = match (server_cert_path.to_str(), server_key_path.to_str()) {
+        (Some(cert), Some(key)) => try_load_tls(cert, key).is_err(),
+        _ => true, // non-UTF-8 path: treat as invalid
+    };
+    if validation_failed {
         tracing::warn!("Generated TLS certs failed validation, removing for regeneration");
         let _ = std::fs::remove_file(&server_cert_path);
         let _ = std::fs::remove_file(&server_key_path);

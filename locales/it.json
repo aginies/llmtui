@@ -1,4 +1,5 @@
 {
+  "about.author": "Autore: ",
   "about.close": "[⎋/Qualsiasi tasto] Chiudi",
   "about.description": "Un TUI ad alte prestazioni per gestire server llama.cpp.",
   "about.license": "Licenza: ",
@@ -479,6 +480,7 @@
   "models.benchtune_progress": "Avanzamento: {}/{} ({}%)",
   "models.benchtune_results": " Risultati BenchTune (ordinati per velocità di generazione):",
   "models.benchtune_success": "Successo: ",
+  "models.benchtune_test_count": "{} test(i)",
   "models.benchtune_view_details": " (Premi [↵] per vedere i dettagli del risultato selezionato)",
   "models.benchtune_warning": "Attenzione: {} test falliti. Controlla il Log (F6) per i dettagli.",
   "models.gguf_files": " {} - File GGUF ",
@@ -751,5 +753,11 @@
   "field.help.llama_server_options": "Configura le opzioni del server LLaMA: Porta, Threads, Threads Batch e Modalità. Premi Invio per aprire il selettore opzioni. Le modifiche vengono applicate immediatamente.",
   "panel.llama_server.section": "Server LLaMA",
   "active.prompt": "Progresso: {} {} {} tokens ({:.0} t/s)",
-  "panel.help.models.gguf_explanation": "Spiegazione nome file GGUF"
+  "panel.help.models.gguf_explanation": "Spiegazione nome file GGUF",
+  "loading.server_starting": "Avvio del server...",
+  "loading.loading_weights": "Caricamento dei pesi del modello...",
+  "loading.loading_metadata": "Caricamento dei metadati...",
+  "loading.loading_tensors": "Caricamento dei tensori...",
+  "loading.server_listening": "Server in ascolto...",
+  "loading.ready": "Pronto"
 }

@@ -897,30 +897,34 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     } => {
                         let elapsed_str = format!("{}s", elapsed.as_secs());
                         lines.push(Line::from(vec![
-                            Span::raw("Status: "),
+                            Span::raw(crate::t!("models.benchtune_complete")),
                             Span::styled(
-                                "PARTIALLY COMPLETED",
+                                crate::t!("models.benchtune_partial"),
                                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                             ),
-                            Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
+                            Span::raw(crate::t_fmt!(
+                                "models.benchtune_complete_time",
+                                total_tests,
+                                elapsed_str
+                            )),
                         ]));
 
                         lines.push(Line::from(vec![
-                            Span::raw("Success: "),
+                            Span::raw(crate::t!("models.benchtune_success")),
                             Span::styled(
                                 format!("{}/{}", successful_tests, total_tests),
                                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                             ),
                         ]));
                         lines.push(Line::from(vec![
-                            Span::raw("Failed: "),
+                            Span::raw(crate::t!("models.benchtune_failed")),
                             Span::styled(
-                                format!("{} test(s)", failed_tests),
+                                crate::t_fmt!("models.benchtune_test_count", failed_tests),
                                 Style::default().fg(RED).add_modifier(Modifier::BOLD),
                             ),
                         ]));
                         lines.push(Line::from(Span::styled(
-                            "Check Log (F6) for failure details.".to_string(),
+                            crate::t!("models.benchtune_check_log"),
                             Style::default().fg(RED),
                         )));
 
@@ -937,30 +941,34 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     } => {
                         let elapsed_str = format!("{}s", elapsed.as_secs());
                         lines.push(Line::from(vec![
-                            Span::raw("Status: "),
+                            Span::raw(crate::t!("models.benchtune_complete")),
                             Span::styled(
-                                "CANCELLED",
+                                crate::t!("models.benchtune_cancelled"),
                                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                             ),
-                            Span::raw(format!(" ({} tests in {})", total_tests, elapsed_str)),
+                            Span::raw(crate::t_fmt!(
+                                "models.benchtune_complete_time",
+                                total_tests,
+                                elapsed_str
+                            )),
                         ]));
 
                         lines.push(Line::from(vec![
-                            Span::raw("Success: "),
+                            Span::raw(crate::t!("models.benchtune_success")),
                             Span::styled(
                                 format!("{}/{}", successful_tests, total_tests),
                                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                             ),
                         ]));
                         lines.push(Line::from(vec![
-                            Span::raw("Failed: "),
+                            Span::raw(crate::t!("models.benchtune_failed")),
                             Span::styled(
-                                format!("{} test(s)", failed_tests),
+                                crate::t_fmt!("models.benchtune_test_count", failed_tests),
                                 Style::default().fg(RED).add_modifier(Modifier::BOLD),
                             ),
                         ]));
                         lines.push(Line::from(Span::styled(
-                            "Benchmark was cancelled by user.",
+                            crate::t!("models.benchtune_cancelled_text"),
                             Style::default().fg(ACCENT),
                         )));
 
@@ -970,11 +978,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         }
                     }
                     crate::models::BenchTuneProgress::Error { error } => {
-                        lines.push(Line::from(format!("Error: {}", error)));
+                        lines.push(Line::from(crate::t_fmt!(
+                            "models.benchtune_error",
+                            error
+                        )));
                     }
                 }
             } else {
-                lines.push(Line::from("Benchmark tuning not started."));
+                lines.push(Line::from(crate::t!("models.benchtune_not_started")));
             }
 
             let paragraph = ratatui::widgets::Paragraph::new(lines).block(Block::default());

@@ -93,7 +93,7 @@ impl OverlayHandler for WebSearchPickerHandler {
                                 }
                                 *editing = false;
                                 {
-                                    let mut ws = app.server.web_search_config.write().unwrap();
+                                    let mut ws = app.server.web_search_config.write().unwrap_or_else(|e| e.into_inner());
                                     ws.enabled = *enabled;
                                     ws.engine = engine.clone();
                                     ws.engine_url = engine_url.clone();
@@ -248,7 +248,7 @@ impl OverlayHandler for WebSearchPickerHandler {
                     app.config.default.web_search_engine_url.clone(),
                     app.config.default.web_search_api_key.clone(),
                 );
-                let mut ws = app.server.web_search_config.write().unwrap();
+                let mut ws = app.server.web_search_config.write().unwrap_or_else(|e| e.into_inner());
                 ws.enabled = en;
                 ws.engine = eng;
                 ws.engine_url = url;

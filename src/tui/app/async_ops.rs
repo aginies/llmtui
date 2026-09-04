@@ -658,7 +658,7 @@ impl App {
                                         );
                                     } else {
                                         let mut loaded_names =
-                                            self.server.loaded_model_names.lock().unwrap();
+                                            self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
                                         if !loaded_names.contains(&model.display_name) {
                                             loaded_names.push(model.display_name.clone());
                                         }
@@ -679,7 +679,7 @@ impl App {
                                     if model.display_name == name || model.name == name {
                                         if is_active {
                                             let mut loaded_names =
-                                                self.server.loaded_model_names.lock().unwrap();
+                                                self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
                                             if !loaded_names.contains(&model.display_name) {
                                                 loaded_names.push(model.display_name.clone());
                                             }
@@ -1212,7 +1212,7 @@ impl App {
         let mut cycle_count: u32 = 0;
         loop {
             let current_model_for_metrics = {
-                let lock = metrics_model_name.lock().unwrap();
+                let lock = metrics_model_name.lock().unwrap_or_else(|e| e.into_inner());
                 lock.clone()
             };
             let mut m = match crate::backend::server::get_metrics(
@@ -1257,7 +1257,7 @@ impl App {
             m.total_vram_used = m.gpu_mem_used;
             cycle_count += 1;
             let current_model = {
-                let lock = metrics_model_name.lock().unwrap();
+                let lock = metrics_model_name.lock().unwrap_or_else(|e| e.into_inner());
                 lock.clone()
             };
             // Skip model-specific metrics for first 3 cycles (server needs time to stabilize)
@@ -1454,7 +1454,7 @@ impl App {
                     crate::config::LogLevel::Info,
                 );
                 {
-                    let mut lock = self.server.metrics_model_name.lock().unwrap();
+                    let mut lock = self.server.metrics_model_name.lock().unwrap_or_else(|e| e.into_inner());
                     *lock = Some(model_id.clone());
                 }
                 let log_tx = self.server.spawn_log_tx.clone();
@@ -1498,7 +1498,7 @@ impl App {
             let server_mode = self.server_mode;
             let handle_clone = handle.clone();
             {
-                let mut lock = self.server.metrics_model_name.lock().unwrap();
+                let mut lock = self.server.metrics_model_name.lock().unwrap_or_else(|e| e.into_inner());
                 if lock.as_deref() == Some(&model_name) {
                     *lock = None;
                 }
@@ -1586,9 +1586,7 @@ impl App {
                 );
             }
             self.server
-                .loaded_model_names
-                .lock()
-                .unwrap()
+                .loaded_model_names.lock().unwrap_or_else(|e| e.into_inner())
                 .retain(|n| n != &model_name);
             self.metrics.ctx_used = 0;
             self.model_states
@@ -1636,7 +1634,7 @@ impl App {
                     self.model_states
                         .insert(n, crate::models::ModelState::Available);
                 }
-                self.server.loaded_model_names.lock().unwrap().clear();
+                self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner()).clear();
                 self.loading.loading_phases = std::collections::HashSet::new();
                 self.loading.loading_progress = 0.0;
                 self.loading.progress_target = 0.0;
@@ -2188,7 +2186,7 @@ impl App {
             let model_name_clone = model_name.clone();
             let preset_name = self.settings.system_prompt_preset_name.clone();
             {
-                let mut ws = self.server.web_search_config.write().unwrap();
+                let mut ws = self.server.web_search_config.write().unwrap_or_else(|e| e.into_inner());
                 ws.engine = self.config.default.web_search_engine.clone();
                 ws.engine_url = self.config.default.web_search_engine_url.clone();
                 ws.enabled = self.config.default.web_search_enabled;

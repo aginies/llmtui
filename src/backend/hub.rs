@@ -348,7 +348,7 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
             break;
         }
     }
-    let branch = branch.unwrap();
+    let branch = branch.unwrap_or("main");
 
     let mut gguf_files = Vec::new();
     for file in &files {

@@ -78,19 +78,19 @@ fn locale_dir() -> std::path::PathBuf {
 }
 
 pub fn set_language(lang: &str) {
-    let mut current = CURRENT_LANG.lock().unwrap();
+    let mut current = CURRENT_LANG.lock().unwrap_or_else(|e| e.into_inner());
     *current = Some(lang.to_string());
 }
 
 #[allow(dead_code)]
 pub fn reset_language() {
-    let mut current = CURRENT_LANG.lock().unwrap();
+    let mut current = CURRENT_LANG.lock().unwrap_or_else(|e| e.into_inner());
     *current = None;
 }
 
 #[allow(dead_code)]
 pub fn get_language() -> String {
-    let current = CURRENT_LANG.lock().unwrap();
+    let current = CURRENT_LANG.lock().unwrap_or_else(|e| e.into_inner());
     current.clone().unwrap_or_else(|| "en".to_string())
 }
 
@@ -111,7 +111,7 @@ pub fn t(key: &str) -> &'static str {
 
     // Missing key: intern it so the fallback string is leaked once per unique
     // key instead of once per call (render paths call t!() constantly).
-    let mut missing = MISSING_KEYS.lock().unwrap();
+    let mut missing = MISSING_KEYS.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(&value) = missing.get(key) {
         return value;
     }

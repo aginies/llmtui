@@ -406,6 +406,7 @@
   "about.website": "Website & Source: ",
   "about.license_link": "License Link: ",
   "about.tech": "Built with Rust, Ratatui, and Tokio.",
+  "about.author": "Author: ",
   "about.close": "[⎋/Any] Close",
   "help.title": "Help",
   "help.close": "⎋ to close",
@@ -465,6 +466,7 @@
   "models.benchtune_complete_text": "COMPLETED",
   "models.benchtune_complete_time": " ({} tests in {})",
   "models.benchtune_success": "Success: ",
+  "models.benchtune_test_count": "{} test(s)",
   "models.benchtune_warning": "Warning: {} test(s) failed. Check Log (F6) for details.",
   "models.benchtune_results": " Benchmark results (sorted by generation speed):",
   "models.benchtune_view_details": " (Press [↵] to view details of selected result)",
@@ -757,5 +759,11 @@
   "field.help.llama_server_options": "Configure LLaMA server options: Port, Threads, Threads Batch, and Mode. Press Enter to open the options picker. Edits apply immediately.",
   "panel.llama_server.section": "LLaMA Server",
   "active.prompt": "Progress: {} {} {} tokens ({:.0} t/s)",
-  "panel.help.models.gguf_explanation": "GGUF filename explanation"
+  "panel.help.models.gguf_explanation": "GGUF filename explanation",
+  "loading.server_starting": "Server starting...",
+  "loading.loading_weights": "Loading model weights...",
+  "loading.loading_metadata": "Loading metadata...",
+  "loading.loading_tensors": "Loading tensors...",
+  "loading.server_listening": "Server listening...",
+  "loading.ready": "Ready"
 }

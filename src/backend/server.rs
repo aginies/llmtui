@@ -40,7 +40,7 @@ static VRAM_CACHE: LazyLock<std::sync::Mutex<VramCache>> = LazyLock::new(|| {
 
 /// Invalidate the VRAM cache so the next metrics poll re-queries system tools.
 pub fn invalidate_vram_cache() {
-    let mut cache = VRAM_CACHE.lock().unwrap();
+    let mut cache = VRAM_CACHE.lock().unwrap_or_else(|e| e.into_inner());
     cache.nvidia = None;
     cache.amd = None;
     cache.stale = true;
@@ -1049,7 +1049,7 @@ pub async fn get_metrics(
         let cached_nvidia;
         let cached_amd;
         {
-            let cache = VRAM_CACHE.lock().unwrap();
+            let cache = VRAM_CACHE.lock().unwrap_or_else(|e| e.into_inner());
             cached_nvidia = cache.nvidia;
             cached_amd = cache.amd;
         }
@@ -1064,7 +1064,7 @@ pub async fn get_metrics(
                 .unwrap_or(Err("spawn join error".to_string()));
             if let Ok((used, total)) = nv {
                 {
-                    let mut cache = VRAM_CACHE.lock().unwrap();
+                    let mut cache = VRAM_CACHE.lock().unwrap_or_else(|e| e.into_inner());
                     cache.nvidia = Some((used, total));
                     cache.stale = false;
                 }
@@ -1084,7 +1084,7 @@ pub async fn get_metrics(
                     .unwrap_or(Err("spawn join error".to_string()));
                 if let Ok((used, total)) = amd {
                     {
-                        let mut cache = VRAM_CACHE.lock().unwrap();
+                        let mut cache = VRAM_CACHE.lock().unwrap_or_else(|e| e.into_inner());
                         cache.amd = Some((used, total));
                         cache.stale = false;
                     }
@@ -1097,7 +1097,7 @@ pub async fn get_metrics(
         let cached_nvidia;
         let cached_amd;
         {
-            let cache = VRAM_CACHE.lock().unwrap();
+            let cache = VRAM_CACHE.lock().unwrap_or_else(|e| e.into_inner());
             cached_nvidia = cache.nvidia;
             cached_amd = cache.amd;
         }
@@ -1113,7 +1113,7 @@ pub async fn get_metrics(
                 .unwrap_or(Err("spawn join error".to_string()));
             if let Ok((used, total)) = nv {
                 {
-                    let mut cache = VRAM_CACHE.lock().unwrap();
+                    let mut cache = VRAM_CACHE.lock().unwrap_or_else(|e| e.into_inner());
                     cache.nvidia = Some((used, total));
                     cache.stale = false;
                 }
@@ -1134,7 +1134,7 @@ pub async fn get_metrics(
                     .unwrap_or(Err("spawn join error".to_string()));
                 if let Ok((used, total)) = amd {
                     {
-                        let mut cache = VRAM_CACHE.lock().unwrap();
+                        let mut cache = VRAM_CACHE.lock().unwrap_or_else(|e| e.into_inner());
                         cache.amd = Some((used, total));
                         cache.stale = false;
                     }
@@ -1315,7 +1315,7 @@ fn get_process_metrics(pid: u32) -> Result<(u64, f64), String> {
         ))
     });
 
-    let mut sys = SYS.lock().unwrap();
+    let mut sys = SYS.lock().unwrap_or_else(|e| e.into_inner());
     let pids = [Pid::from(pid as usize)];
     sys.refresh_processes_specifics(
         ProcessesToUpdate::Some(&pids),
