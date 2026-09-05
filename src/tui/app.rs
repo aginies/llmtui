@@ -81,6 +81,7 @@ impl App {
                 expert_mode: false,
                 help_focus_time: None,
                 help_visible: false,
+                settings_version: 0,
             },
             picker: PickerState {
                 host_picker_entries: Vec::new(),

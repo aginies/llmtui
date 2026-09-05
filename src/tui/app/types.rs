@@ -33,7 +33,7 @@ pub struct ResizeState {
 
 /// Cache for the settings panel render output.
 pub struct SettingsRenderCache {
-    pub hash: u64,
+    pub version: u64,
     pub selected: usize,
     pub lines: Vec<Line<'static>>,
     pub selected_content_line: usize,

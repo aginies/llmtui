@@ -169,6 +169,7 @@ pub async fn execute_confirmation(
 }
 
 pub fn mark_settings_dirty(app: &mut App, recalc_vram: bool) {
+    app.settings_state.settings_version = app.settings_state.settings_version.wrapping_add(1);
     app.settings_state.settings_render_cache = None;
     if recalc_vram {
         app.update_vram_estimate();

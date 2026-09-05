@@ -58,15 +58,9 @@ impl App {
         self.settings.is_dirty(&self.model_settings_cache)
     }
 
-    /// Compute a fingerprint of the current settings for cache invalidation.
+    /// Return the settings version counter for cache invalidation.
     pub fn settings_fingerprint(&self) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let mut h = DefaultHasher::new();
-        self.settings.hash(&mut h);
-        self.settings_state.settings_edit_buffer.hash(&mut h);
-        self.settings_state.expert_mode.hash(&mut h);
-        h.finish()
+        self.settings_state.settings_version
     }
 
     /// Delete a user profile by index in the merged display list.

@@ -30,6 +30,10 @@ impl App {
             .map(|d| (d.filename.as_str(), d.total_bytes))
             .collect();
 
+        // Sort search results by model_id length (longest first) for faster prefix matching
+        let mut sorted_search: Vec<&crate::models::SearchResult> = search_results.iter().collect();
+        sorted_search.sort_by(|a, b| b.model_id.len().cmp(&a.model_id.len()));
+
         for dir in dirs {
             crate::backend::hub::walk_dir_recursive(dir, 0, 10, &mut |entry| {
                 let path = entry.path();
@@ -54,8 +58,8 @@ impl App {
                         .unwrap_or(&name)
                         .to_string();
 
-                    // Try to match with search results to get pipeline_tag and capabilities
-                    let (pipeline_tag, capabilities) = search_results
+                    // Try to match with search results (longest model_id first for faster matching)
+                    let (pipeline_tag, capabilities) = sorted_search
                         .iter()
                         .find(|r| display_name.starts_with(&r.model_id))
                         .map(|r| (r.pipeline_tag.clone(), r.capabilities.clone()))

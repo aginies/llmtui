@@ -32,6 +32,7 @@ pub struct SettingsState {
     pub expert_mode: bool,
     pub help_focus_time: Option<tokio::time::Instant>,
     pub help_visible: bool,
+    pub settings_version: u64,
 }
 
 pub struct PickerState {

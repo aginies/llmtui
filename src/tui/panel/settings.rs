@@ -20,11 +20,11 @@ pub fn render_all(
 
     let edit_buf = &app.settings_state.settings_edit_buffer;
     let editing = !edit_buf.is_empty();
-    let hash = app.settings_fingerprint();
+    let version = app.settings_fingerprint();
 
     let (lines_to_return, final_total_count, selected_content_line) = if let Some(c) =
         &app.settings_state.settings_render_cache
-        && c.hash == hash
+        && c.version == version
         && c.selected == selected
     {
         (c.lines.clone(), c.lines.len(), c.selected_content_line)
@@ -48,7 +48,7 @@ pub fn render_all(
             disabled,
         );
         app.settings_state.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
-            hash,
+            version,
             selected,
             lines: lines.clone(),
             selected_content_line,
