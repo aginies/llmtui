@@ -831,25 +831,11 @@ Benchmark before deploying a model in production to:
 
 Set the server **Mode** to `BenchTune` in Server Settings, then press `Enter` to open the BenchTune Setup modal.
 
-## Benchmark Modes
+## How It Works
 
-Two modes are available, each with different tradeoffs:
-
-### RuntimeOnly (Recommended)
-
-Single server, all parameters sent in the request body. No server restarts between tests.
-
-- **Pros:** Fast (seconds per test), low overhead, preserves server state
-- **Cons:** Some parameters may not be reconfigurable at runtime
-- **Best for:** Sampling parameters (temperature, top-k, top-p), repetition control, DRY settings
-
-### Full
-
-Spawns a new server for each parameter combination.
-
-- **Pros:** Tests all parameters including server-level settings (threads, context, GPU layers)
-- **Cons:** Slow (minutes per test due to server startup), higher resource usage
-- **Best for:** Hardware-level parameters, backend selection, architecture tuning
+BenchTune spawns a new server for each parameter combination, so all tunable
+parameters — including server-level settings (threads, batch size, flash
+attention) — are tested.
 
 ## Tunable Parameters
 
@@ -857,10 +843,6 @@ The following parameters can be tuned. Enable/disable each with `Space`:
 
 | Parameter | Range | Description | Server/Client |
 |-----------|-------|-------------|---------------|
-| **Temperature** | 0.4–1.0 | Sampling randomness | Both |
-| **Top-p** | 0.8–1.0 | Nucleus sampling threshold | Both |
-| **Top-k** | 10–40 | Token sampling window | Both |
-| **Repeat Penalty** | 1.0–1.5 | Repetition suppression | Both |
 | **Flash Attention** | 0/1 | Enable/disable Flash Attention 2 | Server |
 | **Threads** | 4–16 | CPU threads for generation | Server |
 | **Batch Size** | 512–2048 | Logical maximum batch size | Server |
@@ -868,11 +850,6 @@ The following parameters can be tuned. Enable/disable each with `Space`:
 | **Context Length** | Model default–max | Context window size | Server |
 | **Spec Type** | draft-mtp, ngram-simple, etc. | Speculative decoding method | Server |
 | **Draft Tokens** | 0–8 | Draft tokens per step (speculative) | Server |
-
-### Server vs Client Parameters
-
-- **Server parameters** require a full server restart to change (threads, context, flash attention). Use `Full` mode.
-- **Client parameters** can be changed per-request (temperature, top-p, top-k). Use `RuntimeOnly` mode.
 
 ## Benchmark Configuration
 
@@ -912,9 +889,8 @@ Maximum time for the entire benchmark run. Default: 60 seconds.
 2. Press `Enter` to open BenchTune Setup
 3. Select parameters to test with `Space`
 4. Adjust parameter ranges (min/max/step)
-5. Choose mode: `RuntimeOnly` or `Full` (toggle with `Alt+M`)
-6. Edit prompt (`Alt+P`), n-predict (`Alt+N`), iterations (`Alt+I`)
-7. Press `Enter` to start
+5. Edit prompt (`Alt+P`), n-predict (`Alt+N`), iterations (`Alt+I`)
+6. Press `Enter` to start
 
 The benchmark runs automatically. Progress is shown in the Active Model panel with a progress bar and current parameter display.
 
@@ -971,8 +947,8 @@ The HTML report includes:
 Goal: Find best settings for a chat application.
 
 1. Set Mode to `BenchTune`
-2. Enable: Temperature, Top-p, Top-k, Repeat Penalty
-3. Select `RuntimeOnly` mode
+2. Enable: Flash Attention, Threads, Batch Size
+3. Select `Full` mode
 4. Set iterations to 5 for stable results
 5. Run benchmark
 6. Export as Markdown for documentation
@@ -1032,7 +1008,6 @@ Goal: Compare speculative decoding methods.
 
 ### Benchmark fails on certain parameters
 
-- Some parameters cannot be changed at runtime (use `Full` mode)
 - Context length changes require server restart
 - Backend-specific parameters may not be tunable
 

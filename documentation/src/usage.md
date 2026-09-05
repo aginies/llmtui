@@ -504,7 +504,6 @@ Models → (Server Settings / README / Profiles / Presets) → Active Model → 
 | `Ctrl+C` | Exit (warns if models loaded) |
 | `A` | Open About modal |
 | `y` | Confirm destructive action |
-| `Alt+M` | Toggle benchmark mode (RuntimeOnly / Full) |
 | `Alt+P` | Edit benchmark prompt |
 | `Alt+N` | Edit n_predict (max tokens) |
 | `Alt+I` | Edit iterations |
@@ -579,12 +578,10 @@ The dashboard shows real-time metrics (TPS, prompt TPS, latency, context, VRAM, 
 
 Benchmark Tuning auto-tunes model parameters for optimal performance. Access it by setting the Server Mode to **BenchTune**.
 
-Two modes are available:
+A new server is spawned for each parameter combination, so all tunable
+parameters (server-level) are tested.
 
-- **RuntimeOnly** — Single server, params sent in request body (no server restarts)
-- **Full** — New server spawned for each parameter combination
-
-Tunable parameters: temperature (0.4–1.0), top_p (0.8–1.0), top_k (40–50), repeat_penalty (1.0–1.2), flash_attn (0/1), threads (4–16), batch_size (512–2048), expert_count (1–4), context_length, spec_type (speculative decoding type), draft_tokens.
+Tunable parameters: flash_attn (0/1), threads (4–16), batch_size (512–2048), expert_count (1–4), context_length, spec_type (speculative decoding type), draft_tokens.
 
 ![Benchmark Configuration](images/benchmark_configuration.png)
 

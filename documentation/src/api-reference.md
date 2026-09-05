@@ -49,7 +49,6 @@ cargo doc --open
 | `LoadingPhase` | `app` | Phase of model loading: `ServerStarting`, `LoadingModel`, `LoadingMeta`, `LoadingTensors`, `ServerListening`, `Complete` |
 | `LoadProgress` | `models` | Load progress with `layers_total`, `layers_loaded`, `tensors_loaded` |
 | `Samplers` | `models` | Semicolon-separated sampler order string |
-| `BenchTuneMode` | `benchmark` | Benchmark mode: `RuntimeOnly` or `Full` (default: `Full`) |
 | `BenchTuneStatus` | `benchmark` | Status: `Running`, `Completed`, `PartiallyCompleted`, `Cancelled`, or `Error` |
 | `WebSearchCheckStatus` | `app` | Web search status: `Checking`, `Ok`, `Error(String)` |
 
@@ -385,7 +384,6 @@ pub struct BenchTuneConfig {
     pub prompt: String,
     pub params_to_test: Vec<BenchTuneParam>,
     pub test_duration: Duration,
-    pub bench_mode: BenchTuneMode,
     pub n_predict: u32,
     pub chat_template_kwargs: Option<String>,
     pub test_timeout: Duration,
@@ -403,10 +401,6 @@ pub struct BenchTuneParam {
 
 /// Actual parameter values for a benchmark run.
 pub struct BenchTuneParamValue {
-    pub temperature: Option<f64>,
-    pub top_p: Option<f64>,
-    pub top_k: Option<i64>,
-    pub repeat_penalty: Option<f64>,
     pub context_length: Option<u32>,
     pub batch_size: Option<u32>,
     pub flash_attn: Option<bool>,

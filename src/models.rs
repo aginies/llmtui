@@ -2046,7 +2046,6 @@ pub struct BenchTuneConfig {
     pub prompt: String,
     pub params_to_test: Vec<BenchTuneParam>,
     pub test_duration: Duration,
-    pub bench_mode: BenchTuneMode,
     pub n_predict: u32,
     pub chat_template_kwargs: Option<String>,
     pub test_timeout: Duration,
@@ -2076,10 +2075,6 @@ impl Eq for BenchTuneParam {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchTuneParamValue {
-    pub temperature: Option<f64>,
-    pub top_p: Option<f64>,
-    pub top_k: Option<i64>,
-    pub repeat_penalty: Option<f64>,
     pub context_length: Option<u32>,
     pub batch_size: Option<u32>,
     pub flash_attn: Option<bool>,
@@ -2091,11 +2086,7 @@ pub struct BenchTuneParamValue {
 
 impl PartialEq for BenchTuneParamValue {
     fn eq(&self, other: &Self) -> bool {
-        self.temperature.map(|v| v.to_bits()) == other.temperature.map(|v| v.to_bits())
-            && self.top_p.map(|v| v.to_bits()) == other.top_p.map(|v| v.to_bits())
-            && self.top_k == other.top_k
-            && self.repeat_penalty.map(|v| v.to_bits()) == other.repeat_penalty.map(|v| v.to_bits())
-            && self.context_length == other.context_length
+        self.context_length == other.context_length
             && self.batch_size == other.batch_size
             && self.flash_attn == other.flash_attn
             && self.threads == other.threads
@@ -2153,15 +2144,6 @@ pub enum BenchTuneStatus {
     Error {
         error: String,
     },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub enum BenchTuneMode {
-    /// Runtime-only mode: sends all params in /completion request body, no server restarts
-    RuntimeOnly,
-    /// Full mode: spawns a new server for each parameter combination (tests server-level params)
-    #[default]
-    Full,
 }
 
 /// Progress status for benchmark tuning
@@ -2258,38 +2240,6 @@ impl BenchTuneConfig {
             prompt,
             params_to_test: vec![
                 BenchTuneParam {
-                    name: "temperature".to_string(),
-                    min: 0.4,
-                    max: 1.0,
-                    step: 0.1,
-                    enabled: false,
-                    variants: vec![],
-                },
-                BenchTuneParam {
-                    name: "top_p".to_string(),
-                    min: 0.8,
-                    max: 1.0,
-                    step: 0.1,
-                    enabled: false,
-                    variants: vec![],
-                },
-                BenchTuneParam {
-                    name: "top_k".to_string(),
-                    min: 10.0,
-                    max: 40.0,
-                    step: 5.0,
-                    enabled: false,
-                    variants: vec![],
-                },
-                BenchTuneParam {
-                    name: "repeat_penalty".to_string(),
-                    min: 1.0,
-                    max: 1.5,
-                    step: 0.1,
-                    enabled: false,
-                    variants: vec![],
-                },
-                BenchTuneParam {
                     name: "flash_attn".to_string(),
                     min: 0.0,
                     max: 1.0,
@@ -2349,7 +2299,6 @@ impl BenchTuneConfig {
                 },
             ],
             test_duration: Duration::from_secs(30),
-            bench_mode: BenchTuneMode::default(),
             n_predict: 512,
             chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
             test_timeout: Duration::from_secs(60),
@@ -2358,10 +2307,6 @@ impl BenchTuneConfig {
 
     /// Generate all parameter combinations based on the config
     pub fn generate_combinations(&self) -> Vec<BenchTuneParamValue> {
-        let mut temp_values = vec![None];
-        let mut top_p_values = vec![None];
-        let mut top_k_values = vec![None];
-        let mut repeat_penalty_values = vec![None];
         let mut flash_attn_values = vec![None];
         let mut threads_values = vec![None];
         let mut batch_size_values = vec![None];
@@ -2402,10 +2347,6 @@ impl BenchTuneConfig {
             };
 
             match p.name.as_str() {
-                "temperature" => temp_values = vals.into_iter().map(Some).collect(),
-                "top_p" => top_p_values = vals.into_iter().map(Some).collect(),
-                "top_k" => top_k_values = vals.into_iter().map(|v| Some(v as i64)).collect(),
-                "repeat_penalty" => repeat_penalty_values = vals.into_iter().map(Some).collect(),
                 "flash_attn" => {
                     flash_attn_values = vals.into_iter().map(|v| Some(v >= 0.5)).collect()
                 }
@@ -2437,33 +2378,21 @@ impl BenchTuneConfig {
         }
 
         let mut combinations = Vec::new();
-        for &temp in &temp_values {
-            for &top_p in &top_p_values {
-                for &top_k in &top_k_values {
-                    for &rp in &repeat_penalty_values {
-                        for &fa in &flash_attn_values {
-                            for &th in &threads_values {
-                                for &bs in &batch_size_values {
-                                    for &ec in &expert_count_values {
-                                        for st in &spec_type_values {
-                                            for &dt in &draft_tokens_values {
-                                                combinations.push(BenchTuneParamValue {
-                                                    temperature: temp,
-                                                    top_p,
-                                                    top_k,
-                                                    repeat_penalty: rp,
-                                                    context_length: None,
-                                                    batch_size: bs,
-                                                    flash_attn: fa,
-                                                    threads: th,
-                                                    expert_count: ec,
-                                                    spec_type: st.clone(),
-                                                    draft_tokens: dt,
-                                                });
-                                            }
-                                        }
-                                    }
-                                }
+        for &fa in &flash_attn_values {
+            for &th in &threads_values {
+                for &bs in &batch_size_values {
+                    for &ec in &expert_count_values {
+                        for st in &spec_type_values {
+                            for &dt in &draft_tokens_values {
+                                combinations.push(BenchTuneParamValue {
+                                    context_length: None,
+                                    batch_size: bs,
+                                    flash_attn: fa,
+                                    threads: th,
+                                    expert_count: ec,
+                                    spec_type: st.clone(),
+                                    draft_tokens: dt,
+                                });
                             }
                         }
                     }

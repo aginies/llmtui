@@ -296,7 +296,6 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         editing_param_field,
         param_edit_buffer,
         param_edit_cursor_pos,
-        bench_mode_selection,
         editing_prompt,
         editing_kwargs: _,
     } = &app.ui.global_mode
@@ -311,7 +310,6 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             *editing_param_field,
             param_edit_buffer,
             *param_edit_cursor_pos,
-            *bench_mode_selection,
             *editing_prompt,
         );
         return true;
@@ -1410,7 +1408,6 @@ fn render_bench_tune_setup(
     editing_param_field: i32,
     param_edit_buffer: &str,
     param_edit_cursor_pos: usize,
-    bench_mode_selection: usize,
     editing_prompt: bool,
 ) {
     let w = 90u16;
@@ -1420,12 +1417,6 @@ fn render_bench_tune_setup(
         y: (area.height.saturating_sub(h)) / 2,
         width: w.min(area.width),
         height: h.min(area.height),
-    };
-    let mode_idx = bench_mode_selection.min(1);
-    let mode_name = if mode_idx == 0 {
-        crate::t!("dialog.bench_config.runtime_only")
-    } else {
-        crate::t!("dialog.bench_config.full")
     };
     let block = Block::default()
         .title(Span::styled(
@@ -1460,15 +1451,6 @@ fn render_bench_tune_setup(
         config.n_predict.to_string()
     };
     let mode_line = Line::from(vec![
-        Span::styled(
-            crate::t!("dialog.bench_config.mode"),
-            Style::default().fg(ACCENT),
-        ),
-        Span::styled(
-            mode_name,
-            Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(" | "),
         Span::styled(
             crate::t!("dialog.bench_config.iters"),
             Style::default().fg(ACCENT),
@@ -1759,10 +1741,6 @@ fn render_bench_tune_setup(
                     "threads" => format!(
                         "{} to {}, step {}",
                         p.min as u32, p.max as u32, p.step as u32
-                    ),
-                    "top_k" => format!(
-                        "{} to {}, step {}",
-                        p.min as i64, p.max as i64, p.step as i64
                     ),
                     "expert_count" => format!(
                         "{} to {}, step {}",
@@ -2550,64 +2528,6 @@ fn render_bench_tune_output(f: &mut Frame, area: Rect, app: &App, result_idx: us
         ]);
         let settings = result.base_settings.as_ref();
         let param_rows: Vec<Row> = vec![
-            Row::new(vec![
-                Cell::from(Span::styled("temperature", Style::default().fg(ACCENT))),
-                Cell::from(Span::styled(
-                    settings
-                        .map(|s| format!("{:.2}", s.temperature))
-                        .unwrap_or_else(|| {
-                            result
-                                .params
-                                .temperature
-                                .map(|v| format!("{:.2}", v))
-                                .unwrap_or_else(|| "-".to_string())
-                        }),
-                    Style::default().fg(CYAN),
-                )),
-            ]),
-            Row::new(vec![
-                Cell::from(Span::styled("top_p", Style::default().fg(ACCENT))),
-                Cell::from(Span::styled(
-                    settings
-                        .map(|s| format!("{:.2}", s.top_p))
-                        .unwrap_or_else(|| {
-                            result
-                                .params
-                                .top_p
-                                .map(|v| format!("{:.2}", v))
-                                .unwrap_or_else(|| "-".to_string())
-                        }),
-                    Style::default().fg(CYAN),
-                )),
-            ]),
-            Row::new(vec![
-                Cell::from(Span::styled("top_k", Style::default().fg(ACCENT))),
-                Cell::from(Span::styled(
-                    settings.map(|s| s.top_k.to_string()).unwrap_or_else(|| {
-                        result
-                            .params
-                            .top_k
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| "-".to_string())
-                    }),
-                    Style::default().fg(CYAN),
-                )),
-            ]),
-            Row::new(vec![
-                Cell::from(Span::styled("repeat_penalty", Style::default().fg(ACCENT))),
-                Cell::from(Span::styled(
-                    settings
-                        .map(|s| format!("{:.2}", s.repeat_penalty))
-                        .unwrap_or_else(|| {
-                            result
-                                .params
-                                .repeat_penalty
-                                .map(|v| format!("{:.2}", v))
-                                .unwrap_or_else(|| "-".to_string())
-                        }),
-                    Style::default().fg(CYAN),
-                )),
-            ]),
             Row::new(vec![
                 Cell::from(Span::styled("context_length", Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(

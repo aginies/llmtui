@@ -800,19 +800,11 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
         editing_param_field,
         param_edit_buffer,
         param_edit_cursor_pos,
-        bench_mode_selection,
         editing_prompt,
         editing_kwargs,
     } = &mut app.ui.global_mode
     {
         match key.code {
-            KeyCode::Char('m') if key.modifiers.contains(KeyModifiers::ALT) => {
-                *bench_mode_selection = if *bench_mode_selection == 0 { 1 } else { 0 };
-                config.bench_mode = match *bench_mode_selection {
-                    0 => crate::models::BenchTuneMode::RuntimeOnly,
-                    _ => crate::models::BenchTuneMode::Full,
-                };
-            }
             KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::ALT) => {
                 *editing_prompt = !*editing_prompt;
                 if *editing_prompt {

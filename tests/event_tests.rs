@@ -1685,10 +1685,6 @@ async fn test_bench_tune_down_moves_result_row() {
     app.bench_tune.bench_tune_results = vec![
         BenchTuneResult {
             params: BenchTuneParamValue {
-                temperature: None,
-                top_p: None,
-                top_k: None,
-                repeat_penalty: None,
                 context_length: None,
                 batch_size: None,
                 flash_attn: None,
@@ -1711,10 +1707,6 @@ async fn test_bench_tune_down_moves_result_row() {
         },
         BenchTuneResult {
             params: BenchTuneParamValue {
-                temperature: None,
-                top_p: None,
-                top_k: None,
-                repeat_penalty: None,
                 context_length: None,
                 batch_size: None,
                 flash_attn: None,
@@ -1749,10 +1741,6 @@ async fn test_bench_tune_up_decreases_result_row() {
     app.bench_tune.bench_tune_results = vec![
         BenchTuneResult {
             params: BenchTuneParamValue {
-                temperature: None,
-                top_p: None,
-                top_k: None,
-                repeat_penalty: None,
                 context_length: None,
                 batch_size: None,
                 flash_attn: None,
@@ -1775,10 +1763,6 @@ async fn test_bench_tune_up_decreases_result_row() {
         },
         BenchTuneResult {
             params: BenchTuneParamValue {
-                temperature: None,
-                top_p: None,
-                top_k: None,
-                repeat_penalty: None,
                 context_length: None,
                 batch_size: None,
                 flash_attn: None,
@@ -1812,10 +1796,6 @@ async fn test_bench_tune_enter_opens_output_view() {
     app.models_mode = ModelsMode::BenchTune;
     app.bench_tune.bench_tune_results = vec![BenchTuneResult {
         params: BenchTuneParamValue {
-            temperature: None,
-            top_p: None,
-            top_k: None,
-            repeat_penalty: None,
             context_length: None,
             batch_size: None,
             flash_attn: None,

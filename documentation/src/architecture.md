@@ -18,7 +18,7 @@ src/
 │   └── model_config.rs  # ModelConfigStore
 ├── backend/
 │   ├── mod.rs           # Module root, USER_AGENT constant
-│   ├── benchmark.rs     # Benchmark tuning engine (RuntimeOnly and Full modes)
+│   ├── benchmark.rs     # Benchmark tuning engine
 │   ├── benchmark_report.html  # HTML report template for benchmarks
 │   ├── hardware.rs      # GPU detection (AMD/NVIDIA/Intel), CPU core counting
 │   ├── hub.rs           # HuggingFace API: search, list files, download
@@ -154,7 +154,7 @@ pub enum GlobalMode {
     MaxConcurrentPicker { value: String },
     SpecTypePicker { entries: Vec<String>, selected: usize },
     YarnRoPESettings { scale: String, freq_base: String, freq_scale: String, selected_field: i32, editing: bool, edit_buffer: String, edit_cursor_pos: usize },
-    BenchTuneSetup { config: BenchTuneConfig, selected_idx: usize, editing_param: bool, editing_param_field: i32, param_edit_buffer: String, param_edit_cursor_pos: usize, bench_mode_selection: usize, editing_prompt: bool, editing_kwargs: bool },
+    BenchTuneSetup { config: BenchTuneConfig, selected_idx: usize, editing_param: bool, editing_param_field: i32, param_edit_buffer: String, param_edit_cursor_pos: usize, editing_prompt: bool, editing_kwargs: bool },
     PromptPicker { entries: Vec<(String, String)>, selected: usize, editing: bool, edit_buffer: String, edit_cursor_pos: usize, confirm_delete: bool },
     ProfilePicker { entries: Vec<(String, String)>, selected: usize, profiles: Vec<Profile> },
     DashboardPicker { enabled: bool, port: String, auth_key: String, tls_enabled: bool, tls_cert: String, tls_key: String, selected_field: i32, editing: bool, edit_buffer: String, edit_cursor_pos: usize },
@@ -273,13 +273,11 @@ Workers are combined into the `--rpc` flag when starting the server. Configurati
 
 ## Benchmark Tuning
 
-The benchmark system (`src/backend/benchmark.rs`) supports two modes:
-
-- **RuntimeOnly**: Single server, params sent in request body (no server restarts). Best for sampling parameters.
-- **Full**: New server spawned for each parameter combination. Tests all parameters including server-level settings.
+The benchmark system (`src/backend/benchmark.rs`) spawns a new server for each
+parameter combination, testing all server-level parameters.
 
 Key types:
-- `BenchTuneConfig`: Model path, iterations, prompt, params to test, duration, mode
+- `BenchTuneConfig`: Model path, iterations, prompt, params to test, duration
 - `BenchTuneParam`: name, min, max, step, enabled
 - `BenchTuneResult`: params, metrics (prompt_tps, generation_tps, combined_tps, latency_per_token, first_token_time), outputs, per-iteration metrics
 - `BenchTuneStatus`: Running (with progress), Completed (with stats), PartiallyCompleted (with stats), Cancelled (with stats)

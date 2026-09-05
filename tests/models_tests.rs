@@ -425,13 +425,6 @@ fn server_mode_default_is_normal() {
     assert_eq!(ServerMode::default(), ServerMode::Normal);
 }
 
-// ── BenchTuneMode ───────────────────────────────────────────────
-
-#[test]
-fn bench_tune_mode_default_is_full() {
-    assert_eq!(BenchTuneMode::default(), BenchTuneMode::Full);
-}
-
 // ── estimate_vram_mib ──────────────────────────────────────────
 
 #[test]
@@ -1126,10 +1119,6 @@ fn bench_tune_progress_from_status_running() {
         total: 10,
         progress: 10.0,
         current_params: BenchTuneParamValue {
-            temperature: None,
-            top_p: None,
-            top_k: None,
-            repeat_penalty: None,
             context_length: None,
             batch_size: None,
             flash_attn: None,
@@ -1183,26 +1172,18 @@ fn load_progress_default() {
 #[test]
 fn bench_tune_param_value_eq_with_some_none() {
     let a = BenchTuneParamValue {
-        temperature: Some(0.8),
-        top_p: None,
-        top_k: None,
-        repeat_penalty: None,
         context_length: None,
         batch_size: None,
-        flash_attn: None,
+        flash_attn: Some(true),
         threads: None,
         expert_count: None,
         spec_type: None,
         draft_tokens: None,
     };
     let b = BenchTuneParamValue {
-        temperature: Some(0.8),
-        top_p: None,
-        top_k: None,
-        repeat_penalty: None,
         context_length: None,
         batch_size: None,
-        flash_attn: None,
+        flash_attn: Some(true),
         threads: None,
         expert_count: None,
         spec_type: None,
@@ -1214,27 +1195,19 @@ fn bench_tune_param_value_eq_with_some_none() {
 #[test]
 fn bench_tune_param_value_ne_different_values() {
     let a = BenchTuneParamValue {
-        temperature: Some(0.8),
-        top_p: None,
-        top_k: None,
-        repeat_penalty: None,
         context_length: None,
         batch_size: None,
         flash_attn: None,
-        threads: None,
+        threads: Some(8),
         expert_count: None,
         spec_type: None,
         draft_tokens: None,
     };
     let b = BenchTuneParamValue {
-        temperature: Some(0.7),
-        top_p: None,
-        top_k: None,
-        repeat_penalty: None,
         context_length: None,
         batch_size: None,
         flash_attn: None,
-        threads: None,
+        threads: Some(16),
         expert_count: None,
         spec_type: None,
         draft_tokens: None,
@@ -1332,7 +1305,7 @@ fn bench_tune_config_new_has_default_params() {
     assert_eq!(config.model_path.to_string_lossy(), "/path/to/model.gguf");
     assert_eq!(config.num_iterations, 3);
     assert_eq!(config.prompt, "test prompt");
-    assert_eq!(config.params_to_test.len(), 10);
+    assert_eq!(config.params_to_test.len(), 6);
     assert_eq!(config.test_duration, std::time::Duration::from_secs(30));
 }
 

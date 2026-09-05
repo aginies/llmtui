@@ -5,8 +5,8 @@ use tokio::sync::{mpsc, watch};
 
 use crate::backend::server::{SpawnServerRequest, spawn_server};
 use crate::models::{
-    BenchTuneConfig, BenchTuneMetrics, BenchTuneMode, BenchTuneParamValue, BenchTuneResult,
-    BenchTuneStatus, DiscoveredModel, ModelSettings, ServerMode,
+    BenchTuneConfig, BenchTuneMetrics, BenchTuneParamValue, BenchTuneResult, BenchTuneStatus,
+    DiscoveredModel, ModelSettings, ServerMode,
 };
 
 /// Benchmark tuning constants
@@ -161,31 +161,10 @@ pub async fn run_bench_tune(
         .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
         .build()?;
 
-    // If runtime-only mode, send params in request body (no server restarts)
-    if config.bench_mode == BenchTuneMode::RuntimeOnly {
-        // Spawn a single server for all runtime-only iterations
-        let (exit_tx, _exit_rx) = tokio::sync::mpsc::channel(1);
-        let (server_handle, server_command) = spawn_server(SpawnServerRequest {
-            config: main_config,
-            model: Some(model),
-            settings: &settings,
-            log_tx: log_tx.clone(),
-            progress_tx: None,
-            server_mode: ServerMode::Normal,
-            router_max_models: 1,
-            exit_tx,
-        })
-        .await?;
-
-        let host = if server_handle.host == "0.0.0.0" {
-            "127.0.0.1"
-        } else {
-            &server_handle.host
-        };
-
-        // Wait for server to be ready
+    // Spawn a new server for each parameter combination
+    for (idx, combination) in combinations.iter().enumerate() {
+        // Check cancellation before each test
         if *cancel_rx.borrow() {
-            let _ = crate::backend::server::kill_server(server_handle).await;
             let elapsed = start_time.elapsed();
             progress_tx
                 .send(BenchTuneStatus::Cancelled {
@@ -197,124 +176,42 @@ pub async fn run_bench_tune(
                 .await?;
             return Ok(results);
         }
-        if !wait_for_server_ready(host, server_handle.port, &log_tx).await {
-            let _ = crate::backend::server::kill_server(server_handle).await;
-            return Err("Server failed to become healthy".into());
-        }
 
-        let server_port = server_handle.port;
-        let server_host = host.to_string();
-
-        for (idx, combination) in combinations.iter().enumerate() {
-            // Check cancellation before each test
-            if *cancel_rx.borrow() {
-                let _ = crate::backend::server::kill_server(server_handle).await;
-                let elapsed = start_time.elapsed();
-                progress_tx
-                    .send(BenchTuneStatus::Cancelled {
-                        total_tests,
-                        successful_tests: results.len(),
-                        failed_tests: failed_tests.len(),
-                        elapsed,
-                    })
-                    .await?;
-                return Ok(results);
-            }
-
-            let progress = (idx as f32 / total_tests as f32) * 100.0;
-            progress_tx
-                .send(BenchTuneStatus::Running {
-                    current: idx + 1,
-                    total: total_tests,
-                    progress,
-                    current_params: combination.clone(),
-                })
-                .await?;
-
-            let result = run_bench_tune_runtime_only(RuntimeOnlyCtx {
-                params: combination,
-                settings: &settings,
-                num_iterations: config.num_iterations,
-                prompt: config.prompt.clone(),
-                server_host: &server_host,
-                server_port,
-                log_tx: log_tx.clone(),
-                config,
-                client: &client,
-                server_command: &server_command,
+        let progress = (idx as f32 / total_tests as f32) * 100.0;
+        progress_tx
+            .send(BenchTuneStatus::Running {
+                current: idx + 1,
+                total: total_tests,
+                progress,
+                current_params: combination.clone(),
             })
-            .await;
+            .await?;
 
-            match result {
-                Ok(test_result) => results.push(test_result),
-                Err(e) => {
-                    failed_tests.push((idx + 1, e.to_string()));
-                    let _ = log_tx
-                        .send(format!(
-                            "Benchmark test {}/{} failed: {}",
-                            idx + 1,
-                            total_tests,
-                            e
-                        ))
-                        .await;
-                }
-            }
-        }
+        let result = run_bench_tune_single_test(SingleTestCtx {
+            main_config,
+            params: combination,
+            model,
+            base_settings: &settings,
+            num_iterations: config.num_iterations,
+            prompt: config.prompt.clone(),
+            log_tx: log_tx.clone(),
+            config,
+            client: &client,
+        })
+        .await;
 
-        let _ = crate::backend::server::kill_server(server_handle).await;
-    } else {
-        // Full mode: spawn a new server for each parameter combination
-        for (idx, combination) in combinations.iter().enumerate() {
-            // Check cancellation before each test
-            if *cancel_rx.borrow() {
-                let elapsed = start_time.elapsed();
-                progress_tx
-                    .send(BenchTuneStatus::Cancelled {
+        match result {
+            Ok(test_result) => results.push(test_result),
+            Err(e) => {
+                failed_tests.push((idx + 1, e.to_string()));
+                let _ = log_tx
+                    .send(format!(
+                        "Benchmark test {}/{} failed: {}",
+                        idx + 1,
                         total_tests,
-                        successful_tests: results.len(),
-                        failed_tests: failed_tests.len(),
-                        elapsed,
-                    })
-                    .await?;
-                return Ok(results);
-            }
-
-            let progress = (idx as f32 / total_tests as f32) * 100.0;
-            progress_tx
-                .send(BenchTuneStatus::Running {
-                    current: idx + 1,
-                    total: total_tests,
-                    progress,
-                    current_params: combination.clone(),
-                })
-                .await?;
-
-            let result = run_bench_tune_single_test(SingleTestCtx {
-                main_config,
-                params: combination,
-                model,
-                base_settings: &settings,
-                num_iterations: config.num_iterations,
-                prompt: config.prompt.clone(),
-                log_tx: log_tx.clone(),
-                config,
-                client: &client,
-            })
-            .await;
-
-            match result {
-                Ok(test_result) => results.push(test_result),
-                Err(e) => {
-                    failed_tests.push((idx + 1, e.to_string()));
-                    let _ = log_tx
-                        .send(format!(
-                            "Benchmark test {}/{} failed: {}",
-                            idx + 1,
-                            total_tests,
-                            e
-                        ))
-                        .await;
-                }
+                        e
+                    ))
+                    .await;
             }
         }
     }
@@ -367,7 +264,7 @@ struct IterationLoopCtx<'a> {
     log_prefix: &'a str,
 }
 
-/// Shared by both runtime-only and full benchmark modes.
+/// Runs inference iterations against a live server and accumulates metrics.
 async fn run_iteration_loop(
     ctx: IterationLoopCtx<'_>,
 ) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
@@ -399,7 +296,7 @@ async fn run_iteration_loop(
         .await;
 
     for i in 0..num_iterations {
-        let result = send_inference_request(prompt, host, port, params, config, client).await;
+        let result = send_inference_request(prompt, host, port, config, client).await;
 
         match result {
             Ok(res) => {
@@ -490,58 +387,6 @@ async fn run_iteration_loop(
     }))
 }
 
-struct RuntimeOnlyCtx<'a> {
-    params: &'a BenchTuneParamValue,
-    settings: &'a ModelSettings,
-    num_iterations: u32,
-    prompt: String,
-    server_host: &'a str,
-    server_port: u16,
-    log_tx: mpsc::Sender<String>,
-    config: &'a BenchTuneConfig,
-    client: &'a reqwest::Client,
-    server_command: &'a str,
-}
-
-/// Run benchmark in runtime-only mode: sends params in /completion request body, no server restarts
-async fn run_bench_tune_runtime_only(
-    ctx: RuntimeOnlyCtx<'_>,
-) -> Result<BenchTuneResult, Box<dyn std::error::Error + Send + Sync>> {
-    let RuntimeOnlyCtx {
-        params,
-        settings,
-        num_iterations,
-        prompt,
-        server_host,
-        server_port,
-        log_tx,
-        config,
-        client,
-        server_command,
-    } = ctx;
-    let loop_fut = run_iteration_loop(IterationLoopCtx {
-        prompt: &prompt,
-        host: server_host,
-        port: server_port,
-        params,
-        num_iterations,
-        config,
-        client,
-        log_tx,
-        log_prefix: "(runtime-only mode)",
-    });
-    let result = tokio::time::timeout(config.test_timeout, loop_fut).await;
-    let result = match result {
-        Ok(inner) => inner,
-        Err(_) => return Err(format!("Test timed out after {:?}", config.test_timeout).into()),
-    };
-    result.map(|mut r| {
-        r.base_settings = Some(settings.clone());
-        r.server_command = Some(server_command.to_string());
-        r
-    })
-}
-
 struct SingleTestCtx<'a> {
     main_config: &'a crate::config::Config,
     params: &'a BenchTuneParamValue,
@@ -573,18 +418,6 @@ async fn run_bench_tune_single_test(
     let mut settings = base_settings.clone();
 
     // Apply test parameters
-    if let Some(temperature) = params.temperature {
-        settings.temperature = temperature as f32;
-    }
-    if let Some(top_p) = params.top_p {
-        settings.top_p = top_p as f32;
-    }
-    if let Some(top_k) = params.top_k {
-        settings.top_k = top_k as i32;
-    }
-    if let Some(repeat_penalty) = params.repeat_penalty {
-        settings.repeat_penalty = repeat_penalty as f32;
-    }
     if let Some(flash_attn) = params.flash_attn {
         settings.flash_attn = flash_attn;
     }
@@ -679,29 +512,15 @@ async fn send_inference_request(
     prompt: &str,
     host: &str,
     port: u16,
-    params: &BenchTuneParamValue,
     config: &BenchTuneConfig,
     client: &reqwest::Client,
 ) -> Result<InferenceResult, Box<dyn std::error::Error + Send + Sync>> {
     // Build request body with benchmark params
-    let mut body = serde_json::json!({
+    let body = serde_json::json!({
         "prompt": prompt,
         "n_predict": config.n_predict,
         "stream": false
     });
-
-    if let Some(temperature) = params.temperature {
-        body["temperature"] = serde_json::json!(temperature);
-    }
-    if let Some(top_p) = params.top_p {
-        body["top_p"] = serde_json::json!(top_p);
-    }
-    if let Some(top_k) = params.top_k {
-        body["top_k"] = serde_json::json!(top_k);
-    }
-    if let Some(repeat_penalty) = params.repeat_penalty {
-        body["repeat_penalty"] = serde_json::json!(repeat_penalty);
-    }
 
     let url = format!("http://{}:{}/completion", host, port);
     let start = Instant::now();
@@ -770,30 +589,10 @@ pub async fn save_results(
         chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
     ));
 
-    md.push_str("| Temp | Top-P | Top-K | RepPen | FA | Threads | Batch | Exp | Spec | Draft | Prompt t/s | Gen t/s | Latency (ms) | First Tok (ms) |\n");
-    md.push_str("|------|-------|-------|--------|----|---------|-------|-----|------|-------|------------|---------|--------------|----------------|\n");
+    md.push_str("| FA | Threads | Batch | Exp | Spec | Draft | Prompt t/s | Gen t/s | Latency (ms) | First Tok (ms) |\n");
+    md.push_str("|----|---------|-------|-----|------|-------|------------|---------|--------------|----------------|\n");
 
     for r in results {
-        let temp = r
-            .params
-            .temperature
-            .map(|v| format!("{:.2}", v))
-            .unwrap_or_else(|| "-".to_string());
-        let top_p = r
-            .params
-            .top_p
-            .map(|v| format!("{:.2}", v))
-            .unwrap_or_else(|| "-".to_string());
-        let top_k = r
-            .params
-            .top_k
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| "-".to_string());
-        let rep_pen = r
-            .params
-            .repeat_penalty
-            .map(|v| format!("{:.2}", v))
-            .unwrap_or_else(|| "-".to_string());
         let fa = r
             .params
             .flash_attn
@@ -834,11 +633,7 @@ pub async fn save_results(
             .unwrap_or_else(|| "-".to_string());
 
         md.push_str(&format!(
-            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.2} | {:.2} | {:.2} | {:.2} |\n",
-            temp,
-            top_p,
-            top_k,
-            rep_pen,
+            "| {} | {} | {} | {} | {} | {} | {:.2} | {:.2} | {:.2} | {:.2} |\n",
             fa,
             threads,
             batch,
@@ -904,10 +699,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
 
     // Resolve benchmark params against base settings (fill in None with base values)
     struct ResolvedParams {
-        temperature: f64,
-        top_p: f64,
-        top_k: i64,
-        repeat_penalty: f64,
         flash_attn: bool,
         threads: u32,
         batch_size: u32,
@@ -921,10 +712,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         base: &crate::models::ModelSettings,
     ) -> ResolvedParams {
         ResolvedParams {
-            temperature: params.temperature.unwrap_or(base.temperature as f64),
-            top_p: params.top_p.unwrap_or(base.top_p as f64),
-            top_k: params.top_k.unwrap_or(base.top_k as i64),
-            repeat_penalty: params.repeat_penalty.unwrap_or(base.repeat_penalty as f64),
             flash_attn: params.flash_attn.unwrap_or(base.flash_attn),
             threads: params.threads.unwrap_or(base.threads),
             batch_size: params.batch_size.unwrap_or(base.batch_size),
@@ -1039,10 +826,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
 
     // Per-parameter impact analysis
     let param_names = [
-        ("temperature", "Temperature"),
-        ("top_p", "Top-P"),
-        ("top_k", "Top-K"),
-        ("repeat_penalty", "Repeat Penalty"),
         ("flash_attn", "Flash Attention"),
         ("threads", "Threads"),
         ("batch_size", "Batch Size"),
@@ -1058,10 +841,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                     let base = r.base_settings.as_ref()?;
                     let rp = resolve_params(&r.params, base);
                     Some(match *key {
-                        "temperature" => rp.temperature,
-                        "top_p" => rp.top_p,
-                        "top_k" => rp.top_k as f64,
-                        "repeat_penalty" => rp.repeat_penalty,
                         "flash_attn" => {
                             if rp.flash_attn {
                                 1.0
@@ -1145,11 +924,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
 
     let top_labels: Vec<String> = top_indices
         .iter()
-        .map(|(_rank, idx)| {
-            let base = results[*idx].base_settings.as_ref().unwrap();
-            let rp = resolve_params(&results[*idx].params, base);
-            format!("T={:.2} TP={:.2}", rp.temperature, rp.top_p)
-        })
+        .map(|(rank, _idx)| format!("#{}", rank))
         .collect();
     let top_gen_tps: Vec<f64> = top_indices
         .iter()
@@ -1168,10 +943,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .collect();
 
     let param_headers: Vec<String> = vec![
-        "Temp".to_string(),
-        "Top-P".to_string(),
-        "Top-K".to_string(),
-        "RepPen".to_string(),
         "FA".to_string(),
         "Threads".to_string(),
         "Batch".to_string(),
@@ -1185,10 +956,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
             let base = r.base_settings.as_ref().unwrap();
             let rp = resolve_params(&r.params, base);
             vec![
-                format!("{:.2}", rp.temperature),
-                format!("{:.2}", rp.top_p),
-                rp.top_k.to_string(),
-                format!("{:.2}", rp.repeat_penalty),
                 if rp.flash_attn {
                     "ON".to_string()
                 } else {
@@ -1216,10 +983,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
             let rp = resolve_params(&r.params, base);
             serde_json::json!({
                 "idx": i,
-                "temp": rp.temperature,
-                "top_p": rp.top_p,
-                "top_k": rp.top_k,
-                "repeat_penalty": rp.repeat_penalty,
                 "flash_attn": rp.flash_attn,
                 "threads": rp.threads,
                 "batch_size": rp.batch_size,
@@ -1319,10 +1082,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     // Column definitions for visibility toggle
     let column_defs_json = serde_json::to_string(&vec![
         ("col-rank", "#", true),
-        ("col-temp", "Temp", true),
-        ("col-top-p", "Top-P", true),
-        ("col-top-k", "Top-K", true),
-        ("col-rep-pen", "RepPen", true),
         ("col-fa", "FA", true),
         ("col-threads", "Threads", true),
         ("col-batch", "Batch", true),
@@ -1339,7 +1098,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     .unwrap();
 
     // CSV data
-    let csv_header = "Rank,Temp,Top-P,Top-K,RepPen,FA,Threads,Batch,Exp,Spec,Draft,Gen t/s,Prompt t/s,Latency (ms),First Tok (ms),Combined,Consistency";
+    let csv_header = "Rank,FA,Threads,Batch,Exp,Spec,Draft,Gen t/s,Prompt t/s,Latency (ms),First Tok (ms),Combined,Consistency";
     let csv_rows: Vec<String> = (0..total_tests)
         .map(|i| {
             let d = &metrics_data[i];
@@ -1354,12 +1113,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                 .map(|v| v.as_u64().unwrap_or(0).to_string())
                 .unwrap_or("-".to_string());
             format!(
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{:.1}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{:.1}",
                 rank,
-                d["temp"].as_f64().unwrap_or(0.0),
-                d["top_p"].as_f64().unwrap_or(0.0),
-                d["top_k"].as_i64().unwrap_or(0),
-                d["repeat_penalty"].as_f64().unwrap_or(0.0),
                 if d["flash_attn"].as_bool().unwrap_or(false) {
                     "ON"
                 } else {
@@ -1434,11 +1189,10 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
 <div class="winner-metric"><span class="wm-label">Latency</span><span class="wm-value">{:.2}ms</span></div>
 <div class="winner-metric"><span class="wm-label">First Token</span><span class="wm-value">{:.0}ms</span></div>
 </div>
-<div class="winner-params">Temp: {:.2} &middot; Top-P: {:.2} &middot; Top-K: {} &middot; RepPen: {:.2} &middot; FA: {} &middot; Threads: {} &middot; Batch: {} &middot; Exp: {} &middot; Spec: {} &middot; Draft: {}</div>
+<div class="winner-params">FA: {} &middot; Threads: {} &middot; Batch: {} &middot; Exp: {} &middot; Spec: {} &middot; Draft: {}</div>
 </div>
 </div>"#,
                 m.generation_tps, m.prompt_tps, m.latency_per_token, m.prompt_processing_time,
-                rp.temperature, rp.top_p, rp.top_k, rp.repeat_penalty,
                 if rp.flash_attn { "ON" } else { "OFF" }, rp.threads,
                 rp.batch_size, rp.expert_count,
                 if rp.spec_type.is_empty() { "Off".to_string() } else { rp.spec_type.clone() }, rp.draft_tokens

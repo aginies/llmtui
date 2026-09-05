@@ -743,10 +743,6 @@ fn test_model_list_with_bench_tune_mode() {
     app.models_mode = ModelsMode::BenchTune;
     app.bench_tune.bench_tune_results = vec![BenchTuneResult {
         params: BenchTuneParamValue {
-            temperature: None,
-            top_p: None,
-            top_k: None,
-            repeat_penalty: None,
             context_length: None,
             batch_size: None,
             flash_attn: None,

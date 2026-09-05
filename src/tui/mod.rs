@@ -101,34 +101,6 @@ pub fn render_vertical_scrollbar(
 /// If `verbose` is false, returns compact "key=value" strings (1-decimal floats).
 pub fn format_bench_params(params: &BenchTuneParamValue, verbose: bool) -> Vec<String> {
     let mut parts = Vec::new();
-    if let Some(v) = params.temperature {
-        parts.push(if verbose {
-            format!("  temperature: {:.2}", v)
-        } else {
-            format!("temp={:.1}", v)
-        });
-    }
-    if let Some(v) = params.top_p {
-        parts.push(if verbose {
-            format!("  top_p: {:.2}", v)
-        } else {
-            format!("top_p={:.1}", v)
-        });
-    }
-    if let Some(v) = params.top_k {
-        parts.push(if verbose {
-            format!("  top_k: {}", v)
-        } else {
-            format!("top_k={}", v)
-        });
-    }
-    if let Some(v) = params.repeat_penalty {
-        parts.push(if verbose {
-            format!("  repeat_penalty: {:.2}", v)
-        } else {
-            format!("repeat_penalty={:.1}", v)
-        });
-    }
     if let Some(v) = params.context_length {
         parts.push(if verbose {
             format!("  context_length: {}", format_number(v as u64))
