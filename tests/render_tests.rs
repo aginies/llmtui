@@ -478,8 +478,56 @@ fn test_active_model_panel_router_mode_not_loaded_renders() {
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     let text: String = buffer.content.iter().map(|c| c.symbol()).collect();
-    assert!(text.contains("test"));
-    assert!(text.contains("NOT LOADED"));
+    // A selected model that has not been loaded shows "No active model".
+    assert!(text.contains("No active model"));
+}
+
+#[test]
+fn test_active_model_panel_failed_model_only_shown_when_selected() {
+    let mut app = make_app();
+    app.models = vec![
+        DiscoveredModel {
+            path: "/a.gguf".into(),
+            name: "a.gguf".into(),
+            file_size: 1000,
+            display_name: "a.gguf".into(),
+            pipeline_tag: None,
+            capabilities: vec![],
+        },
+        DiscoveredModel {
+            path: "/b.gguf".into(),
+            name: "b.gguf".into(),
+            file_size: 1000,
+            display_name: "b.gguf".into(),
+            pipeline_tag: None,
+            capabilities: vec![],
+        },
+    ];
+    app.model_states.insert(
+        "a.gguf".to_string(),
+        ModelState::Failed {
+            error: "out of memory".to_string(),
+        },
+    );
+    app.ui.active_panel = ActivePanel::ActiveModel;
+
+    // Selecting the model that failed shows its status and error.
+    app.selected_model_idx = Some(0);
+    app.pending.active_model_hint_dirty = true;
+    let mut terminal = make_terminal(&mut app);
+    let buffer = get_buffer(&mut terminal);
+    let text: String = buffer.content.iter().map(|c| c.symbol()).collect();
+    assert!(text.contains("FAILED"));
+    assert!(text.contains("out of memory"));
+
+    // Selecting another model shows the classical "No active model".
+    app.selected_model_idx = Some(1);
+    app.pending.active_model_hint_dirty = true;
+    let mut terminal = make_terminal(&mut app);
+    let buffer = get_buffer(&mut terminal);
+    let text: String = buffer.content.iter().map(|c| c.symbol()).collect();
+    assert!(!text.contains("FAILED"));
+    assert!(text.contains("No active model"));
 }
 
 #[test]

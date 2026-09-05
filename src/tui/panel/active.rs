@@ -69,93 +69,77 @@ fn vram_color(pct: usize) -> Color {
     }
 }
 
-pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
-    // Use cached hint instead of scanning model_states every render.
-    let mut loaded_models = if app.pending.active_model_hint_dirty {
-        app.pending.active_model_hint_dirty = false;
-        let mut result = Vec::new();
-        for (name, state) in &app.model_states {
-            if !matches!(state, ModelState::Available) {
-                result.push((name.clone(), state.clone()));
-            }
-        }
-        // In router mode, prefer the selected model, loaded or not.
-        // Otherwise fall back to first loaded model.
-        let hint = if app.server_mode == crate::models::ServerMode::Router {
-            if let Some(selected) = app.selected_model() {
-                let state = app
-                    .model_states
-                    .get(&selected.display_name)
-                    .cloned()
-                    .unwrap_or(ModelState::Available);
-                Some((selected.display_name.clone(), state))
-            } else {
-                result.first().cloned()
-            }
-        } else {
-            result.first().cloned()
-        };
-        app.active_model_hint = hint;
-        if app.server_mode == crate::models::ServerMode::Router {
-            if let Some(h) = &app.active_model_hint {
-                vec![h.clone()]
-            } else {
-                result
-            }
-        } else {
-            result
-        }
-    } else if let Some(hint) = &app.active_model_hint {
-        vec![hint.clone()]
-    } else {
-        // Fallback scan if hint is not yet set
-        let mut result = Vec::new();
-        for (name, state) in &app.model_states {
-            if !matches!(state, ModelState::Available) {
-                result.push((name.clone(), state.clone()));
-            }
-        }
-        let hint = if app.server_mode == crate::models::ServerMode::Router {
-            if let Some(selected) = app.selected_model() {
-                let state = app
-                    .model_states
-                    .get(&selected.display_name)
-                    .cloned()
-                    .unwrap_or(ModelState::Available);
-                Some((selected.display_name.clone(), state))
-            } else {
-                result.first().cloned()
-            }
-        } else {
-            result.first().cloned()
-        };
-        app.active_model_hint = hint;
-        if app.server_mode == crate::models::ServerMode::Router {
-            if let Some(h) = &app.active_model_hint {
-                vec![h.clone()]
-            } else {
-                result
-            }
-        } else {
-            result
-        }
-    };
+/// Pick the model to display in the Active Model card.
+///
+/// Rules (identical for every server mode):
+/// 1. The selected model is loaded → show it.
+/// 2. Any model is loaded → show the loaded model (a loaded model always
+///    displays its info, e.g. TPS).
+/// 3. The selected model is otherwise in an active state (Loading /
+///    Benchmarking / Failed) → show it. A load failure is only reported for
+///    the model that failed.
+/// 4. Otherwise → None (the card shows "No active model").
+fn pick_active_model(
+    models: &[(String, ModelState)],
+    selected: Option<&str>,
+) -> Option<(String, ModelState)> {
+    let selected_entry = selected.and_then(|s| {
+        models
+            .iter()
+            .find(|(name, _)| name == s)
+            .map(|(name, state)| (name.clone(), state.clone()))
+    });
 
-    // If no model is active in app.model_states, fallback to selected model
-    // but only if it's actually in a non-available state.
-    if loaded_models.is_empty()
-        && let Some(m) = app.selected_model()
-        && let Some(state) = app.model_states.get(&m.display_name)
-        && !matches!(state, ModelState::Available)
-    {
-        loaded_models.push((m.display_name.clone(), state.clone()));
+    // 1. The selected model is loaded → show it.
+    if let Some((name, state)) = &selected_entry {
+        if matches!(state, ModelState::Loaded { .. }) {
+            return Some((name.clone(), state.clone()));
+        }
     }
 
-    let mut title_spans = if loaded_models.len() == 1 {
-        vec![Span::raw(crate::t!("panel.title.active_active"))]
+    // 2. Any model is loaded → always show the loaded model's info.
+    if let Some((name, state)) = models
+        .iter()
+        .find(|(_, s)| matches!(s, ModelState::Loaded { .. }))
+    {
+        return Some((name.clone(), state.clone()));
+    }
+
+    // 3. The selected model is Loading / Benchmarking / Failed → show it.
+    if let Some((name, state)) = selected_entry {
+        if !matches!(state, ModelState::Available) {
+            return Some((name, state));
+        }
+    }
+
+    None
+}
+
+/// Compute the model to display in the Active Model card from app state.
+fn compute_active_model(app: &App) -> Option<(String, ModelState)> {
+    let selected = app.selected_model().map(|m| m.display_name.clone());
+    let models: Vec<(String, ModelState)> = app
+        .model_states
+        .iter()
+        .filter(|(_, state)| !matches!(state, ModelState::Available))
+        .map(|(name, state)| (name.clone(), state.clone()))
+        .collect();
+    pick_active_model(&models, selected.as_deref())
+}
+
+pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
+    // Use the cached hint instead of scanning model_states every render.
+    // The hint is invalidated when model_states or the selection changes.
+    let active = if app.pending.active_model_hint_dirty {
+        app.pending.active_model_hint_dirty = false;
+        let hint = compute_active_model(app);
+        app.active_model_hint = hint.clone();
+        hint
     } else {
-        vec![Span::raw(crate::t!("panel.title.active_multi_active"))]
+        app.active_model_hint.clone()
     };
+
+    let mut title_spans = vec![Span::raw(crate::t!("panel.title.active_active"))];
 
     if app.metrics.total_vram_used > 0 {
         title_spans.push(Span::styled("[ ", Style::default().fg(WHITE)));
@@ -340,7 +324,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 Span::styled("Starting first test...", Style::default().fg(DIM_GRAY)),
             ]));
         }
-    } else if let Some((name, state)) = loaded_models.first() {
+    } else if let Some((name, state)) = &active {
         match state {
             ModelState::Loaded { .. } => {
                 let display_used = app.metrics.ctx_used.max(2049);
@@ -589,48 +573,110 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Span::styled(error, Style::default().fg(WHITE)),
                 ]));
             }
-            ModelState::Available => {
-                lines.push(Line::from(vec![
-                    Span::styled(" Model:  ", Style::default().fg(ACCENT)),
-                    Span::styled(
-                        model_filename(name),
-                        Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
-                    ),
-                ]));
-                lines.push(Line::from(vec![
-                    Span::styled(" Status: ", Style::default().fg(ACCENT)),
-                    Span::styled(
-                        "NOT LOADED",
-                        Style::default().fg(DIM_GRAY).add_modifier(Modifier::BOLD),
-                    ),
-                ]));
-            }
+            // Unreachable: compute_active_model never returns Available.
+            ModelState::Available => {}
         }
     } else {
-        if app.server.server_handle.is_some() {
-            lines.push(Line::from(vec![
-                Span::styled(" Model:  ", Style::default().fg(ACCENT)),
-                Span::styled(
-                    "llama-server",
-                    Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(
-                    crate::t!("active.no_model_loaded"),
-                    Style::default().fg(DIM_GRAY),
-                ),
-            ]));
-        } else {
-            lines.push(Line::from(vec![Span::styled(
-                crate::t!("active.no_model"),
-                Style::default().fg(DIM_GRAY),
-            )]));
-            lines.push(Line::from(vec![Span::styled(
-                crate::t!("active.no_model_hint"),
-                Style::default().fg(DIM_GRAY),
-            )]));
-        }
+        lines.push(Line::from(vec![Span::styled(
+            crate::t!("active.no_model"),
+            Style::default().fg(DIM_GRAY),
+        )]));
+        lines.push(Line::from(vec![Span::styled(
+            crate::t!("active.no_model_hint"),
+            Style::default().fg(DIM_GRAY),
+        )]));
     }
 
     let paragraph = Paragraph::new(lines).block(block);
     f.render_widget(paragraph, area);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pick_active_model;
+    use crate::models::ModelState;
+
+    fn failed(err: &str) -> ModelState {
+        ModelState::Failed {
+            error: err.to_string(),
+        }
+    }
+
+    fn loaded() -> ModelState {
+        ModelState::Loaded { port: 8080, pid: 123 }
+    }
+
+    // A loaded model always shows its info, regardless of which model is
+    // selected, and regardless of the order in which the states are
+    // encountered (HashMap iteration order is arbitrary).
+    #[test]
+    fn loaded_shown_regardless_of_selection() {
+        let models = vec![
+            ("model-a".to_string(), failed("OOM")),
+            ("model-b".to_string(), loaded()),
+        ];
+        assert_eq!(pick_active_model(&models, Some("model-b")).unwrap().0, "model-b");
+        assert_eq!(pick_active_model(&models, Some("model-a")).unwrap().0, "model-b");
+        assert_eq!(pick_active_model(&models, Some("model-c")).unwrap().0, "model-b");
+        assert_eq!(pick_active_model(&models, None).unwrap().0, "model-b");
+
+        // Reversed order (a different hash order) must give the same answer.
+        let models = vec![
+            ("model-b".to_string(), loaded()),
+            ("model-a".to_string(), failed("OOM")),
+        ];
+        assert_eq!(pick_active_model(&models, Some("model-a")).unwrap().0, "model-b");
+    }
+
+    // When several models are loaded, the selected one is preferred.
+    #[test]
+    fn selected_loaded_wins() {
+        let models = vec![
+            ("model-a".to_string(), loaded()),
+            ("model-b".to_string(), loaded()),
+        ];
+        assert_eq!(pick_active_model(&models, Some("model-b")).unwrap().0, "model-b");
+        assert_eq!(pick_active_model(&models, Some("model-a")).unwrap().0, "model-a");
+    }
+
+    // A load failure is only reported for the model that failed: selecting
+    // another model shows "No active model".
+    #[test]
+    fn failed_shown_only_for_selected() {
+        let models = vec![
+            ("model-a".to_string(), failed("OOM")),
+            ("model-b".to_string(), ModelState::Available),
+        ];
+        let picked = pick_active_model(&models, Some("model-a")).unwrap();
+        assert_eq!(picked.0, "model-a");
+        assert!(matches!(picked.1, ModelState::Failed { .. }));
+
+        // Selecting the model that did not fail → no active model.
+        assert!(pick_active_model(&models, Some("model-b")).is_none());
+        // Selecting a model with no state at all → no active model.
+        assert!(pick_active_model(&models, Some("model-c")).is_none());
+    }
+
+    // The selected model's own active state (Loading / Benchmarking / Failed)
+    // is shown when nothing is loaded; a non-selected failure stays hidden.
+    #[test]
+    fn selected_active_state_shown_when_nothing_loaded() {
+        let models = vec![
+            ("model-a".to_string(), ModelState::Loading),
+            ("model-b".to_string(), ModelState::Benchmarking),
+            ("model-c".to_string(), failed("bad gguf")),
+        ];
+        assert_eq!(pick_active_model(&models, Some("model-a")).unwrap().0, "model-a");
+        assert_eq!(pick_active_model(&models, Some("model-b")).unwrap().0, "model-b");
+        assert_eq!(pick_active_model(&models, Some("model-c")).unwrap().0, "model-c");
+        // A model that is merely available → no active model.
+        assert!(pick_active_model(&models, Some("model-d")).is_none());
+    }
+
+    #[test]
+    fn none_when_empty() {
+        let models: Vec<(String, ModelState)> = vec![];
+        assert!(pick_active_model(&models, None).is_none());
+        assert!(pick_active_model(&models, Some("model-a")).is_none());
+    }
 }

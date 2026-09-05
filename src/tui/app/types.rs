@@ -316,7 +316,9 @@ pub struct App {
     pub edit: EditState,
 
     // ── Performance hints ────────────────────────────────────
-    /// Cached first non-Available model state to avoid scanning model_states every render.
+    /// Cached model to display in the Active Model card (see
+    /// `tui::panel::active::compute_active_model`), to avoid scanning
+    /// model_states every render. Invalidated via `active_model_hint_dirty`.
     pub active_model_hint: Option<(String, crate::models::ModelState)>,
 
     // ── Scheduler ────────────────────────────────────────────

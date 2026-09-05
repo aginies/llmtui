@@ -1481,6 +1481,7 @@ impl App {
                 });
                 self.model_states
                     .insert(model_name, crate::models::ModelState::Loading);
+                self.pending.active_model_hint_dirty = true;
                 self.ui.needs_redraw = true;
             } else if self.server.spawn_task_handle.is_none() {
                 self.pending.pending_api_load = None;
