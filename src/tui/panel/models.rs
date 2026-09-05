@@ -5,6 +5,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState},
 };
+use std::fmt::Write;
 
 use crate::models::{ListSort, SearchSort};
 use crate::tui::app::{App, ModelsMode};
@@ -26,6 +27,7 @@ pub fn render_download_panel(
         return;
     }
 
+    // Pre-allocate title string once
     let total_speed_str = format_speed(total_speed);
     let count = downloads.len();
     let title = if count == 1 {
@@ -50,49 +52,48 @@ pub fn render_download_panel(
     f.render_widget(block.clone(), area);
     let inner = block.inner(area);
 
-    // Show all active downloads in a table
-    let rows: Vec<Row> = downloads
-        .iter()
-        .map(|d| {
-            // Re-implement basic progress formatting locally since I removed them from models.rs
-            let progress_pct = if d.total_bytes == 0 {
-                0.0
-            } else {
-                d.downloaded_bytes as f64 / d.total_bytes as f64 * 100.0
-            };
-            let progress_str = format!("{:.1}%", progress_pct);
-            let speed_str = format_speed(d.bytes_per_second);
+    // Pre-allocate rows vector
+    let mut rows = Vec::with_capacity(downloads.len());
+    for d in downloads {
+        let progress_pct = if d.total_bytes == 0 {
+            0.0
+        } else {
+            d.downloaded_bytes as f64 / d.total_bytes as f64 * 100.0
+        };
+        // Use write! to avoid intermediate String allocation
+        let mut progress_str = String::with_capacity(8);
+        write!(&mut progress_str, "{:.1}%", progress_pct).ok();
+        let speed_str = format_speed(d.bytes_per_second);
 
-            let status = match &d.status {
-                crate::models::DownloadStatus::Downloading => {
-                    crate::t!("download.status.downloading")
-                }
-                crate::models::DownloadStatus::Pausing => crate::t!("download.status.pausing"),
-                crate::models::DownloadStatus::Paused => crate::t!("download.status.paused"),
-                crate::models::DownloadStatus::Complete => crate::t!("download.status.complete"),
-                crate::models::DownloadStatus::Cancelled => crate::t!("download.status.cancelled"),
-                crate::models::DownloadStatus::Error(e) => e.as_str(),
-            };
+        let status = match &d.status {
+            crate::models::DownloadStatus::Downloading => {
+                crate::t!("download.status.downloading")
+            }
+            crate::models::DownloadStatus::Pausing => crate::t!("download.status.pausing"),
+            crate::models::DownloadStatus::Paused => crate::t!("download.status.paused"),
+            crate::models::DownloadStatus::Complete => crate::t!("download.status.complete"),
+            crate::models::DownloadStatus::Cancelled => crate::t!("download.status.cancelled"),
+            crate::models::DownloadStatus::Error(e) => e.as_str(),
+        };
 
-            let status_color = match &d.status {
-                crate::models::DownloadStatus::Downloading => ACCENT,
-                crate::models::DownloadStatus::Pausing => ACCENT,
-                crate::models::DownloadStatus::Paused => WHITE,
-                crate::models::DownloadStatus::Complete => GREEN,
-                crate::models::DownloadStatus::Cancelled => RED,
-                crate::models::DownloadStatus::Error(_) => RED,
-            };
+        let status_color = match &d.status {
+            crate::models::DownloadStatus::Downloading => ACCENT,
+            crate::models::DownloadStatus::Pausing => ACCENT,
+            crate::models::DownloadStatus::Paused => WHITE,
+            crate::models::DownloadStatus::Complete => GREEN,
+            crate::models::DownloadStatus::Cancelled => RED,
+            crate::models::DownloadStatus::Error(_) => RED,
+        };
 
-            Row::new(vec![
-                Cell::from(d.model_id.as_str()),
-                Cell::from(d.filename.as_str()),
-                Cell::from(progress_str),
-                Cell::from(speed_str),
-                Cell::from(format_eta(d)),
-                Cell::from(status).style(Style::default().fg(status_color)),
-            ])
-        })
-        .collect();
+        rows.push(Row::new(vec![
+            Cell::from(d.model_id.as_str()),
+            Cell::from(d.filename.as_str()),
+            Cell::from(progress_str),
+            Cell::from(speed_str),
+            Cell::from(format_eta(d)),
+            Cell::from(status).style(Style::default().fg(status_color)),
+        ]));
+    }
 
     let headers = vec![
         Cell::from(crate::t!("download.headers.model"))
@@ -588,6 +589,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
             ];
 
+            // Use cached regex if query hasn't changed
             let query_regex = if query.trim().is_empty() {
                 None
             } else {
@@ -596,7 +598,20 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     .map(|w| w.to_lowercase())
                     .collect::<Vec<_>>()
                     .join("|");
-                Regex::new(&pattern).ok()
+                // Check cache first
+                if let Some((cached_query, regex)) = &app.search.query_regex_cache
+                    && *cached_query == pattern
+                {
+                    Some(regex)
+                } else {
+                    // Compile new regex and store in cache
+                    let regex = Regex::new(&pattern).ok();
+                    if let Some(r) = &regex {
+                        app.search.query_regex_cache = Some((pattern, r.clone()));
+                    }
+                    // Return reference to cached value
+                    app.search.query_regex_cache.as_ref().map(|(_, r)| r)
+                }
             };
 
             let mut rows: Vec<Row> = results
@@ -629,7 +644,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let scrolled_raw = scroll_text(&result.model_id, col_width, state);
                     let scrolled_lower = scrolled_raw.to_lowercase();
                     let highlighted =
-                        highlight_query(&scrolled_raw, &scrolled_lower, query_regex.as_ref());
+                        highlight_query(&scrolled_raw, &scrolled_lower, query_regex);
 
                     let is_downloaded = result.downloaded;
                     let marker = if is_downloaded { "✓" } else { " " };

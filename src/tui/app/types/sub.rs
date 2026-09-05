@@ -201,6 +201,8 @@ pub struct SearchState {
     pub ctx_cache_version: u64,
     // ── Cache for downloaded filenames (files mode) ──
     pub downloaded_filenames: std::collections::HashSet<String>,
+    // ── Cache for compiled search regex ──
+    pub query_regex_cache: Option<(String, regex::Regex)>,
 }
 
 pub struct UIState {

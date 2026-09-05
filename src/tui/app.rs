@@ -231,6 +231,7 @@ impl App {
                 ctx_cache: HashMap::new(),
                 ctx_cache_version: 0,
                 downloaded_filenames: std::collections::HashSet::new(),
+                query_regex_cache: None,
             },
             ui: UIState {
                 active_panel,

@@ -41,7 +41,8 @@ pub fn config_base_dir() -> PathBuf {
 /// Falls back to `available_parallelism` when the file can't be read,
 /// parsing yields nothing (e.g. ARM64, which has no `physical id`/`core id`
 /// fields), or that also fails.
-pub fn physical_cores() -> u32 {
+/// Cached in a LazyLock so the expensive /proc/cpuinfo parse happens once.
+static PHYSICAL_CORES: std::sync::LazyLock<u32> = std::sync::LazyLock::new(|| {
     let content = match std::fs::read_to_string("/proc/cpuinfo") {
         Ok(c) => c,
         Err(_) => {
@@ -73,6 +74,10 @@ pub fn physical_cores() -> u32 {
             .unwrap_or(1);
     }
     seen.len().max(1) as u32
+});
+
+pub fn physical_cores() -> u32 {
+    *PHYSICAL_CORES
 }
 
 /// A remote RPC worker for distributed inference.
