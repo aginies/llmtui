@@ -774,7 +774,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let sel = selected_idx.unwrap_or(0).min(total_files.saturating_sub(1));
             let visible_height = inner_area.height.saturating_sub(1) as usize; // minus header
             let offset = if sel >= visible_height {
-                sel + 1 - visible_height
+                (sel + 1 - visible_height).min(total_files)
             } else {
                 0
             };
