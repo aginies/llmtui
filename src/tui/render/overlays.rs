@@ -9,7 +9,7 @@ use unicode_width::UnicodeWidthStr;
 
 use super::App;
 use super::onboarding;
-use crate::backend::hardware::{GpuVendor, detect_gpu_models, detect_gpu_vendors};
+use crate::backend::hardware::GpuVendor;
 use crate::tui::app::{ConfirmationKind, GlobalMode};
 use crate::tui::colors::*;
 use crate::tui::format_bench_params;
@@ -1255,13 +1255,16 @@ fn render_backend_picker(
     selected: usize,
     scroll_offset: &mut usize,
 ) {
-    let all_models = detect_gpu_models();
+    // GPU detection spawns subprocesses on some platforms; use the TTL cache
+    // so the picker doesn't re-detect on every redraw.
+    let gpu = crate::backend::hardware::gpu_info_cached(std::time::Duration::from_secs(30));
+    let all_models = gpu.models;
     let gpu_info_lines = if all_models.iter().any(|m| m.is_some()) {
         1
     } else {
         0
     };
-    let vendors = detect_gpu_vendors();
+    let vendors = gpu.vendors;
     let gpu_models: Vec<String> = all_models.iter().filter_map(|m| m.clone()).collect();
 
     let blocks: Vec<Vec<Line>> = entries

@@ -222,7 +222,7 @@ fn toggle_expert_count(settings: &mut ModelSettings) {
 }
 
 fn format_main_gpu_display(main_gpu: i32) -> String {
-    let gpus = crate::backend::hardware::detect_all_gpus();
+    let gpus = crate::backend::hardware::gpu_info_cached(std::time::Duration::from_secs(30)).all_gpus;
     if main_gpu >= 0 && (main_gpu as usize) < gpus.len() {
         let gpu = &gpus[main_gpu as usize];
         format!("{} - {}", main_gpu, gpu.name)

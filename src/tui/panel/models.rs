@@ -351,10 +351,26 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 ),
             ];
 
-            let ctx_cache = app.get_ctx_cache();
+            // Populate the ctx cache (no-op if fresh); lookups below read it
+            // directly to avoid holding a borrow across the row builder.
+            app.get_ctx_cache();
             let sorted_indices = app.get_sorted_model_indices().to_vec();
 
-            let rows: Vec<Row> = sorted_indices
+            // Build only the visible window of rows (anchored on the selected
+            // row) instead of every model: row construction is O(n) allocs
+            // per redraw.
+            let visible_height = table_area.height.saturating_sub(1) as usize; // minus header
+            let sel_pos = app
+                .selected_model_idx
+                .and_then(|idx| sorted_indices.iter().position(|&i| i == idx));
+            let total = sorted_indices.len();
+            let offset = sel_pos
+                .filter(|&sp| sp >= visible_height)
+                .map_or(0, |sp| sp + 1 - visible_height)
+                .min(total);
+            let end = (offset + visible_height).min(total);
+
+            let rows: Vec<Row> = sorted_indices[offset..end]
                 .iter()
                 .map(|&idx| {
                     let model = &app.models[idx];
@@ -365,7 +381,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     let is_loaded =
                         matches!(model_state, Some(crate::models::ModelState::Loaded { .. }));
 
-                    let (context_length, rope_yarn_enabled, rope_scale) = ctx_cache
+                    let (context_length, rope_yarn_enabled, rope_scale) = app
+                        .search
+                        .ctx_cache
                         .get(model.display_name.as_str())
                         .copied()
                         .unwrap_or((0, false, 0.0));
@@ -523,11 +541,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 )
                 .highlight_symbol("> ");
 
-            app.ui.models_table_state.select(
-                app.selected_model_idx
-                    .and_then(|idx| sorted_indices.iter().position(|&i| i == idx)),
-            );
-            f.render_stateful_widget(table, table_area, &mut app.ui.models_table_state);
+            // Render with a temporary state relative to the visible window;
+            // navigation is driven by selected_model_idx, not TableState.
+            let mut table_state = TableState::default();
+            table_state.select(sel_pos.map(|sp| sp - offset));
+            f.render_stateful_widget(table, table_area, &mut table_state);
         }
         ModelsMode::Search {
             query,
@@ -614,7 +632,18 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 }
             };
 
-            let mut rows: Vec<Row> = results
+            // Build only the visible window of rows (anchored on the selected
+            // result) instead of every result.
+            let total_results = results.len();
+            let sel = app.search.search_results_idx;
+            let visible_height = area.height.saturating_sub(3) as usize; // border + header
+            let offset = sel
+                .filter(|&s| s >= visible_height)
+                .map_or(0, |s| s + 1 - visible_height)
+                .min(total_results);
+            let end = (offset + visible_height).min(total_results);
+
+            let mut rows: Vec<Row> = results[offset..end]
                 .iter()
                 .map(|result| {
                     let license = result.license.as_deref().unwrap_or("—");
@@ -663,14 +692,16 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 })
                 .collect();
 
-            // Add informational rows
+            // Add informational rows (only when the window reaches the end)
             if *loading {
-                rows.push(Row::new(vec![
-                    Cell::from(crate::t!("log.loading_more")).style(Style::default().fg(ACCENT)),
-                    Cell::from(""),
-                    Cell::from(""),
-                    Cell::from(""),
-                ]));
+                if end == total_results {
+                    rows.push(Row::new(vec![
+                        Cell::from(crate::t!("log.loading_more")).style(Style::default().fg(ACCENT)),
+                        Cell::from(""),
+                        Cell::from(""),
+                        Cell::from(""),
+                    ]));
+                }
             } else if results.is_empty() {
                 rows.push(Row::new(vec![
                     Cell::from(crate::t!("models.search_no_results"))
@@ -679,7 +710,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     Cell::from(""),
                     Cell::from(""),
                 ]));
-            } else if !has_more {
+            } else if !has_more && end == total_results {
                 rows.push(Row::new(vec![
                     Cell::from(crate::t!("models.search_no_more"))
                         .style(Style::default().fg(DIM_GRAY)),
@@ -707,10 +738,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 )
                 .highlight_symbol("> ");
 
-            app.search
-                .search_table_state
-                .select(app.search.search_results_idx);
-            f.render_stateful_widget(table, area, &mut app.search.search_table_state);
+            // Render with a temporary state relative to the visible window;
+            // navigation is driven by search_results_idx, not TableState.
+            let mut table_state = TableState::default();
+            table_state.select(sel.map(|s| s - offset));
+            f.render_stateful_widget(table, area, &mut table_state);
         }
         ModelsMode::Files {
             model_id,
@@ -737,8 +769,17 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let inner_area = block.inner(area);
             f.render_widget(block, area);
 
-            // Render Files Table
-            let rows: Vec<Row> = files
+            // Render Files Table — only the visible window of rows
+            let total_files = files.len();
+            let sel = selected_idx.unwrap_or(0).min(total_files.saturating_sub(1));
+            let visible_height = inner_area.height.saturating_sub(1) as usize; // minus header
+            let offset = if sel >= visible_height {
+                sel + 1 - visible_height
+            } else {
+                0
+            };
+            let end = (offset + visible_height).min(total_files);
+            let rows: Vec<Row> = files[offset..end]
                 .iter()
                 .map(|(filename, size, _url): &(_, _, _)| {
                     let name = filename.rsplit('/').next().unwrap_or(filename);
@@ -799,9 +840,12 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 )
                 .highlight_symbol("> ");
 
-            app.search.files_table_state.select(*selected_idx);
+            // Render with a temporary state relative to the visible window;
+            // navigation is driven by selected_idx, not TableState.
+            let mut table_state = TableState::default();
+            table_state.select(Some(sel - offset));
 
-            f.render_stateful_widget(table, inner_area, &mut app.search.files_table_state);
+            f.render_stateful_widget(table, inner_area, &mut table_state);
         }
         ModelsMode::BenchTune => {
             let title = crate::t!("panel.title.bench_tune").to_string();

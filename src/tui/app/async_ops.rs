@@ -964,7 +964,7 @@ impl App {
             }
 
             let handle = tokio::spawn(async move {
-                let client = reqwest::Client::new();
+                let client = &crate::backend::HTTP_CLIENT;
                 let url = format!("http://{}:{}/health", host, port);
 
                 loop {

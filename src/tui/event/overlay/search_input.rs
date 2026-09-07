@@ -2,7 +2,6 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::widgets::TableState;
 
 use super::super::helpers::TextEditor;
 use crate::tui::app::pending_events::PendingEvent;
@@ -62,7 +61,6 @@ impl OverlayHandler for SearchInputHandler {
                                 offset: 0,
                             })
                             .await;
-                        app.search.search_table_state = TableState::default();
                         app.search.search_results_idx = None;
                         return;
                     }

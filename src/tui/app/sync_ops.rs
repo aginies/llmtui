@@ -287,7 +287,7 @@ impl App {
         });
     }
 
-    pub fn get_ctx_cache(&mut self) -> HashMap<String, (u32, bool, f32)> {
+    pub fn get_ctx_cache(&mut self) -> &HashMap<String, (u32, bool, f32)> {
         if self.search.ctx_cache_version == 0 {
             let mut cache: HashMap<String, (u32, bool, f32)> =
                 HashMap::with_capacity(self.models.len());
@@ -300,10 +300,10 @@ impl App {
                     (s.context_length, s.rope_yarn_enabled, s.rope_scale),
                 );
             }
-            self.search.ctx_cache = cache.clone();
+            self.search.ctx_cache = cache;
             self.search.ctx_cache_version = 1;
         }
-        self.search.ctx_cache.clone()
+        &self.search.ctx_cache
     }
 
     pub fn invalidate_list_caches(&mut self) {

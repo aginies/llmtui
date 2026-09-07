@@ -459,6 +459,36 @@ pub fn detect_all_gpus() -> Vec<GpuInfo> {
     }
 }
 
+/// Cached GPU detection results. Detection spawns subprocesses on some
+/// platforms (lspci on Linux, system_profiler on macOS, wmic on Windows),
+/// so results are cached process-wide with a TTL instead of being recomputed
+/// on every call.
+#[derive(Debug, Clone, Default)]
+pub struct GpuCache {
+    pub vendors: Vec<GpuVendor>,
+    pub models: Vec<Option<String>>,
+    pub all_gpus: Vec<GpuInfo>,
+}
+
+static GPU_CACHE: std::sync::Mutex<Option<(std::time::Instant, GpuCache)>> =
+    std::sync::Mutex::new(None);
+
+/// Return GPU detection results, refreshing them if older than `ttl`.
+/// Cheap to call repeatedly: at most one detection pass per TTL window.
+pub fn gpu_info_cached(ttl: std::time::Duration) -> GpuCache {
+    let mut guard = GPU_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((at, cache)) = guard.as_ref() && at.elapsed() < ttl {
+        return cache.clone();
+    }
+    let cache = GpuCache {
+        vendors: detect_gpu_vendors(),
+        models: detect_gpu_models(),
+        all_gpus: detect_all_gpus(),
+    };
+    *guard = Some((std::time::Instant::now(), cache.clone()));
+    cache
+}
+
 /// Map a global GPU index (from detect_all_gpus) to a backend-specific index.
 /// This is needed because some llama-server backends (like CUDA and ROCm) only see GPUs of their
 /// respective platforms (e.g. CUDA only sees NVIDIA devices, ROCm only sees AMD devices).
@@ -474,7 +504,7 @@ pub fn map_main_gpu_to_backend(global_index: i32, backend: crate::models::Backen
         return global_index;
     }
 
-    let gpus = detect_all_gpus();
+    let gpus = gpu_info_cached(std::time::Duration::from_secs(30)).all_gpus;
     let target_vendor = if is_cuda {
         GpuVendor::Nvidia
     } else {

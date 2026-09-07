@@ -1,5 +1,4 @@
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::widgets::TableState;
 use tracing::debug;
 
 use super::helpers::{
@@ -1250,7 +1249,6 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                                 .search
                                 .search_results_idx
                                 .and_then(|idx| results.get(idx).cloned());
-                            app.search.files_table_state = TableState::default();
                             app.models_mode = ModelsMode::Files {
                                 model_id: model_id.clone(),
                                 files,

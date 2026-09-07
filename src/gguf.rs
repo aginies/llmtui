@@ -196,7 +196,11 @@ impl Reader {
         }
         let mut buf = vec![0u8; len as usize];
         self.inner.read_exact(&mut buf)?;
-        Ok(String::from_utf8_lossy(&buf).into_owned())
+        // Avoid the lossy double-copy in the common valid-UTF-8 case.
+        match String::from_utf8(buf) {
+            Ok(s) => Ok(s),
+            Err(e) => Ok(String::from_utf8_lossy(e.as_bytes()).into_owned()),
+        }
     }
 
     fn read_value(&mut self, v1: bool) -> anyhow::Result<GgufValue> {
@@ -266,7 +270,10 @@ impl Reader {
 pub fn parse_header(path: &std::path::Path) -> anyhow::Result<GgufHeader> {
     let file = std::fs::File::open(path)
         .map_err(|e| anyhow::anyhow!("cannot open {}: {}", path.display(), e))?;
-    let mut r = Reader::new(Box::new(file));
+    // Buffer the reads: without this every field is a separate read(2) syscall
+    // (~7 syscalls per tensor), which makes large models take ~2.6x longer.
+    let buffered = std::io::BufReader::with_capacity(1 << 20, file);
+    let mut r = Reader::new(Box::new(buffered));
 
     // Detect byte order from the magic: bytes "GGUF" read as LE.
     let magic = r.read_u32()?;

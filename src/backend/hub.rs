@@ -177,11 +177,7 @@ pub async fn search_models(
     );
     // println!("Search URL: {}", url);
 
-    let resp = reqwest::Client::builder()
-        .user_agent(super::USER_AGENT)
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .unwrap()
+    let resp = super::HTTP_CLIENT
         .get(&url)
         .send()
         .await?
@@ -304,11 +300,7 @@ pub fn validate_model_id(model_id: &str) -> Result<()> {
 /// List all GGUF files for a model.
 pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)>> {
     validate_model_id(model_id)?;
-    let client = reqwest::Client::builder()
-        .user_agent(super::USER_AGENT)
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .unwrap();
+    let client = &super::HTTP_CLIENT;
     // Try main first, fall back to master. Track which branch actually worked
     // so resolve URLs use the right one.
     let mut branch: Option<&str> = None;
@@ -386,11 +378,7 @@ pub async fn list_gguf_files(model_id: &str) -> Result<Vec<(String, u64, String)
 /// Fetch the README for a model from HuggingFace.
 pub async fn fetch_readme(model_id: &str) -> Result<String> {
     validate_model_id(model_id)?;
-    let client = reqwest::Client::builder()
-        .user_agent(super::USER_AGENT)
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .unwrap();
+    let client = &super::HTTP_CLIENT;
     let url = format!("https://huggingface.co/{}/raw/main/README.md", model_id);
     let url_master = format!("https://huggingface.co/{}/raw/master/README.md", model_id);
     let resp = match client.get(&url).send().await {
@@ -415,11 +403,7 @@ pub async fn download_file(
 ) -> Result<Option<String>> {
     // No overall request timeout: files are large and stream for minutes.
     // Instead bound the connect phase and detect stalled streams per chunk.
-    let client = reqwest::Client::builder()
-        .user_agent(super::USER_AGENT)
-        .connect_timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))?;
+    let client = &super::DOWNLOAD_CLIENT;
     let resp = match tokio::time::timeout(
         std::time::Duration::from_secs(30),
         client.get(url).send(),
@@ -819,7 +803,7 @@ pub async fn resolve_backend_binary(
     // Create bin directory
     std::fs::create_dir_all(&bin_dir)?;
 
-    let client = reqwest::Client::new();
+    let client = &super::DOWNLOAD_CLIENT;
 
     // Construct asset name and URL
     let (download_url, is_zip) = match backend {
@@ -1348,23 +1332,23 @@ where
 /// release assets contain a file whose name includes `asset_pattern`.
 /// Falls back to the provided default tag if no match is found.
 async fn latest_release_with_asset(repo: &str, asset_pattern: &str, fallback: &str) -> String {
-    let client = reqwest::Client::new();
+    let client = &super::HTTP_CLIENT;
     let url = format!(
         "https://api.github.com/repos/{}/releases?per_page=100",
         repo
     );
-    latest_release_with_asset_inner(&client, &url, asset_pattern, fallback).await
+    latest_release_with_asset_inner(client, &url, asset_pattern, fallback).await
 }
 
 /// Fetch the name of the first asset in a specific release whose name
 /// contains `pattern`. Returns `None` on any error or when no asset matches.
 async fn fetch_release_asset_name(repo: &str, tag: &str, pattern: &str) -> Option<String> {
-    let client = reqwest::Client::new();
+    let client = &super::HTTP_CLIENT;
     let url = format!(
         "https://api.github.com/repos/{}/releases/tags/{}",
         repo, tag
     );
-    fetch_release_asset_name_inner(&client, &url, pattern).await
+    fetch_release_asset_name_inner(client, &url, pattern).await
 }
 
 async fn fetch_release_asset_name_inner(

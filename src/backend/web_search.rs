@@ -83,7 +83,7 @@ async fn search_searxng(
     api_key: &str,
 ) -> Result<Vec<SearchResult>> {
     validate_url(base_url)?;
-    let client = reqwest::Client::new();
+    let client = &super::HTTP_CLIENT;
     let url = format!(
         "{}/search?q={}&format=json",
         base_url.trim_end_matches('/'),
@@ -175,7 +175,7 @@ async fn search_searxng(
 
 /// Check if a SearXNG instance is reachable and returns valid JSON.
 pub async fn check_health(engine_url: &str, api_key: &str) -> Result<(), String> {
-    let client = reqwest::Client::new();
+    let client = &super::HTTP_CLIENT;
     let url = format!(
         "{}/search?q=test&format=json",
         engine_url.trim_end_matches('/')
@@ -502,7 +502,7 @@ async fn fetch_wikipedia_content(url: &str) -> Result<String> {
     info!("Web search: fetching Wikipedia: {}", url);
     validate_url(url)?;
 
-    let client = reqwest::Client::new();
+    let client = &super::HTTP_CLIENT;
     let html = client
         .get(url)
         .header(
@@ -548,9 +548,7 @@ async fn fetch_other_content(url: &str) -> Result<String> {
     info!("Web search: fetching page: {}", url);
     validate_url_ssrf(url).await?;
 
-    let client = reqwest::Client::builder()
-        .connect_timeout(std::time::Duration::from_secs(5))
-        .build()?;
+    let client = &super::HTTP_CLIENT;
     let response = client
         .get(url)
         .header(
