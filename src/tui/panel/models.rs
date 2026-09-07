@@ -544,7 +544,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             // Render with a temporary state relative to the visible window;
             // navigation is driven by selected_model_idx, not TableState.
             let mut table_state = TableState::default();
-            table_state.select(sel_pos.map(|sp| sp - offset));
+            table_state.select(sel_pos.map(|sp| sp.saturating_sub(offset)));
             f.render_stateful_widget(table, table_area, &mut table_state);
         }
         ModelsMode::Search {
@@ -741,7 +741,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             // Render with a temporary state relative to the visible window;
             // navigation is driven by search_results_idx, not TableState.
             let mut table_state = TableState::default();
-            table_state.select(sel.map(|s| s - offset));
+            table_state.select(sel.map(|s| s.saturating_sub(offset)));
             f.render_stateful_widget(table, area, &mut table_state);
         }
         ModelsMode::Files {
@@ -843,7 +843,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             // Render with a temporary state relative to the visible window;
             // navigation is driven by selected_idx, not TableState.
             let mut table_state = TableState::default();
-            table_state.select(Some(sel - offset));
+            table_state.select(Some(sel.saturating_sub(offset)));
 
             f.render_stateful_widget(table, inner_area, &mut table_state);
         }
