@@ -21,6 +21,15 @@ const MAX_ARRAY_LEN: u64 = 1_000_000;
 const MAX_STRING_LEN: u64 = 16 * 1024 * 1024;
 const MAX_DIMS: u32 = 16;
 
+/// Metadata keys whose values are large (multi-MB tokenizer data) and never
+/// used by the app. Their values are skipped instead of read, which is the
+/// dominant cost of header parsing for real models.
+const SKIP_VALUE_KEYS: &[&str] = &[
+    "tokenizer.ggml.tokens",
+    "tokenizer.ggml.merges",
+    "tokenizer.ggml.token_type",
+];
+
 /// A GGUF metadata value, mirroring the accessor semantics of
 /// `serde_json::Value` (which the previous parser exposed).
 #[derive(Debug, Clone, PartialEq)]
@@ -112,24 +121,70 @@ pub fn human_number(value: u64) -> String {
 }
 
 struct Reader {
-    inner: Box<dyn Read>,
+    file: std::fs::File,
+    buf: Vec<u8>,
+    buf_pos: usize,
+    buf_len: usize,
+    buf_file_pos: u64,
     be: bool,
 }
 
 impl Reader {
-    fn new(inner: Box<dyn Read>) -> Self {
-        Self { inner, be: false }
+    fn new(file: std::fs::File) -> Self {
+        Self {
+            file,
+            buf: vec![0u8; 1 << 20],
+            buf_pos: 0,
+            buf_len: 0,
+            buf_file_pos: 0,
+            be: false,
+        }
+    }
+
+    /// Current logical position in the file (bytes consumed from start).
+    fn logical_pos(&self) -> u64 {
+        self.buf_file_pos + self.buf_pos as u64
+    }
+
+    /// Read exactly `dst.len()` bytes into `dst` from the internal buffer.
+    ///
+    /// Buffered so the many small header fields don't each become a syscall.
+    fn read_exact(&mut self, dst: &mut [u8]) -> anyhow::Result<()> {
+        let mut done = 0;
+        while done < dst.len() {
+            if self.buf_pos >= self.buf_len {
+                self.fill()?;
+                if self.buf_len == 0 {
+                    return Err(anyhow::anyhow!("unexpected end of file"));
+                }
+            }
+            let n = std::cmp::min(self.buf_len - self.buf_pos, dst.len() - done);
+            dst[done..done + n].copy_from_slice(&self.buf[self.buf_pos..self.buf_pos + n]);
+            self.buf_pos += n;
+            done += n;
+        }
+        Ok(())
+    }
+
+    /// Refill the internal buffer from the file.
+    fn fill(&mut self) -> anyhow::Result<()> {
+        use std::io::Seek;
+        self.buf_file_pos = self.file.stream_position()?;
+        let n = self.file.read(&mut self.buf)?;
+        self.buf_pos = 0;
+        self.buf_len = n;
+        Ok(())
     }
 
     fn read_u8(&mut self) -> anyhow::Result<u8> {
         let mut b = [0u8; 1];
-        self.inner.read_exact(&mut b)?;
+        self.read_exact(&mut b)?;
         Ok(b[0])
     }
 
     fn read_u16(&mut self) -> anyhow::Result<u16> {
         let mut b = [0u8; 2];
-        self.inner.read_exact(&mut b)?;
+        self.read_exact(&mut b)?;
         Ok(if self.be {
             u16::from_be_bytes(b)
         } else {
@@ -139,7 +194,7 @@ impl Reader {
 
     fn read_u32(&mut self) -> anyhow::Result<u32> {
         let mut b = [0u8; 4];
-        self.inner.read_exact(&mut b)?;
+        self.read_exact(&mut b)?;
         Ok(if self.be {
             u32::from_be_bytes(b)
         } else {
@@ -149,7 +204,7 @@ impl Reader {
 
     fn read_u64(&mut self) -> anyhow::Result<u64> {
         let mut b = [0u8; 8];
-        self.inner.read_exact(&mut b)?;
+        self.read_exact(&mut b)?;
         Ok(if self.be {
             u64::from_be_bytes(b)
         } else {
@@ -195,12 +250,121 @@ impl Reader {
             return Err(anyhow::anyhow!("GGUF string too long: {} bytes", len));
         }
         let mut buf = vec![0u8; len as usize];
-        self.inner.read_exact(&mut buf)?;
+        self.read_exact(&mut buf)?;
         // Avoid the lossy double-copy in the common valid-UTF-8 case.
         match String::from_utf8(buf) {
             Ok(s) => Ok(s),
             Err(e) => Ok(String::from_utf8_lossy(e.as_bytes()).into_owned()),
         }
+    }
+
+    /// Read and discard a GGUF string without allocating it.
+    ///
+    /// Used for tensor names, which are not stored: avoids a `String`
+    /// allocation + UTF-8 validation per tensor (hundreds for large models).
+    fn skip_string(&mut self, v1: bool) -> anyhow::Result<()> {
+        let len = if v1 {
+            self.read_u32()? as u64
+        } else {
+            self.read_u64()?
+        };
+        if len > MAX_STRING_LEN {
+            return Err(anyhow::anyhow!("GGUF string too long: {} bytes", len));
+        }
+        self.skip_bytes(len)?;
+        Ok(())
+    }
+
+    /// Discard `n` bytes from the stream by seeking past them.
+    ///
+    /// Uses `seek` rather than read-discard: avoids both the I/O of reading
+    /// the bytes and the buffer zeroing a read-discard loop would cause.
+    /// If the target is within the already-buffered region, just advance the
+    /// cursor (no syscall).
+    fn skip_bytes(&mut self, n: u64) -> anyhow::Result<()> {
+        let target = self.logical_pos() + n;
+        let buf_end = self.buf_file_pos + self.buf_len as u64;
+        if target >= self.buf_file_pos && target <= buf_end {
+            // Target is within the current buffer: advance the cursor only.
+            self.buf_pos = (target - self.buf_file_pos) as usize;
+        } else {
+            // Target is outside the buffer: seek there and invalidate it.
+            use std::io::Seek;
+            use std::io::SeekFrom;
+            self.file.seek(SeekFrom::Start(target))?;
+            self.buf_pos = 0;
+            self.buf_len = 0;
+        }
+        Ok(())
+    }
+
+    /// Read and discard a GGUF value without allocating it.
+    ///
+    /// Used to skip large values we don't need (e.g. the multi-MB
+    /// `tokenizer.ggml.tokens` / `merges` / `token_type` arrays), which would
+    /// otherwise be read, allocated, and UTF-8-validated for nothing.
+    fn skip_value(&mut self, v1: bool) -> anyhow::Result<()> {
+        let t = self.read_u32()?;
+        match t {
+            0 | 1 | 7 => self.skip_bytes(1)?,
+            2 | 3 => self.skip_bytes(2)?,
+            4..=6 => self.skip_bytes(4)?,
+            10..=12 => self.skip_bytes(8)?,
+            8 => {
+                let len = if v1 {
+                    self.read_u32()? as u64
+                } else {
+                    self.read_u64()?
+                };
+                if len > MAX_STRING_LEN {
+                    return Err(anyhow::anyhow!("GGUF string too long: {} bytes", len));
+                }
+                self.skip_bytes(len)?;
+            }
+            9 => {
+                let elem_type = self.read_u32()?;
+                let len = if v1 {
+                    self.read_u32()? as u64
+                } else {
+                    self.read_u64()?
+                };
+                if len > MAX_ARRAY_LEN {
+                    return Err(anyhow::anyhow!("GGUF array too long: {} elements", len));
+                }
+                // Scalar element types have a fixed size: skip all at once.
+                // Strings are variable-length: skip element by element.
+                match elem_type {
+                    0 | 1 | 7 => self.skip_bytes(len.saturating_mul(1))?,
+                    2 | 3 => self.skip_bytes(len.saturating_mul(2))?,
+                    4..=6 => self.skip_bytes(len.saturating_mul(4))?,
+                    10..=12 => self.skip_bytes(len.saturating_mul(8))?,
+                    8 => {
+                        for _ in 0..len {
+                            let sl = if v1 {
+                                self.read_u32()? as u64
+                            } else {
+                                self.read_u64()?
+                            };
+                            if sl > MAX_STRING_LEN {
+                                return Err(anyhow::anyhow!(
+                                    "GGUF string too long: {} bytes",
+                                    sl
+                                ));
+                            }
+                            self.skip_bytes(sl)?;
+                        }
+                    }
+                    _ => {
+                        return Err(anyhow::anyhow!(
+                            "unsupported GGUF array element type: {}",
+                            elem_type
+                        ))
+                    }
+                }
+            }
+            _ => return Err(anyhow::anyhow!("unsupported GGUF value type: {}", t)),
+        }
+        Ok(())
     }
 
     fn read_value(&mut self, v1: bool) -> anyhow::Result<GgufValue> {
@@ -270,10 +434,7 @@ impl Reader {
 pub fn parse_header(path: &std::path::Path) -> anyhow::Result<GgufHeader> {
     let file = std::fs::File::open(path)
         .map_err(|e| anyhow::anyhow!("cannot open {}: {}", path.display(), e))?;
-    // Buffer the reads: without this every field is a separate read(2) syscall
-    // (~7 syscalls per tensor), which makes large models take ~2.6x longer.
-    let buffered = std::io::BufReader::with_capacity(1 << 20, file);
-    let mut r = Reader::new(Box::new(buffered));
+    let mut r = Reader::new(file);
 
     // Detect byte order from the magic: bytes "GGUF" read as LE.
     let magic = r.read_u32()?;
@@ -315,13 +476,19 @@ pub fn parse_header(path: &std::path::Path) -> anyhow::Result<GgufHeader> {
     let mut kv = BTreeMap::new();
     for _ in 0..kv_count {
         let key = r.read_string(v1)?;
-        let value = r.read_value(v1)?;
-        kv.insert(key, value);
+        if SKIP_VALUE_KEYS.contains(&key.as_str()) {
+            // Skip large tokenizer values we never use.
+            r.skip_value(v1)?;
+        } else {
+            let value = r.read_value(v1)?;
+            kv.insert(key, value);
+        }
     }
 
     let mut parameters: u64 = 0;
     for _ in 0..tensor_count {
-        let _name = r.read_string(v1)?;
+        // Tensor names are not stored — skip without allocating.
+        r.skip_string(v1)?;
         let n_dim = r.read_u32()?;
         if n_dim > MAX_DIMS {
             return Err(anyhow::anyhow!("invalid tensor dimension count: {}", n_dim));
