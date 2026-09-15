@@ -107,12 +107,23 @@ h1 { font-size: 1.4rem; color: #a9b1d8; margin-bottom: 16px; border-bottom: 1px 
 
 <script>
 let ws = null;
-const url = new URL(window.location);
-const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-const host = url.host;
+let protocol, host, auth;
+try {
+  const url = new URL(window.location);
+  protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  host = url.host;
+  auth = url.searchParams.get('auth');
+} catch(e) {
+  protocol = 'ws:';
+  host = '';
+  auth = null;
+}
 const metaAuthEl = document.querySelector('meta[name="ws-auth"]');
-const metaAuth = metaAuthEl ? JSON.parse(metaAuthEl.content) : null;
-const auth = metaAuth || url.searchParams.get('auth');
+let metaAuth = null;
+if (metaAuthEl) {
+  try { metaAuth = JSON.parse(metaAuthEl.content); } catch(e) { metaAuth = null; }
+}
+auth = metaAuth || auth;
 
 function connect() {
   if (ws) ws.close();
@@ -191,10 +202,20 @@ function render_settings(m) {
     ['Spec Type', s(m, 'spec_type')],
     ['Spec Draft N Max', s(m, 'draft_tokens')],
   ];
-  grid.innerHTML = items.map(([name, val]) => {
-    const esc = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
-    return `<div class="setting-item"><div class="setting-name">${esc(name)}</div><div class="setting-val">${esc(String(val))}</div></div>`;
-  }).join('');
+  grid.textContent = '';
+  for (const [name, val] of items) {
+    const item = document.createElement('div');
+    item.className = 'setting-item';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'setting-name';
+    nameEl.textContent = name;
+    const valEl = document.createElement('div');
+    valEl.className = 'setting-val';
+    valEl.textContent = String(val);
+    item.appendChild(nameEl);
+    item.appendChild(valEl);
+    grid.appendChild(item);
+  }
 }
 function update(m) {
   const name = m.model_name || 'No model loaded';

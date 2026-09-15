@@ -52,7 +52,7 @@ cargo run -- --config /path/to/config.yaml
 ## Default Parameters
 
 | Parameter | Default | Description |
-|-----------|---------|-------------|
+| ----------- | --------- | ------------- |
 | `context_length` | 131072 | Context window size in tokens |
 | `threads` | (physical cores) | CPU threads for generation |
 | `threads_batch` | 8 | CPU threads for batch processing |
@@ -77,7 +77,7 @@ cargo run -- --config /path/to/config.yaml
 ### Advanced Parameters
 
 | Parameter | Default | Description |
-|-----------|---------|-------------|
+| ----------- | --------- | ------------- |
 | `swa_full` | false | Full-size SWA cache |
 | `load_mode` | none | Model file load mode (none, mmap, mlock, mmap+mlock, dio) |
 | `numa` | none | NUMA optimization mode |
@@ -144,7 +144,7 @@ These can be configured via the LLM Settings panel, per-model config files, or d
 Profiles are named presets of settings. The built-in profiles are:
 
 | Profile | Description | Key Settings |
-|---------|-------------|--------------|
+| --------- | ------------- | -------------- |
 | Qwen | Optimized for Qwen models (dense) | temp: 0.7, top-k: 20, presence-penalty: 0.0 |
 | Qwen-MoE | Optimized for Qwen MoE models (35B-A3B) | temp: 0.8, top-k: 20, presence-penalty: 1.5 |
 | Qwen-Coding | Optimized for Qwen models in coding mode | temp: 0.6, top-k: 20, presence-penalty: 0.0 |
@@ -162,7 +162,7 @@ User-defined profiles are stored as individual YAML files in `~/.config/llm-mana
 System prompt presets define the initial system prompt. Built-in presets:
 
 | Preset | Description |
-|--------|-------------|
+| -------- | ------------- |
 | General | "You are a helpful assistant." |
 | Coder | Expert software developer |
 | Thinker | Analytical and thoughtful |
@@ -229,7 +229,7 @@ You can start a model directly from the command line without the TUI:
 ### Options
 
 | Option | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `--model` | Path to the GGUF model file |
 | `--profile` | Apply a settings profile (e.g., `qwen`, `llama`) |
 | `--config` | Path to config file |
@@ -255,7 +255,7 @@ The API proxy forwards requests to the llama.cpp server and provides OpenAI-comp
 The API proxy explicitly handles the following endpoints, while all other paths are automatically proxied to the llama-server instance:
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| ---------- | -------- | ------------- |
 | `/health` | GET | Health check |
 | `/metrics` | GET | Prometheus metrics |
 | `/v1/chat/completions` | POST | Chat completions (OpenAI) |
@@ -267,7 +267,7 @@ The API proxy explicitly handles the following endpoints, while all other paths 
 The following endpoints are forwarded to llama-server (llama-server built-in endpoints, not explicitly handled by llm-manager):
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| ---------- | -------- | ------------- |
 | `/v1/responses` | POST | Responses (Anthropic) |
 | `/v1/messages` | POST | Messages (Anthropic) |
 | `/v1/messages/count_tokens` | POST | Count tokens (Anthropic) |

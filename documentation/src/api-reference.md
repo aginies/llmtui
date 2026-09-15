@@ -13,7 +13,7 @@ cargo doc --open
 ### Core Types
 
 | Type | Module | Description |
-|------|--------|-------------|
+| ------ | -------- | ------------- |
 | `DiscoveredModel` | `models` | A discovered `.gguf` file with path, name, file_size, and display name |
 | `ModelSettings` | `models` | All settings for loading a model via llama.cpp server (70+ fields) |
 | `ModelState` | `models` | State of a model: `Available`, `Loading`, `Benchmarking`, `Loaded`, or `Failed` |
@@ -31,7 +31,7 @@ cargo doc --open
 ### Enums
 
 | Type | Module | Description |
-|------|--------|-------------|
+| ------ | -------- | ------------- |
 | `Backend` | `models` | Acceleration backend: `Cpu`, `Vulkan`, `Rocm`, `RocmLemonade`, `Cuda`, `CpuArm64`, `CpuWindows`, `VulkanWindows`, `CudaWindows12_4`, `CudaWindows13_1`, `HipWindows`, `CpuMacosArm64`, `CpuMacosX64` |
 | `ServerMode` | `models` | Server operating mode: `Normal` (single model), `Router` (multiple), `Bench` (GPU benchmarking), or `BenchTune` (parameter auto-tuning) |
 | `GpuLayersMode` | `models` | GPU offloading: `Auto`, `Specific(n)`, or `All` |

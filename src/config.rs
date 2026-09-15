@@ -15,8 +15,8 @@ pub use model_config::{ModelConfigStore, display_from_key, key_from_display};
 pub use profiles::ProfileStore;
 
 use crate::models::{
-    Backend, CacheType, CacheTypeK, CacheTypeV, LoadMode, Mirostat, NumMode, RopeScaling,
-    Samplers, SplitMode,
+    Backend, CacheType, CacheTypeK, CacheTypeV, LoadMode, Mirostat, NumMode, RopeScaling, Samplers,
+    SplitMode,
 };
 use crate::tui::app::ActivePanel;
 pub use presets::PresetStore;
