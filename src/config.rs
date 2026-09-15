@@ -15,7 +15,8 @@ pub use model_config::{ModelConfigStore, display_from_key, key_from_display};
 pub use profiles::ProfileStore;
 
 use crate::models::{
-    Backend, CacheType, CacheTypeK, CacheTypeV, Mirostat, NumMode, RopeScaling, Samplers, SplitMode,
+    Backend, CacheType, CacheTypeK, CacheTypeV, LoadMode, Mirostat, NumMode, RopeScaling,
+    Samplers, SplitMode,
 };
 use crate::tui::app::ActivePanel;
 pub use presets::PresetStore;
@@ -230,6 +231,7 @@ pub struct ModelOverride {
     pub cache_type_v: Option<CacheTypeV>,
     pub keep: Option<i32>,
     pub swa_full: Option<bool>,
+    pub load_mode: Option<LoadMode>,
     pub numa: Option<NumMode>,
     pub uniform_cache: Option<bool>,
     pub system_prompt: Option<String>,
@@ -347,6 +349,7 @@ impl ModelOverride {
             cache_type_v: s.cache_type_v,
             keep: Some(s.keep),
             swa_full: Some(s.swa_full),
+            load_mode: Some(s.load_mode),
             numa: Some(s.numa),
             uniform_cache: Some(s.uniform_cache),
             system_prompt: Some(s.system_prompt.clone()),
@@ -430,6 +433,7 @@ impl ModelOverride {
             ubatch_size,
             keep,
             swa_full,
+            load_mode,
             numa,
             uniform_cache,
             kv_cache_offload,
@@ -682,6 +686,8 @@ pub struct DefaultParams {
     pub keep: i32,
     #[serde(default)]
     pub swa_full: bool,
+    #[serde(default)]
+    pub load_mode: LoadMode,
     #[serde(default)]
     pub numa: NumMode,
     #[serde(default = "default_uniform_cache")]
@@ -1048,6 +1054,7 @@ impl Default for DefaultParams {
             cache_type_v: default_cache_type_v(),
             keep: 0,
             swa_full: false,
+            load_mode: LoadMode::None,
             numa: NumMode::None,
             uniform_cache: default_uniform_cache(),
             kv_cache_offload: default_kv_cache_offload(),
@@ -1206,6 +1213,7 @@ impl Config {
             "cache_type_v",
             "keep",
             "swa_full",
+            "load_mode",
             "numa",
             "uniform_cache",
             "kv_cache_offload",
@@ -1300,6 +1308,7 @@ impl Config {
             "cache_type_v",
             "keep",
             "swa_full",
+            "load_mode",
             "numa",
             "uniform_cache",
             "system_prompt",

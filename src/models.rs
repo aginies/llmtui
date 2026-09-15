@@ -163,6 +163,7 @@ impl std::hash::Hash for ModelSettings {
         self.cache_type_v.hash(state);
         self.keep.hash(state);
         self.swa_full.hash(state);
+        self.load_mode.hash(state);
         self.numa.hash(state);
         self.system_prompt.hash(state);
         self.system_prompt_preset_name.hash(state);
@@ -330,6 +331,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             cache_type_v: dp.cache_type_v,
             keep: dp.keep,
             swa_full: dp.swa_full,
+            load_mode: dp.load_mode,
             numa: dp.numa,
             system_prompt: dp.system_prompt,
             system_prompt_preset_name: dp.system_prompt_preset_name,
@@ -601,6 +603,34 @@ impl std::fmt::Display for NumMode {
             NumMode::Distribute => write!(f, "distribute"),
             NumMode::Isolate => write!(f, "isolate"),
             NumMode::Numactl => write!(f, "numactl"),
+        }
+    }
+}
+
+/// Model file load mode (maps to llama.cpp `--load-mode`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash, Default)]
+pub enum LoadMode {
+    #[serde(rename = "none")]
+    #[default]
+    None,
+    #[serde(rename = "mmap")]
+    Mmap,
+    #[serde(rename = "mlock")]
+    Mlock,
+    #[serde(rename = "mmap+mlock")]
+    MmapMlock,
+    #[serde(rename = "dio")]
+    Dio,
+}
+
+impl std::fmt::Display for LoadMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadMode::None => write!(f, "none"),
+            LoadMode::Mmap => write!(f, "mmap"),
+            LoadMode::Mlock => write!(f, "mlock"),
+            LoadMode::MmapMlock => write!(f, "mmap+mlock"),
+            LoadMode::Dio => write!(f, "dio"),
         }
     }
 }
@@ -891,6 +921,8 @@ pub struct ModelSettings {
     pub keep: i32,
     /// Use full-size SWA cache.
     pub swa_full: bool,
+    /// Model file load mode (--load-mode).
+    pub load_mode: LoadMode,
     /// NUMA optimization.
     pub numa: NumMode,
     /// System prompt.
@@ -2591,8 +2623,8 @@ mod field_count_tests {
         let s = ModelSettings::default();
         let field_count = count_model_settings_fields(&s);
         assert_eq!(
-            field_count, 73,
-            "ModelSettings has {} fields (expected 73). \
+            field_count, 74,
+            "ModelSettings has {} fields (expected 74). \
         Update the checklist at src/models.rs:665 and all locations listed there.",
             field_count
         );
@@ -2617,6 +2649,7 @@ mod field_count_tests {
             &s.cache_type_v,
             &s.keep,
             &s.swa_full,
+            &s.load_mode,
             &s.numa,
             &s.system_prompt,
             &s.system_prompt_preset_name,
@@ -2679,7 +2712,7 @@ mod field_count_tests {
             &s.draft_tokens,
             &s.tags,
         );
-        73
+        74
     }
 
     /// Verify that is_dirty() uses derived PartialEq (compiler-enforced).

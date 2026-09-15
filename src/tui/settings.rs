@@ -1,5 +1,7 @@
 use crate::config::Profile;
-use crate::models::{CacheQuantType, GpuLayersMode, Mirostat, ModelSettings, NumMode, SplitMode};
+use crate::models::{
+    CacheQuantType, GpuLayersMode, LoadMode, Mirostat, ModelSettings, NumMode, SplitMode,
+};
 use crate::tui::colors::*;
 use crate::tui::format_context_k;
 use ratatui::{
@@ -446,6 +448,32 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _| {},
             toggle_auto_chat_template,
             "Select chat template: Auto (detect) uses GGUF architecture metadata, specific template names use llama.cpp built-in templates, Select a Template file picks a .jinja file from any directory, None disables template. Press Enter to open picker.",
+        ),
+        expert_field(
+            "load_mode",
+            "Load Mode",
+            "Loading",
+            |s| s.load_mode.to_string(),
+            |s, c| s.load_mode != c.load_mode,
+            |s, delta, _| {
+                let mut val = s.load_mode;
+                val = match (delta, val) {
+                    (1, LoadMode::None) => LoadMode::Mmap,
+                    (1, LoadMode::Mmap) => LoadMode::Mlock,
+                    (1, LoadMode::Mlock) => LoadMode::MmapMlock,
+                    (1, LoadMode::MmapMlock) => LoadMode::Dio,
+                    (1, LoadMode::Dio) => LoadMode::None,
+                    (-1, LoadMode::None) => LoadMode::Dio,
+                    (-1, LoadMode::Mmap) => LoadMode::None,
+                    (-1, LoadMode::Mlock) => LoadMode::Mmap,
+                    (-1, LoadMode::MmapMlock) => LoadMode::Mlock,
+                    (-1, LoadMode::Dio) => LoadMode::MmapMlock,
+                    _ => val,
+                };
+                s.load_mode = val;
+            },
+            |_, _| {},
+            "Model file load mode (--load-mode): None (default), Mmap, Mlock, Mmap+Mlock, or Dio. Mmap memory-maps the model file. Mlock keeps it in RAM (no swap). Dio uses DirectIO if available.",
         ),
         expert_field(
             "numa",
@@ -1345,6 +1373,7 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_string!(parts, s, current, spec_type, "spec_type");
 
     // ── Enums ─────────────────────────────────────────────────────────────
+    diff_enum!(parts, s, current, load_mode, "load_mode");
     diff_enum!(parts, s, current, numa, "numa");
     diff_enum!(parts, s, current, split_mode, "split_mode");
     diff_enum!(parts, s, current, mirostat, "mirostat");

@@ -10,7 +10,7 @@ use tracing::{info, warn};
 
 use crate::config::Config;
 use crate::models::{
-    DiscoveredModel, ModelSettings, RopeScaling, ServerMetrics, clean_host, strip_gguf,
+    DiscoveredModel, LoadMode, ModelSettings, RopeScaling, ServerMetrics, clean_host, strip_gguf,
 };
 
 /// Client for health checks (short timeout).
@@ -177,6 +177,9 @@ pub fn build_server_cmd(
     }
     if settings.swa_full {
         push_flag(&mut cmd, &mut parts, "--swa-full");
+    }
+    if settings.load_mode != LoadMode::None {
+        push_arg(&mut cmd, &mut parts, "--load-mode", settings.load_mode.to_string());
     }
     if settings.numa != Default::default() {
         push_arg(&mut cmd, &mut parts, "--numa", settings.numa.to_string());

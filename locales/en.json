@@ -92,6 +92,7 @@
   "field.help.threads_batch": "CPU threads for batch processing (1 to 32). Separate from Threads (inference threads). Keep equal for most workloads, or reduce batch threads to lower CPU usage during batch operations.",
   "field.help.ubatch_size": "Unlimited batch size for prompt processing. Larger values improve prompt evaluation throughput but use more RAM. Typical: 512-2048. Set to 0 to match context_length.",
   "field.help.keep": "Number of layers to keep in memory when swapping (negative = all). Useful for fast reloading of the same model. Typical: -1 (all) or 0 (none).",
+  "field.help.load_mode": "Model file load mode (--load-mode): None (default), Mmap, Mlock, Mmap+Mlock, or Dio. Mmap memory-maps the model file. Mlock keeps it in RAM (no swap). Dio uses DirectIO if available.",
   "field.help.numa": "NUMA (Non-Uniform Memory Access) strategy: None, Distribute, Isolate, or Numactl. Affects CPU thread affinity on multi-socket systems. None = default.",
   "field.help.gpu_layers_mode": "How many model layers to offload to GPU. Arrow keys cycle: Auto → 1 → 2 → ... → N → All → Auto. Auto lets llama.cpp decide based on VRAM. All loads every layer (999). Specific number sets exact offload count.",
   "field.help.split_mode": "GPU split strategy: None, Layer (default), Row, or Tensor. Controls how model layers are distributed across multiple GPUs. Layer splits by layer count, Row/Tensor split by matrix dimensions for multi-GPU setups.",

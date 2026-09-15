@@ -79,6 +79,7 @@ cargo run -- --config /path/to/config.yaml
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `swa_full` | false | Full-size SWA cache |
+| `load_mode` | none | Model file load mode (none, mmap, mlock, mmap+mlock, dio) |
 | `numa` | none | NUMA optimization mode |
 | `uniform_cache` | true | Unified KV cache across sequences |
 | `parallel` | 1 | Max concurrent predictions |

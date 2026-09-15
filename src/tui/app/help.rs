@@ -263,6 +263,10 @@ impl App {
                         crate::t!("field.help.system_prompt_preset_name")
                     )),
                 ]),
+                Line::from(vec![
+                    Span::styled("Load Mode", y),
+                    Span::raw(format!("  {}", crate::t!("field.help.load_mode"))),
+                ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("━━━ GPU Offload ━━━", y)]),
                 Line::from(vec![
