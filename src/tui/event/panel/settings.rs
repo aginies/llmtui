@@ -355,6 +355,31 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Ctrl+A: set context_length to optimal (computed from available VRAM)
+    if field_id == Some("context_length")
+        && key.code == KeyCode::Char('a')
+        && key.modifiers.contains(KeyModifiers::CONTROL)
+    {
+        app.compute_optimal_ctx();
+        if app.loading.optimal_ctx_size > 0 {
+            app.settings.context_length = app.loading.optimal_ctx_size;
+            app.add_log(
+                format!(
+                    "Context set to optimal: {} (fits in available VRAM)",
+                    app.loading.optimal_ctx_size
+                ),
+                crate::config::LogLevel::Info,
+            );
+        } else {
+            app.add_log(
+                "Cannot compute optimal context: no model selected or insufficient metadata",
+                crate::config::LogLevel::Warning,
+            );
+        }
+        mark_settings_dirty(app, true);
+        return;
+    }
+
     // ── Navigation & general edit handlers ──────────────────────────────────
 
     match key.code {

@@ -200,6 +200,7 @@ impl App {
                 model_n_kv_head: 0,
                 model_arch: Default::default(),
                 vram_estimate: 0,
+                optimal_ctx_size: 0,
                 health_poll_handle: None,
                 loading_completion_rx: None,
             },

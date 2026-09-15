@@ -11,6 +11,19 @@ impl App {
             format!("Applied profile: {}", profile.name),
             crate::config::LogLevel::Info,
         );
+        // Auto-compute optimal context after profile applies (settings like
+        // gpu_layers, kv_quant, etc. may have changed the VRAM budget).
+        self.compute_optimal_ctx();
+        if self.loading.optimal_ctx_size > 0 {
+            self.settings.context_length = self.loading.optimal_ctx_size;
+            self.add_log(
+                format!(
+                    "Context auto-set to optimal: {} (fits in available VRAM)",
+                    self.loading.optimal_ctx_size
+                ),
+                crate::config::LogLevel::Info,
+            );
+        }
     }
 
     /// Resolve system_prompt from the preset name.

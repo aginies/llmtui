@@ -2015,6 +2015,157 @@ fn auto_gpu_layers(
     fit.min(total_layers)
 }
 
+/// Compute the maximum context_length that fits in available GPU VRAM.
+///
+/// This is the inverse of `estimate_vram_mib()`: given the GPU memory
+/// budget, find the largest context window that won't cause OOM.
+///
+/// Returns `n_ctx_train` (the model's native context) when no GPU is
+/// available, when using CPU-only, or when metadata is insufficient.
+#[allow(clippy::too_many_arguments)]
+pub fn optimal_ctx_size(
+    model_mib: u64,
+    settings: &ModelSettings,
+    total_layers: u32,
+    hidden_size: u32,
+    n_head: u32,
+    n_kv_head: u32,
+    gpu_mem_total_mib: u64,
+    arch: &ArchVramInfo,
+    n_ctx_train: u32,
+) -> u32 {
+    // CPU-only or no GPU info: can't estimate, return native context.
+    if matches!(settings.gpu_layers_mode, GpuLayersMode::Specific(0)) {
+        return n_ctx_train;
+    }
+    if gpu_mem_total_mib == 0 {
+        return n_ctx_train;
+    }
+    if total_layers == 0 || hidden_size == 0 {
+        return n_ctx_train;
+    }
+
+    // GQA ratio
+    let gqa_ratio = if n_head > 0 {
+        n_kv_head as f64 / n_head as f64
+    } else {
+        FALLBACK_GQA_RATIO
+    };
+
+    // KV embedding size per layer
+    let n_embd_kv = if n_kv_head > 0 && arch.head_dim > 0 {
+        n_kv_head as f64 * arch.head_dim as f64
+    } else {
+        hidden_size as f64 * gqa_ratio
+    };
+
+    // KV quantization bytes per element
+    let kv_bytes = kv_quant_bytes(
+        settings.cache_type_k.unwrap_or(CacheTypeK::F16),
+        settings.cache_type_v.unwrap_or(CacheTypeV::F16),
+    );
+
+    // Parallel slots
+    let parallel_slots = settings.max_concurrent_predictions.unwrap_or(1).max(1);
+    let slot_factor = if settings.uniform_cache {
+        1.0
+    } else {
+        parallel_slots as f64
+    };
+
+    // Hybrid attention layer split
+    let main_layers = total_layers.saturating_sub(arch.nextn_layers);
+    let interval = arch.full_attention_interval.max(1);
+    let kv_layers_main = main_layers / interval;
+    let has_ssm = arch.ssm_inner > 0 && arch.ssm_state > 0;
+    let ssm_layers = if has_ssm {
+        main_layers - kv_layers_main
+    } else {
+        0
+    };
+
+    // GPU layers (conservative: assume all on GPU for Auto mode)
+    let gpu_layers = match settings.gpu_layers_mode {
+        GpuLayersMode::All => total_layers,
+        GpuLayersMode::Specific(n) => n.min(total_layers),
+        GpuLayersMode::Auto => total_layers,
+    };
+
+    // KV layers on GPU
+    let kv_layers = if settings.kv_cache_offload {
+        kv_layers_main
+    } else {
+        gpu_layers / interval
+    };
+
+    // Weight VRAM (proportional to GPU layers)
+    let model_vram = model_mib as f64 * (gpu_layers as f64 / total_layers as f64);
+
+    // Activation overhead (independent of context length)
+    let activation_mib =
+        (settings.batch_size as f64 * hidden_size as f64 * 8.0) / (1024.0 * 1024.0);
+
+    // SSM recurrent state (fixed, independent of context length)
+    let spec_enabled = !settings.spec_type.is_empty() && settings.draft_tokens > 0;
+    let rs_seq = if spec_enabled {
+        settings.draft_tokens as f64
+    } else {
+        0.0
+    };
+    let ssm_mib = if ssm_layers > 0 {
+        ssm_layers as f64
+            * (arch.ssm_inner as f64 * (arch.ssm_conv as f64 + arch.ssm_state as f64))
+            * 4.0
+            * parallel_slots as f64
+            * (1.0 + rs_seq)
+            / (1024.0 * 1024.0)
+    } else {
+        0.0
+    };
+
+    // MTP compute overhead (fixed, independent of context length)
+    let mtp_fixed = if spec_enabled && arch.nextn_layers > 0 {
+        MTP_COMPUTE_OVERHEAD_MIB
+    } else {
+        0.0
+    };
+
+    // Total fixed costs (not dependent on context length)
+    let fixed_costs = FIXED_VRAM_OVERHEAD_MIB + activation_mib + ssm_mib + mtp_fixed;
+
+    // KV-related cost per token of context:
+    // (kv_layers + nextn_kv_layers) * 2 * n_embd_kv * kv_bytes / (1024*1024) * slot_factor
+    let nextn_kv_layers = if spec_enabled { arch.nextn_layers } else { 0 };
+    let total_kv_layers = kv_layers + nextn_kv_layers;
+    if total_kv_layers == 0 {
+        return n_ctx_train;
+    }
+    let kv_per_token =
+        (total_kv_layers as f64 * 2.0 * n_embd_kv * kv_bytes / (1024.0 * 1024.0)) * slot_factor;
+
+    // Available VRAM for KV cache
+    let available = gpu_mem_total_mib as f64 - model_vram - fixed_costs;
+    if available <= 0.0 {
+        return 128; // Minimum context
+    }
+
+    // Solve for effective context length
+    let effective_ctx = available / kv_per_token;
+
+    // Convert back to context_length (account for YaRN scaling)
+    let ctx = if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
+        effective_ctx / settings.rope_scale as f64
+    } else {
+        effective_ctx
+    };
+
+    // Clamp to valid range
+    let min_ctx = 128u32;
+    let max_ctx = if n_ctx_train > 0 { n_ctx_train } else { 131072 };
+    (ctx.ceil() as u32)
+        .clamp(min_ctx, max_ctx)
+}
+
 /// Return the average KV cache element size in bytes for the given K/V types.
 ///
 /// KV cache stores K and V separately, potentially at different precisions.

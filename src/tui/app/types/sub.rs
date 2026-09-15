@@ -155,6 +155,7 @@ pub struct LoadingState {
     pub model_n_kv_head: u32,
     pub model_arch: crate::models::ArchVramInfo,
     pub vram_estimate: u64,
+    pub optimal_ctx_size: u32,
     pub health_poll_handle: Option<tokio::task::JoinHandle<()>>,
     pub loading_completion_rx: Option<tokio::sync::mpsc::Receiver<()>>,
 }

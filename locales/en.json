@@ -86,7 +86,7 @@
   "panel.help.downloads.pause": "Pause / Resume selected download",
   "panel.help.downloads.cancel": "Cancel selected download",
   "field.help.system_prompt_preset_name": "System prompt preset. Pre-configured prompts that shape how the model behaves (e.g., 'coder', 'assistant', 'creative'). Affects the model's personality and output style.",
-  "field.help.context_length": "Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more RAM. Typical: 32k-256k depending on model and RAM.",
+  "field.help.context_length": "Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more VRAM. Typical: 32k-256k depending on model and VRAM. Press Ctrl+A to auto-set to the maximum context that fits in available GPU memory.",
   "field.help.rope_yarn_enabled": "Enable YaRN (Yet another RoPE extensioN) for scaling context beyond training limits. YaRN uses a frequency rescaling technique to handle longer contexts. Toggle on/off with Enter.",
   "field.help.yarn_params": "YaRN configuration: rope_scale (context multiplier), rope_freq_base (frequency base), rope_freq_scale (frequency scaling). Press Enter to open the YaRN parameter editor.",
   "field.help.threads_batch": "CPU threads for batch processing (1 to 32). Separate from Threads (inference threads). Keep equal for most workloads, or reduce batch threads to lower CPU usage during batch operations.",

@@ -57,6 +57,28 @@ impl App {
         }
     }
 
+    /// Compute the optimal context length that fits in available GPU VRAM.
+    ///
+    /// Called on-demand (e.g. when the user presses Ctrl+A in the context
+    /// field). Caches the result in `loading.optimal_ctx_size`.
+    pub fn compute_optimal_ctx(&mut self) {
+        if let Some(model) = self.selected_model() {
+            let model_mib = model.file_size / (1024 * 1024);
+            let gpu_mem_total_mib = self.metrics.gpu_mem_total / (1024 * 1024);
+            self.loading.optimal_ctx_size = crate::models::optimal_ctx_size(
+                model_mib,
+                &self.settings,
+                self.loading.model_total_layers,
+                self.loading.model_hidden_size,
+                self.loading.model_n_head,
+                self.loading.model_n_kv_head,
+                gpu_mem_total_mib,
+                &self.loading.model_arch,
+                self.loading.model_n_ctx_train,
+            );
+        }
+    }
+
     /// Read metadata (layers, hidden size) from the model's GGUF file.
     ///
     /// Uses a cache keyed by the model's full path, so each unique model
