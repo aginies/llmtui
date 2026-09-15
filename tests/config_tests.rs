@@ -106,7 +106,6 @@ fn default_params_gpu_defaults() {
     assert_eq!(dp.gpu_layers_mode, GpuLayersMode::Auto);
     assert_eq!(dp.split_mode, SplitMode::Layer);
     assert!(dp.flash_attn);
-    assert!(dp.mmap);
 }
 
 #[test]
@@ -852,7 +851,6 @@ default:
     assert_eq!(config.default.threads_batch, 8);
     assert_eq!(config.default.batch_size, 512);
     assert_eq!(config.default.host, "127.0.0.1");
-    assert!(config.default.mmap);
     assert!(config.default.uniform_cache);
     assert!(config.default.flash_attn);
     assert!(config.default.jinja);
@@ -877,5 +875,4 @@ llama_server: llama-server
     assert_eq!(config.default.context_length, 131072);
     assert_eq!(config.default.host, "127.0.0.1");
     assert_eq!(config.default.port, 8080);
-    assert!(config.default.mmap);
 }

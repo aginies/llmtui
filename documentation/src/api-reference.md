@@ -274,8 +274,6 @@ pub struct ModelOverride {
     pub cache_type_v: Option<CacheTypeV>,
     pub keep: Option<i32>,
     pub swa_full: Option<bool>,
-    pub mlock: Option<bool>,
-    pub mmap: Option<bool>,
     pub numa: Option<NumMode>,
     pub uniform_cache: Option<bool>,
     pub system_prompt: Option<String>,

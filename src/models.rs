@@ -163,8 +163,6 @@ impl std::hash::Hash for ModelSettings {
         self.cache_type_v.hash(state);
         self.keep.hash(state);
         self.swa_full.hash(state);
-        self.mlock.hash(state);
-        self.mmap.hash(state);
         self.numa.hash(state);
         self.system_prompt.hash(state);
         self.system_prompt_preset_name.hash(state);
@@ -232,6 +230,7 @@ impl std::hash::Hash for ModelSettings {
         self.llama_cpp_version_cuda.hash(state);
         self.api_endpoint_enabled.hash(state);
         self.api_endpoint_port.hash(state);
+        self.chat_ui_enabled.hash(state);
         self.spec_type.hash(state);
         self.draft_tokens.hash(state);
         self.tags.hash(state);
@@ -331,8 +330,6 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             cache_type_v: dp.cache_type_v,
             keep: dp.keep,
             swa_full: dp.swa_full,
-            mlock: dp.mlock,
-            mmap: dp.mmap,
             numa: dp.numa,
             system_prompt: dp.system_prompt,
             system_prompt_preset_name: dp.system_prompt_preset_name,
@@ -397,6 +394,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
             api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
+            chat_ui_enabled: dp.chat_ui_enabled,
             api_endpoint_key: dp.api_endpoint_key,
 
             spec_type: dp.spec_type,
@@ -893,10 +891,6 @@ pub struct ModelSettings {
     pub keep: i32,
     /// Use full-size SWA cache.
     pub swa_full: bool,
-    /// Force system to keep model in RAM.
-    pub mlock: bool,
-    /// Memory-map the model.
-    pub mmap: bool,
     /// NUMA optimization.
     pub numa: NumMode,
     /// System prompt.
@@ -1030,6 +1024,8 @@ pub struct ModelSettings {
     pub api_endpoint_enabled: bool,
     /// Port for the API proxy server.
     pub api_endpoint_port: u16,
+    /// Whether the web chat UI (/chat) served by the API proxy is enabled.
+    pub chat_ui_enabled: bool,
     /// API key for the proxy server (Bearer token).
     pub api_endpoint_key: Option<String>,
     /// Speculative decoding type (e.g., "draft-mtp", "ngram-simple", "" for off).
@@ -1663,8 +1659,6 @@ pub struct WsMetrics {
     pub cache_type_k: Option<String>,
     pub cache_type_v: Option<String>,
     pub uniform_cache: bool,
-    pub mlock: bool,
-    pub mmap: bool,
     pub embedding: bool,
     pub jinja: bool,
     pub ignore_eos: bool,
@@ -1744,8 +1738,6 @@ impl WsMetrics {
             cache_type_k: settings.cache_type_k.map(|k| k.to_string()),
             cache_type_v: settings.cache_type_v.map(|k| k.to_string()),
             uniform_cache: settings.uniform_cache,
-            mlock: settings.mlock,
-            mmap: settings.mmap,
             embedding: settings.embedding,
             jinja: settings.jinja,
             ignore_eos: settings.ignore_eos,
@@ -2162,8 +2154,7 @@ pub fn optimal_ctx_size(
     // Clamp to valid range
     let min_ctx = 128u32;
     let max_ctx = if n_ctx_train > 0 { n_ctx_train } else { 131072 };
-    (ctx.ceil() as u32)
-        .clamp(min_ctx, max_ctx)
+    (ctx.ceil() as u32).clamp(min_ctx, max_ctx)
 }
 
 /// Return the average KV cache element size in bytes for the given K/V types.
@@ -2600,8 +2591,8 @@ mod field_count_tests {
         let s = ModelSettings::default();
         let field_count = count_model_settings_fields(&s);
         assert_eq!(
-            field_count, 75,
-            "ModelSettings has {} fields (expected 75). \
+            field_count, 73,
+            "ModelSettings has {} fields (expected 73). \
         Update the checklist at src/models.rs:665 and all locations listed there.",
             field_count
         );
@@ -2626,8 +2617,6 @@ mod field_count_tests {
             &s.cache_type_v,
             &s.keep,
             &s.swa_full,
-            &s.mlock,
-            &s.mmap,
             &s.numa,
             &s.system_prompt,
             &s.system_prompt_preset_name,
@@ -2685,11 +2674,12 @@ mod field_count_tests {
             &s.llama_cpp_version_cuda,
             &s.api_endpoint_enabled,
             &s.api_endpoint_port,
+            &s.chat_ui_enabled,
             &s.spec_type,
             &s.draft_tokens,
             &s.tags,
         );
-        75
+        73
     }
 
     /// Verify that is_dirty() uses derived PartialEq (compiler-enforced).

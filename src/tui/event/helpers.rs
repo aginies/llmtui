@@ -225,6 +225,7 @@ fn common_fields_changed(
         || source.backend != target.backend
         || source.api_endpoint_enabled != target.api_endpoint_enabled
         || source.api_endpoint_port != target.api_endpoint_port
+        || source.chat_ui_enabled != target.chat_ui_enabled
         || source.api_endpoint_key != target.api_endpoint_key
         || source.llama_cpp_version_cpu != target.llama_cpp_version_cpu
         || source.llama_cpp_version_vulkan != target.llama_cpp_version_vulkan
@@ -244,6 +245,7 @@ fn sync_config_common_fields(
     target.backend = source.backend;
     target.api_endpoint_enabled = source.api_endpoint_enabled;
     target.api_endpoint_port = source.api_endpoint_port;
+    target.chat_ui_enabled = source.chat_ui_enabled;
     target.api_endpoint_key = source.api_endpoint_key.clone();
     target.llama_cpp_version_cpu = source.llama_cpp_version_cpu.clone();
     target.llama_cpp_version_vulkan = source.llama_cpp_version_vulkan.clone();
@@ -263,6 +265,7 @@ fn sync_model_cache_fields(
     target.backend = source.backend;
     target.api_endpoint_enabled = source.api_endpoint_enabled;
     target.api_endpoint_port = source.api_endpoint_port;
+    target.chat_ui_enabled = source.chat_ui_enabled;
     target.api_endpoint_key = source.api_endpoint_key.clone();
     target.llama_cpp_version_cpu = source.llama_cpp_version_cpu.clone();
     target.llama_cpp_version_vulkan = source.llama_cpp_version_vulkan.clone();

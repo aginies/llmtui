@@ -91,10 +91,10 @@ fn pick_active_model(
     });
 
     // 1. The selected model is loaded → show it.
-    if let Some((name, state)) = &selected_entry {
-        if matches!(state, ModelState::Loaded { .. }) {
-            return Some((name.clone(), state.clone()));
-        }
+    if let Some((name, state)) = &selected_entry
+        && matches!(state, ModelState::Loaded { .. })
+    {
+        return Some((name.clone(), state.clone()));
     }
 
     // 2. Any model is loaded → always show the loaded model's info.
@@ -106,10 +106,10 @@ fn pick_active_model(
     }
 
     // 3. The selected model is Loading / Benchmarking / Failed → show it.
-    if let Some((name, state)) = selected_entry {
-        if !matches!(state, ModelState::Available) {
-            return Some((name, state));
-        }
+    if let Some((name, state)) = selected_entry
+        && !matches!(state, ModelState::Available)
+    {
+        return Some((name, state));
     }
 
     None
@@ -603,7 +603,10 @@ mod tests {
     }
 
     fn loaded() -> ModelState {
-        ModelState::Loaded { port: 8080, pid: 123 }
+        ModelState::Loaded {
+            port: 8080,
+            pid: 123,
+        }
     }
 
     // A loaded model always shows its info, regardless of which model is
@@ -615,9 +618,18 @@ mod tests {
             ("model-a".to_string(), failed("OOM")),
             ("model-b".to_string(), loaded()),
         ];
-        assert_eq!(pick_active_model(&models, Some("model-b")).unwrap().0, "model-b");
-        assert_eq!(pick_active_model(&models, Some("model-a")).unwrap().0, "model-b");
-        assert_eq!(pick_active_model(&models, Some("model-c")).unwrap().0, "model-b");
+        assert_eq!(
+            pick_active_model(&models, Some("model-b")).unwrap().0,
+            "model-b"
+        );
+        assert_eq!(
+            pick_active_model(&models, Some("model-a")).unwrap().0,
+            "model-b"
+        );
+        assert_eq!(
+            pick_active_model(&models, Some("model-c")).unwrap().0,
+            "model-b"
+        );
         assert_eq!(pick_active_model(&models, None).unwrap().0, "model-b");
 
         // Reversed order (a different hash order) must give the same answer.
@@ -625,7 +637,10 @@ mod tests {
             ("model-b".to_string(), loaded()),
             ("model-a".to_string(), failed("OOM")),
         ];
-        assert_eq!(pick_active_model(&models, Some("model-a")).unwrap().0, "model-b");
+        assert_eq!(
+            pick_active_model(&models, Some("model-a")).unwrap().0,
+            "model-b"
+        );
     }
 
     // When several models are loaded, the selected one is preferred.
@@ -635,8 +650,14 @@ mod tests {
             ("model-a".to_string(), loaded()),
             ("model-b".to_string(), loaded()),
         ];
-        assert_eq!(pick_active_model(&models, Some("model-b")).unwrap().0, "model-b");
-        assert_eq!(pick_active_model(&models, Some("model-a")).unwrap().0, "model-a");
+        assert_eq!(
+            pick_active_model(&models, Some("model-b")).unwrap().0,
+            "model-b"
+        );
+        assert_eq!(
+            pick_active_model(&models, Some("model-a")).unwrap().0,
+            "model-a"
+        );
     }
 
     // A load failure is only reported for the model that failed: selecting
@@ -666,9 +687,18 @@ mod tests {
             ("model-b".to_string(), ModelState::Benchmarking),
             ("model-c".to_string(), failed("bad gguf")),
         ];
-        assert_eq!(pick_active_model(&models, Some("model-a")).unwrap().0, "model-a");
-        assert_eq!(pick_active_model(&models, Some("model-b")).unwrap().0, "model-b");
-        assert_eq!(pick_active_model(&models, Some("model-c")).unwrap().0, "model-c");
+        assert_eq!(
+            pick_active_model(&models, Some("model-a")).unwrap().0,
+            "model-a"
+        );
+        assert_eq!(
+            pick_active_model(&models, Some("model-b")).unwrap().0,
+            "model-b"
+        );
+        assert_eq!(
+            pick_active_model(&models, Some("model-c")).unwrap().0,
+            "model-c"
+        );
         // A model that is merely available → no active model.
         assert!(pick_active_model(&models, Some("model-d")).is_none());
     }

@@ -177,7 +177,10 @@ async fn proxy_streaming(
         };
 
         let (ws_enabled, ws_engine, ws_engine_url, ws_api_key) = {
-            let ws_cfg = state.web_search_config.read().unwrap_or_else(|e| e.into_inner());
+            let ws_cfg = state
+                .web_search_config
+                .read()
+                .unwrap_or_else(|e| e.into_inner());
             (
                 ws_cfg.enabled,
                 ws_cfg.engine.clone(),
@@ -412,13 +415,13 @@ async fn cors_middleware(
     if req.method() == axum::http::Method::OPTIONS {
         if allowed {
             let mut resp = axum::response::Response::new(Body::empty());
-            if let Some(origin) = origin {
-                if let Ok(origin_header) = origin.parse() {
-                    resp.headers_mut().insert(
-                        axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                        origin_header,
-                    );
-                }
+            if let Some(origin) = origin
+                && let Ok(origin_header) = origin.parse()
+            {
+                resp.headers_mut().insert(
+                    axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                    origin_header,
+                );
             }
             resp.headers_mut().insert(
                 axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
@@ -434,19 +437,17 @@ async fn cors_middleware(
         }
     } else {
         let mut resp = next.run(req).await;
-        if allowed {
-            if let Some(o) = origin {
-                if let Ok(origin_header) = o.parse() {
-                    resp.headers_mut().insert(
-                        axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                        origin_header,
-                    );
-                }
+        if allowed && let Some(o) = origin {
+            if let Ok(origin_header) = o.parse() {
                 resp.headers_mut().insert(
-                    axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS,
-                    "Content-Type, Authorization".parse().unwrap(),
+                    axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                    origin_header,
                 );
             }
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS,
+                "Content-Type, Authorization".parse().unwrap(),
+            );
         }
         resp
     }
@@ -505,13 +506,19 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
                         .and_then(|v| v.get("data"))
                         .and_then(|d| d.as_array());
                     let c = data.map(|a| a.len()).unwrap_or(0);
-                    let mut cache = state.status_cache.write().unwrap_or_else(|e| e.into_inner());
+                    let mut cache = state
+                        .status_cache
+                        .write()
+                        .unwrap_or_else(|e| e.into_inner());
                     cache.models = c;
                     cache.cached_at = Instant::now();
                     c
                 }
                 _ => {
-                    let mut cache = state.status_cache.write().unwrap_or_else(|e| e.into_inner());
+                    let mut cache = state
+                        .status_cache
+                        .write()
+                        .unwrap_or_else(|e| e.into_inner());
                     cache.models = 0;
                     cache.cached_at = Instant::now();
                     0
@@ -521,12 +528,23 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     };
 
     let metrics = {
-        let stale = state.status_cache.read().unwrap_or_else(|e| e.into_inner()).metrics_at.elapsed() >= STATUS_CACHE_TTL;
+        let stale = state
+            .status_cache
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .metrics_at
+            .elapsed()
+            >= STATUS_CACHE_TTL;
         if state.server_port == 0 {
             // No backend server port yet — nothing to fetch.
             None
         } else if !stale {
-            state.status_cache.read().unwrap_or_else(|e| e.into_inner()).metrics.clone()
+            state
+                .status_cache
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .metrics
+                .clone()
         } else {
             let m = crate::backend::server::get_metrics(
                 &state.server_host,
@@ -536,7 +554,10 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
             )
             .await
             .ok();
-            let mut cache = state.status_cache.write().unwrap_or_else(|e| e.into_inner());
+            let mut cache = state
+                .status_cache
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             cache.metrics = m.clone();
             cache.metrics_at = Instant::now();
             m
@@ -548,11 +569,22 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     // the /metrics API returns 0 (same strategy as TUI tick_metrics).
     // Values expire after STATUS_CACHE_TTL so a stopped server doesn't show stale ctx.
     let mut log_metrics = crate::backend::server_logs::ServerLogMetrics::default();
-    let log_stale = state.status_cache.read().unwrap_or_else(|e| e.into_inner()).log_metrics_at.elapsed() >= STATUS_CACHE_TTL;
+    let log_stale = state
+        .status_cache
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .log_metrics_at
+        .elapsed()
+        >= STATUS_CACHE_TTL;
     if let Some(rx_arc) = &state.log_rx {
         // Seed prev_line from cache so cross-line patterns (e.g. tokens-per-second)
         // keep working across polls, like the TUI tick_server_logs does.
-        let mut prev_line = state.status_cache.read().unwrap_or_else(|e| e.into_inner()).log_prev_line.clone();
+        let mut prev_line = state
+            .status_cache
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .log_prev_line
+            .clone();
         let mut any = false;
         let mut rx = rx_arc.lock().unwrap_or_else(|e| e.into_inner());
         while let Ok(line) = rx.try_recv() {
@@ -576,7 +608,10 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
         // Always persist prev_line (even when no line parsed) so cross-line
         // patterns (e.g. tokens-per-second) keep working across polls.
         {
-            let mut cache = state.status_cache.write().unwrap_or_else(|e| e.into_inner());
+            let mut cache = state
+                .status_cache
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             if any {
                 cache.log_metrics = log_metrics.clone();
                 cache.log_metrics_at = Instant::now();
@@ -584,10 +619,20 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
             cache.log_prev_line = prev_line;
         }
         if !any && !log_stale {
-            log_metrics = state.status_cache.read().unwrap_or_else(|e| e.into_inner()).log_metrics.clone();
+            log_metrics = state
+                .status_cache
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .log_metrics
+                .clone();
         }
     } else if !log_stale {
-        log_metrics = state.status_cache.read().unwrap_or_else(|e| e.into_inner()).log_metrics.clone();
+        log_metrics = state
+            .status_cache
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .log_metrics
+            .clone();
     }
 
     let metrics_json = metrics.as_ref().map(|m| {
@@ -650,6 +695,7 @@ pub async fn start_api_server(
     ws_port: u16,
     ws_auth: Option<String>,
     effective_ctx: u32,
+    chat_ui_enabled: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
@@ -710,12 +756,11 @@ pub async fn start_api_server(
         info!("API key authentication is ENABLED");
     }
 
-    let app = Router::new()
+    let mut app = Router::new()
         // /health, /metrics, /chat stay open (no auth);
         // auth applies only to the proxied API routes below.
         .route("/health", get(health))
         .route("/metrics", get(proxy_streaming))
-        .route("/chat", get(chat_handler))
         .merge(
             Router::new()
                 .route("/v1/chat/completions", post(proxy_streaming))
@@ -733,7 +778,14 @@ pub async fn start_api_server(
                     auth_middleware,
                 ))
                 .layer(TraceLayer::new_for_http()),
-        )
+        );
+
+    // Web chat UI (/chat) is optional — only registered when enabled.
+    if chat_ui_enabled {
+        app = app.route("/chat", get(chat_handler));
+    }
+
+    let app = app
         .layer(axum::middleware::from_fn(security_headers))
         .with_state(state);
 

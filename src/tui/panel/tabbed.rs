@@ -299,6 +299,26 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         false,
         server_running,
     );
+    let chat_ui_val = if app.settings.chat_ui_enabled {
+        crate::t!("dialog.dashboard.enabled")
+    } else {
+        crate::t!("dialog.dashboard.disabled")
+    };
+    settings_helper::add_setting(
+        &mut lines,
+        &mut count,
+        &app.settings,
+        &app.settings,
+        &mut selected_line_idx,
+        &mut selected_content_line,
+        4,
+        crate::t!("panel.server.chat_ui"),
+        chat_ui_val,
+        selected,
+        "",
+        false,
+        server_running,
+    );
     let llama_options_val = format!(
         "Port {} | {}T / {}TB | {} | {}",
         app.settings.port,
@@ -314,7 +334,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         &app.settings,
         &mut selected_line_idx,
         &mut selected_content_line,
-        4,
+        5,
         crate::t!("panel.llama_server.section"),
         &llama_options_val,
         selected,
@@ -329,7 +349,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         &app.settings,
         &mut selected_line_idx,
         &mut selected_content_line,
-        5,
+        6,
         "RPC Workers",
         &rpc_workers_val,
         selected,
@@ -349,7 +369,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         &app.settings,
         &mut selected_line_idx,
         &mut selected_content_line,
-        6,
+        7,
         "Web Search",
         &web_search_display,
         selected,
@@ -365,7 +385,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         &app.settings,
         &mut selected_line_idx,
         &mut selected_content_line,
-        7,
+        8,
         "Language",
         &language_val,
         selected,

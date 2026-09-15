@@ -47,11 +47,11 @@ impl OverlayHandler for LlamaServerPickerHandler {
                                     app.settings.threads = t.max(1);
                                     *threads = app.settings.threads;
                                 }
-                            } else if *selected_field == 1 {
-                                if let Ok(tb) = edit_buffer.parse::<u32>() {
-                                    app.settings.threads_batch = tb.max(1);
-                                    *threads_batch = app.settings.threads_batch;
-                                }
+                            } else if *selected_field == 1
+                                && let Ok(tb) = edit_buffer.parse::<u32>()
+                            {
+                                app.settings.threads_batch = tb.max(1);
+                                *threads_batch = app.settings.threads_batch;
                             }
                             *editing = false;
                             sync_global_settings(app);

@@ -20,13 +20,10 @@ impl OverlayHandler for DashboardUrlHandler {
         key: KeyEvent,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
-            if matches!(app.ui.global_mode, GlobalMode::DashboardUrl { .. }) {
-                match key.code {
-                    KeyCode::Esc => {
-                        app.ui.global_mode = GlobalMode::Normal;
-                    }
-                    _ => {}
-                }
+            if matches!(app.ui.global_mode, GlobalMode::DashboardUrl { .. })
+                && key.code == KeyCode::Esc
+            {
+                app.ui.global_mode = GlobalMode::Normal;
             }
         })
     }

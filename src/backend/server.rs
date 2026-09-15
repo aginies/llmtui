@@ -178,12 +178,6 @@ pub fn build_server_cmd(
     if settings.swa_full {
         push_flag(&mut cmd, &mut parts, "--swa-full");
     }
-    if settings.mlock {
-        push_flag(&mut cmd, &mut parts, "--mlock");
-    }
-    if !settings.mmap {
-        push_flag(&mut cmd, &mut parts, "--no-mmap");
-    }
     if settings.numa != Default::default() {
         push_arg(&mut cmd, &mut parts, "--numa", settings.numa.to_string());
     }
@@ -236,10 +230,8 @@ pub fn build_server_cmd(
         rpc_list.push(settings.rpc.clone());
     }
     for worker in &config.rpc_workers {
-        if worker.selected {
-            if IpAddr::from_str(&worker.ip).is_ok() {
-                rpc_list.push(format!("{}:{}", worker.ip, worker.port));
-            }
+        if worker.selected && IpAddr::from_str(&worker.ip).is_ok() {
+            rpc_list.push(format!("{}:{}", worker.ip, worker.port));
         }
     }
 
@@ -845,7 +837,7 @@ pub async fn get_metrics(
             "http://{}:{}/metrics?model={}",
             host,
             port,
-            urlencoding::encode(&name)
+            urlencoding::encode(name)
         )
     } else {
         format!("http://{}:{}/metrics", host, port)

@@ -32,9 +32,11 @@ impl OverlayHandler for ConfirmationHandler {
                 detail,
             } = &app.ui.global_mode
             {
-                let picker_selected = detail
-                    .as_ref()
-                    .and_then(|d| d.split(':').last().and_then(|s| s.parse::<usize>().ok()));
+                let picker_selected = detail.as_ref().and_then(|d| {
+                    d.split(':')
+                        .next_back()
+                        .and_then(|s| s.parse::<usize>().ok())
+                });
 
                 match key.code {
                     KeyCode::Char('y') => {

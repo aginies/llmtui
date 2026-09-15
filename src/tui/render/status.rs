@@ -34,12 +34,11 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
                 crate::t_fmt!("status.files", files.len()),
                 model_id
             );
-            if let Some(result) = selected_result {
-                if let Some(ref created) = result.created_at {
-                    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(created) {
-                        s.push_str(&format!(" | {}", dt.format("%Y-%m-%d %H:%M")));
-                    }
-                }
+            if let Some(result) = selected_result
+                && let Some(ref created) = result.created_at
+                && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(created)
+            {
+                s.push_str(&format!(" | {}", dt.format("%Y-%m-%d %H:%M")));
             }
             s
         }

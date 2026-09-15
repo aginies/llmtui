@@ -230,8 +230,6 @@ pub struct ModelOverride {
     pub cache_type_v: Option<CacheTypeV>,
     pub keep: Option<i32>,
     pub swa_full: Option<bool>,
-    pub mlock: Option<bool>,
-    pub mmap: Option<bool>,
     pub numa: Option<NumMode>,
     pub uniform_cache: Option<bool>,
     pub system_prompt: Option<String>,
@@ -349,8 +347,6 @@ impl ModelOverride {
             cache_type_v: s.cache_type_v,
             keep: Some(s.keep),
             swa_full: Some(s.swa_full),
-            mlock: Some(s.mlock),
-            mmap: Some(s.mmap),
             numa: Some(s.numa),
             uniform_cache: Some(s.uniform_cache),
             system_prompt: Some(s.system_prompt.clone()),
@@ -434,8 +430,6 @@ impl ModelOverride {
             ubatch_size,
             keep,
             swa_full,
-            mlock,
-            mmap,
             numa,
             uniform_cache,
             kv_cache_offload,
@@ -538,8 +532,8 @@ impl ModelOverride {
             };
         }
 
-        // FIELD ACCOUNTING (ModelOverride: 87 fields):
-        // - apply_scalar: 53 fields
+        // FIELD ACCOUNTING (ModelOverride: 85 fields):
+        // - apply_scalar: 51 fields
         // - apply_clone: 7 fields
         // - apply_option: 10 fields
         // - direct Option assign: 5 fields (cache_type_k, cache_type_v, presence_penalty,
@@ -688,10 +682,6 @@ pub struct DefaultParams {
     pub keep: i32,
     #[serde(default)]
     pub swa_full: bool,
-    #[serde(default)]
-    pub mlock: bool,
-    #[serde(default = "default_mmap")]
-    pub mmap: bool,
     #[serde(default)]
     pub numa: NumMode,
     #[serde(default = "default_uniform_cache")]
@@ -850,6 +840,9 @@ pub struct DefaultParams {
     pub api_endpoint_enabled: bool,
     #[serde(default = "default_api_endpoint_port")]
     pub api_endpoint_port: u16,
+    /// Whether the web chat UI (/chat) served by the API proxy is enabled.
+    #[serde(default = "default_chat_ui_enabled")]
+    pub chat_ui_enabled: bool,
     #[serde(default = "default_web_search_engine")]
     pub web_search_engine: String,
     #[serde(default)]
@@ -910,6 +903,10 @@ fn default_server_tls_enabled() -> bool {
     true
 }
 
+fn default_chat_ui_enabled() -> bool {
+    true
+}
+
 fn default_log_level() -> String {
     "trace".to_string()
 }
@@ -935,9 +932,6 @@ fn default_batch_size() -> u32 {
 }
 fn default_ubatch_size() -> u32 {
     512
-}
-fn default_mmap() -> bool {
-    true
 }
 fn default_uniform_cache() -> bool {
     true
@@ -1054,8 +1048,6 @@ impl Default for DefaultParams {
             cache_type_v: default_cache_type_v(),
             keep: 0,
             swa_full: false,
-            mlock: false,
-            mmap: default_mmap(),
             numa: NumMode::None,
             uniform_cache: default_uniform_cache(),
             kv_cache_offload: default_kv_cache_offload(),
@@ -1140,6 +1132,7 @@ impl Default for DefaultParams {
             llama_cpp_version_cuda: None,
             api_endpoint_enabled: false,
             api_endpoint_port: default_api_endpoint_port(),
+            chat_ui_enabled: default_chat_ui_enabled(),
             api_endpoint_key: None,
             web_search_engine: default_web_search_engine(),
             web_search_engine_url: String::new(),
@@ -1213,8 +1206,6 @@ impl Config {
             "cache_type_v",
             "keep",
             "swa_full",
-            "mlock",
-            "mmap",
             "numa",
             "uniform_cache",
             "kv_cache_offload",
@@ -1286,6 +1277,7 @@ impl Config {
             "llama_cpp_version_cuda",
             "api_endpoint_enabled",
             "api_endpoint_port",
+            "chat_ui_enabled",
             "api_endpoint_key",
             "web_search_engine",
             "web_search_engine_url",
@@ -1308,8 +1300,6 @@ impl Config {
             "cache_type_v",
             "keep",
             "swa_full",
-            "mlock",
-            "mmap",
             "numa",
             "uniform_cache",
             "system_prompt",

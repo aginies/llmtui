@@ -90,6 +90,7 @@ pub struct ServerState {
     pub running_api_model: Option<String>,
     pub running_api_ws_port: Option<u16>,
     pub running_api_ws_auth: Option<String>,
+    pub running_api_chat_ui: Option<bool>,
     pub running_server_tls_cfg: Option<axum_server::tls_rustls::RustlsConfig>,
     pub running_server_tls_cert_path: Option<String>,
     pub running_server_tls_key_path: Option<String>,

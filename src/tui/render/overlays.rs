@@ -2459,16 +2459,19 @@ fn render_dashboard_url(
             Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
         ),
     ]));
-    picker_lines.push(Line::from(vec![
-        Span::styled(
-            format!("{} ", crate::t!("dialog.dashboard_url.chat_url")),
-            Style::default().fg(ACCENT),
-        ),
-        Span::styled(
-            &chat_url,
-            Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
-        ),
-    ]));
+    // Chat URL is only shown when the web chat UI is enabled.
+    if app.settings.chat_ui_enabled {
+        picker_lines.push(Line::from(vec![
+            Span::styled(
+                format!("{} ", crate::t!("dialog.dashboard_url.chat_url")),
+                Style::default().fg(ACCENT),
+            ),
+            Span::styled(
+                &chat_url,
+                Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
+            ),
+        ]));
+    }
     picker_lines.push(Line::from(vec![
         Span::styled("opencode baseURL: ", Style::default().fg(ACCENT)),
         Span::styled(

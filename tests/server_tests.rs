@@ -222,48 +222,6 @@ fn test_build_server_cmd_includes_no_warmup() {
 }
 
 #[test]
-fn test_build_server_cmd_includes_mlock_when_set() {
-    let binary = PathBuf::from("/usr/bin/llama-server");
-    let model = make_model("/models/test.gguf", "test", "Test");
-    let mut settings = make_settings();
-    settings.mlock = true;
-    let config = make_config();
-
-    let (_cmd, display) = build_server_cmd(
-        &binary,
-        Some(&model),
-        &settings,
-        &config,
-        ServerMode::Normal,
-        0,
-        false,
-    );
-
-    assert!(display.contains("--mlock"));
-}
-
-#[test]
-fn test_build_server_cmd_includes_no_mmap_when_not_set() {
-    let binary = PathBuf::from("/usr/bin/llama-server");
-    let model = make_model("/models/test.gguf", "test", "Test");
-    let mut settings = make_settings();
-    settings.mmap = false;
-    let config = make_config();
-
-    let (_cmd, display) = build_server_cmd(
-        &binary,
-        Some(&model),
-        &settings,
-        &config,
-        ServerMode::Normal,
-        0,
-        false,
-    );
-
-    assert!(display.contains("--no-mmap"));
-}
-
-#[test]
 fn test_build_server_cmd_includes_gpu_layers_specific() {
     let binary = PathBuf::from("/usr/bin/llama-server");
     let model = make_model("/models/test.gguf", "test", "Test");

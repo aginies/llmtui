@@ -59,8 +59,6 @@ cargo run -- --config /path/to/config.yaml
 | `batch_size` | 512 | Logical maximum batch size |
 | `ubatch_size` | 512 | Physical maximum batch size |
 | `keep` | 0 | Keep N tokens from initial prompt |
-| `mlock` | false | Lock model weights in RAM |
-| `mmap` | true | Memory-map the model |
 | `kv_cache_offload` | true | Offload KV cache to RAM |
 | `flash_attn` | true | Enable Flash Attention |
 | `temperature` | 0.8 | Sampling temperature |

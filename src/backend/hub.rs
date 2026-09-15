@@ -290,7 +290,7 @@ pub fn validate_model_id(model_id: &str) -> Result<()> {
         anyhow::bail!("model_id contains '..'");
     }
     for c in model_id.chars() {
-        if c < ' ' || c > '~' || c == '`' || c == '$' || c == '\\' || c == '"' || c == '\'' {
+        if !(' '..='~').contains(&c) || c == '`' || c == '$' || c == '\\' || c == '"' || c == '\'' {
             anyhow::bail!("model_id contains invalid characters");
         }
     }

@@ -262,13 +262,9 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
     let mut settings = config.resolve_settings(Some(&display_name), opts.profile_name.as_deref());
 
     // Apply model config file override: explicit path or auto-detected
-    let model_config_path = opts
-        .model_config_path
-        .as_ref()
-        .map(|p| p.clone())
-        .or_else(|| {
-            auto_detect_model_config(&model_path, &config).map(|p| p.to_string_lossy().to_string())
-        });
+    let model_config_path = opts.model_config_path.clone().or_else(|| {
+        auto_detect_model_config(&model_path, &config).map(|p| p.to_string_lossy().to_string())
+    });
 
     if let Some(ref model_config_path) = model_config_path {
         let model_config_path = PathBuf::from(model_config_path);
@@ -590,8 +586,9 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let effective_ctx_for_api = if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
             (settings.context_length as f32 * settings.rope_scale) as u32
         } else {
-            settings.context_length as u32
+            settings.context_length
         };
+        let chat_ui_for_api = config.default.chat_ui_enabled;
         let handle = tokio::spawn(async move {
             let result = crate::serve_api::start_api_server(
                 addr,
@@ -609,6 +606,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 ws_port_for_api,
                 ws_auth_for_api,
                 effective_ctx_for_api,
+                chat_ui_for_api,
             )
             .await;
             let _ = api_done_tx.send(result.map_err(|e| e.to_string()));
@@ -682,7 +680,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let effective_ctx = if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
             (settings.context_length as f32 * settings.rope_scale) as u32
         } else {
-            settings.context_length as u32
+            settings.context_length
         };
         let ws_shutdown_rx_clone = ws_shutdown_rx.clone();
         let log_metrics_rx_for_metrics = log_metrics_rx;

@@ -159,9 +159,6 @@ fn gpu_layers_apply(settings: &mut ModelSettings, buf: &str) {
     }
 }
 
-fn toggle_mlock(settings: &mut ModelSettings) {
-    settings.mlock = !settings.mlock;
-}
 fn toggle_flash_attn(settings: &mut ModelSettings) {
     settings.flash_attn = !settings.flash_attn;
 }
@@ -420,17 +417,6 @@ pub fn all_fields() -> Vec<SettingField> {
                 }
             },
             "Number of layers to keep in memory when swapping (negative = all). Useful for fast reloading of the same model. Typical: -1 (all) or 0 (none).",
-        ),
-        field_with_toggle(
-            "mlock",
-            "Keep in memory (mlock)",
-            "Loading",
-            |s| s.mlock.to_string(),
-            |s, c| s.mlock != c.mlock,
-            |_, _, _| {},
-            |_, _| {},
-            toggle_mlock,
-            "Lock model weights in RAM (mlock). Prevents the OS from swapping model weights to disk. Slows model load time but ensures faster inference once loaded. Useful for repeated use.",
         ),
         expert_field_with_toggle(
             "chat_template",
@@ -1308,8 +1294,6 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
 
     // ── Bools ─────────────────────────────────────────────────────────────
     diff_bool!(parts, s, current, swa_full, "swa_full");
-    diff_bool!(parts, s, current, mlock, "mlock");
-    diff_bool!(parts, s, current, mmap, "mmap");
     diff_bool!(parts, s, current, uniform_cache, "uniform_cache");
     diff_bool!(parts, s, current, kv_cache_offload, "kv_cache_offload");
     diff_bool!(parts, s, current, fit, "fit");

@@ -59,7 +59,7 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             selected: true,
                             name,
                             ip: ip_str,
-                            port: port,
+                            port,
                         };
 
                         if let Some(idx) = app.picker.editing_rpc_worker {

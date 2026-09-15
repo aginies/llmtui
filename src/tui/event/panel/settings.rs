@@ -158,13 +158,6 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Keep in memory (mlock): toggle on Enter
-    if field_id == Some("mlock") && key.code == KeyCode::Enter {
-        app.settings.mlock = !app.settings.mlock;
-        mark_settings_dirty(app, true);
-        return;
-    }
-
     // GPU Layers: arrow keys cycle Auto → 1 → 2 → ... → N → All → Auto
     if field_id == Some("gpu_layers_mode") {
         if !app.settings_state.settings_edit_buffer.is_empty() {

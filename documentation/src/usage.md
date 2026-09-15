@@ -158,7 +158,6 @@ The LLM Settings panel has 19 standard fields, 12 expert fields (revealed with `
 |-------|---------|-------------|
 | **Prompt** | General | System prompt preset that defines the model's initial behavior. Presets include General, Coder, Thinker, Mathematician, and any user-defined prompts. |
 | **Context** | 131072 | Context window size in tokens. Larger values consume more VRAM and RAM. Models often have a maximum context length (e.g., 32K, 128K). |
-| **Keep in memory** | false | Locks model weights in RAM (`-mlock`) to prevent the OS from swapping them out. Useful when repeatedly loading/unloading models. Increases RAM usage. |
 
 The **Ctx (U)** column in the Models panel shows the user-configured context length from LLM settings (the `(U)` suffix distinguishes it from the model's actual loaded context). This value comes from the Context field above and applies to all loaded models unless overridden per-model.
 

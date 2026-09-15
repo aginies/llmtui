@@ -477,7 +477,9 @@ static GPU_CACHE: std::sync::Mutex<Option<(std::time::Instant, GpuCache)>> =
 /// Cheap to call repeatedly: at most one detection pass per TTL window.
 pub fn gpu_info_cached(ttl: std::time::Duration) -> GpuCache {
     let mut guard = GPU_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some((at, cache)) = guard.as_ref() && at.elapsed() < ttl {
+    if let Some((at, cache)) = guard.as_ref()
+        && at.elapsed() < ttl
+    {
         return cache.clone();
     }
     let cache = GpuCache {
@@ -668,10 +670,10 @@ fn detect_all_gpus_sysfs() -> Vec<GpuInfo> {
                 }
             } else {
                 let name_path = card_path.join("device/name");
-                let name = fs::read_to_string(&name_path)
+
+                fs::read_to_string(&name_path)
                     .map(|s| s.trim().to_string())
-                    .unwrap_or_else(|_| vendor_name.to_string());
-                name
+                    .unwrap_or_else(|_| vendor_name.to_string())
             };
 
             result.push(GpuInfo { vendor, name });

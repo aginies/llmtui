@@ -657,8 +657,11 @@ impl App {
                                             crate::models::ModelState::Loading,
                                         );
                                     } else {
-                                        let mut loaded_names =
-                                            self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
+                                        let mut loaded_names = self
+                                            .server
+                                            .loaded_model_names
+                                            .lock()
+                                            .unwrap_or_else(|e| e.into_inner());
                                         if !loaded_names.contains(&model.display_name) {
                                             loaded_names.push(model.display_name.clone());
                                         }
@@ -678,8 +681,11 @@ impl App {
                                 for model in &self.models {
                                     if model.display_name == name || model.name == name {
                                         if is_active {
-                                            let mut loaded_names =
-                                                self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner());
+                                            let mut loaded_names = self
+                                                .server
+                                                .loaded_model_names
+                                                .lock()
+                                                .unwrap_or_else(|e| e.into_inner());
                                             if !loaded_names.contains(&model.display_name) {
                                                 loaded_names.push(model.display_name.clone());
                                             }
@@ -1454,7 +1460,11 @@ impl App {
                     crate::config::LogLevel::Info,
                 );
                 {
-                    let mut lock = self.server.metrics_model_name.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut lock = self
+                        .server
+                        .metrics_model_name
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
                     *lock = Some(model_id.clone());
                 }
                 let log_tx = self.server.spawn_log_tx.clone();
@@ -1499,7 +1509,11 @@ impl App {
             let server_mode = self.server_mode;
             let handle_clone = handle.clone();
             {
-                let mut lock = self.server.metrics_model_name.lock().unwrap_or_else(|e| e.into_inner());
+                let mut lock = self
+                    .server
+                    .metrics_model_name
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 if lock.as_deref() == Some(&model_name) {
                     *lock = None;
                 }
@@ -1587,7 +1601,9 @@ impl App {
                 );
             }
             self.server
-                .loaded_model_names.lock().unwrap_or_else(|e| e.into_inner())
+                .loaded_model_names
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
                 .retain(|n| n != &model_name);
             self.metrics.ctx_used = 0;
             self.model_states
@@ -1635,7 +1651,11 @@ impl App {
                     self.model_states
                         .insert(n, crate::models::ModelState::Available);
                 }
-                self.server.loaded_model_names.lock().unwrap_or_else(|e| e.into_inner()).clear();
+                self.server
+                    .loaded_model_names
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clear();
                 self.loading.loading_phases = std::collections::HashSet::new();
                 self.loading.loading_progress = 0.0;
                 self.loading.progress_target = 0.0;
@@ -2020,7 +2040,8 @@ impl App {
             || self.server.running_api_server_port != Some(server_port)
             || self.server.running_api_model.as_deref() != Some(model_name.as_str())
             || self.server.running_api_ws_port != Some(self.server.running_ws_port.unwrap_or(0))
-            || self.server.running_api_ws_auth.as_ref() != self.server.running_ws_auth.as_ref();
+            || self.server.running_api_ws_auth.as_ref() != self.server.running_ws_auth.as_ref()
+            || self.server.running_api_chat_ui != Some(self.settings.chat_ui_enabled);
 
         // Stop if disabled or settings/model changed.
         if self.server.api_proxy_handle.is_some() && (!enabled || settings_changed) {
@@ -2037,6 +2058,7 @@ impl App {
             self.server.running_api_model = None;
             self.server.running_api_ws_port = None;
             self.server.running_api_ws_auth = None;
+            self.server.running_api_chat_ui = None;
             if !enabled {
                 self.add_log(
                     crate::t!("async.api_disabled"),
@@ -2187,7 +2209,11 @@ impl App {
             let model_name_clone = model_name.clone();
             let preset_name = self.settings.system_prompt_preset_name.clone();
             {
-                let mut ws = self.server.web_search_config.write().unwrap_or_else(|e| e.into_inner());
+                let mut ws = self
+                    .server
+                    .web_search_config
+                    .write()
+                    .unwrap_or_else(|e| e.into_inner());
                 ws.engine = self.config.default.web_search_engine.clone();
                 ws.engine_url = self.config.default.web_search_engine_url.clone();
                 ws.enabled = self.config.default.web_search_enabled;
@@ -2220,6 +2246,7 @@ impl App {
             let ws_auth_for_api = self.server.running_ws_auth.clone();
             let ws_auth_for_api_clone = ws_auth_for_api.clone();
             let effective_ctx_for_api = self.server.spawned_context_length;
+            let chat_ui_for_api = self.settings.chat_ui_enabled;
             let handle = tokio::spawn(async move {
                 let _ = crate::serve_api::start_api_server(
                     addr,
@@ -2237,6 +2264,7 @@ impl App {
                     ws_port_for_api,
                     ws_auth_for_api_clone,
                     effective_ctx_for_api,
+                    chat_ui_for_api,
                 )
                 .await;
             });
@@ -2246,6 +2274,7 @@ impl App {
             self.server.running_api_model = Some(model_name);
             self.server.running_api_ws_port = Some(ws_port_for_api);
             self.server.running_api_ws_auth = ws_auth_for_api;
+            self.server.running_api_chat_ui = Some(chat_ui_for_api);
             let status = if server_port == 0 {
                 " (no model loaded yet)"
             } else {

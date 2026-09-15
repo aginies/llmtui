@@ -1071,7 +1071,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
             "repeat_penalty": settings.repeat_penalty,
             "flash_attn": settings.flash_attn,
             "kv_cache_offload": settings.kv_cache_offload,
-            "mlock": settings.mlock,
             "system_prompt": settings.system_prompt,
         })
     });
@@ -1157,7 +1156,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
 <div class="meta-item"><div class="ml">Threads</div><div class="mv">{}</div></div>
 <div class="meta-item"><div class="ml">Flash Attention</div><div class="mv">{}</div></div>
 <div class="meta-item"><div class="ml">KV Cache Offload</div><div class="mv">{}</div></div>
-<div class="meta-item"><div class="ml">MLOCK</div><div class="mv">{}</div></div>
 <div class="meta-item"><div class="ml">Prompt</div><div class="mv meta-prompt">{}</div></div>
 </div>
 </div>"#,
@@ -1166,7 +1164,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                 s.threads,
                 if s.flash_attn { "ON" } else { "OFF" },
                 if s.kv_cache_offload { "ON" } else { "OFF" },
-                if s.mlock { "ON" } else { "OFF" },
                 escape_html(&s.system_prompt.chars().take(100).collect::<String>())
             )
         })

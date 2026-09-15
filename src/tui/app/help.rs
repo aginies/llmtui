@@ -263,10 +263,6 @@ impl App {
                         crate::t!("field.help.system_prompt_preset_name")
                     )),
                 ]),
-                Line::from(vec![
-                    Span::styled("Keep in memory", y),
-                    Span::raw(format!("  {}", crate::t!("field.help.mlock"))),
-                ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("━━━ GPU Offload ━━━", y)]),
                 Line::from(vec![
@@ -407,10 +403,6 @@ impl App {
                 Line::from(vec![
                     Span::styled("Keep", y),
                     Span::raw(format!("  {}", crate::t!("field.help.keep"))),
-                ]),
-                Line::from(vec![
-                    Span::styled("MMap", y),
-                    Span::raw(format!("  {}", crate::t!("field.help.mmap"))),
                 ]),
                 Line::from(vec![
                     Span::styled("NUMA", y),

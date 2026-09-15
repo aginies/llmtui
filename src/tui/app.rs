@@ -136,6 +136,7 @@ impl App {
                 running_api_model: None,
                 running_api_ws_port: None,
                 running_api_ws_auth: None,
+                running_api_chat_ui: None,
                 running_server_tls_cfg: None,
                 running_server_tls_cert_path: None,
                 running_server_tls_key_path: None,
@@ -273,7 +274,7 @@ impl App {
         let now = std::time::Instant::now();
         let mut changed = false;
 
-        for (_, state) in self.ui.text_scrolls.iter_mut() {
+        for state in self.ui.text_scrolls.values_mut() {
             // Skip invisible entries entirely
             if !state.visible {
                 continue;

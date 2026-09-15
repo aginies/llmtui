@@ -72,30 +72,26 @@ pub fn parse_log_line(line: &str, prev_line: Option<&str>) -> (ServerLogMetrics,
             }
         }
         // Pattern 2: "t=X.XX" (no space)
-        if !parsed {
-            if let Some(t_part) = line.split("t=").last() {
-                let val_str = t_part
-                    .split(|c: char| c.is_whitespace() || c == '\u{2560}')
-                    .find(|s| !s.is_empty())
-                    .unwrap_or("")
-                    .trim();
-                if let Ok(t) = val_str.parse::<f64>() {
-                    metrics.prompt_elapsed_ms = Some(t * 1000.0);
-                    parsed = true;
-                }
+        if !parsed && let Some(t_part) = line.split("t=").last() {
+            let val_str = t_part
+                .split(|c: char| c.is_whitespace() || c == '\u{2560}')
+                .find(|s| !s.is_empty())
+                .unwrap_or("")
+                .trim();
+            if let Ok(t) = val_str.parse::<f64>() {
+                metrics.prompt_elapsed_ms = Some(t * 1000.0);
+                parsed = true;
             }
         }
         // Pattern 3: Parse from end of line (elapsed time always at end before "s /")
-        if !parsed {
-            if let Some(slash_part) = line.rsplit(" s /").next() {
-                let val_str = slash_part
-                    .split_whitespace()
-                    .rfind(|s| !s.is_empty())
-                    .unwrap_or("")
-                    .trim();
-                if let Ok(t) = val_str.parse::<f64>() {
-                    metrics.prompt_elapsed_ms = Some(t * 1000.0);
-                }
+        if !parsed && let Some(slash_part) = line.rsplit(" s /").next() {
+            let val_str = slash_part
+                .split_whitespace()
+                .rfind(|s| !s.is_empty())
+                .unwrap_or("")
+                .trim();
+            if let Ok(t) = val_str.parse::<f64>() {
+                metrics.prompt_elapsed_ms = Some(t * 1000.0);
             }
         }
         // TPS: "X.XX tokens per second" on same line or previous line
@@ -114,44 +110,45 @@ pub fn parse_log_line(line: &str, prev_line: Option<&str>) -> (ServerLogMetrics,
                     .and_then(|p| p.split('/').next_back())
                     .map(|s| s.trim())
             }));
-        if let Some(tps_str) = tps_str {
-            if let Ok(tps) = tps_str.parse::<f64>() {
-                metrics.prompt_tps_eval = Some(tps);
-            }
+        if let Some(tps_str) = tps_str
+            && let Ok(tps) = tps_str.parse::<f64>()
+        {
+            metrics.prompt_tps_eval = Some(tps);
         }
     }
 
     // n_tokens = → ctx_used (for generation lines only, not prompt processing)
-    if !is_prompt_processing && line.contains("n_tokens =") {
-        if let Some(tokens_part) = line.split("n_tokens =").last() {
-            let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
-            if let Ok(tokens) = val_str.parse::<u32>() {
-                metrics.ctx_used = Some(tokens);
-            }
+    if !is_prompt_processing
+        && line.contains("n_tokens =")
+        && let Some(tokens_part) = line.split("n_tokens =").last()
+    {
+        let val_str = tokens_part.split(',').next().unwrap_or(tokens_part).trim();
+        if let Ok(tokens) = val_str.parse::<u32>() {
+            metrics.ctx_used = Some(tokens);
         }
     }
 
     // n_decoded = → decoded_tokens
-    if line.contains("n_decoded =") {
-        if let Some(decoded_part) = line.split("n_decoded =").last() {
-            let val_str = decoded_part
-                .split(',')
-                .next()
-                .unwrap_or(decoded_part)
-                .trim();
-            if let Ok(tokens) = val_str.parse::<u64>() {
-                metrics.decoded_tokens = Some(tokens);
-            }
+    if line.contains("n_decoded =")
+        && let Some(decoded_part) = line.split("n_decoded =").last()
+    {
+        let val_str = decoded_part
+            .split(',')
+            .next()
+            .unwrap_or(decoded_part)
+            .trim();
+        if let Ok(tokens) = val_str.parse::<u64>() {
+            metrics.decoded_tokens = Some(tokens);
         }
     }
 
     // tg = → gen_tps
-    if line.contains("tg =") {
-        if let Some(tg_part) = line.split("tg =").last() {
-            let val_str = tg_part.trim().split(' ').next().unwrap_or(tg_part).trim();
-            if let Ok(tg) = val_str.parse::<f64>() {
-                metrics.gen_tps = Some(tg);
-            }
+    if line.contains("tg =")
+        && let Some(tg_part) = line.split("tg =").last()
+    {
+        let val_str = tg_part.trim().split(' ').next().unwrap_or(tg_part).trim();
+        if let Ok(tg) = val_str.parse::<f64>() {
+            metrics.gen_tps = Some(tg);
         }
     }
 

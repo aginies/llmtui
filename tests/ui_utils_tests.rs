@@ -286,14 +286,6 @@ fn settings_is_dirty_gpu_layers_changed() {
 }
 
 #[test]
-fn settings_is_dirty_mlock_changed() {
-    let mut settings = ModelSettings::default();
-    let cache = settings.clone();
-    settings.mlock = true;
-    assert!(settings.is_dirty(&cache));
-}
-
-#[test]
 fn settings_is_dirty_flash_attn_changed() {
     let mut settings = ModelSettings::default();
     let cache = settings.clone();

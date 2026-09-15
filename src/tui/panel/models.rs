@@ -672,8 +672,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     state.visible = true;
                     let scrolled_raw = scroll_text(&result.model_id, col_width, state);
                     let scrolled_lower = scrolled_raw.to_lowercase();
-                    let highlighted =
-                        highlight_query(&scrolled_raw, &scrolled_lower, query_regex);
+                    let highlighted = highlight_query(&scrolled_raw, &scrolled_lower, query_regex);
 
                     let is_downloaded = result.downloaded;
                     let marker = if is_downloaded { "✓" } else { " " };
@@ -696,7 +695,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             if *loading {
                 if end == total_results {
                     rows.push(Row::new(vec![
-                        Cell::from(crate::t!("log.loading_more")).style(Style::default().fg(ACCENT)),
+                        Cell::from(crate::t!("log.loading_more"))
+                            .style(Style::default().fg(ACCENT)),
                         Cell::from(""),
                         Cell::from(""),
                         Cell::from(""),
@@ -748,7 +748,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             model_id,
             files,
             selected_idx,
-            selected_result: _,
             ..
         } => {
             let title = crate::t_fmt!("models.gguf_files", model_id);
@@ -1037,10 +1036,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         }
                     }
                     crate::models::BenchTuneProgress::Error { error } => {
-                        lines.push(Line::from(crate::t_fmt!(
-                            "models.benchtune_error",
-                            error
-                        )));
+                        lines.push(Line::from(crate::t_fmt!("models.benchtune_error", error)));
                     }
                 }
             } else {
