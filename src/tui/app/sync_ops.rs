@@ -165,6 +165,7 @@ impl App {
             self.loading.last_active_phase = None;
             self.loading.phase_start_time = None;
         }
+        self.settings_state.settings_render_cache = None;
         self.ui.needs_redraw = true;
     }
 
