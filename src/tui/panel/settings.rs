@@ -26,6 +26,7 @@ pub fn render_all(
         &app.settings_state.settings_render_cache
         && c.version == version
         && c.selected == selected
+        && c.edit_buf == *edit_buf
     {
         (c.lines.clone(), c.lines.len(), c.selected_content_line)
     } else {
@@ -50,6 +51,7 @@ pub fn render_all(
         app.settings_state.settings_render_cache = Some(crate::tui::app::SettingsRenderCache {
             version,
             selected,
+            edit_buf: edit_buf.to_string(),
             lines: lines.clone(),
             selected_content_line,
         });

@@ -35,6 +35,7 @@ pub struct ResizeState {
 pub struct SettingsRenderCache {
     pub version: u64,
     pub selected: usize,
+    pub edit_buf: String,
     pub lines: Vec<Line<'static>>,
     pub selected_content_line: usize,
 }
