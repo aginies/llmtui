@@ -2339,7 +2339,7 @@ fn render_dashboard_url(
         host_val,
         api_port
     );
-    let opencode_url = format!(
+    let agent_url = format!(
         "{}://{}:{}/v1",
         if tls_enabled { "https" } else { "http" },
         host_val,
@@ -2477,9 +2477,12 @@ fn render_dashboard_url(
         ]));
     }
     picker_lines.push(Line::from(vec![
-        Span::styled("opencode baseURL: ", Style::default().fg(ACCENT)),
         Span::styled(
-            &opencode_url,
+            crate::t!("dialog.dashboard_url.agent_url"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::styled(
+            &agent_url,
             Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
         ),
     ]));
