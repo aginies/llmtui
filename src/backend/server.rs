@@ -617,6 +617,7 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
     let server_binary = match crate::backend::hub::resolve_backend_binary(
         settings.backend,
         version_param,
+        settings.llama_cpp_strix_halo_rocm.as_deref(),
         Some(log_tx.clone()),
         progress_tx,
     )

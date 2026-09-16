@@ -89,6 +89,7 @@ pub fn get_free_space_bytes(path: &std::path::Path) -> Option<u64> {
 fn default_tag(backend: &crate::models::Backend) -> String {
     match backend {
         crate::models::Backend::RocmLemonade => "b1273".to_string(),
+        crate::models::Backend::StrixHalo => "b10991".to_string(),
         crate::models::Backend::Cuda
         | crate::models::Backend::CudaWindows12_4
         | crate::models::Backend::CudaWindows13_1 => "b9279".to_string(),
@@ -134,6 +135,10 @@ fn resolve_backend_key(backend: &crate::models::Backend) -> Option<(&'static str
         crate::models::Backend::CpuArm64 => Some(("ggml-org/llama.cpp", "bin-ubuntu-arm64.tar.gz")),
         // ROCm Lemonade (separate repo)
         crate::models::Backend::RocmLemonade => Some(("lemonade-sdk/llamacpp-rocm", "rocm-")),
+        // Strix Halo (separate repo, ROCm builds for gfx1151)
+        crate::models::Backend::StrixHalo => {
+            Some(("Lychee-Technology/llama-cpp-for-strix-halo", "llama-cpp-"))
+        }
         // CUDA (separate repo)
         crate::models::Backend::Cuda => Some(("ai-dock/llama.cpp-cuda", "cuda-12.8")),
         // Windows CPU/Vulkan
@@ -656,6 +661,7 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
             let tag = parts[parts.len() - 1].to_string();
             let backend = match (parts[0], parts.get(1).copied()) {
                 ("rocm", Some("lemonade")) => crate::models::Backend::RocmLemonade,
+                ("strix", Some("halo")) => crate::models::Backend::StrixHalo,
                 ("win", Some("cuda")) if parts.len() >= 4 && parts[2] == "12.4" => {
                     crate::models::Backend::CudaWindows12_4
                 }
@@ -700,13 +706,15 @@ pub fn list_installed_backends() -> Vec<(crate::models::Backend, String)> {
 pub async fn resolve_backend_binary(
     backend: crate::models::Backend,
     version: Option<&str>,
+    strix_halo_rocm: Option<&str>,
     log_tx: Option<tokio::sync::mpsc::Sender<String>>,
     progress_tx: Option<tokio::sync::broadcast::Sender<crate::models::DownloadState>>,
 ) -> Result<std::path::PathBuf> {
     tracing::info!(
-        "resolve_backend_binary: backend={}, version={:?}",
+        "resolve_backend_binary: backend={}, version={:?}, strix_halo_rocm={:?}",
         backend,
-        version
+        version,
+        strix_halo_rocm
     );
     let tag = match version {
         Some(v) if !v.is_empty() => {
@@ -805,20 +813,21 @@ pub async fn resolve_backend_binary(
 
     let client = &super::DOWNLOAD_CLIENT;
 
-    // Construct asset name and URL
-    let (download_url, is_zip) = match backend {
+    // Construct asset name and URL. Second tuple element is the temp-file
+    // extension matching the archive format ("zip", "tar.gz", "tar.xz").
+    let (download_url, tmp_ext) = match backend {
         // Linux x64 backends
         crate::models::Backend::Cpu => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-x64.tar.gz"
             ),
-            false,
+            "tar.gz",
         ),
         crate::models::Backend::Vulkan => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz"
             ),
-            false,
+            "tar.gz",
         ),
         crate::models::Backend::Rocm => {
             // The ROCm asset name is not stable across releases (rocm-x64,
@@ -834,7 +843,7 @@ pub async fn resolve_backend_binary(
                     "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{}",
                     asset_name
                 ),
-                false,
+                "tar.gz",
             )
         }
         crate::models::Backend::RocmLemonade => {
@@ -845,65 +854,87 @@ pub async fn resolve_backend_binary(
                 format!(
                     "https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/{tag}/llama-{tag}-ubuntu-rocm-{suffix}-x64.zip"
                 ),
-                true,
+                "zip",
             )
         }
         crate::models::Backend::Cuda => (
             format!(
                 "https://github.com/ai-dock/llama.cpp-cuda/releases/download/{tag}/llama.cpp-{tag}-cuda-12.8-amd64.tar.gz"
             ),
-            false,
+            "tar.gz",
         ),
+        // Strix Halo (separate repo; one asset per ROCm version per release)
+        crate::models::Backend::StrixHalo => {
+            // Asset names look like llama-cpp-{tag}-rocm-{X.Y.Z}-gfx1151.tar.xz.
+            // Use the pinned ROCm version if configured, otherwise auto-detect
+            // the newest one in the release (falls back to a last-known good
+            // version if the lookup fails, e.g. offline).
+            let rocm = match strix_halo_rocm {
+                Some(r) if !r.is_empty() && !r.eq_ignore_ascii_case("auto") => r.to_string(),
+                _ => fetch_strix_halo_rocm_version(
+                    "Lychee-Technology/llama-cpp-for-strix-halo",
+                    &tag,
+                )
+                .await
+                .unwrap_or_else(|| "7.2.4".to_string()),
+            };
+            (
+                format!(
+                    "https://github.com/Lychee-Technology/llama-cpp-for-strix-halo/releases/download/{tag}/llama-cpp-{tag}-rocm-{rocm}-gfx1151.tar.xz"
+                ),
+                "tar.xz",
+            )
+        }
         // Linux ARM64
         crate::models::Backend::CpuArm64 => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-ubuntu-arm64.tar.gz"
             ),
-            false,
+            "tar.gz",
         ),
         // Windows backends
         crate::models::Backend::CpuWindows => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cpu-x64.zip"
             ),
-            true,
+            "zip",
         ),
         crate::models::Backend::VulkanWindows => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-vulkan-x64.zip"
             ),
-            true,
+            "zip",
         ),
         crate::models::Backend::CudaWindows12_4 => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cuda-12.4-x64.zip"
             ),
-            true,
+            "zip",
         ),
         crate::models::Backend::CudaWindows13_1 => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-cuda-13.1-x64.zip"
             ),
-            true,
+            "zip",
         ),
         crate::models::Backend::HipWindows => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-hip-radeon-x64.zip"
             ),
-            true,
+            "zip",
         ),
         // macOS backends
         crate::models::Backend::CpuMacosArm64 => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-macos-arm64.tar.gz"
             ),
-            false,
+            "tar.gz",
         ),
         crate::models::Backend::CpuMacosX64 => (
             format!(
                 "https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-macos-x64.tar.gz"
             ),
-            false,
+            "tar.gz",
         ),
     };
 
@@ -915,7 +946,6 @@ pub async fn resolve_backend_binary(
     }
 
     // Download to temp file (GitHub requires User-Agent for releases)
-    let tmp_ext = if is_zip { "zip" } else { "tar.gz" };
     let tmp_filename = format!("llama-server-{}-{}.tmp.{}", backend.slug(), tag, tmp_ext);
     let tmp_path = bin_dir.join(&tmp_filename);
     tracing::info!("  -> downloading to: {}", tmp_path.display());
@@ -1216,94 +1246,105 @@ pub fn extract_archive(archive_path: &std::path::Path, dest_dir: &std::path::Pat
         }
     } else if filename.ends_with(".tar.gz") || filename.contains(".tar.gz") {
         use flate2::read::GzDecoder;
-        use tar::Archive;
 
         let file = std::fs::File::open(archive_path)?;
-        let decoder = GzDecoder::new(file);
-        let mut archive = Archive::new(decoder);
-        let entries = archive.entries()?;
-        // Symlinks created so far: used to reject entries whose path passes
-        // through a symlinked parent (which would write outside dest_dir).
-        let mut symlinked: Vec<std::path::PathBuf> = Vec::new();
-        for entry in entries {
-            let mut entry = entry?;
-            let entry_path = entry.path()?;
-            let full_path = dest_dir.join(&entry_path);
-            if !full_path.starts_with(&dest_dir) {
-                return Err(anyhow::anyhow!(
-                    "Tar slip detected: {} tries to write to {}",
-                    entry_path.display(),
-                    full_path.display()
-                ));
-            }
-            // Reject entries that would follow a symlink created earlier in
-            // the archive (e.g. "link" -> "../outside" then "link/file").
-            if let Ok(rel) = full_path.strip_prefix(&dest_dir) {
-                let mut ancestor = rel;
-                while let Some(parent) = ancestor.parent() {
-                    if parent.as_os_str().is_empty() {
-                        break;
-                    }
-                    if symlinked.contains(&dest_dir.join(parent)) {
-                        return Err(anyhow::anyhow!(
-                            "Tar entry {} follows a symlink inside the archive",
-                            entry_path.display()
-                        ));
-                    }
-                    ancestor = parent;
+        extract_tar_entries(GzDecoder::new(file), &dest_dir)?;
+    } else if filename.ends_with(".tar.xz") || filename.contains(".tar.xz") {
+        use xz2::read::XzDecoder;
+
+        let file = std::fs::File::open(archive_path)?;
+        extract_tar_entries(XzDecoder::new(file), &dest_dir)?;
+    }
+
+    Ok(())
+}
+
+/// Extract tar entries from a decompressed reader into dest_dir, preserving
+/// symlinks (only when the target stays inside dest_dir) and rejecting
+/// path-traversal and symlink-escape entries.
+fn extract_tar_entries<R: std::io::Read>(reader: R, dest_dir: &std::path::Path) -> Result<()> {
+    use tar::Archive;
+
+    let mut archive = Archive::new(reader);
+    let entries = archive.entries()?;
+    // Symlinks created so far: used to reject entries whose path passes
+    // through a symlinked parent (which would write outside dest_dir).
+    let mut symlinked: Vec<std::path::PathBuf> = Vec::new();
+    for entry in entries {
+        let mut entry = entry?;
+        let entry_path = entry.path()?;
+        let full_path = dest_dir.join(&entry_path);
+        if !full_path.starts_with(dest_dir) {
+            return Err(anyhow::anyhow!(
+                "Tar slip detected: {} tries to write to {}",
+                entry_path.display(),
+                full_path.display()
+            ));
+        }
+        // Reject entries that would follow a symlink created earlier in
+        // the archive (e.g. "link" -> "../outside" then "link/file").
+        if let Ok(rel) = full_path.strip_prefix(dest_dir) {
+            let mut ancestor = rel;
+            while let Some(parent) = ancestor.parent() {
+                if parent.as_os_str().is_empty() {
+                    break;
                 }
-            }
-            // Detect directory entries by tar header type, not path suffix
-            let is_dir = entry.header().entry_type().is_dir();
-            if is_dir {
-                std::fs::create_dir_all(&full_path)?;
-            } else if entry.header().entry_type().is_symlink() {
-                // Preserve symlinks, but only if the target stays inside
-                // dest_dir — an escaping target would let later entries (or
-                // the user) read/write outside the extraction directory.
-                let header = entry.header();
-                if let Ok(Some(link_target)) = header.link_name() {
-                    let link_target = link_target.into_owned();
-                    let target = if link_target.is_absolute() {
-                        link_target.clone()
-                    } else if let Some(parent) = full_path.parent() {
-                        parent.join(&link_target)
-                    } else {
-                        link_target.clone()
-                    };
-                    let normalized = normalize_path(&target);
-                    if !normalized.starts_with(&dest_dir) {
-                        return Err(anyhow::anyhow!(
-                            "Tar symlink escape detected: {} -> {}",
-                            full_path.display(),
-                            link_target.display()
-                        ));
-                    }
-                    if let Some(parent) = full_path.parent() {
-                        std::fs::create_dir_all(parent)?;
-                    }
-                    #[cfg(unix)]
-                    {
-                        std::os::unix::fs::symlink(&link_target, &full_path)?;
-                    }
-                    #[cfg(windows)]
-                    {
-                        std::os::windows::fs::symlink_file(&link_target, &full_path)?;
-                    }
-                    symlinked.push(full_path.clone());
+                if symlinked.contains(&dest_dir.join(parent)) {
+                    return Err(anyhow::anyhow!(
+                        "Tar entry {} follows a symlink inside the archive",
+                        entry_path.display()
+                    ));
                 }
-            } else {
+                ancestor = parent;
+            }
+        }
+        // Detect directory entries by tar header type, not path suffix
+        let is_dir = entry.header().entry_type().is_dir();
+        if is_dir {
+            std::fs::create_dir_all(&full_path)?;
+        } else if entry.header().entry_type().is_symlink() {
+            // Preserve symlinks, but only if the target stays inside
+            // dest_dir — an escaping target would let later entries (or
+            // the user) read/write outside the extraction directory.
+            let header = entry.header();
+            if let Ok(Some(link_target)) = header.link_name() {
+                let link_target = link_target.into_owned();
+                let target = if link_target.is_absolute() {
+                    link_target.clone()
+                } else if let Some(parent) = full_path.parent() {
+                    parent.join(&link_target)
+                } else {
+                    link_target.clone()
+                };
+                let normalized = normalize_path(&target);
+                if !normalized.starts_with(dest_dir) {
+                    return Err(anyhow::anyhow!(
+                        "Tar symlink escape detected: {} -> {}",
+                        full_path.display(),
+                        link_target.display()
+                    ));
+                }
                 if let Some(parent) = full_path.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                let mut outfile = std::fs::File::create(&full_path)?;
-                std::io::copy(&mut entry, &mut outfile)?;
+                #[cfg(unix)]
+                {
+                    std::os::unix::fs::symlink(&link_target, &full_path)?;
+                }
+                #[cfg(windows)]
+                {
+                    std::os::windows::fs::symlink_file(&link_target, &full_path)?;
+                }
+                symlinked.push(full_path.clone());
             }
+        } else {
+            if let Some(parent) = full_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut outfile = std::fs::File::create(&full_path)?;
+            std::io::copy(&mut entry, &mut outfile)?;
         }
-    } else {
-        anyhow::bail!("Unsupported archive format: {}", filename);
     }
-
     Ok(())
 }
 
@@ -1349,6 +1390,47 @@ async fn fetch_release_asset_name(repo: &str, tag: &str, pattern: &str) -> Optio
         repo, tag
     );
     fetch_release_asset_name_inner(client, &url, pattern).await
+}
+
+/// Fetch the highest ROCm version available in a Strix Halo release.
+/// Asset names look like `llama-cpp-{tag}-rocm-{X.Y.Z}-gfx1151.tar.xz`.
+async fn fetch_strix_halo_rocm_version(repo: &str, tag: &str) -> Option<String> {
+    let client = &super::HTTP_CLIENT;
+    let url = format!(
+        "https://api.github.com/repos/{}/releases/tags/{}",
+        repo, tag
+    );
+    let resp = client
+        .get(&url)
+        .header("Accept", "application/vnd.github.v3+json")
+        .header("User-Agent", super::USER_AGENT)
+        .send()
+        .await
+        .ok()?;
+    let release: serde_json::Value = resp.error_for_status().ok()?.json().await.ok()?;
+    let mut best: Option<(Vec<u64>, String)> = None;
+    for asset in release.get("assets")?.as_array()?.iter() {
+        let name = asset.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        let Some(rest) = name.strip_prefix("llama-cpp-") else {
+            continue;
+        };
+        let Some(rocm_part) = rest.split('-').find(|s| s.starts_with("rocm-")) else {
+            continue;
+        };
+        let ver_str = &rocm_part["rocm-".len()..];
+        let ver: Vec<u64> = ver_str.split('.').filter_map(|p| p.parse().ok()).collect();
+        if ver.is_empty() {
+            continue;
+        }
+        let newer = match &best {
+            Some((b, _)) => ver > *b,
+            None => true,
+        };
+        if newer {
+            best = Some((ver, ver_str.to_string()));
+        }
+    }
+    best.map(|(_, v)| v)
 }
 
 async fn fetch_release_asset_name_inner(

@@ -196,6 +196,7 @@
   "dialog.backend_picker.vulkan": "Vulkan (GPU Universal)",
   "dialog.backend_picker.rocm": "ROCm (AMD Native)",
   "dialog.backend_picker.rocm_lemonade": "ROCm Lemonade (AMD Optimized)",
+  "dialog.backend_picker.strix_halo": "Strix Halo (ROCm gfx1151)",
   "dialog.backend_picker.cuda": "CUDA (NVIDIA Native)",
   "dialog.backend_picker.cpu_arm64": "CPU ARM64",
   "dialog.backend_picker.cpu_windows": "CPU (Windows)",

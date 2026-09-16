@@ -228,6 +228,8 @@ impl std::hash::Hash for ModelSettings {
         self.llama_cpp_version_vulkan.hash(state);
         self.llama_cpp_version_rocm.hash(state);
         self.llama_cpp_version_rocm_lemonade.hash(state);
+        self.llama_cpp_version_strix_halo.hash(state);
+        self.llama_cpp_strix_halo_rocm.hash(state);
         self.llama_cpp_version_cuda.hash(state);
         self.api_endpoint_enabled.hash(state);
         self.api_endpoint_port.hash(state);
@@ -248,6 +250,7 @@ impl ModelSettings {
             Backend::Vulkan => self.llama_cpp_version_vulkan.as_ref(),
             Backend::Rocm => self.llama_cpp_version_rocm.as_ref(),
             Backend::RocmLemonade => self.llama_cpp_version_rocm_lemonade.as_ref(),
+            Backend::StrixHalo => self.llama_cpp_version_strix_halo.as_ref(),
             Backend::Cuda => self.llama_cpp_version_cuda.as_ref(),
             _ => None,
         }
@@ -267,6 +270,7 @@ impl ModelSettings {
             Backend::Vulkan => self.llama_cpp_version_vulkan = tag,
             Backend::Rocm => self.llama_cpp_version_rocm = tag,
             Backend::RocmLemonade => self.llama_cpp_version_rocm_lemonade = tag,
+            Backend::StrixHalo => self.llama_cpp_version_strix_halo = tag,
             Backend::Cuda => self.llama_cpp_version_cuda = tag,
             _ => {}
         }
@@ -393,6 +397,8 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_vulkan: dp.llama_cpp_version_vulkan,
             llama_cpp_version_rocm: dp.llama_cpp_version_rocm,
             llama_cpp_version_rocm_lemonade: dp.llama_cpp_version_rocm_lemonade,
+            llama_cpp_version_strix_halo: dp.llama_cpp_version_strix_halo,
+            llama_cpp_strix_halo_rocm: dp.llama_cpp_strix_halo_rocm,
             llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
             api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
@@ -708,6 +714,8 @@ pub enum Backend {
     Rocm,
     #[serde(rename = "rocm_lemonade")]
     RocmLemonade,
+    #[serde(rename = "strix_halo")]
+    StrixHalo,
     #[serde(rename = "cuda")]
     Cuda,
     #[serde(rename = "cpu_arm64")]
@@ -736,6 +744,7 @@ impl Backend {
             Backend::Vulkan => "vulkan",
             Backend::Rocm => "rocm",
             Backend::RocmLemonade => "rocm-lemonade",
+            Backend::StrixHalo => "strix-halo",
             Backend::Cuda => "cuda",
             Backend::CpuArm64 => "cpu-arm64",
             Backend::CpuWindows => "win-cpu",
@@ -756,6 +765,7 @@ impl Backend {
             "vulkan" => Some(Backend::Vulkan),
             "rocm" => Some(Backend::Rocm),
             "rocm-lemonade" => Some(Backend::RocmLemonade),
+            "strix-halo" => Some(Backend::StrixHalo),
             "cuda" => Some(Backend::Cuda),
             "cpu-arm64" => Some(Backend::CpuArm64),
             "win-cpu" => Some(Backend::CpuWindows),
@@ -777,6 +787,7 @@ impl Backend {
                 | Backend::Vulkan
                 | Backend::Rocm
                 | Backend::RocmLemonade
+                | Backend::StrixHalo
                 | Backend::Cuda
                 | Backend::CpuArm64
         )
@@ -811,7 +822,7 @@ impl Backend {
     pub fn is_rocm(self) -> bool {
         matches!(
             self,
-            Backend::Rocm | Backend::RocmLemonade | Backend::HipWindows
+            Backend::Rocm | Backend::RocmLemonade | Backend::StrixHalo | Backend::HipWindows
         )
     }
 
@@ -1050,6 +1061,11 @@ pub struct ModelSettings {
     pub llama_cpp_version_rocm: Option<String>,
     /// Lemonade llama.cpp release tag for ROCm backend.
     pub llama_cpp_version_rocm_lemonade: Option<String>,
+    /// llama.cpp release tag for Strix Halo backend (e.g. "b10991" or None for latest).
+    pub llama_cpp_version_strix_halo: Option<String>,
+    /// ROCm version for Strix Halo backend (e.g. "7.2.4", "7.14.0", "10.0.0",
+    /// or "auto"/None to pick the newest available in the release).
+    pub llama_cpp_strix_halo_rocm: Option<String>,
     /// llama.cpp release tag for CUDA backend.
     pub llama_cpp_version_cuda: Option<String>,
     /// Whether to enable the API proxy server.
@@ -2623,8 +2639,8 @@ mod field_count_tests {
         let s = ModelSettings::default();
         let field_count = count_model_settings_fields(&s);
         assert_eq!(
-            field_count, 74,
-            "ModelSettings has {} fields (expected 74). \
+            field_count, 76,
+            "ModelSettings has {} fields (expected 76). \
         Update the checklist at src/models.rs:665 and all locations listed there.",
             field_count
         );
@@ -2704,6 +2720,8 @@ mod field_count_tests {
             &s.llama_cpp_version_vulkan,
             &s.llama_cpp_version_rocm,
             &s.llama_cpp_version_rocm_lemonade,
+            &s.llama_cpp_version_strix_halo,
+            &s.llama_cpp_strix_halo_rocm,
             &s.llama_cpp_version_cuda,
             &s.api_endpoint_enabled,
             &s.api_endpoint_port,
@@ -2712,7 +2730,7 @@ mod field_count_tests {
             &s.draft_tokens,
             &s.tags,
         );
-        74
+        76
     }
 
     /// Verify that is_dirty() uses derived PartialEq (compiler-enforced).

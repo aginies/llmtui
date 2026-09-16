@@ -37,6 +37,9 @@ impl App {
                 for vendor in hardware::detect_gpu_vendors() {
                     match vendor {
                         hardware::GpuVendor::Amd => {
+                            if hardware::is_strix_halo() {
+                                entries.push((crate::models::Backend::StrixHalo, None));
+                            }
                             entries.push((crate::models::Backend::Rocm, None));
                             entries.push((crate::models::Backend::RocmLemonade, None));
                         }

@@ -302,6 +302,8 @@ pub struct ModelOverride {
     pub llama_cpp_version_vulkan: Option<String>,
     pub llama_cpp_version_rocm: Option<String>,
     pub llama_cpp_version_rocm_lemonade: Option<String>,
+    pub llama_cpp_version_strix_halo: Option<String>,
+    pub llama_cpp_strix_halo_rocm: Option<String>,
     pub llama_cpp_version_cuda: Option<String>,
     pub spec_type: Option<String>,
     pub draft_tokens: Option<u32>,
@@ -412,6 +414,8 @@ impl ModelOverride {
             llama_cpp_version_vulkan: s.llama_cpp_version_vulkan.clone(),
             llama_cpp_version_rocm: s.llama_cpp_version_rocm.clone(),
             llama_cpp_version_rocm_lemonade: s.llama_cpp_version_rocm_lemonade.clone(),
+            llama_cpp_version_strix_halo: s.llama_cpp_version_strix_halo.clone(),
+            llama_cpp_strix_halo_rocm: s.llama_cpp_strix_halo_rocm.clone(),
             llama_cpp_version_cuda: s.llama_cpp_version_cuda.clone(),
             spec_type: Some(s.spec_type.clone()),
             draft_tokens: Some(s.draft_tokens),
@@ -502,6 +506,8 @@ impl ModelOverride {
             llama_cpp_version_vulkan,
             llama_cpp_version_rocm,
             llama_cpp_version_rocm_lemonade,
+            llama_cpp_version_strix_halo,
+            llama_cpp_strix_halo_rocm,
             llama_cpp_version_cuda,
         );
 
@@ -839,6 +845,10 @@ pub struct DefaultParams {
     #[serde(default)]
     pub llama_cpp_version_rocm_lemonade: Option<String>,
     #[serde(default)]
+    pub llama_cpp_version_strix_halo: Option<String>,
+    #[serde(default)]
+    pub llama_cpp_strix_halo_rocm: Option<String>,
+    #[serde(default)]
     pub llama_cpp_version_cuda: Option<String>,
 
     // API
@@ -1136,6 +1146,8 @@ impl Default for DefaultParams {
             llama_cpp_version_vulkan: None,
             llama_cpp_version_rocm: None,
             llama_cpp_version_rocm_lemonade: None,
+            llama_cpp_version_strix_halo: None,
+            llama_cpp_strix_halo_rocm: None,
             llama_cpp_version_cuda: None,
             api_endpoint_enabled: false,
             api_endpoint_port: default_api_endpoint_port(),
@@ -1282,6 +1294,8 @@ impl Config {
             "llama_cpp_version_vulkan",
             "llama_cpp_version_rocm",
             "llama_cpp_version_rocm_lemonade",
+            "llama_cpp_version_strix_halo",
+            "llama_cpp_strix_halo_rocm",
             "llama_cpp_version_cuda",
             "api_endpoint_enabled",
             "api_endpoint_port",
@@ -1367,6 +1381,8 @@ impl Config {
             "llama_cpp_version_vulkan",
             "llama_cpp_version_rocm",
             "llama_cpp_version_rocm_lemonade",
+            "llama_cpp_version_strix_halo",
+            "llama_cpp_strix_halo_rocm",
             "llama_cpp_version_cuda",
             "spec_type",
             "draft_tokens",

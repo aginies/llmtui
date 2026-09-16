@@ -46,6 +46,7 @@ impl OverlayHandler for BackendPickerHandler {
                         ) {
                             app.pending.backend_resolving = true;
                             let tag_param = tag.clone();
+                            let rocm_param = app.settings.llama_cpp_strix_halo_rocm.clone();
                             if app.download.download_rx.is_none() {
                                 let (tx, rx) = tokio::sync::broadcast::channel(10);
                                 app.download.download_tx = Some(tx);
@@ -58,6 +59,7 @@ impl OverlayHandler for BackendPickerHandler {
                                 crate::backend::hub::resolve_backend_binary(
                                     backend,
                                     tag_param.as_deref(),
+                                    rocm_param.as_deref(),
                                     Some(log_tx),
                                     tx,
                                 )

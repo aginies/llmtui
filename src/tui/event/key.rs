@@ -423,19 +423,24 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 .settings
                 .get_active_backend_version()
                 .map(|s| s.as_str());
-            let binary_path =
-                match hub::resolve_backend_binary(app.settings.backend, version_param, None, None)
-                    .await
-                {
-                    Ok(path) => path,
-                    Err(e) => {
-                        app.add_log(
-                            format!("Failed to resolve llama-server binary: {}", e),
-                            crate::config::LogLevel::Error,
-                        );
-                        return;
-                    }
-                };
+            let binary_path = match hub::resolve_backend_binary(
+                app.settings.backend,
+                version_param,
+                app.settings.llama_cpp_strix_halo_rocm.as_deref(),
+                None,
+                None,
+            )
+            .await
+            {
+                Ok(path) => path,
+                Err(e) => {
+                    app.add_log(
+                        format!("Failed to resolve llama-server binary: {}", e),
+                        crate::config::LogLevel::Error,
+                    );
+                    return;
+                }
+            };
             let model = app.selected_model().cloned();
             let (_cmd, cmd_line) = crate::backend::server::build_server_cmd(
                 &binary_path,

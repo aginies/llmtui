@@ -1282,6 +1282,7 @@ fn render_backend_picker(
                     (v, backend, tag),
                     (GpuVendor::Amd, crate::models::Backend::Rocm, None)
                         | (GpuVendor::Amd, crate::models::Backend::RocmLemonade, None)
+                        | (GpuVendor::Amd, crate::models::Backend::StrixHalo, None)
                         | (GpuVendor::Nvidia, crate::models::Backend::Cuda, None)
                         | (GpuVendor::Nvidia, crate::models::Backend::Vulkan, None)
                         | (GpuVendor::Intel, crate::models::Backend::Vulkan, None)
@@ -1303,6 +1304,9 @@ fn render_backend_picker(
                 crate::models::Backend::Rocm => crate::t!("dialog.backend_picker.rocm"),
                 crate::models::Backend::RocmLemonade => {
                     crate::t!("dialog.backend_picker.rocm_lemonade")
+                }
+                crate::models::Backend::StrixHalo => {
+                    crate::t!("dialog.backend_picker.strix_halo")
                 }
                 crate::models::Backend::Cuda => crate::t!("dialog.backend_picker.cuda"),
                 crate::models::Backend::CpuArm64 => crate::t!("dialog.backend_picker.cpu_arm64"),

@@ -113,6 +113,7 @@
   "dialog.backend_picker.recommended": "(Recommandé)",
   "dialog.backend_picker.rocm": "ROCm (AMD natif)",
   "dialog.backend_picker.rocm_lemonade": "ROCm Lemonade (AMD optimisé)",
+  "dialog.backend_picker.strix_halo": "Strix Halo (ROCm gfx1151)",
   "dialog.backend_picker.select": " Sélectionner l'accélération backend ",
   "dialog.backend_picker.title": "Sélecteur de Backend",
   "dialog.backend_picker.version": "{} (dernier/auto)",

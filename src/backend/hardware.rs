@@ -211,6 +211,11 @@ pub fn detect_amd_gfx_target() -> Option<String> {
     detect_amd_gfx_targets().into_iter().next()
 }
 
+/// Returns true if the detected AMD GPU is a Strix Halo (gfx1151, Ryzen AI 300).
+pub fn is_strix_halo() -> bool {
+    detect_amd_gfx_target().as_deref() == Some("gfx1151")
+}
+
 /// Get the best Lemonade asset suffix for the detected AMD architecture
 pub fn get_lemonade_gfx_suffix(gfx: &str) -> &'static str {
     if gfx.starts_with("gfx103") {

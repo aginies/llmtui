@@ -1816,6 +1816,7 @@ dependencies = [
  "uuid",
  "wiremock",
  "x509-parser 0.16.0",
+ "xz2",
  "zip",
 ]
 

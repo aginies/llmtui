@@ -11,9 +11,9 @@ use std::path::Path;
 /// Expected field counts for each struct.
 /// These represent the total number of `pub field_name: Type` lines
 /// within each struct body (excluding comments and blank lines).
-const EXPECTED_DEFAULT_PARAMS_FIELDS: usize = 91;
-const EXPECTED_MODEL_SETTINGS_FIELDS: usize = 79;
-const EXPECTED_MODEL_OVERRIDE_FIELDS: usize = 70;
+const EXPECTED_DEFAULT_PARAMS_FIELDS: usize = 93;
+const EXPECTED_MODEL_SETTINGS_FIELDS: usize = 81;
+const EXPECTED_MODEL_OVERRIDE_FIELDS: usize = 72;
 
 fn main() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();

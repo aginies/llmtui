@@ -1370,6 +1370,20 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
         llama_cpp_version_rocm_lemonade,
         "llama_cpp_rocm_lemonade"
     );
+    diff_option!(
+        parts,
+        s,
+        current,
+        llama_cpp_version_strix_halo,
+        "llama_cpp_strix_halo"
+    );
+    diff_option!(
+        parts,
+        s,
+        current,
+        llama_cpp_strix_halo_rocm,
+        "llama_cpp_strix_halo_rocm"
+    );
     diff_option!(parts, s, current, llama_cpp_version_cuda, "llama_cpp_cuda");
     diff_string!(parts, s, current, spec_type, "spec_type");
 
