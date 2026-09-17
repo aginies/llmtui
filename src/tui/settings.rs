@@ -1412,3 +1412,205 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
 
     parts
 }
+
+// ── ModelSettings vs ModelSettings diff (per-model settings profiles) ────────
+
+macro_rules! ms_diff_int {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if $s.$field != $c.$field {
+            $parts.push(format!("{}={}", $label, $s.$field));
+        }
+    };
+}
+macro_rules! ms_diff_float {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if ($s.$field - $c.$field).abs() > 0.001 {
+            $parts.push(format!("{}={:.2}", $label, $s.$field));
+        }
+    };
+}
+macro_rules! ms_diff_bool {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if $s.$field != $c.$field {
+            $parts.push(format!("{}={}", $label, $s.$field));
+        }
+    };
+}
+macro_rules! ms_diff_string {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if $s.$field != $c.$field {
+            $parts.push(format!("{}={}", $label, $s.$field));
+        }
+    };
+}
+macro_rules! ms_diff_option {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if $s.$field != $c.$field
+            && let Some(ref v) = $s.$field
+        {
+            $parts.push(format!("{}={}", $label, v));
+        }
+    };
+}
+macro_rules! ms_diff_enum {
+    ($parts:expr, $s:expr, $c:expr, $field:ident, $label:literal) => {
+        if $s.$field != $c.$field {
+            $parts.push(format!("{}={}", $label, $s.$field));
+        }
+    };
+}
+
+/// Build a list of "field=value" parts for the fields that differ between
+/// the current settings and a per-model settings profile (both full
+/// `ModelSettings`). Used by the LLM settings profile picker to preview
+/// what applying the profile would change.
+pub fn model_settings_diff_parts(current: &ModelSettings, profile: &ModelSettings) -> Vec<String> {
+    let mut parts = Vec::new();
+    let s = profile;
+
+    // ── Integers ──────────────────────────────────────────────────────────
+    if s.context_length != current.context_length {
+        parts.push(format!(
+            "ctx={}",
+            format_context_k(s.context_length, s.rope_yarn_enabled, s.rope_scale)
+        ));
+    }
+    ms_diff_int!(parts, s, current, threads, "threads");
+    ms_diff_int!(parts, s, current, threads_batch, "threads_batch");
+    ms_diff_int!(parts, s, current, batch_size, "batch");
+    ms_diff_int!(parts, s, current, ubatch_size, "ubatch");
+    ms_diff_int!(parts, s, current, parallel, "parallel");
+    ms_diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
+    ms_diff_int!(parts, s, current, keep, "keep");
+    ms_diff_int!(parts, s, current, main_gpu, "main_gpu");
+    ms_diff_int!(parts, s, current, expert_count, "experts");
+    ms_diff_int!(parts, s, current, seed, "seed");
+    ms_diff_int!(parts, s, current, top_k, "top_k");
+    ms_diff_int!(parts, s, current, repeat_last_n, "repeat_last_n");
+    ms_diff_int!(parts, s, current, dry_allowed_length, "dry_allowed");
+    ms_diff_int!(parts, s, current, dry_penalty_last_n, "dry_penalty_last_n");
+    ms_diff_int!(parts, s, current, cache_reuse, "cache_reuse");
+    ms_diff_int!(parts, s, current, draft_tokens, "draft_tokens");
+    ms_diff_option!(parts, s, current, max_tokens, "max_tokens");
+
+    // ── Floats ────────────────────────────────────────────────────────────
+    ms_diff_float!(parts, s, current, temperature, "temp");
+    ms_diff_float!(parts, s, current, top_p, "top_p");
+    ms_diff_float!(parts, s, current, min_p, "min_p");
+    ms_diff_float!(parts, s, current, typical_p, "typical_p");
+    ms_diff_float!(parts, s, current, mirostat_lr, "mirostat_lr");
+    ms_diff_float!(parts, s, current, mirostat_ent, "mirostat_ent");
+    ms_diff_float!(parts, s, current, repeat_penalty, "rep_pen");
+    ms_diff_option!(parts, s, current, presence_penalty, "pres_pen");
+    ms_diff_option!(parts, s, current, frequency_penalty, "freq_pen");
+    ms_diff_float!(parts, s, current, dry_multiplier, "dry_mult");
+    ms_diff_float!(parts, s, current, dry_base, "dry_base");
+    ms_diff_float!(parts, s, current, rope_scale, "rope_scale");
+    ms_diff_float!(parts, s, current, rope_freq_base, "rope_freq_base");
+    ms_diff_float!(parts, s, current, rope_freq_scale, "rope_freq_scale");
+
+    // ── Bools ─────────────────────────────────────────────────────────────
+    ms_diff_bool!(parts, s, current, swa_full, "swa_full");
+    ms_diff_bool!(parts, s, current, uniform_cache, "uniform_cache");
+    ms_diff_bool!(parts, s, current, kv_cache_offload, "kv_cache_offload");
+    ms_diff_bool!(parts, s, current, fit, "fit");
+    ms_diff_bool!(parts, s, current, embedding, "embedding");
+    ms_diff_bool!(parts, s, current, flash_attn, "flash_attn");
+    ms_diff_bool!(parts, s, current, jinja, "jinja");
+    ms_diff_bool!(parts, s, current, auto_chat_template, "auto_chat_template");
+    ms_diff_bool!(parts, s, current, ignore_eos, "ignore_eos");
+    ms_diff_bool!(parts, s, current, rope_yarn_enabled, "yarn_enabled");
+    ms_diff_bool!(parts, s, current, cache_prompt, "cache_prompt");
+    ms_diff_bool!(parts, s, current, webui, "webui");
+
+    // ── Strings ───────────────────────────────────────────────────────────
+    ms_diff_string!(parts, s, current, system_prompt_preset_name, "preset");
+    ms_diff_string!(parts, s, current, tensor_split, "tensor_split");
+    ms_diff_string!(parts, s, current, rpc, "rpc");
+    ms_diff_string!(parts, s, current, spec_type, "spec_type");
+    if s.chat_template != current.chat_template
+        && let Some(ref v) = s.chat_template
+    {
+        let filename = std::path::Path::new(v)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(v);
+        parts.push(format!("chat_template={}", filename));
+    }
+    ms_diff_option!(
+        parts,
+        s,
+        current,
+        chat_template_kwargs,
+        "chat_template_kwargs"
+    );
+
+    // ── Option paths / version tags ───────────────────────────────────────
+    if s.lora != current.lora
+        && let Some(ref v) = s.lora
+    {
+        let fallback = v.to_string_lossy().to_string();
+        let filename = v.file_name().and_then(|n| n.to_str()).unwrap_or(&fallback);
+        parts.push(format!("lora={}", filename));
+    }
+    if s.lora_scaled != current.lora_scaled
+        && let Some((ref v, scale)) = s.lora_scaled
+    {
+        let fallback = v.to_string_lossy().to_string();
+        let filename = v.file_name().and_then(|n| n.to_str()).unwrap_or(&fallback);
+        parts.push(format!("lora={}@{:.2}", filename, scale));
+    }
+    ms_diff_option!(parts, s, current, llama_cpp_version_cpu, "llama_cpp_cpu");
+    ms_diff_option!(
+        parts,
+        s,
+        current,
+        llama_cpp_version_vulkan,
+        "llama_cpp_vulkan"
+    );
+    ms_diff_option!(parts, s, current, llama_cpp_version_rocm, "llama_cpp_rocm");
+    ms_diff_option!(
+        parts,
+        s,
+        current,
+        llama_cpp_version_rocm_lemonade,
+        "llama_cpp_rocm_lemonade"
+    );
+    ms_diff_option!(
+        parts,
+        s,
+        current,
+        llama_cpp_version_strix_halo,
+        "llama_cpp_strix_halo"
+    );
+    ms_diff_option!(
+        parts,
+        s,
+        current,
+        llama_cpp_strix_halo_rocm,
+        "llama_cpp_strix_halo_rocm"
+    );
+    ms_diff_option!(parts, s, current, llama_cpp_version_cuda, "llama_cpp_cuda");
+
+    // ── Enums ─────────────────────────────────────────────────────────────
+    if s.gpu_layers_mode != current.gpu_layers_mode {
+        let display = match s.gpu_layers_mode {
+            GpuLayersMode::Auto => "Auto".to_string(),
+            GpuLayersMode::Specific(n) => n.to_string(),
+            GpuLayersMode::All => "All".to_string(),
+        };
+        parts.push(format!("gpu_layers={}", display));
+    }
+    ms_diff_enum!(parts, s, current, load_mode, "load_mode");
+    ms_diff_enum!(parts, s, current, numa, "numa");
+    ms_diff_enum!(parts, s, current, split_mode, "split_mode");
+    ms_diff_enum!(parts, s, current, mirostat, "mirostat");
+    ms_diff_enum!(parts, s, current, samplers, "samplers");
+    ms_diff_enum!(parts, s, current, rope_scaling, "rope_scaling");
+    ms_diff_enum!(parts, s, current, cache_type, "cache_type");
+    ms_diff_option!(parts, s, current, cache_type_k, "cache_type_k");
+    ms_diff_option!(parts, s, current, cache_type_v, "cache_type_v");
+    ms_diff_enum!(parts, s, current, backend, "backend");
+
+    parts
+}

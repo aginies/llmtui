@@ -1,4 +1,5 @@
 mod model_config;
+mod model_settings_store;
 mod presets;
 mod profiles;
 mod store;
@@ -11,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 pub use model_config::{ModelConfigStore, display_from_key, key_from_display};
+pub use model_settings_store::ModelSettingsStore;
 
 pub use profiles::ProfileStore;
 
@@ -107,6 +109,9 @@ pub struct Config {
     /// Per-model overrides (keyed by display_name/path relative to model dir, stored as YAML in models/).
     #[serde(default, skip)]
     pub model_overrides: ModelConfigStore,
+    /// Per-model named LLM settings profiles (stored as YAML in model_settings/).
+    #[serde(default, skip)]
+    pub model_settings_profiles: ModelSettingsStore,
     /// Named profiles of settings presets (stored as YAML in profiles/).
     #[serde(default, skip)]
     pub profiles: ProfileStore,
@@ -1176,6 +1181,7 @@ impl Default for Config {
             llama_server: "llama-server".into(),
             default: DefaultParams::default(),
             model_overrides: ModelConfigStore::new(),
+            model_settings_profiles: ModelSettingsStore::new(),
             profiles: Default::default(),
             system_prompt_presets: Default::default(),
             rpc_workers: Vec::new(),
@@ -1201,6 +1207,7 @@ impl Config {
             "llama_server",
             "default",
             "model_overrides",
+            "model_settings_profiles",
             "profiles",
             "system_prompt_presets",
             "rpc_workers",
@@ -1840,6 +1847,33 @@ impl Config {
         }
 
         settings
+    }
+
+    /// Resolve settings for a model, applying a per-model named profile if specified.
+    /// Falls back to the standard resolve_settings if no per-model profile is found.
+    pub fn resolve_settings_with_profile(
+        &self,
+        model_name: Option<&str>,
+        profile_name: Option<&str>,
+    ) -> crate::models::ModelSettings {
+        // If a per-model profile is specified, load from it
+        if let Some(p_name) = profile_name
+            && let Some(model_name) = model_name
+            && let Some(profile) = self.model_settings_profiles.get(model_name, p_name)
+        {
+            let mut settings = profile.settings.clone();
+            // Resolve system_prompt from preset name
+            if let Some(preset) = self
+                .system_prompt_presets
+                .get(&settings.system_prompt_preset_name)
+            {
+                settings.system_prompt = preset.content.clone();
+            }
+            return settings;
+        }
+
+        // Fall back to the original behavior
+        self.resolve_settings(model_name, None)
     }
 
     /// Get a system prompt preset content by name.

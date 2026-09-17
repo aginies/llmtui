@@ -208,9 +208,10 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
-    // Open tags modal from settings panel
+    // Open tags modal from settings panel (plain 't' only — Ctrl+T opens the settings profile picker)
     if app.ui.active_panel == ActivePanel::LlmSettings
         && key.code == KeyCode::Char('t')
+        && key.modifiers.is_empty()
         && !app.edit.tags_editing
     {
         app.edit.tags_editing = true;
@@ -588,7 +589,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             *sort_by = sort_by.next();
             app.invalidate_list_caches();
         }
-        app.save_model_settings();
+        app.save_current_settings();
         return;
     }
 
@@ -2010,7 +2011,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             sync_global_settings(app);
         }
         KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            app.save_model_settings();
+            app.save_current_settings();
         }
         _ => {}
     }

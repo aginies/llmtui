@@ -63,7 +63,7 @@ fn render_popup(
     );
 }
 
-const PICKER_WIDTH: u16 = 60;
+const PICKER_WIDTH: u16 = 80;
 const PADDING: Padding = Padding {
     left: 1,
     right: 1,
@@ -539,6 +539,32 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::ModelSettingsPicker { entries, selected } = &app.ui.global_mode {
+        render_model_settings_picker(f, f.area(), app, entries, *selected);
+        return true;
+    }
+
+    if let GlobalMode::ProfileCreate {
+        name,
+        description,
+        editing,
+        edit_buffer,
+        edit_cursor_pos: _,
+        field,
+    } = &app.ui.global_mode
+    {
+        render_profile_create(
+            f,
+            f.area(),
+            name,
+            description,
+            *editing,
+            edit_buffer,
+            *field,
+        );
+        return true;
+    }
+
     false
 }
 
@@ -825,6 +851,23 @@ fn render_confirmation(
                 ],
             )
         }
+        ConfirmationKind::DeleteSettingsProfile => (
+            crate::t!("dialog.delete_settings_profile.title"),
+            vec![
+                Line::from(""),
+                Line::from(vec![
+                    Span::raw(crate::t!("dialog.delete_settings_profile.message")),
+                    Span::raw(" "),
+                    Span::styled(
+                        display_name,
+                        Style::default().fg(RED).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw("?"),
+                ]),
+                Line::from(""),
+                Line::from(crate::t!("dialog.delete_settings_profile.confirm")),
+            ],
+        ),
     };
     let mut lines = text_lines;
     lines.push(Line::from(""));
@@ -883,7 +926,10 @@ fn render_confirmation(
         .title_style(Style::default().fg(ACCENT))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(
-            if kind == ConfirmationKind::Delete || kind == ConfirmationKind::DeleteBackend {
+            if kind == ConfirmationKind::Delete
+                || kind == ConfirmationKind::DeleteBackend
+                || kind == ConfirmationKind::DeleteSettingsProfile
+            {
                 RED
             } else {
                 ACCENT
@@ -3523,6 +3569,196 @@ fn render_llama_server_picker(
         area,
         Span::styled(
             crate::t!("dialog.llama_server.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        None,
+        picker_lines,
+        Some(footer),
+        None,
+    );
+}
+
+fn render_model_settings_picker(
+    f: &mut Frame,
+    area: Rect,
+    app: &App,
+    entries: &[(String, String)],
+    selected: usize,
+) {
+    let model_name = app
+        .selected_model()
+        .map(|m| m.display_name.clone())
+        .unwrap_or_default();
+    // Title shows only the filename without extension (the full display
+    // name is a relative path and gets cut off in the narrow title).
+    let model_title = app
+        .selected_model()
+        .and_then(|m| m.path.file_stem().map(|s| s.to_string_lossy().into_owned()))
+        .unwrap_or_default();
+    let title_text: String = if model_title.is_empty() {
+        crate::t!("dialog.model_settings_picker.title").to_string()
+    } else {
+        crate::t_fmt!("dialog.model_settings_picker.title_model", model_title)
+    };
+
+    let blocks: Vec<Vec<Line>> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, (name, desc))| {
+            let marker = if i == selected { "> " } else { "  " };
+            let is_active = app
+                .active_settings_profile()
+                .is_some_and(|p| p.name == *name);
+            let is_new_entry = i == 0;
+            let style = if i == selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else if is_active {
+                Style::default().fg(GREEN).add_modifier(Modifier::BOLD)
+            } else if is_new_entry {
+                Style::default().fg(DIM_GRAY).add_modifier(Modifier::ITALIC)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            let active_marker = if is_active { " ★" } else { "" };
+            let mut block = vec![Line::from(vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(name.to_string(), style),
+                Span::raw(active_marker),
+            ])];
+            if !desc.is_empty() {
+                block.push(Line::from(Span::styled(
+                    format!("    {}", desc),
+                    Style::default().fg(DIM_GRAY),
+                )));
+            }
+            // Show a diff of the parameters for the selected profile
+            if i == selected
+                && !is_new_entry
+                && let Some(profile) = app.config.model_settings_profiles.get(&model_name, name)
+            {
+                let parts = crate::tui::settings::model_settings_diff_parts(
+                    &app.settings,
+                    &profile.settings,
+                );
+                // Divider separating the description from the diff block
+                block.push(Line::from(Span::styled(
+                    "  ─────────────────────".to_string(),
+                    Style::default().fg(MID_GRAY),
+                )));
+                if parts.is_empty() {
+                    block.push(Line::from(Span::styled(
+                        format!("    {}", crate::t!("dialog.model_settings_picker.no_diff")),
+                        Style::default().fg(DIM_GRAY),
+                    )));
+                } else {
+                    for part in parts {
+                        block.push(Line::from(Span::styled(
+                            format!("    {}", part),
+                            Style::default().fg(DIM_GRAY),
+                        )));
+                    }
+                }
+            }
+            // Blank line between profiles for readability
+            if i + 1 < entries.len() {
+                block.push(Line::from(""));
+            }
+            block
+        })
+        .collect();
+
+    let (fit, off, _) = picker_block_window(area, &blocks, selected, &mut 0usize, 2);
+    let lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
+
+    let help = Line::from(vec![Span::styled(
+        crate::t!("dialog.model_settings_picker.help"),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+    )]);
+
+    render_picker_popup(
+        f,
+        area,
+        Span::styled(
+            title_text,
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        Some(help),
+        lines,
+        None,
+        None,
+    );
+}
+
+fn render_profile_create(
+    f: &mut Frame,
+    area: Rect,
+    name: &str,
+    description: &str,
+    editing: bool,
+    edit_buffer: &str,
+    field: i32,
+) {
+    let mut picker_lines: Vec<Line> = Vec::new();
+
+    // Name field
+    let name_marker = if field == 0 { "> " } else { "  " };
+    let name_val = if editing && field == 0 {
+        format!("{}|", edit_buffer)
+    } else if name.is_empty() {
+        crate::t!("dialog.profile_create.name_placeholder").to_string()
+    } else {
+        name.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(name_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.profile_create.name"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(name_val, Style::default().fg(WHITE)),
+    ]));
+    picker_lines.push(Line::from(""));
+
+    // Description field
+    let desc_marker = if field == 1 { "> " } else { "  " };
+    let desc_val = if editing && field == 1 {
+        format!("{}|", edit_buffer)
+    } else if description.is_empty() {
+        crate::t!("dialog.profile_create.description_placeholder").to_string()
+    } else {
+        description.to_string()
+    };
+    picker_lines.push(Line::from(vec![
+        Span::styled(desc_marker, Style::default().fg(ACCENT)),
+        Span::styled(
+            crate::t!("dialog.profile_create.description"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw(": "),
+        Span::styled(desc_val, Style::default().fg(WHITE)),
+    ]));
+    picker_lines.push(Line::from(""));
+
+    let footer = Line::from(vec![Span::styled(
+        crate::t!("dialog.profile_create.help"),
+        Style::default().fg(BLACK).bg(DIM_GRAY),
+    )]);
+
+    render_picker_popup(
+        f,
+        area,
+        Span::styled(
+            crate::t!("dialog.profile_create.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
         None,

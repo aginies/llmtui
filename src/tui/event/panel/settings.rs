@@ -99,9 +99,20 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // ── Global shortcuts ─────────────────────────────────────────────────────
 
-    // Ctrl+S: save settings
-    if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
-        app.save_model_settings();
+    // Ctrl+S: save settings (to the active profile if one is selected)
+    if key.code == KeyCode::Char('s')
+        && key.modifiers.contains(KeyModifiers::CONTROL)
+        && !key.modifiers.contains(KeyModifiers::SHIFT)
+    {
+        app.save_current_settings();
+        return;
+    }
+
+    // Ctrl+T: open per-model settings profile picker.
+    // The "+ New profile" entry inside it opens the save-as-profile dialog
+    // (Ctrl+Shift+S is unusable: terminals send the same byte as Ctrl+S).
+    if key.code == KeyCode::Char('t') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        app.open_model_settings_picker();
         return;
     }
 

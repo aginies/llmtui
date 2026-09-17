@@ -16,6 +16,7 @@ fn make_app() -> App {
         llama_server: PathBuf::new(),
         default: llm_manager::config::DefaultParams::default(),
         model_overrides: llm_manager::config::ModelConfigStore::new(),
+        model_settings_profiles: llm_manager::config::ModelSettingsStore::new(),
         profiles: llm_manager::config::ProfileStore::new(),
         system_prompt_presets: llm_manager::config::PresetStore::new(),
         rpc_workers: Vec::new(),

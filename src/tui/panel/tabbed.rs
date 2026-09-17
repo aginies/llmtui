@@ -61,10 +61,17 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     render_server_settings(f, server_area, app);
 
     // ── LLM Settings ─────────────────────────────────────────
+    // Reserve one line below the title for the active profile indicator
+    let content_area = Rect {
+        x: llm_area.x,
+        y: llm_area.y,
+        width: llm_area.width,
+        height: llm_area.height.saturating_sub(1),
+    };
     let (settings_lines, _count, settings_height, _selected_line_idx, help_line) =
-        settings::render_all(app, llm_area, false);
+        settings::render_all(app, content_area, false);
 
-    let available_height = llm_area.height.saturating_sub(2);
+    let available_height = llm_area.height.saturating_sub(3);
     let start_idx = app.settings_state.settings_scroll_offset;
 
     let _border_color = if is_focused { LIGHT_GREEN } else { DIM_GRAY };
@@ -109,6 +116,42 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
     // Render UNSAVED watermark behind content
     render_unsaved_watermark(f, llm_area, app);
 
+    // Active settings profile line, below the title
+    let active_profile = app.active_settings_profile();
+    let profile_line = match &active_profile {
+        Some(p) => Line::from(vec![
+            Span::styled(
+                crate::t!("panel.llm.profile").to_string(),
+                Style::default().fg(ACCENT),
+            ),
+            Span::styled(
+                p.name.clone(),
+                Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        None => Line::from(vec![
+            Span::styled(
+                crate::t!("panel.llm.profile").to_string(),
+                Style::default().fg(ACCENT),
+            ),
+            Span::styled(
+                crate::t!("panel.llm.profile_default").to_string(),
+                Style::default().fg(DIM_GRAY),
+            ),
+        ]),
+    };
+    let content_top = inner.y + 1;
+    let content_height = inner.height.saturating_sub(1);
+    f.render_widget(
+        Paragraph::new(profile_line),
+        Rect {
+            x: inner.x,
+            y: inner.y,
+            width: inner.width,
+            height: 1,
+        },
+    );
+
     if let Some(ref help_text) = help_line {
         let help_char_len = help_text.chars().count();
         let help_text_lines = if inner.width > 0 {
@@ -146,9 +189,9 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
 
         let settings_area = Rect {
             x: inner.x,
-            y: inner.y,
+            y: content_top,
             width: inner.width,
-            height: inner.height.saturating_sub(help_area_height),
+            height: content_height.saturating_sub(help_area_height),
         };
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 
@@ -173,9 +216,9 @@ pub fn render_settings_only(f: &mut Frame, area: Rect, app: &mut App) {
 
         let settings_area = Rect {
             x: inner.x,
-            y: inner.y,
+            y: content_top,
             width: inner.width,
-            height: inner.height,
+            height: content_height,
         };
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 
@@ -486,10 +529,17 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
         .border_style(Style::default().fg(border_color))
         .border_type(border_type);
 
+    // Reserve one line below the title for the active profile indicator
+    let content_area = Rect {
+        x: area.x,
+        y: area.y,
+        width: area.width,
+        height: area.height.saturating_sub(1),
+    };
     let (all_lines, _count, settings_height, _selected_line_idx, help_line) =
-        settings::render_all(app, area, false);
+        settings::render_all(app, content_area, false);
 
-    let available_height = area.height.saturating_sub(2);
+    let available_height = area.height.saturating_sub(3);
     let start_idx = app.settings_state.settings_scroll_offset;
 
     let inner = block.inner(area);
@@ -499,6 +549,42 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 
     // Render UNSAVED watermark behind content
     render_unsaved_watermark(f, area, app);
+
+    // Active settings profile line, below the title
+    let active_profile = app.active_settings_profile();
+    let profile_line = match &active_profile {
+        Some(p) => Line::from(vec![
+            Span::styled(
+                crate::t!("panel.llm.profile").to_string(),
+                Style::default().fg(ACCENT),
+            ),
+            Span::styled(
+                p.name.clone(),
+                Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        None => Line::from(vec![
+            Span::styled(
+                crate::t!("panel.llm.profile").to_string(),
+                Style::default().fg(ACCENT),
+            ),
+            Span::styled(
+                crate::t!("panel.llm.profile_default").to_string(),
+                Style::default().fg(DIM_GRAY),
+            ),
+        ]),
+    };
+    let content_top = inner.y + 1;
+    let content_height = inner.height.saturating_sub(1);
+    f.render_widget(
+        Paragraph::new(profile_line),
+        Rect {
+            x: inner.x,
+            y: inner.y,
+            width: inner.width,
+            height: 1,
+        },
+    );
 
     if let Some(ref help_text) = help_line {
         let max_width = inner.width;
@@ -537,9 +623,9 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 
         let settings_area = Rect {
             x: inner.x,
-            y: inner.y,
+            y: content_top,
             width: inner.width,
-            height: inner.height.saturating_sub(help_area_height),
+            height: content_height.saturating_sub(help_area_height),
         };
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 
@@ -564,9 +650,9 @@ pub fn render_llm_only(f: &mut Frame, area: Rect, app: &mut App) {
 
         let settings_area = Rect {
             x: inner.x,
-            y: inner.y,
+            y: content_top,
             width: inner.width,
-            height: inner.height,
+            height: content_height,
         };
         f.render_widget(Paragraph::new(visible_lines), settings_area);
 

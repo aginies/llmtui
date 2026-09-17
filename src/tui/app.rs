@@ -217,6 +217,7 @@ impl App {
                 metrics_model_name_last: None,
             },
             active_model_hint: None,
+            active_settings_profiles: HashMap::new(),
             search: SearchState {
                 local_filter: String::new(),
                 filtering_local: false,
@@ -421,6 +422,7 @@ mod tests {
             llama_server: std::path::PathBuf::new(),
             default: crate::config::DefaultParams::default(),
             model_overrides: crate::config::ModelConfigStore::new(),
+            model_settings_profiles: crate::config::ModelSettingsStore::new(),
             profiles: crate::config::ProfileStore::new(),
             system_prompt_presets: crate::config::PresetStore::new(),
             rpc_workers: Vec::new(),

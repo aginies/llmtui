@@ -85,6 +85,10 @@ impl App {
         self.settings = defaults;
         // Clear dirty flag by updating the cache snapshot to match new settings
         self.model_settings_cache = self.settings.clone();
+        // A reset means the current model's active settings profile no longer applies
+        if let Some(model_name) = self.selected_model().map(|m| m.display_name.clone()) {
+            self.active_settings_profiles.remove(&model_name);
+        }
         // Reset model metadata to avoid stale values
         self.loading.model_total_layers = 0;
         self.loading.model_hidden_size = 0;
@@ -119,10 +123,8 @@ impl App {
         self.search.readme_cache = None;
         if let Some(idx) = self.selected_model_idx {
             let model = self.models[idx].clone();
-            self.model_settings_cache = self.selected_model_settings();
-            self.settings = self.model_settings_cache.clone();
-            self.update_model_metadata();
-            self.update_vram_estimate();
+            // Load settings, re-applying this model's active settings profile if any
+            self.load_settings_for_model();
 
             // Sync loading progress with the newly selected model
             if self.is_model_loaded(&model.display_name) {

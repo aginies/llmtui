@@ -1084,6 +1084,17 @@ pub struct ModelSettings {
     pub tags: Vec<String>,
 }
 
+/// A named LLM settings profile for a specific model.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ModelSettingsProfile {
+    /// Display name of this profile (e.g., "Big CTX", "Q8").
+    pub name: String,
+    /// Brief description shown in the profile list (e.g., "big context Q8").
+    pub description: String,
+    /// The full model settings for this profile.
+    pub settings: ModelSettings,
+}
+
 impl Default for ModelSettings {
     fn default() -> Self {
         let mut s: Self = crate::config::DefaultParams::default().into();

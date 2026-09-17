@@ -622,6 +622,7 @@ fn config_default_empty_model_overrides() {
         llama_server: std::path::PathBuf::new(),
         default: DefaultParams::default(),
         model_overrides: ModelConfigStore::new(),
+        model_settings_profiles: ModelSettingsStore::new(),
         profiles: ProfileStore::new(),
         system_prompt_presets: PresetStore::new(),
         rpc_workers: Vec::new(),

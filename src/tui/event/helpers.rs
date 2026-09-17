@@ -165,6 +165,10 @@ pub async fn execute_confirmation(
                 }
             }
         }
+        ConfirmationKind::DeleteSettingsProfile => {
+            // display_name = profile name
+            app.delete_settings_profile(&display_name);
+        }
     }
 }
 

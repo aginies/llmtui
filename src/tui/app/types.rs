@@ -148,6 +148,18 @@ pub enum GlobalMode {
         selected: usize,
         profiles: Vec<Profile>,
     },
+    ModelSettingsPicker {
+        entries: Vec<(String, String)>, // (name, description)
+        selected: usize,
+    },
+    ProfileCreate {
+        name: String,
+        description: String,
+        editing: bool,
+        edit_buffer: String,
+        edit_cursor_pos: usize,
+        field: i32, // 0=name, 1=description
+    },
     DashboardPicker {
         enabled: bool,
         port: String,
@@ -240,6 +252,7 @@ pub enum ConfirmationKind {
     Delete,
     Unload,
     DeleteBackend,
+    DeleteSettingsProfile,
 }
 
 /// Scroll state for text that exceeds display width.
@@ -314,6 +327,10 @@ pub struct App {
     pub search: SearchState,
     pub ui: UIState,
     pub edit: EditState,
+
+    // ── Per-model settings profiles ────────────────────────────
+    /// Active LLM settings profile per model (model display name → profile name).
+    pub active_settings_profiles: HashMap<String, String>,
 
     // ── Performance hints ────────────────────────────────────
     /// Cached model to display in the Active Model card (see
