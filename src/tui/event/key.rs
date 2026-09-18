@@ -114,6 +114,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 ..
             } => selected_idx.and_then(|idx| files.get(idx).map(|(f, _, _)| f.clone())),
             ModelsMode::BenchTune => None,
+            ModelsMode::Empty => None,
         };
         if let Some(fn_name) = filename {
             let explanation = crate::tui::gguf_naming::get_explanation(

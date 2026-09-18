@@ -68,14 +68,6 @@ pub fn render_model_lines(
             });
         }
 
-        if !meta.quantization.is_empty() {
-            pairs.push(ModelInfoPair {
-                label: "model_info.quant",
-                value: meta.quantization.clone(),
-                value_style: CYAN,
-            });
-        }
-
         if !meta.file_type.is_empty() {
             pairs.push(ModelInfoPair {
                 label: "model_info.format",

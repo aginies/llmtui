@@ -328,9 +328,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
                 Cell::from(if *sort_by == ListSort::Qual {
                     if sort_ascending {
-                        "Qual \u{2191}"
+                        "Quant \u{2191}"
                     } else {
-                        "Qual \u{2193}"
+                        "Quant \u{2193}"
                     }
                 } else {
                     crate::t!("models.list_headers.quality")
@@ -507,14 +507,16 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         Style::default().fg(WHITE)
                     };
 
-                    let quality_cell = meta
-                        .map(|m| quality_dot(m.quality_rank))
-                        .unwrap_or_else(|| quality_dot(0));
+                    let quant_cell = meta
+                        .map(|m| quant_cell(&m.file_type, m.quality_rank))
+                        .unwrap_or_else(|| {
+                            Cell::from("—".to_string()).style(Style::default().fg(DIM_GRAY))
+                        });
 
                     Row::new(vec![
                         Cell::from(name_display),
                         Cell::from(params_str).style(params_style),
-                        quality_cell,
+                        quant_cell,
                         Cell::from(
                             ratatui::text::Text::from(context_str)
                                 .alignment(ratatui::layout::Alignment::Right),
@@ -525,9 +527,9 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 .collect();
 
             let widths = [
-                Constraint::Percentage(58),
+                Constraint::Percentage(52),
                 Constraint::Percentage(11),
-                Constraint::Length(4),
+                Constraint::Percentage(10),
                 Constraint::Percentage(11),
             ];
 
@@ -1046,20 +1048,156 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let paragraph = ratatui::widgets::Paragraph::new(lines).block(Block::default());
             f.render_widget(paragraph, inner_area);
         }
+        ModelsMode::Empty => {
+            render_empty_discovery(f, area, app);
+        }
     }
 }
 
-/// Return a colored emoji dot for the quality rank.
-/// Emoji colors are baked into the glyph so they survive row highlights.
-fn quality_dot(rank: u8) -> Cell<'static> {
-    let dot = match rank {
-        4 => "\u{1F7E2}", // green circle - best
-        3 => "\u{1F7E1}", // yellow circle - high
-        2 => "\u{1F7E0}", // orange circle - medium
-        1 => "\u{1F534}", // red circle - low
-        _ => "\u{26AB}",  // black circle - unknown
+/// Return a quantization cell colored by quality rank.
+fn quant_cell(quant: &str, rank: u8) -> Cell<'static> {
+    let color = match rank {
+        4 => GREEN,
+        3 => ACCENT,
+        2 => WHITE,
+        1 => RED,
+        _ => DIM_GRAY,
     };
-    Cell::from(dot)
+    Cell::from(quant.to_string()).style(Style::default().fg(color))
+}
+
+/// Render the empty-state discovery panel shown when no local models exist.
+pub fn render_empty_discovery(f: &mut Frame, area: Rect, _app: &App) {
+    let (border_type, border_color) = (BorderType::Double, crate::tui::colors::ACCENT);
+    let block = Block::default()
+        .title(crate::t!("models.empty_title"))
+        .title_style(
+            Style::default()
+                .fg(crate::tui::colors::ACCENT)
+                .add_modifier(Modifier::BOLD),
+        )
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(border_color))
+        .border_type(border_type);
+
+    f.render_widget(block.clone(), area);
+    let inner = block.inner(area);
+
+    // Build the discovery content
+    let mut lines: Vec<Line> = Vec::new();
+
+    // Welcome message
+    lines.push(Line::from(Span::styled(
+        crate::t!("models.empty_welcome"),
+        Style::default()
+            .fg(crate::tui::colors::WHITE)
+            .add_modifier(Modifier::BOLD),
+    )));
+    lines.push(Line::from(""));
+
+    // Action buttons
+    let btn_style = Style::default()
+        .fg(crate::tui::colors::BLACK)
+        .bg(crate::tui::colors::ACCENT)
+        .add_modifier(Modifier::BOLD);
+    let label_style = Style::default().fg(crate::tui::colors::WHITE);
+    let hint_style = Style::default().fg(crate::tui::colors::DIM_GRAY);
+
+    // Button 1: Search HuggingFace
+    let search_key = crate::t!("models.empty_search_key");
+    let search_label = crate::t!("models.empty_search_label");
+    let search_hint = crate::t!("models.empty_search_hint");
+    lines.push(Line::from(vec![
+        Span::styled(format!("  [{}] ", search_key), btn_style),
+        Span::styled(search_label, label_style),
+    ]));
+    lines.push(Line::from(Span::styled(
+        format!("    {}", search_hint),
+        hint_style,
+    )));
+    lines.push(Line::from(""));
+
+    // Button 2: Browse local GGUF files
+    let browse_key = crate::t!("models.empty_browse_key");
+    let browse_label = crate::t!("models.empty_browse_label");
+    let browse_hint = crate::t!("models.empty_browse_hint");
+    lines.push(Line::from(vec![
+        Span::styled(format!("  [{}] ", browse_key), btn_style),
+        Span::styled(browse_label, label_style),
+    ]));
+    lines.push(Line::from(Span::styled(
+        format!("    {}", browse_hint),
+        hint_style,
+    )));
+    lines.push(Line::from(""));
+
+    // Button 3: Add models directory
+    let dir_key = crate::t!("models.empty_dir_key");
+    let dir_label = crate::t!("models.empty_dir_label");
+    let dir_hint = crate::t!("models.empty_dir_hint");
+    lines.push(Line::from(vec![
+        Span::styled(format!("  [{}] ", dir_key), btn_style),
+        Span::styled(dir_label, label_style),
+    ]));
+    lines.push(Line::from(Span::styled(
+        format!("    {}", dir_hint),
+        hint_style,
+    )));
+    lines.push(Line::from(""));
+
+    // Divider
+    lines.push(Line::from(Span::styled(
+        "─────────────────────────────────────────────",
+        Style::default().fg(crate::tui::colors::DIM_GRAY),
+    )));
+    lines.push(Line::from(""));
+
+    // Quick tips
+    let tip_style = Style::default().fg(crate::tui::colors::ACCENT);
+    lines.push(Line::from(Span::styled(
+        crate::t!("models.empty_tips_title"),
+        tip_style.add_modifier(Modifier::BOLD),
+    )));
+    lines.push(Line::from(""));
+
+    // Tip 1
+    lines.push(Line::from(vec![
+        Span::styled("  • ", hint_style),
+        Span::styled(crate::t!("models.empty_tip1"), hint_style),
+    ]));
+
+    // Tip 2
+    lines.push(Line::from(vec![
+        Span::styled("  • ", hint_style),
+        Span::styled(crate::t!("models.empty_tip2"), hint_style),
+    ]));
+
+    // Tip 3
+    lines.push(Line::from(vec![
+        Span::styled("  • ", hint_style),
+        Span::styled(crate::t!("models.empty_tip3"), hint_style),
+    ]));
+
+    lines.push(Line::from(""));
+
+    // Footer hint
+    let footer_text = crate::t!("models.empty_footer");
+    let footer = Paragraph::new(Line::from(Span::styled(
+        footer_text,
+        Style::default().fg(crate::tui::colors::DIM_GRAY),
+    )));
+
+    // Render content as a paragraph
+    let content = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .borders(Borders::NONE)
+                .style(Style::default().fg(crate::tui::colors::WHITE)),
+        )
+        .alignment(Alignment::Left);
+
+    f.render_widget(content, inner);
+    f.render_widget(footer, area);
 }
 
 /// Render the benchmark results table.

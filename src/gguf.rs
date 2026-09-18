@@ -346,10 +346,7 @@ impl Reader {
                                 self.read_u64()?
                             };
                             if sl > MAX_STRING_LEN {
-                                return Err(anyhow::anyhow!(
-                                    "GGUF string too long: {} bytes",
-                                    sl
-                                ));
+                                return Err(anyhow::anyhow!("GGUF string too long: {} bytes", sl));
                             }
                             self.skip_bytes(sl)?;
                         }
@@ -358,7 +355,7 @@ impl Reader {
                         return Err(anyhow::anyhow!(
                             "unsupported GGUF array element type: {}",
                             elem_type
-                        ))
+                        ));
                     }
                 }
             }

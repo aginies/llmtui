@@ -43,6 +43,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
             s
         }
         ModelsMode::BenchTune => crate::t!("status.bench_tune").to_string(),
+        ModelsMode::Empty => crate::t!("status.empty").to_string(),
     };
     let mut status_parts: Vec<Span<'static>> = Vec::new();
 

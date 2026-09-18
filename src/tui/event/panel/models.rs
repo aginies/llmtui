@@ -1,10 +1,53 @@
 use crossterm::event::KeyCode;
 
 use crate::models::ListSort;
+use crate::models::SearchSort;
 use crate::tui::app::pending_events::PendingEvent;
-use crate::tui::app::{App, GlobalMode, LoadingPhase, ModelsMode};
+use crate::tui::app::{ActivePanel, App, GlobalMode, LoadingPhase, ModelsMode};
 
 pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
+    // ── Empty mode: discovery panel ───────────────────────────
+    if matches!(app.models_mode, ModelsMode::Empty) {
+        match key.code {
+            // Enter or 's' → search HuggingFace
+            KeyCode::Enter | KeyCode::Char('s') => {
+                app.models_mode = ModelsMode::Search {
+                    query: String::new(),
+                    results: Vec::new(),
+                    sort_by: SearchSort::Relevance,
+                    show_readme: true,
+                    page: 0,
+                    loading: false,
+                    has_more: true,
+                };
+                app.search.search_input = None;
+                app.ui.active_panel = ActivePanel::Models;
+                app.log.log_expanded = false;
+                app.ui.panel_visibility &= !(((1 << 1) | (1 << 3) | (1 << 4) | (1 << 5)) as u8);
+            }
+            // 'b' → open directory picker to browse for GGUF files
+            KeyCode::Char('b') => {
+                app.ui.global_mode = GlobalMode::DirectoryPicker {
+                    title: crate::t!("models.empty_browse_title").to_string(),
+                    selected: 0,
+                    current_path: std::env::current_dir().unwrap_or_default(),
+                    confirm_action: true,
+                };
+            }
+            // 'd' → add models directory
+            KeyCode::Char('d') => {
+                app.ui.global_mode = GlobalMode::DirectoryPicker {
+                    title: crate::t!("models.empty_dir_title").to_string(),
+                    selected: 0,
+                    current_path: std::env::current_dir().unwrap_or_default(),
+                    confirm_action: false,
+                };
+            }
+            _ => {}
+        }
+        return;
+    }
+
     if app.search.filtering_local {
         match key.code {
             KeyCode::Esc => {

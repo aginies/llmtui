@@ -239,6 +239,9 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 ]
             }
         }
+        ModelsMode::Empty => {
+            vec![Span::styled(crate::t!("models.empty_footer"), c)]
+        }
     }
 }
 

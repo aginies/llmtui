@@ -84,6 +84,8 @@ pub enum ModelsMode {
     },
     /// Benchmark tuning mode: running bench_tune on a model.
     BenchTune,
+    /// Empty state: no local models, show discovery UI.
+    Empty,
 }
 
 /// Global mode that overlays all panels.
@@ -171,6 +173,12 @@ pub enum GlobalMode {
         editing: bool,
         edit_buffer: String,
         edit_cursor_pos: usize,
+    },
+    DirectoryPicker {
+        title: String,
+        selected: usize,
+        current_path: std::path::PathBuf,
+        confirm_action: bool,
     },
     ApiEndpointPicker {
         enabled: bool,

@@ -1141,7 +1141,6 @@ pub struct GgufMetadata {
     pub n_kv_head: u32,
     pub arch: String,
     pub file_type: String,
-    pub quantization: String,
     pub model_parameters: String,
     pub domain: String,
     pub capabilities: Vec<String>,
