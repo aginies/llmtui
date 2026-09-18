@@ -104,6 +104,8 @@ impl App {
             "Reset LLM Settings to defaults",
             crate::config::LogLevel::Info,
         );
+        // Invalidate ctx_cache so models list shows updated context values
+        self.invalidate_list_caches();
         self.ui.needs_redraw = true;
     }
 

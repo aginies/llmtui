@@ -11,6 +11,8 @@ impl App {
             format!("Applied profile: {}", profile.name),
             crate::config::LogLevel::Info,
         );
+        // Invalidate ctx_cache so models list shows updated context values
+        self.invalidate_list_caches();
     }
 
     /// Resolve system_prompt from the preset name.
@@ -43,6 +45,8 @@ impl App {
                 self.model_settings_cache = self.settings.clone();
                 // Also sync global settings so is_settings_dirty() returns false
                 sync_global_settings(self);
+                // Invalidate ctx_cache so models list shows updated context values
+                self.invalidate_list_caches();
             }
         } else {
             self.add_log(
@@ -85,6 +89,8 @@ impl App {
                 format!("Saved settings to profile: {}", profile_name),
                 crate::config::LogLevel::Info,
             );
+            // Invalidate ctx_cache so models list shows updated context values
+            self.invalidate_list_caches();
         }
     }
 
@@ -247,6 +253,8 @@ impl App {
             format!("Applied profile: {}", profile_name),
             crate::config::LogLevel::Info,
         );
+        // Invalidate ctx_cache so models list shows updated context values
+        self.invalidate_list_caches();
     }
 
     /// Delete a per-model settings profile for the selected model.
