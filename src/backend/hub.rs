@@ -1117,6 +1117,33 @@ pub async fn resolve_backend_binary(
             }
         }
 
+        // Also try to extract rpc-server if it exists (some backend builds
+        // ship it for distributed inference; keep it out of the .extract dir
+        // cleanup)
+        let rpc_bin_path = bin_dir.join("rpc-server");
+        let mut rpc_found = None;
+        walk_dir_recursive(&extract_dir, 0, 10, &mut |entry| {
+            if entry
+                .file_name()
+                .to_str()
+                .map(|n| n == "rpc-server")
+                .unwrap_or(false)
+            {
+                rpc_found = Some(entry.path().to_path_buf());
+            }
+        });
+        if let Some(path) = rpc_found {
+            let _ = std::fs::rename(path, &rpc_bin_path);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(
+                    &rpc_bin_path,
+                    std::fs::Permissions::from_mode(0o755),
+                );
+            }
+        }
+
         // Also extract shared libraries from the archive into bin_dir
         let lib_ext = lib_extension();
         let mut libs_found = Vec::new();
