@@ -32,6 +32,15 @@ fn make_config() -> Config {
     Config::default()
 }
 
+fn make_worker(selected: bool, ip: &str) -> llm_manager::config::RpcWorker {
+    llm_manager::config::RpcWorker {
+        selected,
+        name: "worker".into(),
+        ip: ip.into(),
+        port: 50052,
+    }
+}
+
 // ── build_server_cmd — Normal mode ──────────────────────────────
 
 #[test]
@@ -468,6 +477,122 @@ fn test_build_server_cmd_includes_system_prompt() {
     );
     assert!(display_custom.contains("--chat-template-kwargs"));
     assert!(display_custom.contains("You are a custom AI."));
+}
+
+// ── build_server_cmd — RPC workers auto tensor-split ───────────
+
+#[test]
+fn test_build_server_cmd_rpc_worker_auto_tensor_split_one() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/test.gguf", "test", "Test");
+    let settings = make_settings();
+    let mut config = make_config();
+    config.rpc_workers.push(make_worker(true, "192.168.1.10"));
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    assert!(display.contains("--rpc 192.168.1.10:50052"));
+    // One share for the local device + one for the worker
+    assert!(display.contains("--tensor-split 1,1"));
+}
+
+#[test]
+fn test_build_server_cmd_rpc_workers_auto_tensor_split_multiple() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/test.gguf", "test", "Test");
+    let settings = make_settings();
+    let mut config = make_config();
+    config.rpc_workers.push(make_worker(true, "192.168.1.10"));
+    config.rpc_workers.push(make_worker(true, "192.168.1.11"));
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    // One share for the local device + one per worker
+    assert!(display.contains("--tensor-split 1,1,1"));
+}
+
+#[test]
+fn test_build_server_cmd_rpc_worker_unselected_no_tensor_split() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/test.gguf", "test", "Test");
+    let settings = make_settings();
+    let mut config = make_config();
+    config.rpc_workers.push(make_worker(false, "192.168.1.10"));
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    assert!(!display.contains("--rpc"));
+    assert!(!display.contains("--tensor-split"));
+}
+
+#[test]
+fn test_build_server_cmd_rpc_worker_invalid_ip_no_tensor_split() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/test.gguf", "test", "Test");
+    let settings = make_settings();
+    let mut config = make_config();
+    config.rpc_workers.push(make_worker(true, "not-an-ip"));
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    assert!(!display.contains("--rpc"));
+    assert!(!display.contains("--tensor-split"));
+}
+
+#[test]
+fn test_build_server_cmd_tensor_split_user_value_wins_over_rpc() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/test.gguf", "test", "Test");
+    let mut settings = make_settings();
+    settings.tensor_split = "2,0".to_string();
+    let mut config = make_config();
+    config.rpc_workers.push(make_worker(true, "192.168.1.10"));
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    // User's explicit tensor_split is kept, auto value not injected
+    assert!(display.contains("--tensor-split 2,0"));
+    assert!(!display.contains("--tensor-split 1,1"));
 }
 
 // ── build_bench_cmd ─────────────────────────────────────────────

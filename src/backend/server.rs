@@ -211,6 +211,22 @@ pub fn build_server_cmd(
             "--tensor-split",
             &settings.tensor_split,
         );
+    } else {
+        // Auto tensor-split for RPC: one share for the local device plus one
+        // per enabled RPC worker (e.g. 1 worker -> "1,1").
+        let worker_count = config
+            .rpc_workers
+            .iter()
+            .filter(|w| w.selected && IpAddr::from_str(&w.ip).is_ok())
+            .count();
+        if worker_count > 0 {
+            push_arg(
+                &mut cmd,
+                &mut parts,
+                "--tensor-split",
+                vec!["1"; worker_count + 1].join(","),
+            );
+        }
     }
     if settings.main_gpu != 0 {
         let mapped_gpu =
