@@ -324,6 +324,17 @@ impl App {
                         crate::models::ModelState::Loaded { .. } => {
                             *state = crate::models::ModelState::Available;
                         }
+                        // Bench in flight when server exited: bench finished (Bench mode)
+                        // or the server died mid-benchmark — clear the prefix either way.
+                        crate::models::ModelState::Benchmarking => {
+                            *state = if self.server_mode == crate::models::ServerMode::Bench {
+                                crate::models::ModelState::Available
+                            } else {
+                                crate::models::ModelState::Failed {
+                                    error: crate::t!("async.server_exited_load").to_string(),
+                                }
+                            };
+                        }
                         // Keep existing Failed states (real error text).
                         _ => {}
                     }
@@ -360,13 +371,13 @@ impl App {
             h.abort();
         }
 
-        // Models to fail: always any that were Loading.
+        // Models to fail: always any that were Loading or Benchmarking.
         // If it's a crash, also fail all that were Loaded.
         let to_fail: Vec<String> = self
             .model_states
             .iter()
             .filter(|(_, state)| {
-                matches!(state, ModelState::Loading)
+                matches!(state, ModelState::Loading | ModelState::Benchmarking)
                     || (is_crash && matches!(state, ModelState::Loaded { .. }))
             })
             .map(|(name, _)| name.clone())

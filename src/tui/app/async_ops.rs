@@ -1367,13 +1367,17 @@ impl App {
 
                     let model_display_name = self.selected_model().map(|m| m.display_name.clone());
 
-                    if let Some(model_display_name) = model_display_name {
-                        self.model_states.insert(
-                            model_display_name.clone(),
-                            crate::models::ModelState::Available,
-                        );
-                        self.pending.active_model_hint_dirty = true;
+                    // Always clear the Benchmarking state for the model that was
+                    // actually benchmarked (the selection may have changed meanwhile).
+                    self.model_states
+                        .insert(display_name.clone(), crate::models::ModelState::Available);
+                    if let Some(model_display_name) = model_display_name
+                        && model_display_name != display_name
+                    {
+                        self.model_states
+                            .insert(model_display_name, crate::models::ModelState::Available);
                     }
+                    self.pending.active_model_hint_dirty = true;
 
                     if let Some(handle) = &self.server.server_handle
                         && let Some(model) = self.selected_model()
@@ -1397,15 +1401,13 @@ impl App {
                         crate::config::LogLevel::Error,
                     );
                     self.bench_tune.bench_tune_running = false;
-                    if let Some(model) = self.selected_model() {
-                        self.model_states.insert(
-                            model.display_name.clone(),
-                            crate::models::ModelState::Failed {
-                                error: e.to_string(),
-                            },
-                        );
-                        self.pending.active_model_hint_dirty = true;
-                    }
+                    self.model_states.insert(
+                        display_name,
+                        crate::models::ModelState::Failed {
+                            error: e.to_string(),
+                        },
+                    );
+                    self.pending.active_model_hint_dirty = true;
                     self.ui.needs_redraw = true;
                 }
             },
@@ -1415,6 +1417,13 @@ impl App {
                     crate::config::LogLevel::Error,
                 );
                 self.bench_tune.bench_tune_running = false;
+                // No display name available on panic: clear any stuck Benchmarking states.
+                for state in self.model_states.values_mut() {
+                    if matches!(state, crate::models::ModelState::Benchmarking) {
+                        *state = crate::models::ModelState::Available;
+                    }
+                }
+                self.pending.active_model_hint_dirty = true;
                 self.ui.needs_redraw = true;
             }
         }

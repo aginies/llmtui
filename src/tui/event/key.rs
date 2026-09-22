@@ -1782,6 +1782,14 @@ async fn handle_bench_tune_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     crate::config::LogLevel::Info,
                 );
             }
+            // Clear the [BENCHMARK: ...] prefix: the task result is dropped on
+            // cancel, so reset any stuck Benchmarking states here.
+            for state in app.model_states.values_mut() {
+                if matches!(state, crate::models::ModelState::Benchmarking) {
+                    *state = crate::models::ModelState::Available;
+                }
+            }
+            app.pending.active_model_hint_dirty = true;
             // Don't abort the task — let it finish gracefully and send Cancelled status
             // Keep bench_tune_running = true so the app knows the task is still finishing up
             app.models_mode = ModelsMode::List {
