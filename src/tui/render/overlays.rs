@@ -336,7 +336,13 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     }
 
     if let GlobalMode::ChatTemplatePicker { entries, selected } = &app.ui.global_mode {
-        render_chat_template_picker(f, f.area(), app, entries, *selected);
+        render_chat_template_picker(
+            f,
+            f.area(),
+            entries,
+            *selected,
+            &mut app.picker.chat_template_picker_scroll_offset,
+        );
         return true;
     }
 
@@ -3343,28 +3349,36 @@ fn render_spec_type_picker(
 fn render_chat_template_picker(
     f: &mut Frame,
     area: Rect,
-    _app: &App,
     entries: &[String],
     selected: usize,
+    scroll_offset: &mut usize,
 ) {
-    let mut picker_lines: Vec<Line> = Vec::new();
-
-    for (i, entry) in entries.iter().enumerate() {
-        let marker = if i == selected { "> " } else { "  " };
-        let style = if i == selected {
-            Style::default()
-                .fg(BLACK)
-                .bg(ACCENT)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(WHITE)
-        };
-        picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(ACCENT)),
-            Span::styled(entry, style),
-        ]));
-    }
-
+    let blocks: Vec<Vec<Line>> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, entry)| {
+            let marker = if i == selected { "> " } else { "  " };
+            let style = if i == selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            vec![Line::from(vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(entry, style),
+            ])]
+        })
+        .collect();
+    let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2);
+    let lines: Vec<Line> = blocks.iter().skip(off).take(fit).flatten().cloned().collect();
+    let scroll = if entries.len() > fit {
+        Some((entries.len(), off, fit))
+    } else {
+        None
+    };
     render_picker_popup(
         f,
         area,
@@ -3376,9 +3390,9 @@ fn render_chat_template_picker(
             crate::t!("dialog.chat_template.help"),
             Style::default().fg(ACCENT),
         ))),
-        picker_lines,
+        lines,
         None,
-        None,
+        scroll,
     );
 }
 

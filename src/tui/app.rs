@@ -104,6 +104,7 @@ impl App {
                 rpc_worker_edit_buffer: String::new(),
                 rpc_worker_edit_cursor_pos: 0,
                 readme_scroll_offset: 0,
+                chat_template_picker_scroll_offset: 0,
             },
             download: DownloadState {
                 download_progress: Vec::new(),

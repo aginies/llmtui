@@ -1462,3 +1462,69 @@ fn file_type_quality_rank_ordering() {
     assert!(f32 >= q8_0 && q8_0 >= q5_1 && q5_1 >= q6_k && q6_k >= q4_k_m);
     assert!(q4_k_m >= q3_k_m && q3_k_m >= iq2_s && iq2_s >= iq1_s);
 }
+
+#[test]
+fn chat_template_picker_structure() {
+    let templates = get_available_chat_templates();
+    assert_eq!(templates.first().map(String::as_str), Some("Auto (detect)"));
+    assert_eq!(templates.last().map(String::as_str), Some("None"));
+    assert_eq!(templates[templates.len() - 2].as_str(), "Select a Template file...");
+    let middle: Vec<&str> = templates[1..templates.len() - 2].iter().map(String::as_str).collect();
+    assert_eq!(middle, BUILTIN_CHAT_TEMPLATES.to_vec());
+    assert!(templates.len() > 50);
+}
+
+#[test]
+fn builtin_chat_templates_sorted_and_unique() {
+    let mut sorted = BUILTIN_CHAT_TEMPLATES.to_vec();
+    sorted.sort();
+    assert_eq!(BUILTIN_CHAT_TEMPLATES, &sorted[..]);
+    let unique: std::collections::HashSet<&str> =
+        BUILTIN_CHAT_TEMPLATES.iter().copied().collect();
+    assert_eq!(unique.len(), BUILTIN_CHAT_TEMPLATES.len());
+    for name in BUILTIN_CHAT_TEMPLATES {
+        assert!(!name.is_empty());
+    }
+}
+
+#[test]
+fn arch_to_chat_template_maps_to_builtin_names() {
+    let archs = [
+        "llama", "llama-moe", "llama4", "mistral", "mistral3", "mistral4",
+        "qwen", "qwen2", "qwen2moe", "qwen3", "qwen3moe", "qwen3next",
+        "qwen35", "qwen35moe", "qwen2vl", "qwen3vl", "qwen3vlmoe",
+        "gemma", "gemma2", "gemma3", "gemma3n", "gemma4", "gemma4-assistant",
+        "phi2", "phi3", "phimoe", "phi4", "cohere", "cohere2",
+        "deepseek", "deepseek2", "deepseek2-ocr", "deepseek32",
+        "internlm2", "glm4", "glm4moe", "chatglm",
+        "exaone", "exaone4", "exaone-moe",
+        "minicpm", "minicpm3", "minicpmo",
+        "falcon", "falcon-h1", "falcon3",
+        "rwkv6", "rwkv6qwen2", "rwkv7", "arwkv7",
+        "granite", "granitehybrid", "granitemoe",
+        "hunyuan-dense", "hunyuan-moe", "hunyuan_vl",
+        "olmo", "olmo2", "olmoe", "sonar", "mamba", "mamba2", "mamba_ssm",
+        "dbrx", "starcoder", "starcoder2", "baichuan", "gpt-neox", "gptj",
+        "mpt", "jais", "jais2", "stablelm", "chameleon", "nemo",
+        "nemotron", "nemotron_h", "nemotron_h_moe",
+        "plamo", "plamo2", "plamo3", "ernie4_5", "ernie4_5-moe",
+        "mini-max-m2", "talkie", "apertus", "arcee", "arctic", "jamba",
+        "lfm2", "lfm2moe", "llada", "llada-moe", "maincoder", "mellum",
+        "mimo2", "refact", "rnd1", "smallthinker", "xverse", "gpt2",
+        "codeshell", "cogvlm", "deci", "dots1", "dream", "app", "step35",
+        "smollm3", "megrez", "yandex",
+        "bailing", "bailingmoe", "bailingmoe2", "bailing2", "bailing-think",
+        "kimi-k2", "seed_oss", "grok", "solar-open", "gpt-oss",
+        "pangu-embedded", "gigachat",
+    ];
+    for arch in &archs {
+        if let Some(template) = arch_to_chat_template(arch) {
+            assert!(
+                BUILTIN_CHAT_TEMPLATES.contains(&template),
+                "arch '{}' maps to '{}' which is not in BUILTIN_CHAT_TEMPLATES",
+                arch,
+                template
+            );
+        }
+    }
+}

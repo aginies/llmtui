@@ -56,6 +56,7 @@ pub struct PickerState {
     pub rpc_worker_edit_buffer: String,
     pub rpc_worker_edit_cursor_pos: usize,
     pub readme_scroll_offset: usize,
+    pub chat_template_picker_scroll_offset: usize,
 }
 
 pub struct DownloadState {
