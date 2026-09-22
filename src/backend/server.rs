@@ -204,30 +204,7 @@ pub fn build_server_cmd(
             settings.split_mode.to_string(),
         );
     }
-    if !settings.tensor_split.is_empty() {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--tensor-split",
-            &settings.tensor_split,
-        );
-    } else {
-        // Auto tensor-split for RPC: one share for the local device plus one
-        // per enabled RPC worker (e.g. 1 worker -> "1,1").
-        let worker_count = config
-            .rpc_workers
-            .iter()
-            .filter(|w| w.selected && IpAddr::from_str(&w.ip).is_ok())
-            .count();
-        if worker_count > 0 {
-            push_arg(
-                &mut cmd,
-                &mut parts,
-                "--tensor-split",
-                vec!["1"; worker_count + 1].join(","),
-            );
-        }
-    }
+
     if settings.main_gpu != 0 {
         let mapped_gpu =
             crate::backend::hardware::map_main_gpu_to_backend(settings.main_gpu, settings.backend);

@@ -419,10 +419,6 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.split_mode"))),
                 ]),
                 Line::from(vec![
-                    Span::styled("Tensor Split", y),
-                    Span::raw(format!("  {}", crate::t!("field.help.tensor_split"))),
-                ]),
-                Line::from(vec![
                     Span::styled("Main GPU", y),
                     Span::raw(format!("  {}", crate::t!("field.help.main_gpu"))),
                 ]),
