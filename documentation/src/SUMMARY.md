@@ -8,6 +8,7 @@
 - [Usage](usage.md)
 - [opencode](opencode.md)
 - [Web Chat](web-chat.md)
+- [Pi Orchestrator](pi-orchestrator.md) — orchestrate tool for remote llama.cpp servers
 
 ## User Configuration
 - [Configuration](config.md)

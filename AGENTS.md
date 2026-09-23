@@ -20,6 +20,10 @@ src/
 ├── backend/         # HuggingFace API, server spawning, benchmark, hardware, TLS, WS
 ├── tui/             # App state, event handling, rendering, panels
 └── config/          # Per-model config, profiles, presets stores
+
+pi-orchestrator/     # Pi coding-agent extension (TypeScript): `orchestrate` tool that
+                     # offloads tasks to a remote llama.cpp server (chat, sendFiles,
+                     # sendDiff, sendDir transfer mode, async). See pi-orchestrator/README.md
 ```
 
 ## Key patterns
