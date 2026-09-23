@@ -213,7 +213,7 @@ pub fn build_server_cmd(
     let worker_splits: Vec<String> = config
         .rpc_workers
         .iter()
-        .filter(|w| w.selected)
+        .filter(|w| w.selected && IpAddr::from_str(&w.ip).is_ok())
         .map(|w| {
             if w.tensor_split.is_empty() {
                 "1".to_string()
