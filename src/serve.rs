@@ -590,6 +590,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
             settings.context_length
         };
         let chat_ui_for_api = config.default.chat_ui_enabled;
+        let transfer_for_api = config.default.api_transfer_enabled;
         let handle = tokio::spawn(async move {
             let result = crate::serve_api::start_api_server(
                 addr,
@@ -608,6 +609,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 ws_auth_for_api,
                 effective_ctx_for_api,
                 chat_ui_for_api,
+                transfer_for_api,
             )
             .await;
             let _ = api_done_tx.send(result.map_err(|e| e.to_string()));

@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
@@ -74,6 +75,8 @@ pub struct ApiState {
     pub ws_auth: Option<String>,
     /// Effective context length (context_length * rope_scale), 0 = use raw ctx_max.
     pub effective_ctx: u32,
+    /// Root directory for received file transfers (see `serve_transfer`).
+    pub transfer_dir: PathBuf,
 }
 
 fn extract_api_key(headers: &axum::http::HeaderMap) -> Option<String> {
@@ -696,6 +699,7 @@ pub async fn start_api_server(
     ws_auth: Option<String>,
     effective_ctx: u32,
     chat_ui_enabled: bool,
+    transfer_enabled: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
@@ -732,6 +736,14 @@ pub async fn start_api_server(
         ws_port,
         ws_auth,
         effective_ctx,
+        transfer_dir: std::env::var("LLM_MANAGER_TRANSFER_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| {
+                dirs::data_local_dir()
+                    .unwrap_or_default()
+                    .join("llm-manager")
+                    .join("transfers")
+            }),
     };
 
     let allowed_origins: Arc<Vec<String>> = Arc::new({
@@ -783,6 +795,26 @@ pub async fn start_api_server(
     // Web chat UI (/chat) is optional — only registered when enabled.
     if chat_ui_enabled {
         app = app.route("/chat", get(chat_handler));
+    }
+
+    // File-transfer API (/api/transfer/...) is optional — only registered
+    // when enabled. It inherits the auth middleware of the merged router.
+    if transfer_enabled {
+        let transfer_router = Router::new()
+            .route("/api/transfer/upload", post(crate::serve_transfer::upload))
+            .route("/api/transfer/list", get(crate::serve_transfer::list))
+            .route(
+                "/api/transfer/{id}/files",
+                get(crate::serve_transfer::files),
+            )
+            .route("/api/agent/run", post(crate::serve_agent::run))
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                auth_middleware,
+            ))
+            .layer(TraceLayer::new_for_http());
+        app = app.merge(transfer_router);
+        info!("File-transfer API is ENABLED (/api/transfer/...)");
     }
 
     let app = app

@@ -9,7 +9,9 @@ pub mod config;
 pub mod gguf;
 pub mod models;
 pub mod serve;
+pub mod serve_agent;
 pub mod serve_api;
+pub mod serve_transfer;
 pub mod tui;
 
 // Re-export key types for convenience in tests.

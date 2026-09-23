@@ -141,6 +141,7 @@ impl App {
                 running_api_ws_port: None,
                 running_api_ws_auth: None,
                 running_api_chat_ui: None,
+                running_api_transfer: None,
                 running_server_tls_cfg: None,
                 running_server_tls_cert_path: None,
                 running_server_tls_key_path: None,

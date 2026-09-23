@@ -69,6 +69,84 @@ All other paths are proxied to llama-server (chat completions, embeddings, reran
 
 Served at `/chat` on this same port (default `http://localhost:49222/chat`), the built-in web chat UI offers conversation history, Markdown/code/math rendering, and streaming with a stop button. See [Web Chat](web-chat.md).
 
+## File Transfer API
+
+Send files or directories from one llm-manager server to another — useful for
+shipping code to a remote model for review without stuffing it into the prompt.
+The transfer is a plain authenticated HTTP push of a `tar.gz` archive, so it
+works between any two machines that can reach each other's API port.
+
+Enable it in `config.yaml` (disabled by default):
+
+```yaml
+default:
+  api_endpoint_enabled: true
+  api_endpoint_port: 49222
+  api_endpoint_key: your-secret-key
+  api_transfer_enabled: true
+```
+
+### Endpoints
+
+All require the `Authorization: Bearer <api_endpoint_key>` header (when a key is configured):
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/transfer/upload?label=<name>` | POST | Upload a `tar.gz` archive (raw body). Extracted to the transfer dir; returns `{id, path, files: [{path, size}]}`. |
+| `/api/transfer/list` | GET | List received transfers with file count and total size. |
+| `/api/transfer/{id}/files` | GET | File manifest of one transfer, plus the absolute path on the receiving machine. |
+| `/api/agent/run` | POST | Run the review agent on a transfer: `{transfer_id, task, max_rounds?}` → `{answer, rounds, files_read}`. |
+
+### Sending a directory to a peer server
+
+```bash
+tar cz -C /path/to/project . | curl -s \
+  -H "Authorization: Bearer $API_KEY" \
+  --data-binary @- \
+  "http://peer-host:49222/api/transfer/upload?label=review"
+```
+
+The response contains the extraction path on the receiving machine, which you
+can hand to the remote model so it reads the files directly:
+
+```json
+{
+  "id": "20250115-143000-review",
+  "path": "/home/user/.local/share/llm-manager/transfers/20250115-143000-review",
+  "files": [{"path": "src/main.rs", "size": 12345}]
+}
+```
+
+### Review agent
+
+A plain chat model can only see the prompt, so for real code review the
+receiving server can run its local model as a small tool-loop agent over the
+extracted files. It pages through the transfer itself — no prompt-size wall:
+
+```bash
+curl -s -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"transfer_id": "20250115-143000-review", "task": "Review this code for bugs and style issues"}' \
+  "http://peer-host:49222/api/agent/run"
+```
+
+The model gets three tools scoped to the transfer directory (`LIST [subdir]`,
+`READ <path>`, `GREP <regex>`) and a file manifest to start from; it reads
+what it needs and replies with `FINAL: <answer>`. Safety limits: 20 rounds by
+default (hard cap 50), 200 KiB per read, 1 MiB total tool output per run,
+all paths confined to the transfer directory.
+
+**Full flow from a peer server:**
+
+1. `tar cz -C project . | curl ... /api/transfer/upload?label=review` → get the `id`
+2. `POST /api/agent/run` with that `id` and the task → get the `answer`
+
+### Notes
+
+- Received files are stored under `~/.local/share/llm-manager/transfers/<timestamp>-<label>/` (override the root with the `LLM_MANAGER_TRANSFER_DIR` environment variable).
+- Uploads are streamed to disk with a hard 2 GiB cap; archives containing absolute paths, `..` components, or symlink/hardlink entries are rejected.
+- In the TUI, the API proxy restarts automatically when `api_transfer_enabled` is toggled.
+
 ## Authentication
 
 When `api_endpoint_key` is configured, clients must include:

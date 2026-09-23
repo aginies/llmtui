@@ -2050,7 +2050,8 @@ impl App {
             || self.server.running_api_model.as_deref() != Some(model_name.as_str())
             || self.server.running_api_ws_port != Some(self.server.running_ws_port.unwrap_or(0))
             || self.server.running_api_ws_auth.as_ref() != self.server.running_ws_auth.as_ref()
-            || self.server.running_api_chat_ui != Some(self.settings.chat_ui_enabled);
+            || self.server.running_api_chat_ui != Some(self.settings.chat_ui_enabled)
+            || self.server.running_api_transfer != Some(self.config.default.api_transfer_enabled);
 
         // Stop if disabled or settings/model changed.
         if self.server.api_proxy_handle.is_some() && (!enabled || settings_changed) {
@@ -2068,6 +2069,7 @@ impl App {
             self.server.running_api_ws_port = None;
             self.server.running_api_ws_auth = None;
             self.server.running_api_chat_ui = None;
+            self.server.running_api_transfer = None;
             if !enabled {
                 self.add_log(
                     crate::t!("async.api_disabled"),
@@ -2256,6 +2258,8 @@ impl App {
             let ws_auth_for_api_clone = ws_auth_for_api.clone();
             let effective_ctx_for_api = self.server.spawned_context_length;
             let chat_ui_for_api = self.settings.chat_ui_enabled;
+            let transfer_for_api = self.config.default.api_transfer_enabled;
+            let transfer_for_api_clone = transfer_for_api;
             let handle = tokio::spawn(async move {
                 let _ = crate::serve_api::start_api_server(
                     addr,
@@ -2274,6 +2278,7 @@ impl App {
                     ws_auth_for_api_clone,
                     effective_ctx_for_api,
                     chat_ui_for_api,
+                    transfer_for_api_clone,
                 )
                 .await;
             });
@@ -2284,6 +2289,7 @@ impl App {
             self.server.running_api_ws_port = Some(ws_port_for_api);
             self.server.running_api_ws_auth = ws_auth_for_api;
             self.server.running_api_chat_ui = Some(chat_ui_for_api);
+            self.server.running_api_transfer = Some(transfer_for_api);
             let status = if server_port == 0 {
                 " (no model loaded yet)"
             } else {

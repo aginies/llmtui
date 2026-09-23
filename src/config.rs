@@ -867,6 +867,9 @@ pub struct DefaultParams {
     /// Whether the web chat UI (/chat) served by the API proxy is enabled.
     #[serde(default = "default_chat_ui_enabled")]
     pub chat_ui_enabled: bool,
+    /// Whether the file-transfer API (/api/transfer/...) is enabled.
+    #[serde(default)]
+    pub api_transfer_enabled: bool,
     #[serde(default = "default_web_search_engine")]
     pub web_search_engine: String,
     #[serde(default)]
@@ -1160,6 +1163,7 @@ impl Default for DefaultParams {
             api_endpoint_enabled: false,
             api_endpoint_port: default_api_endpoint_port(),
             chat_ui_enabled: default_chat_ui_enabled(),
+            api_transfer_enabled: false,
             api_endpoint_key: None,
             web_search_engine: default_web_search_engine(),
             web_search_engine_url: String::new(),
@@ -1310,6 +1314,7 @@ impl Config {
             "api_endpoint_enabled",
             "api_endpoint_port",
             "chat_ui_enabled",
+            "api_transfer_enabled",
             "api_endpoint_key",
             "web_search_engine",
             "web_search_engine_url",

@@ -1,0 +1,8 @@
+{
+  "llamaUrl": "https://server :49222",
+  "llamaModel": "qwen3.8",
+  "llamaSystemPrompt": "You are a code reviewer. Analyze the following task output for quality issues, potential bugs, and improvement suggestions.",
+  "llamaApiKey": "yoursecret",
+  "maxPromptLength": 393216,
+  "maxFileContent": 131072
+}

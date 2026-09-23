@@ -1918,6 +1918,19 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     );
                 }
                 5 => {
+                    app.config.default.api_transfer_enabled =
+                        !app.config.default.api_transfer_enabled;
+                    app.config.save().ok();
+                    app.add_log(
+                        if app.config.default.api_transfer_enabled {
+                            crate::t!("async.transfer_api_enabled")
+                        } else {
+                            crate::t!("async.transfer_api_disabled")
+                        },
+                        crate::config::LogLevel::Info,
+                    );
+                }
+                6 => {
                     app.ui.global_mode = GlobalMode::LlamaServerOptionsPicker {
                         port: app.settings.port.to_string(),
                         threads: app.settings.threads,
@@ -1931,12 +1944,12 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         edit_cursor_pos: 0,
                     };
                 }
-                6 => {
+                7 => {
                     app.ui.global_mode = GlobalMode::RpcManager;
                     app.picker.rpc_workers_selected_idx = 0;
                     app.picker.editing_rpc_worker = None;
                 }
-                7 => {
+                8 => {
                     let engine_url = app.config.default.web_search_engine_url.clone();
                     let engine = app.config.default.web_search_engine.clone();
                     let api_key = app.config.default.web_search_api_key.clone();
@@ -1968,7 +1981,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         app.pending.web_search_check_handle = Some(handle);
                     }
                 }
-                8 => {
+                9 => {
                     let current = crate::tui::i18n::get_language();
                     let next = match current.as_str() {
                         "fr" => "it",
@@ -1995,7 +2008,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.settings_state.server_settings_selected_idx =
-                (app.settings_state.server_settings_selected_idx + 1).min(8);
+                (app.settings_state.server_settings_selected_idx + 1).min(9);
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.settings_state.server_settings_selected_idx {

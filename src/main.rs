@@ -3,7 +3,9 @@ mod config;
 mod gguf;
 mod models;
 mod serve;
+mod serve_agent;
 mod serve_api;
+mod serve_transfer;
 mod tui;
 
 use crate::tui::i18n;

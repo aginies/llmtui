@@ -130,6 +130,7 @@ cargo run -- --config /path/to/config.yaml
 | `api_endpoint_enabled` | false | Enable built-in API endpoint |
 | `api_endpoint_port` | 49222 | Built-in API endpoint port |
 | `api_endpoint_key` | null | Bearer token for API endpoint authentication |
+| `api_transfer_enabled` | false | Enable file-transfer API (`/api/transfer/...`) on the API endpoint |
 | `web_search_enabled` | false | Enable web search |
 | `web_search_engine` | searxng | Search engine (searxng) |
 | `web_search_engine_url` | (empty) | URL of SearXNG instance (required for web search to work) |
