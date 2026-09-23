@@ -249,6 +249,7 @@ pub struct ModelOverride {
     // GPU
     pub gpu_layers: Option<i32>,
     pub split_mode: Option<SplitMode>,
+    pub tensor_split: Option<String>,
     pub main_gpu: Option<i32>,
     pub fit: Option<bool>,
     pub lora: Option<PathBuf>,
@@ -371,6 +372,7 @@ impl ModelOverride {
             }),
             gpu_layers_mode: Some(s.gpu_layers_mode),
             split_mode: Some(s.split_mode),
+            tensor_split: Some(s.tensor_split.clone()),
             main_gpu: Some(s.main_gpu),
             fit: Some(s.fit),
             lora: s.lora.clone(),
@@ -490,6 +492,7 @@ impl ModelOverride {
             base,
             system_prompt,
             system_prompt_preset_name,
+            tensor_split,
             rpc,
             samplers,
             spec_type,
@@ -717,6 +720,8 @@ pub struct DefaultParams {
     pub gpu_layers_mode: crate::models::GpuLayersMode,
     #[serde(default)]
     pub split_mode: SplitMode,
+    #[serde(default)]
+    pub tensor_split: String,
     #[serde(default)]
     pub main_gpu: i32,
     #[serde(default = "default_fit")]
@@ -1077,6 +1082,7 @@ impl Default for DefaultParams {
             gpu_layers: default_gpu_layers(),
             gpu_layers_mode: default_gpu_layers_mode(),
             split_mode: SplitMode::Layer,
+            tensor_split: String::new(),
             main_gpu: 0,
             fit: default_fit(),
             lora: None,
@@ -1237,6 +1243,7 @@ impl Config {
             "gpu_layers",
             "gpu_layers_mode",
             "split_mode",
+            "tensor_split",
             "main_gpu",
             "fit",
             "lora",
@@ -1333,6 +1340,7 @@ impl Config {
             "parallel",
             "gpu_layers",
             "split_mode",
+            "tensor_split",
             "main_gpu",
             "fit",
             "lora",

@@ -539,6 +539,16 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _| {},
             "GPU split strategy: None, Layer (default), Row, or Tensor. Controls how model layers are distributed across multiple GPUs. Layer splits by layer count, Row/Tensor split by matrix dimensions for multi-GPU setups.",
         ),
+        ultra_field(
+            "tensor_split",
+            "Tensor Split",
+            "GPU Offload",
+            |s| s.tensor_split.clone(),
+            |s, c| s.tensor_split != c.tensor_split,
+            |_, _, _| {},
+            |_, _| {},
+            "Fraction of model weights to load on each GPU (colon-separated for multi-GPU, e.g., '0.5:0.5'). For single GPU, leave empty. Press Enter to edit.",
+        ),
         expert_field(
             "main_gpu",
             "Main GPU",
@@ -1326,6 +1336,7 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_bool!(parts, s, current, webui, "webui");
     // ── Strings ───────────────────────────────────────────────────────────
     diff_string!(parts, s, current, system_prompt_preset_name, "preset");
+    diff_string!(parts, s, current, tensor_split, "tensor_split");
     diff_string!(parts, s, current, rpc, "rpc");
     if s.chat_template != current.chat_template
         && let Some(ref v) = s.chat_template
@@ -1514,6 +1525,7 @@ pub fn model_settings_diff_parts(current: &ModelSettings, profile: &ModelSetting
 
     // ── Strings ───────────────────────────────────────────────────────────
     ms_diff_string!(parts, s, current, system_prompt_preset_name, "preset");
+    ms_diff_string!(parts, s, current, tensor_split, "tensor_split");
     ms_diff_string!(parts, s, current, rpc, "rpc");
     ms_diff_string!(parts, s, current, spec_type, "spec_type");
     if s.chat_template != current.chat_template

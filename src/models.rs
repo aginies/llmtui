@@ -170,6 +170,7 @@ impl std::hash::Hash for ModelSettings {
         // ── GPU ──
         self.gpu_layers_mode.hash(state);
         self.split_mode.hash(state);
+        self.tensor_split.hash(state);
         self.main_gpu.hash(state);
         self.fit.hash(state);
         self.lora.hash(state);
@@ -346,6 +347,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
                 _ => dp.gpu_layers_mode,
             },
             split_mode: dp.split_mode,
+            tensor_split: dp.tensor_split,
             main_gpu: dp.main_gpu,
             fit: dp.fit,
             lora: dp.lora,
@@ -948,6 +950,8 @@ pub struct ModelSettings {
     pub gpu_layers_mode: GpuLayersMode,
     /// Split mode across multiple GPUs.
     pub split_mode: SplitMode,
+    /// Fraction of model offloaded to each GPU (comma-separated).
+    pub tensor_split: String,
     /// Main GPU index.
     pub main_gpu: i32,
     /// Whether to adjust arguments to fit device memory.
