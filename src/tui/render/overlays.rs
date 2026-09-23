@@ -1924,6 +1924,9 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
         app.picker.editing_rpc_worker.is_some(),
         &app.picker.rpc_worker_edit_buffer,
         app.picker.rpc_worker_edit_cursor_pos,
+        app.picker.editing_rpc_worker_tensor_split.is_some(),
+        &app.picker.rpc_worker_tensor_split_buffer,
+        app.picker.rpc_worker_tensor_split_cursor_pos,
     );
     let available_height = rpc_area.height.saturating_sub(2);
     let max_offset = worker_lines.len().saturating_sub(available_height as usize) as u16;
@@ -3373,7 +3376,13 @@ fn render_chat_template_picker(
         })
         .collect();
     let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2);
-    let lines: Vec<Line> = blocks.iter().skip(off).take(fit).flatten().cloned().collect();
+    let lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
     let scroll = if entries.len() > fit {
         Some((entries.len(), off, fit))
     } else {

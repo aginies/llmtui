@@ -93,6 +93,9 @@ pub struct RpcWorker {
     pub ip: String,
     #[serde(default = "default_rpc_port")]
     pub port: u16,
+    /// Tensor split fraction for this worker (default "1").
+    #[serde(default)]
+    pub tensor_split: String,
 }
 
 fn default_rpc_port() -> u16 {
@@ -1399,7 +1402,7 @@ impl Config {
 
     /// Known RpcWorker keys.
     fn rpc_worker_keys() -> &'static [&'static str] {
-        &["selected", "name", "ip", "port"]
+        &["selected", "name", "ip", "port", "tensor_split"]
     }
 
     /// Validate unknown YAML keys against known field lists.

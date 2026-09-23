@@ -1,7 +1,5 @@
 use crate::config::Profile;
-use crate::models::{
-    CacheQuantType, GpuLayersMode, LoadMode, Mirostat, ModelSettings, NumMode, SplitMode,
-};
+use crate::models::{CacheQuantType, GpuLayersMode, LoadMode, ModelSettings, NumMode, SplitMode};
 use crate::tui::colors::*;
 use crate::tui::format_context_k;
 use ratatui::{
@@ -130,7 +128,7 @@ macro_rules! make_field_fn {
 
 make_field_fn!(field, false, false, @none);
 make_field_fn!(expert_field, true, false, @none);
-make_field_fn!(ultra_field, true, true, @none);
+make_field_fn!(ultra_field, false, true, @none);
 make_field_fn!(field_with_toggle, false, false, toggle);
 make_field_fn!(expert_field_with_toggle, true, false, toggle);
 make_field_fn!(ultra_field_with_toggle, true, true, toggle);
@@ -373,39 +371,7 @@ pub fn all_fields() -> Vec<SettingField> {
             f.is_enabled = Some(|s| s.rope_yarn_enabled);
             f
         },
-        ultra_field(
-            "threads_batch",
-            "Threads Batch",
-            "Loading",
-            |s| s.threads_batch.to_string(),
-            |s, c| s.threads_batch != c.threads_batch,
-            |s, delta, _| {
-                s.threads_batch = (s.threads_batch as i32 + delta).max(1) as u32;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<u32>() {
-                    s.threads_batch = v.max(1);
-                }
-            },
-            "CPU threads for batch processing (1 to 32). Separate from Threads (inference threads). Keep equal for most workloads, or reduce batch threads to lower CPU usage during batch operations.",
-        ),
-        ultra_field(
-            "ubatch_size",
-            "UBatch Size",
-            "Loading",
-            |s| s.ubatch_size.to_string(),
-            |s, c| s.ubatch_size != c.ubatch_size,
-            |s, delta, _| {
-                s.ubatch_size = (s.ubatch_size as i32 + delta * 64).max(1) as u32;
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<u32>() {
-                    s.ubatch_size = v.max(1);
-                }
-            },
-            "Unlimited batch size for prompt processing. Larger values improve prompt evaluation throughput but use more RAM. Typical: 512-2048. Set to 0 to match context_length.",
-        ),
-        ultra_field(
+        expert_field(
             "keep",
             "Keep",
             "Loading",
@@ -515,7 +481,7 @@ pub fn all_fields() -> Vec<SettingField> {
             gpu_layers_apply,
             "How many model layers to offload to GPU. Arrow keys cycle: Auto → 1 → 2 → ... → N → All → Auto. Auto lets llama.cpp decide based on VRAM. All loads every layer (999). Specific number sets exact offload count.",
         ),
-        ultra_field(
+        expert_field(
             "split_mode",
             "Split Mode",
             "GPU Offload",
@@ -539,14 +505,18 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _| {},
             "GPU split strategy: None, Layer (default), Row, or Tensor. Controls how model layers are distributed across multiple GPUs. Layer splits by layer count, Row/Tensor split by matrix dimensions for multi-GPU setups.",
         ),
-        ultra_field(
+        expert_field(
             "tensor_split",
             "Tensor Split",
             "GPU Offload",
             |s| s.tensor_split.clone(),
             |s, c| s.tensor_split != c.tensor_split,
-            |_, _, _| {},
-            |_, _| {},
+            |_s, delta, _| {
+                let _ = delta;
+            },
+            |s, buf| {
+                s.tensor_split = buf.to_string();
+            },
             "Fraction of model weights to load on each GPU (colon-separated for multi-GPU, e.g., '0.5:0.5'). For single GPU, leave empty. Press Enter to edit.",
         ),
         expert_field(
@@ -853,62 +823,6 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             "Locally typical sampling (typ_p). Controls diversity by keeping tokens with typical probability mass. Values near 1.0 = no effect, 0.1-0.5 = moderate diversity. Typical: 1.0 (off).",
         ),
-        ultra_field(
-            "mirostat",
-            "Mirostat",
-            "Sampling",
-            |s| s.mirostat.to_string(),
-            |s, c| s.mirostat != c.mirostat,
-            |s, delta, _| {
-                let mut val = s.mirostat;
-                val = match (delta, val) {
-                    (1, Mirostat::Off) => Mirostat::V1,
-                    (1, Mirostat::V1) => Mirostat::Mirostat2,
-                    (1, Mirostat::Mirostat2) => Mirostat::Off,
-                    (-1, Mirostat::Off) => Mirostat::Mirostat2,
-                    (-1, Mirostat::V1) => Mirostat::Off,
-                    (-1, Mirostat::Mirostat2) => Mirostat::V1,
-                    _ => val,
-                };
-                s.mirostat = val;
-            },
-            |_, _| {},
-            "Mirostat sampling mode: Off (default), Mirostat, or Mirostat2. Adaptive temperature control that maintains target perplexity. Mirostat2 is more aggressive. Useful for consistent output quality.",
-        ),
-        ultra_field(
-            "mirostat_lr",
-            "Mirostat LR",
-            "Sampling",
-            |s| format!("{:.2}", s.mirostat_lr),
-            |s, c| (s.mirostat_lr - c.mirostat_lr).abs() > 0.001,
-            |s, delta, _| {
-                s.mirostat_lr =
-                    ((s.mirostat_lr * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 1.0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<f32>() {
-                    s.mirostat_lr = v.clamp(0.0, 1.0);
-                }
-            },
-            "Mirostat learning rate (eta). Controls how quickly the temperature adapts. Smaller = smoother adjustments. Typical: 0.1.",
-        ),
-        ultra_field(
-            "mirostat_ent",
-            "Mirostat Ent",
-            "Sampling",
-            |s| format!("{:.2}", s.mirostat_ent),
-            |s, c| (s.mirostat_ent - c.mirostat_ent).abs() > 0.001,
-            |s, delta, _| {
-                s.mirostat_ent =
-                    ((s.mirostat_ent * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<f32>() {
-                    s.mirostat_ent = v.clamp(0.0, 10.0);
-                }
-            },
-            "Mirostat target entropy. Controls the diversity of output. Higher = more diverse. Typical: 5.0.",
-        ),
         ultra_field_with_toggle(
             "ignore_eos",
             "Ignore EOS",
@@ -919,16 +833,6 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _| {},
             toggle_ignore_eos,
             "Ignore end-of-sequence tokens during generation. Toggle on/off with Enter. Useful when you want to force the model to continue generating.",
-        ),
-        ultra_field(
-            "samplers",
-            "Samplers",
-            "Sampling",
-            |s| s.samplers.0.clone(),
-            |s, c| s.samplers.0 != c.samplers.0,
-            |_, _, _| {},
-            |_, _| {},
-            "Semicolon-separated sampler order string (e.g., 'mirostat;temperature;top_k;top_p'). Controls which samplers are applied and in what order. Press Enter to edit.",
         ),
         field_with_toggle(
             "max_tokens",
@@ -1053,71 +957,6 @@ pub fn all_fields() -> Vec<SettingField> {
             "Penalizes tokens based on how often they appear in the text (+) or rewards them (-). Positive values reduce word repetition, negative values encourage denser language. Typical: 0.0 (off).",
         ),
         // ── DRY ───────────────────────────────────────────────────────────────
-        ultra_field(
-            "dry_multiplier",
-            "DRY Multiplier",
-            "DRY",
-            |s| format!("{:.2}", s.dry_multiplier),
-            |s, c| (s.dry_multiplier - c.dry_multiplier).abs() > 0.001,
-            |s, delta, _| {
-                s.dry_multiplier =
-                    ((s.dry_multiplier * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<f32>() {
-                    s.dry_multiplier = v.clamp(0.0, 10.0);
-                }
-            },
-            "DRY (Don't Repeat Yourself) multiplier. Scales the penalty for repetition. Higher values = stronger anti-repetition. Typical: 1.75.",
-        ),
-        ultra_field(
-            "dry_base",
-            "DRY Base",
-            "DRY",
-            |s| format!("{:.2}", s.dry_base),
-            |s, c| (s.dry_base - c.dry_base).abs() > 0.001,
-            |s, delta, _| {
-                s.dry_base = ((s.dry_base * 100.0 + delta as f32 * 5.0) / 100.0).clamp(0.0, 10.0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<f32>() {
-                    s.dry_base = v.clamp(0.0, 10.0);
-                }
-            },
-            "DRY penalty base (log scale). Controls the strength of the repetition penalty. Typical: 1.0 (log2) or 0.0 (linear).",
-        ),
-        ultra_field(
-            "dry_allowed_length",
-            "DRY Allowed Length",
-            "DRY",
-            |s| s.dry_allowed_length.to_string(),
-            |s, c| s.dry_allowed_length != c.dry_allowed_length,
-            |s, delta, _| {
-                s.dry_allowed_length = (s.dry_allowed_length + delta).max(0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.dry_allowed_length = v;
-                }
-            },
-            "Number of recent tokens to check for repetition (penalty starts after this). Higher values check longer context. Typical: 2.",
-        ),
-        ultra_field(
-            "dry_penalty_last_n",
-            "DRY Penalty Last N",
-            "DRY",
-            |s| s.dry_penalty_last_n.to_string(),
-            |s, c| s.dry_penalty_last_n != c.dry_penalty_last_n,
-            |s, delta, _| {
-                s.dry_penalty_last_n = (s.dry_penalty_last_n + delta).max(0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.dry_penalty_last_n = v;
-                }
-            },
-            "How many tokens to consider for DRY penalty (0 = all). Larger values catch longer repetition patterns. Typical: -1 (all) or 128.",
-        ),
         // ── Speculative Decoding ─────────────────────────────────────────────
         expert_field_with_toggle(
             "is_mtp",
@@ -1287,9 +1126,7 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     // ── Integers ──────────────────────────────────────────────────────────
     diff_int!(parts, s, current, context_length, "ctx");
     diff_int!(parts, s, current, threads, "threads");
-    diff_int!(parts, s, current, threads_batch, "threads_batch");
     diff_int!(parts, s, current, batch_size, "batch");
-    diff_int!(parts, s, current, ubatch_size, "ubatch");
     diff_int!(parts, s, current, parallel, "parallel");
     diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
     diff_int!(parts, s, current, cache_reuse, "cache_reuse");
@@ -1302,21 +1139,15 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_int!(parts, s, current, seed, "seed");
     diff_int!(parts, s, current, top_k, "top_k");
     diff_int!(parts, s, current, repeat_last_n, "repeat_last_n");
-    diff_int!(parts, s, current, dry_allowed_length, "dry_allowed");
-    diff_int!(parts, s, current, dry_penalty_last_n, "dry_penalty_last_n");
 
     // ── Floats ────────────────────────────────────────────────────────────
     diff_float!(parts, s, current, temperature, "temp");
     diff_float!(parts, s, current, top_p, "top_p");
     diff_float!(parts, s, current, min_p, "min_p");
     diff_float!(parts, s, current, typical_p, "typical_p");
-    diff_float!(parts, s, current, mirostat_lr, "mirostat_lr");
-    diff_float!(parts, s, current, mirostat_ent, "mirostat_ent");
     diff_float!(parts, s, current, repeat_penalty, "rep_pen");
     diff_option_float!(parts, s, current, presence_penalty, "pres_pen");
     diff_option_float!(parts, s, current, frequency_penalty, "freq_pen");
-    diff_float!(parts, s, current, dry_multiplier, "dry_mult");
-    diff_float!(parts, s, current, dry_base, "dry_base");
     diff_float!(parts, s, current, rope_scale, "rope_scale");
     diff_float!(parts, s, current, rope_freq_base, "rope_freq_base");
     diff_float!(parts, s, current, rope_freq_scale, "rope_freq_scale");
@@ -1391,8 +1222,6 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_enum!(parts, s, current, load_mode, "load_mode");
     diff_enum!(parts, s, current, numa, "numa");
     diff_enum!(parts, s, current, split_mode, "split_mode");
-    diff_enum!(parts, s, current, mirostat, "mirostat");
-    diff_enum!(parts, s, current, samplers, "samplers");
     diff_enum!(parts, s, current, rope_scaling, "rope_scaling");
     diff_enum!(parts, s, current, cache_type, "cache_type");
     diff_option!(parts, s, current, cache_type_k, "cache_type_k");
@@ -1476,9 +1305,7 @@ pub fn model_settings_diff_parts(current: &ModelSettings, profile: &ModelSetting
         ));
     }
     ms_diff_int!(parts, s, current, threads, "threads");
-    ms_diff_int!(parts, s, current, threads_batch, "threads_batch");
     ms_diff_int!(parts, s, current, batch_size, "batch");
-    ms_diff_int!(parts, s, current, ubatch_size, "ubatch");
     ms_diff_int!(parts, s, current, parallel, "parallel");
     ms_diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
     ms_diff_int!(parts, s, current, keep, "keep");
@@ -1487,8 +1314,6 @@ pub fn model_settings_diff_parts(current: &ModelSettings, profile: &ModelSetting
     ms_diff_int!(parts, s, current, seed, "seed");
     ms_diff_int!(parts, s, current, top_k, "top_k");
     ms_diff_int!(parts, s, current, repeat_last_n, "repeat_last_n");
-    ms_diff_int!(parts, s, current, dry_allowed_length, "dry_allowed");
-    ms_diff_int!(parts, s, current, dry_penalty_last_n, "dry_penalty_last_n");
     ms_diff_int!(parts, s, current, cache_reuse, "cache_reuse");
     ms_diff_int!(parts, s, current, draft_tokens, "draft_tokens");
     ms_diff_option!(parts, s, current, max_tokens, "max_tokens");
@@ -1498,13 +1323,9 @@ pub fn model_settings_diff_parts(current: &ModelSettings, profile: &ModelSetting
     ms_diff_float!(parts, s, current, top_p, "top_p");
     ms_diff_float!(parts, s, current, min_p, "min_p");
     ms_diff_float!(parts, s, current, typical_p, "typical_p");
-    ms_diff_float!(parts, s, current, mirostat_lr, "mirostat_lr");
-    ms_diff_float!(parts, s, current, mirostat_ent, "mirostat_ent");
     ms_diff_float!(parts, s, current, repeat_penalty, "rep_pen");
     ms_diff_option!(parts, s, current, presence_penalty, "pres_pen");
     ms_diff_option!(parts, s, current, frequency_penalty, "freq_pen");
-    ms_diff_float!(parts, s, current, dry_multiplier, "dry_mult");
-    ms_diff_float!(parts, s, current, dry_base, "dry_base");
     ms_diff_float!(parts, s, current, rope_scale, "rope_scale");
     ms_diff_float!(parts, s, current, rope_freq_base, "rope_freq_base");
     ms_diff_float!(parts, s, current, rope_freq_scale, "rope_freq_scale");
@@ -1604,8 +1425,6 @@ pub fn model_settings_diff_parts(current: &ModelSettings, profile: &ModelSetting
     ms_diff_enum!(parts, s, current, load_mode, "load_mode");
     ms_diff_enum!(parts, s, current, numa, "numa");
     ms_diff_enum!(parts, s, current, split_mode, "split_mode");
-    ms_diff_enum!(parts, s, current, mirostat, "mirostat");
-    ms_diff_enum!(parts, s, current, samplers, "samplers");
     ms_diff_enum!(parts, s, current, rope_scaling, "rope_scaling");
     ms_diff_enum!(parts, s, current, cache_type, "cache_type");
     ms_diff_option!(parts, s, current, cache_type_k, "cache_type_k");

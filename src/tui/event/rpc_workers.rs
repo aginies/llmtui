@@ -4,29 +4,119 @@ use crate::tui::app::App;
 
 pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
     let editing = app.picker.editing_rpc_worker.is_some();
+    let editing_ts = app.picker.editing_rpc_worker_tensor_split.is_some();
 
-    if editing {
+    if editing_ts {
+        // ── Tensor Split editor ──────────────────────────────
+        match key.code {
+            KeyCode::Enter => {
+                if let Some(idx) = app.picker.editing_rpc_worker_tensor_split
+                    && idx < app.config.rpc_workers.len()
+                {
+                    app.config.rpc_workers[idx].tensor_split =
+                        app.picker.rpc_worker_tensor_split_buffer.clone();
+                    let _ = app.config.save();
+                    app.add_log(
+                        format!(
+                            "RPC worker #{} tensor_split set to '{}'",
+                            idx + 1,
+                            app.config.rpc_workers[idx].tensor_split
+                        ),
+                        crate::config::LogLevel::Info,
+                    );
+                }
+                app.picker.editing_rpc_worker_tensor_split = None;
+                app.picker.rpc_worker_tensor_split_buffer.clear();
+                app.picker.rpc_worker_tensor_split_cursor_pos = 0;
+            }
+            KeyCode::Esc => {
+                app.picker.editing_rpc_worker_tensor_split = None;
+                app.picker.rpc_worker_tensor_split_buffer.clear();
+                app.picker.rpc_worker_tensor_split_cursor_pos = 0;
+            }
+            KeyCode::Char(c) => {
+                let byte_idx = app
+                    .picker
+                    .rpc_worker_tensor_split_buffer
+                    .char_indices()
+                    .nth(app.picker.rpc_worker_tensor_split_cursor_pos)
+                    .map(|(i, _)| i)
+                    .unwrap_or(app.picker.rpc_worker_tensor_split_buffer.len());
+                app.picker
+                    .rpc_worker_tensor_split_buffer
+                    .insert(byte_idx, c);
+                app.picker.rpc_worker_tensor_split_cursor_pos += 1;
+            }
+            KeyCode::Backspace if app.picker.rpc_worker_tensor_split_cursor_pos > 0 => {
+                app.picker.rpc_worker_tensor_split_cursor_pos -= 1;
+                let byte_idx = app
+                    .picker
+                    .rpc_worker_tensor_split_buffer
+                    .char_indices()
+                    .nth(app.picker.rpc_worker_tensor_split_cursor_pos)
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                app.picker.rpc_worker_tensor_split_buffer.remove(byte_idx);
+            }
+            KeyCode::Delete
+                if app.picker.rpc_worker_tensor_split_cursor_pos
+                    < app.picker.rpc_worker_tensor_split_buffer.chars().count() =>
+            {
+                let byte_idx = app
+                    .picker
+                    .rpc_worker_tensor_split_buffer
+                    .char_indices()
+                    .nth(app.picker.rpc_worker_tensor_split_cursor_pos)
+                    .map(|(i, _)| i)
+                    .unwrap_or(app.picker.rpc_worker_tensor_split_buffer.len());
+                app.picker.rpc_worker_tensor_split_buffer.remove(byte_idx);
+            }
+            KeyCode::Left => {
+                app.picker.rpc_worker_tensor_split_cursor_pos = app
+                    .picker
+                    .rpc_worker_tensor_split_cursor_pos
+                    .saturating_sub(1);
+            }
+            KeyCode::Right => {
+                app.picker.rpc_worker_tensor_split_cursor_pos =
+                    (app.picker.rpc_worker_tensor_split_cursor_pos + 1)
+                        .min(app.picker.rpc_worker_tensor_split_buffer.chars().count());
+            }
+            _ => {}
+        }
+    } else if editing {
         match key.code {
             KeyCode::Enter => {
                 if !app.picker.rpc_worker_edit_buffer.is_empty() {
-                    // Parse: [Name], IP, Port
+                    // Parse: [Name], IP, Port, TensorSplit
                     let parts: Vec<&str> = app
                         .picker
                         .rpc_worker_edit_buffer
                         .split(',')
                         .map(|s: &str| s.trim())
                         .collect();
-                    let (name, ip_str, port_str) = match parts.len() {
-                        1 => ("".to_string(), parts[0].to_string(), "50052".to_string()),
+                    let (name, ip_str, port_str, tensor_split) = match parts.len() {
+                        1 => (
+                            "".to_string(),
+                            parts[0].to_string(),
+                            "50052".to_string(),
+                            "1".to_string(),
+                        ),
                         2 => {
                             // Check if second part is a port
                             if parts[1].parse::<u16>().is_ok() {
-                                ("".to_string(), parts[0].to_string(), parts[1].to_string())
+                                (
+                                    "".to_string(),
+                                    parts[0].to_string(),
+                                    parts[1].to_string(),
+                                    "1".to_string(),
+                                )
                             } else {
                                 (
                                     parts[0].to_string(),
                                     parts[1].to_string(),
                                     "50052".to_string(),
+                                    "1".to_string(),
                                 )
                             }
                         }
@@ -34,8 +124,20 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             parts[0].to_string(),
                             parts[1].to_string(),
                             parts[2].to_string(),
+                            "1".to_string(),
                         ),
-                        _ => ("".to_string(), "".to_string(), "0".to_string()),
+                        4 => (
+                            parts[0].to_string(),
+                            parts[1].to_string(),
+                            parts[2].to_string(),
+                            parts[3].to_string(),
+                        ),
+                        _ => (
+                            "".to_string(),
+                            "".to_string(),
+                            "0".to_string(),
+                            "1".to_string(),
+                        ),
                     };
 
                     // Validate IP
@@ -60,6 +162,7 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             name,
                             ip: ip_str,
                             port,
+                            tensor_split,
                         };
 
                         if let Some(idx) = app.picker.editing_rpc_worker {
@@ -165,8 +268,10 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     .get(app.picker.rpc_workers_selected_idx)
                 {
                     app.picker.editing_rpc_worker = Some(app.picker.rpc_workers_selected_idx);
-                    app.picker.rpc_worker_edit_buffer =
-                        format!("{}, {}, {}", worker.name, worker.ip, worker.port);
+                    app.picker.rpc_worker_edit_buffer = format!(
+                        "{}, {}, {}, {}",
+                        worker.name, worker.ip, worker.port, worker.tensor_split
+                    );
                     app.picker.rpc_worker_edit_cursor_pos =
                         app.picker.rpc_worker_edit_buffer.chars().count();
                 }
@@ -181,6 +286,20 @@ pub fn handle_rpc_workers_key(app: &mut App, key: crossterm::event::KeyEvent) {
                     app.picker.rpc_workers_selected_idx = app.config.rpc_workers.len() - 1;
                 }
                 let _ = app.config.save();
+            }
+            KeyCode::Char('t') => {
+                // Quick-edit tensor_split for selected worker
+                if let Some(worker) = app
+                    .config
+                    .rpc_workers
+                    .get(app.picker.rpc_workers_selected_idx)
+                {
+                    app.picker.editing_rpc_worker_tensor_split =
+                        Some(app.picker.rpc_workers_selected_idx);
+                    app.picker.rpc_worker_tensor_split_buffer = worker.tensor_split.clone();
+                    app.picker.rpc_worker_tensor_split_cursor_pos =
+                        app.picker.rpc_worker_tensor_split_buffer.chars().count();
+                }
             }
             _ => {}
         }

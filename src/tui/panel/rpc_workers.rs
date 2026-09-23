@@ -12,17 +12,58 @@ pub fn render_all<'a>(
     editing: bool,
     edit_content: &str,
     edit_cursor_pos: usize,
+    editing_ts: bool,
+    ts_buffer: &str,
+    ts_cursor_pos: usize,
 ) -> Vec<Line<'a>> {
     let mut lines = Vec::new();
 
-    if editing {
+    if editing_ts {
+        // ── Tensor Split editor ──────────────────────────────
+        lines.push(Line::from(vec![
+            Span::styled(
+                "Editing Tensor Split",
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" — Value (default: 1)", Style::default().fg(DIM_GRAY)),
+        ]));
+        lines.push(Line::from(""));
+
+        let mut spans = Vec::new();
+        if let Some(c) = ts_buffer.chars().nth(ts_cursor_pos) {
+            let before: String = ts_buffer.chars().take(ts_cursor_pos).collect();
+            let after: String = ts_buffer.chars().skip(ts_cursor_pos + 1).collect();
+
+            spans.push(Span::raw(before));
+            spans.push(Span::styled(
+                c.to_string(),
+                Style::default().fg(BLACK).bg(ACCENT),
+            ));
+            spans.push(Span::raw(after));
+        } else {
+            spans.push(Span::raw(ts_buffer.to_string()));
+        }
+        if ts_cursor_pos == ts_buffer.chars().count() {
+            spans.push(Span::styled("_", Style::default().fg(BLACK).bg(ACCENT)));
+        }
+        lines.push(Line::from(spans));
+
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled(
+            "[↵] Save  [⎋] Cancel",
+            Style::default().fg(CYAN),
+        )]));
+    } else if editing {
         // ── Edit mode ──────────────────────────────────────────
         lines.push(Line::from(vec![
             Span::styled(
                 "Editing RPC Worker",
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ),
-            Span::styled(" — Format: [Name], IP, Port", Style::default().fg(DIM_GRAY)),
+            Span::styled(
+                " — Format: [Name], IP, Port, TensorSplit",
+                Style::default().fg(DIM_GRAY),
+            ),
         ]));
         lines.push(Line::from(""));
 
@@ -58,7 +99,7 @@ pub fn render_all<'a>(
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ),
             Span::styled(
-                " — Space: Toggle | n: New | e: Edit | d: Delete",
+                " — Space: Toggle | n: New | e: Edit | d: Delete | ts: Tensor Split",
                 Style::default().fg(DIM_GRAY),
             ),
         ]));
@@ -83,6 +124,11 @@ pub fn render_all<'a>(
                 &worker.name
             };
 
+            let ts_display = if worker.tensor_split.is_empty() || worker.tensor_split == "1" {
+                "1"
+            } else {
+                &worker.tensor_split
+            };
             lines.push(Line::from(vec![
                 Span::styled(marker, Style::default().fg(ACCENT)),
                 Span::styled(
@@ -90,7 +136,10 @@ pub fn render_all<'a>(
                     Style::default().fg(if worker.selected { GREEN } else { DIM_GRAY }),
                 ),
                 Span::styled(
-                    format!("{:<15} | {}:{}", name_display, worker.ip, worker.port),
+                    format!(
+                        "{:<15} | {}:{} | ts:{}",
+                        name_display, worker.ip, worker.port, ts_display
+                    ),
                     row_style,
                 ),
             ]));
@@ -105,7 +154,7 @@ pub fn render_all<'a>(
 
         lines.push(Line::from(""));
         lines.push(Line::from(vec![Span::styled(
-            "[Space] Toggle  [e] Edit  [n] New  [d] Delete  [⎋] Back",
+            "[Space] Toggle  [e] Edit  [n] New  [d] Delete  [t] Tensor Split  [⎋] Back",
             Style::default().fg(CYAN),
         )]));
     }

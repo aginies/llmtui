@@ -204,29 +204,29 @@ pub fn build_server_cmd(
             settings.split_mode.to_string(),
         );
     }
-    if !settings.tensor_split.is_empty() {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--tensor-split",
-            &settings.tensor_split,
-        );
+    // Build --tensor-split from local GPU + selected RPC workers
+    let local_split = if settings.tensor_split.is_empty() {
+        "1".to_string()
     } else {
-        // Auto tensor-split for RPC: one share for the local device plus one
-        // per enabled RPC worker (e.g. 1 worker -> "1,1").
-        let worker_count = config
-            .rpc_workers
-            .iter()
-            .filter(|w| w.selected && IpAddr::from_str(&w.ip).is_ok())
-            .count();
-        if worker_count > 0 {
-            push_arg(
-                &mut cmd,
-                &mut parts,
-                "--tensor-split",
-                vec!["1"; worker_count + 1].join(","),
-            );
-        }
+        settings.tensor_split.clone()
+    };
+    let worker_splits: Vec<String> = config
+        .rpc_workers
+        .iter()
+        .filter(|w| w.selected)
+        .map(|w| {
+            if w.tensor_split.is_empty() {
+                "1".to_string()
+            } else {
+                w.tensor_split.clone()
+            }
+        })
+        .collect();
+    // --tensor-split is only used when at least one RPC worker is present.
+    // Without workers, llama.cpp auto-detects the split for local GPU(s).
+    if !worker_splits.is_empty() {
+        let full_split = format!("{},{}", local_split, worker_splits.join(","));
+        push_arg(&mut cmd, &mut parts, "--tensor-split", &full_split);
     }
     if settings.main_gpu != 0 {
         let mapped_gpu =
