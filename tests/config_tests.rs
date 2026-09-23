@@ -477,6 +477,7 @@ fn rpc_worker_default_port() {
         name: "test".into(),
         ip: "192.168.1.1".into(),
         port: 50052,
+        tensor_split: "1".into(),
     };
     assert_eq!(worker.port, 50052);
 }

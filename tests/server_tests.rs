@@ -38,6 +38,7 @@ fn make_worker(selected: bool, ip: &str) -> llm_manager::config::RpcWorker {
         name: "worker".into(),
         ip: ip.into(),
         port: 50052,
+        tensor_split: "1".into(),
     }
 }
 
