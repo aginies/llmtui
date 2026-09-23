@@ -325,12 +325,30 @@ orchestrate(
 - The idle-wait timeout is 10 minutes to prevent forever-waiting in case of a crash
 - The result is delivered with `deliverAs: "followUp"` so it queues behind any active streaming
 
+### Enabling / Disabling
+
+`/orchestrator enable` and `/orchestrator disable` activate or deactivate the `orchestrate` tool for the session:
+
+```text
+/orchestrator disable
+→ orchestrator disabled — orchestrate tool hidden (persists across sessions)
+
+/orchestrator enable
+→ orchestrator enabled — orchestrate tool active
+```
+
+- **Disabled** removes `orchestrate` from the LLM's tool list — the model can no longer see or call it. The `/orchestrator` commands themselves stay available so you can re-enable at any time
+- **Enabled** puts `orchestrate` back in the active tool list
+- The state is **persisted** as the `enabled` key in `~/.pi/orchestrator.json` (global, same file as the rest of the orchestrator config), so a disabled orchestrator stays disabled after pi restarts until you run `/orchestrator enable`
+- `/orchestrator status` shows the current state (`enabled` / `disabled`) in its header
+- Default is **enabled** — a missing or corrupt state file means the tool is active
+
 ### Listing background tasks
 
 `/orchestrator` commands are slash commands typed in the **Pi session chat** (not terminal commands). Type `/orchestrator status` to see all tracked background tasks:
 
 ```text
-orchestrator: 1 running, 4 total
+orchestrator: 1 running, 4 total · enabled
 ⏳ ab12cd34    42s+  qwen3.8  Run a full security audit of the attached code
 ✓  9f8e7d6c     128s  qwen3.8  Summarize the config layering strategy
 ✗  1a2b3c4d      9s  qwen3.8  Check the database migration

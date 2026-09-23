@@ -2,9 +2,10 @@
 //! giving it file tools scoped to a transfer directory.
 //!
 //! The remote side uploads a tarball via the transfer API, then calls
-//! POST /api/agent/run with the transfer id and a task. The agent lets
-//! the model page through the extracted files (LIST / READ / GREP) and
-//! returns its final answer — no prompt-size wall.
+//! POST /api/agent/run with the transfer id and a task. The prompt carries
+//! only the task — the agent lets the model page through the extracted
+//! files (LIST / READ / GREP) and returns its final answer, so there is no
+//! prompt-size wall.
 //!
 //! Endpoint (behind the same Bearer auth as the proxy routes, registered
 //! only when the transfer API is enabled):
@@ -167,17 +168,21 @@ pub async fn run(State(state): State<ApiState>, Json(body): Json<AgentRunBody>) 
         .max_rounds
         .unwrap_or(DEFAULT_MAX_ROUNDS)
         .min(MAX_ROUNDS_HARD);
-    let manifest_txt = match manifest(&root) {
-        Ok(m) => m,
+    // Reject empty transfers, but do NOT embed the manifest in the prompt —
+    // the model lists the files itself (LIST) and reads what it needs.
+    let file_count = match walk_files(&root) {
+        Ok(files) => files.len(),
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
     };
-    if manifest_txt.is_empty() {
+    if file_count == 0 {
         return err(StatusCode::BAD_REQUEST, "transfer contains no files");
     }
 
     let system = format!(
         "You are a code-review agent running on the machine where the files are stored.\n\
          Project root: {root}\n\n\
+         Keep any internal thinking brief (a few sentences at most) — get straight to the \
+         command or FINAL answer; do not deliberate at length.\n\n\
          Inspect the project with exactly ONE command per reply, on the first line:\n\
            LIST [subdir]         list files with sizes (whole project or a subdirectory)\n\
            READ <relative/path>  show one file's content\n\
@@ -193,7 +198,10 @@ pub async fn run(State(state): State<ApiState>, Json(body): Json<AgentRunBody>) 
         json!({ "role": "system", "content": system }),
         json!({
             "role": "user",
-            "content": format!("Task: {}\n\nProject files:\n{}", body.task, manifest_txt),
+            "content": format!(
+                "Task: {}\n\nRead the files you need from the project directory (start with LIST).",
+                body.task
+            ),
         }),
     ];
 

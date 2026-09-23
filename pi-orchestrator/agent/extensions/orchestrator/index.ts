@@ -65,44 +65,30 @@ const IDLE_POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10 min max wait for idle
 const CUSTOM_MESSAGE_TYPE = "orchestrator:result";
 const STATUS_ENTRY_TYPE = "orchestrator:status";
 const MAX_TRACKED_TASKS = 50;
+const USER_CONFIG_FILE = path.join(os.homedir(), CONFIG_DIR_NAME, "orchestrator.json");
 
-/** Estimate total uncompressed size of a directory (excluding the same patterns as TAR_EXCLUDES). */
-function estimateDirSize(dir: string): number {
-	let total = 0;
-	const entries = fs.readdirSync(dir, { recursive: true });
-	for (const entry of entries) {
-		const rel = entry as string;
-		const parts = rel.split(path.sep);
-		const shouldExclude = parts.some((p) => TAR_EXCLUDES.includes(p));
-		if (shouldExclude) continue;
-		const full = path.join(dir, rel);
-		try {
-			const stat = fs.statSync(full);
-			if (stat.isFile()) total += stat.size;
-		} catch {
-			// skip unreadable entries
-		}
-	}
-	return total;
-}
+// ─── Enabled/disabled state (persisted in orchestrator.json) ─────────────────
 
-/** Recursively list all files in a directory (excluding the same patterns as TAR_EXCLUDES). */
-function dirToFiles(dir: string): string[] {
-	const files: string[] = [];
-	const entries = fs.readdirSync(dir, { recursive: true });
-	for (const entry of entries) {
-		const rel = entry as string;
-		const parts = rel.split(path.sep);
-		const shouldExclude = parts.some((p) => TAR_EXCLUDES.includes(p));
-		if (shouldExclude) continue;
-		const full = path.join(dir, rel);
-		try {
-			if (fs.statSync(full).isFile()) files.push(rel);
-		} catch {
-			// skip unreadable entries
+/**
+ * Persist the enabled flag into the user config file (~/.pi/orchestrator.json)
+ * so it survives pi restarts — one file for config + state.
+ */
+function setEnabledInUserConfig(enabled: boolean): void {
+	try {
+		let data: Record<string, unknown> = {};
+		if (fs.existsSync(USER_CONFIG_FILE)) {
+			try {
+				data = JSON.parse(fs.readFileSync(USER_CONFIG_FILE, "utf-8")) as Record<string, unknown>;
+			} catch {
+				data = {};
+			}
 		}
+		data.enabled = enabled;
+		fs.mkdirSync(path.dirname(USER_CONFIG_FILE), { recursive: true });
+		fs.writeFileSync(USER_CONFIG_FILE, JSON.stringify(data, null, 2) + "\n");
+	} catch (err) {
+		console.error("[orchestrator] Failed to persist enabled state:", err);
 	}
-	return files;
 }
 
 /** Retry a function with exponential backoff on transient errors. */
@@ -165,6 +151,8 @@ interface OrchestratorConfig {
 	maxPromptLength: number;
 	maxFileContent: number;
 	diffMaxSize: number;
+	/** Persisted by `/orchestrator enable|disable` (default: enabled). */
+	enabled?: boolean;
 }
 
 function readJsonConfig(
@@ -190,7 +178,7 @@ function loadConfig(): OrchestratorConfig {
 		llamaModel: env.ORCHESTRATOR_LLAMA_MODEL || "qwen2.5:7b",
 		llamaSystemPrompt: env.ORCHESTRATOR_LLAMA_SYSTEM_PROMPT || "",
 		llamaApiKey: env.ORCHESTRATOR_LLAMA_API_KEY || "",
-		llamaMaxTokens: Number(env.ORCHESTRATOR_LLAMA_MAX_TOKENS) || 4096,
+		llamaMaxTokens: Number(env.ORCHESTRATOR_LLAMA_MAX_TOKENS) || 16384,
 		llamaTemperature: Number(env.ORCHESTRATOR_LLAMA_TEMPERATURE) || 0.7,
 		llamaTopP: Number(env.ORCHESTRATOR_LLAMA_TOP_P) || 0.9,
 		maxPromptLength:
@@ -201,9 +189,7 @@ function loadConfig(): OrchestratorConfig {
 			Number(env.ORCHESTRATOR_DIFF_MAX_SIZE) || DEFAULT_DIFF_MAX_SIZE,
 	};
 
-	const userConfig = readJsonConfig(
-		path.join(os.homedir(), CONFIG_DIR_NAME, "orchestrator.json"),
-	);
+	const userConfig = readJsonConfig(USER_CONFIG_FILE);
 	const projectConfig = readJsonConfig(
 		path.join(process.cwd(), CONFIG_DIR_NAME, "orchestrator.json"),
 	);
@@ -312,11 +298,21 @@ async function _chatCompletion(
 		}
 
 		const data = (await response.json()) as {
-			choices: Array<{ message: { content: string }; finish_reason: string }>;
+			choices: Array<{
+				message: { content?: string; reasoning_content?: string };
+				finish_reason: string;
+			}>;
 			usage?: { prompt_tokens: number; completion_tokens: number };
 		};
 
-		const content = data.choices?.[0]?.message?.content ?? "(no response)";
+		const choice = data.choices?.[0];
+		const content = choice?.message?.content?.trim()
+			? choice.message.content
+			: emptyResponseFallback(
+					choice?.message?.reasoning_content,
+					choice?.finish_reason,
+					llamaConfig.maxTokens,
+				);
 		const usage = data.usage
 			? {
 					input: data.usage.prompt_tokens,
@@ -325,6 +321,199 @@ async function _chatCompletion(
 			: undefined;
 
 		return { content, usage };
+	} finally {
+		clearTimeout(timeoutId);
+	}
+}
+
+// ─── Streaming Llama.cpp client ─────────────────────────────────────────────
+
+/**
+ * Thinking-model trap: `max_tokens` counts reasoning tokens too. When the
+ * model exhausts the budget while thinking, `content` comes back empty.
+ * Fall back to the reasoning (clearly marked) instead of a useless
+ * "(no response)" so the caller knows what happened and can raise
+ * llamaMaxTokens.
+ */
+function emptyResponseFallback(
+	reasoning: string | undefined,
+	finishReason: string | undefined,
+	maxTokens: number,
+): string {
+	const note =
+		finishReason === "length"
+			? `\n\n⚠️ The model hit the ${maxTokens}-token limit during its thinking phase and produced no final answer. Raise llamaMaxTokens in orchestrator.json (e.g. 32768) and retry.`
+			: "";
+	if (reasoning?.trim()) {
+		return `> ${reasoning.trim()}${note || "\n\n⚠️ The model produced no final answer (only thinking output)."}`;
+	}
+	return `(no response — finish_reason: ${finishReason ?? "unknown"})${note}`;
+}
+
+/**
+ * Same as chatCompletion but with `stream: true` (SSE). Calls onDelta with
+ * the accumulated text as deltas arrive, so the caller can push partial
+ * results to the tool's onUpdate callback (live subagent-style output).
+ *
+ * Thinking models (e.g. Qwen3) stream `reasoning_content` deltas before any
+ * `content` — those are shown too (as a `> ` quote), otherwise the tool view
+ * would be blank for most of the generation. The final returned result keeps
+ * only the clean answer.
+ *
+ * Retries only while no content has been streamed yet (retrying mid-stream
+ * would duplicate the already-shown text).
+ */
+async function chatCompletionStream(
+	llamaConfig: LlamaCppConfig,
+	userContent: string,
+	signal: AbortSignal | undefined,
+	onDelta: (text: string) => void,
+): Promise<LlamaResponse> {
+	let streamed = 0;
+	let lastErr: Error | undefined;
+	for (let attempt = 0; attempt <= 2; attempt++) {
+		try {
+			return await _chatCompletionStream(llamaConfig, userContent, signal, (text) => {
+				streamed = text.length;
+				onDelta(text);
+			});
+		} catch (err) {
+			lastErr = err as Error;
+			// Don't retry on abort
+			if (signal?.aborted) throw lastErr;
+			// Don't retry once the user has seen partial output
+			if (streamed > 0 || attempt === 2) throw lastErr;
+			const msg = lastErr.message.toLowerCase();
+			const isTransient =
+				msg.includes("fetch") ||
+				msg.includes("timeout") ||
+				msg.includes("econnrefused") ||
+				msg.includes("econnreset") ||
+				msg.includes("etimedout") ||
+				msg.includes("epipe") ||
+				msg.includes("502") ||
+				msg.includes("503") ||
+				msg.includes("504");
+			if (!isTransient) throw lastErr;
+			await new Promise((r) => setTimeout(r, 1000 * (1 << attempt)));
+		}
+	}
+	throw lastErr!;
+}
+
+async function _chatCompletionStream(
+	llamaConfig: LlamaCppConfig,
+	userContent: string,
+	signal: AbortSignal | undefined,
+	onDelta: (text: string) => void,
+): Promise<LlamaResponse> {
+	const baseUrl = llamaConfig.url.replace(/\/+$/, "");
+	const endpoint = `${baseUrl}/v1/chat/completions`;
+
+	const messages: Array<{ role: string; content: string }> = [];
+	if (llamaConfig.systemPrompt) {
+		messages.push({ role: "system", content: llamaConfig.systemPrompt });
+	}
+	if (userContent.length > llamaConfig.maxPromptLength) {
+		userContent =
+			userContent.slice(0, llamaConfig.maxPromptLength) +
+			"\n\n... [truncated, max " +
+			llamaConfig.maxPromptLength +
+			" chars]";
+	}
+	messages.push({ role: "user", content: userContent });
+
+	const payload = {
+		model: llamaConfig.model,
+		messages,
+		stream: true,
+		max_tokens: llamaConfig.maxTokens,
+		temperature: llamaConfig.temperature,
+		top_p: llamaConfig.topP,
+	};
+
+	const fetchController = new AbortController();
+	const timeoutId = setTimeout(() => fetchController.abort(), LLAMA_TIMEOUT_MS);
+
+	try {
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload),
+			signal: signal || fetchController.signal,
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			throw new Error(
+				`llama.cpp request failed (${response.status}): ${errorText}`,
+			);
+		}
+		if (!response.body) {
+			throw new Error("llama.cpp stream response has no body");
+		}
+
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let buffer = "";
+		let reasoning = "";
+		let content = "";
+		let finishReason: string | undefined;
+		let usage: { input: number; output: number } | undefined;
+
+		const emit = () => {
+			const text = content
+				? (reasoning ? `> ${reasoning}\n\n${content}` : content)
+				: (reasoning ? `> ${reasoning}` : "⏳ waiting for first token...");
+			onDelta(text);
+		};
+
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			buffer += decoder.decode(value, { stream: true });
+			let nl: number;
+			while ((nl = buffer.indexOf("\n")) !== -1) {
+				const line = buffer.slice(0, nl).trim();
+				buffer = buffer.slice(nl + 1);
+				if (!line.startsWith("data:")) continue;
+				const data = line.slice(5).trim();
+				if (data === "[DONE]") continue;
+				try {
+					const chunk = JSON.parse(data) as {
+						choices?: Array<{
+							delta?: { content?: string; reasoning_content?: string };
+							finish_reason?: string;
+						}>;
+						usage?: { prompt_tokens: number; completion_tokens: number };
+					};
+					const choice = chunk.choices?.[0];
+					const delta = choice?.delta;
+					if (delta?.reasoning_content) reasoning += delta.reasoning_content;
+					if (delta?.content) content += delta.content;
+					if (choice?.finish_reason) finishReason = choice.finish_reason;
+					if (delta?.content || delta?.reasoning_content) emit();
+					if (chunk.usage) {
+						usage = {
+							input: chunk.usage.prompt_tokens,
+							output: chunk.usage.completion_tokens,
+						};
+					}
+				} catch {
+					// Ignore malformed SSE lines
+				}
+			}
+		}
+
+		// Final result: clean answer only — the streamed reasoning was for the live view.
+		// If the answer is empty (e.g. max_tokens exhausted during thinking), fall
+		// back to the reasoning with an explanatory note instead of "(no response)".
+		return {
+			content: content.trim()
+				? content
+				: emptyResponseFallback(reasoning, finishReason, llamaConfig.maxTokens),
+			usage,
+		};
 	} finally {
 		clearTimeout(timeoutId);
 	}
@@ -362,6 +551,93 @@ function withTimeout(
 		signal: controller.signal,
 		done: () => clearTimeout(timeoutId),
 	};
+}
+
+/**
+ * Detect file paths referenced in a task string (e.g. "@main.c", "src/foo.rs",
+ * "/abs/path"). Returns resolved absolute paths, deduplicated.
+ */
+function detectFileRefs(task: string): string[] {
+	// Patterns: @<path>, <path> with a file extension, or absolute paths.
+	// We capture: @<path>, ./<path>, <dir>/<file.ext>, /abs/path
+	const re = /(?:@|(?<=\s|^))(?<path>[^\s"'`]+(?:\.[a-zA-Z0-9]+){1,3})/g;
+	const found: string[] = [];
+	let m;
+	while ((m = re.exec(task)) !== null) {
+		const raw = m.groups!.path;
+		// Skip things that look like URLs or flags
+		if (
+			raw.startsWith("http://") ||
+			raw.startsWith("https://") ||
+			raw.startsWith("--") ||
+			raw.startsWith("-") ||
+			(raw.startsWith("/") && raw.split("/").length > 3)
+		) {
+			continue;
+		}
+		found.push(raw);
+	}
+	return found;
+}
+
+/**
+ * Resolve file refs against `baseCwd` and deduplicate.
+ */
+function resolveFileRefs(refs: string[], baseCwd: string): string[] {
+	const resolved = new Set<string>();
+	for (const ref of refs) {
+		try {
+			const abs = safeResolve(baseCwd, ref);
+			if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+				resolved.add(abs);
+			}
+		} catch {
+			// ignore unresolvable refs
+		}
+	}
+	return [...resolved];
+}
+
+/**
+ * Tar a list of specific files (not a whole directory) into an in-memory tarball.
+ * Files are stored with their relative path from `baseCwd` inside the tarball.
+ */
+function buildFileTarball(files: string[], baseCwd: string): Promise<Buffer> {
+	return new Promise((resolve, reject) => {
+		const args: string[] = ["czf", "-"];
+		for (const f of files) {
+			try {
+				const rel = path.relative(baseCwd, f);
+				args.push(rel);
+			} catch {
+				// skip files that can't be made relative
+			}
+		}
+		if (args.length <= 2) {
+			// Nothing to tar — return empty buffer
+			resolve(Buffer.alloc(0));
+			return;
+		}
+		const proc = spawn("tar", args, { cwd: baseCwd });
+		const chunks: Buffer[] = [];
+		let stderr = "";
+		proc.stdout.on("data", (c: Buffer) => chunks.push(c));
+		proc.stderr.on("data", (c: Buffer) => {
+			stderr += c.toString();
+		});
+		proc.on("error", (err) => reject(new Error(`tar failed: ${err.message}`)));
+		proc.on("close", (code) => {
+			if (code !== 0) {
+				reject(
+					new Error(
+						`tar exited ${code}: ${stderr.trim().split("\n")[0] || "unknown error"}`,
+					),
+				);
+			} else {
+				resolve(Buffer.concat(chunks));
+			}
+		});
+	});
 }
 
 /**
@@ -853,7 +1129,27 @@ const OrchestratorParams = Type.Object({
 });
 
 export default function (pi: ExtensionAPI) {
-	const config = loadConfig();
+	// Reloaded on every enable and every tool call so edits to
+	// orchestrator.json are picked up without restarting pi.
+	let config = loadConfig();
+
+	// ── Enabled/disabled state (persisted as `enabled` in orchestrator.json) ──
+	// The tool is active by default at load; if the config says disabled,
+	// session_start removes it from the active tool list.
+	let enabled = config.enabled !== false;
+
+	const applyEnabledState = () => {
+		try {
+			const active = pi.getActiveTools();
+			if (enabled && !active.includes("orchestrate")) {
+				pi.setActiveTools([...active, "orchestrate"]);
+			} else if (!enabled && active.includes("orchestrate")) {
+				pi.setActiveTools(active.filter((n) => n !== "orchestrate"));
+			}
+		} catch (err) {
+			console.error("[orchestrator] Failed to apply enabled state:", err);
+		}
+	};
 
 	// ── EventBus listener: receives async results and delivers to session ──
 	let currentCtx: ExtensionContext | undefined;
@@ -949,6 +1245,8 @@ export default function (pi: ExtensionAPI) {
 	// Register listener on session start (ctx is needed for isIdle check)
 	pi.on("session_start", (_event, ctx) => {
 		currentCtx = ctx;
+		// Apply the persisted enabled state (the tool is active by default at load)
+		applyEnabledState();
 	});
 
 	// Listen for async results from the tool
@@ -975,6 +1273,7 @@ export default function (pi: ExtensionAPI) {
 			"  ORCHESTRATOR_LLAMA_SYSTEM_PROMPT, ORCHESTRATOR_LLAMA_MAX_TOKENS",
 			"",
 			"Sync (default): waits for the remote answer and returns it as the tool result.",
+			"The remote output streams live into the tool view while it generates.",
 			"Async (async: true): fires the request in the background and returns immediately;",
 			"the remote answer is delivered to the session when it arrives (waits for the",
 			"session to be idle first).",
@@ -991,7 +1290,23 @@ export default function (pi: ExtensionAPI) {
 			].join("\n"),
 		parameters: OrchestratorParams,
 
-		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+		async execute(_toolCallId, params, signal, onUpdate, ctx) {
+			// Pick up orchestrator.json changes made since the last call
+			config = loadConfig();
+			// Defense in depth: if the orchestrator was disabled (e.g. mid-turn),
+			// refuse the call instead of hitting the remote server.
+			if (!enabled) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: "orchestrator is disabled — run /orchestrator enable to reactivate the orchestrate tool.",
+						},
+					],
+					isError: true,
+				};
+			}
+
 			const llamaConfig: LlamaCppConfig = {
 				url: params.llamaUrl ?? config.llamaUrl,
 				model: params.llamaModel ?? config.llamaModel,
@@ -1032,13 +1347,95 @@ export default function (pi: ExtensionAPI) {
 				);
 			}
 
-			// ── Transfer mode (sendDir): tar + upload + remote review agent ──
-			// The remote model reads the files itself, so there is no prompt-size limit.
-			// Small directories that fit within maxPromptLength are inlined directly
-			// (same path as sendFiles) to avoid unnecessary network round-trips.
-			const isTransfer = params.sendDir !== undefined;
-			let remoteCall: (sig: AbortSignal | undefined) => Promise<LlamaResponse>;
+			// ── Auto-detect file refs in the task and use transfer mode ──────────
+			// If the task mentions file paths (e.g. "@main.c", "src/foo.rs"),
+			// send them to the remote agent instead of embedding contents in the
+			// prompt. The remote agent reads files itself, so no prompt-size limit.
+			const baseCwd = params.cwd ?? ctx.cwd;
+			const fileRefs = detectFileRefs(params.task);
+			const resolvedFiles = fileRefs.length > 0 ? resolveFileRefs(fileRefs, baseCwd) : [];
+			// Auto-transfer only when the user did not pass explicit file/diff
+			// params — those are handled by the inline/sendDir paths below and
+			// must not be silently dropped.
+			const autoTransfer =
+				resolvedFiles.length > 0 &&
+				params.sendDir === undefined &&
+				params.sendFiles === undefined &&
+				params.sendDiff === undefined;
 
+			// ── Transfer mode (sendDir / auto-detected files): tar + upload + remote review agent ──
+			// Always: the remote agent reads the files itself from the extracted
+			// tarball, so the prompt never carries file contents — no prompt-size
+			// limit, even for small directories.
+			const isTransfer = params.sendDir !== undefined;
+			let remoteCall: (
+				sig: AbortSignal | undefined,
+				onDelta?: (text: string) => void,
+			) => Promise<LlamaResponse>;
+
+			if (autoTransfer) {
+				// File-transfer mode: tar only the referenced files.
+				const apiKey = params.llamaApiKey ?? config.llamaApiKey;
+				if (!apiKey) {
+					return {
+						content: [
+							{
+								type: "text",
+								text:
+									"Auto-detected file references require an API key: set llamaApiKey in orchestrator.json or ORCHESTRATOR_LLAMA_API_KEY.",
+							},
+						],
+						isError: true,
+					};
+				}
+				try {
+					ctx.ui.setStatus("orchestrator", `Tarring ${resolvedFiles.length} file(s)...`);
+					const tarball = await buildFileTarball(resolvedFiles, baseCwd);
+					if (tarball.length > MAX_TARBALL_SIZE) {
+						throw new Error(
+							`tarball is ${formatKb(tarball.length)} — over the ${formatKb(MAX_TARBALL_SIZE)} cap`,
+						);
+					}
+					ctx.ui.setStatus(
+						"orchestrator",
+						`Uploading ${formatKb(tarball.length)}...`,
+					);
+					const up = await uploadTransfer(
+						llamaConfig.url,
+						apiKey,
+						tarball,
+						"orchestrate",
+						signal,
+					);
+					ctx.ui.setStatus("orchestrator", "Running remote agent...");
+					const ag = await runAgent(llamaConfig.url, apiKey, up.id, params.task, signal);
+					ctx.ui.setStatus("orchestrator", "Done ✓");
+					return {
+						content: [{ type: "text", text: ag.answer }],
+						details: {
+							llamaModel: llamaConfig.model,
+							llamaUrl: llamaConfig.url,
+							transferId: up.id,
+							rounds: ag.rounds,
+							filesRead: ag.files_read,
+						},
+					};
+				} catch (err) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `transfer/agent run failed: ${(err as Error).message}`,
+							},
+						],
+						isError: true,
+						details: {
+							llamaUrl: llamaConfig.url,
+							llamaModel: llamaConfig.model,
+						},
+					};
+				}
+			}
 			if (isTransfer) {
 				const apiKey = params.llamaApiKey ?? config.llamaApiKey;
 				if (!apiKey) {
@@ -1065,55 +1462,37 @@ export default function (pi: ExtensionAPI) {
 						isError: true,
 					};
 				}
-				// Estimate total size (excluding TAR_EXCLUDES). If it fits within
-				// maxPromptLength, inline directly — no tarball needed.
-				const dirSize = estimateDirSize(dir);
-				if (dirSize <= llamaConfig.maxPromptLength) {
-					// Small enough: inline the files directly (same as sendFiles)
-					const files = dirToFiles(dir);
-					const prompt = buildPrompt(
-						params.task,
-						files,
-						dir,
-						llamaConfig.maxFileContent,
-						llamaConfig.maxPromptLength,
-						diffSection,
+				const task = diffSection
+					? `${params.task}\n\n${diffSection}`
+					: params.task;
+				remoteCall = async (sig) => {
+					ctx.ui.setStatus("orchestrator", `Tarring ${params.sendDir}...`);
+					const tarball = await buildTarball(dir);
+					if (tarball.length > MAX_TARBALL_SIZE) {
+						throw new Error(
+							`tarball is ${formatKb(tarball.length)} — over the ${formatKb(MAX_TARBALL_SIZE)} cap (use a narrower sendDir)`,
+						);
+					}
+					ctx.ui.setStatus(
+						"orchestrator",
+						`Uploading ${formatKb(tarball.length)}...`,
 					);
-					remoteCall = (sig) => chatCompletion(llamaConfig, prompt, sig);
-				} else {
-					// Too large: use tarball + remote agent
-					const task = diffSection
-						? `${params.task}\n\n${diffSection}`
-						: params.task;
-					remoteCall = async (sig) => {
-						ctx.ui.setStatus("orchestrator", `Tarring ${params.sendDir}...`);
-						const tarball = await buildTarball(dir);
-						if (tarball.length > MAX_TARBALL_SIZE) {
-							throw new Error(
-								`tarball is ${formatKb(tarball.length)} — over the ${formatKb(MAX_TARBALL_SIZE)} cap (use a narrower sendDir)`,
-							);
-						}
-						ctx.ui.setStatus(
-							"orchestrator",
-							`Uploading ${formatKb(tarball.length)}...`,
-						);
-						const up = await uploadTransfer(
-							llamaConfig.url,
-							apiKey,
-							tarball,
-							"orchestrate",
-							sig,
-						);
-						ctx.ui.setStatus("orchestrator", "Running remote agent...");
-						const ag = await runAgent(llamaConfig.url, apiKey, up.id, task, sig);
-						return {
-							content: ag.answer,
-							transferId: up.id,
-							rounds: ag.rounds,
-							filesRead: ag.files_read,
-						};
+					const up = await uploadTransfer(
+						llamaConfig.url,
+						apiKey,
+						tarball,
+						"orchestrate",
+						sig,
+					);
+					ctx.ui.setStatus("orchestrator", "Running remote agent...");
+					const ag = await runAgent(llamaConfig.url, apiKey, up.id, task, sig);
+					return {
+						content: ag.answer,
+						transferId: up.id,
+						rounds: ag.rounds,
+						filesRead: ag.files_read,
 					};
-				}
+				};
 			} else {
 				// Inline mode: task + diff + attached file contents in the prompt
 				const prompt = buildPrompt(
@@ -1124,7 +1503,10 @@ export default function (pi: ExtensionAPI) {
 					llamaConfig.maxPromptLength,
 					diffSection,
 				);
-				remoteCall = (sig) => chatCompletion(llamaConfig, prompt, sig);
+				remoteCall = (sig, onDelta) =>
+					onDelta
+						? chatCompletionStream(llamaConfig, prompt, sig, onDelta)
+						: chatCompletion(llamaConfig, prompt, sig);
 			}
 
 			// Async mode: fire in background, return immediately
@@ -1204,8 +1586,21 @@ export default function (pi: ExtensionAPI) {
 				isTransfer ? "Starting transfer..." : "Sending to remote llama.cpp...",
 			);
 
+			// Stream partial output into the tool view (subagent-style live updates),
+			// throttled to ~10 updates/s so token-by-token deltas don't flood re-renders.
+			let lastEmitAt = 0;
+			const onDelta = (text: string) => {
+				const now = Date.now();
+				if (now - lastEmitAt < 100) return;
+				lastEmitAt = now;
+				onUpdate?.({
+					content: [{ type: "text", text }],
+					details: { streaming: true },
+				});
+			};
+
 			try {
-				const response = await remoteCall(signal);
+				const response = await remoteCall(signal, onDelta);
 
 				ctx.ui.setStatus("orchestrator", "Done ✓");
 
@@ -1270,6 +1665,7 @@ export default function (pi: ExtensionAPI) {
 						transferId?: string;
 						rounds?: number;
 						filesRead?: string[];
+						streaming?: boolean;
 				  }
 				| undefined;
 
@@ -1342,10 +1738,11 @@ export default function (pi: ExtensionAPI) {
 			const maxLines = 5;
 			const lines = answer.split("\n");
 			const preview = lines.slice(0, maxLines).join("\n");
-			const more =
-				lines.length > maxLines
-					? `\n${theme.fg("muted", "(Ctrl+O to expand)")}`
-					: "";
+			const more = details?.streaming
+				? `\n${theme.fg("accent", "⏳ streaming...")}`
+				: lines.length > maxLines
+				? `\n${theme.fg("muted", "(Ctrl+O to expand)")}`
+				: "";
 
 			return new Text(
 				`${theme.fg("muted", "llama.cpp: ")}${preview}${more}`,
@@ -1424,7 +1821,7 @@ export default function (pi: ExtensionAPI) {
 	// ── /orchestrator status command ──
 	pi.registerCommand("orchestrator", {
 		description:
-			"Orchestrator background tasks: /orchestrator status — list tasks, /orchestrator kill <id|all> — kill a running task (or all), /orchestrator ping [url] — health check",
+			"Orchestrator: /orchestrator status — list tasks, /orchestrator enable|disable — activate/deactivate the orchestrate tool (persisted), /orchestrator kill <id|all> — kill a running task (or all), /orchestrator ping [url] — health check",
 		getArgumentCompletions: (prefix: string) => {
 			const trimmed = prefix.trimStart();
 			if (trimmed.startsWith("kill ")) {
@@ -1449,13 +1846,39 @@ export default function (pi: ExtensionAPI) {
 					: null;
 			}
 			if (trimmed.startsWith("ping")) return null;
-			const items = ["status", "kill", "ping"].filter((c) =>
+			const items = ["status", "enable", "disable", "kill", "ping"].filter((c) =>
 				c.startsWith(trimmed),
 			);
 			return items.length > 0 ? items.map((c) => ({ value: c, label: c })) : null;
 		},
 			handler: async (args, ctx) => {
 			const [cmd, idArg] = (args || "").trim().split(/\s+/);
+			if (cmd === "enable" || cmd === "disable") {
+				// Re-read orchestrator.json so a freshly added/edited config is loaded
+				config = loadConfig();
+				enabled = config.enabled !== false;
+				const next = cmd === "enable";
+				if (next === enabled) {
+					// Already in this state — resync the tool list just in case
+					applyEnabledState();
+					ctx.ui.notify(
+						`orchestrator is already ${next ? "enabled" : "disabled"}`,
+						"info",
+					);
+					return;
+				}
+				enabled = next;
+				setEnabledInUserConfig(next);
+				applyEnabledState();
+				ctx.ui.setStatus("orchestrator", next ? "Enabled ✓" : "Disabled");
+				ctx.ui.notify(
+					next
+						? "orchestrator enabled — orchestrate tool active"
+						: "orchestrator disabled — orchestrate tool hidden (persists across sessions)",
+					"info",
+				);
+				return;
+			}
 			if (cmd === "ping") {
 				const url = idArg || config.llamaUrl;
 				ctx.ui.setStatus("orchestrator", `Pinging ${url}...`);
@@ -1529,20 +1952,24 @@ export default function (pi: ExtensionAPI) {
 			}
 			if (cmd !== "status") {
 				ctx.ui.notify(
-					"Usage: /orchestrator status | /orchestrator kill <id|all> | /orchestrator ping [url]",
+					"Usage: /orchestrator status | /orchestrator enable | /orchestrator disable | /orchestrator kill <id|all> | /orchestrator ping [url]",
 					"warning",
 				);
 				return;
 			}
 			const list = [...tasks.values()];
 			if (list.length === 0) {
-				ctx.ui.notify("orchestrator: no background tasks", "info");
+				ctx.ui.notify(
+					`orchestrator: no background tasks (${enabled ? "enabled" : "disabled"})`,
+					"info",
+				);
 				return;
 			}
 			const running = list.filter((t) => t.state === "running").length;
 			// TUI-only entry — does not participate in LLM context
 			pi.appendEntry(STATUS_ENTRY_TYPE, {
 				running,
+				enabled,
 				tasks: list.map((t) => ({ ...t })),
 			});
 		},
@@ -1550,12 +1977,13 @@ export default function (pi: ExtensionAPI) {
 
 	// ── Entry renderer for the task list ──
 	pi.registerEntryRenderer(STATUS_ENTRY_TYPE, (entry, _opts, theme) => {
-		const data = entry.data as { running: number; tasks: TrackedTask[] };
+		const data = entry.data as { running: number; enabled?: boolean; tasks: TrackedTask[] };
 		const container = new Container();
+		const stateLabel = data.enabled === false ? "disabled" : "enabled";
 		container.addChild(
 			new Text(
 				theme.fg("toolTitle", theme.bold("orchestrator: ")) +
-					theme.fg("muted", `${data.running} running, ${data.tasks.length} total`),
+					theme.fg("muted", `${data.running} running, ${data.tasks.length} total · ${stateLabel}`),
 				0,
 				0,
 			),
