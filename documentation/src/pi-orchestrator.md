@@ -52,7 +52,9 @@ Once loaded, the `orchestrate` tool and the `/orchestrator` slash commands are a
 
 ## Remote server requirements
 
-The remote machine must run llm-manager with:
+**llm-manager is mandatory** — the `orchestrate` tool is built to talk to a remote llm-manager
+instance, at least to send and receive files (the File Transfer API and the remote review agent are
+llm-manager features; a raw `llama-server` has neither). The remote machine must run llm-manager with:
 
 | Setting | Value | Purpose |
 | ------- | ----- | ------- |
@@ -60,8 +62,9 @@ The remote machine must run llm-manager with:
 | `api_transfer_enabled` | `true` | Serves the File Transfer API (needed for `sendDir` / auto transfer) |
 | `api_endpoint_key` | any secret | Bearer key — set it as `llamaApiKey` in the orchestrator config |
 
-Plain chat (no `sendDir`) only needs `api_endpoint_enabled` — the tool can also point directly at a
-raw `llama-server` URL, which doesn't need a key at all.
+Plain chat (no `sendDir`) only needs `api_endpoint_enabled`. The tool can technically point at a raw
+`llama-server` URL for that mode, but llm-manager is the supported server — everything else
+(file transfer, review agent, auth key) requires it.
 
 ## Configuration
 

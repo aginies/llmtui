@@ -60,7 +60,7 @@ Then point it at your server via `~/.pi/orchestrator.json` (or `ORCHESTRATOR_LLA
 }
 ```
 
-Whole-project reviews (`sendDir`) need the File Transfer API on the remote server: `api_endpoint_enabled` and `api_transfer_enabled` set to `true`, with its `api_endpoint_key` as `llamaApiKey` here.
+The remote machine **must run llm-manager** — it is the supported server, and it is mandatory for sending and receiving files (the File Transfer API and review agent are llm-manager features). Whole-project reviews (`sendDir`) need the File Transfer API on the remote server: `api_endpoint_enabled` and `api_transfer_enabled` set to `true`, with its `api_endpoint_key` as `llamaApiKey` here.
 
 Full reference: [documentation](https://aginies.github.io/llmtui/pi-orchestrator.html) · [pi-orchestrator/README.md](pi-orchestrator/README.md)
 

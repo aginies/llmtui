@@ -233,6 +233,7 @@ pub fn builtin_system_prompt_presets() -> Vec<SystemPromptPreset> {
 pub struct ModelOverride {
     // Loading
     pub context_length: Option<u32>,
+    pub cont_batching: Option<bool>,
     pub batch_size: Option<u32>,
     pub ubatch_size: Option<u32>,
     pub cache_type_k: Option<CacheTypeK>,
@@ -353,6 +354,7 @@ impl ModelOverride {
     pub fn from_settings(s: &crate::models::ModelSettings) -> Self {
         Self {
             context_length: Some(s.context_length),
+            cont_batching: Some(s.cont_batching),
             batch_size: Some(s.batch_size),
             ubatch_size: Some(s.ubatch_size),
             cache_type_k: s.cache_type_k,
@@ -441,6 +443,7 @@ impl ModelOverride {
             self,
             base,
             context_length,
+            cont_batching,
             batch_size,
             ubatch_size,
             keep,
@@ -684,6 +687,8 @@ pub struct DefaultParams {
     // Loading
     #[serde(default = "default_context_length")]
     pub context_length: u32,
+    #[serde(default)]
+    pub cont_batching: bool,
     #[serde(default = "default_threads")]
     pub threads: u32,
     #[serde(default = "default_threads_batch")]
@@ -1067,6 +1072,7 @@ impl Default for DefaultParams {
         Self {
             // Loading
             context_length: default_context_length(),
+            cont_batching: false,
             threads: default_threads(),
             threads_batch: default_threads_batch(),
             batch_size: default_batch_size(),
@@ -1231,6 +1237,7 @@ impl Config {
     fn default_params_keys() -> &'static [&'static str] {
         &[
             "context_length",
+            "cont_batching",
             "threads",
             "threads_batch",
             "batch_size",
@@ -1331,6 +1338,7 @@ impl Config {
     fn model_override_keys() -> &'static [&'static str] {
         &[
             "context_length",
+            "cont_batching",
             "batch_size",
             "ubatch_size",
             "cache_type_k",
