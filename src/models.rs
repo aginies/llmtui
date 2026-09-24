@@ -151,6 +151,7 @@ impl std::hash::Hash for ModelSettings {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         // ── Loading ──
         self.context_length.hash(state);
+        self.cont_batching.hash(state);
         self.threads.hash(state);
         self.threads_batch.hash(state);
         self.batch_size.hash(state);
@@ -323,6 +324,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
     fn from(dp: crate::config::DefaultParams) -> Self {
         Self {
             context_length: dp.context_length,
+            cont_batching: dp.cont_batching,
             threads: dp.threads,
             threads_batch: dp.threads_batch,
             batch_size: dp.batch_size,
@@ -908,6 +910,8 @@ pub struct ModelSettings {
     // ── Loading ──────────────────────────────────────────────
     /// Size of the prompt context.
     pub context_length: u32,
+    /// Enable continuous batching (--cont-batching).
+    pub cont_batching: bool,
     /// Number of CPU threads for generation.
     pub threads: u32,
     /// Number of CPU threads for batch processing.
@@ -2589,6 +2593,7 @@ mod field_count_tests {
     fn count_model_settings_fields(s: &ModelSettings) -> usize {
         let _ = (
             &s.context_length,
+            &s.cont_batching,
             &s.threads,
             &s.threads_batch,
             &s.batch_size,
