@@ -1559,7 +1559,10 @@ export default function (pi: ExtensionAPI) {
 						}
 						entry.finishedAt = Date.now();
 						abortControllers.delete(taskId);
-						console.error(`[orchestrator] Remote request failed for ${taskId}:`, err);
+						// The error is already surfaced to the session as a
+						// `✗ orchestrator: …` message via the emit below, so do not also
+						// print it to the pi console (extensions run in-process and their
+						// console output pollutes the current console).
 						// Redact apiKey before emitting (P1: prevent key exposure in logs/events)
 						const safeConfig = { ...llamaConfig, llamaApiKey: "" };
 						pi.events.emit("orchestrator:result", {
