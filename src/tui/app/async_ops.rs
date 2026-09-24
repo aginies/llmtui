@@ -2089,6 +2089,11 @@ impl App {
                     );
                     self.settings.api_endpoint_enabled = false;
                     self.config.default.api_endpoint_enabled = false;
+                    // The API-dependent rows (Dashboard / Chat UI / File Transfer) are
+                    // now unavailable — keep the cursor on a selectable row.
+                    if (3..=5).contains(&self.settings_state.server_settings_selected_idx) {
+                        self.settings_state.server_settings_selected_idx = 2;
+                    }
                     let _ = self.config.save();
                     return;
                 }

@@ -83,6 +83,15 @@ impl OverlayHandler for ApiEndpointPickerHandler {
                         if *selected_field == -1 {
                             *enabled = !*enabled;
                             app.settings.api_endpoint_enabled = *enabled;
+                            // If the API was just disabled and the cursor sits on an
+                            // API-dependent row (Dashboard / Chat UI / File Transfer),
+                            // move it back to the API Endpoint row.
+                            if !*enabled
+                                && (3..=5)
+                                    .contains(&app.settings_state.server_settings_selected_idx)
+                            {
+                                app.settings_state.server_settings_selected_idx = 2;
+                            }
                             sync_global_settings(app);
                             return;
                         }

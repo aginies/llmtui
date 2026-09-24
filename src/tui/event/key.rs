@@ -1877,6 +1877,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         edit_cursor_pos: 0,
                     };
                 }
+                3 if !app.settings.api_endpoint_enabled => {}
                 3 => {
                     app.ui.global_mode = GlobalMode::DashboardPicker {
                         enabled: app.config.default.ws_server_enabled,
@@ -1906,6 +1907,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         edit_cursor_pos: 0,
                     };
                 }
+                4 if !app.settings.api_endpoint_enabled => {}
                 4 => {
                     app.settings.chat_ui_enabled = !app.settings.chat_ui_enabled;
                     app.add_log(
@@ -1917,6 +1919,7 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         crate::config::LogLevel::Info,
                     );
                 }
+                5 if !app.settings.api_endpoint_enabled => {}
                 5 => {
                     app.config.default.api_transfer_enabled =
                         !app.config.default.api_transfer_enabled;
@@ -2001,14 +2004,27 @@ fn handle_server_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             sync_global_settings(app);
         }
         KeyCode::Up | KeyCode::Char('k') => {
-            app.settings_state.server_settings_selected_idx = app
-                .settings_state
-                .server_settings_selected_idx
-                .saturating_sub(1);
+            // Skip Dashboard / Chat UI / File Transfer while the API endpoint is off.
+            let skip_api_rows = !app.settings.api_endpoint_enabled;
+            let mut idx = app.settings_state.server_settings_selected_idx;
+            while idx > 0 {
+                idx -= 1;
+                if !(skip_api_rows && (3..=5).contains(&idx)) {
+                    break;
+                }
+            }
+            app.settings_state.server_settings_selected_idx = idx;
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.settings_state.server_settings_selected_idx =
-                (app.settings_state.server_settings_selected_idx + 1).min(9);
+            let skip_api_rows = !app.settings.api_endpoint_enabled;
+            let mut idx = app.settings_state.server_settings_selected_idx;
+            while idx < 9 {
+                idx += 1;
+                if !(skip_api_rows && (3..=5).contains(&idx)) {
+                    break;
+                }
+            }
+            app.settings_state.server_settings_selected_idx = idx;
         }
         KeyCode::Left | KeyCode::Char('h') => {
             match app.settings_state.server_settings_selected_idx {

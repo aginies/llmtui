@@ -264,6 +264,9 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
     } else {
         "Disabled"
     };
+    // Dashboard / Chat UI / File Transfer are only reachable through the API
+    // endpoint — grey them out (without changing their values) while it is off.
+    let api_off = !app.settings.api_endpoint_enabled;
     let rpc_workers_count = app.config.rpc_workers.iter().filter(|w| w.selected).count();
     let rpc_workers_val = if rpc_workers_count > 0 {
         format!("{} active", rpc_workers_count)
@@ -340,7 +343,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         selected,
         "",
         false,
-        server_running,
+        server_running || api_off,
     );
     let chat_ui_val = if app.settings.chat_ui_enabled {
         crate::t!("dialog.dashboard.enabled")
@@ -360,7 +363,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         selected,
         "",
         false,
-        server_running,
+        server_running || api_off,
     );
     let transfer_val = if app.config.default.api_transfer_enabled {
         crate::t!("dialog.dashboard.enabled")
@@ -380,7 +383,7 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         selected,
         "",
         false,
-        server_running,
+        server_running || api_off,
     );
     let llama_options_val = format!(
         "Port {} | {}T / {}TB | {} | {}",
