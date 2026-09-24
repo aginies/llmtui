@@ -665,6 +665,21 @@ pub fn builtin_profiles() -> Vec<Profile> {
             },
         },
         Profile {
+            name: "DeepSeek".into(),
+            description: "Optimized for DeepSeek models (V2/V3/Coder)".into(),
+            settings: ModelOverride {
+                context_length: Some(131072),
+                temperature: Some(0.6),
+                top_k: Some(40),
+                top_p: Some(0.95),
+                max_tokens: Some(8192),
+                presence_penalty: Some(0.0),
+                uniform_cache: Some(true),
+                jinja: Some(true),
+                ..Default::default()
+            },
+        },
+        Profile {
             name: "Phi".into(),
             description: "Optimized for Phi 3.5 Mini models".into(),
             settings: ModelOverride {
