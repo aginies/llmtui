@@ -156,6 +156,9 @@ pub fn build_server_cmd(
     if !model_config_used {
         push_arg(&mut cmd, &mut parts, "--ctx-size", effective_ctx);
     }
+    if settings.cont_batching {
+        push_flag(&mut cmd, &mut parts, "--cont-batching");
+    }
     push_arg(&mut cmd, &mut parts, "--ubatch-size", settings.ubatch_size);
     if let Some(n) = settings.max_concurrent_predictions {
         push_arg(&mut cmd, &mut parts, "--parallel", n);

@@ -337,6 +337,17 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             "Context window size in tokens. Determines how much of the conversation history is kept in memory. A larger context allows longer conversations but uses more RAM. Typical: 32k-256k depending on model and RAM.",
         ),
+        field_with_toggle(
+            "cont_batching",
+            "Cont Batching",
+            "Loading",
+            |s| s.cont_batching.to_string(),
+            |s, c| s.cont_batching != c.cont_batching,
+            |_, _, _| {},
+            |_, _| {},
+            |s| s.cont_batching = !s.cont_batching,
+            "Enable continuous batching (--cont-batching). Allows llama-server to batch tokens from multiple concurrent requests together, improving throughput under parallel load. Toggle on/off with Enter.",
+        ),
         expert_field_with_toggle(
             "rope_yarn_enabled",
             "Yarn RoPE",
@@ -1125,6 +1136,7 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
 
     // ── Integers ──────────────────────────────────────────────────────────
     diff_int!(parts, s, current, context_length, "ctx");
+    diff_bool!(parts, s, current, cont_batching, "cont_batching");
     diff_int!(parts, s, current, threads, "threads");
     diff_int!(parts, s, current, batch_size, "batch");
     diff_int!(parts, s, current, parallel, "parallel");

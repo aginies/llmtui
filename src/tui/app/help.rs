@@ -250,11 +250,23 @@ impl App {
                     Span::styled("^X", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.llm.expert_mode"))),
                 ]),
+                Line::from(vec![
+                    Span::styled("^T", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.llm_profiles"))),
+                ]),
+                Line::from(vec![
+                    Span::styled("^P", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.profiles"))),
+                ]),
                 Line::from(""),
                 Line::from(vec![Span::styled("━━━ Loading ━━━", y)]),
                 Line::from(vec![
                     Span::styled("Context", y),
                     Span::raw(format!("  {}", crate::t!("field.help.context_length"))),
+                ]),
+                Line::from(vec![
+                    Span::styled("Cont Batching", y),
+                    Span::raw(format!("  {}", crate::t!("field.help.cont_batching"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Prompt", y),

@@ -47,7 +47,7 @@ Once loaded, the `orchestrate` tool and the `/orchestrator` commands are availab
 | Requirement | Details |
 | ------------- | --------- |
 | **Pi** | `pi` CLI installed and working |
-| **llama.cpp server** | Required — the `orchestrate` tool always sends the task to it for the answer (typically on a remote host) |
+| **llm-manager** | Required on the remote host — the `orchestrate` tool is built to talk to a remote llm-manager instance, at least to send and receive files (File Transfer API + review agent). A raw `llama-server` only works for plain chat without file transfer |
 | **Model** | A GGUF model loaded on the server |
 
 ## Usage

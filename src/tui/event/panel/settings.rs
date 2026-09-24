@@ -230,6 +230,13 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Cont Batching: toggle on Enter
+    if field_id == Some("cont_batching") && key.code == KeyCode::Enter {
+        app.settings.cont_batching = !app.settings.cont_batching;
+        mark_settings_dirty(app, true);
+        return;
+    }
+
     // Chat Template: open picker on Enter
     if field_id == Some("chat_template") && key.code == KeyCode::Enter {
         let entries: Vec<String> = crate::models::get_available_chat_templates();

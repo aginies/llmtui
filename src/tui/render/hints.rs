@@ -82,6 +82,8 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                 parts.push(Span::raw(HINT_SEP));
                 parts.push(Span::styled(crate::t!("hints.profiles"), y));
                 parts.push(Span::raw(HINT_SEP));
+                parts.push(Span::styled(crate::t!("hints.llm_profiles"), y));
+                parts.push(Span::raw(HINT_SEP));
                 parts.push(Span::styled(hint_panels(), c));
                 parts.push(Span::raw(HINT_SEP));
                 parts.push(Span::styled(hint_about(), c));
