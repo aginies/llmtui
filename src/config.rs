@@ -665,6 +665,18 @@ pub fn builtin_profiles() -> Vec<Profile> {
             },
         },
         Profile {
+            name: "Nemotron".into(),
+            description: "Optimized for Nemotron 3.5 Lightning (30B-A3B reasoning)".into(),
+            settings: ModelOverride {
+                context_length: Some(131072),
+                temperature: Some(1.0),
+                top_p: Some(0.95),
+                uniform_cache: Some(true),
+                jinja: Some(true),
+                ..Default::default()
+            },
+        },
+        Profile {
             name: "DeepSeek".into(),
             description: "Optimized for DeepSeek models (V2/V3/Coder)".into(),
             settings: ModelOverride {
@@ -673,6 +685,20 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 top_k: Some(40),
                 top_p: Some(0.95),
                 max_tokens: Some(8192),
+                presence_penalty: Some(0.0),
+                uniform_cache: Some(true),
+                jinja: Some(true),
+                ..Default::default()
+            },
+        },
+        Profile {
+            name: "StarCoder2".into(),
+            description: "Optimized for StarCoder2 models (BigCode)".into(),
+            settings: ModelOverride {
+                context_length: Some(131072),
+                temperature: Some(0.2),
+                top_k: Some(50),
+                top_p: Some(1.0),
                 presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
                 jinja: Some(true),
