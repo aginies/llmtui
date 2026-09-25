@@ -748,33 +748,89 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
         let (stdout_tx, mut stdout_rx) = mpsc::channel::<String>(64);
         let (stderr_tx, mut stderr_rx) = mpsc::channel::<String>(64);
 
-        // Spawn a reader task for each stream
+        // Spawn a reader task for each stream.
+        // Uses read_until + lossy UTF-8: `lines()` returns Err on invalid
+        // UTF-8 (e.g. GPU/progress output), which would silently kill the
+        // reader while the child is still alive.
         let mut std_out = Some(tokio::spawn(async move {
-            let reader = BufReader::new(stdout).lines();
-            tokio::pin!(reader);
-            while let Ok(Some(line)) = reader.next_line().await {
-                if stdout_tx.send(line).await.is_err() {
-                    break;
+            let mut reader = BufReader::new(stdout);
+            let mut buf = Vec::with_capacity(8192);
+            loop {
+                buf.clear();
+                match reader.read_until(b'\n', &mut buf).await {
+                    Ok(0) => break, // EOF
+                    Ok(_) => {
+                        let line = String::from_utf8_lossy(&buf)
+                            .trim_end_matches(['\r', '\n'])
+                            .to_string();
+                        if stdout_tx.send(line).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("stdout reader error: {}", e);
+                        break;
+                    }
                 }
             }
         }));
 
         let mut std_err = Some(tokio::spawn(async move {
-            let reader = BufReader::new(stderr).lines();
-            tokio::pin!(reader);
-            while let Ok(Some(line)) = reader.next_line().await {
-                if stderr_tx.send(line).await.is_err() {
-                    break;
+            let mut reader = BufReader::new(stderr);
+            let mut buf = Vec::with_capacity(8192);
+            loop {
+                buf.clear();
+                match reader.read_until(b'\n', &mut buf).await {
+                    Ok(0) => break, // EOF
+                    Ok(_) => {
+                        let line = String::from_utf8_lossy(&buf)
+                            .trim_end_matches(['\r', '\n'])
+                            .to_string();
+                        if stderr_tx.send(line).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("stderr reader error: {}", e);
+                        break;
+                    }
                 }
             }
         }));
 
         // Merge loop: block on whichever channel has data.
-        // When both are empty, select! sleeps with zero CPU cost.
+        // Closed streams are DISABLED (conditional branches) instead of
+        // breaking the loop, so the kill branch stays live until the child
+        // actually exits. Breaking early used to buffer late kill messages
+        // in the channel that were never consumed — kill_server returned Ok
+        // but child.kill() was never called and the process was orphaned.
+        let mut stdout_open = true;
+        let mut stderr_open = true;
+        let mut kill_open = true;
         loop {
+            if !kill_open && !stdout_open && !stderr_open {
+                break;
+            }
             tokio::select! {
-                _ = kill_rx.recv() => {
-                    let _ = child.kill().await;
+                msg = kill_rx.recv(), if kill_open => {
+                    if msg.is_none() {
+                        // All kill senders dropped without a request.
+                        kill_open = false;
+                        continue;
+                    }
+                    tracing::info!("spawn task: kill received for pid={}", pid);
+                    let _ = log_tx_inner
+                        .try_send(format!("[kill] kill requested for pid {}", pid));
+                    let kill_res = child.kill().await;
+                    tracing::info!(
+                        "spawn task: child.kill() pid={} -> {:?}",
+                        pid,
+                        kill_res
+                    );
+                    let _ = log_tx_inner.try_send(format!(
+                        "[kill] child.kill() pid {} -> {:?}",
+                        pid, kill_res
+                    ));
                     // Do NOT await the reader tasks here: a reader blocked on
                     // a full channel can never finish while this task is the
                     // only consumer (deadlock). Aborting drops its sender and
@@ -783,16 +839,43 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
                     if let Some(h) = std_err.take() { h.abort(); }
                     break;
                 }
-                line = stdout_rx.recv() => {
+                line = stdout_rx.recv(), if stdout_open => {
                     // Best-effort: never block on the UI log channel, or a
                     // full channel (e.g. at shutdown with no consumer) would
                     // stall this task and the kill branch above.
-                    if let Some(line) = line { let _ = log_tx_inner.try_send(line); } else { break; }
+                    match line {
+                        Some(line) => { let _ = log_tx_inner.try_send(line); }
+                        None => {
+                            stdout_open = false;
+                            let alive = child.try_wait().map(|r| r.is_none()).unwrap_or(true);
+                            tracing::warn!(
+                                "spawn task: stdout stream closed, pid={} alive={} — kill branch stays active",
+                                pid, alive
+                            );
+                            let _ = log_tx_inner.try_send(format!(
+                                "[kill] stdout stream closed, pid {} alive={} — kill branch stays active",
+                                pid, alive
+                            ));
+                        }
+                    }
                 }
-                line = stderr_rx.recv() => {
-                    if let Some(line) = line { let _ = log_tx_inner.try_send(line); } else { break; }
+                line = stderr_rx.recv(), if stderr_open => {
+                    match line {
+                        Some(line) => { let _ = log_tx_inner.try_send(line); }
+                        None => {
+                            stderr_open = false;
+                            let alive = child.try_wait().map(|r| r.is_none()).unwrap_or(true);
+                            tracing::warn!(
+                                "spawn task: stderr stream closed, pid={} alive={} — kill branch stays active",
+                                pid, alive
+                            );
+                            let _ = log_tx_inner.try_send(format!(
+                                "[kill] stderr stream closed, pid {} alive={} — kill branch stays active",
+                                pid, alive
+                            ));
+                        }
+                    }
                 }
-                else => break,
             }
         }
 
@@ -802,6 +885,13 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
         }
         if let Some(h) = std_err.take() {
             let _ = h.await;
+        }
+
+        // Honor a kill that was buffered while the merge loop was draining.
+        if kill_open && kill_rx.try_recv().is_ok() {
+            tracing::info!("spawn task: late buffered kill for pid={}", pid);
+            let _ = log_tx_inner.try_send(format!("[kill] late buffered kill for pid {}", pid));
+            let _ = child.kill().await;
         }
 
         let exit_code = child.wait().await.ok().and_then(|s| s.code());
@@ -842,11 +932,93 @@ pub async fn check_health(host: &str, port: u16) -> bool {
 
 /// Kill a running server.
 pub async fn kill_server(handle: ServerHandle) -> Result<(), String> {
+    tracing::info!("kill_server: sending kill for pid={}", handle.pid);
     handle
         .kill_tx
         .send(())
         .await
-        .map_err(|_| "Server already stopped".to_string())
+        .map_err(|_| {
+            tracing::error!(
+                "kill_server: kill channel CLOSED for pid={} — spawn task already exited, process may be orphaned",
+                handle.pid
+            );
+            format!("Server already stopped (pid {} kill channel closed)", handle.pid)
+        })
+}
+
+/// Outcome of verifying that a kill actually reached the server process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KillOutcome {
+    /// The spawn task reaped the child (normal path).
+    Exited,
+    /// No exit notification, but the pid no longer exists.
+    Gone,
+    /// The pid was still alive after the grace period; a direct SIGKILL was
+    /// sent and confirmed.
+    Forced,
+    /// The pid is still alive even after a direct SIGKILL attempt.
+    Failed,
+}
+
+#[cfg(unix)]
+fn pid_alive(pid: u32) -> bool {
+    std::process::Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+#[cfg(not(unix))]
+fn pid_alive(_pid: u32) -> bool {
+    false
+}
+
+/// Verify the server process is actually dead after a kill request.
+///
+/// `kill_server` only buffers a message in the kill channel; if the spawn
+/// task's merge loop already exited, the message may never be consumed and
+/// the process survives while the TUI believes it stopped. This waits up to
+/// 5s for the spawn task's exit notification, then checks the pid directly
+/// and sends SIGKILL as a last resort.
+pub async fn ensure_killed(pid: u32, exit_rx: Option<mpsc::Receiver<()>>) -> KillOutcome {
+    if let Some(mut rx) = exit_rx
+        && tokio::time::timeout(std::time::Duration::from_secs(5), rx.recv())
+            .await
+            .is_ok()
+    {
+        return KillOutcome::Exited;
+    }
+    if !pid_alive(pid) {
+        return KillOutcome::Gone;
+    }
+    #[cfg(unix)]
+    {
+        tracing::warn!(
+            "ensure_killed: pid {} still alive after kill — sending direct SIGKILL",
+            pid
+        );
+        let sent = std::process::Command::new("kill")
+            .args(["-9", &pid.to_string()])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if !sent {
+            return KillOutcome::Failed;
+        }
+        for _ in 0..10 {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            if !pid_alive(pid) {
+                return KillOutcome::Forced;
+            }
+        }
+        KillOutcome::Failed
+    }
+    #[cfg(not(unix))]
+    {
+        // No portable direct-kill path; the exit wait above already timed out.
+        KillOutcome::Failed
+    }
 }
 
 /// Poll metrics from the server.
