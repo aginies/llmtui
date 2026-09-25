@@ -1509,14 +1509,39 @@ impl App {
     }
 
     pub fn try_execute_api_unload(&mut self) {
-        if !matches!(
+        if matches!(
             self.ui.global_mode,
             super::types::GlobalMode::Confirmation { .. }
-        ) && let Some(model_name) = self.pending.pending_api_unload.take()
-            && let Some(handle) = &self.server.server_handle
+        ) {
+            return;
+        }
+        let Some(model_name) = self.pending.pending_api_unload.take() else {
+            return;
+        };
+        let Some(handle) = self.server.server_handle.clone() else {
+            // Unload requested but no server handle: the request would be
+            // silently dropped and the llama-server process orphaned.
+            self.add_log(
+                crate::t_fmt!("log.unload_no_handle", model_name),
+                crate::config::LogLevel::Warning,
+            );
+            tracing::warn!(
+                "try_execute_api_unload: no server handle for {} — unload dropped, server NOT killed",
+                model_name
+            );
+            return;
+        };
         {
             let server_mode = self.server_mode;
             let handle_clone = handle.clone();
+            tracing::info!(
+                "try_execute_api_unload: model={} mode={:?} pid={} host={} port={}",
+                model_name,
+                server_mode,
+                handle.pid,
+                handle.host,
+                handle.port
+            );
             {
                 let mut lock = self
                     .server
@@ -1563,6 +1588,10 @@ impl App {
                                 let _ = tx.send(crate::t_fmt!("async.unload_failed", e)).await;
                             }
                             return;
+                        }
+                        // Immediately kill the server process after successful unload
+                        if let Some(server) = server_clone.clone() {
+                            let _ = crate::backend::server::kill_server(server).await;
                         }
                         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
@@ -1622,62 +1651,104 @@ impl App {
     }
 
     pub async fn process_pending_kill(&mut self, handle: ServerHandle) {
-        match crate::backend::server::kill_server(handle).await {
-            Ok(()) => {
+        let pid = handle.pid;
+        tracing::info!("process_pending_kill: pid={}", pid);
+        self.add_log(
+            crate::t_fmt!("log.killing_pid", pid),
+            crate::config::LogLevel::Info,
+        );
+        let kill_res = crate::backend::server::kill_server(handle).await;
+        // Verify the kill actually reached the process. kill_server only
+        // buffers a message in the kill channel; if the spawn task's merge
+        // loop already exited, the message may sit unconsumed and the
+        // llama-server would be orphaned while the TUI believes it stopped.
+        let exit_rx = self.server.server_exit_rx.take();
+        let outcome = crate::backend::server::ensure_killed(pid, exit_rx).await;
+        tracing::info!(
+            "process_pending_kill: pid={} kill_res={:?} outcome={:?}",
+            pid,
+            kill_res.as_ref().err(),
+            outcome
+        );
+        let dead = matches!(
+            outcome,
+            crate::backend::server::KillOutcome::Exited
+                | crate::backend::server::KillOutcome::Gone
+                | crate::backend::server::KillOutcome::Forced
+        );
+        if kill_res.is_ok() || dead {
+            if matches!(outcome, crate::backend::server::KillOutcome::Forced) {
                 self.add_log(
-                    crate::t!("log.server_stopped"),
-                    crate::config::LogLevel::Info,
+                    crate::t_fmt!("log.kill_forced", pid),
+                    crate::config::LogLevel::Warning,
                 );
-                self.server.server_handle = None;
-                self.server.metrics_rx = None;
-                self.metrics = Default::default();
-                crate::backend::server::invalidate_vram_cache();
-                if let Some(task) = self.server.metrics_task_handle.take() {
-                    task.abort();
-                }
-                if let Some(task) = self.server.sync_task_handle.take() {
-                    task.abort();
-                }
-                self.server.sync_rx = None;
-                if let Some(tx) = self.server.api_shutdown_tx.take() {
-                    let _ = tx.send(true);
-                }
-                if let Some(proxy) = self.server.api_proxy_handle.take() {
-                    proxy.abort();
-                }
-                self.server.api_log_tx = None;
-                self.server.api_log_rx = None;
-                let mut names_to_reset = Vec::new();
-                for (name, state) in &self.model_states {
-                    if !matches!(state, crate::models::ModelState::Available)
-                        && !matches!(state, crate::models::ModelState::Failed { .. })
-                    {
-                        names_to_reset.push(name.clone());
-                    }
-                }
-                for name in names_to_reset {
-                    let n: String = name.clone();
-                    self.model_states
-                        .insert(n, crate::models::ModelState::Available);
-                }
-                self.server
-                    .loaded_model_names
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .clear();
-                self.loading.loading_phases = std::collections::HashSet::new();
-                self.loading.loading_progress = 0.0;
-                self.loading.progress_target = 0.0;
-                self.pending.active_model_hint_dirty = true;
-                self.ui.needs_full_redraw = true;
-                self.ui.needs_redraw = true;
             }
-            Err(e) => {
+            if let Err(e) = &kill_res {
                 self.add_log(
                     crate::t_fmt!("async.stop_failed", e),
                     crate::config::LogLevel::Error,
                 );
             }
+            self.add_log(
+                crate::t!("log.server_stopped"),
+                crate::config::LogLevel::Info,
+            );
+            self.server.server_handle = None;
+            self.server.metrics_rx = None;
+            self.metrics = Default::default();
+            crate::backend::server::invalidate_vram_cache();
+            if let Some(task) = self.server.metrics_task_handle.take() {
+                task.abort();
+            }
+            if let Some(task) = self.server.sync_task_handle.take() {
+                task.abort();
+            }
+            self.server.sync_rx = None;
+            if let Some(tx) = self.server.api_shutdown_tx.take() {
+                let _ = tx.send(true);
+            }
+            if let Some(proxy) = self.server.api_proxy_handle.take() {
+                proxy.abort();
+            }
+            self.server.api_log_tx = None;
+            self.server.api_log_rx = None;
+            let mut names_to_reset = Vec::new();
+            for (name, state) in &self.model_states {
+                if !matches!(state, crate::models::ModelState::Available)
+                    && !matches!(state, crate::models::ModelState::Failed { .. })
+                {
+                    names_to_reset.push(name.clone());
+                }
+            }
+            for name in names_to_reset {
+                let n: String = name.clone();
+                self.model_states
+                    .insert(n, crate::models::ModelState::Available);
+            }
+            self.server
+                .loaded_model_names
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clear();
+            self.loading.loading_phases = std::collections::HashSet::new();
+            self.loading.loading_progress = 0.0;
+            self.loading.progress_target = 0.0;
+            self.pending.active_model_hint_dirty = true;
+            self.ui.needs_full_redraw = true;
+            self.ui.needs_redraw = true;
+        } else {
+            self.add_log(
+                crate::t_fmt!("async.stop_failed", kill_res.unwrap_err()),
+                crate::config::LogLevel::Error,
+            );
+            self.add_log(
+                crate::t_fmt!("log.kill_failed", pid),
+                crate::config::LogLevel::Error,
+            );
+            tracing::error!(
+                "process_pending_kill: pid={} STILL ALIVE after kill attempts",
+                pid
+            );
         }
     }
 
