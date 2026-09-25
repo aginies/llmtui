@@ -2,7 +2,8 @@
  * Pi Orchestrator Extension
  *
  * A custom tool that ALWAYS runs the task on the remote llama.cpp server
- * configured in orchestrator.json (or env vars). No local subprocess is
+ * configured in the `orchestrator` section of ~/.pi/agent/settings.json
+ * (or env vars). No local subprocess is
  * ever spawned — the task (plus optional attached files) is sent to the
  * server's OpenAI-compatible API as a chat completion.
  *
@@ -16,8 +17,8 @@
  *     the session once the local session is idle.
  *
  *
- * Config (orchestrator.json in ~/.pi/ or .pi/, or ORCHESTRATOR_* env vars):
- *   { "llamaUrl": "http://remote-host:8080", "llamaModel": "qwen2.5:7b" }
+ * Config ("orchestrator" section of ~/.pi/agent/settings.json, or ORCHESTRATOR_* env vars):
+ *   { "orchestrator": { "llamaUrl": "http://remote-host:8080", "llamaModel": "qwen2.5:7b" } }
  *
  * Usage (LLM calls via the `orchestrate` tool):
  *   orchestrate(
@@ -27,11 +28,10 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import {
-	CONFIG_DIR_NAME,
+	getAgentDir,
 	type ExtensionAPI,
 	type ExtensionContext,
 	getMarkdownTheme,
@@ -65,27 +65,31 @@ const IDLE_POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10 min max wait for idle
 const CUSTOM_MESSAGE_TYPE = "orchestrator:result";
 const STATUS_ENTRY_TYPE = "orchestrator:status";
 const MAX_TRACKED_TASKS = 50;
-const USER_CONFIG_FILE = path.join(os.homedir(), CONFIG_DIR_NAME, "orchestrator.json");
+const SETTINGS_FILE = path.join(getAgentDir(), "settings.json");
 
-// ─── Enabled/disabled state (persisted in orchestrator.json) ─────────────────
+// ─── Enabled/disabled state (persisted in settings.json) ────────────────────
 
 /**
- * Persist the enabled flag into the user config file (~/.pi/orchestrator.json)
- * so it survives pi restarts — one file for config + state.
+ * Persist the enabled flag into the user settings file
+ * (~/.pi/agent/settings.json, under the `orchestrator` key) so it survives
+ * pi restarts — one file for config + state.
  */
 function setEnabledInUserConfig(enabled: boolean): void {
 	try {
 		let data: Record<string, unknown> = {};
-		if (fs.existsSync(USER_CONFIG_FILE)) {
+		if (fs.existsSync(SETTINGS_FILE)) {
 			try {
-				data = JSON.parse(fs.readFileSync(USER_CONFIG_FILE, "utf-8")) as Record<string, unknown>;
+				data = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf-8")) as Record<string, unknown>;
 			} catch {
 				data = {};
 			}
 		}
-		data.enabled = enabled;
-		fs.mkdirSync(path.dirname(USER_CONFIG_FILE), { recursive: true });
-		fs.writeFileSync(USER_CONFIG_FILE, JSON.stringify(data, null, 2) + "\n");
+		const section = (typeof data.orchestrator === "object" && data.orchestrator !== null
+			? data.orchestrator
+			: {}) as Record<string, unknown>;
+		data.orchestrator = { ...section, enabled };
+		fs.mkdirSync(path.dirname(SETTINGS_FILE), { recursive: true });
+		fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2) + "\n");
 	} catch (err) {
 		console.error("[orchestrator] Failed to persist enabled state:", err);
 	}
@@ -155,14 +159,13 @@ interface OrchestratorConfig {
 	enabled?: boolean;
 }
 
-function readJsonConfig(
-	configPath: string,
-): Partial<OrchestratorConfig> | undefined {
-	if (!fs.existsSync(configPath)) return undefined;
+function readOrchestratorSettings(): Partial<OrchestratorConfig> | undefined {
+	if (!fs.existsSync(SETTINGS_FILE)) return undefined;
 	try {
-		return JSON.parse(
-			fs.readFileSync(configPath, "utf-8"),
-		) as Partial<OrchestratorConfig>;
+		const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf-8")) as Record<string, unknown>;
+		const section = data.orchestrator;
+		if (typeof section !== "object" || section === null) return undefined;
+		return section as Partial<OrchestratorConfig>;
 	} catch {
 		return undefined;
 	}
@@ -171,8 +174,8 @@ function readJsonConfig(
 function loadConfig(): OrchestratorConfig {
 	const env = process.env;
 
-	// Layered config: hardcoded defaults < env vars < user config
-	// (~/.pi/orchestrator.json) < project config (.pi/orchestrator.json)
+	// Layered config: hardcoded defaults < env vars < user settings
+	// ("orchestrator" section of ~/.pi/agent/settings.json)
 	const envConfig: OrchestratorConfig = {
 		llamaUrl: env.ORCHESTRATOR_LLAMA_URL || "http://localhost:8080",
 		llamaModel: env.ORCHESTRATOR_LLAMA_MODEL || "qwen2.5:7b",
@@ -189,15 +192,11 @@ function loadConfig(): OrchestratorConfig {
 			Number(env.ORCHESTRATOR_DIFF_MAX_SIZE) || DEFAULT_DIFF_MAX_SIZE,
 	};
 
-	const userConfig = readJsonConfig(USER_CONFIG_FILE);
-	const projectConfig = readJsonConfig(
-		path.join(process.cwd(), CONFIG_DIR_NAME, "orchestrator.json"),
-	);
+	const userConfig = readOrchestratorSettings();
 
 	const merged: OrchestratorConfig = { ...envConfig };
-	for (const layer of [userConfig, projectConfig]) {
-		if (!layer) continue;
-		for (const [key, value] of Object.entries(layer)) {
+	if (userConfig) {
+		for (const [key, value] of Object.entries(userConfig)) {
 			if (value !== undefined && value !== null && value !== "") {
 				(merged as Record<string, unknown>)[key] = value;
 			}
@@ -342,7 +341,7 @@ function emptyResponseFallback(
 ): string {
 	const note =
 		finishReason === "length"
-			? `\n\n⚠️ The model hit the ${maxTokens}-token limit during its thinking phase and produced no final answer. Raise llamaMaxTokens in orchestrator.json (e.g. 32768) and retry.`
+			? `\n\n⚠️ The model hit the ${maxTokens}-token limit during its thinking phase and produced no final answer. Raise llamaMaxTokens in settings.json (e.g. 32768) and retry.`
 			: "";
 	if (reasoning?.trim()) {
 		return `> ${reasoning.trim()}${note || "\n\n⚠️ The model produced no final answer (only thinking output)."}`;
@@ -1130,10 +1129,10 @@ const OrchestratorParams = Type.Object({
 
 export default function (pi: ExtensionAPI) {
 	// Reloaded on every enable and every tool call so edits to
-	// orchestrator.json are picked up without restarting pi.
+	// settings.json are picked up without restarting pi.
 	let config = loadConfig();
 
-	// ── Enabled/disabled state (persisted as `enabled` in orchestrator.json) ──
+	// ── Enabled/disabled state (persisted as `orchestrator.enabled` in settings.json) ──
 	// The tool is active by default at load; if the config says disabled,
 	// session_start removes it from the active tool list.
 	let enabled = config.enabled !== false;
@@ -1268,7 +1267,7 @@ export default function (pi: ExtensionAPI) {
 			"",
 			"Flow: task (+ attached files) → remote llama.cpp server → answer",
 			"",
-			"Config can be set via orchestrator.json or environment variables:",
+			"Config can be set via the `orchestrator` section of ~/.pi/agent/settings.json or environment variables:",
 			"  ORCHESTRATOR_LLAMA_URL, ORCHESTRATOR_LLAMA_MODEL,",
 			"  ORCHESTRATOR_LLAMA_SYSTEM_PROMPT, ORCHESTRATOR_LLAMA_MAX_TOKENS",
 			"",
@@ -1291,7 +1290,7 @@ export default function (pi: ExtensionAPI) {
 		parameters: OrchestratorParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			// Pick up orchestrator.json changes made since the last call
+			// Pick up settings.json changes made since the last call
 			config = loadConfig();
 			// Defense in depth: if the orchestrator was disabled (e.g. mid-turn),
 			// refuse the call instead of hitting the remote server.
@@ -1382,7 +1381,7 @@ export default function (pi: ExtensionAPI) {
 							{
 								type: "text",
 								text:
-									"Auto-detected file references require an API key: set llamaApiKey in orchestrator.json or ORCHESTRATOR_LLAMA_API_KEY.",
+									"Auto-detected file references require an API key: set llamaApiKey in settings.json or ORCHESTRATOR_LLAMA_API_KEY.",
 							},
 						],
 						isError: true,
@@ -1444,7 +1443,7 @@ export default function (pi: ExtensionAPI) {
 							{
 								type: "text",
 								text:
-									"sendDir (transfer mode) requires an API key: set llamaApiKey in orchestrator.json or ORCHESTRATOR_LLAMA_API_KEY.",
+									"sendDir (transfer mode) requires an API key: set llamaApiKey in settings.json or ORCHESTRATOR_LLAMA_API_KEY.",
 							},
 						],
 						isError: true,
@@ -1857,7 +1856,7 @@ export default function (pi: ExtensionAPI) {
 			handler: async (args, ctx) => {
 			const [cmd, idArg] = (args || "").trim().split(/\s+/);
 			if (cmd === "enable" || cmd === "disable") {
-				// Re-read orchestrator.json so a freshly added/edited config is loaded
+				// Re-read settings.json so a freshly added/edited config is loaded
 				config = loadConfig();
 				enabled = config.enabled !== false;
 				const next = cmd === "enable";

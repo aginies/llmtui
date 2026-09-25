@@ -4,7 +4,7 @@ A Pi extension that gets reasoned answers from a **remote** llama.cpp server. Th
 
 ## What it does
 
-The `orchestrate` tool always runs the task on the remote llama.cpp server configured in `orchestrator.json` (or env vars). The agent only calls it when you explicitly ask for orchestration — include the keyword **`orchestrate`** or **`pi-orch`** in your prompt (e.g. "pi-orch review src/foo.ts"). Other requests are handled locally.
+The `orchestrate` tool always runs the task on the remote llama.cpp server configured in the `orchestrator` section of `~/.pi/agent/settings.json` (or env vars). The agent only calls it when you explicitly ask for orchestration — include the keyword **`orchestrate`** or **`pi-orch`** in your prompt (e.g. "pi-orch review src/foo.ts"). Other requests are handled locally.
 
 Two modes:
 
@@ -97,7 +97,7 @@ Requirements on the remote server: llm-manager with `api_endpoint_enabled` **and
 ```text
 orchestrate(
   task: "Summarize the config layering strategy in the attached files and identify any issues.",
-  sendFiles: ["orchestrator.json", "agent/extensions/orchestrator/index.ts"],
+  sendFiles: ["agent/extensions/orchestrator/index.ts"],
   llamaModel: "qwen3.8"
 )
 ```
@@ -109,7 +109,7 @@ Relative `sendFiles` paths resolve against `cwd`:
 ```text
 orchestrate(
   task: "Check the attached config for issues",
-  sendFiles: ["orchestrator.json"],
+  sendFiles: ["package.json"],
   cwd: "/home/aginies/devel/github/aginies/securemark"
 )
 ```
@@ -139,7 +139,7 @@ All parameters apply to both sync and async modes.
 Config is merged in this priority order (later layers override earlier ones):
 
 ```text
-hardcoded defaults < env vars < ~/.pi/orchestrator.json < .pi/orchestrator.json
+hardcoded defaults < env vars < ~/.pi/agent/settings.json ("orchestrator" section)
 ```
 
 ### Environment Variables
@@ -157,20 +157,25 @@ export ORCHESTRATOR_MAX_FILE_CONTENT=32768
 export ORCHESTRATOR_DIFF_MAX_SIZE=32768
 ```
 
-### Project Config (`.pi/orchestrator.json`)
+### Settings (`~/.pi/agent/settings.json`)
+
+The orchestrator config lives in the `orchestrator` section of the global pi settings file, alongside `llamaSettings`, `terminal`, etc.:
 
 ```json
 {
-  "llamaUrl": "http://remote-host:8080",
-  "llamaModel": "qwen3.8",
-  "llamaSystemPrompt": "You are a code reviewer. Analyze the following for quality issues, potential bugs, and improvement suggestions.",
-  "llamaApiKey": "your-secret-key",
-  "llamaMaxTokens": 4096,
-  "llamaTemperature": 0.7,
-  "llamaTopP": 0.9,
-  "maxPromptLength": 65536,
-  "maxFileContent": 32768,
-  "diffMaxSize": 32768
+  "orchestrator": {
+    "llamaUrl": "http://remote-host:8080",
+    "llamaModel": "qwen3.8",
+    "llamaSystemPrompt": "You are a code reviewer. Analyze the following for quality issues, potential bugs, and improvement suggestions.",
+    "llamaApiKey": "your-secret-key",
+    "llamaMaxTokens": 4096,
+    "llamaTemperature": 0.7,
+    "llamaTopP": 0.9,
+    "maxPromptLength": 65536,
+    "maxFileContent": 32768,
+    "diffMaxSize": 32768,
+    "enabled": true
+  }
 }
 ```
 
@@ -239,10 +244,6 @@ sendFiles: [
 - A range with no overlap is noted instead of failing: `(no lines: requested 500–600, file has 100 lines)`
 - Reversed ranges (`120-10`) are silently normalized
 - Plain paths (no `:lines`) work exactly as before
-
-### User Config (`~/.pi/orchestrator.json`)
-
-Same schema as project config, applies across all projects.
 
 ## Tool Output Format
 
@@ -339,7 +340,7 @@ orchestrate(
 
 - **Disabled** removes `orchestrate` from the LLM's tool list — the model can no longer see or call it. The `/orchestrator` commands themselves stay available so you can re-enable at any time
 - **Enabled** puts `orchestrate` back in the active tool list
-- The state is **persisted** as the `enabled` key in `~/.pi/orchestrator.json` (global, same file as the rest of the orchestrator config), so a disabled orchestrator stays disabled after pi restarts until you run `/orchestrator enable`
+- The state is **persisted** as the `orchestrator.enabled` key in `~/.pi/agent/settings.json` (global, same file as the rest of the orchestrator config), so a disabled orchestrator stays disabled after pi restarts until you run `/orchestrator enable`
 - `/orchestrator status` shows the current state (`enabled` / `disabled`) in its header
 - Default is **enabled** — a missing or corrupt state file means the tool is active
 
@@ -428,23 +429,17 @@ Set the system prompt via any of these methods (merged in priority order):
 export ORCHESTRATOR_LLAMA_SYSTEM_PROMPT="You are a code reviewer."
 ```
 
-**Project config (`.pi/orchestrator.json`):**
+**Settings (`~/.pi/agent/settings.json`):**
 
 ```json
 {
-  "llamaSystemPrompt": "You are a code reviewer. Focus on architecture and edge cases."
+  "orchestrator": {
+    "llamaSystemPrompt": "You are a code reviewer. Focus on architecture and edge cases."
+  }
 }
 ```
 
-**User config (`~/.pi/orchestrator.json`):**
-
-```json
-{
-  "llamaSystemPrompt": "You are a code reviewer."
-}
-```
-
-All three can be overridden per-call by passing `llamaSystemPrompt` directly to `orchestrate()`.
+All of these can be overridden per-call by passing `llamaSystemPrompt` directly to `orchestrate()`.
 
 ## Troubleshooting
 
