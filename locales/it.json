@@ -510,6 +510,8 @@
   "models.list_headers.context": "  Ctx (U)",
   "models.list_headers.params": "Params",
   "models.list_headers.quality": "Quant",
+  "models.list_headers.architecture": "Arch",
+  "models.list_sort.architecture": "Architecture",
   "models.list_status.loaded_prefix": "[CARICATO: ",
   "models.already_loaded": "Un modello è già caricato. Scaricalo prima.",
   "models.list_status.loading_prefix": "[CARICAMENTO: ",

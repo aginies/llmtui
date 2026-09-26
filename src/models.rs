@@ -53,6 +53,7 @@ pub enum ListSort {
     Params,
     Qual,
     Context,
+    Architecture,
 }
 
 impl ListSort {
@@ -62,7 +63,8 @@ impl ListSort {
             ListSort::Status => ListSort::Params,
             ListSort::Params => ListSort::Qual,
             ListSort::Qual => ListSort::Context,
-            ListSort::Context => ListSort::Name,
+            ListSort::Context => ListSort::Architecture,
+            ListSort::Architecture => ListSort::Name,
         }
     }
 
@@ -73,11 +75,12 @@ impl ListSort {
             ListSort::Params => crate::t!("models.list_sort.params").to_string(),
             ListSort::Qual => crate::t!("models.list_sort.qual").to_string(),
             ListSort::Context => crate::t!("models.list_sort.context").to_string(),
+            ListSort::Architecture => crate::t!("models.list_sort.architecture").to_string(),
         }
     }
 
     pub fn is_ascending(self) -> bool {
-        matches!(self, ListSort::Name)
+        matches!(self, ListSort::Name | ListSort::Architecture)
     }
 }
 

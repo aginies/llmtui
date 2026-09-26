@@ -349,6 +349,19 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
                     .alignment(Alignment::Center),
                 ),
+                Cell::from(
+                    Line::from(if *sort_by == ListSort::Architecture {
+                        if sort_ascending {
+                            " Arch \u{2191}"
+                        } else {
+                            " Arch \u{2193}"
+                        }
+                    } else {
+                        crate::t!("models.list_headers.architecture")
+                    })
+                    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
+                    .alignment(Alignment::Center),
+                ),
             ];
 
             // Populate the ctx cache (no-op if fresh); lookups below read it
@@ -432,7 +445,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         .saturating_sub(context_str.chars().count() as u16 + 4)
                         .saturating_sub(params_width)
                         .saturating_sub(4)
-                        .saturating_sub(prefix_width);
+                        .saturating_sub(prefix_width)
+                        .saturating_sub(10);
                     let max_offset = filename.chars().count().saturating_sub(name_width as usize);
                     let state = app.ui.text_scrolls.entry(key.clone()).or_insert_with(|| {
                         crate::tui::app::TextScrollState {
@@ -513,24 +527,46 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Cell::from("—".to_string()).style(Style::default().fg(DIM_GRAY))
                         });
 
+                    let arch_str = meta
+                        .map(|m| {
+                            let mut a = m.arch.clone();
+                            if m.arch.contains("moe") && !a.to_lowercase().contains("moe") {
+                                a.push_str("-moe");
+                            }
+                            a
+                        })
+                        .unwrap_or_else(|| "—".to_string());
+
+                    let arch_style = if meta
+                        .as_ref()
+                        .map(|m| m.arch.contains("moe"))
+                        .unwrap_or(false)
+                    {
+                        Style::default().fg(MAGENTA)
+                    } else {
+                        Style::default().fg(WHITE)
+                    };
+
                     Row::new(vec![
                         Cell::from(name_display),
                         Cell::from(params_str).style(params_style),
                         quant_cell,
                         Cell::from(
                             ratatui::text::Text::from(context_str)
-                                .alignment(ratatui::layout::Alignment::Right),
+                                .alignment(ratatui::layout::Alignment::Left),
                         )
                         .style(Style::default().fg(CYAN)),
+                        Cell::from(arch_str).style(arch_style),
                     ])
                 })
                 .collect();
 
             let widths = [
-                Constraint::Percentage(52),
+                Constraint::Percentage(45),
                 Constraint::Percentage(11),
                 Constraint::Percentage(10),
                 Constraint::Percentage(11),
+                Constraint::Percentage(10),
             ];
 
             let table = Table::new(rows, widths)

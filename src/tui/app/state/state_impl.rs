@@ -339,6 +339,14 @@ impl App {
                         _ => {}
                     }
                 }
+                // Clear stale loaded_model_names — the server process is gone,
+                // so any "loaded" entries are invalid and would corrupt metrics
+                // broadcast and active-count checks.
+                self.server
+                    .loaded_model_names
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clear();
                 self.pending.active_model_hint_dirty = true;
                 self.ui.needs_redraw = true;
             }
