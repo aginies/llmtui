@@ -288,6 +288,15 @@ impl App {
                         .unwrap_or(0);
                     ctx_b.cmp(&ctx_a)
                 }
+                crate::models::ListSort::Architecture => {
+                    let ka = &*model_a.path.to_string_lossy();
+                    let kb = &*model_b.path.to_string_lossy();
+                    let meta_a = self.search.gguf_metadata_cache.get(ka);
+                    let meta_b = self.search.gguf_metadata_cache.get(kb);
+                    let arch_a = meta_a.map(|m| m.arch.clone()).unwrap_or_default();
+                    let arch_b = meta_b.map(|m| m.arch.clone()).unwrap_or_default();
+                    arch_b.cmp(&arch_a)
+                }
             }
         });
     }
