@@ -122,6 +122,7 @@ orchestrate(
 | `sendDir` | `string` | **Transfer mode**: tar this directory (default `cwd`), upload it to the remote transfer API, and run the remote review agent over the files. No prompt-size limit. Requires `llamaApiKey` |
 | `sendFiles` | `string[]` | File paths to attach — contents appended to the prompt so the remote model can see the code (relative paths resolve against `cwd`). Line ranges supported: `"src/foo.ts:10-120"` or `"src/foo.ts:42"` |
 | `sendDiff` | `boolean \| "unstaged" \| "staged" \| "all"` | Attach the current git diff: `true` = unstaged changes, or `"staged"` / `"all"` (staged + unstaged vs HEAD). Default `false` |
+| `urls` | `string[]` | Web pages to fetch — the remote llm-manager server fetches them and injects their contents into the prompt as untrusted web context. Pass only when the user asks to use specific web pages (max 5). When omitted, nothing is injected: bare URLs in the task or attached files are never fetched |
 | `async` | `boolean` | `true` to fire the request in the background and return immediately. Default `false`: wait for the remote answer and return it as the tool result |
 | `llamaUrl` | `string` | Remote llama.cpp server URL |
 | `llamaModel` | `string` | Model name on the remote server |

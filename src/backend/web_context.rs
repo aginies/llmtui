@@ -78,7 +78,7 @@ pub async fn build_injected_prompt(
         }
     };
 
-    let urls = web_search::extract_urls(&content);
+    let urls = web_search::extract_fetch_urls(&content);
     let needs = web_search::needs_search(&content);
     let do_search = needs && web_search_enabled;
     let do_fetch = !urls.is_empty();
@@ -86,7 +86,7 @@ pub async fn build_injected_prompt(
     if !do_search && !do_fetch {
         log(
             log_callback,
-            "Web search: no URLs and no $web keyword, skipping".into(),
+            "Web search: no $furl markers and no $web keyword, skipping".into(),
         );
         return InjectedPrompt {
             content: String::new(),

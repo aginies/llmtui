@@ -993,6 +993,22 @@ function buildFileAttachments(
 }
 
 /**
+ * Build the `--- Web Fetch Requests ---` prompt section from explicit urls.
+ * The remote llm-manager server fetches only URLs marked this way — bare
+ * URLs in the task or attached files are never fetched, so nothing is
+ * injected when the user does not ask for web pages.
+ */
+function buildUrlsSection(urls: string[] | undefined): string {
+	if (!urls?.length) return "";
+	const lines = urls
+		.filter((u) => /^https?:\/\//.test(u))
+		.slice(0, 5)
+		.map((u) => `$furl ${u}`)
+		.join("\n");
+	return lines ? `\n\n--- Web Fetch Requests ---\n${lines}` : "";
+}
+
+/**
  * Build the prompt sent to the remote server: the task plus any attached
  * file contents, allocated against maxPromptLength so the prompt never
  * exceeds it (the chatCompletion cap stays as a last-resort safety net).
@@ -1004,9 +1020,11 @@ function buildPrompt(
 	maxFileContent: number,
 	maxPromptLength: number,
 	diffSection?: string,
+	urls?: string[],
 ): string {
 	const diffPrefix = diffSection ? `\n\n${diffSection}` : "";
-	if (!files?.length) return `${task}${diffPrefix}`;
+	const urlsSuffix = buildUrlsSection(urls);
+	if (!files?.length) return `${task}${diffPrefix}${urlsSuffix}`;
 	const header = "\n\n--- Attached Files ---\n";
 	const baseBudget = Math.max(
 		0,
@@ -1035,6 +1053,7 @@ function buildPrompt(
 
 	let prompt = `${task}${diffPrefix}${header}${result.block}`;
 	if (result.manifest) prompt += `\n\n${result.manifest}`;
+	prompt += urlsSuffix;
 	return prompt;
 }
 
@@ -1123,6 +1142,12 @@ const OrchestratorParams = Type.Object({
 		Type.Union([Type.Boolean(), Type.Enum(["unstaged", "staged", "all"])], {
 			description:
 				"Attach the current git diff to the prompt: true = unstaged changes, or 'staged' / 'all' (staged + unstaged vs HEAD). The natural choice for 'review my changes'. Default false.",
+		}),
+	),
+	urls: Type.Optional(
+		Type.Array(Type.String(), {
+			description:
+				"Web pages to fetch: the remote llm-manager server fetches these URLs and injects their contents into the prompt as untrusted web context. Pass only when the user asks to use specific web pages (max 5). When omitted, nothing is injected — bare URLs in the task or attached files are never fetched.",
 		}),
 	),
 });
@@ -1351,6 +1376,7 @@ export default function (pi: ExtensionAPI) {
 			// send them to the remote agent instead of embedding contents in the
 			// prompt. The remote agent reads files itself, so no prompt-size limit.
 			const baseCwd = params.cwd ?? ctx.cwd;
+			const urlsSuffix = buildUrlsSection(params.urls);
 			const fileRefs = detectFileRefs(params.task);
 			const resolvedFiles = fileRefs.length > 0 ? resolveFileRefs(fileRefs, baseCwd) : [];
 			// Auto-transfer only when the user did not pass explicit file/diff
@@ -1407,7 +1433,13 @@ export default function (pi: ExtensionAPI) {
 						signal,
 					);
 					ctx.ui.setStatus("orchestrator", "Running remote agent...");
-					const ag = await runAgent(llamaConfig.url, apiKey, up.id, params.task, signal);
+					const ag = await runAgent(
+						llamaConfig.url,
+						apiKey,
+						up.id,
+						params.task + urlsSuffix,
+						signal,
+					);
 					ctx.ui.setStatus("orchestrator", "Done ✓");
 					return {
 						content: [{ type: "text", text: ag.answer }],
@@ -1464,6 +1496,7 @@ export default function (pi: ExtensionAPI) {
 				const task = diffSection
 					? `${params.task}\n\n${diffSection}`
 					: params.task;
+				const fullTask = task + urlsSuffix;
 				remoteCall = async (sig) => {
 					ctx.ui.setStatus("orchestrator", `Tarring ${params.sendDir}...`);
 					const tarball = await buildTarball(dir);
@@ -1484,7 +1517,7 @@ export default function (pi: ExtensionAPI) {
 						sig,
 					);
 					ctx.ui.setStatus("orchestrator", "Running remote agent...");
-					const ag = await runAgent(llamaConfig.url, apiKey, up.id, task, sig);
+					const ag = await runAgent(llamaConfig.url, apiKey, up.id, fullTask, sig);
 					return {
 						content: ag.answer,
 						transferId: up.id,
@@ -1501,6 +1534,7 @@ export default function (pi: ExtensionAPI) {
 					llamaConfig.maxFileContent,
 					llamaConfig.maxPromptLength,
 					diffSection,
+					params.urls,
 				);
 				remoteCall = (sig, onDelta) =>
 					onDelta
