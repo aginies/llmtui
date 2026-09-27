@@ -618,16 +618,24 @@ impl App {
         self.server.last_sync_tick = Some(std::time::Instant::now());
         let mut sync_updated = false;
         let mut should_clear_toasts = false;
+        // Load errors reported by the router; logged after the loop because
+        // add_log cannot be called while iterating self.models.
+        let mut load_error_logs: Vec<String> = Vec::new();
         if let Some(rx) = &mut self.server.sync_rx {
             while let Ok(models) = rx.try_recv() {
                 if let Some(handle) = &self.server.server_handle {
                     let port = handle.port;
                     let pid = handle.pid;
-                    for (id, status, path) in models {
+                    for (id, status, path, description) in models {
                         let status_lower = status.to_lowercase();
                         let is_active = status_lower == "loaded"
                             || status_lower == "loading"
                             || status_lower == "ready";
+                        // The router reports a failed load as status "error"
+                        // (with the reason in the description). Without handling
+                        // it, the model would stay stuck in Loading forever and
+                        // block loading other models.
+                        let is_error = status_lower == "error";
                         let mut matched = false;
                         for model in &self.models {
                             let path_match = path
@@ -671,6 +679,33 @@ impl App {
                                         );
                                         should_clear_toasts = true;
                                     }
+                                } else if is_error
+                                    && matches!(
+                                        self.model_states.get(&model.display_name),
+                                        Some(crate::models::ModelState::Loading)
+                                            | Some(crate::models::ModelState::Loaded { .. })
+                                    )
+                                {
+                                    let error = description
+                                        .clone()
+                                        .unwrap_or_else(|| {
+                                            crate::t!("async.model_load_error").to_string()
+                                        });
+                                    load_error_logs.push(crate::t_fmt!(
+                                        "async.load_failed",
+                                        model.display_name,
+                                        error
+                                    ));
+                                    let mut loaded_names = self
+                                        .server
+                                        .loaded_model_names
+                                        .lock()
+                                        .unwrap_or_else(|e| e.into_inner());
+                                    loaded_names.retain(|n| n != &model.display_name);
+                                    self.model_states.insert(
+                                        model.display_name.clone(),
+                                        crate::models::ModelState::Failed { error },
+                                    );
                                 }
                                 matched = true;
                             }
@@ -694,6 +729,33 @@ impl App {
                                                 crate::models::ModelState::Loaded { port, pid },
                                             );
                                             should_clear_toasts = true;
+                                        } else if is_error
+                                            && matches!(
+                                                self.model_states.get(&model.display_name),
+                                                Some(crate::models::ModelState::Loading)
+                                                    | Some(crate::models::ModelState::Loaded { .. })
+                                            )
+                                        {
+                                            let error = description
+                                                .clone()
+                                                .unwrap_or_else(|| {
+                                                    crate::t!("async.model_load_error").to_string()
+                                                });
+                                            load_error_logs.push(crate::t_fmt!(
+                                                "async.load_failed",
+                                                model.display_name,
+                                                error
+                                            ));
+                                            let mut loaded_names = self
+                                                .server
+                                                .loaded_model_names
+                                                .lock()
+                                                .unwrap_or_else(|e| e.into_inner());
+                                            loaded_names.retain(|n| n != &model.display_name);
+                                            self.model_states.insert(
+                                                model.display_name.clone(),
+                                                crate::models::ModelState::Failed { error },
+                                            );
                                         }
                                         matched = true;
                                         break;
@@ -707,6 +769,11 @@ impl App {
                     }
                     sync_updated = true;
                 }
+            }
+        }
+        if !load_error_logs.is_empty() {
+            for msg in load_error_logs {
+                self.add_log(msg, crate::config::LogLevel::Error);
             }
         }
         if should_clear_toasts {
@@ -871,7 +938,7 @@ impl App {
                             let mut found = None;
                             if let Some(rx) = &mut self.server.sync_rx {
                                 while let Ok(models) = rx.try_recv() {
-                                    for (id, status, _) in models {
+                                    for (id, status, _, _) in models {
                                         let status_lower = status.to_lowercase();
                                         if status_lower == "loaded" || status_lower == "ready" {
                                             // Find a model in Loading state that matches this API response
@@ -1304,7 +1371,7 @@ impl App {
     async fn sync_polling_task(
         host: String,
         port: u16,
-        sync_tx: tokio::sync::mpsc::Sender<Vec<(String, String, Option<String>)>>,
+        sync_tx: tokio::sync::mpsc::Sender<Vec<(String, String, Option<String>, Option<String>)>>,
     ) {
         loop {
             if let Ok(models) = crate::backend::server::list_models(&host, port).await
@@ -1712,18 +1779,24 @@ impl App {
             }
             self.server.api_log_tx = None;
             self.server.api_log_rx = None;
-            let mut names_to_reset = Vec::new();
-            for (name, state) in &self.model_states {
-                if !matches!(state, crate::models::ModelState::Available)
-                    && !matches!(state, crate::models::ModelState::Failed { .. })
-                {
-                    names_to_reset.push(name.clone());
+            // If a spawn is already in progress, this kill is only replacing the
+            // stale server — do not wipe the new model's Loading state, which
+            // process_pending_spawn just set. Otherwise the fresh server's state
+            // would fall back to Available and never reach Loaded.
+            if self.server.spawn_task_handle.is_none() {
+                let mut names_to_reset = Vec::new();
+                for (name, state) in &self.model_states {
+                    if !matches!(state, crate::models::ModelState::Available)
+                        && !matches!(state, crate::models::ModelState::Failed { .. })
+                    {
+                        names_to_reset.push(name.clone());
+                    }
                 }
-            }
-            for name in names_to_reset {
-                let n: String = name.clone();
-                self.model_states
-                    .insert(n, crate::models::ModelState::Available);
+                for name in names_to_reset {
+                    let n: String = name.clone();
+                    self.model_states
+                        .insert(n, crate::models::ModelState::Available);
+                }
             }
             self.server
                 .loaded_model_names

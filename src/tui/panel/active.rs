@@ -346,6 +346,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     ),
                 ]));
 
+                lines.push(Line::from(vec![
+                    Span::styled(" Status: ", Style::default().fg(ACCENT)),
+                    Span::styled(
+                        crate::t!("active.loaded"),
+                        Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
+                    ),
+                ]));
+
                 let tps_style = Style::default().fg(CYAN);
                 let prompt_style = Style::default().fg(CYAN);
 
