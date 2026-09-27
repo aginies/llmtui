@@ -26,32 +26,19 @@ pub fn needs_search(message: &str) -> bool {
 
 const MAX_FETCH_URLS: usize = 5;
 
-/// Extract bare http/https URLs from a message.
-/// Strips trailing punctuation, dedupes, caps at MAX_FETCH_URLS.
-pub fn extract_urls(message: &str) -> Vec<String> {
-    let re =
-        regex::Regex::new(r##"https?://[^\s<>\[\]()\"']+"##).expect("static regex should compile");
+/// Extract explicitly requested fetch URLs marked with `$furl <url>`
+/// lines (one per line, as appended by the orchestrate tool's `urls` param;
+/// matched case-insensitively, so `$FURL` works too).
+/// Bare URLs elsewhere in the message (file contents, tool output, docs)
+/// are ignored on purpose — only URLs the user explicitly asked for are
+/// fetched, so incidental links never trigger web-context injection.
+pub fn extract_fetch_urls(message: &str) -> Vec<String> {
+    let re = regex::Regex::new(r##"(?im)^\s*\$furl\s+(https?://[^\s<>\[\]()\"']+)\s*$"##)
+        .expect("static regex should compile");
     let mut seen = std::collections::HashSet::new();
     let mut urls = Vec::new();
-    for cap in re.find_iter(message) {
-        let mut url = cap.as_str().to_string();
-        while url.ends_with('.')
-            || url.ends_with(',')
-            || url.ends_with(';')
-            || url.ends_with('!')
-            || url.ends_with('?')
-            || url.ends_with(')')
-            || url.ends_with(']')
-            || url.ends_with('}')
-            || url.ends_with('"')
-            || url.ends_with('\'')
-            || url.ends_with(':')
-        {
-            url.pop();
-        }
-        if url.is_empty() {
-            continue;
-        }
+    for cap in re.captures_iter(message) {
+        let url = cap.get(1).unwrap().as_str().to_string();
         if seen.insert(url.clone()) {
             urls.push(url);
             if urls.len() >= MAX_FETCH_URLS {
@@ -810,69 +797,47 @@ mod tests {
     }
 
     #[test]
-    fn extract_urls_single() {
-        let urls = extract_urls("see https://example.com/page for info");
+    fn extract_fetch_urls_single() {
+        let msg = "review this\n$furl https://example.com/page";
+        let urls = extract_fetch_urls(msg);
         assert_eq!(urls, vec!["https://example.com/page".to_string()]);
     }
 
     #[test]
-    fn extract_urls_multiple() {
-        let urls =
-            extract_urls("a https://one.com/x and https://two.com/y and https://three.com/z");
+    fn extract_fetch_urls_multiple_dedupes() {
+        let msg = "$furl https://one.com/x\n$FURL https://two.com/y\n$furl https://one.com/x";
+        let urls = extract_fetch_urls(msg);
         assert_eq!(
             urls,
             vec![
                 "https://one.com/x".to_string(),
-                "https://two.com/y".to_string(),
-                "https://three.com/z".to_string()
+                "https://two.com/y".to_string()
             ]
         );
     }
 
     #[test]
-    fn extract_urls_strips_trailing_punctuation() {
-        let urls = extract_urls("visit https://example.com/page.");
-        assert_eq!(urls, vec!["https://example.com/page".to_string()]);
-        let urls = extract_urls("see (https://example.com/page) ok");
-        assert_eq!(urls, vec!["https://example.com/page".to_string()]);
-        let urls = extract_urls("check https://example.com/page, right?");
-        assert_eq!(urls, vec!["https://example.com/page".to_string()]);
+    fn extract_fetch_urls_ignores_bare_urls() {
+        // Bare URLs in file contents / tool output must never trigger a fetch.
+        assert!(extract_fetch_urls("see https://example.com/page for info").is_empty());
+        assert!(extract_fetch_urls("a https://one.com/x and https://two.com/y").is_empty());
     }
 
     #[test]
-    fn extract_urls_dedupes() {
-        let urls = extract_urls("https://example.com and https://example.com again");
-        assert_eq!(urls, vec!["https://example.com".to_string()]);
+    fn extract_fetch_urls_ignores_malformed_markers() {
+        assert!(extract_fetch_urls("$furl ftp://files.example.com/x").is_empty());
+        assert!(extract_fetch_urls("$furl").is_empty());
+        assert!(extract_fetch_urls("prefix $furl https://example.com").is_empty());
     }
 
     #[test]
-    fn extract_urls_caps_at_five() {
-        let msg =
-            "https://a.com https://b.com https://c.com https://d.com https://e.com https://f.com";
-        let urls = extract_urls(msg);
+    fn extract_fetch_urls_caps_at_five() {
+        let msg = (1..=7)
+            .map(|i| format!("$furl https://s{i}.com/x"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let urls = extract_fetch_urls(&msg);
         assert_eq!(urls.len(), 5);
-        assert_eq!(
-            urls,
-            vec![
-                "https://a.com".to_string(),
-                "https://b.com".to_string(),
-                "https://c.com".to_string(),
-                "https://d.com".to_string(),
-                "https://e.com".to_string()
-            ]
-        );
-    }
-
-    #[test]
-    fn extract_urls_ignores_non_http() {
-        assert!(extract_urls("no links here").is_empty());
-        assert!(extract_urls("ftp://files.example.com/x").is_empty());
-        assert!(extract_urls("mailto:a@b.com").is_empty());
-    }
-
-    #[test]
-    fn extract_urls_empty() {
-        assert!(extract_urls("").is_empty());
     }
 
     #[test]
