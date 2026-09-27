@@ -744,6 +744,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                     let key = model.path.to_string_lossy().to_string();
                     let cached_meta = app.search.gguf_metadata_cache.get(&key);
                     let pairs = info::render_model_lines(model, cached_meta);
+                    let display_name = model.display_name.clone();
                     let value_width = width.saturating_sub(7);
                     let path_str = model.path.to_string_lossy().to_string();
                     let max_offset = path_str
@@ -766,6 +767,39 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                     state.max_offset = max_offset;
                     state.visible = true;
                     let mut lines = render_model_info_lines(&pairs, width, state);
+                    // Show the current load status at the top of the info panel.
+                    if let Some(model_state) = app.model_states.get(&display_name) {
+                        let status: String = match model_state {
+                            crate::models::ModelState::Loaded { .. } => {
+                                crate::t!("info.status_loaded").to_string()
+                            }
+                            crate::models::ModelState::Loading => {
+                                crate::t!("info.status_loading").to_string()
+                            }
+                            crate::models::ModelState::Benchmarking => {
+                                crate::t!("info.status_benchmarking").to_string()
+                            }
+                            crate::models::ModelState::Failed { error } => {
+                                crate::t_fmt!("info.status_failed", error)
+                            }
+                            crate::models::ModelState::Available => {
+                                crate::t!("info.status_not_loaded").to_string()
+                            }
+                        };
+                        lines.insert(
+                            0,
+                            Line::from(vec![
+                                Span::styled(
+                                    " Status: ",
+                                    Style::default().fg(ACCENT),
+                                ),
+                                Span::styled(
+                                    status,
+                                    Style::default().fg(WHITE).add_modifier(Modifier::BOLD),
+                                ),
+                            ]),
+                        );
+                    }
                     // Hint when GGUF metadata was not available.
                     if cached_meta.is_none() {
                         lines.push(Line::from(vec![Span::styled(

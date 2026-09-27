@@ -1566,10 +1566,12 @@ pub async fn load_model(host: &str, port: u16, model_id: &str) -> Result<(), Str
 }
 
 /// List all models and their status from the llama-server Router API.
+/// Returns `(id, status, path, status_description)`; the description carries
+/// the error text when the router reports a failed load (status `"error"`).
 pub async fn list_models(
     host: &str,
     port: u16,
-) -> Result<Vec<(String, String, Option<String>)>, String> {
+) -> Result<Vec<(String, String, Option<String>, Option<String>)>, String> {
     let host = clean_host(host);
     let url = format!("http://{}:{}/models", host, port);
 
@@ -1597,18 +1599,25 @@ pub async fn list_models(
                 .unwrap_or_default()
                 .to_string();
             // Status can be a string or an object with a "value" field
-            let status = model
-                .get("status")
+            let status_obj = model.get("status");
+            let status = status_obj
                 .and_then(|s| s.get("value").or(Some(s)))
                 .and_then(|v| v.as_str())
                 .unwrap_or("unloaded")
                 .to_string();
+            // When status is an object, "description" carries details (e.g. the
+            // error message for a failed load).
+            let description = status_obj
+                .and_then(|s| s.get("description"))
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string());
             let path = model
                 .get("path")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
-            results.push((id, status, path));
+            results.push((id, status, path, description));
         }
     }
 

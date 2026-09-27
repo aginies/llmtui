@@ -20,7 +20,7 @@ pub type BenchTuneTaskHandle = tokio::task::JoinHandle<(
     String,
     BenchTuneConfig,
 )>;
-type SyncRx = tokio::sync::mpsc::Receiver<Vec<(String, String, Option<String>)>>;
+type SyncRx = tokio::sync::mpsc::Receiver<Vec<(String, String, Option<String>, Option<String>)>>;
 
 pub struct SettingsState {
     pub settings_selected_idx: usize,

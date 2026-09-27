@@ -316,6 +316,19 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     crate::t!("models.list_headers.model")
                 })
                 .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+                Cell::from(
+                    Line::from(if *sort_by == ListSort::Context {
+                        if sort_ascending {
+                            " Ctx \u{2191}"
+                        } else {
+                            " Ctx \u{2193}"
+                        }
+                    } else {
+                        crate::t!("models.list_headers.context")
+                    })
+                    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
+                    .alignment(Alignment::Center),
+                ),
                 Cell::from(if *sort_by == ListSort::Params {
                     if sort_ascending {
                         "Params \u{2191}"
@@ -336,19 +349,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     crate::t!("models.list_headers.quality")
                 })
                 .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
-                Cell::from(
-                    Line::from(if *sort_by == ListSort::Context {
-                        if sort_ascending {
-                            " Ctx \u{2191}"
-                        } else {
-                            " Ctx \u{2193}"
-                        }
-                    } else {
-                        crate::t!("models.list_headers.context")
-                    })
-                    .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
-                    .alignment(Alignment::Center),
-                ),
                 Cell::from(
                     Line::from(if *sort_by == ListSort::Architecture {
                         if sort_ascending {
@@ -436,13 +436,16 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         crate::t!("models.list_status.benchmarking_prefix")
                             .chars()
                             .count() as u16
+                    } else if matches!(model_state, Some(crate::models::ModelState::Failed { .. })) {
+                        crate::t!("models.list_status.failed_prefix")
+                            .chars()
+                            .count() as u16
                     } else {
                         0
                     };
 
                     let name_width = table_area
                         .width
-                        .saturating_sub(context_str.chars().count() as u16 + 4)
                         .saturating_sub(params_width)
                         .saturating_sub(4)
                         .saturating_sub(prefix_width)
@@ -477,6 +480,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             | Some(crate::models::ModelState::Benchmarking)
                     ) {
                         Style::default().fg(ACCENT)
+                    } else if matches!(
+                        model_state,
+                        Some(crate::models::ModelState::Failed { .. })
+                    ) {
+                        Style::default().fg(RED)
                     } else {
                         Style::default().fg(WHITE)
                     };
@@ -499,6 +507,14 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         ])
                     } else if matches!(model_state, Some(crate::models::ModelState::Benchmarking)) {
                         let prefix = crate::t!("models.list_status.benchmarking_prefix");
+                        let scrolled = scroll_text(display_name, name_width, state);
+                        Line::from(vec![
+                            Span::styled(prefix, name_style),
+                            Span::styled(scrolled, name_style),
+                            Span::styled("]", name_style),
+                        ])
+                    } else if matches!(model_state, Some(crate::models::ModelState::Failed { .. })) {
+                        let prefix = crate::t!("models.list_status.failed_prefix");
                         let scrolled = scroll_text(display_name, name_width, state);
                         Line::from(vec![
                             Span::styled(prefix, name_style),
@@ -549,13 +565,13 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
                     Row::new(vec![
                         Cell::from(name_display),
-                        Cell::from(params_str).style(params_style),
-                        quant_cell,
                         Cell::from(
                             ratatui::text::Text::from(context_str)
-                                .alignment(ratatui::layout::Alignment::Left),
+                                .alignment(ratatui::layout::Alignment::Center),
                         )
                         .style(Style::default().fg(CYAN)),
+                        Cell::from(params_str).style(params_style),
+                        quant_cell,
                         Cell::from(arch_str).style(arch_style),
                     ])
                 })
@@ -564,8 +580,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             let widths = [
                 Constraint::Percentage(45),
                 Constraint::Percentage(11),
-                Constraint::Percentage(10),
                 Constraint::Percentage(11),
+                Constraint::Percentage(10),
                 Constraint::Percentage(10),
             ];
 
