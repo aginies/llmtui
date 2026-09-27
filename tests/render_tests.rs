@@ -526,7 +526,9 @@ fn test_active_model_panel_failed_model_only_shown_when_selected() {
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     let text: String = buffer.content.iter().map(|c| c.symbol()).collect();
-    assert!(!text.contains("FAILED"));
+    // The failed model still appears in the models list with a "[FAILED: ]" prefix,
+    // but its status/error is not shown in the Active Model panel.
+    assert!(!text.contains("out of memory"));
     assert!(text.contains("No active model"));
 }
 
