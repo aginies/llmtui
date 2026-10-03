@@ -594,6 +594,77 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
         router_max_models,
         exit_tx,
     } = req;
+    // Turbo KV-cache types (turbo2/3/4) only exist in turboquant builds. If
+    // the effective settings still carry one on a standard backend — a
+    // leftover from a previous backend selection, a saved profile, or a
+    // per-model override — downgrade to F16 instead of letting
+    // llama-server fail to start with an unknown --cache-type-k value.
+    if !settings.is_turboquant_backend()
+        && (settings.cache_type_k.is_some_and(|t| t.is_turbo())
+            || settings.cache_type_v.is_some_and(|t| t.is_turbo()))
+    {
+        let mut sanitized = settings.clone();
+        let mut k = false;
+        let mut v = false;
+        if sanitized.cache_type_k.is_some_and(|t| t.is_turbo()) {
+            sanitized.cache_type_k = Some(crate::models::CacheQuantType::F16);
+            k = true;
+        }
+        if sanitized.cache_type_v.is_some_and(|t| t.is_turbo()) {
+            sanitized.cache_type_v = Some(crate::models::CacheQuantType::F16);
+            v = true;
+        }
+        let which = if k && v {
+            "cache-type-k and cache-type-v".to_string()
+        } else if k {
+            "cache-type-k".to_string()
+        } else {
+            "cache-type-v".to_string()
+        };
+        log_tx
+            .send(format!(
+                "Note: turbo KV-cache type ({}) not supported by this backend; using F16",
+                which
+            ))
+            .await
+            .ok();
+        let settings = &sanitized;
+        return spawn_server_inner(SpawnServerRequest {
+            config,
+            model,
+            settings,
+            log_tx,
+            progress_tx,
+            server_mode,
+            router_max_models,
+            exit_tx,
+        })
+        .await;
+    }
+    spawn_server_inner(SpawnServerRequest {
+        config,
+        model,
+        settings,
+        log_tx,
+        progress_tx,
+        server_mode,
+        router_max_models,
+        exit_tx,
+    })
+    .await
+}
+
+async fn spawn_server_inner(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, String), String> {
+    let SpawnServerRequest {
+        config,
+        model,
+        settings,
+        log_tx,
+        progress_tx,
+        server_mode,
+        router_max_models,
+        exit_tx,
+    } = req;
     if server_mode != crate::models::ServerMode::Bench
         && server_mode != crate::models::ServerMode::BenchTune
     {
@@ -633,21 +704,44 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
         .ok();
     let version_param = settings.get_active_backend_version().map(|s| s.as_str());
 
-    let server_binary = match crate::backend::hub::resolve_backend_binary(
-        settings.backend,
-        version_param,
-        settings.llama_cpp_strix_halo_rocm.as_deref(),
-        Some(log_tx.clone()),
-        progress_tx,
-    )
-    .await
-    {
-        Ok(path) => {
-            info!("spawn_server: resolved binary path={}", path.display());
-            path
-        }
-        Err(e) => {
-            return Err(format!("Failed to resolve backend binary: {}", e));
+    // Custom backends run from a stored directory (no download / resolution).
+    // Resolve via hub::get_backend_dir — the single source of truth shared
+    // with the picker's install check and backend deletion — so the binary
+    // that gets spawned is always the one the UI verified.
+    let server_binary = if settings.backend == crate::models::Backend::Custom {
+        let dir_str = settings
+            .llama_cpp_version_custom
+            .as_ref()
+            .ok_or_else(|| "Custom backend has no directory configured".to_string())?;
+        let dir = crate::backend::hub::get_backend_dir(crate::models::Backend::Custom, dir_str);
+        let bin = dir.join(crate::backend::hub::binary_name());
+        info!(
+            "spawn_server: custom backend dir={}, binary={}",
+            dir.display(),
+            bin.display()
+        );
+        log_tx
+            .send(format!("Using custom backend: {}", dir.display()))
+            .await
+            .ok();
+        bin
+    } else {
+        match crate::backend::hub::resolve_backend_binary(
+            settings.backend,
+            version_param,
+            settings.llama_cpp_strix_halo_rocm.as_deref(),
+            Some(log_tx.clone()),
+            progress_tx,
+        )
+        .await
+        {
+            Ok(path) => {
+                info!("spawn_server: resolved binary path={}", path.display());
+                path
+            }
+            Err(e) => {
+                return Err(format!("Failed to resolve backend binary: {}", e));
+            }
         }
     };
 

@@ -294,6 +294,7 @@ impl App {
             && let Ok(()) = rx.try_recv()
         {
             self.server.server_handle = None;
+            self.server_ready = false;
             self.loading.loading_phases.clear();
             self.loading.last_active_phase = None;
             self.loading.loading_progress = 0.0;
@@ -412,6 +413,10 @@ impl App {
                 .insert(name.clone(), ModelState::Failed { error });
         }
         self.pending.active_model_hint_dirty = true;
+
+        if is_crash {
+            self.server_ready = false;
+        }
 
         // No model left loaded: metrics are stale, reset them.
         if !self

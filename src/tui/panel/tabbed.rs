@@ -789,10 +789,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
                         lines.insert(
                             0,
                             Line::from(vec![
-                                Span::styled(
-                                    " Status: ",
-                                    Style::default().fg(ACCENT),
-                                ),
+                                Span::styled(" Status: ", Style::default().fg(ACCENT)),
                                 Span::styled(
                                     status,
                                     Style::default().fg(WHITE).add_modifier(Modifier::BOLD),

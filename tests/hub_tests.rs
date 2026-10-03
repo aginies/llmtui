@@ -9,7 +9,8 @@
 use llm_manager::backend::hub::{
     binary_name, extract_archive, get_backend_dir, get_bin_base, get_free_space_bytes,
     is_backend_any_version_installed, is_backend_version_installed, is_lib_sentinel_present,
-    lib_extension, lib_sentinel_name, list_installed_backends, walk_dir_recursive,
+    lib_extension, lib_sentinel_name, list_installed_backends, parse_llama_version,
+    walk_dir_recursive,
 };
 use llm_manager::models::Backend;
 use std::fs;
@@ -126,6 +127,73 @@ fn test_get_backend_dir_for_cuda() {
 fn test_get_backend_dir_for_rocm() {
     let dir = get_backend_dir(Backend::Rocm, "b4100");
     assert!(dir.to_string_lossy().contains("llama-server-rocm-b4100"));
+}
+
+#[test]
+fn test_get_backend_dir_for_custom_uses_directory_name() {
+    // Custom/third-party backends live in a directory named after the build
+    // itself (e.g. `turboquant-plus-tqp-v0.4.0`), not the canonical
+    // `llama-server-<slug>-<tag>` layout.
+    let dir = get_backend_dir(Backend::Custom, "turboquant-plus-tqp-v0.4.0");
+    assert!(
+        dir.to_string_lossy()
+            .ends_with("turboquant-plus-tqp-v0.4.0")
+    );
+    assert!(!dir.to_string_lossy().contains("llama-server-custom-"));
+
+    // A " · v<version>" display suffix on the tag must be stripped.
+    let dir2 = get_backend_dir(Backend::Custom, "turboquant-plus-tqp-v0.4.0 · v1");
+    assert!(
+        dir2.to_string_lossy()
+            .ends_with("turboquant-plus-tqp-v0.4.0")
+    );
+}
+
+#[test]
+fn test_get_backend_dir_for_custom_absolute_path_is_honored() {
+    // An absolute path is used as-is, without being joined to the bin base.
+    let dir = get_backend_dir(Backend::Custom, "/opt/llama/custom-build");
+    assert_eq!(dir, std::path::PathBuf::from("/opt/llama/custom-build"));
+
+    // A " · v<version>" suffix is stripped before the absolute check.
+    let dir2 = get_backend_dir(Backend::Custom, "/opt/llama/custom-build · v1");
+    assert_eq!(dir2, std::path::PathBuf::from("/opt/llama/custom-build"));
+}
+
+// ── Version string parsing ──────────────────────────────────────
+
+#[test]
+fn test_parse_llama_version_standard_format() {
+    // `llama-server --version` prints e.g. `version: 10837 (bcb85fc3a)`.
+    let (version, build_number, build_hash) = parse_llama_version("version: 10837 (bcb85fc3a)\n");
+    assert_eq!(version.as_deref(), Some("10837 (bcb85fc3a)"));
+    assert_eq!(build_number.as_deref(), Some("10837"));
+    assert_eq!(build_hash.as_deref(), Some("bcb85fc3a"));
+}
+
+#[test]
+fn test_parse_llama_version_without_hash() {
+    let (version, build_number, build_hash) = parse_llama_version("version: 10837");
+    assert_eq!(version.as_deref(), Some("10837"));
+    assert_eq!(build_number.as_deref(), Some("10837"));
+    assert_eq!(build_hash, None);
+}
+
+#[test]
+fn test_parse_llama_version_empty_or_missing() {
+    assert_eq!(parse_llama_version(""), (None, None, None));
+    assert_eq!(
+        parse_llama_version("no version line here"),
+        (None, None, None)
+    );
+}
+
+#[test]
+fn test_parse_llama_version_non_numeric() {
+    let (version, build_number, build_hash) = parse_llama_version("version: bcb85fc3a (bcb85fc3a)");
+    assert_eq!(version.as_deref(), Some("bcb85fc3a (bcb85fc3a)"));
+    assert_eq!(build_number, None);
+    assert_eq!(build_hash.as_deref(), Some("bcb85fc3a"));
 }
 
 // ── Backend installation checks ─────────────────────────────────

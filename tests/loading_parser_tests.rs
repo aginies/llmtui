@@ -747,3 +747,104 @@ async fn test_api_load_error_ignored_when_not_loading() {
         Some(ModelState::Available)
     ));
 }
+
+#[tokio::test]
+async fn test_router_sync_error_resets_loading_state() {
+    let mut app = make_app();
+    app.models = vec![llm_manager::models::DiscoveredModel {
+        path: "/models/test.gguf".into(),
+        name: "test.gguf".into(),
+        file_size: 1000,
+        display_name: "test.gguf".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
+    }];
+    app.model_states
+        .insert("test.gguf".to_string(), ModelState::Loading);
+    app.loading
+        .loading_phases
+        .insert(llm_manager::tui::app::LoadingPhase::LoadingModel);
+    app.loading.loading_progress = 0.5;
+    app.server.server_handle = Some(llm_manager::backend::server::ServerHandle {
+        pid: 1234,
+        port: 8080,
+        host: "127.0.0.1".into(),
+        kill_tx: tokio::sync::mpsc::channel(1).0,
+    });
+
+    let (tx, rx) = tokio::sync::mpsc::channel(16);
+    app.server.sync_rx = Some(rx);
+    tx.send(vec![(
+        "test".to_string(),
+        "error".to_string(),
+        Some("/models/test.gguf".to_string()),
+        Some("CUDA out of memory".to_string()),
+    )])
+    .await
+    .unwrap();
+
+    app.tick_sync();
+
+    match app.model_states.get("test.gguf") {
+        Some(ModelState::Failed { error }) => {
+            assert!(error.contains("CUDA out of memory"));
+        }
+        other => panic!("Expected Failed state, got {:?}", other),
+    }
+    assert!(app.loading.loading_phases.is_empty());
+    assert_eq!(app.loading.loading_progress, 0.0);
+}
+
+#[tokio::test]
+async fn test_router_sync_loading_keeps_loading_state() {
+    let mut app = make_app();
+    app.models = vec![llm_manager::models::DiscoveredModel {
+        path: "/models/test.gguf".into(),
+        name: "test.gguf".into(),
+        file_size: 1000,
+        display_name: "test.gguf".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
+    }];
+    app.model_states
+        .insert("test.gguf".to_string(), ModelState::Loading);
+    app.server.server_handle = Some(llm_manager::backend::server::ServerHandle {
+        pid: 1234,
+        port: 8080,
+        host: "127.0.0.1".into(),
+        kill_tx: tokio::sync::mpsc::channel(1).0,
+    });
+
+    let (tx, rx) = tokio::sync::mpsc::channel(16);
+    app.server.sync_rx = Some(rx);
+    // Even if matched by ID (in !matched branch)
+    tx.send(vec![(
+        "test".to_string(),
+        "loading".to_string(),
+        None,
+        None,
+    )])
+    .await
+    .unwrap();
+
+    app.tick_sync();
+
+    // Must still be Loading, NOT prematurely Loaded
+    assert!(matches!(
+        app.model_states.get("test.gguf"),
+        Some(ModelState::Loading)
+    ));
+}
+
+#[tokio::test]
+async fn test_server_exit_resets_server_ready() {
+    let mut app = make_app();
+    app.server_ready = true;
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    app.server.server_exit_rx = Some(rx);
+    tx.send(()).await.unwrap();
+
+    app.tick_server_exit();
+
+    assert!(!app.server_ready);
+}

@@ -1383,6 +1383,9 @@ fn render_backend_picker(
                 crate::models::Backend::CpuMacosX64 => {
                     crate::t!("dialog.backend_picker.cpu_macos_intel")
                 }
+                crate::models::Backend::Custom => {
+                    crate::t!("dialog.backend_picker.custom")
+                }
             };
             let display_label = if let Some(t) = tag {
                 format!("{} ({})", label, t)

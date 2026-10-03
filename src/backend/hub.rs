@@ -160,6 +160,8 @@ fn resolve_backend_key(backend: &crate::models::Backend) -> Option<(&'static str
         // macOS (no Vulkan/CUDA; only CPU)
         crate::models::Backend::CpuMacosArm64 => Some(("ggml-org/llama.cpp", "macos-arm64.tar.gz")),
         crate::models::Backend::CpuMacosX64 => Some(("ggml-org/llama.cpp", "macos-x64.tar.gz")),
+        // Custom backends resolve from a stored directory; no GitHub asset.
+        crate::models::Backend::Custom => None,
     }
 }
 
@@ -567,6 +569,34 @@ pub fn is_lib_sentinel_present(bin_dir: &std::path::Path) -> bool {
     }
 }
 
+/// Whether a backend's `llama-server` binary is ready to run in `bin_dir`.
+///
+/// For standard backends we also require the canonical shared-library sentinel
+/// (`libllama.so` etc.), matching the download/extract layout. For custom/
+/// third-party backends the binary itself is the only guarantee: such builds
+/// may name their shared library differently or omit it entirely, so the
+/// presence of `llama-server` is sufficient.
+fn backend_binary_ready(backend: crate::models::Backend, bin_dir: &std::path::Path) -> bool {
+    let bin_path = bin_dir.join(binary_name());
+    if !bin_path.exists() {
+        return false;
+    }
+    if backend == crate::models::Backend::Custom {
+        return true;
+    }
+    is_lib_sentinel_present(bin_dir)
+}
+
+/// Error for a custom backend whose binary is missing from its stored
+/// directory (custom backends never download).
+fn custom_backend_missing_error(bin_dir: &std::path::Path) -> anyhow::Error {
+    anyhow::anyhow!(
+        "Custom backend binary not found in stored directory: {}. Ensure the {} server binary is present there.",
+        bin_dir.display(),
+        binary_name()
+    )
+}
+
 /// Get the shared library extension for matching during extraction
 pub fn lib_extension() -> &'static str {
     match std::env::consts::OS {
@@ -576,9 +606,223 @@ pub fn lib_extension() -> &'static str {
     }
 }
 
+// ── Generic backend discovery ──────────────────────────────────────────
+//
+// Backends live as directories under `get_bin_base()`, named
+// `llama-server-{slug}-{tag}`. Known slugs (rocm, vulkan, cuda, ...) map to
+// the `Backend` enum; anything else (e.g. `turboquant-plus-tqp`) is treated as
+// a `Custom` backend. The real llama.cpp version is discovered by running
+// `./llama-server --version` in each directory rather than trusting the tag.
+
+/// Coarse classification of a backend directory by keyword.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackendKind {
+    Cpu,
+    Vulkan,
+    Cuda,
+    Rocm,
+    RocmLemonade,
+    StrixHalo,
+    /// A third-party / custom llama.cpp build (e.g. turboquant-plus-tqp).
+    Turboquant,
+    /// Any directory that matches none of the known keywords.
+    Custom,
+}
+
+impl BackendKind {
+    /// Classify a backend directory name.
+    ///
+    /// Rules (case-insensitive):
+    /// 1. Names containing `turboquant`/`tqp` are `Turboquant` — checked
+    ///    first so a third-party build that also embeds a standard keyword
+    ///    (e.g. a custom CUDA turboquant build) is never mistaken for an
+    ///    official release.
+    /// 2. Official releases follow the `llama-server-{slug}-{tag}` layout, so
+    ///    only directories with that prefix are classified by keyword
+    ///    (vulkan/vk, cuda, strix, lemonade, rocm, macos/win/cpu). This keeps
+    ///    custom builds whose names happen to contain a keyword (e.g.
+    ///    `mybuild-vk`) from being hidden as "standard".
+    /// 3. Anything else is `Custom`.
+    pub fn detect(dir_name: &str) -> Self {
+        let n = dir_name.to_lowercase();
+        if n.contains("turboquant") || n.contains("tqp") {
+            return BackendKind::Turboquant;
+        }
+        match n.strip_prefix("llama-server-") {
+            Some(suffix) if suffix.contains("vulkan") || suffix.contains("vk") => {
+                BackendKind::Vulkan
+            }
+            Some(suffix) if suffix.contains("cuda") => BackendKind::Cuda,
+            Some(suffix) if suffix.contains("strix") => BackendKind::StrixHalo,
+            Some(suffix) if suffix.contains("lemonade") => BackendKind::RocmLemonade,
+            Some(suffix) if suffix.contains("rocm") => BackendKind::Rocm,
+            Some(suffix)
+                if suffix.contains("macos") || suffix.contains("win") || suffix.contains("cpu") =>
+            {
+                BackendKind::Cpu
+            }
+            _ => BackendKind::Custom,
+        }
+    }
+
+    /// Whether this kind maps to a standard `Backend` enum variant.
+    /// Turboquant and Custom are surfaced via the `Backend::Custom` variant.
+    pub fn is_standard(self) -> bool {
+        !matches!(self, BackendKind::Turboquant | BackendKind::Custom)
+    }
+}
+
+/// A backend directory discovered on disk, with its detected kind and
+/// version (discovered by running `./llama-server --version`).
+#[derive(Debug, Clone)]
+pub struct DiscoveredBackend {
+    /// Full path to the backend directory (used to run the binary directly).
+    pub path: std::path::PathBuf,
+    /// Coarse classification.
+    pub kind: BackendKind,
+    /// Version string reported by `./llama-server --version`
+    /// (e.g. `10837 (bcb85fc3a)`), if it could be determined.
+    pub version: Option<String>,
+    /// The build number extracted from `--version` (e.g. `10837`), if any.
+    pub build_number: Option<String>,
+}
+
+/// Parse the output of `./llama-server --version`.
+///
+/// Expected format:
+/// ```text
+/// version: 10837 (bcb85fc3a)
+/// built with GNU 11.4.0 for Linux x86_64
+/// ```
+/// Returns `(version, build_number, build_hash)`.
+pub fn parse_llama_version(output: &str) -> (Option<String>, Option<String>, Option<String>) {
+    for line in output.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("version:") {
+            let rest = rest.trim();
+            if rest.is_empty() {
+                continue;
+            }
+            let version = Some(rest.to_string());
+            // Build number = leading run of digits; hash = token inside parens.
+            let build_number_raw: String =
+                rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            let build_number = if build_number_raw.is_empty() {
+                None
+            } else {
+                Some(build_number_raw)
+            };
+            let build_hash = rest
+                .split_once('(')
+                .and_then(|(_, after_open)| after_open.split_once(')'))
+                .map(|(inner, _)| inner.trim().to_string())
+                .filter(|s| !s.is_empty());
+            return (version, build_number, build_hash);
+        }
+    }
+    (None, None, None)
+}
+
+/// Run `./llama-server --version` in a directory. The binary prints its
+/// version and exits immediately.
+///
+/// The probe runs on a helper thread with a 2 s timeout: it is called from
+/// the TUI event loop (backend picker), and a hung or misbehaving custom
+/// binary must not freeze the UI. On timeout the helper thread (and the
+/// child process) is abandoned — a bounded leak in a pathological case, but
+/// the picker stays responsive.
+pub fn discover_dir_version(dir: &std::path::Path) -> (Option<String>, Option<String>) {
+    let binary = dir.join(binary_name());
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let out = std::process::Command::new(&binary)
+            .arg("--version")
+            .output();
+        let _ = tx.send(out);
+    });
+    match rx.recv_timeout(std::time::Duration::from_secs(2)) {
+        Ok(Ok(out)) if out.status.success() => {
+            let text = String::from_utf8_lossy(&out.stdout);
+            let (version, build_number, _hash) = parse_llama_version(&text);
+            (version, build_number)
+        }
+        _ => (None, None),
+    }
+}
+
+/// Enumerate every backend directory under `get_bin_base()`, detecting its kind
+/// and version (by running `./llama-server --version`).
+///
+/// Any directory that contains a runnable `llama-server` binary is treated as a
+/// backend, regardless of its name: third-party builds (e.g.
+/// `turboquant-plus-tqp-v0.4.0`) do not follow the `llama-server-<slug>-<tag>`
+/// naming used by the official releases, so we key off the executable itself
+/// rather than the directory name.
+pub fn discover_backends() -> Vec<DiscoveredBackend> {
+    let bin_base = get_bin_base();
+    if !bin_base.exists() {
+        return Vec::new();
+    }
+    let bin_name = binary_name();
+    let mut out: Vec<DiscoveredBackend> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&bin_base) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let path = entry.path();
+            let dir_name_os = entry.file_name();
+            let dir_name = match dir_name_os.to_str() {
+                Some(s) => s,
+                None => continue,
+            };
+            // Require only the executable we actually spawn. Do not require the
+            // `libllama.so` sentinel or a specific directory-name prefix: a
+            // third-party build may name its shared library differently or not
+            // use the canonical `llama-server-<slug>-<tag>` directory name.
+            if !path.join(bin_name).exists() {
+                continue;
+            }
+            let kind = BackendKind::detect(dir_name);
+            // Only probe the version for non-standard kinds: standard
+            // backends are already listed (with their tag) by
+            // list_installed_backends, and the probe is a process spawn.
+            let (version, build_number) = if kind.is_standard() {
+                (None, None)
+            } else {
+                discover_dir_version(&path)
+            };
+            out.push(DiscoveredBackend {
+                path,
+                kind,
+                version,
+                build_number,
+            });
+        }
+    }
+    out
+}
+
 /// Get the directory path for a specific backend version.
+///
+/// For `Backend::Custom` the tag is either an absolute path to the backend
+/// directory or a directory name relative to the bin folder (the picker
+/// stores the directory name). A " · v<ver>" display suffix (added in the
+/// picker) is stripped to recover the real directory name. This is the single
+/// source of truth for custom-backend path resolution — `spawn_server` and
+/// the install/delete flows must all go through here.
 pub fn get_backend_dir(backend: crate::models::Backend, tag: &str) -> std::path::PathBuf {
-    get_bin_base().join(format!("llama-server-{}-{}", backend.slug(), tag))
+    let bin_base = get_bin_base();
+    if backend == crate::models::Backend::Custom {
+        let name = tag.split(" · ").next().unwrap_or(tag);
+        let path = std::path::Path::new(name);
+        return if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            bin_base.join(name)
+        };
+    }
+    bin_base.join(format!("llama-server-{}-{}", backend.slug(), tag))
 }
 
 /// Check if any version of the specified backend is already installed.
@@ -619,10 +863,8 @@ pub fn is_backend_version_installed(backend: crate::models::Backend, tag: Option
     };
 
     let bin_dir = get_backend_dir(backend, tag);
-    let bin_name = binary_name();
-    let bin_path = bin_dir.join(bin_name);
 
-    bin_path.exists() && is_lib_sentinel_present(&bin_dir)
+    backend_binary_ready(backend, &bin_dir)
 }
 
 /// List all installed backends and their versions.
@@ -793,17 +1035,26 @@ pub async fn resolve_backend_binary(
         bin_path.display()
     );
 
-    // Check if both the binary and at least one shared library exist
-    let lib_present = is_lib_sentinel_present(&bin_dir);
+    // Check if the binary is ready to run. For standard backends this also
+    // requires the shared-library sentinel; custom/third-party builds only
+    // need the `llama-server` binary itself.
+    let ready = backend_binary_ready(backend, &bin_dir);
     tracing::info!(
-        "  -> checking binary existence: bin_path={} lib_present={}",
+        "  -> checking binary existence: bin_path={} ready={}",
         bin_path.exists(),
-        lib_present
+        ready
     );
 
-    if bin_path.exists() && lib_present {
+    if ready {
         tracing::info!("  -> binary already exists, returning cached path");
         return Ok(bin_path);
+    }
+
+    // Custom backends have no GitHub asset to download. Report a clear error
+    // before creating any directory, so a missing binary does not leave an
+    // empty directory behind in the bin folder.
+    if backend == crate::models::Backend::Custom {
+        return Err(custom_backend_missing_error(&bin_dir));
     }
 
     tracing::info!("  -> binary not found, will download");
@@ -936,6 +1187,10 @@ pub async fn resolve_backend_binary(
             ),
             "tar.gz",
         ),
+        // Custom backends are handled above (no GitHub asset to download).
+        crate::models::Backend::Custom => {
+            return Err(custom_backend_missing_error(&bin_dir));
+        }
     };
 
     if let Some(tx) = &log_tx {

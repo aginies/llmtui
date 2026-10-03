@@ -686,11 +686,9 @@ impl App {
                                             | Some(crate::models::ModelState::Loaded { .. })
                                     )
                                 {
-                                    let error = description
-                                        .clone()
-                                        .unwrap_or_else(|| {
-                                            crate::t!("async.model_load_error").to_string()
-                                        });
+                                    let error = description.clone().unwrap_or_else(|| {
+                                        crate::t!("async.model_load_error").to_string()
+                                    });
                                     load_error_logs.push(crate::t_fmt!(
                                         "async.load_failed",
                                         model.display_name,
@@ -706,6 +704,25 @@ impl App {
                                         model.display_name.clone(),
                                         crate::models::ModelState::Failed { error },
                                     );
+                                    if !self
+                                        .model_states
+                                        .values()
+                                        .any(|s| matches!(s, crate::models::ModelState::Loading))
+                                    {
+                                        self.loading.loading_phases.clear();
+                                        self.loading.last_active_phase = None;
+                                        self.loading.loading_progress = 0.0;
+                                        self.loading.load_progress = Default::default();
+                                        self.loading.last_spinner_time = None;
+                                        self.loading.loading_spinner = 0;
+                                        self.loading.phase_start_time = None;
+                                    }
+                                    if !self.model_states.values().any(|s| {
+                                        matches!(s, crate::models::ModelState::Loaded { .. })
+                                    }) {
+                                        self.metrics = Default::default();
+                                        crate::backend::server::invalidate_vram_cache();
+                                    }
                                 }
                                 matched = true;
                             }
@@ -716,31 +733,38 @@ impl App {
                                 for model in &self.models {
                                     if model.display_name == name || model.name == name {
                                         if is_active {
-                                            let mut loaded_names = self
-                                                .server
-                                                .loaded_model_names
-                                                .lock()
-                                                .unwrap_or_else(|e| e.into_inner());
-                                            if !loaded_names.contains(&model.display_name) {
-                                                loaded_names.push(model.display_name.clone());
+                                            if status_lower == "loading" {
+                                                self.model_states.insert(
+                                                    model.display_name.clone(),
+                                                    crate::models::ModelState::Loading,
+                                                );
+                                            } else {
+                                                let mut loaded_names = self
+                                                    .server
+                                                    .loaded_model_names
+                                                    .lock()
+                                                    .unwrap_or_else(|e| e.into_inner());
+                                                if !loaded_names.contains(&model.display_name) {
+                                                    loaded_names.push(model.display_name.clone());
+                                                }
+                                                self.model_states.insert(
+                                                    model.display_name.clone(),
+                                                    crate::models::ModelState::Loaded { port, pid },
+                                                );
+                                                should_clear_toasts = true;
                                             }
-                                            self.model_states.insert(
-                                                model.display_name.clone(),
-                                                crate::models::ModelState::Loaded { port, pid },
-                                            );
-                                            should_clear_toasts = true;
                                         } else if is_error
                                             && matches!(
                                                 self.model_states.get(&model.display_name),
                                                 Some(crate::models::ModelState::Loading)
-                                                    | Some(crate::models::ModelState::Loaded { .. })
+                                                    | Some(
+                                                        crate::models::ModelState::Loaded { .. }
+                                                    )
                                             )
                                         {
-                                            let error = description
-                                                .clone()
-                                                .unwrap_or_else(|| {
-                                                    crate::t!("async.model_load_error").to_string()
-                                                });
+                                            let error = description.clone().unwrap_or_else(|| {
+                                                crate::t!("async.model_load_error").to_string()
+                                            });
                                             load_error_logs.push(crate::t_fmt!(
                                                 "async.load_failed",
                                                 model.display_name,
@@ -756,6 +780,26 @@ impl App {
                                                 model.display_name.clone(),
                                                 crate::models::ModelState::Failed { error },
                                             );
+                                            if !self.model_states.values().any(|s| {
+                                                matches!(s, crate::models::ModelState::Loading)
+                                            }) {
+                                                self.loading.loading_phases.clear();
+                                                self.loading.last_active_phase = None;
+                                                self.loading.loading_progress = 0.0;
+                                                self.loading.load_progress = Default::default();
+                                                self.loading.last_spinner_time = None;
+                                                self.loading.loading_spinner = 0;
+                                                self.loading.phase_start_time = None;
+                                            }
+                                            if !self.model_states.values().any(|s| {
+                                                matches!(
+                                                    s,
+                                                    crate::models::ModelState::Loaded { .. }
+                                                )
+                                            }) {
+                                                self.metrics = Default::default();
+                                                crate::backend::server::invalidate_vram_cache();
+                                            }
                                         }
                                         matched = true;
                                         break;
@@ -1525,8 +1569,14 @@ impl App {
                 let host = handle.host.clone();
                 let port = handle.port;
                 let model_name_clone = model_name.clone();
-                // Router expects model ID (display_name without .gguf extension)
-                let model_id = model_name_clone
+                // Send the model id verbatim, .gguf included. The router
+                // registers models under the full id (as returned by GET
+                // /models) and builds the HuggingFace download URL from it,
+                // so dropping the .gguf extension produced a malformed URL
+                // that 404s.
+                let model_id_for_api = model_name_clone.clone();
+                // Identifier used only for in-metrics bookkeeping (extension-less).
+                let metrics_model_id = model_name_clone
                     .strip_suffix(".gguf")
                     .unwrap_or(&model_name_clone)
                     .to_string();
@@ -1541,7 +1591,7 @@ impl App {
                         .metrics_model_name
                         .lock()
                         .unwrap_or_else(|e| e.into_inner());
-                    *lock = Some(model_id.clone());
+                    *lock = Some(metrics_model_id.clone());
                 }
                 let log_tx = self.server.spawn_log_tx.clone();
                 let load_error_tx = self.server.api_load_error_tx.clone();
@@ -1549,7 +1599,14 @@ impl App {
                 let model_name_state = model_name_clone.clone();
                 self.metrics.ctx_used = 0;
                 crate::backend::server::invalidate_vram_cache();
-                let model_id_for_api = model_id.clone();
+                if let Some(rx) = &mut self.server.sync_rx {
+                    while rx.try_recv().is_ok() {}
+                }
+                tracing::info!(
+                    "try_execute_api_load: model={} -> router id={}",
+                    model_name_clone,
+                    model_id_for_api
+                );
                 tokio::spawn(async move {
                     if let Err(e) =
                         crate::backend::server::load_model(&host, port, &model_id_for_api).await
@@ -1571,6 +1628,10 @@ impl App {
                 self.ui.needs_redraw = true;
             } else if self.server.spawn_task_handle.is_none() {
                 self.pending.pending_api_load = None;
+                self.reset_loading_state(
+                    false,
+                    Some(crate::t!("async.no_server_running").to_string()),
+                );
             }
         }
     }
@@ -1622,10 +1683,9 @@ impl App {
             let host = handle.host.clone();
             let port = handle.port;
             let model_name_clone = model_name.clone();
-            let model_id = model_name_clone
-                .strip_suffix(".gguf")
-                .unwrap_or(&model_name_clone)
-                .to_string();
+            // Same id as the load step (full display name, .gguf included) so
+            // unload matches the id the router registered the model under.
+            let model_id = model_name_clone.clone();
             if server_mode == crate::models::ServerMode::Normal {
                 self.add_log(
                     crate::t_fmt!("async.unloading", model_name_clone),
@@ -1761,6 +1821,7 @@ impl App {
                 crate::config::LogLevel::Info,
             );
             self.server.server_handle = None;
+            self.server_ready = false;
             self.server.metrics_rx = None;
             self.metrics = Default::default();
             crate::backend::server::invalidate_vram_cache();

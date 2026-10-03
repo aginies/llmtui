@@ -4,6 +4,7 @@ use std::pin::Pin;
 use crossterm::event::{KeyCode, KeyEvent};
 
 use super::super::helpers::{picker_nav_down, picker_nav_up, sync_global_settings};
+use crate::models::CacheQuantType;
 use crate::tui::app::{App, ConfirmationKind, GlobalMode};
 
 use super::OverlayHandler;
@@ -40,6 +41,18 @@ impl OverlayHandler for BackendPickerHandler {
                         let (backend, tag) = entries[*selected].clone();
                         app.settings.backend = backend;
                         app.settings.set_active_backend_version(tag.clone());
+                        // Turbo KV-cache types only exist in turboquant builds;
+                        // reset them when switching to any other backend so the
+                        // settings panel doesn't keep showing a value this
+                        // backend rejects.
+                        if !app.settings.is_turboquant_backend() {
+                            if app.settings.cache_type_k.is_some_and(|t| t.is_turbo()) {
+                                app.settings.cache_type_k = Some(CacheQuantType::F16);
+                            }
+                            if app.settings.cache_type_v.is_some_and(|t| t.is_turbo()) {
+                                app.settings.cache_type_v = Some(CacheQuantType::F16);
+                            }
+                        }
                         if !crate::backend::hub::is_backend_version_installed(
                             backend,
                             tag.as_deref(),
