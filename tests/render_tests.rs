@@ -580,6 +580,10 @@ fn test_active_model_panel_router_mode_loaded_renders() {
     let text: String = buffer.content.iter().map(|c| c.symbol()).collect();
     assert!(text.contains("test"));
     assert!(text.contains("Tokens/s"));
+    assert!(text.contains("CPU:"));
+    assert!(text.contains("RAM:"));
+    assert!(text.contains("VRAM:"));
+    assert!(!text.contains("Status: LOADED"));
 }
 
 #[test]
