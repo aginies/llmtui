@@ -235,6 +235,7 @@ impl std::hash::Hash for ModelSettings {
         self.llama_cpp_version_strix_halo.hash(state);
         self.llama_cpp_strix_halo_rocm.hash(state);
         self.llama_cpp_version_cuda.hash(state);
+        self.llama_cpp_version_custom.hash(state);
         self.api_endpoint_enabled.hash(state);
         self.api_endpoint_port.hash(state);
         self.chat_ui_enabled.hash(state);
@@ -256,6 +257,7 @@ impl ModelSettings {
             Backend::RocmLemonade => self.llama_cpp_version_rocm_lemonade.as_ref(),
             Backend::StrixHalo => self.llama_cpp_version_strix_halo.as_ref(),
             Backend::Cuda => self.llama_cpp_version_cuda.as_ref(),
+            Backend::Custom => self.llama_cpp_version_custom.as_ref(),
             _ => None,
         }
     }
@@ -267,6 +269,17 @@ impl ModelSettings {
             .unwrap_or("latest")
     }
 
+    /// Returns true if the currently selected backend is a turboquant build.
+    ///
+    /// Turboquant backends are surfaced as `Backend::Custom` whose stored
+    /// version string is the backend directory name (e.g.
+    /// `turboquant-plus-tqp-v0.4.0`), so we detect them by keyword.
+    pub fn is_turboquant_backend(&self) -> bool {
+        self.get_active_backend_version_display()
+            .to_lowercase()
+            .contains("turboquant")
+    }
+
     /// Set the version string for the currently active backend.
     pub fn set_active_backend_version(&mut self, tag: Option<String>) {
         match self.backend {
@@ -276,6 +289,7 @@ impl ModelSettings {
             Backend::RocmLemonade => self.llama_cpp_version_rocm_lemonade = tag,
             Backend::StrixHalo => self.llama_cpp_version_strix_halo = tag,
             Backend::Cuda => self.llama_cpp_version_cuda = tag,
+            Backend::Custom => self.llama_cpp_version_custom = tag,
             _ => {}
         }
     }
@@ -405,6 +419,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             llama_cpp_version_strix_halo: dp.llama_cpp_version_strix_halo,
             llama_cpp_strix_halo_rocm: dp.llama_cpp_strix_halo_rocm,
             llama_cpp_version_cuda: dp.llama_cpp_version_cuda,
+            llama_cpp_version_custom: dp.llama_cpp_version_custom,
             api_endpoint_enabled: dp.api_endpoint_enabled,
             api_endpoint_port: dp.api_endpoint_port,
             chat_ui_enabled: dp.chat_ui_enabled,
@@ -487,6 +502,12 @@ pub enum CacheQuantType {
     Q5_0,
     #[serde(rename = "q5_1")]
     Q5_1,
+    #[serde(rename = "turbo2")]
+    Turbo2,
+    #[serde(rename = "turbo3")]
+    Turbo3,
+    #[serde(rename = "turbo4")]
+    Turbo4,
 }
 
 pub type CacheTypeK = CacheQuantType;
@@ -504,6 +525,9 @@ impl CacheQuantType {
             6 => Self::Q4_1,
             7 => Self::Q4_0,
             8 => Self::Iq4Nl,
+            9 => Self::Turbo2,
+            10 => Self::Turbo3,
+            11 => Self::Turbo4,
             _ => Self::F16,
         }
     }
@@ -517,12 +541,15 @@ impl CacheQuantType {
             Self::Q5_0 => Self::Q4_1,
             Self::Q4_1 => Self::Q4_0,
             Self::Q4_0 => Self::Iq4Nl,
-            Self::Iq4Nl => Self::F32,
+            Self::Iq4Nl => Self::Turbo2,
+            Self::Turbo2 => Self::Turbo3,
+            Self::Turbo3 => Self::Turbo4,
+            Self::Turbo4 => Self::F32,
         }
     }
     pub fn prev(&self) -> Self {
         match self {
-            Self::F32 => Self::Iq4Nl,
+            Self::F32 => Self::Turbo4,
             Self::F16 => Self::F32,
             Self::BF16 => Self::F16,
             Self::Q8_0 => Self::BF16,
@@ -531,6 +558,40 @@ impl CacheQuantType {
             Self::Q4_1 => Self::Q5_0,
             Self::Q4_0 => Self::Q4_1,
             Self::Iq4Nl => Self::Q4_0,
+            Self::Turbo2 => Self::Iq4Nl,
+            Self::Turbo3 => Self::Turbo2,
+            Self::Turbo4 => Self::Turbo3,
+        }
+    }
+    /// Cycle to the next type, skipping the turbo variants when `turbo_enabled`
+    /// is false (so `Iq4Nl` wraps back to `F32`, and any stored turbo value
+    /// behaves as adjacent to that boundary).
+    /// Whether this is a turboquant-only cache type (turbo2/3/4). These are
+    /// only understood by turboquant llama.cpp builds; passing them to a
+    /// standard backend makes the server fail to start.
+    pub fn is_turbo(self) -> bool {
+        matches!(self, Self::Turbo2 | Self::Turbo3 | Self::Turbo4)
+    }
+
+    pub fn next_with_turbo(&self, turbo_enabled: bool) -> Self {
+        if turbo_enabled {
+            self.next()
+        } else {
+            match self {
+                Self::Iq4Nl | Self::Turbo2 | Self::Turbo3 | Self::Turbo4 => Self::F32,
+                _ => self.next(),
+            }
+        }
+    }
+    /// The reverse of [`CacheQuantType::next_with_turbo`].
+    pub fn prev_with_turbo(&self, turbo_enabled: bool) -> Self {
+        if turbo_enabled {
+            self.prev()
+        } else {
+            match self {
+                Self::F32 | Self::Turbo2 | Self::Turbo3 | Self::Turbo4 => Self::Iq4Nl,
+                _ => self.prev(),
+            }
         }
     }
 }
@@ -547,6 +608,9 @@ impl std::fmt::Display for CacheQuantType {
             Self::Iq4Nl => write!(f, "iq4_nl"),
             Self::Q5_0 => write!(f, "q5_0"),
             Self::Q5_1 => write!(f, "q5_1"),
+            Self::Turbo2 => write!(f, "turbo2"),
+            Self::Turbo3 => write!(f, "turbo3"),
+            Self::Turbo4 => write!(f, "turbo4"),
         }
     }
 }
@@ -563,6 +627,9 @@ impl From<&str> for CacheQuantType {
             "Iq4Nl" => Self::Iq4Nl,
             "Q5_0" => Self::Q5_0,
             "Q5_1" => Self::Q5_1,
+            "Turbo2" | "turbo2" => Self::Turbo2,
+            "Turbo3" | "turbo3" => Self::Turbo3,
+            "Turbo4" | "turbo4" => Self::Turbo4,
             _ => Self::F16, // Default or error handling
         }
     }
@@ -739,6 +806,11 @@ pub enum Backend {
     CpuMacosArm64,
     #[serde(rename = "macos_x64")]
     CpuMacosX64,
+    /// A backend binary located in an arbitrary directory under the bin folder
+    /// whose kind is not matched by a known slug (e.g. `turboquant-plus-tqp`).
+    /// The actual directory is stored in `llama_cpp_version_custom`.
+    #[serde(rename = "custom")]
+    Custom,
 }
 
 impl Backend {
@@ -759,6 +831,7 @@ impl Backend {
             Backend::HipWindows => "win-hip",
             Backend::CpuMacosArm64 => "macos-arm64",
             Backend::CpuMacosX64 => "macos-x64",
+            Backend::Custom => "custom",
         }
     }
 
@@ -780,11 +853,13 @@ impl Backend {
             "win-hip" => Some(Backend::HipWindows),
             "macos-arm64" => Some(Backend::CpuMacosArm64),
             "macos-x64" => Some(Backend::CpuMacosX64),
+            "custom" => Some(Backend::Custom),
             _ => None,
         }
     }
 
-    /// Returns true if this backend is for Linux.
+    /// Returns true if this backend can run on Linux.
+    /// Custom backends are discovered from Linux bin directories.
     pub fn is_linux(self) -> bool {
         matches!(
             self,
@@ -795,6 +870,7 @@ impl Backend {
                 | Backend::StrixHalo
                 | Backend::Cuda
                 | Backend::CpuArm64
+                | Backend::Custom
         )
     }
 
@@ -1075,6 +1151,12 @@ pub struct ModelSettings {
     pub llama_cpp_strix_halo_rocm: Option<String>,
     /// llama.cpp release tag for CUDA backend.
     pub llama_cpp_version_cuda: Option<String>,
+    /// For the `Custom` backend: the directory holding the `llama-server`
+    /// binary to run — either an absolute path or a directory name relative
+    /// to the bin folder (the picker stores the directory name, discovered
+    /// from the bin folder). Resolved via `backend::hub::get_backend_dir`.
+    /// For all other backends this is `None`.
+    pub llama_cpp_version_custom: Option<String>,
     /// Whether to enable the API proxy server.
     pub api_endpoint_enabled: bool,
     /// Port for the API proxy server.
@@ -2159,6 +2241,7 @@ fn kv_quant_bytes(k_type: CacheQuantType, v_type: CacheQuantType) -> f64 {
         CacheQuantType::Q8_0 => 1.0,
         CacheQuantType::Q5_0 | CacheQuantType::Q5_1 => 0.625, // 5 bits
         CacheQuantType::Q4_0 | CacheQuantType::Q4_1 | CacheQuantType::Iq4Nl => 0.5, // 4 bits
+        CacheQuantType::Turbo2 | CacheQuantType::Turbo3 | CacheQuantType::Turbo4 => 2.0,
     };
     (get_bytes(k_type) + get_bytes(v_type)) / 2.0
 }
@@ -2582,8 +2665,8 @@ mod field_count_tests {
         let s = ModelSettings::default();
         let field_count = count_model_settings_fields(&s);
         assert_eq!(
-            field_count, 76,
-            "ModelSettings has {} fields (expected 76). \
+            field_count, 77,
+            "ModelSettings has {} fields (expected 77). \
         Update the checklist at src/models.rs:665 and all locations listed there.",
             field_count
         );
@@ -2667,6 +2750,7 @@ mod field_count_tests {
             &s.llama_cpp_version_strix_halo,
             &s.llama_cpp_strix_halo_rocm,
             &s.llama_cpp_version_cuda,
+            &s.llama_cpp_version_custom,
             &s.api_endpoint_enabled,
             &s.api_endpoint_port,
             &s.chat_ui_enabled,
@@ -2674,7 +2758,7 @@ mod field_count_tests {
             &s.draft_tokens,
             &s.tags,
         );
-        76
+        77
     }
 
     /// Verify that is_dirty() uses derived PartialEq (compiler-enforced).

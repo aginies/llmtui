@@ -1,4 +1,6 @@
 /target
+tools/llm-acme/target/
+.pi/
 documentation/book/
 CHANGELOG.md
 .shell-extension.zip

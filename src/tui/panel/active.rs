@@ -346,14 +346,6 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     ),
                 ]));
 
-                lines.push(Line::from(vec![
-                    Span::styled(" Status: ", Style::default().fg(ACCENT)),
-                    Span::styled(
-                        crate::t!("active.loaded"),
-                        Style::default().fg(GREEN).add_modifier(Modifier::BOLD),
-                    ),
-                ]));
-
                 let tps_style = Style::default().fg(CYAN);
                 let prompt_style = Style::default().fg(CYAN);
 
@@ -496,7 +488,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                 if app.loading.loading_progress > 0.0 && app.loading.loading_progress <= 1.0 {
                     let ratio = app.loading.loading_progress as f64;
                     let bar_area = Rect {
-                        x: area.x,
+                        x: area.x + 1,
                         y: area.y + 4,
                         width: area.width.saturating_sub(2),
                         height: 1,
@@ -508,7 +500,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                     f.render_widget(gauge, bar_area);
                 } else {
                     let bar_area = Rect {
-                        x: area.x,
+                        x: area.x + 1,
                         y: area.y + 4,
                         width: area.width.saturating_sub(2),
                         height: 1,

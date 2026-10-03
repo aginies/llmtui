@@ -314,6 +314,7 @@ pub struct ModelOverride {
     pub llama_cpp_version_strix_halo: Option<String>,
     pub llama_cpp_strix_halo_rocm: Option<String>,
     pub llama_cpp_version_cuda: Option<String>,
+    pub llama_cpp_version_custom: Option<String>,
     pub spec_type: Option<String>,
     pub draft_tokens: Option<u32>,
     pub tags: Option<Vec<String>>,
@@ -427,6 +428,7 @@ impl ModelOverride {
             llama_cpp_version_strix_halo: s.llama_cpp_version_strix_halo.clone(),
             llama_cpp_strix_halo_rocm: s.llama_cpp_strix_halo_rocm.clone(),
             llama_cpp_version_cuda: s.llama_cpp_version_cuda.clone(),
+            llama_cpp_version_custom: s.llama_cpp_version_custom.clone(),
             spec_type: Some(s.spec_type.clone()),
             draft_tokens: Some(s.draft_tokens),
             tags: Some(s.tags.clone()),
@@ -520,6 +522,7 @@ impl ModelOverride {
             llama_cpp_version_strix_halo,
             llama_cpp_strix_halo_rocm,
             llama_cpp_version_cuda,
+            llama_cpp_version_custom,
         );
 
         // Direct Option<T> assignment (same type in both structs) — only apply if Some
@@ -904,6 +907,8 @@ pub struct DefaultParams {
     pub llama_cpp_strix_halo_rocm: Option<String>,
     #[serde(default)]
     pub llama_cpp_version_cuda: Option<String>,
+    #[serde(default)]
+    pub llama_cpp_version_custom: Option<String>,
 
     // API
     #[serde(default)]
@@ -1207,6 +1212,7 @@ impl Default for DefaultParams {
             llama_cpp_version_strix_halo: None,
             llama_cpp_strix_halo_rocm: None,
             llama_cpp_version_cuda: None,
+            llama_cpp_version_custom: None,
             api_endpoint_enabled: false,
             api_endpoint_port: default_api_endpoint_port(),
             chat_ui_enabled: default_chat_ui_enabled(),
@@ -1359,6 +1365,7 @@ impl Config {
             "llama_cpp_version_strix_halo",
             "llama_cpp_strix_halo_rocm",
             "llama_cpp_version_cuda",
+            "llama_cpp_version_custom",
             "api_endpoint_enabled",
             "api_endpoint_port",
             "chat_ui_enabled",
@@ -1448,6 +1455,7 @@ impl Config {
             "llama_cpp_version_strix_halo",
             "llama_cpp_strix_halo_rocm",
             "llama_cpp_version_cuda",
+            "llama_cpp_version_custom",
             "spec_type",
             "draft_tokens",
             "tags",

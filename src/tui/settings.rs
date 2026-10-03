@@ -14,7 +14,6 @@ pub type DirtyFn = fn(&ModelSettings, &ModelSettings) -> bool;
 pub type AdjustFn = fn(&mut ModelSettings, i32, u32); // u32 = context_limit (0 = no limit)
 pub type ApplyEditFn = fn(&mut ModelSettings, &str);
 pub type CtrlEToggleFn = fn(&mut ModelSettings);
-
 // ── SettingField ─────────────────────────────────────────────────────────────
 
 pub struct SettingField {
@@ -593,7 +592,12 @@ pub fn all_fields() -> Vec<SettingField> {
                 |s, c| s.cache_type_k != c.cache_type_k,
                 |s, delta, _| {
                     let mut val = s.cache_type_k.unwrap_or(CacheQuantType::F16);
-                    val = if delta > 0 { val.next() } else { val.prev() };
+                    let turbo = s.is_turboquant_backend();
+                    val = if delta > 0 {
+                        val.next_with_turbo(turbo)
+                    } else {
+                        val.prev_with_turbo(turbo)
+                    };
                     s.cache_type_k = Some(val);
                 },
                 |s, buf| {
@@ -619,7 +623,12 @@ pub fn all_fields() -> Vec<SettingField> {
                 |s, c| s.cache_type_v != c.cache_type_v,
                 |s, delta, _| {
                     let mut val = s.cache_type_v.unwrap_or(CacheQuantType::F16);
-                    val = if delta > 0 { val.next() } else { val.prev() };
+                    let turbo = s.is_turboquant_backend();
+                    val = if delta > 0 {
+                        val.next_with_turbo(turbo)
+                    } else {
+                        val.prev_with_turbo(turbo)
+                    };
                     s.cache_type_v = Some(val);
                 },
                 |s, buf| {

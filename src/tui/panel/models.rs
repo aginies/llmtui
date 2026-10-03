@@ -428,18 +428,23 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                         crate::t!("models.list_status.loaded_prefix")
                             .chars()
                             .count() as u16
+                            + 1
                     } else if matches!(model_state, Some(crate::models::ModelState::Loading)) {
                         crate::t!("models.list_status.loading_prefix")
                             .chars()
                             .count() as u16
+                            + 1
                     } else if matches!(model_state, Some(crate::models::ModelState::Benchmarking)) {
                         crate::t!("models.list_status.benchmarking_prefix")
                             .chars()
                             .count() as u16
-                    } else if matches!(model_state, Some(crate::models::ModelState::Failed { .. })) {
+                            + 1
+                    } else if matches!(model_state, Some(crate::models::ModelState::Failed { .. }))
+                    {
                         crate::t!("models.list_status.failed_prefix")
                             .chars()
                             .count() as u16
+                            + 1
                     } else {
                         0
                     };
@@ -480,10 +485,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             | Some(crate::models::ModelState::Benchmarking)
                     ) {
                         Style::default().fg(ACCENT)
-                    } else if matches!(
-                        model_state,
-                        Some(crate::models::ModelState::Failed { .. })
-                    ) {
+                    } else if matches!(model_state, Some(crate::models::ModelState::Failed { .. }))
+                    {
                         Style::default().fg(RED)
                     } else {
                         Style::default().fg(WHITE)
@@ -513,7 +516,8 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
                             Span::styled(scrolled, name_style),
                             Span::styled("]", name_style),
                         ])
-                    } else if matches!(model_state, Some(crate::models::ModelState::Failed { .. })) {
+                    } else if matches!(model_state, Some(crate::models::ModelState::Failed { .. }))
+                    {
                         let prefix = crate::t!("models.list_status.failed_prefix");
                         let scrolled = scroll_text(display_name, name_width, state);
                         Line::from(vec![

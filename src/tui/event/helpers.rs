@@ -238,6 +238,7 @@ fn common_fields_changed(
         || source.llama_cpp_version_strix_halo != target.llama_cpp_version_strix_halo
         || source.llama_cpp_strix_halo_rocm != target.llama_cpp_strix_halo_rocm
         || source.llama_cpp_version_cuda != target.llama_cpp_version_cuda
+        || source.llama_cpp_version_custom != target.llama_cpp_version_custom
         || source.webui != target.webui
         || source.cache_prompt != target.cache_prompt
 }
@@ -260,6 +261,7 @@ fn sync_config_common_fields(
     target.llama_cpp_version_strix_halo = source.llama_cpp_version_strix_halo.clone();
     target.llama_cpp_strix_halo_rocm = source.llama_cpp_strix_halo_rocm.clone();
     target.llama_cpp_version_cuda = source.llama_cpp_version_cuda.clone();
+    target.llama_cpp_version_custom = source.llama_cpp_version_custom.clone();
     target.webui = source.webui;
     target.cache_prompt = source.cache_prompt;
 }
@@ -282,6 +284,7 @@ fn sync_model_cache_fields(
     target.llama_cpp_version_strix_halo = source.llama_cpp_version_strix_halo.clone();
     target.llama_cpp_strix_halo_rocm = source.llama_cpp_strix_halo_rocm.clone();
     target.llama_cpp_version_cuda = source.llama_cpp_version_cuda.clone();
+    target.llama_cpp_version_custom = source.llama_cpp_version_custom.clone();
     target.webui = source.webui;
     target.cache_prompt = source.cache_prompt;
 }

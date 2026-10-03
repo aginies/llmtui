@@ -83,6 +83,35 @@ impl App {
             }
         }
 
+        // 3. Append discovered custom/third-party backends (e.g. turboquant-plus-
+        //    tqp) that don't map to a known slug. These are surfaced via the
+        //    `Backend::Custom` variant, showing the directory name + --version.
+        for dc in crate::backend::hub::discover_backends() {
+            if dc.kind.is_standard() {
+                // Known backend — already listed above; skip to avoid duplicates.
+                continue;
+            }
+            let version = dc
+                .build_number
+                .clone()
+                .or_else(|| dc.version.clone())
+                .unwrap_or_default();
+            // Store the directory name (concise for display); spawn_server
+            // resolves it against the bin base. The " · v<version>" suffix is
+            // stripped again in spawn_server.
+            let name = dc
+                .path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default();
+            let tag = if version.is_empty() {
+                name.to_string()
+            } else {
+                format!("{} · v{}", name, version)
+            };
+            entries.push((crate::models::Backend::Custom, Some(tag)));
+        }
+
         entries
     }
 }

@@ -120,6 +120,9 @@ fn cache_quant_type_next_cycles_through_all() {
         CacheQuantType::Q4_1,
         CacheQuantType::Q4_0,
         CacheQuantType::Iq4Nl,
+        CacheQuantType::Turbo2,
+        CacheQuantType::Turbo3,
+        CacheQuantType::Turbo4,
         CacheQuantType::F32,
     ];
     for exp in &expected {
@@ -132,6 +135,9 @@ fn cache_quant_type_next_cycles_through_all() {
 fn cache_quant_type_prev_cycles_through_all() {
     let mut t = CacheQuantType::F32;
     let expected = [
+        CacheQuantType::Turbo4,
+        CacheQuantType::Turbo3,
+        CacheQuantType::Turbo2,
         CacheQuantType::Iq4Nl,
         CacheQuantType::Q4_0,
         CacheQuantType::Q4_1,
@@ -159,6 +165,9 @@ fn cache_quant_type_from_u8_all_values() {
     assert_eq!(CacheQuantType::from_u8(6), CacheQuantType::Q4_1);
     assert_eq!(CacheQuantType::from_u8(7), CacheQuantType::Q4_0);
     assert_eq!(CacheQuantType::from_u8(8), CacheQuantType::Iq4Nl);
+    assert_eq!(CacheQuantType::from_u8(9), CacheQuantType::Turbo2);
+    assert_eq!(CacheQuantType::from_u8(10), CacheQuantType::Turbo3);
+    assert_eq!(CacheQuantType::from_u8(11), CacheQuantType::Turbo4);
     // Out of range defaults to F16
     assert_eq!(CacheQuantType::from_u8(99), CacheQuantType::F16);
 }
@@ -174,6 +183,12 @@ fn cache_quant_type_from_str_all() {
     assert_eq!(CacheQuantType::from("Iq4Nl"), CacheQuantType::Iq4Nl);
     assert_eq!(CacheQuantType::from("Q5_0"), CacheQuantType::Q5_0);
     assert_eq!(CacheQuantType::from("Q5_1"), CacheQuantType::Q5_1);
+    assert_eq!(CacheQuantType::from("Turbo2"), CacheQuantType::Turbo2);
+    assert_eq!(CacheQuantType::from("turbo2"), CacheQuantType::Turbo2);
+    assert_eq!(CacheQuantType::from("Turbo3"), CacheQuantType::Turbo3);
+    assert_eq!(CacheQuantType::from("turbo3"), CacheQuantType::Turbo3);
+    assert_eq!(CacheQuantType::from("Turbo4"), CacheQuantType::Turbo4);
+    assert_eq!(CacheQuantType::from("turbo4"), CacheQuantType::Turbo4);
     // Unknown defaults to F16
     assert_eq!(CacheQuantType::from("unknown"), CacheQuantType::F16);
 }
@@ -189,11 +204,81 @@ fn cache_quant_type_display_all() {
     assert_eq!(format!("{}", CacheQuantType::Iq4Nl), "iq4_nl");
     assert_eq!(format!("{}", CacheQuantType::Q5_0), "q5_0");
     assert_eq!(format!("{}", CacheQuantType::Q5_1), "q5_1");
+    assert_eq!(format!("{}", CacheQuantType::Turbo2), "turbo2");
+    assert_eq!(format!("{}", CacheQuantType::Turbo3), "turbo3");
+    assert_eq!(format!("{}", CacheQuantType::Turbo4), "turbo4");
 }
 
 #[test]
 fn cache_quant_type_default_is_f16() {
     assert_eq!(CacheQuantType::default(), CacheQuantType::F16);
+}
+
+// ── CacheQuantType context-aware turbo cycling ────────────────
+
+#[test]
+fn cache_quant_type_next_with_turbo_enabled_includes_turbo() {
+    let mut t = CacheQuantType::Iq4Nl;
+    assert_eq!(t.next_with_turbo(true), CacheQuantType::Turbo2);
+    t = CacheQuantType::Turbo4;
+    assert_eq!(t.next_with_turbo(true), CacheQuantType::F32);
+}
+
+#[test]
+fn cache_quant_type_next_with_turbo_disabled_skips_turbo() {
+    let t = CacheQuantType::Iq4Nl;
+    assert_eq!(t.next_with_turbo(false), CacheQuantType::F32);
+    // Any stored turbo value behaves as adjacent to the Iq4Nl/F32 boundary.
+    for turbo in [
+        CacheQuantType::Turbo2,
+        CacheQuantType::Turbo3,
+        CacheQuantType::Turbo4,
+    ] {
+        assert_eq!(turbo.next_with_turbo(false), CacheQuantType::F32);
+    }
+    // Non-turbo values cycle normally.
+    assert_eq!(
+        CacheQuantType::Q4_0.next_with_turbo(false),
+        CacheQuantType::Iq4Nl
+    );
+}
+
+#[test]
+fn cache_quant_type_prev_with_turbo_disabled_skips_turbo() {
+    let t = CacheQuantType::F32;
+    assert_eq!(t.prev_with_turbo(false), CacheQuantType::Iq4Nl);
+    for turbo in [
+        CacheQuantType::Turbo2,
+        CacheQuantType::Turbo3,
+        CacheQuantType::Turbo4,
+    ] {
+        assert_eq!(turbo.prev_with_turbo(false), CacheQuantType::Iq4Nl);
+    }
+    assert_eq!(
+        CacheQuantType::Iq4Nl.prev_with_turbo(false),
+        CacheQuantType::Q4_0
+    );
+}
+
+#[test]
+fn cache_quant_type_with_turbo_matches_base_when_enabled() {
+    for t in [
+        CacheQuantType::F32,
+        CacheQuantType::F16,
+        CacheQuantType::BF16,
+        CacheQuantType::Q8_0,
+        CacheQuantType::Q5_1,
+        CacheQuantType::Q5_0,
+        CacheQuantType::Q4_1,
+        CacheQuantType::Q4_0,
+        CacheQuantType::Iq4Nl,
+        CacheQuantType::Turbo2,
+        CacheQuantType::Turbo3,
+        CacheQuantType::Turbo4,
+    ] {
+        assert_eq!(t.next_with_turbo(true), t.next());
+        assert_eq!(t.prev_with_turbo(true), t.prev());
+    }
 }
 
 // ── CacheType ───────────────────────────────────────────────────
@@ -1468,8 +1553,14 @@ fn chat_template_picker_structure() {
     let templates = get_available_chat_templates();
     assert_eq!(templates.first().map(String::as_str), Some("Auto (detect)"));
     assert_eq!(templates.last().map(String::as_str), Some("None"));
-    assert_eq!(templates[templates.len() - 2].as_str(), "Select a Template file...");
-    let middle: Vec<&str> = templates[1..templates.len() - 2].iter().map(String::as_str).collect();
+    assert_eq!(
+        templates[templates.len() - 2].as_str(),
+        "Select a Template file..."
+    );
+    let middle: Vec<&str> = templates[1..templates.len() - 2]
+        .iter()
+        .map(String::as_str)
+        .collect();
     assert_eq!(middle, BUILTIN_CHAT_TEMPLATES.to_vec());
     assert!(templates.len() > 50);
 }
@@ -1479,8 +1570,7 @@ fn builtin_chat_templates_sorted_and_unique() {
     let mut sorted = BUILTIN_CHAT_TEMPLATES.to_vec();
     sorted.sort();
     assert_eq!(BUILTIN_CHAT_TEMPLATES, &sorted[..]);
-    let unique: std::collections::HashSet<&str> =
-        BUILTIN_CHAT_TEMPLATES.iter().copied().collect();
+    let unique: std::collections::HashSet<&str> = BUILTIN_CHAT_TEMPLATES.iter().copied().collect();
     assert_eq!(unique.len(), BUILTIN_CHAT_TEMPLATES.len());
     for name in BUILTIN_CHAT_TEMPLATES {
         assert!(!name.is_empty());
@@ -1490,32 +1580,129 @@ fn builtin_chat_templates_sorted_and_unique() {
 #[test]
 fn arch_to_chat_template_maps_to_builtin_names() {
     let archs = [
-        "llama", "llama-moe", "llama4", "mistral", "mistral3", "mistral4",
-        "qwen", "qwen2", "qwen2moe", "qwen3", "qwen3moe", "qwen3next",
-        "qwen35", "qwen35moe", "qwen2vl", "qwen3vl", "qwen3vlmoe",
-        "gemma", "gemma2", "gemma3", "gemma3n", "gemma4", "gemma4-assistant",
-        "phi2", "phi3", "phimoe", "phi4", "cohere", "cohere2",
-        "deepseek", "deepseek2", "deepseek2-ocr", "deepseek32",
-        "internlm2", "glm4", "glm4moe", "chatglm",
-        "exaone", "exaone4", "exaone-moe",
-        "minicpm", "minicpm3", "minicpmo",
-        "falcon", "falcon-h1", "falcon3",
-        "rwkv6", "rwkv6qwen2", "rwkv7", "arwkv7",
-        "granite", "granitehybrid", "granitemoe",
-        "hunyuan-dense", "hunyuan-moe", "hunyuan_vl",
-        "olmo", "olmo2", "olmoe", "sonar", "mamba", "mamba2", "mamba_ssm",
-        "dbrx", "starcoder", "starcoder2", "baichuan", "gpt-neox", "gptj",
-        "mpt", "jais", "jais2", "stablelm", "chameleon", "nemo",
-        "nemotron", "nemotron_h", "nemotron_h_moe",
-        "plamo", "plamo2", "plamo3", "ernie4_5", "ernie4_5-moe",
-        "mini-max-m2", "talkie", "apertus", "arcee", "arctic", "jamba",
-        "lfm2", "lfm2moe", "llada", "llada-moe", "maincoder", "mellum",
-        "mimo2", "refact", "rnd1", "smallthinker", "xverse", "gpt2",
-        "codeshell", "cogvlm", "deci", "dots1", "dream", "app", "step35",
-        "smollm3", "megrez", "yandex",
-        "bailing", "bailingmoe", "bailingmoe2", "bailing2", "bailing-think",
-        "kimi-k2", "seed_oss", "grok", "solar-open", "gpt-oss",
-        "pangu-embedded", "gigachat",
+        "llama",
+        "llama-moe",
+        "llama4",
+        "mistral",
+        "mistral3",
+        "mistral4",
+        "qwen",
+        "qwen2",
+        "qwen2moe",
+        "qwen3",
+        "qwen3moe",
+        "qwen3next",
+        "qwen35",
+        "qwen35moe",
+        "qwen2vl",
+        "qwen3vl",
+        "qwen3vlmoe",
+        "gemma",
+        "gemma2",
+        "gemma3",
+        "gemma3n",
+        "gemma4",
+        "gemma4-assistant",
+        "phi2",
+        "phi3",
+        "phimoe",
+        "phi4",
+        "cohere",
+        "cohere2",
+        "deepseek",
+        "deepseek2",
+        "deepseek2-ocr",
+        "deepseek32",
+        "internlm2",
+        "glm4",
+        "glm4moe",
+        "chatglm",
+        "exaone",
+        "exaone4",
+        "exaone-moe",
+        "minicpm",
+        "minicpm3",
+        "minicpmo",
+        "falcon",
+        "falcon-h1",
+        "falcon3",
+        "rwkv6",
+        "rwkv6qwen2",
+        "rwkv7",
+        "arwkv7",
+        "granite",
+        "granitehybrid",
+        "granitemoe",
+        "hunyuan-dense",
+        "hunyuan-moe",
+        "hunyuan_vl",
+        "olmo",
+        "olmo2",
+        "olmoe",
+        "sonar",
+        "mamba",
+        "mamba2",
+        "mamba_ssm",
+        "dbrx",
+        "starcoder",
+        "starcoder2",
+        "baichuan",
+        "gpt-neox",
+        "gptj",
+        "mpt",
+        "jais",
+        "jais2",
+        "stablelm",
+        "chameleon",
+        "nemo",
+        "nemotron",
+        "nemotron_h",
+        "nemotron_h_moe",
+        "plamo",
+        "plamo2",
+        "plamo3",
+        "ernie4_5",
+        "ernie4_5-moe",
+        "mini-max-m2",
+        "talkie",
+        "apertus",
+        "arcee",
+        "arctic",
+        "jamba",
+        "lfm2",
+        "lfm2moe",
+        "llada",
+        "llada-moe",
+        "maincoder",
+        "mellum",
+        "mimo2",
+        "refact",
+        "rnd1",
+        "smallthinker",
+        "xverse",
+        "gpt2",
+        "codeshell",
+        "cogvlm",
+        "deci",
+        "dots1",
+        "dream",
+        "app",
+        "step35",
+        "smollm3",
+        "megrez",
+        "yandex",
+        "bailing",
+        "bailingmoe",
+        "bailingmoe2",
+        "bailing2",
+        "bailing-think",
+        "kimi-k2",
+        "seed_oss",
+        "grok",
+        "solar-open",
+        "gpt-oss",
+        "pangu-embedded",
+        "gigachat",
     ];
     for arch in &archs {
         if let Some(template) = arch_to_chat_template(arch) {

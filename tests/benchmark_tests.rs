@@ -118,7 +118,11 @@ fn generate_combinations_two_enabled_multiply() {
     {
         p.enabled = true;
     }
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "batch_size") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "batch_size")
+    {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
@@ -205,7 +209,11 @@ fn get_total_tests_count_with_enabled_params() {
     {
         p.enabled = true;
     }
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "batch_size") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "batch_size")
+    {
         p.enabled = true;
     }
     let count = config.get_total_tests_count();
@@ -451,7 +459,11 @@ fn generate_combinations_multiple_enabled_product() {
     {
         p.enabled = true;
     }
-    if let Some(p) = config.params_to_test.iter_mut().find(|p| p.name == "batch_size") {
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "batch_size")
+    {
         p.enabled = true;
     }
     if let Some(p) = config

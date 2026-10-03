@@ -2072,3 +2072,120 @@ async fn test_tags_modal_esc_closes() {
     handle_key(&mut app, key).await;
     assert!(!app.edit.tags_editing);
 }
+
+// ── Model load, load-on-error, load-after-error ──────────────────
+
+#[tokio::test]
+async fn test_models_enter_loads_available_model() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Models;
+    app.models = vec![DiscoveredModel {
+        path: "/tmp/test.gguf".into(),
+        name: "test.gguf".into(),
+        file_size: 1000,
+        display_name: "test.gguf".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
+    }];
+    app.selected_model_idx = Some(0);
+    app.model_states
+        .insert("test.gguf".into(), ModelState::Available);
+
+    let key = make_key(KeyCode::Enter);
+    handle_key(&mut app, key).await;
+
+    // Normal mode: sends PendingEvent::Spawn
+    let event = app.pending_rx.try_recv();
+    assert!(event.is_ok());
+    assert!(matches!(
+        event.unwrap(),
+        llm_manager::tui::app::pending_events::PendingEvent::Spawn { .. }
+    ));
+}
+
+#[tokio::test]
+async fn test_models_enter_reloads_failed_model() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Models;
+    app.models = vec![DiscoveredModel {
+        path: "/tmp/test.gguf".into(),
+        name: "test.gguf".into(),
+        file_size: 1000,
+        display_name: "test.gguf".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
+    }];
+    app.selected_model_idx = Some(0);
+    app.model_states.insert(
+        "test.gguf".into(),
+        ModelState::Failed {
+            error: "out of memory".into(),
+        },
+    );
+
+    let key = make_key(KeyCode::Enter);
+    handle_key(&mut app, key).await;
+
+    // Normal mode: reloads by sending PendingEvent::Spawn
+    let event = app.pending_rx.try_recv();
+    assert!(event.is_ok());
+    assert!(matches!(
+        event.unwrap(),
+        llm_manager::tui::app::pending_events::PendingEvent::Spawn { .. }
+    ));
+}
+
+#[tokio::test]
+async fn test_models_enter_on_already_loading_model_ignored() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Models;
+    app.models = vec![DiscoveredModel {
+        path: "/tmp/test.gguf".into(),
+        name: "test.gguf".into(),
+        file_size: 1000,
+        display_name: "test.gguf".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
+    }];
+    app.selected_model_idx = Some(0);
+    app.model_states
+        .insert("test.gguf".into(), ModelState::Loading);
+
+    let key = make_key(KeyCode::Enter);
+    handle_key(&mut app, key).await;
+
+    // Must NOT send another spawn event
+    let event = app.pending_rx.try_recv();
+    assert!(event.is_err());
+}
+
+#[tokio::test]
+async fn test_models_u_clears_failed_model() {
+    let mut app = make_app();
+    app.ui.active_panel = ActivePanel::Models;
+    app.models = vec![DiscoveredModel {
+        path: "/tmp/test.gguf".into(),
+        name: "test.gguf".into(),
+        file_size: 1000,
+        display_name: "test.gguf".into(),
+        pipeline_tag: None,
+        capabilities: vec![],
+    }];
+    app.selected_model_idx = Some(0);
+    app.model_states.insert(
+        "test.gguf".into(),
+        ModelState::Failed {
+            error: "bad model".into(),
+        },
+    );
+
+    let key = make_key(KeyCode::Char('u'));
+    handle_key(&mut app, key).await;
+
+    // Pressing 'u' on a failed model clears it back to Available
+    assert!(matches!(
+        app.model_states.get("test.gguf"),
+        Some(ModelState::Available)
+    ));
+    assert!(app.pending.active_model_hint_dirty);
+}

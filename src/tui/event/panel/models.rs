@@ -152,136 +152,170 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         format!("{} is already loaded", model.display_name),
                         crate::config::LogLevel::Info,
                     );
-                } else {
-                    app.update_model_metadata();
-                    let settings = if app.settings != app.model_settings_cache {
-                        app.settings.clone()
-                    } else {
-                        app.selected_model_settings()
-                    };
+                    return;
+                }
+                if matches!(
+                    app.model_states.get(&model.display_name),
+                    Some(crate::models::ModelState::Loading)
+                ) {
+                    app.add_log(
+                        format!("{} is currently loading...", model.display_name),
+                        crate::config::LogLevel::Info,
+                    );
+                    return;
+                }
 
-                    if let Some(handle) = &app.server.server_handle
-                        && !crate::backend::server::check_health(&handle.host, handle.port).await
+                app.update_model_metadata();
+                let settings = if app.settings != app.model_settings_cache {
+                    app.settings.clone()
+                } else {
+                    app.selected_model_settings()
+                };
+
+                if let Some(handle) = &app.server.server_handle
+                    && !crate::backend::server::check_health(&handle.host, handle.port).await
+                {
+                    app.add_log(
+                        "Router unresponsive, restarting...",
+                        crate::config::LogLevel::Info,
+                    );
+                    if let Some(h) = app.server.server_handle.take() {
+                        let _ = app
+                            .pending_tx
+                            .send(PendingEvent::KillHandle { handle: h })
+                            .await;
+                    }
+                }
+
+                if app.server_mode == crate::models::ServerMode::Normal {
+                    if app
+                        .model_states
+                        .values()
+                        .any(|s| matches!(s, crate::models::ModelState::Loaded { .. }))
                     {
                         app.add_log(
-                            "Router unresponsive, restarting...",
-                            crate::config::LogLevel::Info,
+                            crate::t!("models.already_loaded"),
+                            crate::config::LogLevel::Warning,
                         );
-                        if let Some(h) = app.server.server_handle.take() {
-                            let _ = app
-                                .pending_tx
-                                .send(PendingEvent::KillHandle { handle: h })
-                                .await;
-                        }
+                        return;
                     }
+                    if let Some(h) = app.server.server_handle.take() {
+                        let _ = app
+                            .pending_tx
+                            .send(PendingEvent::KillHandle { handle: h })
+                            .await;
+                    }
+                    app.clear_toasts();
+                    let _ = app
+                        .pending_tx
+                        .send(PendingEvent::Spawn {
+                            model: Some(model.clone()),
+                            settings,
+                        })
+                        .await;
+                    app.loading.loading_phases =
+                        std::iter::once(LoadingPhase::ServerStarting).collect();
+                    app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
+                    app.loading.loading_progress = 0.25;
+                    app.add_log(
+                        format!("Starting server with {}...", model.display_name),
+                        crate::config::LogLevel::Info,
+                    );
+                    return;
+                }
 
-                    if app.server.server_handle.is_none() {
-                        // Start server (with model in CLI for normal mode, without model for router mode)
-                        app.clear_toasts();
+                if app.server.server_handle.is_none() {
+                    // Start server (with model in CLI for normal mode, without model for router mode)
+                    app.clear_toasts();
 
-                        if app.server_mode == crate::models::ServerMode::BenchTune {
-                            let bench_tune_config = crate::models::BenchTuneConfig::new(
-                                model.path.clone(),
-                                3, // Default iterations
-                                crate::models::BENCHMARK_PROMPT.to_string(),
-                            );
-                            app.ui.global_mode = crate::tui::app::GlobalMode::BenchTuneSetup {
-                                config: bench_tune_config,
-                                selected_idx: 0,
-                                editing_param: false,
-                                editing_param_field: 0,
-                                param_edit_buffer: String::new(),
-                                param_edit_cursor_pos: 0,
-                                editing_prompt: false,
-                                editing_kwargs: false,
-                            };
-                            return;
-                        }
-                        if app.server_mode == crate::models::ServerMode::Router {
-                            // Router mode: start server without a model, then load via /load API
-                            let _ = app
-                                .pending_tx
-                                .send(PendingEvent::Spawn {
-                                    model: None,
-                                    settings: settings.clone(),
-                                })
-                                .await;
-                            // Queue the load so it triggers once server is ready
-                            app.pending.pending_api_load = Some(model.display_name.clone());
-                            app.loading.loading_phases =
-                                std::iter::once(LoadingPhase::ServerStarting).collect();
-                            app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
-                            app.loading.loading_progress = 0.25;
-                            app.add_log(
-                                "Starting router server...".to_string(),
-                                crate::config::LogLevel::Info,
-                            );
-                        } else {
-                            // Normal mode: start server WITH the specific model directly
-                            let _ = app
-                                .pending_tx
-                                .send(PendingEvent::Spawn {
-                                    model: Some(model.clone()),
-                                    settings,
-                                })
-                                .await;
-                            app.loading.loading_phases =
-                                std::iter::once(LoadingPhase::ServerStarting).collect();
-                            app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
-                            app.loading.loading_progress = 0.25;
-                            app.add_log(
-                                format!("Starting server with {}...", model.display_name),
-                                crate::config::LogLevel::Info,
-                            );
-                        }
-                    } else {
-                        // Server already running, load via API
-
-                        // In Normal mode, block if any model is already loaded
-                        if app.server_mode == crate::models::ServerMode::Normal
-                            && app
-                                .model_states
-                                .values()
-                                .any(|s| matches!(s, crate::models::ModelState::Loaded { .. }))
-                        {
-                            app.add_log(
-                                crate::t!("models.already_loaded"),
-                                crate::config::LogLevel::Warning,
-                            );
-                            return;
-                        }
-
-                        // Check if we reached the limit of models to load (based on Max Concurrent Predictions)
-                        let active_count = app
-                            .model_states
-                            .values()
-                            .filter(|s| {
-                                matches!(
-                                    s,
-                                    crate::models::ModelState::Loaded { .. }
-                                        | crate::models::ModelState::Loading
-                                )
+                    if app.server_mode == crate::models::ServerMode::BenchTune {
+                        let bench_tune_config = crate::models::BenchTuneConfig::new(
+                            model.path.clone(),
+                            3, // Default iterations
+                            crate::models::BENCHMARK_PROMPT.to_string(),
+                        );
+                        app.ui.global_mode = crate::tui::app::GlobalMode::BenchTuneSetup {
+                            config: bench_tune_config,
+                            selected_idx: 0,
+                            editing_param: false,
+                            editing_param_field: 0,
+                            param_edit_buffer: String::new(),
+                            param_edit_cursor_pos: 0,
+                            editing_prompt: false,
+                            editing_kwargs: false,
+                        };
+                        return;
+                    }
+                    if app.server_mode == crate::models::ServerMode::Router {
+                        // Router mode: start server without a model, then load via /load API
+                        let _ = app
+                            .pending_tx
+                            .send(PendingEvent::Spawn {
+                                model: None,
+                                settings: settings.clone(),
                             })
-                            .count();
-
-                        if let Some(max) = app.settings.max_concurrent_predictions
-                            && active_count as u32 >= max
-                        {
-                            app.add_log(format!("Limit reached: already {} model(s) loaded (Max Concurrent Predictions limit: {})", active_count, max), crate::config::LogLevel::Warning);
-                            return;
-                        }
-
-                        app.clear_toasts();
+                            .await;
+                        // Queue the load so it triggers once server is ready
                         app.pending.pending_api_load = Some(model.display_name.clone());
                         app.loading.loading_phases =
-                            std::iter::once(LoadingPhase::LoadingModel).collect();
-                        app.loading.last_active_phase = Some(LoadingPhase::LoadingModel);
-                        app.loading.loading_progress = 0.5;
+                            std::iter::once(LoadingPhase::ServerStarting).collect();
+                        app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
+                        app.loading.loading_progress = 0.25;
                         app.add_log(
-                            format!("Loading {} via API...", model.display_name),
+                            "Starting router server...".to_string(),
+                            crate::config::LogLevel::Info,
+                        );
+                    } else {
+                        // Normal mode: start server WITH the specific model directly
+                        let _ = app
+                            .pending_tx
+                            .send(PendingEvent::Spawn {
+                                model: Some(model.clone()),
+                                settings,
+                            })
+                            .await;
+                        app.loading.loading_phases =
+                            std::iter::once(LoadingPhase::ServerStarting).collect();
+                        app.loading.last_active_phase = Some(LoadingPhase::ServerStarting);
+                        app.loading.loading_progress = 0.25;
+                        app.add_log(
+                            format!("Starting server with {}...", model.display_name),
                             crate::config::LogLevel::Info,
                         );
                     }
+                } else {
+                    // Server already running in router mode, load via API
+
+                    // Check if we reached the limit of models to load (based on Max Concurrent Predictions)
+                    let active_count = app
+                        .model_states
+                        .values()
+                        .filter(|s| {
+                            matches!(
+                                s,
+                                crate::models::ModelState::Loaded { .. }
+                                    | crate::models::ModelState::Loading
+                            )
+                        })
+                        .count();
+
+                    if let Some(max) = app.settings.max_concurrent_predictions
+                        && active_count as u32 >= max
+                    {
+                        app.add_log(format!("Limit reached: already {} model(s) loaded (Max Concurrent Predictions limit: {})", active_count, max), crate::config::LogLevel::Warning);
+                        return;
+                    }
+
+                    app.clear_toasts();
+                    app.pending.pending_api_load = Some(model.display_name.clone());
+                    app.loading.loading_phases =
+                        std::iter::once(LoadingPhase::LoadingModel).collect();
+                    app.loading.last_active_phase = Some(LoadingPhase::LoadingModel);
+                    app.loading.loading_progress = 0.5;
+                    app.add_log(
+                        format!("Loading {} via API...", model.display_name),
+                        crate::config::LogLevel::Info,
+                    );
                 }
             }
         }
@@ -298,6 +332,19 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         detail: Some(model.path.to_string_lossy().to_string()),
                     };
                     app.pending.pending_api_unload = Some(model.display_name.clone());
+                } else if let Some(crate::models::ModelState::Failed { .. }) =
+                    app.model_states.get(&model.display_name)
+                {
+                    app.model_states.insert(
+                        model.display_name.clone(),
+                        crate::models::ModelState::Available,
+                    );
+                    app.pending.active_model_hint_dirty = true;
+                    app.ui.needs_redraw = true;
+                    app.add_log(
+                        format!("Cleared failure for {}", model.display_name),
+                        crate::config::LogLevel::Info,
+                    );
                 } else {
                     app.add_log(
                         format!("{} is not loaded", model.display_name),
