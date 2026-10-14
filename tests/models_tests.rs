@@ -307,8 +307,8 @@ fn split_mode_display_all() {
 }
 
 #[test]
-fn split_mode_default_is_layer() {
-    assert_eq!(SplitMode::default(), SplitMode::Layer);
+fn split_mode_default_is_none() {
+    assert_eq!(SplitMode::default(), SplitMode::None);
 }
 
 // ── NumMode ─────────────────────────────────────────────────────

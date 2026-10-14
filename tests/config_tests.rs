@@ -104,7 +104,7 @@ fn default_params_gpu_defaults() {
     let dp = DefaultParams::default();
     assert_eq!(dp.gpu_layers, -1); // All
     assert_eq!(dp.gpu_layers_mode, GpuLayersMode::Auto);
-    assert_eq!(dp.split_mode, SplitMode::Layer);
+    assert_eq!(dp.split_mode, SplitMode::None);
     assert!(dp.flash_attn);
 }
 
