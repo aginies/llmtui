@@ -851,7 +851,7 @@ default:
     assert_eq!(config.default.context_length, 131072);
     assert!(config.default.threads > 0);
     assert_eq!(config.default.threads_batch, 8);
-    assert_eq!(config.default.batch_size, 512);
+    assert_eq!(config.default.batch_size, 8192);
     assert_eq!(config.default.host, "127.0.0.1");
     assert!(config.default.uniform_cache);
     assert!(config.default.flash_attn);

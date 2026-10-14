@@ -774,6 +774,8 @@ fn estimate_vram_auto_fits_all_layers() {
     let mut settings = ModelSettings::default();
     settings.gpu_layers_mode = GpuLayersMode::Auto;
     settings.context_length = 4096;
+    // Pin batch size so the estimate is independent of the global default.
+    settings.batch_size = 512;
     // Small model on a big GPU: everything fits, so all 32 layers are offloaded.
     // Weights 1000 + KV 32*4 + activation 4 + overhead 300 = 1432 MiB.
     let result = estimate_vram_mib(

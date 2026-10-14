@@ -312,6 +312,10 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.batch_size"))),
                 ]),
                 Line::from(vec![
+                    Span::styled("Ubatch Size", y),
+                    Span::raw(format!("  {}", crate::t!("field.help.ubatch_size"))),
+                ]),
+                Line::from(vec![
                     Span::styled("Unified KV", y),
                     Span::raw(format!("  {}", crate::t!("field.help.uniform_cache"))),
                 ]),
