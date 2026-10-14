@@ -683,6 +683,22 @@ pub fn all_fields() -> Vec<SettingField> {
             },
             "Batch size for evaluation (inference). Larger batches use more VRAM but can improve throughput via parallelism. Small values (1-8) for low VRAM, larger (16-128) for high VRAM setups.",
         ),
+        field(
+            "ubatch_size",
+            "Ubatch Size",
+            "Evaluation",
+            |s| s.ubatch_size.to_string(),
+            |s, c| s.ubatch_size != c.ubatch_size,
+            |s, delta, _| {
+                s.ubatch_size = (s.ubatch_size as i32 + delta * 64).max(1) as u32;
+            },
+            |s, buf| {
+                if let Ok(v) = buf.parse::<u32>() {
+                    s.ubatch_size = v.max(1);
+                }
+            },
+            "Physical maximum batch size (micro-batch): the actual chunk computed at once. This is the VRAM-driven limit and must be <= Eval Batch (higher values are clamped automatically). Lower it if the server fails to start with out-of-memory errors.",
+        ),
         field_with_toggle(
             "uniform_cache",
             "Unified KV",
@@ -1148,6 +1164,7 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_bool!(parts, s, current, cont_batching, "cont_batching");
     diff_int!(parts, s, current, threads, "threads");
     diff_int!(parts, s, current, batch_size, "batch");
+    diff_int!(parts, s, current, ubatch_size, "ubatch");
     diff_int!(parts, s, current, parallel, "parallel");
     diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
     diff_int!(parts, s, current, cache_reuse, "cache_reuse");
@@ -1327,6 +1344,7 @@ pub fn model_settings_diff_parts(current: &ModelSettings, profile: &ModelSetting
     }
     ms_diff_int!(parts, s, current, threads, "threads");
     ms_diff_int!(parts, s, current, batch_size, "batch");
+    ms_diff_int!(parts, s, current, ubatch_size, "ubatch");
     ms_diff_int!(parts, s, current, parallel, "parallel");
     ms_diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
     ms_diff_int!(parts, s, current, keep, "keep");

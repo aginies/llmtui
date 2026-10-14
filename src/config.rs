@@ -731,7 +731,7 @@ pub struct DefaultParams {
     // Loading
     #[serde(default = "default_context_length")]
     pub context_length: u32,
-    #[serde(default)]
+    #[serde(default = "default_cont_batching")]
     pub cont_batching: bool,
     #[serde(default = "default_threads")]
     pub threads: u32,
@@ -862,7 +862,7 @@ pub struct DefaultParams {
     pub timeout: u32,
     #[serde(default = "default_cache_prompt")]
     pub cache_prompt: bool,
-    #[serde(default)]
+    #[serde(default = "default_cache_reuse")]
     pub cache_reuse: u32,
     #[serde(default)]
     pub webui: bool,
@@ -1006,7 +1006,7 @@ fn default_threads_batch() -> u32 {
     8
 }
 fn default_batch_size() -> u32 {
-    512
+    8192
 }
 fn default_ubatch_size() -> u32 {
     512
@@ -1027,7 +1027,7 @@ fn default_gpu_layers() -> i32 {
     -1
 }
 fn default_fit() -> bool {
-    true
+    false
 }
 fn default_flash_attn() -> bool {
     true
@@ -1063,7 +1063,13 @@ fn default_repeat_penalty() -> f32 {
     1.1
 }
 fn default_repeat_last_n() -> i32 {
-    64
+    0
+}
+fn default_cont_batching() -> bool {
+    true
+}
+fn default_cache_reuse() -> u32 {
+    1024
 }
 fn default_dry_base() -> f32 {
     1.75
@@ -1118,7 +1124,7 @@ impl Default for DefaultParams {
         Self {
             // Loading
             context_length: default_context_length(),
-            cont_batching: false,
+            cont_batching: default_cont_batching(),
             threads: default_threads(),
             threads_batch: default_threads_batch(),
             batch_size: default_batch_size(),
@@ -1189,7 +1195,7 @@ impl Default for DefaultParams {
             port: default_port(),
             timeout: default_timeout(),
             cache_prompt: default_cache_prompt(),
-            cache_reuse: 0,
+            cache_reuse: default_cache_reuse(),
             webui: false,
             ws_server_enabled: false,
             ws_server_port: default_ws_server_port(),

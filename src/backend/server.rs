@@ -159,7 +159,13 @@ pub fn build_server_cmd(
     if settings.cont_batching {
         push_flag(&mut cmd, &mut parts, "--cont-batching");
     }
-    push_arg(&mut cmd, &mut parts, "--ubatch-size", settings.ubatch_size);
+    // Always pass --batch-size (Eval Batch) so the user's choice is never
+    // silently replaced by llama-server's built-in default (2048).
+    push_arg(&mut cmd, &mut parts, "--batch-size", settings.batch_size);
+    // llama.cpp requires ubatch <= batch; clamp so a misconfiguration can't
+    // prevent the server from starting.
+    let ubatch_size = settings.ubatch_size.min(settings.batch_size);
+    push_arg(&mut cmd, &mut parts, "--ubatch-size", ubatch_size);
     if let Some(n) = settings.max_concurrent_predictions {
         push_arg(&mut cmd, &mut parts, "--parallel", n);
     }
@@ -231,11 +237,10 @@ pub fn build_server_cmd(
         let full_split = format!("{},{}", local_split, worker_splits.join(","));
         push_arg(&mut cmd, &mut parts, "--tensor-split", &full_split);
     }
-    if settings.main_gpu != 0 {
-        let mapped_gpu =
-            crate::backend::hardware::map_main_gpu_to_backend(settings.main_gpu, settings.backend);
-        push_arg(&mut cmd, &mut parts, "--main-gpu", mapped_gpu);
-    }
+    // Always pass --main-gpu (even 0) so the user's choice is never silently dropped.
+    let mapped_gpu =
+        crate::backend::hardware::map_main_gpu_to_backend(settings.main_gpu, settings.backend);
+    push_arg(&mut cmd, &mut parts, "--main-gpu", mapped_gpu);
     if settings.fit {
         push_arg(&mut cmd, &mut parts, "--fit", "on");
     }

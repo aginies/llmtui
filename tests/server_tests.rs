@@ -104,6 +104,51 @@ fn test_build_server_cmd_normal_no_model() {
     assert!(!display.contains(".gguf"));
 }
 
+#[test]
+fn test_build_server_cmd_ubatch_clamped_to_batch() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/qwen.gguf", "qwen", "Qwen");
+    let mut settings = make_settings();
+    settings.batch_size = 128;
+    settings.ubatch_size = 512;
+    let config = make_config();
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    // ubatch must never exceed batch (llama.cpp refuses to start otherwise)
+    assert!(display.contains("--batch-size 128"));
+    assert!(display.contains("--ubatch-size 128"));
+}
+
+#[test]
+fn test_build_server_cmd_ubatch_unchanged_when_below_batch() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/qwen.gguf", "qwen", "Qwen");
+    let settings = make_settings(); // batch 8192, ubatch 512
+    let config = make_config();
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    assert!(display.contains("--batch-size 8192"));
+    assert!(display.contains("--ubatch-size 512"));
+}
+
 // ── build_server_cmd — Router mode ──────────────────────────────
 
 #[test]
