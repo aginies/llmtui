@@ -1145,7 +1145,7 @@ impl Default for DefaultParams {
             // GPU
             gpu_layers: default_gpu_layers(),
             gpu_layers_mode: default_gpu_layers_mode(),
-            split_mode: SplitMode::Layer,
+            split_mode: SplitMode::None,
             tensor_split: String::new(),
             main_gpu: 0,
             fit: default_fit(),
