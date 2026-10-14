@@ -170,12 +170,21 @@ impl App {
             None => return,
         };
 
-        let settings = self.config.resolve_settings_with_profile(
+        let mut settings = self.config.resolve_settings_with_profile(
             Some(&model),
             self.active_settings_profiles
                 .get(&model)
                 .map(|s| s.as_str()),
         );
+        // Tensor split without an explicit value: default to each GPU's VRAM
+        // (e.g. "24,16"). Left dirty vs. the saved value so saving persists it.
+        if settings.split_mode == crate::models::SplitMode::Tensor
+            && settings.tensor_split.is_empty()
+        {
+            settings.tensor_split =
+                crate::backend::hardware::default_tensor_split(settings.backend)
+                    .unwrap_or_default();
+        }
 
         self.model_settings_cache = settings.clone();
         self.settings = settings;
