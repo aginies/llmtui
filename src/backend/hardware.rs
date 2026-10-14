@@ -531,6 +531,146 @@ pub fn map_main_gpu_to_backend(global_index: i32, backend: crate::models::Backen
     if vendor_index >= 0 { vendor_index } else { 0 }
 }
 
+// ── GPU VRAM detection (default --tensor-split) ─────────────────────────────
+
+/// Convert VRAM bytes to whole GiB, rounded to the nearest value
+/// (a "24 GB" card reports ~24564 MiB → 24).
+pub fn vram_bytes_to_gib(bytes: u64) -> u32 {
+    let mib = bytes / (1024 * 1024);
+    ((mib + 512) / 1024) as u32
+}
+
+/// Format per-GPU VRAM (GiB) as a --tensor-split value (e.g. "24,16").
+/// Returns None when fewer than 2 GPUs are present.
+pub fn tensor_split_from_vram(vram_gib: &[u32]) -> Option<String> {
+    if vram_gib.len() < 2 {
+        return None;
+    }
+    Some(
+        vram_gib
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+    )
+}
+
+/// Query nvidia-smi for each NVIDIA GPU's total VRAM (MiB).
+fn detect_nvidia_vram_gib() -> Vec<u32> {
+    let out = match std::process::Command::new("nvidia-smi")
+        .args(["--query-gpu=memory.total", "--format=csv,noheader,nounits"])
+        .output()
+    {
+        Ok(out) if out.status.success() => out,
+        _ => return Vec::new(),
+    };
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| l.trim().parse::<u64>().ok())
+        .map(|mib| vram_bytes_to_gib(mib * 1024 * 1024))
+        .collect()
+}
+
+/// Query /sys/class/drm for each AMD (Radeon) GPU's VRAM (Linux).
+#[cfg(target_os = "linux")]
+fn detect_amd_vram_gib() -> Vec<u32> {
+    let mut result = Vec::new();
+    for card_path in drm_card_paths() {
+        let vendor_id = match fs::read_to_string(card_path.join("device/vendor")) {
+            Ok(s) => s.trim().to_string(),
+            Err(_) => continue,
+        };
+        if vendor_id != "0x1002" {
+            continue; // AMD only
+        }
+        if let Ok(bytes) = fs::read_to_string(card_path.join("device/mem_info_vram_total"))
+            && let Ok(b) = bytes.trim().parse::<u64>()
+            && b > 0
+        {
+            result.push(vram_bytes_to_gib(b));
+        }
+    }
+    result
+}
+
+#[cfg(not(target_os = "linux"))]
+fn detect_amd_vram_gib() -> Vec<u32> {
+    Vec::new()
+}
+
+/// Query /sys/class/drm for every discrete GPU's VRAM in card order (Linux).
+/// Used by backends that can see both vendors (Vulkan, custom builds).
+#[cfg(target_os = "linux")]
+fn detect_all_vram_gib() -> Vec<u32> {
+    let mut result = Vec::new();
+    for card_path in drm_card_paths() {
+        let vendor_id = match fs::read_to_string(card_path.join("device/vendor")) {
+            Ok(s) => s.trim().to_string(),
+            Err(_) => continue,
+        };
+        if vendor_id != "0x1002" && vendor_id != "0x10de" {
+            continue;
+        }
+        if let Ok(bytes) = fs::read_to_string(card_path.join("device/mem_info_vram_total"))
+            && let Ok(b) = bytes.trim().parse::<u64>()
+            && b > 0
+        {
+            result.push(vram_bytes_to_gib(b));
+        }
+    }
+    result
+}
+
+#[cfg(not(target_os = "linux"))]
+fn detect_all_vram_gib() -> Vec<u32> {
+    detect_nvidia_vram_gib()
+}
+
+#[derive(Debug, Clone, Default)]
+struct VramCache {
+    nvidia: Vec<u32>,
+    amd: Vec<u32>,
+    all: Vec<u32>,
+}
+
+static VRAM_CACHE: std::sync::Mutex<Option<(std::time::Instant, VramCache)>> =
+    std::sync::Mutex::new(None);
+
+/// VRAM (GiB) of each GPU visible to `backend`, in backend GPU order.
+/// - CUDA: nvidia-smi
+/// - ROCm: /sys/class/drm (Radeon)
+/// - other (Vulkan, custom): all discrete GPUs in card order
+pub fn gpu_vram_gib_cached(ttl: std::time::Duration, backend: crate::models::Backend) -> Vec<u32> {
+    let mut guard = VRAM_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    if guard
+        .as_ref()
+        .map(|(at, _)| at.elapsed() >= ttl)
+        .unwrap_or(true)
+    {
+        let cache = VramCache {
+            nvidia: detect_nvidia_vram_gib(),
+            amd: detect_amd_vram_gib(),
+            all: detect_all_vram_gib(),
+        };
+        *guard = Some((std::time::Instant::now(), cache));
+    }
+    let cache = guard.as_ref().unwrap().1.clone();
+    if backend.is_cuda() {
+        cache.nvidia
+    } else if backend.is_rocm() {
+        cache.amd
+    } else {
+        cache.all
+    }
+}
+
+/// Default --tensor-split value: each GPU's VRAM in GiB (e.g. "24,16").
+/// Returns None when fewer than 2 GPUs of the active backend are detected.
+pub fn default_tensor_split(backend: crate::models::Backend) -> Option<String> {
+    let vram = gpu_vram_gib_cached(std::time::Duration::from_secs(30), backend);
+    tensor_split_from_vram(&vram)
+}
+
 #[cfg(target_os = "linux")]
 fn detect_all_gpus_linux() -> Vec<GpuInfo> {
     // Try lspci first for full model names
@@ -731,6 +871,36 @@ fn parse_macos_gpu_name_impl(name: &str) -> GpuVendor {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_vram_bytes_to_gib_rounds_to_nearest() {
+        let gib = 1024 * 1024 * 1024;
+        // 24 GB card reports ~24564 MiB -> 24
+        assert_eq!(vram_bytes_to_gib(24564 * 1024 * 1024), 24);
+        // Exact 16 GiB -> 16
+        assert_eq!(vram_bytes_to_gib(16 * gib), 16);
+        // Exact 8 GiB -> 8
+        assert_eq!(vram_bytes_to_gib(8 * gib), 8);
+        // 24576 MiB (full 24 GiB) -> 24
+        assert_eq!(vram_bytes_to_gib(24576 * 1024 * 1024), 24);
+        // Sub-half-GiB values round down
+        assert_eq!(vram_bytes_to_gib(100 * 1024 * 1024), 0);
+        assert_eq!(vram_bytes_to_gib(0), 0);
+        // Exact half-GiB rounds up (degenerate case, not seen on real GPUs)
+        assert_eq!(vram_bytes_to_gib(512 * 1024 * 1024), 1);
+    }
+
+    #[test]
+    fn test_tensor_split_from_vram() {
+        assert_eq!(tensor_split_from_vram(&[24, 16]), Some("24,16".to_string()));
+        assert_eq!(
+            tensor_split_from_vram(&[24, 16, 8]),
+            Some("24,16,8".to_string())
+        );
+        // Fewer than 2 GPUs -> no default
+        assert_eq!(tensor_split_from_vram(&[24]), None);
+        assert_eq!(tensor_split_from_vram(&[]), None);
+    }
 
     #[test]
     fn test_parse_windows_nvidia() {
