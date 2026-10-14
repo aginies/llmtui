@@ -215,7 +215,10 @@ pub fn build_server_cmd(
     }
     // Build --tensor-split from local GPU + selected RPC workers
     let local_split = if settings.tensor_split.is_empty() {
-        "1".to_string()
+        // Default: proportional to each GPU's VRAM (e.g. "24,16"); fall back
+        // to a single slot when fewer than 2 GPUs could be detected.
+        crate::backend::hardware::default_tensor_split(settings.backend)
+            .unwrap_or_else(|| "1".to_string())
     } else {
         settings.tensor_split.clone()
     };
@@ -231,10 +234,14 @@ pub fn build_server_cmd(
             }
         })
         .collect();
-    // --tensor-split is only used when at least one RPC worker is present.
-    // Without workers, llama.cpp auto-detects the split for local GPU(s).
-    if !worker_splits.is_empty() {
-        let full_split = format!("{},{}", local_split, worker_splits.join(","));
+    // --tensor-split is used for RPC workers, and also for local multi-GPU
+    // when Split Mode is Tensor (default: each GPU's VRAM in GiB).
+    if !worker_splits.is_empty() || settings.split_mode == crate::models::SplitMode::Tensor {
+        let full_split = if worker_splits.is_empty() {
+            local_split
+        } else {
+            format!("{},{}", local_split, worker_splits.join(","))
+        };
         push_arg(&mut cmd, &mut parts, "--tensor-split", &full_split);
     }
     // Always pass --main-gpu (even 0) so the user's choice is never silently dropped.

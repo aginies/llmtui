@@ -149,6 +149,72 @@ fn test_build_server_cmd_ubatch_unchanged_when_below_batch() {
     assert!(display.contains("--ubatch-size 512"));
 }
 
+#[test]
+fn test_build_server_cmd_tensor_mode_passes_tensor_split_without_workers() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/qwen.gguf", "qwen", "Qwen");
+    let mut settings = make_settings();
+    settings.split_mode = SplitMode::Tensor;
+    settings.tensor_split = String::new(); // default: each GPU's VRAM (or "1")
+    let config = make_config();
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    // Local multi-GPU tensor split must be passed even without RPC workers.
+    assert!(display.contains("--split-mode tensor"));
+    assert!(display.contains("--tensor-split"));
+}
+
+#[test]
+fn test_build_server_cmd_tensor_mode_explicit_split_used() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/qwen.gguf", "qwen", "Qwen");
+    let mut settings = make_settings();
+    settings.split_mode = SplitMode::Tensor;
+    settings.tensor_split = "24,16".into();
+    let config = make_config();
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    assert!(display.contains("--tensor-split 24,16"));
+}
+
+#[test]
+fn test_build_server_cmd_no_tensor_split_when_mode_not_tensor() {
+    let binary = PathBuf::from("/usr/bin/llama-server");
+    let model = make_model("/models/qwen.gguf", "qwen", "Qwen");
+    let settings = make_settings(); // split_mode = None, no workers
+    let config = make_config();
+
+    let (_cmd, display) = build_server_cmd(
+        &binary,
+        Some(&model),
+        &settings,
+        &config,
+        ServerMode::Normal,
+        0,
+        false,
+    );
+
+    assert!(!display.contains("--tensor-split"));
+}
+
 // ── build_server_cmd — Router mode ──────────────────────────────
 
 #[test]

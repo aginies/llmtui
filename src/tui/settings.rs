@@ -511,6 +511,12 @@ pub fn all_fields() -> Vec<SettingField> {
                     _ => val,
                 };
                 s.split_mode = val;
+                // Switching to Tensor: default the split to each GPU's VRAM
+                // (e.g. "24,16") so it is visible and persisted on save.
+                if val == SplitMode::Tensor && s.tensor_split.is_empty() {
+                    s.tensor_split = crate::backend::hardware::default_tensor_split(s.backend)
+                        .unwrap_or_default();
+                }
             },
             |_, _| {},
             "GPU split strategy: None, Layer (default), Row, or Tensor. Controls how model layers are distributed across multiple GPUs. Layer splits by layer count, Row/Tensor split by matrix dimensions for multi-GPU setups.",
