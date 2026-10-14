@@ -639,9 +639,9 @@ impl From<&str> for CacheQuantType {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Hash, Default)]
 pub enum SplitMode {
     #[serde(rename = "none")]
+    #[default]
     None,
     #[serde(rename = "layer")]
-    #[default]
     Layer,
     #[serde(rename = "row")]
     Row,
