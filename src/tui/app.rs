@@ -108,6 +108,7 @@ impl App {
                 rpc_worker_tensor_split_cursor_pos: 0,
                 readme_scroll_offset: 0,
                 chat_template_picker_scroll_offset: 0,
+                gpu_device_picker_scroll_offset: 0,
             },
             download: DownloadState {
                 download_progress: Vec::new(),

@@ -367,6 +367,27 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::GpuDevicePicker {
+        entries,
+        selected,
+        checked,
+        loading,
+        error,
+    } = &app.ui.global_mode
+    {
+        render_gpu_device_picker(
+            f,
+            f.area(),
+            entries,
+            *selected,
+            checked,
+            *loading,
+            error.as_deref(),
+            &mut app.picker.gpu_device_picker_scroll_offset,
+        );
+        return true;
+    }
+
     if let GlobalMode::ChatTemplateFilePicker { entries, selected } = &app.ui.global_mode {
         render_chat_template_file_picker(f, f.area(), app, entries, *selected);
         return true;
@@ -3618,6 +3639,96 @@ fn render_chat_template_picker(
         ),
         Some(Line::from(Span::styled(
             crate::t!("dialog.chat_template.help"),
+            Style::default().fg(ACCENT),
+        ))),
+        lines,
+        None,
+        scroll,
+    );
+}
+
+/// Multi-select picker of GPU devices (from `llama-server --list-devices`).
+///
+/// Entry 0 is the special "(default) — all devices" option; selecting it (or
+/// leaving everything unchecked) means an empty `devices` list, i.e. let
+/// llama.cpp use all detected devices.
+fn render_gpu_device_picker(
+    f: &mut Frame,
+    area: Rect,
+    entries: &[(String, String)],
+    selected: usize,
+    checked: &[bool],
+    loading: bool,
+    error: Option<&str>,
+    scroll_offset: &mut usize,
+) {
+    let mut blocks: Vec<Vec<Line>> = Vec::new();
+
+    if let Some(err) = error {
+        blocks.push(vec![Line::from(Span::styled(
+            format!("{}: {}", crate::t!("dialog.gpu_devices.error"), err),
+            Style::default().fg(RED),
+        ))]);
+    } else if loading {
+        blocks.push(vec![Line::from(Span::styled(
+            crate::t!("dialog.gpu_devices.loading").to_string(),
+            Style::default().fg(DIM_GRAY),
+        ))]);
+    } else if entries.is_empty() {
+        blocks.push(vec![Line::from(Span::styled(
+            crate::t!("dialog.gpu_devices.none").to_string(),
+            Style::default().fg(RED),
+        ))]);
+    } else {
+        for (i, (name, info)) in entries.iter().enumerate() {
+            let is_default = i == 0;
+            // The default entry is "active" when no real device is checked.
+            let is_checked = if is_default {
+                checked.iter().enumerate().all(|(j, c)| j == 0 || !c)
+            } else {
+                checked.get(i).copied().unwrap_or(false)
+            };
+            let box_char = if is_checked { "[x]" } else { "[ ]" };
+            let marker = if i == selected { "> " } else { "  " };
+            let style = if i == selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            let label = format!("{} — {}", name, info);
+            blocks.push(vec![Line::from(vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(box_char, style),
+                Span::styled(label, style),
+            ])]);
+        }
+    }
+
+    let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2);
+    let lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
+    let scroll = if blocks.len() > fit {
+        Some((blocks.len(), off, fit))
+    } else {
+        None
+    };
+    render_picker_popup(
+        f,
+        area,
+        Span::styled(
+            crate::t!("dialog.gpu_devices.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.gpu_devices.help"),
             Style::default().fg(ACCENT),
         ))),
         lines,

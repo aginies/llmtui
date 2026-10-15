@@ -225,14 +225,11 @@ fn toggle_expert_count(settings: &mut ModelSettings) {
     };
 }
 
-fn format_main_gpu_display(main_gpu: i32) -> String {
-    let gpus =
-        crate::backend::hardware::gpu_info_cached(std::time::Duration::from_secs(30)).all_gpus;
-    if main_gpu >= 0 && (main_gpu as usize) < gpus.len() {
-        let gpu = &gpus[main_gpu as usize];
-        format!("{} - {}", main_gpu, gpu.name)
+fn format_devices_display(s: &ModelSettings) -> String {
+    if s.devices.is_empty() {
+        crate::t!("dialog.gpu_devices.all").to_string()
     } else {
-        format!("{}", main_gpu)
+        s.devices.join(", ")
     }
 }
 fn toggle_presence_penalty(settings: &mut ModelSettings) {
@@ -549,20 +546,14 @@ pub fn all_fields() -> Vec<SettingField> {
             f
         },
         expert_field(
-            "main_gpu",
-            "Main GPU",
+            "devices",
+            "GPU Devices",
             "GPU Offload",
-            |s| format_main_gpu_display(s.main_gpu),
-            |s, c| s.main_gpu != c.main_gpu,
-            |s, delta, _| {
-                s.main_gpu = (s.main_gpu + delta).max(0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.main_gpu = v;
-                }
-            },
-            "Index of the main GPU (0-based). Display shows 'index - gpu_name' (e.g. '0 - NVIDIA GeForce RTX 4090'). Handles initial model loading and some computations. Typical: 0 for single GPU, 0 for primary in multi-GPU setups.",
+            format_devices_display,
+            |s, c| s.devices != c.devices,
+            |_, _, _| {},
+            |_, _| {},
+            "GPU device names to restrict offloading to (from llama-server --list-devices). Empty = use all detected devices. Press Enter to open the multi-select picker. (documentation only; UI help comes from field.help.devices)",
         ),
         field_with_toggle(
             "fit",
@@ -1316,7 +1307,11 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_int!(parts, s, current, draft_tokens, "draft_tokens");
 
     diff_int!(parts, s, current, keep, "keep");
-    diff_int!(parts, s, current, main_gpu, "main_gpu");
+    if let Some(v) = &s.devices
+        && v != &current.devices
+    {
+        parts.push(format!("devices={}", v.join(",")));
+    }
     diff_int!(parts, s, current, expert_count, "expert_count");
     diff_int!(parts, s, current, seed, "seed");
     diff_int!(parts, s, current, top_k, "top_k");
@@ -1492,7 +1487,9 @@ pub fn model_settings_diff_parts(current: &ModelSettings, profile: &ModelSetting
     ms_diff_int!(parts, s, current, parallel, "parallel");
     ms_diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
     ms_diff_int!(parts, s, current, keep, "keep");
-    ms_diff_int!(parts, s, current, main_gpu, "main_gpu");
+    if s.devices != current.devices {
+        parts.push(format!("devices={}", s.devices.join(",")));
+    }
     ms_diff_int!(parts, s, current, expert_count, "experts");
     ms_diff_int!(parts, s, current, seed, "seed");
     ms_diff_int!(parts, s, current, top_k, "top_k");

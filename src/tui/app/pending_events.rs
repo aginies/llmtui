@@ -40,4 +40,13 @@ pub enum PendingEvent {
     PrecacheMetadata {
         metadata: Vec<(String, GgufMetadata)>,
     },
+    /// GPU device listing results for the GPU device picker.
+    GpuDevicesLoaded {
+        entries: Vec<(String, String)>,
+        checked: Vec<bool>,
+    },
+    /// GPU device listing failed.
+    GpuDevicesError {
+        message: String,
+    },
 }

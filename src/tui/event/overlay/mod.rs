@@ -18,6 +18,7 @@ mod dashboard_picker;
 mod dashboard_url;
 mod directory_picker;
 mod gguf_naming;
+mod gpu_device_picker;
 mod host_picker;
 mod llama_server_picker;
 mod max_concurrent_picker;
@@ -45,6 +46,7 @@ pub use confirmation::ConfirmationHandler;
 pub use dashboard_picker::DashboardPickerHandler;
 pub use dashboard_url::DashboardUrlHandler;
 pub use gguf_naming::GgufNamingHandler;
+pub use gpu_device_picker::GpuDevicePickerHandler;
 pub use host_picker::HostPickerHandler;
 pub use llama_server_picker::LlamaServerPickerHandler;
 pub use max_concurrent_picker::MaxConcurrentPickerHandler;
@@ -96,6 +98,7 @@ impl OverlayRegistry {
             Box::new(PromptPickerHandler),
             Box::new(BenchTuneSetupHandler),
             Box::new(BackendPickerHandler),
+            Box::new(GpuDevicePickerHandler),
             Box::new(MaxConcurrentPickerHandler),
             Box::new(ConfirmationHandler),
             Box::new(RpcManagerHandler),
