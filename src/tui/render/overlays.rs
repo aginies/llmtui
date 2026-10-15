@@ -335,6 +335,27 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::TensorSplitPicker {
+        entries,
+        selected,
+        editing,
+        edit_buffer,
+        edit_cursor_pos,
+    } = &app.ui.global_mode
+    {
+        render_tensor_split_picker(
+            f,
+            f.area(),
+            app,
+            entries,
+            *selected,
+            *editing,
+            edit_buffer,
+            *edit_cursor_pos,
+        );
+        return true;
+    }
+
     if let GlobalMode::ChatTemplatePicker { entries, selected } = &app.ui.global_mode {
         render_chat_template_picker(
             f,
@@ -571,7 +592,118 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::CommandPalette {
+        buffer,
+        cursor_pos,
+        selected,
+    } = &app.ui.global_mode
+    {
+        render_command_palette(f, f.area(), app, buffer, *cursor_pos, *selected);
+        return true;
+    }
+
     false
+}
+
+/// Maximum number of action rows visible in the command palette.
+const PALETTE_MAX_ROWS: usize = 12;
+
+fn render_command_palette(
+    f: &mut Frame,
+    area: Rect,
+    app: &App,
+    buffer: &str,
+    cursor_pos: usize,
+    selected: usize,
+) {
+    let entries = crate::tui::command_palette::available_actions(app);
+    let matches = crate::tui::command_palette::filter_entries(&entries, buffer);
+    let sel = selected.min(matches.len().saturating_sub(1));
+
+    // Input line with an inline cursor.
+    let chars: Vec<char> = buffer.chars().collect();
+    let cursor_pos = cursor_pos.min(chars.len());
+    let cursor_char = chars.get(cursor_pos).copied().unwrap_or(' ');
+    let before: String = chars[..cursor_pos].iter().collect();
+    let after: String = chars[cursor_pos..].iter().collect();
+    let mut input_spans = vec![Span::styled(" ", Style::default().fg(ACCENT))];
+    if buffer.is_empty() {
+        input_spans.push(Span::styled(
+            crate::t!("palette.placeholder"),
+            Style::default().fg(DIM_GRAY),
+        ));
+    } else {
+        input_spans.push(Span::raw(before));
+        input_spans.push(Span::styled(
+            cursor_char.to_string(),
+            Style::default().add_modifier(Modifier::REVERSED),
+        ));
+        input_spans.push(Span::raw(after));
+    }
+
+    // Filtered action rows, scrolled to keep the selection visible.
+    let visible = matches.len().min(PALETTE_MAX_ROWS);
+    let offset = if sel >= visible { sel + 1 - visible } else { 0 };
+    let mut rows: Vec<Line> = Vec::new();
+    if matches.is_empty() {
+        rows.push(Line::from(Span::styled(
+            crate::t!("palette.empty"),
+            Style::default().fg(DIM_GRAY),
+        )));
+    } else {
+        for (row_pos, &idx) in matches[offset..offset + visible].iter().enumerate() {
+            let e = &entries[idx];
+            let name = crate::t!(e.name_key);
+            let is_selected = row_pos == sel.saturating_sub(offset);
+            let name_style = if is_selected {
+                Style::default().add_modifier(Modifier::REVERSED)
+            } else {
+                Style::default()
+            };
+            let shortcut_style = Style::default().fg(DIM_GRAY).add_modifier(if is_selected {
+                Modifier::REVERSED
+            } else {
+                Modifier::empty()
+            });
+            rows.push(Line::from(vec![
+                Span::styled(name.to_string(), name_style),
+                Span::raw("  "),
+                Span::styled(e.shortcut.to_string(), shortcut_style),
+            ]));
+        }
+    }
+
+    let list_height = if matches.is_empty() { 1 } else { visible };
+    // input + blank + list + blank + footer, plus borders.
+    let content = 1 + 1 + list_height + 1 + 1;
+    let h = (content + 2).clamp(8, picker_max_height(area)) as u16;
+    let h = h.min(area.height);
+    let w = PICKER_WIDTH.min(area.width);
+
+    let palette_area = center_rect(area, w, h);
+    f.render_widget(Clear, palette_area);
+
+    let title = Span::styled(
+        crate::t!("palette.title"),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+    );
+    let block = Block::bordered()
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(ACCENT))
+        .padding(PADDING)
+        .title(title);
+    let inner = block.inner(palette_area);
+    f.render_widget(block, palette_area);
+
+    let mut lines: Vec<Line> = vec![Line::from(input_spans), Line::from("")];
+    lines.extend(rows);
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        crate::t!("palette.hint"),
+        Style::default().fg(DIM_GRAY),
+    )));
+
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 fn render_web_search_picker(
@@ -3348,6 +3480,92 @@ fn render_spec_type_picker(
         ))),
         picker_lines,
         None,
+        None,
+    );
+}
+
+fn render_tensor_split_picker(
+    f: &mut Frame,
+    area: Rect,
+    app: &App,
+    entries: &[(String, String)],
+    selected: usize,
+    editing: bool,
+    edit_buffer: &str,
+    edit_cursor_pos: usize,
+) {
+    let mut picker_lines: Vec<Line> = Vec::new();
+
+    if editing {
+        let cursor_pos = edit_cursor_pos.min(edit_buffer.chars().count());
+        let before: String = edit_buffer.chars().take(cursor_pos).collect();
+        let after: String = edit_buffer.chars().skip(cursor_pos).collect();
+        picker_lines.push(Line::from(vec![
+            Span::styled("> ", Style::default().fg(ACCENT)),
+            Span::styled(
+                crate::t!("dialog.tensor_split.manual").to_string(),
+                Style::default().fg(CYAN),
+            ),
+            Span::styled(
+                format!("{}|{}", before, after),
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ]));
+    } else {
+        for (i, (label, _)) in entries.iter().enumerate() {
+            let marker = if i == selected { "> " } else { "  " };
+            let style = if i == selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            picker_lines.push(Line::from(vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(label, style),
+            ]));
+        }
+    }
+
+    // Detected-GPU footer (cache hit: computed when the picker opened)
+    let vram = crate::backend::hardware::gpu_vram_gib_cached(
+        std::time::Duration::from_secs(30),
+        app.settings.backend,
+    );
+    let footer = if vram.len() >= 2 {
+        let list: Vec<String> = vram.iter().map(|v| format!("{}GB", v)).collect();
+        Line::from(Span::styled(
+            crate::t_fmt!("dialog.tensor_split.gpus", list.join(", ")),
+            Style::default().fg(GRAY),
+        ))
+    } else {
+        Line::from(Span::styled(
+            crate::t!("dialog.tensor_split.no_gpus"),
+            Style::default().fg(GRAY),
+        ))
+    };
+
+    let help = if editing {
+        crate::t!("dialog.tensor_split.help_edit")
+    } else {
+        crate::t!("dialog.tensor_split.help")
+    };
+
+    render_picker_popup(
+        f,
+        area,
+        Span::styled(
+            crate::t!("dialog.tensor_split.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        Some(Line::from(Span::styled(help, Style::default().fg(ACCENT)))),
+        picker_lines,
+        Some(footer),
         None,
     );
 }

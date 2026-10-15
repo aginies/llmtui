@@ -8,6 +8,7 @@ use crate::models::BenchTuneParamValue;
 
 pub mod app;
 pub mod colors;
+pub mod command_palette;
 pub mod event;
 pub mod gguf_naming;
 pub mod i18n;

@@ -102,6 +102,8 @@ pub fn render_hints(app: &App) -> Vec<Span<'static>> {
                             Span::raw(HINT_SEP),
                             Span::styled(crate::t!("hints.delete"), y),
                             Span::raw(HINT_SEP),
+                            Span::styled(crate::t!("hints.palette"), c),
+                            Span::raw(HINT_SEP),
                             Span::styled(crate::t!("hints.help"), c),
                             Span::raw(HINT_SEP),
                             Span::styled(hint_about(), c),
