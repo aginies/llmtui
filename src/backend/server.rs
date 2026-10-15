@@ -206,7 +206,12 @@ pub fn build_server_cmd(
     push_gpu_layers(&mut cmd, &mut parts, settings);
 
     // Always pass --split-mode so llama-server doesn't auto-detect other GPUs
-    push_arg(&mut cmd, &mut parts, "--split-mode", settings.split_mode.to_string());
+    push_arg(
+        &mut cmd,
+        &mut parts,
+        "--split-mode",
+        settings.split_mode.to_string(),
+    );
     // Build --tensor-split from local GPU + selected RPC workers
     let local_split = if settings.tensor_split.is_empty() {
         // Default: proportional to each GPU's VRAM (e.g. "24,16"); fall back

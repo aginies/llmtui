@@ -1630,6 +1630,9 @@ pub struct ServerMetrics {
     pub prompt_elapsed_ms: f64,
     /// Prompt evaluation throughput in tokens per second.
     pub prompt_tps_eval: f64,
+    /// Whether the server is currently processing a request
+    /// (llamacpp:requests_processing > 0).
+    pub busy: bool,
 }
 
 /// GPU device buffer reported by llama-server during model loading.
@@ -1679,6 +1682,7 @@ impl Default for ServerMetrics {
             prompt_progress: 0.0,
             prompt_elapsed_ms: 0.0,
             prompt_tps_eval: 0.0,
+            busy: false,
         }
     }
 }
