@@ -6,7 +6,7 @@ use crate::tui::toast::Toast;
 
 use ratatui::widgets::TableState;
 use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use super::{
     ActivePanel, GlobalMode, LoadingPhase, ResizeState, SettingsRenderCache, TextScrollState,
@@ -85,6 +85,9 @@ pub struct ServerState {
     pub metrics_model_name: Arc<std::sync::Mutex<Option<String>>>,
     pub loaded_model_names: Arc<std::sync::Mutex<Vec<String>>>,
     pub api_proxy_handle: Option<tokio::task::JoinHandle<()>>,
+    /// Live generation-speed tracker shared with the API proxy (streamed
+    /// token counting for live t/s display).
+    pub stream_speed_tracker: Option<Arc<Mutex<crate::serve_api::StreamSpeedTracker>>>,
     pub metrics_tx: Option<tokio::sync::broadcast::Sender<crate::models::WsMetrics>>,
     pub running_ws_port: Option<u16>,
     pub running_ws_auth: Option<String>,

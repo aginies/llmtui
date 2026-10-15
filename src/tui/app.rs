@@ -131,6 +131,7 @@ impl App {
                 metrics_model_name: std::sync::Arc::new(std::sync::Mutex::new(None)),
                 loaded_model_names: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
                 api_proxy_handle: None,
+                stream_speed_tracker: None,
                 metrics_tx: None,
                 running_ws_port: None,
                 running_ws_auth: None,

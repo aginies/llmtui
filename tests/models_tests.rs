@@ -1419,6 +1419,7 @@ fn test_ws_metrics_from_metrics_prompt_tokens() {
         prompt_progress: 0.5, // 50% evaluated
         prompt_elapsed_ms: 120.0,
         prompt_tps_eval: 200.0,
+        busy: false,
     };
     let settings = ModelSettings::default();
     let ws_metrics = WsMetrics::from_metrics(&metrics, "test-model", "loaded", &settings, None);

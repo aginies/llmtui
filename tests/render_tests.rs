@@ -455,6 +455,7 @@ fn test_active_model_panel_renders() {
         prompt_progress: 0.0,
         prompt_elapsed_ms: 0.0,
         prompt_tps_eval: 0.0,
+        busy: false,
     };
     let _terminal = make_terminal(&mut app);
 }
@@ -573,6 +574,7 @@ fn test_active_model_panel_router_mode_loaded_renders() {
         prompt_progress: 0.0,
         prompt_elapsed_ms: 0.0,
         prompt_tps_eval: 0.0,
+        busy: false,
     };
 
     let mut terminal = make_terminal(&mut app);

@@ -1,7 +1,8 @@
+use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use axum::Json;
 use axum::Router;
@@ -52,6 +53,132 @@ pub struct WebSearchConfig {
     pub api_key: Option<String>,
 }
 
+/// Live generation-speed tracker for streamed completions.
+///
+/// Counts token deltas arriving over the SSE stream and computes tokens/s
+/// over a moving window. Same approach as pi-llama-chooser's speed.ts:
+/// each token gets a timestamp, and the rate is the number of tokens within
+/// the window divided by the window span. This gives a live per-token t/s
+/// without relying on llama-server's throttled log output or /metrics
+/// gauges (which only flush generation stats at request end).
+#[derive(Debug, Default)]
+pub struct StreamSpeedTracker {
+    /// (arrival time, cumulative token count) samples, oldest first.
+    samples: VecDeque<(Instant, u64)>,
+    token_count: u64,
+    last_rate: Option<f64>,
+}
+
+impl StreamSpeedTracker {
+    /// Moving window for the rate computation.
+    const WINDOW: Duration = Duration::from_millis(1500);
+    /// Minimum span before a rate is trusted (avoids startup spikes).
+    const MIN_SPAN: Duration = Duration::from_millis(300);
+    /// Considered "generating" if a token arrived within this time.
+    const ACTIVE: Duration = Duration::from_secs(3);
+
+    /// Record one streamed token.
+    pub fn on_token(&mut self) {
+        self.token_count += 1;
+        self.samples.push_back((Instant::now(), self.token_count));
+    }
+
+    /// Live tokens/s over the moving window, if enough data has arrived.
+    pub fn rate(&mut self) -> Option<f64> {
+        let now = Instant::now();
+        while self.samples.len() > 1 && now.duration_since(self.samples[0].0) > Self::WINDOW {
+            self.samples.pop_front();
+        }
+        // Hard cap to prevent unbounded growth during very long generations.
+        if self.samples.len() > 1000 {
+            let keep = self.samples.len() - 500;
+            for _ in 0..keep {
+                self.samples.pop_front();
+            }
+        }
+        let oldest = self.samples.front()?;
+        let span = now.duration_since(oldest.0);
+        if span < Self::MIN_SPAN {
+            return self.last_rate;
+        }
+        let tokens = self.token_count - oldest.1;
+        if tokens == 0 {
+            return self.last_rate;
+        }
+        let rate = tokens as f64 / span.as_secs_f64();
+        self.last_rate = Some(rate);
+        Some(rate)
+    }
+
+    /// True if a token arrived recently (generation in progress).
+    pub fn is_active(&self) -> bool {
+        self.samples
+            .back()
+            .is_some_and(|(ts, _)| Instant::now().duration_since(*ts) < Self::ACTIVE)
+    }
+
+    /// Clear all state (new request).
+    pub fn reset(&mut self) {
+        self.samples.clear();
+        self.token_count = 0;
+        self.last_rate = None;
+    }
+}
+
+/// True if an SSE line is a token delta (non-empty `content` or `reasoning`).
+/// Role-only and finish-only deltas, as well as `data: [DONE]`, don't count.
+fn is_token_delta_line(line: &str) -> bool {
+    let payload = match line.strip_prefix("data:") {
+        Some(p) => p.trim_start(),
+        None => return false,
+    };
+    if payload == "[DONE]" {
+        return false;
+    }
+    has_nonempty_field(payload, "content") || has_nonempty_field(payload, "reasoning")
+}
+
+/// True if the JSON payload has `"field":"<non-empty string>"`.
+fn has_nonempty_field(json: &str, field: &str) -> bool {
+    let needle = format!("\"{}\":", field);
+    let Some(idx) = json.find(&needle) else {
+        return false;
+    };
+    let rest = json[idx + needle.len()..].trim_start();
+    // Non-empty string: the char right after the opening quote is not the
+    // closing quote. (Escaped quotes like "\"" are non-empty and pass.)
+    rest.starts_with('"') && rest.len() >= 2 && rest.as_bytes().get(1) != Some(&b'"')
+}
+
+/// Feed raw SSE bytes into a line buffer and count token deltas.
+///
+/// SSE lines can be split across TCP chunks, so complete lines are
+/// reassembled from the buffer before counting.
+fn count_stream_tokens(
+    line_buf: &mut Vec<u8>,
+    chunk: &Bytes,
+    tracker: &Arc<Mutex<StreamSpeedTracker>>,
+) {
+    line_buf.extend_from_slice(chunk);
+    let mut tokens = 0usize;
+    while let Some(pos) = line_buf.iter().position(|&b| b == b'\n') {
+        let line: Vec<u8> = line_buf.drain(..=pos).collect();
+        if is_token_delta_line(&String::from_utf8_lossy(&line)) {
+            tokens += 1;
+        }
+    }
+    // Safety cap: a malformed stream without newlines must not grow unbounded.
+    if line_buf.len() > 64 * 1024 {
+        line_buf.clear();
+    }
+    if tokens > 0 {
+        let mut t = tracker.lock().unwrap_or_else(|e| e.into_inner());
+        for _ in 0..tokens {
+            t.on_token();
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct ApiState {
     pub server_url: String,
@@ -77,6 +204,9 @@ pub struct ApiState {
     pub effective_ctx: u32,
     /// Root directory for received file transfers (see `serve_transfer`).
     pub transfer_dir: PathBuf,
+    /// Live generation-speed tracker for streamed completions (shared with
+    /// the TUI for live t/s display).
+    pub speed_tracker: Arc<Mutex<StreamSpeedTracker>>,
 }
 
 fn extract_api_key(headers: &axum::http::HeaderMap) -> Option<String> {
@@ -150,6 +280,17 @@ async fn proxy_streaming(
             let cb = state.log_callback.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(c) = cb.as_ref() {
                 c(format!("API: proxying {} {}", method, path));
+            }
+        }
+        // Reset the live speed tracker for a new request (unless a previous
+        // stream is still active — concurrent requests share the tracker).
+        {
+            let mut t = state
+                .speed_tracker
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if !t.is_active() {
+                t.reset();
             }
         }
         let body_bytes = match to_bytes(req.into_body(), 10 * 1024 * 1024).await {
@@ -278,7 +419,7 @@ async fn proxy_streaming(
             .send()
             .await;
 
-        let response = handle_response(response, &path).await;
+        let response = handle_response(response, &path, state.speed_tracker.clone()).await;
         return response.into_response();
     }
 
@@ -316,13 +457,14 @@ async fn proxy_streaming(
         .send()
         .await;
 
-    let response = handle_response(response, &path).await;
+    let response = handle_response(response, &path, state.speed_tracker.clone()).await;
     response.into_response()
 }
 
 async fn handle_response(
     response: Result<reqwest::Response, reqwest::Error>,
     path: &str,
+    speed_tracker: Arc<Mutex<StreamSpeedTracker>>,
 ) -> impl IntoResponse {
     match response {
         Ok(resp) => {
@@ -336,10 +478,21 @@ async fn handle_response(
                 .unwrap_or(false);
 
             if is_sse {
-                let mut response = axum::response::Response::new(Body::from_stream(
-                    resp.bytes_stream()
-                        .map(|result| result.map_err(std::io::Error::other)),
-                ));
+                // Count streamed token deltas for chat/completions to feed the
+                // live generation-speed tracker (TUI + /api/status).
+                let tracker = if path == "/v1/chat/completions" || path == "/v1/completions" {
+                    Some(speed_tracker)
+                } else {
+                    None
+                };
+                let mut line_buf: Vec<u8> = Vec::new();
+                let stream = resp.bytes_stream().map(move |result| {
+                    if let (Some(tracker), Ok(bytes)) = (&tracker, &result) {
+                        count_stream_tokens(&mut line_buf, bytes, tracker);
+                    }
+                    result.map_err(std::io::Error::other)
+                });
+                let mut response = axum::response::Response::new(Body::from_stream(stream));
                 *response.status_mut() = status;
                 for (name, value) in headers.iter() {
                     response.headers_mut().insert(name, value.clone());
@@ -641,7 +794,17 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
     let metrics_json = metrics.as_ref().map(|m| {
         let ctx_used = log_metrics.ctx_used.unwrap_or(m.ctx_used);
         let decoded_tokens = log_metrics.decoded_tokens.unwrap_or(m.decoded_tokens);
-        let gen_tps = log_metrics.gen_tps.unwrap_or(m.gen_tps);
+        // Live stream-counted t/s (per-token) beats log parsing (throttled
+        // by llama.cpp: 100-token threshold, 3 s period).
+        let stream_tps = {
+            let mut t = state.speed_tracker.lock().unwrap_or_else(|e| e.into_inner());
+            if t.is_active() {
+                t.rate()
+            } else {
+                None
+            }
+        };
+        let gen_tps = stream_tps.or(log_metrics.gen_tps).unwrap_or(m.gen_tps);
         let ctx_max = if state.effective_ctx > 0 { state.effective_ctx } else { m.ctx_max };
         serde_json::json!({
             "tps": m.tps,
@@ -658,6 +821,7 @@ async fn status(State(state): State<ApiState>) -> impl IntoResponse {
             "decoded_tokens": decoded_tokens,
             "prompt_progress": 0.0,
             "prompt_tps_eval": 0.0,
+            "busy": m.busy,
         })
     });
 
@@ -700,6 +864,7 @@ pub async fn start_api_server(
     effective_ctx: u32,
     chat_ui_enabled: bool,
     transfer_enabled: bool,
+    speed_tracker: Arc<Mutex<StreamSpeedTracker>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind = addr;
     let start_time = Instant::now();
@@ -744,6 +909,7 @@ pub async fn start_api_server(
                     .join("llm-manager")
                     .join("transfers")
             }),
+        speed_tracker,
     };
 
     let allowed_origins: Arc<Vec<String>> = Arc::new({
@@ -841,4 +1007,92 @@ pub async fn start_api_server(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn token_delta_line_detection() {
+        assert!(is_token_delta_line(
+            r#"data: {"id":"1","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}"#
+        ));
+        assert!(is_token_delta_line(
+            r#"data: {"id":"1","choices":[{"index":0,"delta":{"reasoning":"hmm"},"finish_reason":null}]}"#
+        ));
+        // Role-only delta (content null) doesn't count.
+        assert!(!is_token_delta_line(
+            r#"data: {"id":"1","choices":[{"index":0,"delta":{"role":"assistant","content":null},"finish_reason":null}]}"#
+        ));
+        // Empty content doesn't count.
+        assert!(!is_token_delta_line(
+            r#"data: {"id":"1","choices":[{"index":0,"delta":{"content":""},"finish_reason":null}]}"#
+        ));
+        // Finish-only delta doesn't count.
+        assert!(!is_token_delta_line(
+            r#"data: {"id":"1","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}"#
+        ));
+        // [DONE] doesn't count.
+        assert!(!is_token_delta_line("data: [DONE]"));
+        // Non-SSE lines don't count.
+        assert!(!is_token_delta_line(": keep-alive"));
+        assert!(!is_token_delta_line(""));
+    }
+
+    #[test]
+    fn stream_tracker_counts_tokens() {
+        let tracker = Arc::new(Mutex::new(StreamSpeedTracker::default()));
+        let mut buf = Vec::new();
+        let chunk = Bytes::from(
+            "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":null}}]}\n\
+             data: {\"choices\":[{\"delta\":{\"content\":\"A\"}}]}\n\
+             data: {\"choices\":[{\"delta\":{\"content\":\"B\"}}]}\n",
+        );
+        count_stream_tokens(&mut buf, &chunk, &tracker);
+        let mut t = tracker.lock().unwrap();
+        assert_eq!(t.token_count, 2);
+        assert!(t.is_active());
+        // Not enough span yet (< 300 ms) — no rate.
+        assert!(t.rate().is_none());
+    }
+
+    #[test]
+    fn stream_tracker_reassembles_split_lines() {
+        let tracker = Arc::new(Mutex::new(StreamSpeedTracker::default()));
+        let mut buf = Vec::new();
+        // A token line split across two chunks.
+        count_stream_tokens(
+            &mut buf,
+            &Bytes::from("data: {\"choices\":[{\"delta\":{\"cont"),
+            &tracker,
+        );
+        count_stream_tokens(&mut buf, &Bytes::from("ent\":\"Hi\"}}]}\n"), &tracker);
+        let t = tracker.lock().unwrap();
+        assert_eq!(t.token_count, 1);
+    }
+
+    #[test]
+    fn stream_tracker_reset() {
+        let mut t = StreamSpeedTracker::default();
+        t.on_token();
+        t.on_token();
+        assert!(t.is_active());
+        t.reset();
+        assert!(!t.is_active());
+        assert_eq!(t.token_count, 0);
+        assert!(t.rate().is_none());
+    }
+
+    #[test]
+    fn stream_tracker_rate_over_window() {
+        let mut t = StreamSpeedTracker::default();
+        for _ in 0..20 {
+            t.on_token();
+        }
+        std::thread::sleep(Duration::from_millis(400));
+        let rate = t.rate().unwrap();
+        // 20 tokens over ~400 ms → ~50 t/s; wide tolerance for slow CI.
+        assert!(rate > 5.0 && rate < 200.0);
+    }
 }
