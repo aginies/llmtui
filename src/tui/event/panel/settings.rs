@@ -285,6 +285,66 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // GPU Devices: open the multi-select picker on Enter. Devices are listed
+    // asynchronously (llama-server --list-devices) and filled in via the
+    // pending channel.
+    if field_id == Some("devices") && key.code == KeyCode::Enter {
+        let backend = app.settings.backend;
+        let version = app.settings.get_active_backend_version().cloned();
+        let rocm = app.settings.llama_cpp_strix_halo_rocm.clone();
+        let current_devices = app.settings.devices.clone();
+        let tx = app.pending_tx.clone();
+
+        app.ui.global_mode = GlobalMode::GpuDevicePicker {
+            entries: Vec::new(),
+            selected: 0,
+            checked: Vec::new(),
+            loading: true,
+            error: None,
+        };
+        app.picker.gpu_device_picker_scroll_offset = 0;
+
+        tokio::spawn(async move {
+            match crate::backend::hardware::list_devices(
+                backend,
+                version.as_deref(),
+                rocm.as_deref(),
+            )
+            .await
+            {
+                Ok(devices) => {
+                    let entries: Vec<(String, String)> = std::iter::once((
+                        crate::t!("dialog.gpu_devices.default").to_string(),
+                        crate::t!("dialog.gpu_devices.default_hint").to_string(),
+                    ))
+                    .chain(devices.into_iter().map(|d| (d.name, d.info)))
+                    .collect();
+                    let mut checked = vec![false; entries.len()];
+                    for (i, entry) in entries.iter().enumerate() {
+                        if i > 0 && current_devices.contains(&entry.0) {
+                            checked[i] = true;
+                        }
+                    }
+                    let _ = tx.try_send(
+                        crate::tui::app::pending_events::PendingEvent::GpuDevicesLoaded {
+                            entries,
+                            checked,
+                        },
+                    );
+                }
+                Err(e) => {
+                    let _ = tx.try_send(
+                        crate::tui::app::pending_events::PendingEvent::GpuDevicesError {
+                            message: e.to_string(),
+                        },
+                    );
+                }
+            }
+        });
+        mark_settings_dirty(app, false);
+        return;
+    }
+
     // Fit: toggle on Enter
     if field_id == Some("fit") && key.code == KeyCode::Enter {
         app.settings.fit = !app.settings.fit;

@@ -60,6 +60,7 @@ pub struct PickerState {
     pub rpc_worker_tensor_split_cursor_pos: usize,
     pub readme_scroll_offset: usize,
     pub chat_template_picker_scroll_offset: usize,
+    pub gpu_device_picker_scroll_offset: usize,
 }
 
 pub struct DownloadState {

@@ -359,6 +359,30 @@ async fn main() -> Result<()> {
                                 app.search.gguf_metadata_cache.insert(key, meta);
                             }
                         }
+                        PendingEvent::GpuDevicesLoaded { entries, checked } => {
+                            if let crate::tui::app::GlobalMode::GpuDevicePicker {
+                                entries: e,
+                                checked: c,
+                                loading,
+                                ..
+                            } = &mut app.ui.global_mode
+                            {
+                                *e = entries;
+                                *c = checked;
+                                *loading = false;
+                            }
+                        }
+                        PendingEvent::GpuDevicesError { message } => {
+                            if let crate::tui::app::GlobalMode::GpuDevicePicker {
+                                error,
+                                loading,
+                                ..
+                            } = &mut app.ui.global_mode
+                            {
+                                *error = Some(message);
+                                *loading = false;
+                            }
+                        }
                     }
                 }
 

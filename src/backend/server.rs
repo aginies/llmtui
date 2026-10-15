@@ -243,10 +243,11 @@ pub fn build_server_cmd(
         };
         push_arg(&mut cmd, &mut parts, "--tensor-split", &full_split);
     }
-    // Always pass --main-gpu (even 0) so the user's choice is never silently dropped.
-    let mapped_gpu =
-        crate::backend::hardware::map_main_gpu_to_backend(settings.main_gpu, settings.backend);
-    push_arg(&mut cmd, &mut parts, "--main-gpu", mapped_gpu);
+    // Restrict offloading to the selected GPU devices (from `--list-devices`).
+    // Empty = let llama.cpp use all detected devices.
+    if !settings.devices.is_empty() {
+        push_arg(&mut cmd, &mut parts, "--device", settings.devices.join(","));
+    }
     if settings.fit {
         push_arg(&mut cmd, &mut parts, "--fit", "on");
     }
