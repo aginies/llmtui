@@ -909,6 +909,10 @@ async fn spawn_server_inner(req: SpawnServerRequest<'_>) -> Result<(ServerHandle
         // actually exits. Breaking early used to buffer late kill messages
         // in the channel that were never consumed — kill_server returned Ok
         // but child.kill() was never called and the process was orphaned.
+        // Once both output streams are closed, a child.wait() branch takes
+        // over so a child that dies on its own (crash) is still detected —
+        // the kill branch alone would block forever because the app keeps
+        // the kill sender alive.
         let mut stdout_open = true;
         let mut stderr_open = true;
         let mut kill_open = true;
@@ -980,6 +984,20 @@ async fn spawn_server_inner(req: SpawnServerRequest<'_>) -> Result<(ServerHandle
                             ));
                         }
                     }
+                }
+                // Crash path: once both output streams are closed, wait for
+                // the child to exit directly. Without this branch, a child
+                // that dies on its own (crash, OOM, external kill) leaves
+                // kill_rx.recv() blocking forever — the kill sender is still
+                // alive in the app's ServerHandle — so child.wait() and the
+                // exit notification below never run and the TUI keeps the
+                // server state (and disabled settings) forever.
+                status = child.wait(), if !stdout_open && !stderr_open => {
+                    tracing::info!(
+                        "spawn task: child exited on its own pid={} status={:?}",
+                        pid, status
+                    );
+                    break;
                 }
             }
         }
