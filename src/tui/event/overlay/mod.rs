@@ -12,6 +12,7 @@ mod bench_tune_setup;
 mod chat_template_file_picker;
 mod chat_template_picker;
 mod cmd_line;
+mod command_palette;
 mod confirmation;
 mod dashboard_picker;
 mod dashboard_url;
@@ -28,6 +29,7 @@ mod prompt_picker;
 mod rpc_manager;
 mod search_input;
 mod spec_type_picker;
+mod tensor_split_picker;
 mod web_search_picker;
 mod yarn_rope_settings;
 
@@ -38,6 +40,7 @@ pub use bench_tune_setup::BenchTuneSetupHandler;
 pub use chat_template_file_picker::ChatTemplateFilePickerHandler;
 pub use chat_template_picker::ChatTemplatePickerHandler;
 pub use cmd_line::CmdLineHandler;
+pub use command_palette::CommandPaletteHandler;
 pub use confirmation::ConfirmationHandler;
 pub use dashboard_picker::DashboardPickerHandler;
 pub use dashboard_url::DashboardUrlHandler;
@@ -53,6 +56,7 @@ pub use prompt_picker::PromptPickerHandler;
 pub use rpc_manager::RpcManagerHandler;
 pub use search_input::SearchInputHandler;
 pub use spec_type_picker::SpecTypePickerHandler;
+pub use tensor_split_picker::TensorSplitPickerHandler;
 pub use web_search_picker::{WebSearchPickerHandler, check_web_search_health};
 pub use yarn_rope_settings::YarnRoPESettingsHandler;
 
@@ -76,9 +80,11 @@ impl OverlayRegistry {
             Box::new(CmdLineHandler),
             Box::new(AboutHandler),
             Box::new(SearchInputHandler),
+            Box::new(CommandPaletteHandler),
             Box::new(DashboardPickerHandler),
             Box::new(ApiEndpointPickerHandler),
             Box::new(SpecTypePickerHandler),
+            Box::new(TensorSplitPickerHandler),
             Box::new(ChatTemplatePickerHandler),
             Box::new(ChatTemplateFilePickerHandler),
             Box::new(YarnRoPESettingsHandler),

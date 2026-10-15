@@ -13,7 +13,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     let idx = app.settings_state.settings_selected_idx;
 
     // Build the field list
-    let fields = settings::filtered_fields(app.settings_state.expert_mode);
+    let fields = settings::filtered_fields(app.settings_state.expert_mode, &app.settings);
     let field = fields.get(idx);
     let field_id = field.map(|f| f.id);
 
@@ -221,6 +221,31 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             mark_settings_dirty(app, true);
             return;
         }
+    }
+
+    // Tensor Split: open the picker on Enter (auto / equal / manual)
+    if field_id == Some("tensor_split")
+        && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        let vram = crate::backend::hardware::gpu_vram_gib_cached(
+            std::time::Duration::from_secs(30),
+            app.settings.backend,
+        );
+        let entries = settings::tensor_split_entries(&vram, &app.settings.tensor_split);
+        let selected = entries
+            .iter()
+            .position(|(_, v)| v == &app.settings.tensor_split)
+            .unwrap_or(entries.len() - 1);
+        app.ui.global_mode = GlobalMode::TensorSplitPicker {
+            entries,
+            selected,
+            editing: false,
+            edit_buffer: String::new(),
+            edit_cursor_pos: 0,
+        };
+        mark_settings_dirty(app, false);
+        return;
     }
 
     // Flash Attention: toggle on Enter

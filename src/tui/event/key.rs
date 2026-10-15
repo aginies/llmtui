@@ -84,7 +84,7 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         );
 
         // Ensure selected index is still valid in the new mode
-        let new_fields = settings::filtered_fields(app.settings_state.expert_mode);
+        let new_fields = settings::filtered_fields(app.settings_state.expert_mode, &app.settings);
         if app.settings_state.settings_selected_idx >= new_fields.len() {
             app.settings_state.settings_selected_idx = new_fields.len().saturating_sub(1);
         }
@@ -93,30 +93,23 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         return;
     }
 
+    // Ctrl+Space: open command palette (global, Normal mode only)
+    if key.code == KeyCode::Char(' ')
+        && key.modifiers.contains(KeyModifiers::CONTROL)
+        && !key.modifiers.contains(KeyModifiers::SHIFT)
+        && app.ui.global_mode == GlobalMode::Normal
+    {
+        app.ui.global_mode = GlobalMode::CommandPalette {
+            buffer: String::new(),
+            cursor_pos: 0,
+            selected: 0,
+        };
+        return;
+    }
+
     // Ctrl+G: GGUF filename explanation (global, works from any panel)
     if key.code == KeyCode::Char('g') && key.modifiers.contains(KeyModifiers::CONTROL) {
-        let filename = match &app.models_mode {
-            ModelsMode::List { .. } => app.selected_model().map(|m| m.display_name.clone()),
-            ModelsMode::Search { results, .. } => {
-                if let Some(idx) = app.search.search_results_idx {
-                    if idx < results.len() {
-                        Some(results[idx].model_id.clone())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
-            ModelsMode::Files {
-                files,
-                selected_idx,
-                ..
-            } => selected_idx.and_then(|idx| files.get(idx).map(|(f, _, _)| f.clone())),
-            ModelsMode::BenchTune => None,
-            ModelsMode::Empty => None,
-        };
-        if let Some(fn_name) = filename {
+        if let Some(fn_name) = crate::tui::command_palette::selected_filename(app) {
             let explanation = crate::tui::gguf_naming::get_explanation(
                 &fn_name,
                 &mut app.search.gguf_naming_cache,

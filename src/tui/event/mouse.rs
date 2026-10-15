@@ -27,6 +27,17 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent, area: Rect) {
             picker_wheel_nav(selected, entries.len(), &mouse.kind);
             true
         }
+        crate::tui::app::GlobalMode::TensorSplitPicker {
+            entries,
+            selected,
+            editing,
+            ..
+        } => {
+            if !*editing {
+                picker_wheel_nav(selected, entries.len(), &mouse.kind);
+            }
+            true
+        }
         _ => false,
     };
     if picker_handled {

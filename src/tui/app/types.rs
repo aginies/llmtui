@@ -118,6 +118,13 @@ pub enum GlobalMode {
         entries: Vec<String>,
         selected: usize,
     },
+    TensorSplitPicker {
+        entries: Vec<(String, String)>, // (label, value)
+        selected: usize,
+        editing: bool,
+        edit_buffer: String,
+        edit_cursor_pos: usize,
+    },
     YarnRoPESettings {
         scale: String,
         freq_base: String,
@@ -204,6 +211,13 @@ pub enum GlobalMode {
     SearchInput {
         buffer: String,
         cursor_pos: usize,
+    },
+    /// Fuzzy action finder (Ctrl+Space). `selected` indexes into the
+    /// filtered results, not the full action registry.
+    CommandPalette {
+        buffer: String,
+        cursor_pos: usize,
+        selected: usize,
     },
     GgufNaming {
         explanation: crate::tui::gguf_naming::GgufExplanation,
