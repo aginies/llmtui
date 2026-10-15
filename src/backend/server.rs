@@ -205,14 +205,8 @@ pub fn build_server_cmd(
     // ── GPU ──────────────────────────────────────────────────
     push_gpu_layers(&mut cmd, &mut parts, settings);
 
-    if settings.split_mode != Default::default() {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--split-mode",
-            settings.split_mode.to_string(),
-        );
-    }
+    // Always pass --split-mode so llama-server doesn't auto-detect other GPUs
+    push_arg(&mut cmd, &mut parts, "--split-mode", settings.split_mode.to_string());
     // Build --tensor-split from local GPU + selected RPC workers
     let local_split = if settings.tensor_split.is_empty() {
         // Default: proportional to each GPU's VRAM (e.g. "24,16"); fall back
@@ -1127,56 +1121,11 @@ pub async fn ensure_killed(pid: u32, exit_rx: Option<mpsc::Receiver<()>>) -> Kil
     }
 }
 
-/// Poll metrics from the server.
-pub async fn get_metrics(
-    host: &str,
-    port: u16,
-    model_name: Option<&str>,
-    pid: Option<u32>,
-) -> Result<ServerMetrics, String> {
-    let host = clean_host(host);
-    // We prefer the /metrics endpoint as it's more stable for system info.
-    // In router mode, we can specify the model via query parameter.
-    let mut url = if let Some(model) = model_name {
-        let name = strip_gguf(model);
-        format!(
-            "http://{}:{}/metrics?model={}",
-            host,
-            port,
-            urlencoding::encode(name)
-        )
-    } else {
-        format!("http://{}:{}/metrics", host, port)
-    };
-
-    let mut resp = HTTP_CLIENT
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to get metrics: {}", e))?;
-
-    // If model-specific metrics fail with 404 or 400, try plain /metrics
-    if (resp.status() == reqwest::StatusCode::NOT_FOUND
-        || resp.status() == reqwest::StatusCode::BAD_REQUEST)
-        && model_name.is_some()
-    {
-        url = format!("http://{}:{}/metrics", host, port);
-        resp = HTTP_CLIENT
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| format!("Failed to get metrics: {}", e))?;
-    }
-
-    if !resp.status().is_success() {
-        return Err(format!("Server returned {}", resp.status()));
-    }
-
-    let text = resp
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read metrics: {}", e))?;
-
+/// Parse a Prometheus text exposition from llama-server's /metrics endpoint.
+///
+/// Handles both the legacy `llama_server_*` / `llama_kv_cache_*` names and
+/// the renamed `llamacpp:*` names used by newer builds (b11000+).
+pub fn parse_metrics_text(text: &str) -> ServerMetrics {
     let mut m = ServerMetrics::default();
 
     let mut ctx_max_slots = 0u32;
@@ -1288,6 +1237,9 @@ pub async fn get_metrics(
             | "llama_server_prompt_tps" => {
                 m.prompt_tps += val;
             }
+            "llamacpp:requests_processing" | "llama_server_requests_processing" => {
+                m.busy = m.busy || val > 0.0;
+            }
             "llamacpp:kv_cache_usage_ratio" | "llama_server_kv_cache_usage_ratio" => {
                 if !is_slot && ctx_max_global > 0 {
                     ctx_used_global = ctx_used_global.max((val * ctx_max_global as f64) as u32);
@@ -1328,6 +1280,63 @@ pub async fn get_metrics(
         ctx_max_global
     };
     // ctx_max may be overridden in poll_metrics() by the user-configured value.
+
+    m.loaded = ctx_max_global > 0 || vram_used_global > 0;
+
+    m
+}
+
+/// Poll metrics from the server.
+pub async fn get_metrics(
+    host: &str,
+    port: u16,
+    model_name: Option<&str>,
+    pid: Option<u32>,
+) -> Result<ServerMetrics, String> {
+    let host = clean_host(host);
+    // We prefer the /metrics endpoint as it's more stable for system info.
+    // In router mode, we can specify the model via query parameter.
+    let mut url = if let Some(model) = model_name {
+        let name = strip_gguf(model);
+        format!(
+            "http://{}:{}/metrics?model={}",
+            host,
+            port,
+            urlencoding::encode(name)
+        )
+    } else {
+        format!("http://{}:{}/metrics", host, port)
+    };
+
+    let mut resp = HTTP_CLIENT
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to get metrics: {}", e))?;
+
+    // If model-specific metrics fail with 404 or 400, try plain /metrics
+    if (resp.status() == reqwest::StatusCode::NOT_FOUND
+        || resp.status() == reqwest::StatusCode::BAD_REQUEST)
+        && model_name.is_some()
+    {
+        url = format!("http://{}:{}/metrics", host, port);
+        resp = HTTP_CLIENT
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to get metrics: {}", e))?;
+    }
+
+    if !resp.status().is_success() {
+        return Err(format!("Server returned {}", resp.status()));
+    }
+
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read metrics: {}", e))?;
+
+    let mut m = parse_metrics_text(&text);
 
     // Prefer actual GPU memory usage from nvidia-smi or amdgpu_top.
     // llama-server's kv_cache_usage_bytes only reports KV cache (typically 10%
@@ -1454,8 +1463,6 @@ pub async fn get_metrics(
             m.cpu_usage = cpu;
         }
     }
-
-    m.loaded = ctx_max_global > 0 || vram_used_global > 0;
 
     Ok(m)
 }
