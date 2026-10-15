@@ -600,6 +600,10 @@ fn detect_amd_vram_gib() -> Vec<u32> {
 
 /// Query /sys/class/drm for every discrete GPU's VRAM in card order (Linux).
 /// Used by backends that can see both vendors (Vulkan, custom builds).
+///
+/// sysfs only exposes VRAM for AMD cards (`mem_info_vram_total`); NVIDIA
+/// cards have no such file, so when sysfs yields nothing we fall back to
+/// nvidia-smi (e.g. a Vulkan build on an all-NVIDIA box).
 #[cfg(target_os = "linux")]
 fn detect_all_vram_gib() -> Vec<u32> {
     let mut result = Vec::new();
@@ -617,6 +621,9 @@ fn detect_all_vram_gib() -> Vec<u32> {
         {
             result.push(vram_bytes_to_gib(b));
         }
+    }
+    if result.is_empty() {
+        return detect_nvidia_vram_gib();
     }
     result
 }
