@@ -863,6 +863,14 @@ impl App {
                 if m.gen_tps == 0.0 && self.metrics.gen_tps > 0.0 {
                     m.gen_tps = self.metrics.gen_tps;
                 }
+                // Live stream-counted t/s (per-token) beats log parsing
+                // (throttled by llama.cpp: 100-token threshold, 3 s period).
+                if let Some(rate) = self.server.stream_speed_tracker.as_ref().and_then(|t| {
+                    let mut t = t.lock().unwrap_or_else(|e| e.into_inner());
+                    if t.is_active() { t.rate() } else { None }
+                }) {
+                    m.gen_tps = rate;
+                }
                 // gen_tps from logs is live during generation; override latency with it.
                 if m.gen_tps > 0.0 {
                     m.latency_per_token_ms = 1000.0 / m.gen_tps;
@@ -1408,7 +1416,7 @@ impl App {
             if metrics_tx.send(m).await.is_err() {
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
     }
 
@@ -1838,6 +1846,7 @@ impl App {
             if let Some(proxy) = self.server.api_proxy_handle.take() {
                 proxy.abort();
             }
+            self.server.stream_speed_tracker = None;
             self.server.api_log_tx = None;
             self.server.api_log_rx = None;
             // If a spawn is already in progress, this kill is only replacing the
@@ -2266,6 +2275,7 @@ impl App {
             if let Some(handle) = self.server.api_proxy_handle.take() {
                 handle.abort();
             }
+            self.server.stream_speed_tracker = None;
             self.server.api_log_tx = None;
             self.server.api_log_rx = None;
             self.server.running_api_port = None;
@@ -2470,6 +2480,11 @@ impl App {
             let chat_ui_for_api = self.settings.chat_ui_enabled;
             let transfer_for_api = self.config.default.api_transfer_enabled;
             let transfer_for_api_clone = transfer_for_api;
+            // Live generation-speed tracker shared with the API proxy: the
+            // proxy counts streamed token deltas, the TUI reads the rate.
+            let speed_tracker =
+                Arc::new(Mutex::new(crate::serve_api::StreamSpeedTracker::default()));
+            let speed_tracker_clone = speed_tracker.clone();
             let handle = tokio::spawn(async move {
                 let _ = crate::serve_api::start_api_server(
                     addr,
@@ -2489,10 +2504,12 @@ impl App {
                     effective_ctx_for_api,
                     chat_ui_for_api,
                     transfer_for_api_clone,
+                    speed_tracker_clone,
                 )
                 .await;
             });
             self.server.api_proxy_handle = Some(handle);
+            self.server.stream_speed_tracker = Some(speed_tracker);
             self.server.running_api_port = Some(port);
             self.server.running_api_server_port = Some(server_port);
             self.server.running_api_model = Some(model_name);

@@ -2,7 +2,7 @@ use std::io::Write;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitStatus;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use anyhow::{Context, Result};
 use tokio::io::AsyncBufReadExt;
@@ -610,6 +610,7 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
                 effective_ctx_for_api,
                 chat_ui_for_api,
                 transfer_for_api,
+                Arc::new(Mutex::new(crate::serve_api::StreamSpeedTracker::default())),
             )
             .await;
             let _ = api_done_tx.send(result.map_err(|e| e.to_string()));

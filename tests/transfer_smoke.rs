@@ -4,7 +4,7 @@
 use std::io::Write;
 use std::sync::Arc;
 
-use llm_manager::serve_api::{WebSearchConfig, start_api_server};
+use llm_manager::serve_api::{StreamSpeedTracker, WebSearchConfig, start_api_server};
 
 fn make_tar_gz() -> Vec<u8> {
     use flate2::Compression;
@@ -69,6 +69,7 @@ async fn boot(
             0,
             false,
             transfer_enabled,
+            Arc::new(std::sync::Mutex::new(StreamSpeedTracker::default())),
         )
         .await;
     });
