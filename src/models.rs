@@ -175,7 +175,7 @@ impl std::hash::Hash for ModelSettings {
         self.gpu_layers_mode.hash(state);
         self.split_mode.hash(state);
         self.tensor_split.hash(state);
-        self.main_gpu.hash(state);
+        self.devices.hash(state);
         self.fit.hash(state);
         self.lora.hash(state);
         if let Some((path, scale)) = &self.lora_scaled {
@@ -367,7 +367,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             },
             split_mode: dp.split_mode,
             tensor_split: dp.tensor_split,
-            main_gpu: dp.main_gpu,
+            devices: dp.devices.clone(),
             fit: dp.fit,
             lora: dp.lora,
             lora_scaled: dp.lora_scaled,
@@ -1035,8 +1035,9 @@ pub struct ModelSettings {
     pub split_mode: SplitMode,
     /// Fraction of model offloaded to each GPU (comma-separated).
     pub tensor_split: String,
-    /// Main GPU index.
-    pub main_gpu: i32,
+    /// GPU device names to restrict offloading to (from `llama-server --list-devices`).
+    /// Empty = use all detected devices.
+    pub devices: Vec<String>,
     /// Whether to adjust arguments to fit device memory.
     pub fit: bool,
     /// Path to LoRA adapter.
@@ -2703,7 +2704,7 @@ mod field_count_tests {
             &s.gpu_layers_mode,
             &s.split_mode,
             &s.tensor_split,
-            &s.main_gpu,
+            &s.devices,
             &s.fit,
             &s.lora,
             &s.lora_scaled,

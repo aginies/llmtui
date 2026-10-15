@@ -258,6 +258,14 @@ pub enum GlobalMode {
         edit_buffer: String,
         edit_cursor_pos: usize,
     },
+    GpuDevicePicker {
+        // (name, info); index 0 is the special "(default) — all devices" entry.
+        entries: Vec<(String, String)>,
+        selected: usize,
+        checked: Vec<bool>,
+        loading: bool,
+        error: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

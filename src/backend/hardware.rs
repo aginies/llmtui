@@ -472,6 +472,9 @@ pub fn detect_all_gpus() -> Vec<GpuInfo> {
 pub struct GpuCache {
     pub vendors: Vec<GpuVendor>,
     pub models: Vec<Option<String>>,
+    // Retained as part of the public GPU-cache API; the TUI no longer reads
+    // it directly (the GPU device picker uses `llama-server --list-devices`).
+    #[allow(dead_code)]
     pub all_gpus: Vec<GpuInfo>,
 }
 
@@ -496,39 +499,102 @@ pub fn gpu_info_cached(ttl: std::time::Duration) -> GpuCache {
     cache
 }
 
-/// Map a global GPU index (from detect_all_gpus) to a backend-specific index.
-/// This is needed because some llama-server backends (like CUDA and ROCm) only see GPUs of their
-/// respective platforms (e.g. CUDA only sees NVIDIA devices, ROCm only sees AMD devices).
-pub fn map_main_gpu_to_backend(global_index: i32, backend: crate::models::Backend) -> i32 {
-    if global_index <= 0 {
-        return 0;
-    }
+// ── GPU device listing (llama-server --list-devices) ───────────────────────
 
-    let is_cuda = backend.is_cuda();
-    let is_rocm = backend.is_rocm();
+/// A GPU device as reported by `llama-server --list-devices`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LlamaDevice {
+    /// Device name used with `--device` (e.g. "CUDA0", "Vulkan0").
+    pub name: String,
+    /// Human-readable description (e.g. "NVIDIA GeForce RTX 4090 (24564 MiB, 24000 MiB free)").
+    pub info: String,
+}
 
-    if !is_cuda && !is_rocm {
-        return global_index;
-    }
-
-    let gpus = gpu_info_cached(std::time::Duration::from_secs(30)).all_gpus;
-    let target_vendor = if is_cuda {
-        GpuVendor::Nvidia
-    } else {
-        GpuVendor::Amd
-    };
-
-    let mut vendor_index = -1;
-    for (i, gpu) in gpus.iter().enumerate() {
-        if gpu.vendor == target_vendor {
-            vendor_index += 1;
+/// Parse the stdout of `llama-server --list-devices`.
+///
+/// Expected line format (CPU devices are excluded by llama.cpp):
+/// ```text
+/// Available devices:
+///  CUDA0: NVIDIA GeForce RTX 4090 (24564 MiB, 24000 MiB free)
+///  Vulkan0: AMD Radeon RX 7900 XTX (16384 MiB, 16000 MiB free)
+/// ```
+pub fn parse_list_devices_output(output: &str) -> Vec<LlamaDevice> {
+    let mut devices = Vec::new();
+    for line in output.lines() {
+        let trimmed = line.trim();
+        // A device line looks like "CUDA0: <info>" — a name, a colon, then info.
+        // Skip the "Available devices:" header and any line without that shape.
+        let Some(colon) = trimmed.find(':') else {
+            continue;
+        };
+        let name = trimmed[..colon].trim();
+        let info = trimmed[colon + 1..].trim();
+        // The name must be a single non-empty token (e.g. "CUDA0"); the header
+        // "Available devices" contains a space, so it is rejected here.
+        if name.is_empty() || name.contains(' ') || info.is_empty() {
+            continue;
         }
-        if i == global_index as usize {
-            break;
+        devices.push(LlamaDevice {
+            name: name.to_string(),
+            info: info.to_string(),
+        });
+    }
+    devices
+}
+
+#[derive(Debug, Clone, Default)]
+struct DeviceCache {
+    backend: Option<crate::models::Backend>,
+    devices: Vec<LlamaDevice>,
+}
+
+static DEVICE_CACHE: std::sync::Mutex<Option<(std::time::Instant, DeviceCache)>> =
+    std::sync::Mutex::new(None);
+
+/// List the GPU devices a backend can offload to, by running
+/// `llama-server --list-devices` on the resolved backend binary.
+///
+/// Results are cached per backend for a short TTL so repeatedly opening the
+/// picker is cheap.
+pub async fn list_devices(
+    backend: crate::models::Backend,
+    version: Option<&str>,
+    strix_halo_rocm: Option<&str>,
+) -> anyhow::Result<Vec<LlamaDevice>> {
+    const TTL: std::time::Duration = std::time::Duration::from_secs(30);
+    {
+        let guard = DEVICE_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((at, cache)) = guard.as_ref()
+            && at.elapsed() < TTL
+            && cache.backend == Some(backend)
+        {
+            return Ok(cache.devices.clone());
         }
     }
 
-    if vendor_index >= 0 { vendor_index } else { 0 }
+    let binary =
+        crate::backend::hub::resolve_backend_binary(backend, version, strix_halo_rocm, None, None)
+            .await?;
+
+    let output = tokio::process::Command::new(&binary)
+        .arg("--list-devices")
+        .output()
+        .await
+        .map_err(|e| anyhow::anyhow!("failed to run {}: {}", binary.display(), e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let devices = parse_list_devices_output(&stdout);
+
+    let mut guard = DEVICE_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    *guard = Some((
+        std::time::Instant::now(),
+        DeviceCache {
+            backend: Some(backend),
+            devices: devices.clone(),
+        },
+    ));
+
+    Ok(devices)
 }
 
 // ── GPU VRAM detection (default --tensor-split) ─────────────────────────────

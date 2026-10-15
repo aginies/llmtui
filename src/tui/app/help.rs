@@ -439,8 +439,8 @@ impl App {
                     Span::raw(format!("  {}", crate::t!("field.help.tensor_split"))),
                 ]),
                 Line::from(vec![
-                    Span::styled("Main GPU", y),
-                    Span::raw(format!("  {}", crate::t!("field.help.main_gpu"))),
+                    Span::styled("GPU Devices", y),
+                    Span::raw(format!("  {}", crate::t!("field.help.devices"))),
                 ]),
                 Line::from(vec![
                     Span::styled("Fit", y),
