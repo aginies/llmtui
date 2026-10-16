@@ -586,7 +586,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 top_k: Some(20),
                 top_p: Some(0.95),
                 max_tokens: Some(4096),
-                presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 ..Default::default()
@@ -600,7 +599,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 temperature: Some(0.6),
                 top_k: Some(20),
                 top_p: Some(0.95),
-                presence_penalty: Some(1.5),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 spec_type: Some("draft-mtp".into()),
@@ -618,7 +616,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 top_k: Some(20),
                 top_p: Some(0.95),
                 max_tokens: Some(4096),
-                presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 ..Default::default()
@@ -688,7 +685,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 top_k: Some(40),
                 top_p: Some(0.95),
                 max_tokens: Some(8192),
-                presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 ..Default::default()
@@ -702,7 +698,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 temperature: Some(0.2),
                 top_k: Some(50),
                 top_p: Some(1.0),
-                presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 ..Default::default()
@@ -1006,10 +1001,10 @@ fn default_threads_batch() -> u32 {
     8
 }
 fn default_batch_size() -> u32 {
-    8192
+    2048
 }
 fn default_ubatch_size() -> u32 {
-    512
+    2048
 }
 fn default_uniform_cache() -> bool {
     true
