@@ -132,7 +132,9 @@ fn test_build_server_cmd_ubatch_clamped_to_batch() {
 fn test_build_server_cmd_ubatch_unchanged_when_below_batch() {
     let binary = PathBuf::from("/usr/bin/llama-server");
     let model = make_model("/models/qwen.gguf", "qwen", "Qwen");
-    let settings = make_settings(); // batch 8192, ubatch 512
+    let mut settings = make_settings(); // defaults: batch 2048, ubatch 2048
+    settings.batch_size = 8192;
+    settings.ubatch_size = 512;
     let config = make_config();
 
     let (_cmd, display) = build_server_cmd(
