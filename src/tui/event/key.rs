@@ -846,14 +846,10 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                 let p = &config.params_to_test[*selected_idx];
                 if p.name != "spec_type" && !(p.name == "draft_tokens" && is_spec_off) {
                     *editing_param = true;
-                    if !p.variants.is_empty() {
-                        *editing_param_field = -1;
-                        param_edit_buffer.clear();
-                    } else {
-                        *editing_param_field = 0;
-                        param_edit_buffer.clone_from(&p.min.to_string());
-                        *param_edit_cursor_pos = param_edit_buffer.len();
-                    }
+                    *editing_param_field = 0;
+                    // Empty buffer: type a fresh value; committing empty keeps the current one
+                    param_edit_buffer.clear();
+                    *param_edit_cursor_pos = 0;
                 }
             }
             KeyCode::Up | KeyCode::Char('k') => {
@@ -911,6 +907,16 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
             KeyCode::Tab
                 if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() =>
             {
+                // Commit the current field before advancing so typed values are not lost
+                if let Ok(val) = param_edit_buffer.parse::<f64>() {
+                    let p = &mut config.params_to_test[*selected_idx];
+                    match *editing_param_field {
+                        0 => p.min = val,
+                        1 => p.max = val,
+                        2 if val > 0.0 => p.step = val,
+                        _ => {}
+                    }
+                }
                 *editing_param_field = (*editing_param_field + 1).min(2);
                 let p = &config.params_to_test[*selected_idx];
                 let val = match *editing_param_field {
@@ -930,6 +936,16 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
             KeyCode::BackTab
                 if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() =>
             {
+                // Commit the current field before advancing so typed values are not lost
+                if let Ok(val) = param_edit_buffer.parse::<f64>() {
+                    let p = &mut config.params_to_test[*selected_idx];
+                    match *editing_param_field {
+                        0 => p.min = val,
+                        1 => p.max = val,
+                        2 if val > 0.0 => p.step = val,
+                        _ => {}
+                    }
+                }
                 *editing_param_field = if *editing_param_field <= 0 {
                     2
                 } else {
@@ -949,29 +965,6 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                     *param_edit_buffer = format!("{:.2}", val);
                 }
                 *param_edit_cursor_pos = param_edit_buffer.len();
-            }
-            KeyCode::Char('+')
-                if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() =>
-            {
-                let current_idx = if *editing_param_field < -1 {
-                    (*editing_param_field + 2) as usize
-                } else {
-                    0
-                };
-                let variants = &config.params_to_test[*selected_idx].variants;
-                *editing_param_field = -(((current_idx + 1) % variants.len()) as i32 + 2);
-            }
-            KeyCode::Char('-')
-                if *editing_param && !config.params_to_test[*selected_idx].variants.is_empty() =>
-            {
-                let current_idx = if *editing_param_field < -1 {
-                    (*editing_param_field + 2) as usize
-                } else {
-                    0
-                };
-                let variants = &config.params_to_test[*selected_idx].variants;
-                *editing_param_field =
-                    -(((current_idx + variants.len() - 1) % variants.len()) as i32 + 2);
             }
             KeyCode::Char(' ') => {
                 if *editing_prompt {
@@ -1008,17 +1001,6 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                     cursor: param_edit_cursor_pos,
                 }
                 .insert_char(c);
-            }
-            KeyCode::Char(c)
-                if *editing_param
-                    && !config.params_to_test[*selected_idx].variants.is_empty()
-                    && c.is_ascii_digit() =>
-            {
-                let idx = c.to_digit(10).unwrap() as usize;
-                let variants = &config.params_to_test[*selected_idx].variants;
-                if idx < variants.len() {
-                    *editing_param_field = -(idx as i32 + 2);
-                }
             }
             KeyCode::Char(c) => {
                 if *editing_prompt {
@@ -1092,17 +1074,7 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
             KeyCode::Enter => {
                 if *editing_param {
                     if *selected_idx < config.params_to_test.len() {
-                        if !config.params_to_test[*selected_idx].variants.is_empty() {
-                            // Cycle to next variant, stay in editing mode
-                            let current_idx = if *editing_param_field < -1 {
-                                (*editing_param_field + 2) as usize
-                            } else {
-                                0
-                            };
-                            let variants = &config.params_to_test[*selected_idx].variants;
-                            let next_idx = (current_idx + 1) % variants.len();
-                            *editing_param_field = -(next_idx as i32 + 2);
-                        } else if let Ok(val) = param_edit_buffer.parse::<f64>() {
+                        if let Ok(val) = param_edit_buffer.parse::<f64>() {
                             match *editing_param_field {
                                 0 => config.params_to_test[*selected_idx].min = val,
                                 1 => config.params_to_test[*selected_idx].max = val,
@@ -1122,12 +1094,8 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                             config.params_to_test[*selected_idx].step = max_val - min_val;
                         }
                     }
-                    if !config.params_to_test[*selected_idx].variants.is_empty() {
-                        // Stay in variant editing mode
-                    } else {
-                        *editing_param = false;
-                        param_edit_buffer.clear();
-                    }
+                    *editing_param = false;
+                    param_edit_buffer.clear();
                 } else if *editing_prompt {
                     *editing_prompt = false;
                 } else if *editing_kwargs {
