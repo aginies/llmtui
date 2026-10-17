@@ -292,25 +292,27 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     if let GlobalMode::BenchTuneSetup {
         config,
         selected_idx,
+        editing_field,
+        field_edit_buffer,
+        field_edit_cursor,
         editing_param,
         editing_param_field,
         param_edit_buffer,
         param_edit_cursor_pos,
-        editing_prompt,
-        editing_kwargs: _,
     } = &app.ui.global_mode
     {
         render_bench_tune_setup(
             f,
             f.area(),
-            app,
             config,
             *selected_idx,
+            *editing_field,
+            field_edit_buffer,
+            *field_edit_cursor,
             *editing_param,
             *editing_param_field,
             param_edit_buffer,
             *param_edit_cursor_pos,
-            *editing_prompt,
         );
         return true;
     }
@@ -1616,14 +1618,15 @@ fn render_backend_picker(
 fn render_bench_tune_setup(
     f: &mut Frame,
     area: Rect,
-    app: &App,
     config: &crate::models::BenchTuneConfig,
     selected_idx: usize,
+    editing_field: Option<crate::models::BenchTuneField>,
+    field_edit_buffer: &str,
+    field_edit_cursor: usize,
     editing_param: bool,
     editing_param_field: i32,
     param_edit_buffer: &str,
     param_edit_cursor_pos: usize,
-    editing_prompt: bool,
 ) {
     let w = 90u16;
     let h = 30.min(area.height - 4);
@@ -1645,23 +1648,28 @@ fn render_bench_tune_setup(
     f.render_widget(Clear, popup_area);
     f.render_widget(block, popup_area);
     let regions = ratatui::layout::Layout::vertical([
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Length(5),
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Min(0),
-        ratatui::layout::Constraint::Length(7),
+        ratatui::layout::Constraint::Length(1), // [0] spacer
+        ratatui::layout::Constraint::Length(1), // [1] mode line (iters + tokens)
+        ratatui::layout::Constraint::Length(1), // [2] spec-type row
+        ratatui::layout::Constraint::Length(1), // [3] spacer
+        ratatui::layout::Constraint::Length(5), // [4] prompt box
+        ratatui::layout::Constraint::Length(1), // [5] spacer
+        ratatui::layout::Constraint::Length(1), // [6] param header
+        ratatui::layout::Constraint::Min(0),    // [7] param table
+        ratatui::layout::Constraint::Length(7), // [8] footer
     ])
     .split(inner_area);
-    let iters_display = if app.edit.editing_iters {
-        format!("{}|", app.edit.iters_edit_buffer)
+
+    // ---- Mode line: Iters + Max Tokens (single-field editing) ----
+    let iters_editing = editing_field == Some(crate::models::BenchTuneField::Iters);
+    let tokens_editing = editing_field == Some(crate::models::BenchTuneField::NPredict);
+    let iters_display = if iters_editing {
+        bench_tune_cursor_text(field_edit_buffer, field_edit_cursor)
     } else {
         config.num_iterations.to_string()
     };
-    let tokens_display = if app.edit.editing_n_predict {
-        format!("{}|", app.edit.n_predict_edit_buffer)
+    let tokens_display = if tokens_editing {
+        bench_tune_cursor_text(field_edit_buffer, field_edit_cursor)
     } else {
         config.n_predict.to_string()
     };
@@ -1672,7 +1680,7 @@ fn render_bench_tune_setup(
         ),
         Span::styled(
             iters_display,
-            if app.edit.editing_iters {
+            if iters_editing {
                 Style::default().fg(BLACK).bg(CYAN)
             } else {
                 Style::default().fg(CYAN)
@@ -1685,7 +1693,7 @@ fn render_bench_tune_setup(
         ),
         Span::styled(
             tokens_display,
-            if app.edit.editing_n_predict {
+            if tokens_editing {
                 Style::default().fg(BLACK).bg(CYAN)
             } else {
                 Style::default().fg(CYAN)
@@ -1693,26 +1701,53 @@ fn render_bench_tune_setup(
         ),
     ]);
     f.render_widget(Paragraph::new(mode_line), regions[1]);
+
+    // ---- Spec-type mode selector (cycled with Left/Right) ----
+    let spec_line = if let Some(si) = config.spec_type_idx() {
+        let p = &config.params_to_test[si];
+        let variant = if p.variants.is_empty() {
+            "Off".to_string()
+        } else {
+            let idx = (p.min as usize).min(p.variants.len() - 1);
+            p.variants[idx].clone()
+        };
+        Line::from(vec![
+            Span::styled(
+                crate::t!("dialog.bench_config.spec"),
+                Style::default().fg(ACCENT),
+            ),
+            Span::styled(
+                format!(" {} ", variant),
+                Style::default()
+                    .fg(BLACK)
+                    .bg(CYAN)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                crate::t!("dialog.bench_config.spec_hint"),
+                Style::default().fg(DIM_GRAY),
+            ),
+        ])
+    } else {
+        Line::default()
+    };
+    f.render_widget(Paragraph::new(spec_line), regions[2]);
+
+    // ---- Prompt box ----
+    let editing_prompt = editing_field == Some(crate::models::BenchTuneField::Prompt);
     let prompt_title = if editing_prompt {
         crate::t!("dialog.bench_config.editing_prompt")
     } else {
         crate::t!("dialog.bench_config.prompt")
     };
-    let prompt_content = if config.prompt.is_empty() {
-        crate::t!("dialog.bench_config.empty_prompt").to_string()
-    } else {
-        config.prompt.clone()
-    };
     let prompt_lines = if editing_prompt {
-        let mut display_text = config.prompt.clone();
-        let cursor_pos = app.edit.edit_cursor_pos.min(display_text.len());
-        display_text.insert(cursor_pos, '|');
+        let display = bench_tune_cursor_text(field_edit_buffer, field_edit_cursor);
         vec![
-            Line::from(display_text),
+            Line::from(display),
             Line::from(""),
             Line::from(vec![
                 Span::styled(
-                    format!(" [{} chars] ", config.prompt.len()),
+                    format!(" [{} chars] ", field_edit_buffer.len()),
                     Style::default().fg(CYAN),
                 ),
                 Span::styled(
@@ -1722,8 +1757,13 @@ fn render_bench_tune_setup(
             ]),
         ]
     } else {
+        let content = if config.prompt.is_empty() {
+            crate::t!("dialog.bench_config.empty_prompt").to_string()
+        } else {
+            config.prompt.clone()
+        };
         vec![
-            Line::from(prompt_content),
+            Line::from(content),
             Line::from(vec![Span::styled(
                 format!(" [{} chars] ", config.prompt.len()),
                 Style::default().fg(DIM_GRAY),
@@ -1744,9 +1784,10 @@ fn render_bench_tune_setup(
                     .border_type(BorderType::Rounded),
             )
             .wrap(Wrap { trim: true }),
-        regions[3],
+        regions[4],
     );
 
+    // ---- Param header ----
     let param_header_lines: Vec<Line> =
         if editing_param && selected_idx < config.params_to_test.len() {
             let p = &config.params_to_test[selected_idx];
@@ -1773,7 +1814,6 @@ fn render_bench_tune_setup(
                     Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
                 ),
             ])];
-            // Validation warnings
             if p.min >= p.max {
                 lines.push(Line::from(Span::styled(
                     crate::t!("dialog.bench_config.error_min"),
@@ -1802,29 +1842,21 @@ fn render_bench_tune_setup(
                 ),
             ])]
         };
-    f.render_widget(Paragraph::new(param_header_lines), regions[5]);
+    f.render_widget(Paragraph::new(param_header_lines), regions[6]);
 
-    let is_spec_off = config
-        .params_to_test
-        .iter()
-        .find(|p| p.name == "spec_type")
-        .map(|p| p.min as usize == 0)
-        .unwrap_or(true);
-
+    // ---- Param table (spec_type excluded; it lives in the row above) ----
+    let spec_idx = config.spec_type_idx();
+    let spec_off = config.spec_off();
     let data_rows: Vec<Row> = config
         .params_to_test
         .iter()
         .enumerate()
+        .filter(|(i, _)| Some(*i) != spec_idx)
         .map(|(i, p)| {
             let marker = if i == selected_idx { ">" } else { " " };
             let is_selected = i == selected_idx;
-            let checkbox = if p.name == "spec_type" {
-                if is_selected {
-                    if p.enabled { "[X]" } else { "[ ]" }
-                } else {
-                    " - "
-                }
-            } else if p.name == "draft_tokens" && is_spec_off {
+            let draft_disabled = p.name == "draft_tokens" && spec_off;
+            let checkbox = if draft_disabled {
                 " - "
             } else if p.enabled {
                 "[X]"
@@ -1832,39 +1864,16 @@ fn render_bench_tune_setup(
                 "[ ]"
             };
             let name = p.name.replace("_", " ");
-            let desc_str = if p.name == "spec_type" {
-                let base_idx = (p.min as usize).min(p.variants.len().saturating_sub(1));
-                format!("▶ {}", p.variants[base_idx])
-            } else if p.name == "draft_tokens" && is_spec_off {
+            let desc_str = if draft_disabled {
                 crate::t!("dialog.bench_config.disabled").to_string()
-            } else if !p.variants.is_empty() {
-                let base_idx = (p.min as isize).max(0) as usize;
-                let base_idx = base_idx.min(p.variants.len().saturating_sub(1));
-                p.variants
-                    .iter()
-                    .enumerate()
-                    .map(|(i, v)| {
-                        if i == base_idx {
-                            format!("[{}]", v)
-                        } else {
-                            format!("({})", v)
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("│")
             } else if editing_param && is_selected {
                 let cursor_pos = param_edit_cursor_pos.min(param_edit_buffer.len());
                 let before: String = param_edit_buffer.chars().take(cursor_pos).collect();
                 let after: String = param_edit_buffer.chars().skip(cursor_pos).collect();
-                let cursor_char = if editing_param && is_selected {
-                    "|"
-                } else {
-                    ""
-                };
                 let fields: Vec<String> = (0..=2)
                     .map(|f| {
                         if f == editing_param_field {
-                            format!("[{}{}{}]", before, after, cursor_char)
+                            format!("[{}{}|]", before, after)
                         } else {
                             match f {
                                 0 => format!("{:.2}", p.min),
@@ -1894,7 +1903,7 @@ fn render_bench_tune_setup(
             } else {
                 Style::default().fg(WHITE)
             };
-            let desc_style = if p.name == "draft_tokens" && is_spec_off {
+            let desc_style = if draft_disabled {
                 if is_selected {
                     Style::default().fg(DIM_GRAY).add_modifier(Modifier::DIM)
                 } else {
@@ -1909,7 +1918,7 @@ fn render_bench_tune_setup(
                 Cell::from(Span::styled(marker, Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     checkbox,
-                    if p.name == "spec_type" || (p.name == "draft_tokens" && is_spec_off) {
+                    if draft_disabled {
                         Style::default().fg(DIM_GRAY)
                     } else if p.enabled {
                         Style::default().fg(GREEN)
@@ -1932,7 +1941,9 @@ fn render_bench_tune_setup(
             Constraint::Fill(1),
         ],
     );
-    f.render_widget(table, regions[6]);
+    f.render_widget(table, regions[7]);
+
+    // ---- Footer ----
     let total_tests = config.get_total_tests_count();
     let num_combinations = config.get_num_combinations();
     let footer_lines = vec![
@@ -1945,8 +1956,8 @@ fn render_bench_tune_setup(
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" [Alt+M]", Style::default().fg(ACCENT)),
-            Span::raw(" Mode "),
+            Span::styled(" [Alt+P]", Style::default().fg(ACCENT)),
+            Span::raw(" Prompt "),
             Span::styled(" [Alt+N]", Style::default().fg(ACCENT)),
             Span::raw(" Tokens "),
             Span::styled(" [Alt+I]", Style::default().fg(ACCENT)),
@@ -1985,8 +1996,16 @@ fn render_bench_tune_setup(
     ];
     f.render_widget(
         Paragraph::new(footer_lines).alignment(Alignment::Center),
-        regions[7],
+        regions[8],
     );
+}
+
+/// Render an edit buffer with a `|` cursor at the given (char) position.
+fn bench_tune_cursor_text(buffer: &str, cursor: usize) -> String {
+    let cursor = cursor.min(buffer.chars().count());
+    let before: String = buffer.chars().take(cursor).collect();
+    let after: String = buffer.chars().skip(cursor).collect();
+    format!("{before}|{after}")
 }
 
 fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {

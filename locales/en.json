@@ -234,6 +234,8 @@
   "dialog.bench_config.title": " Benchmark Configuration ",
   "dialog.bench_config.iters": " Iters: ",
   "dialog.bench_config.max_tokens": " Max Tokens: ",
+  "dialog.bench_config.spec": " Spec:",
+  "dialog.bench_config.spec_hint": "  ←/→ to cycle",
   "dialog.bench_config.editing_prompt": " Editing Prompt... ",
   "dialog.bench_config.prompt": " Prompt (Alt+P to edit) ",
   "dialog.bench_config.empty_prompt": "(Empty prompt)",
