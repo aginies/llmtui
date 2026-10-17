@@ -236,10 +236,6 @@ pub struct UIState {
 
 pub struct EditState {
     pub edit_cursor_pos: usize,
-    pub editing_n_predict: bool,
-    pub n_predict_edit_buffer: String,
-    pub editing_iters: bool,
-    pub iters_edit_buffer: String,
     pub tags_editing: bool,
     pub tags_edit_buffer: String,
     pub tags_selected_idx: Option<usize>,

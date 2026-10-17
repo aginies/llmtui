@@ -210,9 +210,9 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ));
     }
-    if let GlobalMode::BenchTuneSetup { editing_prompt, .. } = &app.ui.global_mode {
+    if let GlobalMode::BenchTuneSetup { editing_field, .. } = &app.ui.global_mode {
         status_parts.push(Span::raw("  "));
-        if *editing_prompt {
+        if *editing_field == Some(crate::models::BenchTuneField::Prompt) {
             status_parts.push(Span::styled(
                 crate::t!("status.editing_prompt").to_string(),
                 Style::default().fg(CYAN).add_modifier(Modifier::BOLD),

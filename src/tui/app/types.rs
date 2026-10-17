@@ -3,8 +3,8 @@ use crate::config::Config;
 use crate::config::Profile;
 use crate::models::Backend;
 use crate::models::{
-    BenchTuneConfig, DiscoveredModel, ListSort, ModelSettings, ModelState, SearchResult,
-    SearchSort, ServerMetrics,
+    BenchTuneConfig, BenchTuneField, DiscoveredModel, ListSort, ModelSettings, ModelState,
+    SearchResult, SearchSort, ServerMetrics,
 };
 use ratatui::layout::Rect;
 use ratatui::text::Line;
@@ -137,12 +137,15 @@ pub enum GlobalMode {
     BenchTuneSetup {
         config: BenchTuneConfig,
         selected_idx: usize,
+        /// Single-field text editing (prompt/kwargs/tokens/iters): which field, if any.
+        editing_field: Option<BenchTuneField>,
+        field_edit_buffer: String,
+        field_edit_cursor: usize,
+        /// Range editing (Min/Max/Step) for the selected param.
         editing_param: bool,
         editing_param_field: i32,
         param_edit_buffer: String,
         param_edit_cursor_pos: usize,
-        editing_prompt: bool,
-        editing_kwargs: bool,
     },
     PromptPicker {
         entries: Vec<(String, String)>, // (name, description)

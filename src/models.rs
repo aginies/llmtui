@@ -2272,6 +2272,16 @@ pub struct BenchTuneConfig {
     pub test_timeout: Duration,
 }
 
+/// Which single scalar/text field of a [BenchTuneConfig] the setup picker is
+/// editing. All four share one edit buffer + cursor in the picker state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BenchTuneField {
+    Prompt,
+    Kwargs,
+    NPredict,
+    Iters,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchTuneParam {
     pub name: String,
@@ -2524,6 +2534,20 @@ impl BenchTuneConfig {
             chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
             test_timeout: Duration::from_secs(60),
         }
+    }
+
+    /// Index of the `spec_type` param in `params_to_test`, if present.
+    pub fn spec_type_idx(&self) -> Option<usize> {
+        self.params_to_test
+            .iter()
+            .position(|p| p.name == "spec_type")
+    }
+
+    /// Whether the spec-type mode is currently "Off" (variant index 0).
+    pub fn spec_off(&self) -> bool {
+        self.spec_type_idx()
+            .map(|i| self.params_to_test[i].min as usize == 0)
+            .unwrap_or(true)
     }
 
     /// Generate all parameter combinations based on the config
