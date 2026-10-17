@@ -1747,66 +1747,9 @@ fn render_bench_tune_setup(
         regions[3],
     );
 
-    let param_header_lines: Vec<Line> = if editing_param
-        && selected_idx < config.params_to_test.len()
-    {
-        let p = &config.params_to_test[selected_idx];
-        if !p.variants.is_empty() {
-            let selected_variant_idx = if editing_param_field < -1 {
-                ((editing_param_field + 2) as isize).max(0) as usize
-            } else {
-                0
-            };
-            let selected_variant_idx = selected_variant_idx.min(p.variants.len().saturating_sub(1));
-            let selected_name = p
-                .variants
-                .get(selected_variant_idx)
-                .map(|s: &String| s.as_str())
-                .unwrap_or("");
-            let mut lines = vec![Line::from(vec![
-                Span::raw(crate::t!("dialog.bench_config.select_params")),
-                Span::styled(
-                    crate::t!("dialog.bench_config.edit_hint"),
-                    Style::default().fg(ACCENT),
-                ),
-                Span::raw(")  "),
-                Span::styled(" [←/→: cycle] ", Style::default().fg(DIM_GRAY)),
-                Span::styled(
-                    format!(
-                        "{} {}",
-                        crate::t!("dialog.bench_config.editing"),
-                        selected_name
-                    ),
-                    Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(
-                    format!(" ({}/{})", selected_variant_idx + 1, p.variants.len()),
-                    Style::default().fg(DIM_GRAY),
-                ),
-            ])];
-            if editing_param_field >= 0 && p.variants.is_empty() {
-                // Show validation warnings only for numeric params
-                if p.min >= p.max {
-                    lines.push(Line::from(Span::styled(
-                        crate::t!("dialog.bench_config.error_min"),
-                        Style::default().fg(RED),
-                    )));
-                }
-                if p.step <= 0.0 {
-                    lines.push(Line::from(Span::styled(
-                        crate::t!("dialog.bench_config.error_step"),
-                        Style::default().fg(RED),
-                    )));
-                }
-                if p.step >= (p.max - p.min) && (p.max - p.min) > 0.001 {
-                    lines.push(Line::from(Span::styled(
-                        " ⚠ step ≥ range — only 2 values will be tested",
-                        Style::default().fg(ACCENT),
-                    )));
-                }
-            }
-            lines
-        } else {
+    let param_header_lines: Vec<Line> =
+        if editing_param && selected_idx < config.params_to_test.len() {
+            let p = &config.params_to_test[selected_idx];
             let field_names = ["Min", "Max", "Step"];
             let active_field_name = if (0..3).contains(&editing_param_field) {
                 field_names[editing_param_field as usize]
@@ -1850,16 +1793,15 @@ fn render_bench_tune_setup(
                 )));
             }
             lines
-        }
-    } else {
-        vec![Line::from(vec![
-            Span::raw(crate::t!("dialog.bench_config.params_label")),
-            Span::styled(
-                crate::t!("dialog.bench_config.toggle_hint"),
-                Style::default().fg(DIM_GRAY),
-            ),
-        ])]
-    };
+        } else {
+            vec![Line::from(vec![
+                Span::raw(crate::t!("dialog.bench_config.params_label")),
+                Span::styled(
+                    crate::t!("dialog.bench_config.toggle_hint"),
+                    Style::default().fg(DIM_GRAY),
+                ),
+            ])]
+        };
     f.render_widget(Paragraph::new(param_header_lines), regions[5]);
 
     let is_spec_off = config
@@ -1895,23 +1837,6 @@ fn render_bench_tune_setup(
                 format!("▶ {}", p.variants[base_idx])
             } else if p.name == "draft_tokens" && is_spec_off {
                 crate::t!("dialog.bench_config.disabled").to_string()
-            } else if editing_param && is_selected && editing_param_field < -1 {
-                let selected_variant_idx = ((editing_param_field + 2) as isize).max(0) as usize;
-                let selected_variant_idx =
-                    selected_variant_idx.min(p.variants.len().saturating_sub(1));
-                let variant_names: Vec<String> = p
-                    .variants
-                    .iter()
-                    .enumerate()
-                    .map(|(i, v)| {
-                        if i == selected_variant_idx {
-                            format!("▶{}", v)
-                        } else {
-                            format!(" {} ", v)
-                        }
-                    })
-                    .collect();
-                variant_names.join("│")
             } else if !p.variants.is_empty() {
                 let base_idx = (p.min as isize).max(0) as usize;
                 let base_idx = base_idx.min(p.variants.len().saturating_sub(1));
@@ -1927,7 +1852,7 @@ fn render_bench_tune_setup(
                     })
                     .collect::<Vec<_>>()
                     .join("│")
-            } else if editing_param && is_selected && editing_param_field >= 0 {
+            } else if editing_param && is_selected {
                 let cursor_pos = param_edit_cursor_pos.min(param_edit_buffer.len());
                 let before: String = param_edit_buffer.chars().take(cursor_pos).collect();
                 let after: String = param_edit_buffer.chars().skip(cursor_pos).collect();
@@ -1975,7 +1900,7 @@ fn render_bench_tune_setup(
                 } else {
                     Style::default().fg(DIM_GRAY)
                 }
-            } else if editing_param && is_selected && !(-1..0).contains(&editing_param_field) {
+            } else if editing_param && is_selected {
                 Style::default().fg(BLUE)
             } else {
                 Style::default().fg(MID_GRAY)
