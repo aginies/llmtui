@@ -15,7 +15,7 @@ use super::readme::{fetch_and_store_readme, fetch_readme_for_selected, handle_re
 use crate::tui::app::pending_events::PendingEvent;
 
 use crate::backend::hub;
-use crate::models::SearchSort;
+use crate::models::{BenchTuneConfig, BenchTuneField, SearchSort};
 use crate::tui::app::{ActivePanel, App, ConfirmationKind, GlobalMode, ModelsMode};
 use crate::tui::settings;
 
@@ -795,338 +795,200 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
     if let GlobalMode::BenchTuneSetup {
         config,
         selected_idx,
+        editing_field,
+        field_edit_buffer,
+        field_edit_cursor,
         editing_param,
         editing_param_field,
         param_edit_buffer,
         param_edit_cursor_pos,
-        editing_prompt,
-        editing_kwargs,
     } = &mut app.ui.global_mode
     {
-        match key.code {
-            KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::ALT) => {
-                *editing_prompt = !*editing_prompt;
-                if *editing_prompt {
-                    app.edit.edit_cursor_pos = config.prompt.len();
-                }
+        let alt = key.modifiers.contains(KeyModifiers::ALT);
+
+        // Field toggles (Alt+P/N/I/C) work in any mode: they switch the active
+        // text field and exit range editing.
+        if alt {
+            let field = match key.code {
+                KeyCode::Char('p') => Some(BenchTuneField::Prompt),
+                KeyCode::Char('n') => Some(BenchTuneField::NPredict),
+                KeyCode::Char('i') => Some(BenchTuneField::Iters),
+                KeyCode::Char('c') => Some(BenchTuneField::Kwargs),
+                _ => None,
+            };
+            if let Some(f) = field {
+                *editing_param = false;
+                param_edit_buffer.clear();
+                *editing_field = Some(f);
+                *field_edit_buffer = bench_tune_field_value(config, f);
+                *field_edit_cursor = field_edit_buffer.len();
+                return;
             }
-            KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::ALT) => {
-                app.edit.editing_n_predict = !app.edit.editing_n_predict;
-                if app.edit.editing_n_predict {
-                    app.edit.n_predict_edit_buffer = config.n_predict.to_string();
+        }
+
+        let in_text = editing_field.is_some();
+        let in_param = *editing_param;
+
+        if in_text {
+            // ===== Single-field text editing (prompt/kwargs/tokens/iters) =====
+            // `editing_field` is guaranteed `Some` in this branch.
+            let field_opt = *editing_field;
+            let Some(field) = field_opt else {
+                unreachable!()
+            };
+            let numeric = matches!(field, BenchTuneField::NPredict | BenchTuneField::Iters);
+            match key.code {
+                KeyCode::Char(c) => {
+                    if !numeric || c.is_ascii_digit() {
+                        TextEditor {
+                            buffer: field_edit_buffer,
+                            cursor: field_edit_cursor,
+                        }
+                        .insert_char(c);
+                    }
                 }
-            }
-            KeyCode::Char('i') if key.modifiers.contains(KeyModifiers::ALT) => {
-                app.edit.editing_iters = !app.edit.editing_iters;
-                if app.edit.editing_iters {
-                    app.edit.iters_edit_buffer = config.num_iterations.to_string();
+                KeyCode::Left | KeyCode::Up => {
+                    TextEditor {
+                        buffer: field_edit_buffer,
+                        cursor: field_edit_cursor,
+                    }
+                    .move_left();
                 }
-            }
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::ALT) => {
-                *editing_kwargs = !*editing_kwargs;
-                if *editing_kwargs {
-                    app.edit.edit_cursor_pos =
-                        config.chat_template_kwargs.as_deref().unwrap_or("").len();
+                KeyCode::Right | KeyCode::Down => {
+                    TextEditor {
+                        buffer: field_edit_buffer,
+                        cursor: field_edit_cursor,
+                    }
+                    .move_right();
                 }
+                KeyCode::Backspace => {
+                    TextEditor {
+                        buffer: field_edit_buffer,
+                        cursor: field_edit_cursor,
+                    }
+                    .backspace();
+                }
+                KeyCode::Delete => {
+                    TextEditor {
+                        buffer: field_edit_buffer,
+                        cursor: field_edit_cursor,
+                    }
+                    .delete();
+                }
+                KeyCode::Enter => {
+                    bench_tune_commit_field(config, field, field_edit_buffer);
+                    *editing_field = None;
+                    field_edit_buffer.clear();
+                    *field_edit_cursor = 0;
+                }
+                KeyCode::Esc => {
+                    *editing_field = None;
+                    field_edit_buffer.clear();
+                    *field_edit_cursor = 0;
+                }
+                _ => {}
             }
-            KeyCode::Char('e')
-                if !*editing_prompt
-                    && !*editing_kwargs
-                    && !app.edit.editing_n_predict
-                    && !app.edit.editing_iters
-                    && !*editing_param
-                    && *selected_idx < config.params_to_test.len() =>
-            {
-                let is_spec_off = config
-                    .params_to_test
-                    .iter()
-                    .find(|p| p.name == "spec_type")
-                    .map(|p| p.min as usize == 0)
-                    .unwrap_or(true);
-                let p = &config.params_to_test[*selected_idx];
-                if p.name != "spec_type" && !(p.name == "draft_tokens" && is_spec_off) {
-                    *editing_param = true;
-                    *editing_param_field = 0;
-                    // Empty buffer: type a fresh value; committing empty keeps the current one
+        } else if in_param {
+            // ===== Range editing (Min/Max/Step) for the selected param =====
+            match key.code {
+                KeyCode::Char(c) if "0123456789.-eE".contains(c) => {
+                    TextEditor {
+                        buffer: param_edit_buffer,
+                        cursor: param_edit_cursor_pos,
+                    }
+                    .insert_char(c);
+                }
+                KeyCode::Tab | KeyCode::BackTab => {
+                    bench_tune_commit_range_field(
+                        config,
+                        *selected_idx,
+                        *editing_param_field,
+                        param_edit_buffer,
+                    );
+                    *editing_param_field = if key.code == KeyCode::Tab {
+                        (*editing_param_field + 1).min(2)
+                    } else if *editing_param_field <= 0 {
+                        2
+                    } else {
+                        *editing_param_field - 1
+                    };
+                    bench_tune_refill_range_buffer(
+                        config,
+                        *selected_idx,
+                        *editing_param_field,
+                        param_edit_buffer,
+                        param_edit_cursor_pos,
+                    );
+                }
+                KeyCode::Backspace => {
+                    TextEditor {
+                        buffer: param_edit_buffer,
+                        cursor: param_edit_cursor_pos,
+                    }
+                    .backspace();
+                }
+                KeyCode::Delete => {
+                    TextEditor {
+                        buffer: param_edit_buffer,
+                        cursor: param_edit_cursor_pos,
+                    }
+                    .delete();
+                }
+                KeyCode::Enter => {
+                    bench_tune_commit_range_field(
+                        config,
+                        *selected_idx,
+                        *editing_param_field,
+                        param_edit_buffer,
+                    );
+                    bench_tune_normalize_range(config, *selected_idx);
+                    *editing_param = false;
                     param_edit_buffer.clear();
                     *param_edit_cursor_pos = 0;
                 }
-            }
-            KeyCode::Up | KeyCode::Char('k') => {
-                if *editing_prompt || *editing_kwargs {
-                    if app.edit.edit_cursor_pos > 0 {
-                        app.edit.edit_cursor_pos = app.edit.edit_cursor_pos.saturating_sub(1);
-                    }
-                } else {
-                    *selected_idx = selected_idx.saturating_sub(1);
-                }
-            }
-            KeyCode::Down | KeyCode::Char('j') => {
-                if *editing_prompt || *editing_kwargs {
-                    let len = if *editing_prompt {
-                        config.prompt.len()
-                    } else {
-                        config
-                            .chat_template_kwargs
-                            .as_deref()
-                            .map(|s: &str| s.len())
-                            .unwrap_or(0)
-                    };
-                    app.edit.edit_cursor_pos = (app.edit.edit_cursor_pos + 1).min(len);
-                } else {
-                    *selected_idx =
-                        (*selected_idx + 1).min(config.params_to_test.len().saturating_sub(1));
-                }
-            }
-            KeyCode::Left => {
-                if *editing_prompt || *editing_kwargs {
-                    if app.edit.edit_cursor_pos > 0 {
-                        app.edit.edit_cursor_pos = app.edit.edit_cursor_pos.saturating_sub(1);
-                    }
-                } else {
-                    *selected_idx = selected_idx.saturating_sub(1);
-                }
-            }
-            KeyCode::Right => {
-                if *editing_prompt || *editing_kwargs {
-                    let len = if *editing_prompt {
-                        config.prompt.len()
-                    } else {
-                        config
-                            .chat_template_kwargs
-                            .as_deref()
-                            .map(|s: &str| s.len())
-                            .unwrap_or(0)
-                    };
-                    app.edit.edit_cursor_pos = (app.edit.edit_cursor_pos + 1).min(len);
-                } else {
-                    *selected_idx =
-                        (*selected_idx + 1).min(config.params_to_test.len().saturating_sub(1));
-                }
-            }
-            KeyCode::Tab
-                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() =>
-            {
-                // Commit the current field before advancing so typed values are not lost
-                if let Ok(val) = param_edit_buffer.parse::<f64>() {
-                    let p = &mut config.params_to_test[*selected_idx];
-                    match *editing_param_field {
-                        0 => p.min = val,
-                        1 => p.max = val,
-                        2 if val > 0.0 => p.step = val,
-                        _ => {}
-                    }
-                }
-                *editing_param_field = (*editing_param_field + 1).min(2);
-                let p = &config.params_to_test[*selected_idx];
-                let val = match *editing_param_field {
-                    0 => p.min,
-                    1 => p.max,
-                    2 => p.step,
-                    _ => 0.0,
-                };
-                param_edit_buffer.clear();
-                if *editing_param_field == 2 {
-                    *param_edit_buffer = val.to_string();
-                } else {
-                    *param_edit_buffer = format!("{:.2}", val);
-                }
-                *param_edit_cursor_pos = param_edit_buffer.len();
-            }
-            KeyCode::BackTab
-                if *editing_param && config.params_to_test[*selected_idx].variants.is_empty() =>
-            {
-                // Commit the current field before advancing so typed values are not lost
-                if let Ok(val) = param_edit_buffer.parse::<f64>() {
-                    let p = &mut config.params_to_test[*selected_idx];
-                    match *editing_param_field {
-                        0 => p.min = val,
-                        1 => p.max = val,
-                        2 if val > 0.0 => p.step = val,
-                        _ => {}
-                    }
-                }
-                *editing_param_field = if *editing_param_field <= 0 {
-                    2
-                } else {
-                    *editing_param_field - 1
-                };
-                let p = &config.params_to_test[*selected_idx];
-                let val = match *editing_param_field {
-                    0 => p.min,
-                    1 => p.max,
-                    2 => p.step,
-                    _ => 0.0,
-                };
-                param_edit_buffer.clear();
-                if *editing_param_field == 2 {
-                    *param_edit_buffer = val.to_string();
-                } else {
-                    *param_edit_buffer = format!("{:.2}", val);
-                }
-                *param_edit_cursor_pos = param_edit_buffer.len();
-            }
-            KeyCode::Char(' ') => {
-                if *editing_prompt {
-                    if app.edit.edit_cursor_pos <= config.prompt.len() {
-                        config.prompt.insert(app.edit.edit_cursor_pos, ' ');
-                        app.edit.edit_cursor_pos += 1;
-                    }
-                } else if *editing_kwargs {
-                    let kwargs = config.chat_template_kwargs.get_or_insert_with(String::new);
-                    if app.edit.edit_cursor_pos <= kwargs.len() {
-                        kwargs.insert(app.edit.edit_cursor_pos, ' ');
-                        app.edit.edit_cursor_pos += 1;
-                    }
-                } else if *selected_idx < config.params_to_test.len() {
-                    let is_spec_off = config
-                        .params_to_test
-                        .iter()
-                        .find(|p| p.name == "spec_type")
-                        .map(|p| p.min as usize == 0)
-                        .unwrap_or(true);
-                    let p = &mut config.params_to_test[*selected_idx];
-                    if p.name != "draft_tokens" || !is_spec_off {
-                        p.enabled = !p.enabled;
-                    }
-                }
-            }
-            KeyCode::Char(c)
-                if *editing_param
-                    && config.params_to_test[*selected_idx].variants.is_empty()
-                    && "0123456789.-eE".contains(c) =>
-            {
-                TextEditor {
-                    buffer: param_edit_buffer,
-                    cursor: param_edit_cursor_pos,
-                }
-                .insert_char(c);
-            }
-            KeyCode::Char(c) => {
-                if *editing_prompt {
-                    config.prompt.insert(app.edit.edit_cursor_pos, c);
-                    app.edit.edit_cursor_pos += 1;
-                } else if *editing_kwargs {
-                    let kwargs = config.chat_template_kwargs.get_or_insert_with(String::new);
-                    kwargs.insert(app.edit.edit_cursor_pos, c);
-                    app.edit.edit_cursor_pos += 1;
-                } else if app.edit.editing_n_predict {
-                    if c.is_ascii_digit() {
-                        app.edit.n_predict_edit_buffer.push(c);
-                    }
-                } else if app.edit.editing_iters && c.is_ascii_digit() {
-                    app.edit.iters_edit_buffer.push(c);
-                }
-            }
-            KeyCode::Backspace if *editing_param => {
-                TextEditor {
-                    buffer: param_edit_buffer,
-                    cursor: param_edit_cursor_pos,
-                }
-                .backspace();
-            }
-            KeyCode::Backspace => {
-                if *editing_prompt {
-                    if app.edit.edit_cursor_pos > 0 {
-                        config.prompt.remove(app.edit.edit_cursor_pos - 1);
-                        app.edit.edit_cursor_pos = app.edit.edit_cursor_pos.saturating_sub(1);
-                    }
-                } else if *editing_kwargs {
-                    let kwargs = config.chat_template_kwargs.get_or_insert_with(String::new);
-                    if app.edit.edit_cursor_pos > 0 {
-                        kwargs.remove(app.edit.edit_cursor_pos - 1);
-                        app.edit.edit_cursor_pos = app.edit.edit_cursor_pos.saturating_sub(1);
-                    }
-                } else if app.edit.editing_n_predict {
-                    app.edit.n_predict_edit_buffer.pop();
-                } else if app.edit.editing_iters {
-                    app.edit.iters_edit_buffer.pop();
-                } else {
-                    *selected_idx = selected_idx.saturating_sub(1);
-                }
-            }
-            KeyCode::Delete if *editing_param => {
-                if *param_edit_cursor_pos < param_edit_buffer.len()
-                    && let Some((byte_pos, _ch)) =
-                        param_edit_buffer.char_indices().nth(*param_edit_cursor_pos)
-                {
-                    param_edit_buffer.remove(byte_pos);
-                }
-            }
-            KeyCode::Delete => {
-                if *editing_prompt {
-                    if app.edit.edit_cursor_pos < config.prompt.len() {
-                        config.prompt.remove(app.edit.edit_cursor_pos);
-                    }
-                } else if *editing_kwargs {
-                    let kwargs = config.chat_template_kwargs.get_or_insert_with(String::new);
-                    if app.edit.edit_cursor_pos < kwargs.len() {
-                        kwargs.remove(app.edit.edit_cursor_pos);
-                    }
-                } else if app.edit.editing_n_predict {
-                    if !app.edit.n_predict_edit_buffer.is_empty() {
-                        app.edit.n_predict_edit_buffer.pop();
-                    }
-                } else if app.edit.editing_iters && !app.edit.iters_edit_buffer.is_empty() {
-                    app.edit.iters_edit_buffer.pop();
-                }
-            }
-            KeyCode::Enter => {
-                if *editing_param {
-                    if *selected_idx < config.params_to_test.len() {
-                        if let Ok(val) = param_edit_buffer.parse::<f64>() {
-                            match *editing_param_field {
-                                0 => config.params_to_test[*selected_idx].min = val,
-                                1 => config.params_to_test[*selected_idx].max = val,
-                                2 if val > 0.0 => {
-                                    config.params_to_test[*selected_idx].step = val;
-                                }
-                                _ => {}
-                            }
-                        }
-                        let min_val = config.params_to_test[*selected_idx].min;
-                        let max_val = config.params_to_test[*selected_idx].max;
-                        let step_val = config.params_to_test[*selected_idx].step;
-                        if min_val > max_val {
-                            config.params_to_test[*selected_idx].min = max_val;
-                        }
-                        if step_val <= 0.0 {
-                            config.params_to_test[*selected_idx].step = max_val - min_val;
-                        }
-                    }
+                KeyCode::Esc => {
                     *editing_param = false;
                     param_edit_buffer.clear();
-                } else if *editing_prompt {
-                    *editing_prompt = false;
-                } else if *editing_kwargs {
-                    *editing_kwargs = false;
-                } else if app.edit.editing_n_predict {
-                    if let Ok(val) = app.edit.n_predict_edit_buffer.parse::<u32>() {
-                        config.n_predict = val.clamp(1, 16384);
-                    }
-                    app.edit.editing_n_predict = false;
-                } else if app.edit.editing_iters {
-                    if let Ok(val) = app.edit.iters_edit_buffer.parse::<u32>() {
-                        config.num_iterations = val.clamp(1, 100);
-                    }
-                    app.edit.editing_iters = false;
-                } else if *selected_idx < config.params_to_test.len()
-                    && config.params_to_test[*selected_idx].name == "spec_type"
-                {
-                    let p = &mut config.params_to_test[*selected_idx];
-                    let current_idx = p.min as usize;
-                    let next_idx = (current_idx + 1) % p.variants.len();
-                    p.min = next_idx as f64;
-
-                    // If spec_type becomes "Off" (index 0), disable draft_tokens
-                    if next_idx == 0 {
-                        for param in &mut config.params_to_test {
-                            if param.name == "draft_tokens" {
-                                param.enabled = false;
-                            }
+                    *param_edit_cursor_pos = 0;
+                }
+                _ => {}
+            }
+        } else {
+            // ===== Navigation =====
+            let spec_idx = config.spec_type_idx();
+            let n = config.params_to_test.len();
+            match key.code {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Backspace => {
+                    *selected_idx = bench_tune_prev_idx(*selected_idx, spec_idx);
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    *selected_idx = bench_tune_next_idx(n, *selected_idx, spec_idx);
+                }
+                // Left/Right cycle the spec-type mode selector (shown up top).
+                KeyCode::Left => bench_tune_cycle_spec(config, -1),
+                KeyCode::Right => bench_tune_cycle_spec(config, 1),
+                KeyCode::Char(' ') => {
+                    if *selected_idx < n {
+                        let spec_off = config.spec_off();
+                        let p = &mut config.params_to_test[*selected_idx];
+                        if p.name != "draft_tokens" || !spec_off {
+                            p.enabled = !p.enabled;
                         }
                     }
-                } else {
+                }
+                KeyCode::Char('e') => {
+                    if *selected_idx < n {
+                        let spec_off = config.spec_off();
+                        let name = config.params_to_test[*selected_idx].name.clone();
+                        if name != "spec_type" && !(name == "draft_tokens" && spec_off) {
+                            *editing_param = true;
+                            *editing_param_field = 0;
+                            param_edit_buffer.clear();
+                            *param_edit_cursor_pos = 0;
+                        }
+                    }
+                }
+                KeyCode::Enter => {
                     let config_final = config.clone();
                     if let Some(idx) = app.selected_model_idx {
                         let model = app.models[idx].clone();
@@ -1142,25 +1004,128 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                             .await;
                     }
                 }
+                KeyCode::Esc => app.ui.global_mode = GlobalMode::Normal,
+                _ => {}
             }
-            KeyCode::Esc => {
-                if *editing_param {
-                    *editing_param = false;
-                    param_edit_buffer.clear();
-                } else if *editing_prompt {
-                    *editing_prompt = false;
-                } else if *editing_kwargs {
-                    *editing_kwargs = false;
-                } else if app.edit.editing_n_predict {
-                    app.edit.editing_n_predict = false;
-                } else if app.edit.editing_iters {
-                    app.edit.editing_iters = false;
-                } else {
-                    app.ui.global_mode = GlobalMode::Normal;
-                }
+        }
+    }
+}
+
+/// Current value of a single bench-tune field, as an editable string.
+fn bench_tune_field_value(config: &BenchTuneConfig, field: BenchTuneField) -> String {
+    match field {
+        BenchTuneField::Prompt => config.prompt.clone(),
+        BenchTuneField::Kwargs => config.chat_template_kwargs.clone().unwrap_or_default(),
+        BenchTuneField::NPredict => config.n_predict.to_string(),
+        BenchTuneField::Iters => config.num_iterations.to_string(),
+    }
+}
+
+/// Commit the edited buffer to the given bench-tune field.
+fn bench_tune_commit_field(config: &mut BenchTuneConfig, field: BenchTuneField, buffer: &str) {
+    match field {
+        BenchTuneField::Prompt => config.prompt = buffer.to_string(),
+        BenchTuneField::Kwargs => config.chat_template_kwargs = Some(buffer.to_string()),
+        BenchTuneField::NPredict => {
+            if let Ok(val) = buffer.parse::<u32>() {
+                config.n_predict = val.clamp(1, 16384);
             }
+        }
+        BenchTuneField::Iters => {
+            if let Ok(val) = buffer.parse::<u32>() {
+                config.num_iterations = val.clamp(1, 100);
+            }
+        }
+    }
+}
+
+/// Next navigable param index (skips the spec-type row), moving down.
+fn bench_tune_next_idx(n: usize, cur: usize, spec_idx: Option<usize>) -> usize {
+    (cur + 1..n).find(|&i| Some(i) != spec_idx).unwrap_or(cur)
+}
+
+/// Previous navigable param index (skips the spec-type row), moving up.
+fn bench_tune_prev_idx(cur: usize, spec_idx: Option<usize>) -> usize {
+    (0..cur).rev().find(|&i| Some(i) != spec_idx).unwrap_or(cur)
+}
+
+/// Cycle the spec-type mode selector by `dir` (+1/-1), wrapping around.
+fn bench_tune_cycle_spec(config: &mut BenchTuneConfig, dir: i32) {
+    let Some(i) = config.spec_type_idx() else {
+        return;
+    };
+    let len = config.params_to_test[i].variants.len();
+    if len == 0 {
+        return;
+    }
+    let cur = config.params_to_test[i].min as usize;
+    let next = if dir > 0 {
+        (cur + 1) % len
+    } else {
+        (cur + len - 1) % len
+    };
+    config.params_to_test[i].min = next as f64;
+    if next == 0 {
+        for p in &mut config.params_to_test {
+            if p.name == "draft_tokens" {
+                p.enabled = false;
+            }
+        }
+    }
+}
+
+/// Commit the current range-field buffer (Min/Max/Step) to the param.
+fn bench_tune_commit_range_field(
+    config: &mut BenchTuneConfig,
+    idx: usize,
+    field: i32,
+    buffer: &str,
+) {
+    if let Ok(val) = buffer.parse::<f64>() {
+        let p = &mut config.params_to_test[idx];
+        match field {
+            0 => p.min = val,
+            1 => p.max = val,
+            2 if val > 0.0 => p.step = val,
             _ => {}
         }
+    }
+}
+
+/// Refill the range-field buffer with the param's current value for `field`.
+fn bench_tune_refill_range_buffer(
+    config: &BenchTuneConfig,
+    idx: usize,
+    field: i32,
+    buffer: &mut String,
+    cursor: &mut usize,
+) {
+    let val = match field {
+        0 => config.params_to_test[idx].min,
+        1 => config.params_to_test[idx].max,
+        _ => config.params_to_test[idx].step,
+    };
+    buffer.clear();
+    *buffer = if field == 2 {
+        val.to_string()
+    } else {
+        format!("{:.2}", val)
+    };
+    *cursor = buffer.len();
+}
+
+/// Clamp an edited range into a sane state (min<=max, step>0).
+fn bench_tune_normalize_range(config: &mut BenchTuneConfig, idx: usize) {
+    let (min_val, max_val, step_val) = {
+        let p = &config.params_to_test[idx];
+        (p.min, p.max, p.step)
+    };
+    let p = &mut config.params_to_test[idx];
+    if min_val > max_val {
+        p.min = max_val;
+    }
+    if step_val <= 0.0 {
+        p.step = max_val - min_val;
     }
 }
 

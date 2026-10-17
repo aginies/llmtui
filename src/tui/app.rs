@@ -260,10 +260,6 @@ impl App {
             },
             edit: EditState {
                 edit_cursor_pos: 0,
-                editing_n_predict: false,
-                n_predict_edit_buffer: String::new(),
-                editing_iters: false,
-                iters_edit_buffer: String::new(),
                 tags_editing: false,
                 tags_edit_buffer: String::new(),
                 tags_selected_idx: None,

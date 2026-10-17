@@ -143,6 +143,8 @@
   "dialog.bench_config.toggle": "Attiva/Disattiva",
   "dialog.bench_config.iters": " Iters: ",
   "dialog.bench_config.max_tokens": " Max Tokens: ",
+  "dialog.bench_config.spec": " Speculazione:",
+  "dialog.bench_config.spec_hint": "  ←/→ per cambiare",
   "dialog.bench_config.on_off": "(On/Off)",
   "dialog.bench_config.params_label": " Select parameters to vary:",
   "dialog.bench_config.prompt": " Prompt (Alt+P to edit) ",
