@@ -34,7 +34,7 @@ pub fn render_all(
         let mut total_count = 0;
         let mut selected_line_idx = 0;
         let mut selected_content_line = 0;
-        let fields = settings::filtered_fields(app.settings_state.expert_mode);
+        let fields = settings::filtered_fields(app.settings_state.expert_mode, settings);
         render_settings(
             &mut lines,
             &mut total_count,
@@ -79,7 +79,7 @@ pub fn render_all(
 
     // Build help text line if visible
     let help_line = if app.settings_state.help_visible && !editing {
-        let fields = settings::filtered_fields(app.settings_state.expert_mode);
+        let fields = settings::filtered_fields(app.settings_state.expert_mode, settings);
         if let Some(field) = fields.get(selected) {
             let help = crate::tui::i18n::field_help(field.id);
             if !help.is_empty() { Some(help) } else { None }

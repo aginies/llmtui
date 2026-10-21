@@ -1,3 +1,12 @@
+//! TUI application state and core update logic.
+//!
+//! Owns the [`App`] struct (defined in [`types`]) and its construction
+//! ([`App::new`]) and update logic. The state is split into sub-structs
+//! (see [`types`]); per-concern logic lives in submodules: [`async_ops`]
+//! (async work such as downloads and server spawning), [`sync_ops`]
+//! (synchronous operations), [`pickers`], [`profiles`], [`panels`],
+//! [`help`], [`metadata`], [`pending_events`], and [`state`].
+
 pub mod async_ops;
 pub mod help;
 pub mod metadata;
@@ -108,6 +117,7 @@ impl App {
                 rpc_worker_tensor_split_cursor_pos: 0,
                 readme_scroll_offset: 0,
                 chat_template_picker_scroll_offset: 0,
+                gpu_device_picker_scroll_offset: 0,
             },
             download: DownloadState {
                 download_progress: Vec::new(),
@@ -259,16 +269,13 @@ impl App {
             },
             edit: EditState {
                 edit_cursor_pos: 0,
-                editing_n_predict: false,
-                n_predict_edit_buffer: String::new(),
-                editing_iters: false,
-                iters_edit_buffer: String::new(),
                 tags_editing: false,
                 tags_edit_buffer: String::new(),
                 tags_selected_idx: None,
                 tags_insert_mode: false,
                 editing_preset: None,
             },
+            list_picker: None,
         }
     }
 }

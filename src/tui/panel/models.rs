@@ -1236,14 +1236,9 @@ pub fn render_empty_discovery(f: &mut Frame, area: Rect, _app: &App) {
 
     lines.push(Line::from(""));
 
-    // Footer hint
-    let footer_text = crate::t!("models.empty_footer");
-    let footer = Paragraph::new(Line::from(Span::styled(
-        footer_text,
-        Style::default().fg(crate::tui::colors::DIM_GRAY),
-    )));
-
-    // Render content as a paragraph
+    // Render content as a paragraph. The key-hint footer
+    // (models.empty_footer) is shown in the status bar hints line, so it is
+    // not repeated inside the panel.
     let content = Paragraph::new(lines)
         .block(
             Block::default()
@@ -1253,7 +1248,6 @@ pub fn render_empty_discovery(f: &mut Frame, area: Rect, _app: &App) {
         .alignment(Alignment::Left);
 
     f.render_widget(content, inner);
-    f.render_widget(footer, area);
 }
 
 /// Render the benchmark results table.

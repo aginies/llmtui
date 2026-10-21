@@ -10,7 +10,8 @@ use unicode_width::UnicodeWidthStr;
 use super::App;
 use super::onboarding;
 use crate::backend::hardware::GpuVendor;
-use crate::tui::app::{ConfirmationKind, GlobalMode};
+use crate::models::Backend;
+use crate::tui::app::{ConfirmationKind, GlobalMode, ListPicker, ListPickerKind};
 use crate::tui::colors::*;
 use crate::tui::format_bench_params;
 use crate::tui::format_context_k;
@@ -37,6 +38,93 @@ fn center_rect(area: Rect, w: u16, h: u16) -> Rect {
     }
 }
 
+/// A centered popup frame.
+///
+/// Centralizes the idiom every overlay used to repeat by hand: compute a
+/// centered `Rect`, build the standard `Block` (title + borders + accent
+/// style + padding), and expose the inner content area. Renderers build a
+/// `Popup`, call [`Popup::render_frame`] to draw the border, then render
+/// their content into [`Popup::inner`] (or attach [`Popup::block`] to a
+/// widget that draws its own content).
+struct Popup<'a> {
+    area: Rect,
+    block: Block<'a>,
+    padding: Padding,
+}
+
+impl<'a> Popup<'a> {
+    /// Standard accent popup: fixed `w`×`h`, centered in `area`, rounded
+    /// border, 1-cell padding. The title is used verbatim — wrap it in
+    /// `Span::styled` for a colored/bold title.
+    fn new(area: Rect, w: u16, h: u16, title: impl Into<Line<'a>>) -> Self {
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(ACCENT))
+            .border_type(BorderType::Rounded)
+            .padding(PADDING);
+        Self {
+            area: center_rect(area, w, h),
+            block,
+            padding: PADDING,
+        }
+    }
+
+    /// Double-border variant with no padding (content goes into
+    /// [`Popup::inner`], which here is just the area inside the border).
+    fn double(area: Rect, w: u16, h: u16, title: impl Into<Line<'a>>) -> Self {
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(ACCENT))
+            .border_type(BorderType::Double);
+        Self {
+            area: center_rect(area, w, h),
+            block,
+            padding: Padding::ZERO,
+        }
+    }
+
+    /// Wrap an already-centered rect and a custom block (for renderers whose
+    /// border style or title differs from the standard). Pass the block's
+    /// padding so [`Popup::inner`] accounts for it.
+    fn from_parts(area: Rect, block: Block<'a>, padding: Padding) -> Self {
+        Self {
+            area,
+            block,
+            padding,
+        }
+    }
+
+    /// Draw the frame: clear the area, then render the bordered block.
+    fn render_frame(&self, f: &mut Frame) {
+        f.render_widget(Clear, self.area);
+        f.render_widget(self.block.clone(), self.area);
+    }
+
+    /// The outer (centered) rect.
+    fn area(&self) -> Rect {
+        self.area
+    }
+
+    /// The inner content area, inside the border and padding.
+    fn inner(&self) -> Rect {
+        let inner = self.block.inner(self.area);
+        Rect {
+            x: inner.x.saturating_add(self.padding.left),
+            y: inner.y.saturating_add(self.padding.top),
+            width: inner
+                .width
+                .saturating_sub(self.padding.left)
+                .saturating_sub(self.padding.right),
+            height: inner
+                .height
+                .saturating_sub(self.padding.top)
+                .saturating_sub(self.padding.bottom),
+        }
+    }
+}
+
 fn render_popup(
     f: &mut Frame,
     area: Rect,
@@ -45,22 +133,19 @@ fn render_popup(
     border_type: BorderType,
     wrap: bool,
 ) {
-    f.render_widget(Clear, area);
+    let block = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .border_type(border_type)
+        .padding(PADDING);
+    let popup = Popup::from_parts(area, block, PADDING);
+    popup.render_frame(f);
     let mut paragraph = Paragraph::new(lines);
     if wrap {
         paragraph = paragraph.wrap(Wrap { trim: false });
     }
-    f.render_widget(
-        paragraph.block(
-            Block::default()
-                .title(title)
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
-                .border_type(border_type)
-                .padding(PADDING),
-        ),
-        area,
-    );
+    f.render_widget(paragraph, popup.inner());
 }
 
 const PICKER_WIDTH: u16 = 80;
@@ -135,7 +220,8 @@ fn render_picker_popup(
     let h = (content + 4).clamp(10, picker_max_height(area)) as u16;
     let w = PICKER_WIDTH.min(area.width);
     let h = h.min(area.height);
-    let picker_area = center_rect(area, w, h);
+    let popup = Popup::new(area, w, h, title);
+    let picker_area = popup.area();
     let mut all_lines = Vec::new();
     if let Some(help) = help {
         all_lines.push(help);
@@ -146,18 +232,8 @@ fn render_picker_popup(
         all_lines.push(Line::from(""));
         all_lines.push(footer);
     }
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(all_lines).block(
-            Block::default()
-                .title(title)
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
-                .border_type(BorderType::Rounded)
-                .padding(PADDING),
-        ),
-        picker_area,
-    );
+    popup.render_frame(f);
+    f.render_widget(Paragraph::new(all_lines), popup.inner());
     if let Some((total, offset, visible)) = scroll
         && total > visible
     {
@@ -172,6 +248,156 @@ fn render_picker_popup(
     }
 }
 
+/// Title for a generic list picker (single i18n key per kind).
+fn list_picker_title(picker: &ListPicker) -> &'static str {
+    match picker.kind {
+        ListPickerKind::SpecType => crate::t!("dialog.spec.title"),
+        ListPickerKind::TensorSplit => crate::t!("dialog.tensor_split.title"),
+    }
+}
+
+/// Label shown next to the cursor while editing a value.
+fn list_picker_edit_label(picker: &ListPicker) -> &'static str {
+    match picker.kind {
+        ListPickerKind::TensorSplit => crate::t!("dialog.tensor_split.manual"),
+        _ => "",
+    }
+}
+
+/// Help line shown below the list (edit-specific help while editing).
+fn list_picker_help(picker: &ListPicker) -> Option<Line<'static>> {
+    let msg = if picker.editing {
+        match picker.kind {
+            ListPickerKind::TensorSplit => crate::t!("dialog.tensor_split.help_edit"),
+            _ => crate::t!("dialog.tensor_split.help"),
+        }
+    } else {
+        match picker.kind {
+            ListPickerKind::SpecType => crate::t!("dialog.spec.help"),
+            ListPickerKind::TensorSplit => crate::t!("dialog.tensor_split.help"),
+        }
+    };
+    Some(Line::from(Span::styled(msg, Style::default().fg(ACCENT))))
+}
+
+/// Per-picker footer (the tensor-split detected-GPU line).
+fn list_picker_footer(picker: &ListPicker, backend: Backend) -> Option<Line<'static>> {
+    if picker.kind != ListPickerKind::TensorSplit {
+        return None;
+    }
+    let vram =
+        crate::backend::hardware::gpu_vram_gib_cached(std::time::Duration::from_secs(30), backend);
+    if vram.len() >= 2 {
+        let list: Vec<String> = vram.iter().map(|v| format!("{}GB", v)).collect();
+        Some(Line::from(Span::styled(
+            crate::t_fmt!("dialog.tensor_split.gpus", list.join(", ")),
+            Style::default().fg(GRAY),
+        )))
+    } else {
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.tensor_split.no_gpus"),
+            Style::default().fg(GRAY),
+        )))
+    }
+}
+
+/// Single renderer for the generic list picker (`app.list_picker`). Handles the
+/// list (selection marker + optional secondary line + scrolling), the inline
+/// single-field editor, and the per-picker help/footer — so every list picker
+/// shares one renderer regardless of its [`ListPickerKind`].
+fn render_list_picker(f: &mut Frame, area: Rect, picker: &mut ListPicker, backend: Backend) {
+    let title = Span::styled(
+        list_picker_title(picker),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+    );
+
+    if picker.editing {
+        // Inline single-line editor of the selected value.
+        let chars: Vec<char> = picker.edit_buffer.chars().collect();
+        let cursor = picker.edit_cursor.min(chars.len());
+        let before: String = chars[..cursor].iter().collect();
+        let after: String = chars[cursor..].iter().collect();
+        let body = vec![
+            Line::from(vec![
+                Span::styled("> ", Style::default().fg(ACCENT)),
+                Span::styled(list_picker_edit_label(picker), Style::default().fg(CYAN)),
+            ]),
+            Line::from(vec![
+                Span::raw("  "),
+                Span::styled(before, Style::default().fg(WHITE)),
+                Span::styled(
+                    chars.get(cursor).copied().unwrap_or(' ').to_string(),
+                    Style::default()
+                        .fg(BLACK)
+                        .bg(ACCENT)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(after, Style::default().fg(WHITE)),
+            ]),
+        ];
+        render_picker_popup(
+            f,
+            area,
+            title,
+            list_picker_help(picker),
+            body,
+            list_picker_footer(picker, backend),
+            None,
+        );
+        return;
+    }
+
+    // List view: one line per entry, with an optional dimmed secondary label.
+    let blocks: Vec<Vec<Line>> = picker
+        .entries
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            let marker = if i == picker.selected { "> " } else { "  " };
+            let style = if i == picker.selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            let mut line = vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(e.primary.clone(), style),
+            ];
+            if let Some(sec) = &e.secondary {
+                line.push(Span::raw("  "));
+                line.push(Span::styled(sec.clone(), Style::default().fg(DIM_GRAY)));
+            }
+            vec![Line::from(line)]
+        })
+        .collect();
+    let (fit, off, _) =
+        picker_block_window(area, &blocks, picker.selected, &mut picker.scroll_offset, 2);
+    let lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
+    let scroll = if picker.entries.len() > fit {
+        Some((picker.entries.len(), off, fit))
+    } else {
+        None
+    };
+    render_picker_popup(
+        f,
+        area,
+        title,
+        list_picker_help(picker),
+        lines,
+        list_picker_footer(picker, backend),
+        scroll,
+    );
+}
+
 pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     if app.ui.panel_help {
         let area = f.area();
@@ -179,6 +405,13 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
         let help_area = center_rect(area, w, h);
         panel::help::render_panel(f, help_area, app);
+        return true;
+    }
+
+    // Generic list picker (spec-type, chat-template, tensor-split, …).
+    if let Some(picker) = &mut app.list_picker {
+        let backend = app.settings.backend;
+        render_list_picker(f, f.area(), picker, backend);
         return true;
     }
 
@@ -292,26 +525,34 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     if let GlobalMode::BenchTuneSetup {
         config,
         selected_idx,
+        editing_field,
+        field_edit_buffer,
+        field_edit_cursor,
         editing_param,
         editing_param_field,
         param_edit_buffer,
         param_edit_cursor_pos,
-        editing_prompt,
-        editing_kwargs: _,
+        show_matrix,
+        matrix_scroll,
     } = &app.ui.global_mode
     {
-        render_bench_tune_setup(
-            f,
-            f.area(),
-            app,
-            config,
-            *selected_idx,
-            *editing_param,
-            *editing_param_field,
-            param_edit_buffer,
-            *param_edit_cursor_pos,
-            *editing_prompt,
-        );
+        if *show_matrix {
+            render_bench_tune_matrix(f, f.area(), config, *matrix_scroll);
+        } else {
+            render_bench_tune_setup(
+                f,
+                f.area(),
+                config,
+                *selected_idx,
+                *editing_field,
+                field_edit_buffer,
+                *field_edit_cursor,
+                *editing_param,
+                *editing_param_field,
+                param_edit_buffer,
+                *param_edit_cursor_pos,
+            );
+        }
         return true;
     }
 
@@ -330,11 +571,6 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
-    if let GlobalMode::SpecTypePicker { entries, selected } = &app.ui.global_mode {
-        render_spec_type_picker(f, f.area(), app, entries, *selected);
-        return true;
-    }
-
     if let GlobalMode::ChatTemplatePicker { entries, selected } = &app.ui.global_mode {
         render_chat_template_picker(
             f,
@@ -342,6 +578,27 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             entries,
             *selected,
             &mut app.picker.chat_template_picker_scroll_offset,
+        );
+        return true;
+    }
+
+    if let GlobalMode::GpuDevicePicker {
+        entries,
+        selected,
+        checked,
+        loading,
+        error,
+    } = &app.ui.global_mode
+    {
+        render_gpu_device_picker(
+            f,
+            f.area(),
+            entries,
+            *selected,
+            checked,
+            *loading,
+            error.as_deref(),
+            &mut app.picker.gpu_device_picker_scroll_offset,
         );
         return true;
     }
@@ -571,7 +828,118 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         return true;
     }
 
+    if let GlobalMode::CommandPalette {
+        buffer,
+        cursor_pos,
+        selected,
+    } = &app.ui.global_mode
+    {
+        render_command_palette(f, f.area(), app, buffer, *cursor_pos, *selected);
+        return true;
+    }
+
     false
+}
+
+/// Maximum number of action rows visible in the command palette.
+const PALETTE_MAX_ROWS: usize = 12;
+
+fn render_command_palette(
+    f: &mut Frame,
+    area: Rect,
+    app: &App,
+    buffer: &str,
+    cursor_pos: usize,
+    selected: usize,
+) {
+    let entries = crate::tui::command_palette::available_actions(app);
+    let matches = crate::tui::command_palette::filter_entries(&entries, buffer);
+    let sel = selected.min(matches.len().saturating_sub(1));
+
+    // Input line with an inline cursor.
+    let chars: Vec<char> = buffer.chars().collect();
+    let cursor_pos = cursor_pos.min(chars.len());
+    let cursor_char = chars.get(cursor_pos).copied().unwrap_or(' ');
+    let before: String = chars[..cursor_pos].iter().collect();
+    let after: String = chars[cursor_pos..].iter().collect();
+    let mut input_spans = vec![Span::styled(" ", Style::default().fg(ACCENT))];
+    if buffer.is_empty() {
+        input_spans.push(Span::styled(
+            crate::t!("palette.placeholder"),
+            Style::default().fg(DIM_GRAY),
+        ));
+    } else {
+        input_spans.push(Span::raw(before));
+        input_spans.push(Span::styled(
+            cursor_char.to_string(),
+            Style::default().add_modifier(Modifier::REVERSED),
+        ));
+        input_spans.push(Span::raw(after));
+    }
+
+    // Filtered action rows, scrolled to keep the selection visible.
+    let visible = matches.len().min(PALETTE_MAX_ROWS);
+    let offset = if sel >= visible { sel + 1 - visible } else { 0 };
+    let mut rows: Vec<Line> = Vec::new();
+    if matches.is_empty() {
+        rows.push(Line::from(Span::styled(
+            crate::t!("palette.empty"),
+            Style::default().fg(DIM_GRAY),
+        )));
+    } else {
+        for (row_pos, &idx) in matches[offset..offset + visible].iter().enumerate() {
+            let e = &entries[idx];
+            let name = crate::t!(e.name_key);
+            let is_selected = row_pos == sel.saturating_sub(offset);
+            let name_style = if is_selected {
+                Style::default().add_modifier(Modifier::REVERSED)
+            } else {
+                Style::default()
+            };
+            let shortcut_style = Style::default().fg(DIM_GRAY).add_modifier(if is_selected {
+                Modifier::REVERSED
+            } else {
+                Modifier::empty()
+            });
+            rows.push(Line::from(vec![
+                Span::styled(name.to_string(), name_style),
+                Span::raw("  "),
+                Span::styled(e.shortcut.to_string(), shortcut_style),
+            ]));
+        }
+    }
+
+    let list_height = if matches.is_empty() { 1 } else { visible };
+    // input + blank + list + blank + footer, plus borders.
+    let content = 1 + 1 + list_height + 1 + 1;
+    let h = (content + 2).clamp(8, picker_max_height(area)) as u16;
+    let h = h.min(area.height);
+    let w = PICKER_WIDTH.min(area.width);
+
+    let palette_area = center_rect(area, w, h);
+    f.render_widget(Clear, palette_area);
+
+    let title = Span::styled(
+        crate::t!("palette.title"),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+    );
+    let block = Block::bordered()
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(ACCENT))
+        .padding(PADDING)
+        .title(title);
+    let inner = block.inner(palette_area);
+    f.render_widget(block, palette_area);
+
+    let mut lines: Vec<Line> = vec![Line::from(input_spans), Line::from("")];
+    lines.extend(rows);
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        crate::t!("palette.hint"),
+        Style::default().fg(DIM_GRAY),
+    )));
+
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 fn render_web_search_picker(
@@ -921,12 +1289,7 @@ fn render_confirmation(
     ]));
     let w = 70u16;
     let h = (lines.len() as u16 + 6).min(area.height.saturating_sub(4));
-    let popup_area = Rect {
-        x: (area.width.saturating_sub(w)) / 2,
-        y: (area.height.saturating_sub(h)) / 2,
-        width: w.min(area.width),
-        height: h.min(area.height),
-    };
+    let popup_area = center_rect(area, w.min(area.width), h.min(area.height));
     let block = Block::default()
         .title(title)
         .title_style(Style::default().fg(ACCENT))
@@ -942,13 +1305,13 @@ fn render_confirmation(
             },
         ))
         .border_type(BorderType::Double);
-    f.render_widget(Clear, popup_area);
+    let popup = Popup::from_parts(popup_area, block, Padding::ZERO);
+    popup.render_frame(f);
     f.render_widget(
         Paragraph::new(lines)
-            .block(block)
             .alignment(Alignment::Center)
             .wrap(Wrap { trim: false }),
-        popup_area,
+        popup.inner(),
     );
 }
 
@@ -1463,52 +1826,52 @@ fn render_backend_picker(
 fn render_bench_tune_setup(
     f: &mut Frame,
     area: Rect,
-    app: &App,
     config: &crate::models::BenchTuneConfig,
     selected_idx: usize,
+    editing_field: Option<crate::models::BenchTuneField>,
+    field_edit_buffer: &str,
+    field_edit_cursor: usize,
     editing_param: bool,
     editing_param_field: i32,
     param_edit_buffer: &str,
     param_edit_cursor_pos: usize,
-    editing_prompt: bool,
 ) {
     let w = 90u16;
     let h = 30.min(area.height - 4);
-    let popup_area = Rect {
-        x: (area.width.saturating_sub(w)) / 2,
-        y: (area.height.saturating_sub(h)) / 2,
-        width: w.min(area.width),
-        height: h.min(area.height),
-    };
-    let block = Block::default()
-        .title(Span::styled(
+    let popup = Popup::double(
+        area,
+        w.min(area.width),
+        h.min(area.height),
+        Span::styled(
             crate::t!("dialog.bench_config.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(ACCENT))
-        .border_type(BorderType::Double);
-    let inner_area = block.inner(popup_area);
-    f.render_widget(Clear, popup_area);
-    f.render_widget(block, popup_area);
+        ),
+    );
+    let inner_area = popup.inner();
+    popup.render_frame(f);
     let regions = ratatui::layout::Layout::vertical([
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Length(5),
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Length(1),
-        ratatui::layout::Constraint::Min(0),
-        ratatui::layout::Constraint::Length(7),
+        ratatui::layout::Constraint::Length(1), // [0] spacer
+        ratatui::layout::Constraint::Length(1), // [1] mode line (iters + tokens)
+        ratatui::layout::Constraint::Length(1), // [2] spec-type row
+        ratatui::layout::Constraint::Length(1), // [3] spacer
+        ratatui::layout::Constraint::Length(5), // [4] prompt box
+        ratatui::layout::Constraint::Length(1), // [5] spacer
+        ratatui::layout::Constraint::Length(1), // [6] param header
+        ratatui::layout::Constraint::Min(0),    // [7] param table
+        ratatui::layout::Constraint::Length(7), // [8] footer
     ])
     .split(inner_area);
-    let iters_display = if app.edit.editing_iters {
-        format!("{}|", app.edit.iters_edit_buffer)
+
+    // ---- Mode line: Iters + Max Tokens (single-field editing) ----
+    let iters_editing = editing_field == Some(crate::models::BenchTuneField::Iters);
+    let tokens_editing = editing_field == Some(crate::models::BenchTuneField::NPredict);
+    let iters_display = if iters_editing {
+        bench_tune_cursor_text(field_edit_buffer, field_edit_cursor)
     } else {
         config.num_iterations.to_string()
     };
-    let tokens_display = if app.edit.editing_n_predict {
-        format!("{}|", app.edit.n_predict_edit_buffer)
+    let tokens_display = if tokens_editing {
+        bench_tune_cursor_text(field_edit_buffer, field_edit_cursor)
     } else {
         config.n_predict.to_string()
     };
@@ -1519,7 +1882,7 @@ fn render_bench_tune_setup(
         ),
         Span::styled(
             iters_display,
-            if app.edit.editing_iters {
+            if iters_editing {
                 Style::default().fg(BLACK).bg(CYAN)
             } else {
                 Style::default().fg(CYAN)
@@ -1532,7 +1895,7 @@ fn render_bench_tune_setup(
         ),
         Span::styled(
             tokens_display,
-            if app.edit.editing_n_predict {
+            if tokens_editing {
                 Style::default().fg(BLACK).bg(CYAN)
             } else {
                 Style::default().fg(CYAN)
@@ -1540,26 +1903,53 @@ fn render_bench_tune_setup(
         ),
     ]);
     f.render_widget(Paragraph::new(mode_line), regions[1]);
+
+    // ---- Spec-type mode selector (cycled with Left/Right) ----
+    let spec_line = if let Some(si) = config.spec_type_idx() {
+        let p = &config.params_to_test[si];
+        let variant = if p.variants.is_empty() {
+            "Off".to_string()
+        } else {
+            let idx = (p.min as usize).min(p.variants.len() - 1);
+            p.variants[idx].clone()
+        };
+        Line::from(vec![
+            Span::styled(
+                crate::t!("dialog.bench_config.spec"),
+                Style::default().fg(ACCENT),
+            ),
+            Span::styled(
+                format!(" {} ", variant),
+                Style::default()
+                    .fg(BLACK)
+                    .bg(CYAN)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                crate::t!("dialog.bench_config.spec_hint"),
+                Style::default().fg(DIM_GRAY),
+            ),
+        ])
+    } else {
+        Line::default()
+    };
+    f.render_widget(Paragraph::new(spec_line), regions[2]);
+
+    // ---- Prompt box ----
+    let editing_prompt = editing_field == Some(crate::models::BenchTuneField::Prompt);
     let prompt_title = if editing_prompt {
         crate::t!("dialog.bench_config.editing_prompt")
     } else {
         crate::t!("dialog.bench_config.prompt")
     };
-    let prompt_content = if config.prompt.is_empty() {
-        crate::t!("dialog.bench_config.empty_prompt").to_string()
-    } else {
-        config.prompt.clone()
-    };
     let prompt_lines = if editing_prompt {
-        let mut display_text = config.prompt.clone();
-        let cursor_pos = app.edit.edit_cursor_pos.min(display_text.len());
-        display_text.insert(cursor_pos, '|');
+        let display = bench_tune_cursor_text(field_edit_buffer, field_edit_cursor);
         vec![
-            Line::from(display_text),
+            Line::from(display),
             Line::from(""),
             Line::from(vec![
                 Span::styled(
-                    format!(" [{} chars] ", config.prompt.len()),
+                    format!(" [{} chars] ", field_edit_buffer.len()),
                     Style::default().fg(CYAN),
                 ),
                 Span::styled(
@@ -1569,8 +1959,13 @@ fn render_bench_tune_setup(
             ]),
         ]
     } else {
+        let content = if config.prompt.is_empty() {
+            crate::t!("dialog.bench_config.empty_prompt").to_string()
+        } else {
+            config.prompt.clone()
+        };
         vec![
-            Line::from(prompt_content),
+            Line::from(content),
             Line::from(vec![Span::styled(
                 format!(" [{} chars] ", config.prompt.len()),
                 Style::default().fg(DIM_GRAY),
@@ -1591,69 +1986,13 @@ fn render_bench_tune_setup(
                     .border_type(BorderType::Rounded),
             )
             .wrap(Wrap { trim: true }),
-        regions[3],
+        regions[4],
     );
 
-    let param_header_lines: Vec<Line> = if editing_param
-        && selected_idx < config.params_to_test.len()
-    {
-        let p = &config.params_to_test[selected_idx];
-        if !p.variants.is_empty() {
-            let selected_variant_idx = if editing_param_field < -1 {
-                ((editing_param_field + 2) as isize).max(0) as usize
-            } else {
-                0
-            };
-            let selected_variant_idx = selected_variant_idx.min(p.variants.len().saturating_sub(1));
-            let selected_name = p
-                .variants
-                .get(selected_variant_idx)
-                .map(|s: &String| s.as_str())
-                .unwrap_or("");
-            let mut lines = vec![Line::from(vec![
-                Span::raw(crate::t!("dialog.bench_config.select_params")),
-                Span::styled(
-                    crate::t!("dialog.bench_config.edit_hint"),
-                    Style::default().fg(ACCENT),
-                ),
-                Span::raw(")  "),
-                Span::styled(" [←/→: cycle] ", Style::default().fg(DIM_GRAY)),
-                Span::styled(
-                    format!(
-                        "{} {}",
-                        crate::t!("dialog.bench_config.editing"),
-                        selected_name
-                    ),
-                    Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(
-                    format!(" ({}/{})", selected_variant_idx + 1, p.variants.len()),
-                    Style::default().fg(DIM_GRAY),
-                ),
-            ])];
-            if editing_param_field >= 0 && p.variants.is_empty() {
-                // Show validation warnings only for numeric params
-                if p.min >= p.max {
-                    lines.push(Line::from(Span::styled(
-                        crate::t!("dialog.bench_config.error_min"),
-                        Style::default().fg(RED),
-                    )));
-                }
-                if p.step <= 0.0 {
-                    lines.push(Line::from(Span::styled(
-                        crate::t!("dialog.bench_config.error_step"),
-                        Style::default().fg(RED),
-                    )));
-                }
-                if p.step >= (p.max - p.min) && (p.max - p.min) > 0.001 {
-                    lines.push(Line::from(Span::styled(
-                        " ⚠ step ≥ range — only 2 values will be tested",
-                        Style::default().fg(ACCENT),
-                    )));
-                }
-            }
-            lines
-        } else {
+    // ---- Param header ----
+    let param_header_lines: Vec<Line> =
+        if editing_param && selected_idx < config.params_to_test.len() {
+            let p = &config.params_to_test[selected_idx];
             let field_names = ["Min", "Max", "Step"];
             let active_field_name = if (0..3).contains(&editing_param_field) {
                 field_names[editing_param_field as usize]
@@ -1677,7 +2016,6 @@ fn render_bench_tune_setup(
                     Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
                 ),
             ])];
-            // Validation warnings
             if p.min >= p.max {
                 lines.push(Line::from(Span::styled(
                     crate::t!("dialog.bench_config.error_min"),
@@ -1697,39 +2035,30 @@ fn render_bench_tune_setup(
                 )));
             }
             lines
-        }
-    } else {
-        vec![Line::from(vec![
-            Span::raw(crate::t!("dialog.bench_config.params_label")),
-            Span::styled(
-                crate::t!("dialog.bench_config.toggle_hint"),
-                Style::default().fg(DIM_GRAY),
-            ),
-        ])]
-    };
-    f.render_widget(Paragraph::new(param_header_lines), regions[5]);
+        } else {
+            vec![Line::from(vec![
+                Span::raw(crate::t!("dialog.bench_config.params_label")),
+                Span::styled(
+                    crate::t!("dialog.bench_config.toggle_hint"),
+                    Style::default().fg(DIM_GRAY),
+                ),
+            ])]
+        };
+    f.render_widget(Paragraph::new(param_header_lines), regions[6]);
 
-    let is_spec_off = config
-        .params_to_test
-        .iter()
-        .find(|p| p.name == "spec_type")
-        .map(|p| p.min as usize == 0)
-        .unwrap_or(true);
-
+    // ---- Param table (spec_type excluded; it lives in the row above) ----
+    let spec_idx = config.spec_type_idx();
+    let spec_off = config.spec_off();
     let data_rows: Vec<Row> = config
         .params_to_test
         .iter()
         .enumerate()
+        .filter(|(i, _)| Some(*i) != spec_idx)
         .map(|(i, p)| {
             let marker = if i == selected_idx { ">" } else { " " };
             let is_selected = i == selected_idx;
-            let checkbox = if p.name == "spec_type" {
-                if is_selected {
-                    if p.enabled { "[X]" } else { "[ ]" }
-                } else {
-                    " - "
-                }
-            } else if p.name == "draft_tokens" && is_spec_off {
+            let draft_disabled = p.name == "draft_tokens" && spec_off;
+            let checkbox = if draft_disabled {
                 " - "
             } else if p.enabled {
                 "[X]"
@@ -1737,56 +2066,16 @@ fn render_bench_tune_setup(
                 "[ ]"
             };
             let name = p.name.replace("_", " ");
-            let desc_str = if p.name == "spec_type" {
-                let base_idx = (p.min as usize).min(p.variants.len().saturating_sub(1));
-                format!("▶ {}", p.variants[base_idx])
-            } else if p.name == "draft_tokens" && is_spec_off {
+            let desc_str = if draft_disabled {
                 crate::t!("dialog.bench_config.disabled").to_string()
-            } else if editing_param && is_selected && editing_param_field < -1 {
-                let selected_variant_idx = ((editing_param_field + 2) as isize).max(0) as usize;
-                let selected_variant_idx =
-                    selected_variant_idx.min(p.variants.len().saturating_sub(1));
-                let variant_names: Vec<String> = p
-                    .variants
-                    .iter()
-                    .enumerate()
-                    .map(|(i, v)| {
-                        if i == selected_variant_idx {
-                            format!("▶{}", v)
-                        } else {
-                            format!(" {} ", v)
-                        }
-                    })
-                    .collect();
-                variant_names.join("│")
-            } else if !p.variants.is_empty() {
-                let base_idx = (p.min as isize).max(0) as usize;
-                let base_idx = base_idx.min(p.variants.len().saturating_sub(1));
-                p.variants
-                    .iter()
-                    .enumerate()
-                    .map(|(i, v)| {
-                        if i == base_idx {
-                            format!("[{}]", v)
-                        } else {
-                            format!("({})", v)
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("│")
-            } else if editing_param && is_selected && editing_param_field >= 0 {
+            } else if editing_param && is_selected {
                 let cursor_pos = param_edit_cursor_pos.min(param_edit_buffer.len());
                 let before: String = param_edit_buffer.chars().take(cursor_pos).collect();
                 let after: String = param_edit_buffer.chars().skip(cursor_pos).collect();
-                let cursor_char = if editing_param && is_selected {
-                    "|"
-                } else {
-                    ""
-                };
                 let fields: Vec<String> = (0..=2)
                     .map(|f| {
                         if f == editing_param_field {
-                            format!("[{}{}{}]", before, after, cursor_char)
+                            format!("[{}{}|]", before, after)
                         } else {
                             match f {
                                 0 => format!("{:.2}", p.min),
@@ -1816,13 +2105,13 @@ fn render_bench_tune_setup(
             } else {
                 Style::default().fg(WHITE)
             };
-            let desc_style = if p.name == "draft_tokens" && is_spec_off {
+            let desc_style = if draft_disabled {
                 if is_selected {
                     Style::default().fg(DIM_GRAY).add_modifier(Modifier::DIM)
                 } else {
                     Style::default().fg(DIM_GRAY)
                 }
-            } else if editing_param && is_selected && !(-1..0).contains(&editing_param_field) {
+            } else if editing_param && is_selected {
                 Style::default().fg(BLUE)
             } else {
                 Style::default().fg(MID_GRAY)
@@ -1831,7 +2120,7 @@ fn render_bench_tune_setup(
                 Cell::from(Span::styled(marker, Style::default().fg(ACCENT))),
                 Cell::from(Span::styled(
                     checkbox,
-                    if p.name == "spec_type" || (p.name == "draft_tokens" && is_spec_off) {
+                    if draft_disabled {
                         Style::default().fg(DIM_GRAY)
                     } else if p.enabled {
                         Style::default().fg(GREEN)
@@ -1854,7 +2143,9 @@ fn render_bench_tune_setup(
             Constraint::Fill(1),
         ],
     );
-    f.render_widget(table, regions[6]);
+    f.render_widget(table, regions[7]);
+
+    // ---- Footer ----
     let total_tests = config.get_total_tests_count();
     let num_combinations = config.get_num_combinations();
     let footer_lines = vec![
@@ -1867,8 +2158,8 @@ fn render_bench_tune_setup(
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled(" [Alt+M]", Style::default().fg(ACCENT)),
-            Span::raw(" Mode "),
+            Span::styled(" [Alt+P]", Style::default().fg(ACCENT)),
+            Span::raw(" Prompt "),
             Span::styled(" [Alt+N]", Style::default().fg(ACCENT)),
             Span::raw(" Tokens "),
             Span::styled(" [Alt+I]", Style::default().fg(ACCENT)),
@@ -1907,19 +2198,185 @@ fn render_bench_tune_setup(
     ];
     f.render_widget(
         Paragraph::new(footer_lines).alignment(Alignment::Center),
-        regions[7],
+        regions[8],
     );
+}
+
+/// Render an edit buffer with a `|` cursor at the given (char) position.
+fn bench_tune_cursor_text(buffer: &str, cursor: usize) -> String {
+    let cursor = cursor.min(buffer.chars().count());
+    let before: String = buffer.chars().take(cursor).collect();
+    let after: String = buffer.chars().skip(cursor).collect();
+    format!("{before}|{after}")
+}
+
+/// Full-screen preview of every combination the bench tune will run.
+fn render_bench_tune_matrix(
+    f: &mut Frame,
+    area: Rect,
+    config: &crate::models::BenchTuneConfig,
+    scroll: usize,
+) {
+    let combos = config.generate_combinations();
+    let total = combos.len();
+
+    // Columns: one per enabled param, in a stable display order.
+    let display_order = [
+        "batch_size",
+        "threads",
+        "flash_attn",
+        "expert_count",
+        "spec_type",
+        "draft_tokens",
+    ];
+    let enabled_names: Vec<&str> = display_order
+        .iter()
+        .copied()
+        .filter(|name| {
+            config
+                .params_to_test
+                .iter()
+                .any(|p| p.name == *name && p.enabled)
+        })
+        .collect();
+
+    let block = Block::default()
+        .title(Span::styled(
+            crate::t_fmt!("dialog.bench_matrix.title", total),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .border_type(BorderType::Double);
+    let inner = block.inner(area);
+    f.render_widget(Clear, area);
+    f.render_widget(block, area);
+
+    let regions = ratatui::layout::Layout::vertical([
+        ratatui::layout::Constraint::Length(1), // column headers
+        ratatui::layout::Constraint::Min(0),    // data rows
+        ratatui::layout::Constraint::Length(1), // footer hints
+    ])
+    .split(inner);
+
+    // Header row
+    let header_spans: Vec<Span> = std::iter::once(Span::styled(
+        format!("{:<4}", "#"),
+        Style::default().fg(DIM_GRAY),
+    ))
+    .chain(enabled_names.iter().map(|name| {
+        Span::styled(
+            format!("{:<14}", name.replace('_', " ").to_uppercase()),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        )
+    }))
+    .collect();
+    f.render_widget(Paragraph::new(Line::from(header_spans)), regions[0]);
+
+    // Data rows (windowed by scroll)
+    let visible_height = regions[1].height as usize;
+    let max_scroll = total.saturating_sub(visible_height);
+    let scroll = scroll.min(max_scroll);
+    let data_rows: Vec<Row> = combos
+        .iter()
+        .enumerate()
+        .skip(scroll)
+        .take(visible_height)
+        .map(|(i, c)| {
+            let cells: Vec<Cell> = std::iter::once(Cell::from(Span::styled(
+                format!("{:<4}", i + 1),
+                Style::default().fg(DIM_GRAY),
+            )))
+            .chain(enabled_names.iter().map(|name| {
+                Cell::from(Span::styled(
+                    format!("{:<14}", bench_tune_matrix_cell(c, name)),
+                    Style::default().fg(WHITE),
+                ))
+            }))
+            .collect();
+            Row::new(cells)
+        })
+        .collect();
+
+    if !data_rows.is_empty() {
+        let constraints: Vec<Constraint> = std::iter::once(Constraint::Length(5))
+            .chain(std::iter::repeat_n(
+                Constraint::Min(10),
+                enabled_names.len(),
+            ))
+            .collect();
+        f.render_widget(Table::new(data_rows, constraints), regions[1]);
+    } else {
+        f.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                crate::t!("dialog.bench_matrix.empty"),
+                Style::default().fg(DIM_GRAY),
+            ))),
+            regions[1],
+        );
+    }
+
+    // Footer hints
+    let footer = Line::from(vec![
+        Span::styled(
+            crate::t!("dialog.bench_matrix.back"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw("   "),
+        Span::styled(
+            crate::t!("dialog.bench_matrix.scroll"),
+            Style::default().fg(DIM_GRAY),
+        ),
+        Span::raw("   "),
+        Span::styled(
+            crate::t!("dialog.bench_matrix.start"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw("   "),
+        Span::styled(
+            crate::t!("dialog.bench_matrix.cancel"),
+            Style::default().fg(DIM_GRAY),
+        ),
+    ]);
+    f.render_widget(
+        Paragraph::new(footer).alignment(Alignment::Center),
+        regions[2],
+    );
+}
+
+/// Format one combination's value for a given param name (for the matrix view).
+fn bench_tune_matrix_cell(c: &crate::models::BenchTuneParamValue, name: &str) -> String {
+    match name {
+        "batch_size" => c
+            .batch_size
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".into()),
+        "threads" => c
+            .threads
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".into()),
+        "flash_attn" => match c.flash_attn {
+            Some(true) => "on".into(),
+            Some(false) => "off".into(),
+            None => "-".into(),
+        },
+        "expert_count" => c
+            .expert_count
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".into()),
+        "spec_type" => c.spec_type.clone().unwrap_or_else(|| "-".into()),
+        "draft_tokens" => c
+            .draft_tokens
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".into()),
+        _ => "-".into(),
+    }
 }
 
 fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
     let w = (area.width as f64 * 0.8).clamp(70.0, 90.0) as u16;
     let h = (area.height as f64 * 0.8).clamp(20.0, 35.0) as u16;
-    let rpc_area = Rect {
-        x: (area.width.saturating_sub(w)) / 2,
-        y: (area.height.saturating_sub(h)) / 2,
-        width: w,
-        height: h,
-    };
+    let rpc_area = center_rect(area, w, h);
     let workers = &app.config.rpc_workers;
     let worker_lines = panel::rpc_workers::render_all(
         workers,
@@ -1951,8 +2408,9 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
         .border_type(BorderType::Double);
-    f.render_widget(Clear, rpc_area);
-    f.render_widget(Paragraph::new(visible_lines).block(block), rpc_area);
+    let popup = Popup::from_parts(rpc_area, block, Padding::ZERO);
+    popup.render_frame(f);
+    f.render_widget(Paragraph::new(visible_lines), popup.inner());
     if worker_lines.len() > available_height as usize {
         render_vertical_scrollbar(
             f,
@@ -1968,12 +2426,7 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
 fn render_about_overlay(f: &mut Frame, area: Rect) {
     let w = (area.width as f64 * 0.6).clamp(50.0, 70.0) as u16;
     let h = 16.min(area.height - 4);
-    let about_area = Rect {
-        x: (area.width.saturating_sub(w)) / 2,
-        y: (area.height.saturating_sub(h)) / 2,
-        width: w,
-        height: h,
-    };
+    let about_area = center_rect(area, w, h);
     let about_lines = panel::about::render_about();
     let block = Block::default()
         .title(Span::styled(
@@ -1983,12 +2436,11 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
         .border_type(BorderType::Double);
-    f.render_widget(Clear, about_area);
+    let popup = Popup::from_parts(about_area, block, Padding::ZERO);
+    popup.render_frame(f);
     f.render_widget(
-        Paragraph::new(about_lines)
-            .block(block)
-            .alignment(Alignment::Center),
-        about_area,
+        Paragraph::new(about_lines).alignment(Alignment::Center),
+        popup.inner(),
     );
 }
 
@@ -3024,8 +3476,6 @@ fn render_gguf_naming_overlay(
         .clamp(12, 35)
         .min(area.height - 4);
 
-    let popup_area = center_rect(area, w, h);
-
     let mut lines: Vec<Line> = Vec::new();
 
     // Title
@@ -3165,17 +3615,17 @@ fn render_gguf_naming_overlay(
         Style::default().fg(ACCENT),
     )]));
 
-    let block = Block::default()
-        .title(Span::styled(
+    let popup = Popup::double(
+        area,
+        w,
+        h,
+        Span::styled(
             crate::t!("dialog.gguf.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(ACCENT))
-        .border_type(BorderType::Double);
-
-    f.render_widget(Clear, popup_area);
-    f.render_widget(Paragraph::new(lines).block(block), popup_area);
+        ),
+    );
+    popup.render_frame(f);
+    f.render_widget(Paragraph::new(lines), popup.inner());
 }
 
 fn wrap_text(text: &str, max_width: usize) -> String {
@@ -3310,48 +3760,6 @@ fn render_yarn_rope_picker(
     );
 }
 
-fn render_spec_type_picker(
-    f: &mut Frame,
-    area: Rect,
-    _app: &App,
-    entries: &[String],
-    selected: usize,
-) {
-    let mut picker_lines: Vec<Line> = Vec::new();
-
-    for (i, entry) in entries.iter().enumerate() {
-        let marker = if i == selected { "> " } else { "  " };
-        let style = if i == selected {
-            Style::default()
-                .fg(BLACK)
-                .bg(ACCENT)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(WHITE)
-        };
-        picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(ACCENT)),
-            Span::styled(entry, style),
-        ]));
-    }
-
-    render_picker_popup(
-        f,
-        area,
-        Span::styled(
-            crate::t!("dialog.spec.title"),
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        ),
-        Some(Line::from(Span::styled(
-            crate::t!("dialog.spec.help"),
-            Style::default().fg(ACCENT),
-        ))),
-        picker_lines,
-        None,
-        None,
-    );
-}
-
 fn render_chat_template_picker(
     f: &mut Frame,
     area: Rect,
@@ -3400,6 +3808,96 @@ fn render_chat_template_picker(
         ),
         Some(Line::from(Span::styled(
             crate::t!("dialog.chat_template.help"),
+            Style::default().fg(ACCENT),
+        ))),
+        lines,
+        None,
+        scroll,
+    );
+}
+
+/// Multi-select picker of GPU devices (from `llama-server --list-devices`).
+///
+/// Entry 0 is the special "(default) — all devices" option; selecting it (or
+/// leaving everything unchecked) means an empty `devices` list, i.e. let
+/// llama.cpp use all detected devices.
+fn render_gpu_device_picker(
+    f: &mut Frame,
+    area: Rect,
+    entries: &[(String, String)],
+    selected: usize,
+    checked: &[bool],
+    loading: bool,
+    error: Option<&str>,
+    scroll_offset: &mut usize,
+) {
+    let mut blocks: Vec<Vec<Line>> = Vec::new();
+
+    if let Some(err) = error {
+        blocks.push(vec![Line::from(Span::styled(
+            format!("{}: {}", crate::t!("dialog.gpu_devices.error"), err),
+            Style::default().fg(RED),
+        ))]);
+    } else if loading {
+        blocks.push(vec![Line::from(Span::styled(
+            crate::t!("dialog.gpu_devices.loading").to_string(),
+            Style::default().fg(DIM_GRAY),
+        ))]);
+    } else if entries.is_empty() {
+        blocks.push(vec![Line::from(Span::styled(
+            crate::t!("dialog.gpu_devices.none").to_string(),
+            Style::default().fg(RED),
+        ))]);
+    } else {
+        for (i, (name, info)) in entries.iter().enumerate() {
+            let is_default = i == 0;
+            // The default entry is "active" when no real device is checked.
+            let is_checked = if is_default {
+                checked.iter().enumerate().all(|(j, c)| j == 0 || !c)
+            } else {
+                checked.get(i).copied().unwrap_or(false)
+            };
+            let box_char = if is_checked { "[x]" } else { "[ ]" };
+            let marker = if i == selected { "> " } else { "  " };
+            let style = if i == selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            let label = format!("{} — {}", name, info);
+            blocks.push(vec![Line::from(vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(box_char, style),
+                Span::styled(label, style),
+            ])]);
+        }
+    }
+
+    let (fit, off, _) = picker_block_window(area, &blocks, selected, scroll_offset, 2);
+    let lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
+    let scroll = if blocks.len() > fit {
+        Some((blocks.len(), off, fit))
+    } else {
+        None
+    };
+    render_picker_popup(
+        f,
+        area,
+        Span::styled(
+            crate::t!("dialog.gpu_devices.title"),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.gpu_devices.help"),
             Style::default().fg(ACCENT),
         ))),
         lines,

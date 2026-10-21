@@ -175,7 +175,7 @@ impl std::hash::Hash for ModelSettings {
         self.gpu_layers_mode.hash(state);
         self.split_mode.hash(state);
         self.tensor_split.hash(state);
-        self.main_gpu.hash(state);
+        self.devices.hash(state);
         self.fit.hash(state);
         self.lora.hash(state);
         if let Some((path, scale)) = &self.lora_scaled {
@@ -367,7 +367,7 @@ impl From<crate::config::DefaultParams> for ModelSettings {
             },
             split_mode: dp.split_mode,
             tensor_split: dp.tensor_split,
-            main_gpu: dp.main_gpu,
+            devices: dp.devices.clone(),
             fit: dp.fit,
             lora: dp.lora,
             lora_scaled: dp.lora_scaled,
@@ -1035,8 +1035,9 @@ pub struct ModelSettings {
     pub split_mode: SplitMode,
     /// Fraction of model offloaded to each GPU (comma-separated).
     pub tensor_split: String,
-    /// Main GPU index.
-    pub main_gpu: i32,
+    /// GPU device names to restrict offloading to (from `llama-server --list-devices`).
+    /// Empty = use all detected devices.
+    pub devices: Vec<String>,
     /// Whether to adjust arguments to fit device memory.
     pub fit: bool,
     /// Path to LoRA adapter.
@@ -2271,6 +2272,16 @@ pub struct BenchTuneConfig {
     pub test_timeout: Duration,
 }
 
+/// Which single scalar/text field of a [BenchTuneConfig] the setup picker is
+/// editing. All four share one edit buffer + cursor in the picker state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BenchTuneField {
+    Prompt,
+    Kwargs,
+    NPredict,
+    Iters,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchTuneParam {
     pub name: String,
@@ -2454,6 +2465,8 @@ impl BenchTuneProgress {
 
 impl BenchTuneConfig {
     pub fn new(model_path: PathBuf, num_iterations: u32, prompt: String) -> Self {
+        // Threads sweep up to the machine's physical core count (min 2).
+        let cpu_max = crate::config::physical_cores().max(2) as f64;
         Self {
             model_path,
             num_iterations,
@@ -2469,25 +2482,17 @@ impl BenchTuneConfig {
                 },
                 BenchTuneParam {
                     name: "threads".to_string(),
-                    min: 4.0,
-                    max: 16.0,
-                    step: 4.0,
+                    min: 2.0,
+                    max: cpu_max,
+                    step: 2.0,
                     enabled: false,
                     variants: vec![],
                 },
                 BenchTuneParam {
                     name: "batch_size".to_string(),
-                    min: 512.0,
-                    max: 2048.0,
-                    step: 512.0,
-                    enabled: false,
-                    variants: vec![],
-                },
-                BenchTuneParam {
-                    name: "expert_count".to_string(),
-                    min: -1.0,
-                    max: 4.0,
-                    step: 1.0,
+                    min: 256.0,
+                    max: 16384.0,
+                    step: 1024.0,
                     enabled: false,
                     variants: vec![],
                 },
@@ -2523,6 +2528,20 @@ impl BenchTuneConfig {
             chat_template_kwargs: Some(r#"{"enable_thinking": false}"#.to_string()),
             test_timeout: Duration::from_secs(60),
         }
+    }
+
+    /// Index of the `spec_type` param in `params_to_test`, if present.
+    pub fn spec_type_idx(&self) -> Option<usize> {
+        self.params_to_test
+            .iter()
+            .position(|p| p.name == "spec_type")
+    }
+
+    /// Whether the spec-type mode is currently "Off" (variant index 0).
+    pub fn spec_off(&self) -> bool {
+        self.spec_type_idx()
+            .map(|i| self.params_to_test[i].min as usize == 0)
+            .unwrap_or(true)
     }
 
     /// Generate all parameter combinations based on the config
@@ -2703,7 +2722,7 @@ mod field_count_tests {
             &s.gpu_layers_mode,
             &s.split_mode,
             &s.tensor_split,
-            &s.main_gpu,
+            &s.devices,
             &s.fit,
             &s.lora,
             &s.lora_scaled,

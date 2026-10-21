@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use super::super::helpers::{mark_settings_dirty, sync_global_settings};
 use crate::models::CacheQuantType;
-use crate::tui::app::{App, GlobalMode};
+use crate::tui::app::{App, GlobalMode, ListPicker, ListPickerEntry, ListPickerKind};
 use crate::tui::settings;
 
 fn cycle_cache_type(field: &mut Option<CacheQuantType>) {
@@ -13,7 +13,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
     let idx = app.settings_state.settings_selected_idx;
 
     // Build the field list
-    let fields = settings::filtered_fields(app.settings_state.expert_mode);
+    let fields = settings::filtered_fields(app.settings_state.expert_mode, &app.settings);
     let field = fields.get(idx);
     let field_id = field.map(|f| f.id);
 
@@ -223,6 +223,36 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
         }
     }
 
+    // Tensor Split: open the picker on Enter (auto / equal / manual)
+    if field_id == Some("tensor_split")
+        && key.code == KeyCode::Enter
+        && app.settings_state.settings_edit_buffer.is_empty()
+    {
+        let vram = crate::backend::hardware::gpu_vram_gib_cached(
+            std::time::Duration::from_secs(30),
+            app.settings.backend,
+        );
+        let raw_entries = settings::tensor_split_entries(&vram, &app.settings.tensor_split);
+        let entries: Vec<ListPickerEntry> = raw_entries
+            .iter()
+            .map(|(label, value)| {
+                ListPickerEntry::with_value(value.clone(), format!("{}: {value}", label))
+            })
+            .collect();
+        let selected = raw_entries
+            .iter()
+            .position(|(_, v)| v == &app.settings.tensor_split)
+            .unwrap_or(raw_entries.len() - 1);
+        app.list_picker = Some(ListPicker {
+            kind: ListPickerKind::TensorSplit,
+            entries,
+            selected,
+            ..Default::default()
+        });
+        mark_settings_dirty(app, false);
+        return;
+    }
+
     // Flash Attention: toggle on Enter
     if field_id == Some("flash_attn") && key.code == KeyCode::Enter {
         app.settings.flash_attn = !app.settings.flash_attn;
@@ -256,6 +286,66 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             0
         };
         app.ui.global_mode = GlobalMode::ChatTemplatePicker { entries, selected };
+        mark_settings_dirty(app, false);
+        return;
+    }
+
+    // GPU Devices: open the multi-select picker on Enter. Devices are listed
+    // asynchronously (llama-server --list-devices) and filled in via the
+    // pending channel.
+    if field_id == Some("devices") && key.code == KeyCode::Enter {
+        let backend = app.settings.backend;
+        let version = app.settings.get_active_backend_version().cloned();
+        let rocm = app.settings.llama_cpp_strix_halo_rocm.clone();
+        let current_devices = app.settings.devices.clone();
+        let tx = app.pending_tx.clone();
+
+        app.ui.global_mode = GlobalMode::GpuDevicePicker {
+            entries: Vec::new(),
+            selected: 0,
+            checked: Vec::new(),
+            loading: true,
+            error: None,
+        };
+        app.picker.gpu_device_picker_scroll_offset = 0;
+
+        tokio::spawn(async move {
+            match crate::backend::hardware::list_devices(
+                backend,
+                version.as_deref(),
+                rocm.as_deref(),
+            )
+            .await
+            {
+                Ok(devices) => {
+                    let entries: Vec<(String, String)> = std::iter::once((
+                        crate::t!("dialog.gpu_devices.default").to_string(),
+                        crate::t!("dialog.gpu_devices.default_hint").to_string(),
+                    ))
+                    .chain(devices.into_iter().map(|d| (d.name, d.info)))
+                    .collect();
+                    let mut checked = vec![false; entries.len()];
+                    for (i, entry) in entries.iter().enumerate() {
+                        if i > 0 && current_devices.contains(&entry.0) {
+                            checked[i] = true;
+                        }
+                    }
+                    let _ = tx.try_send(
+                        crate::tui::app::pending_events::PendingEvent::GpuDevicesLoaded {
+                            entries,
+                            checked,
+                        },
+                    );
+                }
+                Err(e) => {
+                    let _ = tx.try_send(
+                        crate::tui::app::pending_events::PendingEvent::GpuDevicesError {
+                            message: e.to_string(),
+                        },
+                    );
+                }
+            }
+        });
         mark_settings_dirty(app, false);
         return;
     }
@@ -348,7 +438,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // Spec type: open picker on Enter
     if field_id == Some("is_mtp") && key.code == KeyCode::Enter {
-        let entries = vec![
+        let entries: Vec<ListPickerEntry> = vec![
             "Off".to_string(),
             "draft-mtp".to_string(),
             "draft-simple".to_string(),
@@ -358,10 +448,21 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             "ngram-map-k4v".to_string(),
             "ngram-mod".to_string(),
             "ngram-cache".to_string(),
-        ];
+        ]
+        .into_iter()
+        .map(|v| ListPickerEntry::with_value(v.clone(), v))
+        .collect();
         let spec_type = app.settings.spec_type.clone();
-        let selected = entries.iter().position(|e| e == &spec_type).unwrap_or(0);
-        app.ui.global_mode = GlobalMode::SpecTypePicker { entries, selected };
+        let selected = entries
+            .iter()
+            .position(|e| e.value == spec_type)
+            .unwrap_or(0);
+        app.list_picker = Some(ListPicker {
+            kind: ListPickerKind::SpecType,
+            entries,
+            selected,
+            ..Default::default()
+        });
         mark_settings_dirty(app, false);
         return;
     }

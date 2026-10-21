@@ -1,3 +1,11 @@
+//! Terminal user interface for llm-manager.
+//!
+//! Owns all TUI state ([`app`]), input handling ([`event`]), rendering
+//! ([`render`], [`panel`]), internationalization ([`i18n`]), and shared UI
+//! building blocks ([`colors`], [`toast`], [`command_palette`],
+//! [`gguf_naming`], [`settings`]). This module also provides small shared
+//! formatting and scrollbar helpers used across panels.
+
 use ratatui::{
     Frame,
     layout::Rect,
@@ -8,6 +16,7 @@ use crate::models::BenchTuneParamValue;
 
 pub mod app;
 pub mod colors;
+pub mod command_palette;
 pub mod event;
 pub mod gguf_naming;
 pub mod i18n;

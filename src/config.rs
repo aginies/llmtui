@@ -254,7 +254,7 @@ pub struct ModelOverride {
     pub gpu_layers: Option<i32>,
     pub split_mode: Option<SplitMode>,
     pub tensor_split: Option<String>,
-    pub main_gpu: Option<i32>,
+    pub devices: Option<Vec<String>>,
     pub fit: Option<bool>,
     pub lora: Option<PathBuf>,
     pub lora_scaled: Option<(PathBuf, f32)>,
@@ -379,7 +379,7 @@ impl ModelOverride {
             gpu_layers_mode: Some(s.gpu_layers_mode),
             split_mode: Some(s.split_mode),
             tensor_split: Some(s.tensor_split.clone()),
-            main_gpu: Some(s.main_gpu),
+            devices: Some(s.devices.clone()),
             fit: Some(s.fit),
             lora: s.lora.clone(),
             lora_scaled: s.lora_scaled.clone(),
@@ -458,7 +458,6 @@ impl ModelOverride {
             threads_batch,
             parallel,
             split_mode,
-            main_gpu,
             fit,
             embedding,
             flash_attn,
@@ -501,6 +500,7 @@ impl ModelOverride {
             system_prompt,
             system_prompt_preset_name,
             tensor_split,
+            devices,
             rpc,
             samplers,
             spec_type,
@@ -557,8 +557,8 @@ impl ModelOverride {
         }
 
         // FIELD ACCOUNTING (ModelOverride: 85 fields):
-        // - apply_scalar: 51 fields
-        // - apply_clone: 7 fields
+        // - apply_scalar: 50 fields
+        // - apply_clone: 8 fields
         // - apply_option: 10 fields
         // - direct Option assign: 5 fields (cache_type_k, cache_type_v, presence_penalty,
         //   frequency_penalty, max_tokens)
@@ -586,7 +586,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 top_k: Some(20),
                 top_p: Some(0.95),
                 max_tokens: Some(4096),
-                presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 ..Default::default()
@@ -600,7 +599,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 temperature: Some(0.6),
                 top_k: Some(20),
                 top_p: Some(0.95),
-                presence_penalty: Some(1.5),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 spec_type: Some("draft-mtp".into()),
@@ -618,7 +616,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 top_k: Some(20),
                 top_p: Some(0.95),
                 max_tokens: Some(4096),
-                presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 ..Default::default()
@@ -688,7 +685,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 top_k: Some(40),
                 top_p: Some(0.95),
                 max_tokens: Some(8192),
-                presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 ..Default::default()
@@ -702,7 +698,6 @@ pub fn builtin_profiles() -> Vec<Profile> {
                 temperature: Some(0.2),
                 top_k: Some(50),
                 top_p: Some(1.0),
-                presence_penalty: Some(0.0),
                 uniform_cache: Some(true),
                 jinja: Some(true),
                 ..Default::default()
@@ -775,7 +770,7 @@ pub struct DefaultParams {
     #[serde(default)]
     pub tensor_split: String,
     #[serde(default)]
-    pub main_gpu: i32,
+    pub devices: Vec<String>,
     #[serde(default = "default_fit")]
     pub fit: bool,
     #[serde(default)]
@@ -1006,10 +1001,10 @@ fn default_threads_batch() -> u32 {
     8
 }
 fn default_batch_size() -> u32 {
-    8192
+    2048
 }
 fn default_ubatch_size() -> u32 {
-    512
+    2048
 }
 fn default_uniform_cache() -> bool {
     true
@@ -1147,7 +1142,7 @@ impl Default for DefaultParams {
             gpu_layers_mode: default_gpu_layers_mode(),
             split_mode: SplitMode::None,
             tensor_split: String::new(),
-            main_gpu: 0,
+            devices: Vec::new(),
             fit: default_fit(),
             lora: None,
             lora_scaled: None,
@@ -1311,7 +1306,7 @@ impl Config {
             "gpu_layers_mode",
             "split_mode",
             "tensor_split",
-            "main_gpu",
+            "devices",
             "fit",
             "lora",
             "lora_scaled",
@@ -1411,7 +1406,7 @@ impl Config {
             "gpu_layers",
             "split_mode",
             "tensor_split",
-            "main_gpu",
+            "devices",
             "fit",
             "lora",
             "lora_scaled",

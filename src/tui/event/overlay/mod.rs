@@ -12,11 +12,13 @@ mod bench_tune_setup;
 mod chat_template_file_picker;
 mod chat_template_picker;
 mod cmd_line;
+mod command_palette;
 mod confirmation;
 mod dashboard_picker;
 mod dashboard_url;
-mod directory_picker;
+pub mod directory_picker;
 mod gguf_naming;
+mod gpu_device_picker;
 mod host_picker;
 mod llama_server_picker;
 mod max_concurrent_picker;
@@ -27,7 +29,6 @@ mod profile_picker;
 mod prompt_picker;
 mod rpc_manager;
 mod search_input;
-mod spec_type_picker;
 mod web_search_picker;
 mod yarn_rope_settings;
 
@@ -38,10 +39,12 @@ pub use bench_tune_setup::BenchTuneSetupHandler;
 pub use chat_template_file_picker::ChatTemplateFilePickerHandler;
 pub use chat_template_picker::ChatTemplatePickerHandler;
 pub use cmd_line::CmdLineHandler;
+pub use command_palette::CommandPaletteHandler;
 pub use confirmation::ConfirmationHandler;
 pub use dashboard_picker::DashboardPickerHandler;
 pub use dashboard_url::DashboardUrlHandler;
 pub use gguf_naming::GgufNamingHandler;
+pub use gpu_device_picker::GpuDevicePickerHandler;
 pub use host_picker::HostPickerHandler;
 pub use llama_server_picker::LlamaServerPickerHandler;
 pub use max_concurrent_picker::MaxConcurrentPickerHandler;
@@ -52,7 +55,6 @@ pub use profile_picker::ProfilePickerHandler;
 pub use prompt_picker::PromptPickerHandler;
 pub use rpc_manager::RpcManagerHandler;
 pub use search_input::SearchInputHandler;
-pub use spec_type_picker::SpecTypePickerHandler;
 pub use web_search_picker::{WebSearchPickerHandler, check_web_search_health};
 pub use yarn_rope_settings::YarnRoPESettingsHandler;
 
@@ -76,9 +78,9 @@ impl OverlayRegistry {
             Box::new(CmdLineHandler),
             Box::new(AboutHandler),
             Box::new(SearchInputHandler),
+            Box::new(CommandPaletteHandler),
             Box::new(DashboardPickerHandler),
             Box::new(ApiEndpointPickerHandler),
-            Box::new(SpecTypePickerHandler),
             Box::new(ChatTemplatePickerHandler),
             Box::new(ChatTemplateFilePickerHandler),
             Box::new(YarnRoPESettingsHandler),
@@ -90,6 +92,7 @@ impl OverlayRegistry {
             Box::new(PromptPickerHandler),
             Box::new(BenchTuneSetupHandler),
             Box::new(BackendPickerHandler),
+            Box::new(GpuDevicePickerHandler),
             Box::new(MaxConcurrentPickerHandler),
             Box::new(ConfirmationHandler),
             Box::new(RpcManagerHandler),

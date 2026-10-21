@@ -28,6 +28,9 @@ pub struct SettingField {
     pub is_expert: bool,
     pub is_ultra: bool,
     pub is_enabled: Option<fn(&ModelSettings) -> bool>,
+    /// When set, the field is shown even in non-expert mode if the predicate
+    /// holds (contextual visibility, e.g. tensor_split when split_mode=Tensor).
+    pub show_when: Option<fn(&ModelSettings) -> bool>,
 }
 
 impl SettingField {
@@ -94,6 +97,7 @@ macro_rules! make_field_fn {
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
+                show_when: None,
             }
         }
     };
@@ -120,6 +124,7 @@ macro_rules! make_field_fn {
                 is_expert: $expert,
                 is_ultra: $ultra,
                 is_enabled: None,
+                show_when: None,
             }
         }
     };
@@ -209,6 +214,9 @@ fn toggle_cache_type_v(settings: &mut ModelSettings) {
         .cache_type_v
         .map_or(Some(CacheQuantType::F16), |_| None);
 }
+fn clear_tensor_split(settings: &mut ModelSettings) {
+    settings.tensor_split.clear();
+}
 fn toggle_expert_count(settings: &mut ModelSettings) {
     settings.expert_count = match settings.expert_count {
         0 => 1,
@@ -217,14 +225,11 @@ fn toggle_expert_count(settings: &mut ModelSettings) {
     };
 }
 
-fn format_main_gpu_display(main_gpu: i32) -> String {
-    let gpus =
-        crate::backend::hardware::gpu_info_cached(std::time::Duration::from_secs(30)).all_gpus;
-    if main_gpu >= 0 && (main_gpu as usize) < gpus.len() {
-        let gpu = &gpus[main_gpu as usize];
-        format!("{} - {}", main_gpu, gpu.name)
+fn format_devices_display(s: &ModelSettings) -> String {
+    if s.devices.is_empty() {
+        crate::t!("dialog.gpu_devices.all").to_string()
     } else {
-        format!("{}", main_gpu)
+        s.devices.join(", ")
     }
 }
 fn toggle_presence_penalty(settings: &mut ModelSettings) {
@@ -521,35 +526,34 @@ pub fn all_fields() -> Vec<SettingField> {
             |_, _| {},
             "GPU split strategy: None, Layer (default), Row, or Tensor. Controls how model layers are distributed across multiple GPUs. Layer splits by layer count, Row/Tensor split by matrix dimensions for multi-GPU setups.",
         ),
+        {
+            let mut f = expert_field(
+                "tensor_split",
+                "Tensor Split",
+                "GPU Offload",
+                |s| s.tensor_split.clone(),
+                |s, c| s.tensor_split != c.tensor_split,
+                |_s, delta, _| {
+                    let _ = delta;
+                },
+                |s, buf| {
+                    s.tensor_split = buf.to_string();
+                },
+                "Fraction of model weights to load on each GPU (comma-separated for multi-GPU, e.g. '24,16'). Press Enter to open the picker (auto / equal / manual). Ctrl+E clears the value (back to auto).",
+            );
+            f.show_when = Some(|s| s.split_mode == SplitMode::Tensor);
+            f.ctrl_e_toggle = Some(clear_tensor_split);
+            f
+        },
         expert_field(
-            "tensor_split",
-            "Tensor Split",
+            "devices",
+            "GPU Devices",
             "GPU Offload",
-            |s| s.tensor_split.clone(),
-            |s, c| s.tensor_split != c.tensor_split,
-            |_s, delta, _| {
-                let _ = delta;
-            },
-            |s, buf| {
-                s.tensor_split = buf.to_string();
-            },
-            "Fraction of model weights to load on each GPU (colon-separated for multi-GPU, e.g., '0.5:0.5'). For single GPU, leave empty. Press Enter to edit.",
-        ),
-        expert_field(
-            "main_gpu",
-            "Main GPU",
-            "GPU Offload",
-            |s| format_main_gpu_display(s.main_gpu),
-            |s, c| s.main_gpu != c.main_gpu,
-            |s, delta, _| {
-                s.main_gpu = (s.main_gpu + delta).max(0);
-            },
-            |s, buf| {
-                if let Ok(v) = buf.parse::<i32>() {
-                    s.main_gpu = v;
-                }
-            },
-            "Index of the main GPU (0-based). Display shows 'index - gpu_name' (e.g. '0 - NVIDIA GeForce RTX 4090'). Handles initial model loading and some computations. Typical: 0 for single GPU, 0 for primary in multi-GPU setups.",
+            format_devices_display,
+            |s, c| s.devices != c.devices,
+            |_, _, _| {},
+            |_, _| {},
+            "GPU device names to restrict offloading to (from llama-server --list-devices). Empty = use all detected devices. Press Enter to open the multi-select picker. (documentation only; UI help comes from field.help.devices)",
         ),
         field_with_toggle(
             "fit",
@@ -1086,17 +1090,142 @@ pub fn all_fields() -> Vec<SettingField> {
     ]
 }
 
-pub fn filtered_fields(expert_mode: bool) -> Vec<SettingField> {
+pub fn filtered_fields(expert_mode: bool, settings: &ModelSettings) -> Vec<SettingField> {
     all_fields()
         .into_iter()
         .filter(|f| {
-            if !expert_mode {
-                !f.is_expert
-            } else {
+            let base = if expert_mode {
                 !f.is_ultra // In expert mode, hide ultra experts
-            }
+            } else {
+                !f.is_expert
+            };
+            // Contextual fields (show_when) appear in non-expert mode when
+            // their predicate holds, regardless of the expert flag.
+            base || f.show_when.is_some_and(|w| w(settings))
         })
         .collect()
+}
+
+/// Build the tensor-split picker entries from detected per-GPU VRAM (GiB)
+/// and the currently configured value.
+///
+/// Returns `(label, value)` pairs:
+/// - "Auto (VRAM)" — proportional to each GPU's VRAM (only with ≥2 GPUs)
+/// - "Equal weights" — one `1` per GPU (min 2)
+/// - "Manual entry" — carries the current value into the edit buffer
+pub fn tensor_split_entries(vram_gib: &[u32], current: &str) -> Vec<(String, String)> {
+    let mut entries: Vec<(String, String)> = Vec::new();
+    if let Some(auto) = crate::backend::hardware::tensor_split_from_vram(vram_gib) {
+        entries.push((crate::t_fmt!("dialog.tensor_split.auto", auto), auto));
+    }
+    let n = vram_gib.len().max(2);
+    let equal = vec!["1"; n].join(",");
+    entries.push((crate::t_fmt!("dialog.tensor_split.equal", equal), equal));
+    entries.push((
+        crate::t!("dialog.tensor_split.manual").to_string(),
+        current.to_string(),
+    ));
+    entries
+}
+
+/// Validate a tensor-split value: comma/colon-separated non-negative numbers
+/// (e.g. `24,16` or `0.5:0.5`). Empty is valid (server picks the default).
+pub fn is_valid_tensor_split(s: &str) -> bool {
+    let t = s.trim();
+    if t.is_empty() {
+        return true;
+    }
+    t.split([',', ':'])
+        .map(|p| p.trim())
+        .all(|p| p.parse::<f64>().is_ok_and(|v| v >= 0.0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tensor_split_entries_two_gpus() {
+        let entries = tensor_split_entries(&[24, 16], "");
+        // Auto + Equal + Manual
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].1, "24,16");
+        assert_eq!(entries[1].1, "1,1");
+        assert_eq!(entries[2].1, "");
+    }
+
+    #[test]
+    fn tensor_split_entries_single_gpu_no_auto() {
+        let entries = tensor_split_entries(&[24], "8");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].1, "1,1");
+        assert_eq!(entries[1].1, "8");
+    }
+
+    #[test]
+    fn tensor_split_entries_no_gpus() {
+        let entries = tensor_split_entries(&[], "");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].1, "1,1");
+        assert_eq!(entries[1].1, "");
+    }
+
+    #[test]
+    fn tensor_split_entries_three_gpus_equal() {
+        let entries = tensor_split_entries(&[24, 16, 8], "");
+        assert_eq!(entries[0].1, "24,16,8");
+        assert_eq!(entries[1].1, "1,1,1");
+    }
+
+    #[test]
+    fn is_valid_tensor_split_cases() {
+        assert!(is_valid_tensor_split(""));
+        assert!(is_valid_tensor_split("  "));
+        assert!(is_valid_tensor_split("24,16"));
+        assert!(is_valid_tensor_split("0.5:0.5"));
+        assert!(is_valid_tensor_split("1"));
+        assert!(is_valid_tensor_split(" 24 , 16 "));
+        assert!(!is_valid_tensor_split("abc"));
+        assert!(!is_valid_tensor_split("24,,16"));
+        assert!(!is_valid_tensor_split("-1,2"));
+        assert!(!is_valid_tensor_split("24,"));
+    }
+
+    #[test]
+    fn tensor_split_shown_when_split_mode_tensor() {
+        let mut s = ModelSettings::default();
+        s.split_mode = SplitMode::Tensor;
+        let fields = filtered_fields(false, &s);
+        assert!(fields.iter().any(|f| f.id == "tensor_split"));
+
+        s.split_mode = SplitMode::Layer;
+        let fields = filtered_fields(false, &s);
+        assert!(!fields.iter().any(|f| f.id == "tensor_split"));
+
+        // Expert mode always shows it
+        let fields = filtered_fields(true, &s);
+        assert!(fields.iter().any(|f| f.id == "tensor_split"));
+    }
+
+    #[test]
+    fn tensor_split_ctrl_e_clears_value() {
+        // The tensor_split field must expose a ctrl_e_toggle that clears the value.
+        let fields = all_fields();
+        let f = fields
+            .iter()
+            .find(|f| f.id == "tensor_split")
+            .expect("tensor_split field");
+        let toggle = f.ctrl_e_toggle.expect("tensor_split ctrl_e_toggle wired");
+
+        let mut s = ModelSettings::default();
+        s.tensor_split = "24,16".to_string();
+        toggle(&mut s);
+        assert_eq!(s.tensor_split, "");
+
+        // Idempotent: clearing an already-empty value stays empty.
+        toggle(&mut s);
+        assert_eq!(s.tensor_split, "");
+    }
 }
 
 // ── Simple helper for the server settings panel (tabbed.rs) ──────────────────
@@ -1178,7 +1307,11 @@ pub fn profile_settings_parts(profile: &Profile, current: &ModelSettings) -> Vec
     diff_int!(parts, s, current, draft_tokens, "draft_tokens");
 
     diff_int!(parts, s, current, keep, "keep");
-    diff_int!(parts, s, current, main_gpu, "main_gpu");
+    if let Some(v) = &s.devices
+        && v != &current.devices
+    {
+        parts.push(format!("devices={}", v.join(",")));
+    }
     diff_int!(parts, s, current, expert_count, "expert_count");
     diff_int!(parts, s, current, seed, "seed");
     diff_int!(parts, s, current, top_k, "top_k");
@@ -1354,7 +1487,9 @@ pub fn model_settings_diff_parts(current: &ModelSettings, profile: &ModelSetting
     ms_diff_int!(parts, s, current, parallel, "parallel");
     ms_diff_option!(parts, s, current, max_concurrent_predictions, "concurrent");
     ms_diff_int!(parts, s, current, keep, "keep");
-    ms_diff_int!(parts, s, current, main_gpu, "main_gpu");
+    if s.devices != current.devices {
+        parts.push(format!("devices={}", s.devices.join(",")));
+    }
     ms_diff_int!(parts, s, current, expert_count, "experts");
     ms_diff_int!(parts, s, current, seed, "seed");
     ms_diff_int!(parts, s, current, top_k, "top_k");

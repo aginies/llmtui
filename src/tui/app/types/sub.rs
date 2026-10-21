@@ -1,3 +1,10 @@
+//! State sub-structs and task-handle types for the [`App`](super::App).
+//!
+//! The [`App`](super::App) state is split into focused sub-structs (settings,
+//! pickers, download, server, bench-tune, log, loading, search, UI, edit) to
+//! keep the struct definition manageable. This module also defines the async
+//! task-handle aliases used by those sub-structs.
+
 use crate::backend::server::ServerHandle;
 use crate::config::LogEntry;
 use crate::models::Backend;
@@ -60,6 +67,7 @@ pub struct PickerState {
     pub rpc_worker_tensor_split_cursor_pos: usize,
     pub readme_scroll_offset: usize,
     pub chat_template_picker_scroll_offset: usize,
+    pub gpu_device_picker_scroll_offset: usize,
 }
 
 pub struct DownloadState {
@@ -235,10 +243,6 @@ pub struct UIState {
 
 pub struct EditState {
     pub edit_cursor_pos: usize,
-    pub editing_n_predict: bool,
-    pub n_predict_edit_buffer: String,
-    pub editing_iters: bool,
-    pub iters_edit_buffer: String,
     pub tags_editing: bool,
     pub tags_edit_buffer: String,
     pub tags_selected_idx: Option<usize>,

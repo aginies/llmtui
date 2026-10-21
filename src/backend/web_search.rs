@@ -11,14 +11,15 @@ pub fn needs_search(message: &str) -> bool {
     message
         .rfind("$web")
         .map(|i| {
-            let before_ok = i == 0 || !message[..i].chars().last().unwrap().is_alphanumeric();
+            let before_ok = message[..i]
+                .chars()
+                .last()
+                .is_none_or(|c| !c.is_alphanumeric());
             let after_pos = i + "$web".len();
-            let after_ok = after_pos >= message.len()
-                || !message[after_pos..]
-                    .chars()
-                    .next()
-                    .unwrap()
-                    .is_alphanumeric();
+            let after_ok = message[after_pos..]
+                .chars()
+                .next()
+                .is_none_or(|c| !c.is_alphanumeric());
             before_ok && after_ok
         })
         .unwrap_or(false)
@@ -33,12 +34,20 @@ const MAX_FETCH_URLS: usize = 5;
 /// are ignored on purpose — only URLs the user explicitly asked for are
 /// fetched, so incidental links never trigger web-context injection.
 pub fn extract_fetch_urls(message: &str) -> Vec<String> {
-    let re = regex::Regex::new(r##"(?im)^\s*\$furl\s+(https?://[^\s<>\[\]()\"']+)\s*$"##)
-        .expect("static regex should compile");
+    // Compiled once; the pattern is a constant, so a failure is a bug, not a
+    // runtime/network/parse condition — an `expect` here is intentional.
+    static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r##"(?im)^\s*\$furl\s+(https?://[^\s<>\[\]()\"']+)\s*$"##)
+            .expect("static regex should compile")
+    });
+    let re = &*RE;
     let mut seen = std::collections::HashSet::new();
     let mut urls = Vec::new();
     for cap in re.captures_iter(message) {
-        let url = cap.get(1).unwrap().as_str().to_string();
+        let Some(m) = cap.get(1) else {
+            continue;
+        };
+        let url = m.as_str().to_string();
         if seen.insert(url.clone()) {
             urls.push(url);
             if urls.len() >= MAX_FETCH_URLS {
