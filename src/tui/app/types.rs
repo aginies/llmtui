@@ -21,6 +21,66 @@ pub use sub::{
 /// Static cell for caching the API port string in help text.
 pub static API_PORT_CACHE: Mutex<(u16, String)> = Mutex::new((0, String::new()));
 
+/// Identifies a concrete list picker so a single renderer and a single key handler
+/// can route per-picker title, help, footer and commit — adding a new list picker never
+/// needs a new render or key arm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ListPickerKind {
+    /// `--spec-type` values (Off, DeepSeek, etc.).
+    #[default]
+    SpecType,
+    /// Tensor-split preset selector with a trailing manual-entry editor.
+    TensorSplit,
+}
+
+/// One selectable row in a [`ListPicker`].
+///
+/// `primary`/`secondary` are what get rendered; `value` is what gets committed on
+/// <kbd>Enter</kbd> (defaults to `primary`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ListPickerEntry {
+    pub primary: String,
+    pub secondary: Option<String>,
+    /// Value committed on Enter. Defaults to `primary`.
+    pub value: String,
+}
+
+impl ListPickerEntry {
+    /// A single-label entry with an explicit committed value (e.g. tensor-split).
+    pub fn with_value<S: Into<String>>(primary: impl Into<String>, value: S) -> Self {
+        let primary = primary.into();
+        Self {
+            primary: primary.clone(),
+            secondary: None,
+            value: value.into(),
+        }
+    }
+}
+
+/// Generic editable list picker — replaces the many near-identical
+/// `GlobalMode::*Picker` variants (spec-type, chat-template, tensor-split, …).
+///
+/// State lives in [`App`][crate::tui::app::App] rather than in `GlobalMode` so a single
+/// renderer / key-handler pair can serve every picker without a new render or key arm, and
+/// so the commit step can borrow `&mut App` without fighting the picker's borrow.
+#[derive(Debug, Clone, Default)]
+pub struct ListPicker {
+    pub kind: ListPickerKind,
+    pub entries: Vec<ListPickerEntry>,
+    pub selected: usize,
+    pub scroll_offset: usize,
+    pub editing: bool,
+    pub edit_buffer: String,
+    pub edit_cursor: usize,
+}
+
+impl ListPicker {
+    /// Number of entries.
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+}
+
 /// State for an in-progress panel resize drag.
 pub struct ResizeState {
     /// Starting X position of the mouse when drag began.
@@ -114,17 +174,6 @@ pub enum GlobalMode {
     MaxConcurrentPicker {
         value: String,
     },
-    SpecTypePicker {
-        entries: Vec<String>,
-        selected: usize,
-    },
-    TensorSplitPicker {
-        entries: Vec<(String, String)>, // (label, value)
-        selected: usize,
-        editing: bool,
-        edit_buffer: String,
-        edit_cursor_pos: usize,
-    },
     YarnRoPESettings {
         scale: String,
         freq_base: String,
@@ -146,6 +195,10 @@ pub enum GlobalMode {
         editing_param_field: i32,
         param_edit_buffer: String,
         param_edit_cursor_pos: usize,
+        /// Full-screen matrix preview of every combination is open.
+        show_matrix: bool,
+        /// Scroll offset for the matrix preview.
+        matrix_scroll: usize,
     },
     PromptPicker {
         entries: Vec<(String, String)>, // (name, description)
@@ -360,6 +413,13 @@ pub struct App {
     pub search: SearchState,
     pub ui: UIState,
     pub edit: EditState,
+
+    // ── Generic list picker overlay ────────────────────────────
+    /// The active generic editable list picker (spec-type, chat-template,
+    /// tensor-split, …). A single renderer ([`crate::tui::render::overlays::render_list_picker`])
+    /// and key handler ([`crate::tui::event::list_picker::handle_list_picker`]) serve
+    /// every variant, so new pickers need no new render/key arms.
+    pub list_picker: Option<ListPicker>,
 
     // ── Per-model settings profiles ────────────────────────────
     /// Active LLM settings profile per model (model display name → profile name).

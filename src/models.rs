@@ -2465,6 +2465,8 @@ impl BenchTuneProgress {
 
 impl BenchTuneConfig {
     pub fn new(model_path: PathBuf, num_iterations: u32, prompt: String) -> Self {
+        // Threads sweep up to the machine's physical core count (min 2).
+        let cpu_max = crate::config::physical_cores().max(2) as f64;
         Self {
             model_path,
             num_iterations,
@@ -2480,25 +2482,17 @@ impl BenchTuneConfig {
                 },
                 BenchTuneParam {
                     name: "threads".to_string(),
-                    min: 4.0,
-                    max: 16.0,
-                    step: 4.0,
+                    min: 2.0,
+                    max: cpu_max,
+                    step: 2.0,
                     enabled: false,
                     variants: vec![],
                 },
                 BenchTuneParam {
                     name: "batch_size".to_string(),
-                    min: 512.0,
-                    max: 2048.0,
-                    step: 512.0,
-                    enabled: false,
-                    variants: vec![],
-                },
-                BenchTuneParam {
-                    name: "expert_count".to_string(),
-                    min: -1.0,
-                    max: 4.0,
-                    step: 1.0,
+                    min: 256.0,
+                    max: 16384.0,
+                    step: 1024.0,
                     enabled: false,
                     variants: vec![],
                 },

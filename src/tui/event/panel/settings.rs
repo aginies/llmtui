@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use super::super::helpers::{mark_settings_dirty, sync_global_settings};
 use crate::models::CacheQuantType;
-use crate::tui::app::{App, GlobalMode};
+use crate::tui::app::{App, GlobalMode, ListPicker, ListPickerEntry, ListPickerKind};
 use crate::tui::settings;
 
 fn cycle_cache_type(field: &mut Option<CacheQuantType>) {
@@ -232,18 +232,23 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             std::time::Duration::from_secs(30),
             app.settings.backend,
         );
-        let entries = settings::tensor_split_entries(&vram, &app.settings.tensor_split);
-        let selected = entries
+        let raw_entries = settings::tensor_split_entries(&vram, &app.settings.tensor_split);
+        let entries: Vec<ListPickerEntry> = raw_entries
+            .iter()
+            .map(|(label, value)| {
+                ListPickerEntry::with_value(value.clone(), format!("{}: {value}", label))
+            })
+            .collect();
+        let selected = raw_entries
             .iter()
             .position(|(_, v)| v == &app.settings.tensor_split)
-            .unwrap_or(entries.len() - 1);
-        app.ui.global_mode = GlobalMode::TensorSplitPicker {
+            .unwrap_or(raw_entries.len() - 1);
+        app.list_picker = Some(ListPicker {
+            kind: ListPickerKind::TensorSplit,
             entries,
             selected,
-            editing: false,
-            edit_buffer: String::new(),
-            edit_cursor_pos: 0,
-        };
+            ..Default::default()
+        });
         mark_settings_dirty(app, false);
         return;
     }
@@ -433,7 +438,7 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
 
     // Spec type: open picker on Enter
     if field_id == Some("is_mtp") && key.code == KeyCode::Enter {
-        let entries = vec![
+        let entries: Vec<ListPickerEntry> = vec![
             "Off".to_string(),
             "draft-mtp".to_string(),
             "draft-simple".to_string(),
@@ -443,10 +448,21 @@ pub fn handle_settings_key(app: &mut App, key: crossterm::event::KeyEvent) {
             "ngram-map-k4v".to_string(),
             "ngram-mod".to_string(),
             "ngram-cache".to_string(),
-        ];
+        ]
+        .into_iter()
+        .map(|v| ListPickerEntry::with_value(v.clone(), v))
+        .collect();
         let spec_type = app.settings.spec_type.clone();
-        let selected = entries.iter().position(|e| e == &spec_type).unwrap_or(0);
-        app.ui.global_mode = GlobalMode::SpecTypePicker { entries, selected };
+        let selected = entries
+            .iter()
+            .position(|e| e.value == spec_type)
+            .unwrap_or(0);
+        app.list_picker = Some(ListPicker {
+            kind: ListPickerKind::SpecType,
+            entries,
+            selected,
+            ..Default::default()
+        });
         mark_settings_dirty(app, false);
         return;
     }

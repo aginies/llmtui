@@ -30,9 +30,9 @@ fn bench_tune_config_new_n_predict() {
 }
 
 #[test]
-fn bench_tune_config_new_has_6_params() {
+fn bench_tune_config_new_has_5_params() {
     let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    assert_eq!(config.params_to_test.len(), 6);
+    assert_eq!(config.params_to_test.len(), 5);
 }
 
 #[test]
@@ -66,9 +66,10 @@ fn bench_tune_config_has_threads_param() {
         .iter()
         .find(|p| p.name == "threads")
         .unwrap();
-    assert_eq!(th.min, 4.0);
-    assert_eq!(th.max, 16.0);
-    assert_eq!(th.step, 4.0);
+    assert_eq!(th.min, 2.0);
+    assert_eq!(th.step, 2.0);
+    // Max is the machine's physical core count (at least 2).
+    assert_eq!(th.max, llm_manager::config::physical_cores().max(2) as f64);
 }
 
 #[test]
@@ -79,22 +80,9 @@ fn bench_tune_config_has_batch_size_param() {
         .iter()
         .find(|p| p.name == "batch_size")
         .unwrap();
-    assert_eq!(bs.min, 512.0);
-    assert_eq!(bs.max, 2048.0);
-    assert_eq!(bs.step, 512.0);
-}
-
-#[test]
-fn bench_tune_config_has_expert_count_param() {
-    let config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    let ec = config
-        .params_to_test
-        .iter()
-        .find(|p| p.name == "expert_count")
-        .unwrap();
-    assert_eq!(ec.min, -1.0);
-    assert_eq!(ec.max, 4.0);
-    assert_eq!(ec.step, 1.0);
+    assert_eq!(bs.min, 256.0);
+    assert_eq!(bs.max, 16384.0);
+    assert_eq!(bs.step, 1024.0);
 }
 
 // ── Combination generation ─────────────────────────────────────
@@ -110,13 +98,16 @@ fn generate_combinations_all_disabled_returns_one() {
 #[test]
 fn generate_combinations_two_enabled_multiply() {
     let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    // Enable threads (4 values) and batch_size (4 values) = 16 combinations
+    // Enable threads (2,4,6,8 = 4 values) and batch_size (256,512,768,1024 = 4 values) = 16
     if let Some(p) = config
         .params_to_test
         .iter_mut()
         .find(|p| p.name == "threads")
     {
         p.enabled = true;
+        p.min = 2.0;
+        p.max = 8.0;
+        p.step = 2.0;
     }
     if let Some(p) = config
         .params_to_test
@@ -124,6 +115,9 @@ fn generate_combinations_two_enabled_multiply() {
         .find(|p| p.name == "batch_size")
     {
         p.enabled = true;
+        p.min = 256.0;
+        p.max = 1024.0;
+        p.step = 256.0;
     }
     let combos = config.generate_combinations();
     assert_eq!(combos.len(), 16);
@@ -145,15 +139,18 @@ fn generate_combinations_flash_attn_binary() {
 }
 
 #[test]
-fn generate_combinations_threads_three_values() {
+fn generate_combinations_threads_four_values() {
     let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    // Enable only threads (4, 8, 12, 16 = 4 values)
+    // Enable only threads (2, 4, 6, 8 = 4 values)
     if let Some(p) = config
         .params_to_test
         .iter_mut()
         .find(|p| p.name == "threads")
     {
         p.enabled = true;
+        p.min = 2.0;
+        p.max = 8.0;
+        p.step = 2.0;
     }
     let combos = config.generate_combinations();
     assert_eq!(combos.len(), 4);
@@ -162,31 +159,19 @@ fn generate_combinations_threads_three_values() {
 #[test]
 fn generate_combinations_batch_size_four_values() {
     let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    // Enable only batch_size (512, 1024, 1536, 2048 = 4 values)
+    // Enable only batch_size (256, 512, 768, 1024 = 4 values)
     if let Some(p) = config
         .params_to_test
         .iter_mut()
         .find(|p| p.name == "batch_size")
     {
         p.enabled = true;
+        p.min = 256.0;
+        p.max = 1024.0;
+        p.step = 256.0;
     }
     let combos = config.generate_combinations();
     assert_eq!(combos.len(), 4);
-}
-
-#[test]
-fn generate_combinations_expert_count_six_values() {
-    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    // Enable only expert_count (-1 to 4 step 1 = 6 values: -1, 0, 1, 2, 3, 4)
-    if let Some(p) = config
-        .params_to_test
-        .iter_mut()
-        .find(|p| p.name == "expert_count")
-    {
-        p.enabled = true;
-    }
-    let combos = config.generate_combinations();
-    assert_eq!(combos.len(), 6);
 }
 
 // ── Total test count ──────────────────────────────────────────
@@ -208,6 +193,9 @@ fn get_total_tests_count_with_enabled_params() {
         .find(|p| p.name == "threads")
     {
         p.enabled = true;
+        p.min = 2.0;
+        p.max = 8.0;
+        p.step = 2.0; // 4 values
     }
     if let Some(p) = config
         .params_to_test
@@ -215,6 +203,9 @@ fn get_total_tests_count_with_enabled_params() {
         .find(|p| p.name == "batch_size")
     {
         p.enabled = true;
+        p.min = 256.0;
+        p.max = 1024.0;
+        p.step = 256.0; // 4 values
     }
     let count = config.get_total_tests_count();
     assert_eq!(count, 16);
@@ -395,10 +386,13 @@ fn generate_combinations_threads_values_correct() {
         .find(|p| p.name == "threads")
     {
         p.enabled = true;
+        p.min = 2.0;
+        p.max = 8.0;
+        p.step = 2.0;
     }
     let combos = config.generate_combinations();
     let threads: Vec<u32> = combos.iter().filter_map(|c| c.threads).collect();
-    assert_eq!(threads, vec![4, 8, 12, 16]);
+    assert_eq!(threads, vec![2, 4, 6, 8]);
 }
 
 #[test]
@@ -410,10 +404,13 @@ fn generate_combinations_batch_size_values_correct() {
         .find(|p| p.name == "batch_size")
     {
         p.enabled = true;
+        p.min = 256.0;
+        p.max = 1024.0;
+        p.step = 256.0;
     }
     let combos = config.generate_combinations();
     let batches: Vec<u32> = combos.iter().filter_map(|c| c.batch_size).collect();
-    assert_eq!(batches, vec![512, 1024, 1536, 2048]);
+    assert_eq!(batches, vec![256, 512, 768, 1024]);
 }
 
 #[test]
@@ -431,21 +428,6 @@ fn generate_combinations_flash_attn_values_correct() {
     assert_eq!(fas, vec![false, true]);
 }
 
-#[test]
-fn generate_combinations_expert_count_values_correct() {
-    let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    if let Some(p) = config
-        .params_to_test
-        .iter_mut()
-        .find(|p| p.name == "expert_count")
-    {
-        p.enabled = true;
-    }
-    let combos = config.generate_combinations();
-    let exps: Vec<i32> = combos.iter().filter_map(|c| c.expert_count).collect();
-    assert_eq!(exps, vec![-1, 0, 1, 2, 3, 4]);
-}
-
 // ── Complex combination test ───────────────────────────────────
 
 #[test]
@@ -458,6 +440,9 @@ fn generate_combinations_multiple_enabled_product() {
         .find(|p| p.name == "threads")
     {
         p.enabled = true;
+        p.min = 2.0;
+        p.max = 8.0;
+        p.step = 2.0;
     }
     if let Some(p) = config
         .params_to_test
@@ -465,6 +450,9 @@ fn generate_combinations_multiple_enabled_product() {
         .find(|p| p.name == "batch_size")
     {
         p.enabled = true;
+        p.min = 256.0;
+        p.max = 1024.0;
+        p.step = 256.0;
     }
     if let Some(p) = config
         .params_to_test
@@ -480,15 +468,33 @@ fn generate_combinations_multiple_enabled_product() {
 #[test]
 fn generate_combinations_all_enabled_large_product() {
     let mut config = BenchTuneConfig::new(PathBuf::new(), 1, "prompt".into());
-    // Enable all 6 params:
-    // flash_attn: 2, threads: 4, batch_size: 4, expert_count: 6 (-1 to 4 step 1)
+    // Set deterministic ranges for the machine-dependent params, then enable all 5:
+    // flash_attn: 2, threads: 4 (2..8 step 2), batch_size: 4 (256..1024 step 256),
     // spec_type: 9, draft_tokens: 9
-    // Total: 2 * 4 * 4 * 6 * 9 * 9 = 15552
+    // Total: 2 * 4 * 4 * 9 * 9 = 2592
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "threads")
+    {
+        p.min = 2.0;
+        p.max = 8.0;
+        p.step = 2.0;
+    }
+    if let Some(p) = config
+        .params_to_test
+        .iter_mut()
+        .find(|p| p.name == "batch_size")
+    {
+        p.min = 256.0;
+        p.max = 1024.0;
+        p.step = 256.0;
+    }
     for p in &mut config.params_to_test {
         p.enabled = true;
     }
     let combos = config.generate_combinations();
-    assert_eq!(combos.len(), 15552);
+    assert_eq!(combos.len(), 2592);
 }
 
 // ── BenchTuneProgress from_status ──────────────────────────────

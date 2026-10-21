@@ -1,13 +1,22 @@
+//! Shared helpers for TUI event handling.
+//!
+//! Picker navigation ([`picker_nav_up`], [`picker_nav_down`],
+//! [`wrap_field_picker`]) and a minimal in-place text editor
+//! ([`TextEditor`]) used by the picker and edit dialogs.
+
 use crate::tui::app::pending_events::PendingEvent;
 use crate::tui::app::{ActivePanel, App, ConfirmationKind};
 
+/// Move the picker selection up, saturating at the first item.
 pub fn picker_nav_up(selected: &mut usize) {
     *selected = selected.saturating_sub(1);
 }
+/// Move the picker selection down, saturating at the last item.
 pub fn picker_nav_down(selected: &mut usize, len: usize) {
     *selected = (*selected + 1).min(len.saturating_sub(1));
 }
 
+/// Move a field selection up or down, wrapping around at the `[first, last]` bounds.
 pub fn wrap_field_picker(selected: &mut i32, first: i32, last: i32, up: bool) {
     if up {
         if *selected <= first {
@@ -24,8 +33,11 @@ pub fn wrap_field_picker(selected: &mut i32, first: i32, last: i32, up: bool) {
     }
 }
 
+/// A minimal in-place text editor over a `String` buffer and a char-index cursor.
 pub struct TextEditor<'a> {
+    /// The text being edited.
     pub buffer: &'a mut String,
+    /// The cursor position (char index into [`Self::buffer`]).
     pub cursor: &'a mut usize,
 }
 
