@@ -16,7 +16,7 @@ mod command_palette;
 mod confirmation;
 mod dashboard_picker;
 mod dashboard_url;
-mod directory_picker;
+pub mod directory_picker;
 mod gguf_naming;
 mod gpu_device_picker;
 mod host_picker;
@@ -29,8 +29,6 @@ mod profile_picker;
 mod prompt_picker;
 mod rpc_manager;
 mod search_input;
-mod spec_type_picker;
-mod tensor_split_picker;
 mod web_search_picker;
 mod yarn_rope_settings;
 
@@ -57,8 +55,6 @@ pub use profile_picker::ProfilePickerHandler;
 pub use prompt_picker::PromptPickerHandler;
 pub use rpc_manager::RpcManagerHandler;
 pub use search_input::SearchInputHandler;
-pub use spec_type_picker::SpecTypePickerHandler;
-pub use tensor_split_picker::TensorSplitPickerHandler;
 pub use web_search_picker::{WebSearchPickerHandler, check_web_search_health};
 pub use yarn_rope_settings::YarnRoPESettingsHandler;
 
@@ -85,8 +81,6 @@ impl OverlayRegistry {
             Box::new(CommandPaletteHandler),
             Box::new(DashboardPickerHandler),
             Box::new(ApiEndpointPickerHandler),
-            Box::new(SpecTypePickerHandler),
-            Box::new(TensorSplitPickerHandler),
             Box::new(ChatTemplatePickerHandler),
             Box::new(ChatTemplateFilePickerHandler),
             Box::new(YarnRoPESettingsHandler),

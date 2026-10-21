@@ -1,5 +1,6 @@
 pub mod helpers;
 mod key;
+mod list_picker;
 mod mouse;
 mod overlay;
 mod panel;

@@ -1,3 +1,10 @@
+//! State sub-structs and task-handle types for the [`App`](super::App).
+//!
+//! The [`App`](super::App) state is split into focused sub-structs (settings,
+//! pickers, download, server, bench-tune, log, loading, search, UI, edit) to
+//! keep the struct definition manageable. This module also defines the async
+//! task-handle aliases used by those sub-structs.
+
 use crate::backend::server::ServerHandle;
 use crate::config::LogEntry;
 use crate::models::Backend;

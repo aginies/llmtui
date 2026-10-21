@@ -5,6 +5,7 @@ use super::helpers::{
     TextEditor, handle_fkey_focus, handle_fkey_show_all, handle_fkey_toggle, mark_settings_dirty,
     picker_nav_down, picker_nav_up, sync_global_settings,
 };
+use super::list_picker::handle_list_picker;
 use super::overlay::{OverlayRegistry, check_web_search_health};
 use super::panel::{
     handle_downloads_key, handle_log_key, handle_models_key, handle_profiles_key,
@@ -187,6 +188,14 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     // Alt+F3: toggle LLM Settings panel (global, works from any overlay)
     if key.code == KeyCode::F(3) && key.modifiers.contains(KeyModifiers::ALT) {
         handle_fkey_toggle(app, 3, Some(ActivePanel::LlmSettings), false);
+        return;
+    }
+
+    // Generic list picker (spec-type, chat-template, tensor-split, …) — handled
+    // before the overlay registry because it lives in `app.list_picker`, not in
+    // `GlobalMode`.
+    if app.list_picker.is_some() {
+        handle_list_picker(app, key).await;
         return;
     }
 
@@ -802,8 +811,44 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
         editing_param_field,
         param_edit_buffer,
         param_edit_cursor_pos,
+        show_matrix,
+        matrix_scroll,
     } = &mut app.ui.global_mode
     {
+        // ===== Matrix view: full-screen preview of every combination =====
+        // Handled first so Alt field-toggles don't fire while the matrix is open.
+        if *show_matrix {
+            let max_scroll = config.get_num_combinations().saturating_sub(1);
+            match key.code {
+                KeyCode::Char('v') | KeyCode::Esc => *show_matrix = false,
+                KeyCode::Down | KeyCode::Char('j') => {
+                    *matrix_scroll = (*matrix_scroll + 1).min(max_scroll)
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    *matrix_scroll = matrix_scroll.saturating_sub(1)
+                }
+                KeyCode::Char('q') => app.ui.global_mode = GlobalMode::Normal,
+                KeyCode::Enter => {
+                    let config_final = config.clone();
+                    if let Some(idx) = app.selected_model_idx {
+                        let model = app.models[idx].clone();
+                        let settings = app.settings.clone();
+                        app.ui.global_mode = GlobalMode::Normal;
+                        app.bench_tune.bench_tune_config = Some(config_final);
+                        let _ = app
+                            .pending_tx
+                            .send(PendingEvent::Spawn {
+                                model: Some(model),
+                                settings,
+                            })
+                            .await;
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
+
         let alt = key.modifiers.contains(KeyModifiers::ALT);
 
         // Field toggles (Alt+P/N/I/C) work in any mode: they switch the active
@@ -967,6 +1012,8 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                 // Left/Right cycle the spec-type mode selector (shown up top).
                 KeyCode::Left => bench_tune_cycle_spec(config, -1),
                 KeyCode::Right => bench_tune_cycle_spec(config, 1),
+                // V opens the full-screen combination matrix preview.
+                KeyCode::Char('v') => *show_matrix = true,
                 KeyCode::Char(' ') => {
                     if *selected_idx < n {
                         let spec_off = config.spec_off();

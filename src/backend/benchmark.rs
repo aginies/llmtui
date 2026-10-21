@@ -664,13 +664,16 @@ pub async fn save_results(
     // Generate HTML report
     let html_filename = format!("benchmark_{}.html", timestamp);
     let html_filepath = output_dir.join(&html_filename);
-    let html_content = generate_html_report(results, config);
+    let html_content = generate_html_report(results, config)?;
     tokio::fs::write(&html_filepath, html_content).await?;
 
     Ok(())
 }
 
-fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -> String {
+fn generate_html_report(
+    results: &[BenchTuneResult],
+    config: &BenchTuneConfig,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     use chrono::Local;
 
     let total_tests = results.len();
@@ -679,16 +682,11 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     // Extract model metadata from first result's base_settings
     let model_info = results.first().and_then(|r| {
         r.base_settings.as_ref().map(|s| {
-            let model_name = if config.model_path.file_name().is_some() {
-                config
-                    .model_path
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string()
-            } else {
-                config.model_path.display().to_string()
-            };
+            let model_name = config
+                .model_path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| config.model_path.display().to_string());
             let file_size_mb = std::fs::metadata(&config.model_path)
                 .ok()
                 .map(|m| m.len() / 1_048_576)
@@ -950,10 +948,14 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         "Spec".to_string(),
         "Draft".to_string(),
     ];
+    // A result can carry no base_settings (e.g. a failed run); fall back to
+    // defaults so the report degrades instead of panicking. Kept 1:1 with
+    // `results` because later code indexes these rows by position.
+    let default_settings = ModelSettings::default();
     let param_vals: Vec<Vec<String>> = results
         .iter()
         .map(|r| {
-            let base = r.base_settings.as_ref().unwrap();
+            let base = r.base_settings.as_ref().unwrap_or(&default_settings);
             let rp = resolve_params(&r.params, base);
             vec![
                 if rp.flash_attn {
@@ -979,7 +981,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .iter()
         .enumerate()
         .map(|(i, r)| {
-            let base = r.base_settings.as_ref().unwrap();
+            let base = r.base_settings.as_ref().unwrap_or(&default_settings);
             let rp = resolve_params(&r.params, base);
             serde_json::json!({
                 "idx": i,
@@ -1039,8 +1041,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                 s
             })
             .collect::<Vec<_>>(),
-    )
-    .unwrap();
+    )?;
     let scatter_data2_json = serde_json::to_string(
         &scatter_gen_tps
             .iter()
@@ -1056,8 +1057,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
                 s
             })
             .collect::<Vec<_>>(),
-    )
-    .unwrap();
+    )?;
 
     // Model metadata JSON
     let model_meta_json = model_info.as_ref().map(|(name, _size, settings)| {
@@ -1075,9 +1075,6 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         })
     });
 
-    // Impact analysis JSON
-    let _impact_json = serde_json::to_string(&impact_sorted).unwrap();
-
     // Column definitions for visibility toggle
     let column_defs_json = serde_json::to_string(&vec![
         ("col-rank", "#", true),
@@ -1093,8 +1090,7 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         ("col-first-token", "First Tok", true),
         ("col-combined", "Combined", true),
         ("col-consistency", "Consistency", true),
-    ])
-    .unwrap();
+    ])?;
 
     // CSV data
     let csv_header = "Rank,FA,Threads,Batch,Exp,Spec,Draft,Gen t/s,Prompt t/s,Latency (ms),First Tok (ms),Combined,Consistency";
@@ -1136,11 +1132,11 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     let csv_content = format!("{}\n{}", csv_header, csv_rows.join("\n"));
     let csv_b64 = base64_encode(&csv_content);
 
-    let metrics_json = serde_json::to_string(&metrics_data).unwrap();
-    let param_headers_json = serde_json::to_string(&param_headers).unwrap();
-    let param_vals_json = serde_json::to_string(&param_vals).unwrap();
-    let top_labels_json = serde_json::to_string(&top_labels).unwrap();
-    let top_gen_tps_json = serde_json::to_string(&top_gen_tps).unwrap();
+    let metrics_json = serde_json::to_string(&metrics_data)?;
+    let param_headers_json = serde_json::to_string(&param_headers)?;
+    let param_vals_json = serde_json::to_string(&param_vals)?;
+    let top_labels_json = serde_json::to_string(&top_labels)?;
+    let top_gen_tps_json = serde_json::to_string(&top_gen_tps)?;
 
     // Build model metadata HTML
     let model_meta_html = model_info
@@ -1251,7 +1247,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
     let html = include_str!("benchmark_report.html");
 
     // Replace placeholders
-    html.replace("__TIMESTAMP__", &timestamp)
+    Ok(html
+        .replace("__TIMESTAMP__", &timestamp)
         .replace("__TOTAL_TESTS__", &total_tests.to_string())
         .replace("__EMPTY_STATE__", empty_html)
         .replace("__MODEL_META__", &model_meta_html)
@@ -1296,8 +1293,8 @@ fn generate_html_report(results: &[BenchTuneResult], config: &BenchTuneConfig) -
         .replace("__CSV_B64__", &csv_b64)
         .replace(
             "__MODEL_META_JSON__",
-            &serde_json::to_string(&model_meta_json).unwrap(),
-        )
+            &serde_json::to_string(&model_meta_json)?,
+        ))
 }
 
 /// Escape HTML special characters
