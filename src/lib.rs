@@ -2,6 +2,18 @@
 //!
 //! Re-exports the public API so integration tests in `tests/` can import from `llm_manager`.
 //! This enables testing without modifying the binary source files.
+//!
+//! # Modules
+//!
+//! - [`backend`]: HuggingFace API, server spawning, benchmarking, hardware detection, TLS, WebSocket.
+//! - [`config`]: YAML-based config loading/saving, profiles, presets.
+//! - [`gguf`]: Minimal GGUF header parser (metadata + tensor shapes).
+//! - [`models`]: Domain types (search results, download state, model settings, etc.).
+//! - [`serve`]: Standalone serve-mode CLI.
+//! - [`serve_agent`]: Review agent — runs the local model in a tool loop over a transfer directory.
+//! - [`serve_api`]: Axum-based API proxy server.
+//! - [`serve_transfer`]: File-transfer API — authenticated push of tar.gz archives between servers.
+//! - [`tui`]: Terminal UI (app state, event handling, rendering, panels).
 
 // Re-declare modules so they're available as `pub mod` in the library target.
 pub mod backend;

@@ -10,7 +10,8 @@ use unicode_width::UnicodeWidthStr;
 use super::App;
 use super::onboarding;
 use crate::backend::hardware::GpuVendor;
-use crate::tui::app::{ConfirmationKind, GlobalMode};
+use crate::models::Backend;
+use crate::tui::app::{ConfirmationKind, GlobalMode, ListPicker, ListPickerKind};
 use crate::tui::colors::*;
 use crate::tui::format_bench_params;
 use crate::tui::format_context_k;
@@ -37,6 +38,93 @@ fn center_rect(area: Rect, w: u16, h: u16) -> Rect {
     }
 }
 
+/// A centered popup frame.
+///
+/// Centralizes the idiom every overlay used to repeat by hand: compute a
+/// centered `Rect`, build the standard `Block` (title + borders + accent
+/// style + padding), and expose the inner content area. Renderers build a
+/// `Popup`, call [`Popup::render_frame`] to draw the border, then render
+/// their content into [`Popup::inner`] (or attach [`Popup::block`] to a
+/// widget that draws its own content).
+struct Popup<'a> {
+    area: Rect,
+    block: Block<'a>,
+    padding: Padding,
+}
+
+impl<'a> Popup<'a> {
+    /// Standard accent popup: fixed `w`×`h`, centered in `area`, rounded
+    /// border, 1-cell padding. The title is used verbatim — wrap it in
+    /// `Span::styled` for a colored/bold title.
+    fn new(area: Rect, w: u16, h: u16, title: impl Into<Line<'a>>) -> Self {
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(ACCENT))
+            .border_type(BorderType::Rounded)
+            .padding(PADDING);
+        Self {
+            area: center_rect(area, w, h),
+            block,
+            padding: PADDING,
+        }
+    }
+
+    /// Double-border variant with no padding (content goes into
+    /// [`Popup::inner`], which here is just the area inside the border).
+    fn double(area: Rect, w: u16, h: u16, title: impl Into<Line<'a>>) -> Self {
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(ACCENT))
+            .border_type(BorderType::Double);
+        Self {
+            area: center_rect(area, w, h),
+            block,
+            padding: Padding::ZERO,
+        }
+    }
+
+    /// Wrap an already-centered rect and a custom block (for renderers whose
+    /// border style or title differs from the standard). Pass the block's
+    /// padding so [`Popup::inner`] accounts for it.
+    fn from_parts(area: Rect, block: Block<'a>, padding: Padding) -> Self {
+        Self {
+            area,
+            block,
+            padding,
+        }
+    }
+
+    /// Draw the frame: clear the area, then render the bordered block.
+    fn render_frame(&self, f: &mut Frame) {
+        f.render_widget(Clear, self.area);
+        f.render_widget(self.block.clone(), self.area);
+    }
+
+    /// The outer (centered) rect.
+    fn area(&self) -> Rect {
+        self.area
+    }
+
+    /// The inner content area, inside the border and padding.
+    fn inner(&self) -> Rect {
+        let inner = self.block.inner(self.area);
+        Rect {
+            x: inner.x.saturating_add(self.padding.left),
+            y: inner.y.saturating_add(self.padding.top),
+            width: inner
+                .width
+                .saturating_sub(self.padding.left)
+                .saturating_sub(self.padding.right),
+            height: inner
+                .height
+                .saturating_sub(self.padding.top)
+                .saturating_sub(self.padding.bottom),
+        }
+    }
+}
+
 fn render_popup(
     f: &mut Frame,
     area: Rect,
@@ -45,22 +133,19 @@ fn render_popup(
     border_type: BorderType,
     wrap: bool,
 ) {
-    f.render_widget(Clear, area);
+    let block = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .border_type(border_type)
+        .padding(PADDING);
+    let popup = Popup::from_parts(area, block, PADDING);
+    popup.render_frame(f);
     let mut paragraph = Paragraph::new(lines);
     if wrap {
         paragraph = paragraph.wrap(Wrap { trim: false });
     }
-    f.render_widget(
-        paragraph.block(
-            Block::default()
-                .title(title)
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
-                .border_type(border_type)
-                .padding(PADDING),
-        ),
-        area,
-    );
+    f.render_widget(paragraph, popup.inner());
 }
 
 const PICKER_WIDTH: u16 = 80;
@@ -135,7 +220,8 @@ fn render_picker_popup(
     let h = (content + 4).clamp(10, picker_max_height(area)) as u16;
     let w = PICKER_WIDTH.min(area.width);
     let h = h.min(area.height);
-    let picker_area = center_rect(area, w, h);
+    let popup = Popup::new(area, w, h, title);
+    let picker_area = popup.area();
     let mut all_lines = Vec::new();
     if let Some(help) = help {
         all_lines.push(help);
@@ -146,18 +232,8 @@ fn render_picker_popup(
         all_lines.push(Line::from(""));
         all_lines.push(footer);
     }
-    f.render_widget(Clear, picker_area);
-    f.render_widget(
-        Paragraph::new(all_lines).block(
-            Block::default()
-                .title(title)
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT))
-                .border_type(BorderType::Rounded)
-                .padding(PADDING),
-        ),
-        picker_area,
-    );
+    popup.render_frame(f);
+    f.render_widget(Paragraph::new(all_lines), popup.inner());
     if let Some((total, offset, visible)) = scroll
         && total > visible
     {
@@ -172,6 +248,156 @@ fn render_picker_popup(
     }
 }
 
+/// Title for a generic list picker (single i18n key per kind).
+fn list_picker_title(picker: &ListPicker) -> &'static str {
+    match picker.kind {
+        ListPickerKind::SpecType => crate::t!("dialog.spec.title"),
+        ListPickerKind::TensorSplit => crate::t!("dialog.tensor_split.title"),
+    }
+}
+
+/// Label shown next to the cursor while editing a value.
+fn list_picker_edit_label(picker: &ListPicker) -> &'static str {
+    match picker.kind {
+        ListPickerKind::TensorSplit => crate::t!("dialog.tensor_split.manual"),
+        _ => "",
+    }
+}
+
+/// Help line shown below the list (edit-specific help while editing).
+fn list_picker_help(picker: &ListPicker) -> Option<Line<'static>> {
+    let msg = if picker.editing {
+        match picker.kind {
+            ListPickerKind::TensorSplit => crate::t!("dialog.tensor_split.help_edit"),
+            _ => crate::t!("dialog.tensor_split.help"),
+        }
+    } else {
+        match picker.kind {
+            ListPickerKind::SpecType => crate::t!("dialog.spec.help"),
+            ListPickerKind::TensorSplit => crate::t!("dialog.tensor_split.help"),
+        }
+    };
+    Some(Line::from(Span::styled(msg, Style::default().fg(ACCENT))))
+}
+
+/// Per-picker footer (the tensor-split detected-GPU line).
+fn list_picker_footer(picker: &ListPicker, backend: Backend) -> Option<Line<'static>> {
+    if picker.kind != ListPickerKind::TensorSplit {
+        return None;
+    }
+    let vram =
+        crate::backend::hardware::gpu_vram_gib_cached(std::time::Duration::from_secs(30), backend);
+    if vram.len() >= 2 {
+        let list: Vec<String> = vram.iter().map(|v| format!("{}GB", v)).collect();
+        Some(Line::from(Span::styled(
+            crate::t_fmt!("dialog.tensor_split.gpus", list.join(", ")),
+            Style::default().fg(GRAY),
+        )))
+    } else {
+        Some(Line::from(Span::styled(
+            crate::t!("dialog.tensor_split.no_gpus"),
+            Style::default().fg(GRAY),
+        )))
+    }
+}
+
+/// Single renderer for the generic list picker (`app.list_picker`). Handles the
+/// list (selection marker + optional secondary line + scrolling), the inline
+/// single-field editor, and the per-picker help/footer — so every list picker
+/// shares one renderer regardless of its [`ListPickerKind`].
+fn render_list_picker(f: &mut Frame, area: Rect, picker: &mut ListPicker, backend: Backend) {
+    let title = Span::styled(
+        list_picker_title(picker),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+    );
+
+    if picker.editing {
+        // Inline single-line editor of the selected value.
+        let chars: Vec<char> = picker.edit_buffer.chars().collect();
+        let cursor = picker.edit_cursor.min(chars.len());
+        let before: String = chars[..cursor].iter().collect();
+        let after: String = chars[cursor..].iter().collect();
+        let body = vec![
+            Line::from(vec![
+                Span::styled("> ", Style::default().fg(ACCENT)),
+                Span::styled(list_picker_edit_label(picker), Style::default().fg(CYAN)),
+            ]),
+            Line::from(vec![
+                Span::raw("  "),
+                Span::styled(before, Style::default().fg(WHITE)),
+                Span::styled(
+                    chars.get(cursor).copied().unwrap_or(' ').to_string(),
+                    Style::default()
+                        .fg(BLACK)
+                        .bg(ACCENT)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(after, Style::default().fg(WHITE)),
+            ]),
+        ];
+        render_picker_popup(
+            f,
+            area,
+            title,
+            list_picker_help(picker),
+            body,
+            list_picker_footer(picker, backend),
+            None,
+        );
+        return;
+    }
+
+    // List view: one line per entry, with an optional dimmed secondary label.
+    let blocks: Vec<Vec<Line>> = picker
+        .entries
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            let marker = if i == picker.selected { "> " } else { "  " };
+            let style = if i == picker.selected {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            let mut line = vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                Span::styled(e.primary.clone(), style),
+            ];
+            if let Some(sec) = &e.secondary {
+                line.push(Span::raw("  "));
+                line.push(Span::styled(sec.clone(), Style::default().fg(DIM_GRAY)));
+            }
+            vec![Line::from(line)]
+        })
+        .collect();
+    let (fit, off, _) =
+        picker_block_window(area, &blocks, picker.selected, &mut picker.scroll_offset, 2);
+    let lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
+    let scroll = if picker.entries.len() > fit {
+        Some((picker.entries.len(), off, fit))
+    } else {
+        None
+    };
+    render_picker_popup(
+        f,
+        area,
+        title,
+        list_picker_help(picker),
+        lines,
+        list_picker_footer(picker, backend),
+        scroll,
+    );
+}
+
 pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
     if app.ui.panel_help {
         let area = f.area();
@@ -179,6 +405,13 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         let h = (area.height as f64 * 0.7).clamp(20.0, 35.0) as u16;
         let help_area = center_rect(area, w, h);
         panel::help::render_panel(f, help_area, app);
+        return true;
+    }
+
+    // Generic list picker (spec-type, chat-template, tensor-split, …).
+    if let Some(picker) = &mut app.list_picker {
+        let backend = app.settings.backend;
+        render_list_picker(f, f.area(), picker, backend);
         return true;
     }
 
@@ -299,21 +532,27 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         editing_param_field,
         param_edit_buffer,
         param_edit_cursor_pos,
+        show_matrix,
+        matrix_scroll,
     } = &app.ui.global_mode
     {
-        render_bench_tune_setup(
-            f,
-            f.area(),
-            config,
-            *selected_idx,
-            *editing_field,
-            field_edit_buffer,
-            *field_edit_cursor,
-            *editing_param,
-            *editing_param_field,
-            param_edit_buffer,
-            *param_edit_cursor_pos,
-        );
+        if *show_matrix {
+            render_bench_tune_matrix(f, f.area(), config, *matrix_scroll);
+        } else {
+            render_bench_tune_setup(
+                f,
+                f.area(),
+                config,
+                *selected_idx,
+                *editing_field,
+                field_edit_buffer,
+                *field_edit_cursor,
+                *editing_param,
+                *editing_param_field,
+                param_edit_buffer,
+                *param_edit_cursor_pos,
+            );
+        }
         return true;
     }
 
@@ -329,32 +568,6 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
 
     if let GlobalMode::MaxConcurrentPicker { value } = &app.ui.global_mode {
         render_max_concurrent_picker(f, f.area(), app, value);
-        return true;
-    }
-
-    if let GlobalMode::SpecTypePicker { entries, selected } = &app.ui.global_mode {
-        render_spec_type_picker(f, f.area(), app, entries, *selected);
-        return true;
-    }
-
-    if let GlobalMode::TensorSplitPicker {
-        entries,
-        selected,
-        editing,
-        edit_buffer,
-        edit_cursor_pos,
-    } = &app.ui.global_mode
-    {
-        render_tensor_split_picker(
-            f,
-            f.area(),
-            app,
-            entries,
-            *selected,
-            *editing,
-            edit_buffer,
-            *edit_cursor_pos,
-        );
         return true;
     }
 
@@ -1076,12 +1289,7 @@ fn render_confirmation(
     ]));
     let w = 70u16;
     let h = (lines.len() as u16 + 6).min(area.height.saturating_sub(4));
-    let popup_area = Rect {
-        x: (area.width.saturating_sub(w)) / 2,
-        y: (area.height.saturating_sub(h)) / 2,
-        width: w.min(area.width),
-        height: h.min(area.height),
-    };
+    let popup_area = center_rect(area, w.min(area.width), h.min(area.height));
     let block = Block::default()
         .title(title)
         .title_style(Style::default().fg(ACCENT))
@@ -1097,13 +1305,13 @@ fn render_confirmation(
             },
         ))
         .border_type(BorderType::Double);
-    f.render_widget(Clear, popup_area);
+    let popup = Popup::from_parts(popup_area, block, Padding::ZERO);
+    popup.render_frame(f);
     f.render_widget(
         Paragraph::new(lines)
-            .block(block)
             .alignment(Alignment::Center)
             .wrap(Wrap { trim: false }),
-        popup_area,
+        popup.inner(),
     );
 }
 
@@ -1630,23 +1838,17 @@ fn render_bench_tune_setup(
 ) {
     let w = 90u16;
     let h = 30.min(area.height - 4);
-    let popup_area = Rect {
-        x: (area.width.saturating_sub(w)) / 2,
-        y: (area.height.saturating_sub(h)) / 2,
-        width: w.min(area.width),
-        height: h.min(area.height),
-    };
-    let block = Block::default()
-        .title(Span::styled(
+    let popup = Popup::double(
+        area,
+        w.min(area.width),
+        h.min(area.height),
+        Span::styled(
             crate::t!("dialog.bench_config.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(ACCENT))
-        .border_type(BorderType::Double);
-    let inner_area = block.inner(popup_area);
-    f.render_widget(Clear, popup_area);
-    f.render_widget(block, popup_area);
+        ),
+    );
+    let inner_area = popup.inner();
+    popup.render_frame(f);
     let regions = ratatui::layout::Layout::vertical([
         ratatui::layout::Constraint::Length(1), // [0] spacer
         ratatui::layout::Constraint::Length(1), // [1] mode line (iters + tokens)
@@ -2008,15 +2210,173 @@ fn bench_tune_cursor_text(buffer: &str, cursor: usize) -> String {
     format!("{before}|{after}")
 }
 
+/// Full-screen preview of every combination the bench tune will run.
+fn render_bench_tune_matrix(
+    f: &mut Frame,
+    area: Rect,
+    config: &crate::models::BenchTuneConfig,
+    scroll: usize,
+) {
+    let combos = config.generate_combinations();
+    let total = combos.len();
+
+    // Columns: one per enabled param, in a stable display order.
+    let display_order = [
+        "batch_size",
+        "threads",
+        "flash_attn",
+        "expert_count",
+        "spec_type",
+        "draft_tokens",
+    ];
+    let enabled_names: Vec<&str> = display_order
+        .iter()
+        .copied()
+        .filter(|name| {
+            config
+                .params_to_test
+                .iter()
+                .any(|p| p.name == *name && p.enabled)
+        })
+        .collect();
+
+    let block = Block::default()
+        .title(Span::styled(
+            crate::t_fmt!("dialog.bench_matrix.title", total),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(ACCENT))
+        .border_type(BorderType::Double);
+    let inner = block.inner(area);
+    f.render_widget(Clear, area);
+    f.render_widget(block, area);
+
+    let regions = ratatui::layout::Layout::vertical([
+        ratatui::layout::Constraint::Length(1), // column headers
+        ratatui::layout::Constraint::Min(0),    // data rows
+        ratatui::layout::Constraint::Length(1), // footer hints
+    ])
+    .split(inner);
+
+    // Header row
+    let header_spans: Vec<Span> = std::iter::once(Span::styled(
+        format!("{:<4}", "#"),
+        Style::default().fg(DIM_GRAY),
+    ))
+    .chain(enabled_names.iter().map(|name| {
+        Span::styled(
+            format!("{:<14}", name.replace('_', " ").to_uppercase()),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        )
+    }))
+    .collect();
+    f.render_widget(Paragraph::new(Line::from(header_spans)), regions[0]);
+
+    // Data rows (windowed by scroll)
+    let visible_height = regions[1].height as usize;
+    let max_scroll = total.saturating_sub(visible_height);
+    let scroll = scroll.min(max_scroll);
+    let data_rows: Vec<Row> = combos
+        .iter()
+        .enumerate()
+        .skip(scroll)
+        .take(visible_height)
+        .map(|(i, c)| {
+            let cells: Vec<Cell> = std::iter::once(Cell::from(Span::styled(
+                format!("{:<4}", i + 1),
+                Style::default().fg(DIM_GRAY),
+            )))
+            .chain(enabled_names.iter().map(|name| {
+                Cell::from(Span::styled(
+                    format!("{:<14}", bench_tune_matrix_cell(c, name)),
+                    Style::default().fg(WHITE),
+                ))
+            }))
+            .collect();
+            Row::new(cells)
+        })
+        .collect();
+
+    if !data_rows.is_empty() {
+        let constraints: Vec<Constraint> = std::iter::once(Constraint::Length(5))
+            .chain(std::iter::repeat_n(
+                Constraint::Min(10),
+                enabled_names.len(),
+            ))
+            .collect();
+        f.render_widget(Table::new(data_rows, constraints), regions[1]);
+    } else {
+        f.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                crate::t!("dialog.bench_matrix.empty"),
+                Style::default().fg(DIM_GRAY),
+            ))),
+            regions[1],
+        );
+    }
+
+    // Footer hints
+    let footer = Line::from(vec![
+        Span::styled(
+            crate::t!("dialog.bench_matrix.back"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw("   "),
+        Span::styled(
+            crate::t!("dialog.bench_matrix.scroll"),
+            Style::default().fg(DIM_GRAY),
+        ),
+        Span::raw("   "),
+        Span::styled(
+            crate::t!("dialog.bench_matrix.start"),
+            Style::default().fg(ACCENT),
+        ),
+        Span::raw("   "),
+        Span::styled(
+            crate::t!("dialog.bench_matrix.cancel"),
+            Style::default().fg(DIM_GRAY),
+        ),
+    ]);
+    f.render_widget(
+        Paragraph::new(footer).alignment(Alignment::Center),
+        regions[2],
+    );
+}
+
+/// Format one combination's value for a given param name (for the matrix view).
+fn bench_tune_matrix_cell(c: &crate::models::BenchTuneParamValue, name: &str) -> String {
+    match name {
+        "batch_size" => c
+            .batch_size
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".into()),
+        "threads" => c
+            .threads
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".into()),
+        "flash_attn" => match c.flash_attn {
+            Some(true) => "on".into(),
+            Some(false) => "off".into(),
+            None => "-".into(),
+        },
+        "expert_count" => c
+            .expert_count
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".into()),
+        "spec_type" => c.spec_type.clone().unwrap_or_else(|| "-".into()),
+        "draft_tokens" => c
+            .draft_tokens
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".into()),
+        _ => "-".into(),
+    }
+}
+
 fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
     let w = (area.width as f64 * 0.8).clamp(70.0, 90.0) as u16;
     let h = (area.height as f64 * 0.8).clamp(20.0, 35.0) as u16;
-    let rpc_area = Rect {
-        x: (area.width.saturating_sub(w)) / 2,
-        y: (area.height.saturating_sub(h)) / 2,
-        width: w,
-        height: h,
-    };
+    let rpc_area = center_rect(area, w, h);
     let workers = &app.config.rpc_workers;
     let worker_lines = panel::rpc_workers::render_all(
         workers,
@@ -2048,8 +2408,9 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
         .border_type(BorderType::Double);
-    f.render_widget(Clear, rpc_area);
-    f.render_widget(Paragraph::new(visible_lines).block(block), rpc_area);
+    let popup = Popup::from_parts(rpc_area, block, Padding::ZERO);
+    popup.render_frame(f);
+    f.render_widget(Paragraph::new(visible_lines), popup.inner());
     if worker_lines.len() > available_height as usize {
         render_vertical_scrollbar(
             f,
@@ -2065,12 +2426,7 @@ fn render_rpc_manager(f: &mut Frame, area: Rect, app: &mut App) {
 fn render_about_overlay(f: &mut Frame, area: Rect) {
     let w = (area.width as f64 * 0.6).clamp(50.0, 70.0) as u16;
     let h = 16.min(area.height - 4);
-    let about_area = Rect {
-        x: (area.width.saturating_sub(w)) / 2,
-        y: (area.height.saturating_sub(h)) / 2,
-        width: w,
-        height: h,
-    };
+    let about_area = center_rect(area, w, h);
     let about_lines = panel::about::render_about();
     let block = Block::default()
         .title(Span::styled(
@@ -2080,12 +2436,11 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
         .border_type(BorderType::Double);
-    f.render_widget(Clear, about_area);
+    let popup = Popup::from_parts(about_area, block, Padding::ZERO);
+    popup.render_frame(f);
     f.render_widget(
-        Paragraph::new(about_lines)
-            .block(block)
-            .alignment(Alignment::Center),
-        about_area,
+        Paragraph::new(about_lines).alignment(Alignment::Center),
+        popup.inner(),
     );
 }
 
@@ -3121,8 +3476,6 @@ fn render_gguf_naming_overlay(
         .clamp(12, 35)
         .min(area.height - 4);
 
-    let popup_area = center_rect(area, w, h);
-
     let mut lines: Vec<Line> = Vec::new();
 
     // Title
@@ -3262,17 +3615,17 @@ fn render_gguf_naming_overlay(
         Style::default().fg(ACCENT),
     )]));
 
-    let block = Block::default()
-        .title(Span::styled(
+    let popup = Popup::double(
+        area,
+        w,
+        h,
+        Span::styled(
             crate::t!("dialog.gguf.title"),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(ACCENT))
-        .border_type(BorderType::Double);
-
-    f.render_widget(Clear, popup_area);
-    f.render_widget(Paragraph::new(lines).block(block), popup_area);
+        ),
+    );
+    popup.render_frame(f);
+    f.render_widget(Paragraph::new(lines), popup.inner());
 }
 
 fn wrap_text(text: &str, max_width: usize) -> String {
@@ -3403,134 +3756,6 @@ fn render_yarn_rope_picker(
         ))),
         picker_lines,
         None,
-        None,
-    );
-}
-
-fn render_spec_type_picker(
-    f: &mut Frame,
-    area: Rect,
-    _app: &App,
-    entries: &[String],
-    selected: usize,
-) {
-    let mut picker_lines: Vec<Line> = Vec::new();
-
-    for (i, entry) in entries.iter().enumerate() {
-        let marker = if i == selected { "> " } else { "  " };
-        let style = if i == selected {
-            Style::default()
-                .fg(BLACK)
-                .bg(ACCENT)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(WHITE)
-        };
-        picker_lines.push(Line::from(vec![
-            Span::styled(marker, Style::default().fg(ACCENT)),
-            Span::styled(entry, style),
-        ]));
-    }
-
-    render_picker_popup(
-        f,
-        area,
-        Span::styled(
-            crate::t!("dialog.spec.title"),
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        ),
-        Some(Line::from(Span::styled(
-            crate::t!("dialog.spec.help"),
-            Style::default().fg(ACCENT),
-        ))),
-        picker_lines,
-        None,
-        None,
-    );
-}
-
-fn render_tensor_split_picker(
-    f: &mut Frame,
-    area: Rect,
-    app: &App,
-    entries: &[(String, String)],
-    selected: usize,
-    editing: bool,
-    edit_buffer: &str,
-    edit_cursor_pos: usize,
-) {
-    let mut picker_lines: Vec<Line> = Vec::new();
-
-    if editing {
-        let cursor_pos = edit_cursor_pos.min(edit_buffer.chars().count());
-        let before: String = edit_buffer.chars().take(cursor_pos).collect();
-        let after: String = edit_buffer.chars().skip(cursor_pos).collect();
-        picker_lines.push(Line::from(vec![
-            Span::styled("> ", Style::default().fg(ACCENT)),
-            Span::styled(
-                crate::t!("dialog.tensor_split.manual").to_string(),
-                Style::default().fg(CYAN),
-            ),
-            Span::styled(
-                format!("{}|{}", before, after),
-                Style::default()
-                    .fg(BLACK)
-                    .bg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        ]));
-    } else {
-        for (i, (label, _)) in entries.iter().enumerate() {
-            let marker = if i == selected { "> " } else { "  " };
-            let style = if i == selected {
-                Style::default()
-                    .fg(BLACK)
-                    .bg(ACCENT)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(WHITE)
-            };
-            picker_lines.push(Line::from(vec![
-                Span::styled(marker, Style::default().fg(ACCENT)),
-                Span::styled(label, style),
-            ]));
-        }
-    }
-
-    // Detected-GPU footer (cache hit: computed when the picker opened)
-    let vram = crate::backend::hardware::gpu_vram_gib_cached(
-        std::time::Duration::from_secs(30),
-        app.settings.backend,
-    );
-    let footer = if vram.len() >= 2 {
-        let list: Vec<String> = vram.iter().map(|v| format!("{}GB", v)).collect();
-        Line::from(Span::styled(
-            crate::t_fmt!("dialog.tensor_split.gpus", list.join(", ")),
-            Style::default().fg(GRAY),
-        ))
-    } else {
-        Line::from(Span::styled(
-            crate::t!("dialog.tensor_split.no_gpus"),
-            Style::default().fg(GRAY),
-        ))
-    };
-
-    let help = if editing {
-        crate::t!("dialog.tensor_split.help_edit")
-    } else {
-        crate::t!("dialog.tensor_split.help")
-    };
-
-    render_picker_popup(
-        f,
-        area,
-        Span::styled(
-            crate::t!("dialog.tensor_split.title"),
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-        ),
-        Some(Line::from(Span::styled(help, Style::default().fg(ACCENT)))),
-        picker_lines,
-        Some(footer),
         None,
     );
 }

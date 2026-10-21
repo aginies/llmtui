@@ -244,6 +244,8 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             editing_param_field: 0,
                             param_edit_buffer: String::new(),
                             param_edit_cursor_pos: 0,
+                            show_matrix: false,
+                            matrix_scroll: 0,
                         };
                         return;
                     }

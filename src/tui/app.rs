@@ -1,3 +1,12 @@
+//! TUI application state and core update logic.
+//!
+//! Owns the [`App`] struct (defined in [`types`]) and its construction
+//! ([`App::new`]) and update logic. The state is split into sub-structs
+//! (see [`types`]); per-concern logic lives in submodules: [`async_ops`]
+//! (async work such as downloads and server spawning), [`sync_ops`]
+//! (synchronous operations), [`pickers`], [`profiles`], [`panels`],
+//! [`help`], [`metadata`], [`pending_events`], and [`state`].
+
 pub mod async_ops;
 pub mod help;
 pub mod metadata;
@@ -266,6 +275,7 @@ impl App {
                 tags_insert_mode: false,
                 editing_preset: None,
             },
+            list_picker: None,
         }
     }
 }
