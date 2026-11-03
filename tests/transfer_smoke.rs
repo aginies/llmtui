@@ -3,8 +3,16 @@
 //! auth, traversal rejection, and the disabled-by-default behavior.
 use std::io::Write;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 use llm_manager::serve_api::{StreamSpeedTracker, WebSearchConfig, start_api_server};
+use tokio::sync::Mutex as AsyncMutex;
+
+/// Serializes the tests that mutate the process-global `LLM_MANAGER_TRANSFER_DIR`
+/// env var. `std::env::set_var` is `unsafe` in Rust 2024 and races when the
+/// three `#[tokio::test]` functions run concurrently, so this is held across
+/// each test body.
+static TRANSFER_TEST_LOCK: LazyLock<AsyncMutex<()>> = LazyLock::new(|| AsyncMutex::new(()));
 
 fn make_tar_gz() -> Vec<u8> {
     use flate2::Compression;
@@ -86,6 +94,7 @@ async fn boot(
 
 #[tokio::test]
 async fn transfer_api_smoke() {
+    let _guard = TRANSFER_TEST_LOCK.lock().await;
     let tmp = std::env::temp_dir().join(format!(
         "llm-mgr-transfer-test-{}-smoke",
         std::process::id()
@@ -198,6 +207,7 @@ async fn transfer_api_smoke() {
 
 #[tokio::test]
 async fn transfer_api_disabled() {
+    let _guard = TRANSFER_TEST_LOCK.lock().await;
     let tmp = std::env::temp_dir().join(format!(
         "llm-mgr-transfer-test-{}-disabled",
         std::process::id()
@@ -259,6 +269,7 @@ async fn boot_fake_backend() -> (u16, Arc<std::sync::Mutex<Vec<String>>>) {
 
 #[tokio::test]
 async fn agent_run_smoke() {
+    let _guard = TRANSFER_TEST_LOCK.lock().await;
     let tmp = std::env::temp_dir().join(format!(
         "llm-mgr-transfer-test-{}-agent",
         std::process::id()
