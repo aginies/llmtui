@@ -1210,6 +1210,32 @@ impl ModelSettings {
 /// Default benchmark prompt used when starting a tuning session.
 pub const BENCHMARK_PROMPT: &str = "Create Mona Lisa image in ascii art using text, number, symbol, everything possible. this should be the perfect painting.";
 
+/// Deterministic, router-safe identifier for a model in router mode.
+///
+/// Router mode registers local models via a `--models-preset` `.ini` file whose
+/// section name becomes the model id the router reports in `GET /models` and
+/// that we use to load/unload through the `/models/load` and `/models/unload`
+/// API. That name must be a valid, collision-safe `.ini` section identifier, so
+/// we derive it from the model's display name (the path relative to the models
+/// dir): strip the trailing `.gguf`, then map every character outside
+/// `[A-Za-z0-9._-]` to `_`. The full relative path is preserved, so two models
+/// in different repositories never collide.
+pub fn router_model_id(display_name: &str) -> String {
+    let stem = display_name.strip_suffix(".gguf").unwrap_or(display_name);
+    let mut out = String::with_capacity(stem.len());
+    for ch in stem.chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-') {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        out.push('_');
+    }
+    out
+}
+
 /// A discovered model file.
 #[derive(Debug, Clone)]
 pub struct DiscoveredModel {

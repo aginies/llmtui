@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use std::net::IpAddr;
 use std::process::Stdio;
 use std::str::FromStr;
 use std::sync::LazyLock;
@@ -10,7 +9,7 @@ use tracing::{info, warn};
 
 use crate::config::Config;
 use crate::models::{
-    DiscoveredModel, LoadMode, ModelSettings, RopeScaling, ServerMetrics, clean_host, strip_gguf,
+    DiscoveredModel, ModelSettings, ServerMetrics, clean_host, strip_gguf,
 };
 
 /// Client for health checks (short timeout).
@@ -85,134 +84,213 @@ fn push_gpu_layers(cmd: &mut Command, parts: &mut Vec<String>, settings: &ModelS
     }
 }
 
-fn push_spec_decoding(cmd: &mut Command, parts: &mut Vec<String>, settings: &ModelSettings) {
-    if !settings.spec_type.is_empty() {
-        push_arg(cmd, parts, "--spec-type", &settings.spec_type);
-        if settings.draft_tokens > 0 {
-            push_arg(cmd, parts, "--spec-draft-n-max", settings.draft_tokens);
+/// A single argument shared by the CLI (llama-server) and the
+/// `--models-preset` `.ini` (llama.cpp router). The SAME settings→arg mapping
+/// feeds both materializers, so the CLI and the preset can never drift apart.
+#[derive(Clone, Debug)]
+enum ArgKind {
+    /// CLI: `--key value` / preset: `key = value`
+    KeyValue { key: String, value: String },
+    /// CLI: `--key` / preset: `key = true`
+    Flag { key: String },
+    /// CLI: `--no-key` / preset: `key = false`
+    NegFlag { key: String },
+    /// CLI: `from value` (from keeps its dashes, e.g. `-ngl`) /
+    /// preset: `to = value` (the preset key can differ, e.g. `n-gpu-layers`).
+    Renamed { from: String, to: String, value: String },
+}
+
+#[derive(Clone, Debug)]
+struct Arg {
+    kind: ArgKind,
+}
+
+fn arg_kv(key: impl Into<String>, value: impl std::fmt::Display) -> Arg {
+    Arg {
+        kind: ArgKind::KeyValue {
+            key: key.into(),
+            value: value.to_string(),
+        },
+    }
+}
+
+fn arg_flag(key: impl Into<String>) -> Arg {
+    Arg {
+        kind: ArgKind::Flag { key: key.into() },
+    }
+}
+
+fn arg_neg(key: impl Into<String>) -> Arg {
+    Arg {
+        kind: ArgKind::NegFlag { key: key.into() },
+    }
+}
+
+fn arg_renamed(
+    from: impl Into<String>,
+    to: impl Into<String>,
+    value: impl std::fmt::Display,
+) -> Arg {
+    Arg {
+        kind: ArgKind::Renamed {
+            from: from.into(),
+            to: to.into(),
+            value: value.to_string(),
+        },
+    }
+}
+
+/// Quote a value in a display string when it contains shell-special
+/// characters (preserves the historic `push_arg` quoting so the logged
+/// command stays a valid one-liner).
+fn push_quoted(parts: &mut Vec<String>, value: &str) {
+    if value.contains(' ') || value.contains(';') || value.contains('"') {
+        parts.push(format!(
+            "\"{}\"",
+            value.replace('\\', "\\\\").replace('"', "\\\"")
+        ));
+    } else {
+        parts.push(value.to_string());
+    }
+}
+
+/// Append arguments to a Command + display string as CLI flags.
+fn append_cli(args: &[Arg], cmd: &mut Command, parts: &mut Vec<String>) {
+    for a in args {
+        match &a.kind {
+            ArgKind::KeyValue { key, value } => {
+                cmd.arg(format!("--{key}")).arg(value);
+                parts.push(format!("--{key}"));
+                push_quoted(parts, value);
+            }
+            ArgKind::Flag { key } => {
+                cmd.arg(format!("--{key}"));
+                parts.push(format!("--{key}"));
+            }
+            ArgKind::NegFlag { key } => {
+                cmd.arg(format!("--no-{key}"));
+                parts.push(format!("--no-{key}"));
+            }
+            ArgKind::Renamed { from, value, .. } => {
+                cmd.arg(from).arg(value);
+                parts.push(from.clone());
+                push_quoted(parts, value);
+            }
         }
     }
 }
 
-/// Build the full llama-server command line from settings.
-/// Returns (Command, display_string) where the string is suitable for logging.
-pub fn build_server_cmd(
-    binary: &std::path::Path,
-    model: Option<&DiscoveredModel>,
-    settings: &ModelSettings,
-    config: &Config,
-    server_mode: crate::models::ServerMode,
-    router_max_models: u32,
-    model_config_used: bool,
-) -> (Command, String) {
-    let mut cmd = Command::new(binary);
-    let mut parts: Vec<String> = vec![binary.display().to_string()];
+/// Quote a value for an `--models-preset` `.ini` line: raw when it is simple,
+/// otherwise double-quote-wrapped with backslash escaping (matching the CLI so
+/// values containing spaces never get silently truncated).
+fn preset_value(value: &str) -> String {
+    if value.contains(' ') || value.contains(';') || value.contains('"') || value.contains('\n') {
+        format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
+    } else {
+        value.to_string()
+    }
+}
 
-    // ── Model ───────────────────────────────────────────────
-    match server_mode {
-        crate::models::ServerMode::Normal => {
-            if let Some(model) = model {
-                push_arg(&mut cmd, &mut parts, "-m", model.path.display());
-                // Add alias for router mode identification (uses the unique relative path)
-                push_arg(&mut cmd, &mut parts, "--alias", &model.display_name);
+/// Append arguments to an `--models-preset` `.ini` body as `key = value` lines.
+fn append_preset(body: &mut String, args: &[Arg]) {
+    for a in args {
+        match &a.kind {
+            ArgKind::KeyValue { key, value } => {
+                body.push_str(&format!("{key} = {}\n", preset_value(value)));
             }
-        }
-        crate::models::ServerMode::Router => {
-            // Router mode: no model in CLI, use /load API to load models
-            if router_max_models > 0 {
-                push_arg(&mut cmd, &mut parts, "--models-max", router_max_models);
+            ArgKind::Flag { key } => body.push_str(&format!("{key} = true\n")),
+            ArgKind::NegFlag { key } => body.push_str(&format!("{key} = false\n")),
+            ArgKind::Renamed { to, value, .. } => {
+                body.push_str(&format!("{to} = {}\n", preset_value(value)));
             }
-            // Always pass --models-dir in router mode (global config setting)
-            if let Some(dir) = config.models_dirs.first() {
-                push_arg(&mut cmd, &mut parts, "--models-dir", dir.display());
-            }
-        }
-        crate::models::ServerMode::Bench => {
-            // Should not be reached as Bench uses build_bench_cmd
-        }
-        crate::models::ServerMode::BenchTune => {
-            // Should not be reached as BenchTune uses benchmark tuning function
         }
     }
+}
 
-    // Parse GGUF metadata for arch-specific override-kv keys
-    let gguf_meta = model
-        .map(|m| crate::models::GgufMetadata::from_path(&m.path))
-        .transpose();
+/// Build the per-model generation arguments for one settings snapshot. These
+/// materialize as CLI flags in Normal mode and as `--models-preset` `.ini` keys
+/// in Router mode (see append_cli / append_preset). The `typical` key is used
+/// both for the CLI flag `--typical` and for the preset key `typical`.
+fn build_generation_args(
+    settings: &ModelSettings,
+    config: &Config,
+    gguf_meta: Option<&crate::models::GgufMetadata>,
+    model_config_used: bool,
+) -> Vec<Arg> {
+    let mut args: Vec<Arg> = Vec::new();
 
     // ── Loading ──────────────────────────────────────────────
-    push_arg(&mut cmd, &mut parts, "--threads", settings.threads);
-    push_arg(
-        &mut cmd,
-        &mut parts,
-        "--threads-batch",
-        settings.threads_batch,
-    );
+    args.push(arg_kv("threads", settings.threads));
+    args.push(arg_kv("threads-batch", settings.threads_batch));
     let effective_ctx = if settings.rope_yarn_enabled && settings.rope_scale > 1.0 {
         (settings.context_length as f64 * settings.rope_scale as f64) as u32
     } else {
         settings.context_length
     };
     if !model_config_used {
-        push_arg(&mut cmd, &mut parts, "--ctx-size", effective_ctx);
+        args.push(arg_kv("ctx-size", effective_ctx));
     }
     if settings.cont_batching {
-        push_flag(&mut cmd, &mut parts, "--cont-batching");
+        args.push(arg_flag("cont-batching"));
     }
-    // Always pass --batch-size (Eval Batch) so the user's choice is never
-    // silently replaced by llama-server's built-in default (2048).
-    push_arg(&mut cmd, &mut parts, "--batch-size", settings.batch_size);
+    // Always pass batch-size (Eval Batch) so the user's choice is never silently
+    // replaced by llama-server's built-in default (2048).
+    args.push(arg_kv("batch-size", settings.batch_size));
     // llama.cpp requires ubatch <= batch; clamp so a misconfiguration can't
     // prevent the server from starting.
     let ubatch_size = settings.ubatch_size.min(settings.batch_size);
-    push_arg(&mut cmd, &mut parts, "--ubatch-size", ubatch_size);
+    args.push(arg_kv("ubatch-size", ubatch_size));
     if let Some(n) = settings.max_concurrent_predictions {
-        push_arg(&mut cmd, &mut parts, "--parallel", n);
+        args.push(arg_kv("parallel", n));
     }
+    // --no-warmup is always emitted (matches the historic CLI behavior).
+    args.push(arg_neg("warmup"));
 
-    push_flag(&mut cmd, &mut parts, "--no-warmup");
-
-    push_spec_decoding(&mut cmd, &mut parts, settings);
+    // Speculative decoding
+    if !settings.spec_type.is_empty() {
+        args.push(arg_kv("spec-type", settings.spec_type.clone()));
+        if settings.draft_tokens > 0 {
+            args.push(arg_kv("spec-draft-n-max", settings.draft_tokens));
+        }
+    }
 
     if let Some(cache_k) = settings.cache_type_k {
-        push_arg(&mut cmd, &mut parts, "--cache-type-k", cache_k);
+        args.push(arg_kv("cache-type-k", cache_k));
     }
     if let Some(cache_v) = settings.cache_type_v {
-        push_arg(&mut cmd, &mut parts, "--cache-type-v", cache_v);
+        args.push(arg_kv("cache-type-v", cache_v));
     }
 
     if settings.keep != 0 {
-        push_arg(&mut cmd, &mut parts, "--keep", settings.keep);
+        args.push(arg_kv("keep", settings.keep));
     }
     if settings.swa_full {
-        push_flag(&mut cmd, &mut parts, "--swa-full");
+        args.push(arg_flag("swa-full"));
     }
-    if settings.load_mode != LoadMode::None {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--load-mode",
-            settings.load_mode.to_string(),
-        );
+    if settings.load_mode != crate::models::LoadMode::None {
+        args.push(arg_kv("load-mode", settings.load_mode.to_string()));
     }
     if settings.numa != Default::default() {
-        push_arg(&mut cmd, &mut parts, "--numa", settings.numa.to_string());
+        args.push(arg_kv("numa", settings.numa.to_string()));
     }
     if settings.kv_cache_offload {
-        push_flag(&mut cmd, &mut parts, "--kv-offload");
+        args.push(arg_flag("kv-offload"));
     }
 
     // ── GPU ──────────────────────────────────────────────────
-    push_gpu_layers(&mut cmd, &mut parts, settings);
+    match settings.gpu_layers_mode {
+        crate::models::GpuLayersMode::Specific(n) => {
+            args.push(arg_renamed("-ngl", "n-gpu-layers", n))
+        }
+        crate::models::GpuLayersMode::All => {
+            args.push(arg_renamed("-ngl", "n-gpu-layers", "999"))
+        }
+        crate::models::GpuLayersMode::Auto => {}
+    }
 
-    // Always pass --split-mode so llama-server doesn't auto-detect other GPUs
-    push_arg(
-        &mut cmd,
-        &mut parts,
-        "--split-mode",
-        settings.split_mode.to_string(),
-    );
-    // Build --tensor-split from local GPU + selected RPC workers
+    // Always pass split-mode so llama-server doesn't auto-detect other GPUs
+    args.push(arg_kv("split-mode", settings.split_mode.to_string()));
+    // Build tensor-split from local GPU + selected RPC workers
     let local_split = if settings.tensor_split.is_empty() {
         // Default: proportional to each GPU's VRAM (e.g. "24,16"); fall back
         // to a single slot when fewer than 2 GPUs could be detected.
@@ -224,7 +302,7 @@ pub fn build_server_cmd(
     let worker_splits: Vec<String> = config
         .rpc_workers
         .iter()
-        .filter(|w| w.selected && IpAddr::from_str(&w.ip).is_ok())
+        .filter(|w| w.selected && std::net::IpAddr::from_str(&w.ip).is_ok())
         .map(|w| {
             if w.tensor_split.is_empty() {
                 "1".to_string()
@@ -233,35 +311,33 @@ pub fn build_server_cmd(
             }
         })
         .collect();
-    // --tensor-split is used for RPC workers, and also for local multi-GPU
-    // when Split Mode is Tensor (default: each GPU's VRAM in GiB).
+    // tensor-split is used for RPC workers, and also for local multi-GPU when
+    // Split Mode is Tensor (default: each GPU's VRAM in GiB).
     if !worker_splits.is_empty() || settings.split_mode == crate::models::SplitMode::Tensor {
         let full_split = if worker_splits.is_empty() {
             local_split
         } else {
             format!("{},{}", local_split, worker_splits.join(","))
         };
-        push_arg(&mut cmd, &mut parts, "--tensor-split", &full_split);
+        args.push(arg_kv("tensor-split", full_split));
     }
     // Restrict offloading to the selected GPU devices (from `--list-devices`).
     // Empty = let llama.cpp use all detected devices.
     if !settings.devices.is_empty() {
-        push_arg(&mut cmd, &mut parts, "--device", settings.devices.join(","));
+        args.push(arg_kv("device", settings.devices.join(",")));
     }
     if settings.fit {
-        push_arg(&mut cmd, &mut parts, "--fit", "on");
+        args.push(arg_kv("fit", "on"));
     }
 
     if let Some(ref lora) = settings.lora {
-        push_arg(&mut cmd, &mut parts, "--lora", lora.display());
+        args.push(arg_kv("lora", lora.display().to_string()));
     }
     if let Some((ref lora, scale)) = settings.lora_scaled {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--lora-scaled",
+        args.push(arg_kv(
+            "lora-scaled",
             format!("{}:{}", lora.display(), scale),
-        );
+        ));
     }
 
     let mut rpc_list = Vec::new();
@@ -269,69 +345,58 @@ pub fn build_server_cmd(
         rpc_list.push(settings.rpc.clone());
     }
     for worker in &config.rpc_workers {
-        if worker.selected && IpAddr::from_str(&worker.ip).is_ok() {
+        if worker.selected && std::net::IpAddr::from_str(&worker.ip).is_ok() {
             rpc_list.push(format!("{}:{}", worker.ip, worker.port));
         }
     }
 
     if !rpc_list.is_empty() {
-        let joined_rpc = rpc_list.join(",");
-        push_arg(&mut cmd, &mut parts, "--rpc", joined_rpc);
+        args.push(arg_kv("rpc", rpc_list.join(",")));
     }
 
     if settings.embedding {
-        push_flag(&mut cmd, &mut parts, "--embedding");
+        args.push(arg_flag("embedding"));
     }
 
     if settings.expert_count > 0 {
         let arch = gguf_meta
             .as_ref()
-            .ok()
-            .and_then(|opt| opt.as_ref())
             .map(|m| m.arch.as_str())
             .unwrap_or("llama");
         let arch = arch
             .chars()
             .filter(|c| c.is_ascii_alphanumeric() || *c == '_')
             .collect::<String>();
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--override-kv",
-            format!(
-                "{}.expert_used_count=int:int:{}",
-                arch, settings.expert_count
-            ),
-        );
+        args.push(arg_kv(
+            "override-kv",
+            format!("{}.expert_used_count=int:int:{}", arch, settings.expert_count),
+        ));
     }
 
-    push_arg(
-        &mut cmd,
-        &mut parts,
+    args.push(arg_renamed(
         "-fa",
+        "flash-attn",
         if settings.flash_attn { "on" } else { "off" },
-    );
+    ));
 
     if settings.jinja {
-        push_flag(&mut cmd, &mut parts, "--jinja");
+        args.push(arg_flag("jinja"));
     }
 
     // Apply chat template: file path, built-in name, or auto-detect from arch
     if let Some(ref t) = settings.chat_template {
         if t.ends_with(".jinja") {
-            push_arg(&mut cmd, &mut parts, "--chat-template-file", t);
+            args.push(arg_kv("chat-template-file", t.clone()));
         } else {
-            push_arg(&mut cmd, &mut parts, "--chat-template", t);
+            args.push(arg_kv("chat-template", t.clone()));
         }
     } else if settings.auto_chat_template {
         let arch = gguf_meta
             .as_ref()
-            .ok()
-            .and_then(|opt| opt.as_ref())
             .map(|m| m.arch.as_str())
             .unwrap_or("llama");
         if let Some(template) = crate::models::arch_to_chat_template(arch) {
-            push_arg(&mut cmd, &mut parts, "--chat-template", template);
+            args.push(arg_kv("chat-template", template));
         }
     }
 
@@ -356,190 +421,149 @@ pub fn build_server_cmd(
             "system_prompt".to_string(),
             serde_json::Value::String(settings.system_prompt.clone()),
         );
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--chat-template-kwargs",
+        args.push(arg_kv(
+            "chat-template-kwargs",
             serde_json::to_string(&merged).unwrap(),
-        );
+        ));
     } else if let Some(ref kwargs) = settings.chat_template_kwargs {
-        push_arg(&mut cmd, &mut parts, "--chat-template-kwargs", kwargs);
+        args.push(arg_kv("chat-template-kwargs", kwargs.clone()));
     }
 
     // ── Sampling ─────────────────────────────────────────────
     if settings.seed != -1 {
-        push_arg(&mut cmd, &mut parts, "--seed", settings.seed);
+        args.push(arg_kv("seed", settings.seed));
     }
     if let Some(max_tokens) = settings.max_tokens {
-        push_arg(&mut cmd, &mut parts, "--n-predict", max_tokens);
+        args.push(arg_kv("n-predict", max_tokens));
     }
-    push_arg(
-        &mut cmd,
-        &mut parts,
-        "--temp",
-        format!("{:.2}", settings.temperature),
-    );
-
-    push_arg(&mut cmd, &mut parts, "--top-k", settings.top_k);
-
-    push_arg(
-        &mut cmd,
-        &mut parts,
-        "--top-p",
-        format!("{:.2}", settings.top_p),
-    );
-
-    push_arg(
-        &mut cmd,
-        &mut parts,
-        "--min-p",
-        format!("{:.2}", settings.min_p),
-    );
-
-    push_arg(
-        &mut cmd,
-        &mut parts,
-        "--typical",
-        format!("{:.2}", settings.typical_p),
-    );
+    args.push(arg_kv("temp", format!("{:.2}", settings.temperature)));
+    args.push(arg_kv("top-k", settings.top_k));
+    args.push(arg_kv("top-p", format!("{:.2}", settings.top_p)));
+    args.push(arg_kv("min-p", format!("{:.2}", settings.min_p)));
+    // CLI flag is `--typical` (historic form); preset key is `typical`.
+    args.push(arg_kv("typical", format!("{:.2}", settings.typical_p)));
 
     if settings.mirostat != Default::default() {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--mirostat",
-            settings.mirostat.to_string(),
-        );
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--mirostat-lr",
+        args.push(arg_kv("mirostat", settings.mirostat.to_string()));
+        args.push(arg_kv(
+            "mirostat-lr",
             format!("{:.2}", settings.mirostat_lr),
-        );
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--mirostat-ent",
+        ));
+        args.push(arg_kv(
+            "mirostat-ent",
             format!("{:.2}", settings.mirostat_ent),
-        );
+        ));
     }
 
     if settings.ignore_eos {
-        push_flag(&mut cmd, &mut parts, "--ignore-eos");
+        args.push(arg_flag("ignore-eos"));
     }
 
     if !settings.samplers.0.is_empty() {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--samplers",
-            settings.samplers.to_string(),
-        );
+        args.push(arg_kv("samplers", settings.samplers.to_string()));
     }
 
     if let Some(frequency) = settings.frequency_penalty {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--frequency-penalty",
+        args.push(arg_kv(
+            "frequency-penalty",
             format!("{:.2}", frequency),
-        );
+        ));
     }
 
     if settings.dry_multiplier != 0.0 {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--dry-multiplier",
+        args.push(arg_kv(
+            "dry-multiplier",
             format!("{:.2}", settings.dry_multiplier),
-        );
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--dry-base",
-            format!("{:.2}", settings.dry_base),
-        );
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--dry-allowed-length",
+        ));
+        args.push(arg_kv("dry-base", format!("{:.2}", settings.dry_base)));
+        args.push(arg_kv(
+            "dry-allowed-length",
             settings.dry_allowed_length,
-        );
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--dry-penalty-last-n",
+        ));
+        args.push(arg_kv(
+            "dry-penalty-last-n",
             settings.dry_penalty_last_n,
-        );
+        ));
     }
 
     // ── RoPE ─────────────────────────────────────────────────
     let rope_scaling = if settings.rope_yarn_enabled {
-        RopeScaling::Yarn
+        crate::models::RopeScaling::Yarn
     } else {
         settings.rope_scaling
     };
     if rope_scaling != Default::default() {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--rope-scaling",
-            rope_scaling.to_string(),
-        );
+        args.push(arg_kv("rope-scaling", rope_scaling.to_string()));
     }
     if settings.rope_scale != 1.0 {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--rope-scale",
-            format!("{:.2}", settings.rope_scale),
-        );
+        args.push(arg_kv("rope-scale", format!("{:.2}", settings.rope_scale)));
     }
     if settings.rope_freq_base != 0.0 {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--rope-freq-base",
+        args.push(arg_kv(
+            "rope-freq-base",
             format!("{:.2}", settings.rope_freq_base),
-        );
+        ));
     }
     if settings.rope_freq_scale != 1.0 {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--rope-freq-scale",
+        args.push(arg_kv(
+            "rope-freq-scale",
             format!("{:.2}", settings.rope_freq_scale),
-        );
+        ));
     }
 
     if settings.rope_yarn_enabled
         && settings.rope_scale > 1.0
-        && let Some(meta) = gguf_meta.as_ref().ok().and_then(|x| x.as_ref())
+        && let Some(meta) = gguf_meta
     {
-        push_arg(
-            &mut cmd,
-            &mut parts,
-            "--override-kv",
+        args.push(arg_kv(
+            "override-kv",
             format!("{}.context_length=int:{}", meta.arch, effective_ctx),
-        );
-        let orig_ctx = meta.n_ctx_train;
-        push_arg(&mut cmd, &mut parts, "--yarn-orig-ctx", orig_ctx);
+        ));
+        args.push(arg_kv("yarn-orig-ctx", meta.n_ctx_train));
     }
 
-    let resolved_host = clean_host(&settings.host);
-    push_arg(&mut cmd, &mut parts, "--host", resolved_host);
-    push_arg(&mut cmd, &mut parts, "--port", settings.port);
-    push_arg(&mut cmd, &mut parts, "--timeout", settings.timeout);
+    args
+}
 
-    push_flag(&mut cmd, &mut parts, "--metrics");
+/// Build the full llama-server command line from settings.
+/// Returns (Command, display_string, generation_args).
+///
+/// In Normal mode the generation arguments become CLI flags. In Router mode
+/// they are returned separately and consumed as the `--models-preset` `.ini`
+/// (the empty router carries no generation flags itself — each loaded model
+/// inherits its settings from the preset, so models can differ). Infra and
+/// model-binding args are always on the CLI.
+pub fn build_server_cmd(
+    binary: &std::path::Path,
+    model: Option<&DiscoveredModel>,
+    settings: &ModelSettings,
+    config: &Config,
+    server_mode: crate::models::ServerMode,
+    router_max_models: u32,
+    model_config_used: bool,
+) -> (Command, String) {
+    let gguf_meta = model.and_then(|m| crate::models::GgufMetadata::from_path(&m.path).ok());
+    let gen_args = build_generation_args(settings, config, gguf_meta.as_ref(), model_config_used);
+
+    // ── Infra (server-wide, always CLI) ──────────────────────
+    let mut infra_args: Vec<Arg> = Vec::new();
+    let resolved_host = clean_host(&settings.host);
+    infra_args.push(arg_kv("host", resolved_host));
+    infra_args.push(arg_kv("port", settings.port));
+    infra_args.push(arg_kv("timeout", settings.timeout));
+    infra_args.push(arg_flag("metrics"));
+    // Prompt caching is a server-wide knob in the historic CLI (emitted only as
+    // --no-cache-prompt when disabled, with --cache-reuse alongside it). Keep it
+    // on the CLI so Normal mode stays byte-identical; in Router mode the empty
+    // router carries these and every loaded model inherits them.
     if !settings.cache_prompt {
-        push_flag(&mut cmd, &mut parts, "--no-cache-prompt");
+        infra_args.push(arg_neg("cache-prompt"));
     }
     if settings.cache_reuse != 0 {
-        push_arg(&mut cmd, &mut parts, "--cache-reuse", settings.cache_reuse);
+        infra_args.push(arg_kv("cache-reuse", settings.cache_reuse));
     }
     if !settings.webui {
-        push_flag(&mut cmd, &mut parts, "--no-webui");
+        infra_args.push(arg_neg("webui"));
     }
     let lv = match config.default.log_level.as_str() {
         "error" => 0,
@@ -549,12 +573,59 @@ pub fn build_server_cmd(
         "trace" => 4,
         _ => 1,
     };
-    push_arg(&mut cmd, &mut parts, "-lv", lv);
+    infra_args.push(arg_renamed("-lv", "log-level", lv));
+    // Always pass --models-dir in router mode (global config setting). The
+    // router's shallow scan only sees one level deep, so the app also lists
+    // models explicitly via --models-preset; this dir is the fallback scan path.
+    // (Not in Normal mode: there the server loads a single model via -m.)
+    if server_mode == crate::models::ServerMode::Router
+        && let Some(dir) = config.models_dirs.first()
+    {
+        infra_args.push(arg_kv("models-dir", dir.display()));
+    }
 
-    // ── General ──────────────────────────────────────────────
+    // ── Model binding (CLI only) ─────────────────────────────
+    let mut model_args: Vec<Arg> = Vec::new();
+    match server_mode {
+        crate::models::ServerMode::Normal => {
+            if let Some(model) = model {
+                model_args.push(arg_renamed(
+                    "-m",
+                    "model",
+                    model.path.display(),
+                ));
+                // Add alias for router mode identification (uses the unique
+                // relative path)
+                model_args.push(arg_kv("alias", model.display_name.clone()));
+            }
+        }
+        crate::models::ServerMode::Router => {
+            // Router mode: no model in CLI, use the /load API to load models.
+            // Local models are registered via --models-preset (added by
+            // spawn_server_inner from the preset built by the app layer),
+            // because this app stores models two levels deep under models-dir
+            // (<owner>/<repo>/<file>.gguf), which the router's shallow
+            // --models-dir scan cannot discover.
+            if router_max_models > 0 {
+                model_args.push(arg_kv("models-max", router_max_models));
+            }
+        }
+        crate::models::ServerMode::Bench | crate::models::ServerMode::BenchTune => {}
+    }
 
-    let display = parts.join(" ");
-    (cmd, display)
+    let mut cmd = Command::new(binary);
+    let mut parts: Vec<String> = vec![binary.display().to_string()];
+    // Model binding is always on the CLI.
+    append_cli(&model_args, &mut cmd, &mut parts);
+    // Generation settings: CLI in Normal mode, preset in Router mode.
+    if server_mode != crate::models::ServerMode::Router {
+        append_cli(&gen_args, &mut cmd, &mut parts);
+    }
+    // Infra is always on the CLI.
+    append_cli(&infra_args, &mut cmd, &mut parts);
+
+    let cmd_string = parts.join(" ");
+    (cmd, cmd_string)
 }
 
 /// Build the full llama-bench command line.
@@ -582,6 +653,58 @@ pub fn build_bench_cmd(
     (cmd, display)
 }
 
+/// Build the `--models-preset` `.ini` that registers every local model for
+/// router mode, and write it to a stable path under the config directory.
+///
+/// The router only auto-discovers models one level deep under `--models-dir`
+/// (`<dir>/*.gguf` or `<dir>/<model>/*.gguf`), but this app stores models as
+/// `<owner>/<repo>/<file>.gguf` (two levels), so the router's scan finds none.
+/// We register them explicitly instead: each section maps a router-safe id
+/// (see `router_model_id`) to the model's absolute path. The section name is
+/// what the router reports in `GET /models` and what the app uses to
+/// load/unload. The file is regenerated on every router-mode spawn so it stays
+/// in sync with the models the app actually discovered.
+///
+/// Each model section carries that model's *full* resolved generation settings
+/// (see `config.resolve_settings`), so in router mode every loaded model runs
+/// with its own config instead of a single server-wide set. A `[*]` baseline
+/// section (`baseline`) holds the default generation settings every model
+/// inherits for keys its own section does not override.
+pub fn build_router_preset(
+    models: &[DiscoveredModel],
+    config: &Config,
+    baseline: &ModelSettings,
+) -> Result<std::path::PathBuf, String> {
+    let mut body = String::new();
+
+    // [*] baseline: default generation settings inherited by every model that
+    // does not override a given key in its own section.
+    append_preset(&mut body, &build_generation_args(baseline, config, None, false));
+
+    for m in models {
+        let id = crate::models::router_model_id(&m.display_name);
+        let settings = config.resolve_settings(Some(m.display_name.as_str()), None);
+        let meta = crate::models::GgufMetadata::from_path(&m.path).ok();
+        body.push_str(&format!("[{id}]\n"));
+        body.push_str(&format!("model = {}\n", m.path.display()));
+        append_preset(&mut body, &build_generation_args(&settings, config, meta.as_ref(), false));
+    }
+    let path = crate::config::config_base_dir()
+        .join("llm-manager")
+        .join("router-preset.ini");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            format!(
+                "failed to create preset directory {}: {e}",
+                parent.display()
+            )
+        })?;
+    }
+    std::fs::write(&path, body)
+        .map_err(|e| format!("failed to write preset {}: {e}", path.display()))?;
+    Ok(path)
+}
+
 /// Spawn a llama.cpp server process (single model or router).
 /// Returns (ServerHandle, command_string) where command_string is the full CLI.
 pub struct SpawnServerRequest<'a> {
@@ -593,6 +716,9 @@ pub struct SpawnServerRequest<'a> {
     pub server_mode: crate::models::ServerMode,
     pub router_max_models: u32,
     pub exit_tx: mpsc::Sender<()>,
+    // Router mode: path to the --models-preset .ini listing local models.
+    // Generated by the app layer from its discovered models; None otherwise.
+    pub router_preset: Option<std::path::PathBuf>,
 }
 
 pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, String), String> {
@@ -605,6 +731,7 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
         server_mode,
         router_max_models,
         exit_tx,
+        router_preset,
     } = req;
     // Turbo KV-cache types (turbo2/3/4) only exist in turboquant builds. If
     // the effective settings still carry one on a standard backend — a
@@ -650,6 +777,7 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
             server_mode,
             router_max_models,
             exit_tx,
+            router_preset: router_preset.clone(),
         })
         .await;
     }
@@ -662,6 +790,7 @@ pub async fn spawn_server(req: SpawnServerRequest<'_>) -> Result<(ServerHandle, 
         server_mode,
         router_max_models,
         exit_tx,
+        router_preset,
     })
     .await
 }
@@ -676,6 +805,7 @@ async fn spawn_server_inner(req: SpawnServerRequest<'_>) -> Result<(ServerHandle
         server_mode,
         router_max_models,
         exit_tx,
+        router_preset,
     } = req;
     if server_mode != crate::models::ServerMode::Bench
         && server_mode != crate::models::ServerMode::BenchTune
@@ -793,6 +923,18 @@ async fn spawn_server_inner(req: SpawnServerRequest<'_>) -> Result<(ServerHandle
             false,
         )
     };
+
+    // Router mode: register the local models via the preset file the app layer
+    // built. build_server_cmd already omitted --models-dir for router mode
+    // (the router's shallow scan cannot see this app's two-level model layout),
+    // so we add --models-preset here and mirror it into the logged command.
+    let mut cmd_string = cmd_string;
+    if server_mode == crate::models::ServerMode::Router
+        && let Some(preset) = &router_preset
+    {
+        cmd.arg("--models-preset").arg(preset);
+        cmd_string.push_str(&format!(" --models-preset {}", preset.display()));
+    }
 
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 

@@ -454,6 +454,7 @@ async fn run_bench_tune_single_test(
         server_mode: ServerMode::Normal,
         router_max_models: 1,
         exit_tx,
+        router_preset: None,
     })
     .await?;
     let host = if server_handle.host == "0.0.0.0" {

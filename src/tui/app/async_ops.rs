@@ -642,7 +642,12 @@ impl App {
                                 .as_ref()
                                 .map(|p| p == &model.path.to_string_lossy())
                                 .unwrap_or(false);
-                            let id_match = id == model.display_name || id == model.name;
+                            // Router mode registers models via --models-preset, where
+                            // the router reports a sanitized id (see router_model_id)
+                            // and no path field, so match on that id too.
+                            let id_match = id == model.display_name
+                                || id == model.name
+                                || id == crate::models::router_model_id(&model.display_name);
                             let filename_match = path
                                 .as_ref()
                                 .and_then(|p| {
@@ -1226,6 +1231,31 @@ impl App {
         } else {
             let settings_for_result = settings_clone.clone();
             let exit_tx_clone = exit_tx.clone();
+            // Router mode: register every discovered local model via a
+            // --models-preset .ini so the router can load them by id. The app
+            // stores models two levels deep under models-dir, which the router's
+            // shallow --models-dir scan cannot see, so we list them explicitly.
+            let router_preset = if server_mode_clone == crate::models::ServerMode::Router {
+                // Baseline [*] section: the global default generation settings
+                // every model inherits unless its own section overrides a key.
+                let baseline = self.config.resolve_settings(None, None);
+                match crate::backend::server::build_router_preset(
+                    &self.models,
+                    &self.config,
+                    &baseline,
+                ) {
+                    Ok(path) => Some(path),
+                    Err(e) => {
+                        self.add_log(
+                            crate::t_fmt!("async.router_preset_failed", e),
+                            crate::config::LogLevel::Error,
+                        );
+                        return;
+                    }
+                }
+            } else {
+                None
+            };
             let handle = tokio::spawn(async move {
                 crate::backend::server::spawn_server(crate::backend::server::SpawnServerRequest {
                     config: &config_clone,
@@ -1236,6 +1266,7 @@ impl App {
                     server_mode: server_mode_clone,
                     router_max_models: router_max_models_clone,
                     exit_tx: exit_tx_clone,
+                    router_preset,
                 })
                 .await
                 .map(|(handle, cmd)| (display_name, handle, cmd, settings_for_result))
@@ -1585,12 +1616,21 @@ impl App {
                 let host = handle.host.clone();
                 let port = handle.port;
                 let model_name_clone = model_name.clone();
-                // Send the model id verbatim, .gguf included. The router
-                // registers models under the full id (as returned by GET
-                // /models) and builds the HuggingFace download URL from it,
-                // so dropping the .gguf extension produced a malformed URL
-                // that 404s.
-                let model_id_for_api = model_name_clone.clone();
+                // Router mode: identify the model by the router-safe id we
+                // registered it under in the --models-preset .ini (see
+                // build_router_preset / router_model_id). The router reports that
+                // same id in GET /models, so load/unload and the sync loop all
+                // agree on it. Normal mode keeps using the HF-style display id
+                // verbatim.
+                let model_id_for_api = if self.server_mode == crate::models::ServerMode::Router {
+                    self.models
+                        .iter()
+                        .find(|m| m.display_name == model_name)
+                        .map(|m| crate::models::router_model_id(&m.display_name))
+                        .unwrap_or_else(|| model_name_clone.clone())
+                } else {
+                    model_name_clone.clone()
+                };
                 // Identifier used only for in-metrics bookkeeping (extension-less).
                 let metrics_model_id = model_name_clone
                     .strip_suffix(".gguf")
@@ -1623,6 +1663,14 @@ impl App {
                     model_name_clone,
                     model_id_for_api
                 );
+                if self.server_mode == crate::models::ServerMode::Router
+                    && model_id_for_api != model_name_clone
+                {
+                    self.add_log(
+                        crate::t_fmt!("async.router_load_id", model_name_clone, model_id_for_api),
+                        crate::config::LogLevel::Info,
+                    );
+                }
                 tokio::spawn(async move {
                     if let Err(e) =
                         crate::backend::server::load_model(&host, port, &model_id_for_api).await
@@ -1699,9 +1747,19 @@ impl App {
             let host = handle.host.clone();
             let port = handle.port;
             let model_name_clone = model_name.clone();
-            // Same id as the load step (full display name, .gguf included) so
-            // unload matches the id the router registered the model under.
-            let model_id = model_name_clone.clone();
+            // Match the id used by the load step: in router mode this is the
+            // router-safe id from --models-preset, so unload targets the id the
+            // router actually registered the model under. Normal mode keeps the
+            // display id.
+            let model_id = if server_mode == crate::models::ServerMode::Router {
+                self.models
+                    .iter()
+                    .find(|m| m.display_name == model_name)
+                    .map(|m| crate::models::router_model_id(&m.display_name))
+                    .unwrap_or_else(|| model_name_clone.clone())
+            } else {
+                model_name_clone.clone()
+            };
             if server_mode == crate::models::ServerMode::Normal {
                 self.add_log(
                     crate::t_fmt!("async.unloading", model_name_clone),
