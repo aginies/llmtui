@@ -423,10 +423,15 @@ fn render_server_settings(f: &mut Frame, area: Rect, app: &mut App) {
         false,
         server_running,
     );
-    let web_search_display = if app.config.default.web_search_enabled {
-        "Enabled (searxng)".to_string()
+    let engine_label = if app.config.default.web_search_engine == "searlo" {
+        "searlo"
     } else {
-        "Disabled (searxng)".to_string()
+        "searxng"
+    };
+    let web_search_display = if app.config.default.web_search_enabled {
+        format!("Enabled ({})", engine_label)
+    } else {
+        format!("Disabled ({})", engine_label)
     };
     settings_helper::add_setting(
         &mut lines,

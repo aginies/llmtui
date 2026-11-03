@@ -78,7 +78,12 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         };
         let mut content = format!("[{}]", inner);
         if app.config.default.web_search_enabled {
-            content.push_str(" SEARXNG");
+            let engine = if app.config.default.web_search_engine == "searlo" {
+                "SEARLO"
+            } else {
+                "SEARXNG"
+            };
+            content.push_str(&format!(" {}", engine));
         }
         status_parts.push(Span::styled(content, Style::default().fg(GREEN)));
         status_parts.push(Span::raw(" │ "));

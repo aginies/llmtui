@@ -181,7 +181,7 @@ pub fn available_actions(app: &App) -> Vec<PaletteEntry> {
             action: PaletteAction::WebSearchSettings,
             name_key: "palette.action.web_search",
             shortcut: "",
-            keywords: "web search engine searxng api key",
+            keywords: "web search engine searxng searlo api key",
         },
         PaletteEntry {
             action: PaletteAction::ToggleExpert,
@@ -463,7 +463,7 @@ pub async fn execute_action(app: &mut App, action: PaletteAction) {
                 enabled: app.config.default.web_search_enabled,
                 engine: engine.clone(),
                 engine_url: engine_url.clone(),
-                api_key,
+                api_key: api_key.clone(),
                 selected_field: 0,
                 engine_picker_selected: 0,
                 editing: false,
@@ -471,10 +471,12 @@ pub async fn execute_action(app: &mut App, action: PaletteAction) {
                 edit_cursor_pos: 0,
                 check_status: None,
             };
-            if !engine_url.is_empty() {
+            if !engine_url.is_empty() || engine == "searlo" {
                 app.ui.needs_redraw = true;
+                let api_key = api_key.clone().unwrap_or_default();
                 let handle = tokio::spawn(async move {
-                    crate::tui::event::check_web_search_health(&engine, &engine_url, "").await
+                    crate::tui::event::check_web_search_health(&engine, &engine_url, &api_key)
+                        .await
                 });
                 app.pending.web_search_check_handle = Some(handle);
             }

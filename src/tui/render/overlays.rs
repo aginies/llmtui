@@ -956,7 +956,7 @@ fn render_web_search_picker(
     edit_buffer: &str,
     check_status: &Option<crate::tui::app::WebSearchCheckStatus>,
 ) {
-    let engines = ["searxng"];
+    let engines = ["searxng", "searlo"];
     let mut picker_lines: Vec<Line> = Vec::new();
 
     if selected_field < -1 {

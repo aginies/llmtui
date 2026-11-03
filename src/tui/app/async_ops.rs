@@ -947,26 +947,34 @@ impl App {
                     self.ui.needs_redraw = true;
                     crate::backend::server::invalidate_vram_cache();
 
-                    // Check SearXNG health when web search is enabled
-                    if self.config.default.web_search_enabled
-                        && self.config.default.web_search_engine == "searxng"
-                        && !self.config.default.web_search_engine_url.is_empty()
-                    {
+                    // Check web search health when web search is enabled
+                    let ws_engine = self.config.default.web_search_engine.clone();
+                    let ws_api_key = self
+                        .config
+                        .default
+                        .web_search_api_key
+                        .clone()
+                        .unwrap_or_default();
+                    let ws_needs_check = self.config.default.web_search_enabled
+                        && ((ws_engine == "searxng"
+                            && !self.config.default.web_search_engine_url.is_empty())
+                            || (ws_engine == "searlo" && !ws_api_key.is_empty()));
+
+                    if ws_needs_check {
+                        let engine = ws_engine;
                         let engine_url = self.config.default.web_search_engine_url.clone();
-                        let api_key = self
-                            .config
-                            .default
-                            .web_search_api_key
-                            .clone()
-                            .unwrap_or_default();
+                        let api_key = ws_api_key;
                         let mut config = self.config.clone();
 
                         tokio::spawn(async move {
-                            if let Err(e) =
-                                crate::backend::web_search::check_health(&engine_url, &api_key)
-                                    .await
+                            if let Err(e) = crate::backend::web_search::check_health(
+                                &engine,
+                                &engine_url,
+                                &api_key,
+                            )
+                            .await
                             {
-                                tracing::info!("Web search: SearXNG health check failed: {}", e);
+                                tracing::info!("Web search: health check failed: {}", e);
                                 config.default.web_search_enabled = false;
                                 if let Err(save_err) = config.save() {
                                     tracing::error!(

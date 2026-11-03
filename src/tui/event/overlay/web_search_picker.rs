@@ -38,13 +38,20 @@ impl OverlayHandler for WebSearchPickerHandler {
             {
                 // ── Engine sub-picker ──────────────────────────────────
                 if *selected_field < -1 {
-                    let engines = ["searxng"];
+                    let engines = ["searxng", "searlo"];
                     match key.code {
                         KeyCode::Enter | KeyCode::Char(' ') => {
                             if *engine_picker_selected < engines.len() {
                                 let chosen = engines[*engine_picker_selected].to_string();
                                 *engine = chosen.clone();
                                 app.config.default.web_search_engine = chosen;
+                                if *engine == "searlo" {
+                                    let default_url =
+                                        crate::backend::web_search::SEARLO_DEFAULT_BASE_URL
+                                            .to_string();
+                                    *engine_url = default_url.clone();
+                                    app.config.default.web_search_engine_url = default_url;
+                                }
                                 ws_changed = true;
                                 let _ = app.config.save();
                             }
@@ -134,7 +141,7 @@ impl OverlayHandler for WebSearchPickerHandler {
                                 0 => {
                                     // Open engine picker
                                     let current = engine.as_str();
-                                    let engines = ["searxng"];
+                                    let engines = ["searxng", "searlo"];
                                     *engine_picker_selected =
                                         engines.iter().position(|e| *e == current).unwrap_or(0);
                                     *selected_field = -2; // sentinel for engine picker
@@ -267,15 +274,24 @@ impl OverlayHandler for WebSearchPickerHandler {
 }
 
 pub async fn check_web_search_health(
-    _engine: &str,
+    engine: &str,
     engine_url: &str,
     api_key: &str,
 ) -> Result<(), String> {
     let client = reqwest::Client::new();
-    let url = format!(
-        "{}/search?q=test&format=json",
-        engine_url.trim_end_matches('/')
-    );
+    let url = if engine == "searlo" {
+        let base = if engine_url.trim().is_empty() {
+            crate::backend::web_search::SEARLO_DEFAULT_BASE_URL
+        } else {
+            engine_url
+        };
+        format!("{}/search/web?q=test&limit=1", base.trim_end_matches('/'))
+    } else {
+        format!(
+            "{}/search?q=test&format=json",
+            engine_url.trim_end_matches('/')
+        )
+    };
 
     let mut request = client
         .get(&url)
@@ -285,7 +301,9 @@ pub async fn check_web_search_health(
         )
         .timeout(std::time::Duration::from_secs(10));
 
-    if !api_key.is_empty() {
+    if engine == "searlo" {
+        request = request.header("x-api-key", api_key);
+    } else if !api_key.is_empty() {
         request = request.header("Authorization", format!("Bearer {}", api_key));
     }
 

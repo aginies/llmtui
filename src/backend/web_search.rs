@@ -7,6 +7,9 @@ pub struct SearchResult {
     pub snippet: String,
 }
 
+/// Default base URL for the Searlo hosted search API.
+pub const SEARLO_DEFAULT_BASE_URL: &str = "https://api.searlo.tech/api/v1";
+
 pub fn needs_search(message: &str) -> bool {
     message
         .rfind("$web")
@@ -67,6 +70,8 @@ pub async fn search_web(
 ) -> Result<Vec<SearchResult>> {
     if engine == "searxng" && !engine_url.is_empty() {
         search_searxng(engine_url, query, max_results, api_key).await
+    } else if engine == "searlo" && !api_key.is_empty() {
+        search_searlo(engine_url, query, max_results, api_key).await
     } else {
         Ok(Vec::new())
     }
@@ -169,8 +174,143 @@ async fn search_searxng(
     Ok(search_results)
 }
 
-/// Check if a SearXNG instance is reachable and returns valid JSON.
-pub async fn check_health(engine_url: &str, api_key: &str) -> Result<(), String> {
+async fn search_searlo(
+    base_url: &str,
+    query: &str,
+    max_results: usize,
+    api_key: &str,
+) -> Result<Vec<SearchResult>> {
+    let base = if base_url.trim().is_empty() {
+        SEARLO_DEFAULT_BASE_URL
+    } else {
+        base_url
+    };
+    let client = &super::HTTP_CLIENT;
+    let url = format!(
+        "{}/search/web?q={}&limit={}",
+        base.trim_end_matches('/'),
+        urlencoding::encode(query),
+        max_results
+    );
+
+    info!("Web search: Searlo query: {}", url);
+
+    let response = client
+        .get(&url)
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        )
+        .header("x-api-key", api_key)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("Searlo search request failed: {}", e))?;
+
+    let status = response.status();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| anyhow::anyhow!("Searlo response read failed: {}", e))?;
+
+    if !status.is_success() {
+        anyhow::bail!(
+            "Searlo search failed (HTTP {}): {}",
+            status,
+            &body[..body.len().min(300)]
+        );
+    }
+
+    let json: serde_json::Value = body
+        .parse()
+        .map_err(|e| anyhow::anyhow!("Searlo response parse failed (status {}): {}", status, e))?;
+
+    let results_array = json
+        .get("organic")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let search_results: Vec<SearchResult> = results_array
+        .into_iter()
+        .filter_map(|r| {
+            let title = r
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let url = r
+                .get("link")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let snippet = r
+                .get("snippet")
+                .or_else(|| r.get("description"))
+                .or_else(|| r.get("content"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            if url.is_empty() || title.is_empty() {
+                None
+            } else {
+                Some(SearchResult {
+                    title,
+                    url,
+                    snippet,
+                })
+            }
+        })
+        .take(max_results)
+        .collect();
+
+    info!(
+        "Web search: Searlo returned {} results",
+        search_results.len()
+    );
+    Ok(search_results)
+}
+
+/// Check if a web search engine is reachable and returns valid JSON.
+pub async fn check_health(engine: &str, engine_url: &str, api_key: &str) -> Result<(), String> {
+    if engine == "searlo" {
+        let base = if engine_url.trim().is_empty() {
+            SEARLO_DEFAULT_BASE_URL
+        } else {
+            engine_url
+        };
+        let url = format!("{}/search/web?q=test&limit=1", base.trim_end_matches('/'));
+        let response = super::HTTP_CLIENT
+            .get(&url)
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            )
+            .header("x-api-key", api_key)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+            .map_err(|e| format!("Connection failed: {}", e))?;
+
+        if !response.status().is_success() {
+            return Err(format!(
+                "HTTP {}: {}",
+                response.status(),
+                response.status().canonical_reason().unwrap_or("Unknown")
+            ));
+        }
+
+        let body = response
+            .text()
+            .await
+            .map_err(|e| format!("Failed to read response: {}", e))?;
+
+        return body
+            .parse::<serde_json::Value>()
+            .map(|_| ())
+            .map_err(|e| format!("Invalid JSON response: {}", e));
+    }
+
     let client = &super::HTTP_CLIENT;
     let url = format!(
         "{}/search?q=test&format=json",
