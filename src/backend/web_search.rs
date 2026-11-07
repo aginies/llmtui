@@ -61,19 +61,24 @@ pub fn extract_fetch_urls(message: &str) -> Vec<String> {
     urls
 }
 
+/// Run a web search. Returns the parsed results plus an optional compact
+/// TOON (Token-Optimized Object Notation) rendering of those results when the
+/// engine provides one (Searlo with `toon=true`) — it costs far fewer tokens
+/// when injected into an LLM prompt.
 pub async fn search_web(
     query: &str,
     max_results: usize,
     engine: &str,
     engine_url: &str,
     api_key: &str,
-) -> Result<Vec<SearchResult>> {
+) -> Result<(Vec<SearchResult>, Option<String>)> {
     if engine == "searxng" && !engine_url.is_empty() {
-        search_searxng(engine_url, query, max_results, api_key).await
+        let results = search_searxng(engine_url, query, max_results, api_key).await?;
+        Ok((results, None))
     } else if engine == "searlo" && !api_key.is_empty() {
         search_searlo(engine_url, query, max_results, api_key).await
     } else {
-        Ok(Vec::new())
+        Ok((Vec::new(), None))
     }
 }
 
@@ -174,12 +179,14 @@ async fn search_searxng(
     Ok(search_results)
 }
 
+/// Searlo search. Requests the TOON rendering alongside the JSON results
+/// (`toon=true`) and returns `(results, toon)`.
 async fn search_searlo(
     base_url: &str,
     query: &str,
     max_results: usize,
     api_key: &str,
-) -> Result<Vec<SearchResult>> {
+) -> Result<(Vec<SearchResult>, Option<String>)> {
     let base = if base_url.trim().is_empty() {
         SEARLO_DEFAULT_BASE_URL
     } else {
@@ -187,7 +194,7 @@ async fn search_searlo(
     };
     let client = &super::HTTP_CLIENT;
     let url = format!(
-        "{}/search/web?q={}&limit={}",
+        "{}/search/web?q={}&limit={}&toon=true",
         base.trim_end_matches('/'),
         urlencoding::encode(query),
         max_results
@@ -264,11 +271,20 @@ async fn search_searlo(
         .take(max_results)
         .collect();
 
+    // Compact TOON rendering of the results, when present — preferred for
+    // prompt injection (≈60% fewer tokens than the markdown list).
+    let toon = json
+        .get("toon")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.to_string());
+
     info!(
-        "Web search: Searlo returned {} results",
-        search_results.len()
+        "Web search: Searlo returned {} results (toon: {})",
+        search_results.len(),
+        toon.is_some()
     );
-    Ok(search_results)
+    Ok((search_results, toon))
 }
 
 /// Check if a web search engine is reachable and returns valid JSON.
@@ -409,17 +425,20 @@ pub async fn gather_search_context(
 ) -> Result<(String, Vec<String>)> {
     info!("Web search: gathering context for '{}'", query);
 
-    let search_results = search_web(query, 10, engine, engine_url, api_key).await?;
+    let (search_results, toon) = search_web(query, 10, engine, engine_url, api_key).await?;
     if search_results.is_empty() {
         return Ok((String::new(), Vec::new()));
     }
 
-    let results_summary: String = search_results
-        .iter()
-        .enumerate()
-        .map(|(i, r)| format!("{}. **{}** - {}\n   {}", i + 1, r.title, r.url, r.snippet))
-        .collect::<Vec<_>>()
-        .join("\n\n");
+    // Prefer the engine's compact TOON rendering; fall back to a markdown list.
+    let results_summary: String = toon.unwrap_or_else(|| {
+        search_results
+            .iter()
+            .enumerate()
+            .map(|(i, r)| format!("{}. **{}** - {}\n   {}", i + 1, r.title, r.url, r.snippet))
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    });
 
     let wikipedia_url: Option<String> = search_results
         .iter()
