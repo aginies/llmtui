@@ -824,3 +824,139 @@ pub fn get_explanation(
     cache.insert(key, explanation.clone());
     explanation
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_stem() {
+        assert_eq!(
+            extract_stem("path/to/Qwen3.6-35B-A3B-UD-Q5_K_S.gguf"),
+            "Qwen3.6-35B-A3B-UD-Q5_K_S"
+        );
+        assert_eq!(
+            extract_stem("Qwen3.6-35B-A3B-UD-Q5_K_S.gguf"),
+            "Qwen3.6-35B-A3B-UD-Q5_K_S"
+        );
+        assert_eq!(
+            extract_stem("Qwen3.6-35B-A3B-UD-Q5_K_S"),
+            "Qwen3.6-35B-A3B-UD-Q5_K_S"
+        );
+    }
+
+    #[test]
+    fn test_match_family_qwen() {
+        let result = match_family("Qwen3.6-35B-A3B-UD-Q5_K_S");
+        assert!(result.is_some());
+        let (prefix, _) = result.unwrap();
+        assert_eq!(prefix, "qwen3.6");
+    }
+
+    #[test]
+    fn test_match_family_llama() {
+        let result = match_family("Llama-3.1-8B-Instruct-Q4_K_M");
+        assert!(result.is_some());
+        let (prefix, _) = result.unwrap();
+        assert_eq!(prefix, "llama3.1");
+    }
+
+    #[test]
+    fn test_match_family_mistral() {
+        let result = match_family("mistral-7b-v0.3-Q8_0");
+        assert!(result.is_some());
+        let (prefix, _) = result.unwrap();
+        assert_eq!(prefix, "mistral");
+    }
+
+    #[test]
+    fn test_extract_param_info_moe() {
+        let (total, active) = extract_param_info("35B-A3B");
+        assert_eq!(total, Some("35B".to_string()));
+        assert_eq!(active, Some("A3B".to_string()));
+    }
+
+    #[test]
+    fn test_extract_param_info_plain() {
+        let (total, active) = extract_param_info("8B-Instruct");
+        assert_eq!(total, Some("8B".to_string()));
+        assert_eq!(active, None);
+    }
+
+    #[test]
+    fn test_extract_quant_scheme() {
+        let (bits, k, size, iq) = extract_quant_scheme("Qwen3.6-35B-A3B-UD-Q5_K_S");
+        assert_eq!(bits, Some(5));
+        assert!(k);
+        assert_eq!(size, Some('S'));
+        assert!(iq.is_none());
+    }
+
+    #[test]
+    fn test_extract_quant_scheme_q8() {
+        let (bits, k, size, iq) = extract_quant_scheme("mistral-7b-v0.3-Q8_0");
+        assert_eq!(bits, Some(8));
+        assert!(!k);
+        assert_eq!(size, None);
+        assert!(iq.is_none());
+    }
+
+    #[test]
+    fn test_extract_quant_scheme_iq() {
+        let (bits, k, size, iq) = extract_quant_scheme("Qwen3.5-4B-UD-IQ3_XXS");
+        assert!(bits.is_none());
+        assert!(!k);
+        assert_eq!(size, None);
+        assert_eq!(iq, Some("IQ3_XXS".to_string()));
+    }
+
+    #[test]
+    fn test_parse_qwen_filename() {
+        let explanation = parse_gguf_filename("Qwen3.6-35B-A3B-UD-Q5_K_S.gguf");
+        assert!(explanation.model_family.contains("Qwen3.6"));
+        assert!(explanation.model_family.contains("35B"));
+        assert!(explanation.model_family.contains("Unsloth"));
+        assert!(!explanation.segments.is_empty());
+    }
+
+    #[test]
+    fn test_parse_llama_filename() {
+        let explanation = parse_gguf_filename("Llama-3.1-8B-Instruct-Q4_K_M.gguf");
+        assert!(explanation.model_family.contains("Llama"));
+        assert!(!explanation.segments.is_empty());
+    }
+
+    #[test]
+    fn test_parse_unknown_family() {
+        let explanation = parse_gguf_filename("unknown-model-Q4_K_M.gguf");
+        assert!(!explanation.segments.is_empty());
+    }
+
+    #[test]
+    fn test_parse_qwen35_iq_filename() {
+        let explanation = parse_gguf_filename("Qwen3.5-4B-UD-IQ3_XXS.gguf");
+        assert!(explanation.model_family.contains("Qwen3.5"));
+        assert!(explanation.model_family.contains("4B"));
+        assert!(explanation.model_family.contains("Unsloth"));
+        assert!(explanation.segments.iter().any(|s| s.label == "IQ3_XXS"));
+    }
+
+    #[test]
+    fn test_cache() {
+        let mut cache = HashMap::new();
+        let exp1 = get_explanation("Qwen3.6-35B-A3B-UD-Q5_K_S.gguf", &mut cache);
+        assert!(!cache.is_empty());
+        let exp2 = get_explanation("Qwen3.6-35B-A3B-UD-Q5_K_S.gguf", &mut cache);
+        assert_eq!(cache.get("Qwen3.6-35B-A3B-UD-Q5_K_S").unwrap(), &exp2);
+        assert_eq!(exp1.model_family, exp2.model_family);
+    }
+
+    #[test]
+    fn test_parse_non_ascii_filename_no_panic() {
+        // Regression: extract_param_info mixed byte indices (stem.len()) with
+        // char indices (upper.chars().nth(i)) and panicked on non-ASCII names.
+        let explanation = parse_gguf_filename("Qwen2.5-Modèle-8B-Q8_0.gguf");
+        assert!(explanation.model_family.contains("Qwen2.5"));
+        assert!(explanation.model_family.contains("8B"));
+    }
+}

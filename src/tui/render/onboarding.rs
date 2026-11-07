@@ -94,9 +94,7 @@ pub fn render_onboarding(f: &mut Frame, area: Rect, _app: &crate::tui::app::App,
         TOTAL_STEPS
     );
 
-    let mut lines: Vec<Line> = Vec::new();
-    lines.push(Line::from(""));
-    lines.push(Line::from(""));
+    let mut lines: Vec<Line> = vec![Line::from(""), Line::from("")];
 
     // Title
     lines.push(Line::from(Span::styled(

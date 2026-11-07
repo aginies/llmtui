@@ -222,7 +222,7 @@ fn test_is_backend_any_version_installed_does_not_panic() {
 fn test_list_installed_backends_returns_vec() {
     let backends = list_installed_backends();
     // Should return a valid vec (may be empty)
-    assert!(backends.is_empty() || backends.len() > 0);
+    assert!(backends.is_empty() || !backends.is_empty());
 }
 
 #[test]
@@ -267,7 +267,7 @@ fn test_extract_archive_creates_files() {
 fn test_extract_tar_gz_with_subdirectories() {
     let temp_dir = std::env::temp_dir().join("llm-manager-test-extract-subdirs");
     let _ = fs::remove_dir_all(&temp_dir);
-    let _ = fs::create_dir_all(&temp_dir.join("src/sub"));
+    let _ = fs::create_dir_all(temp_dir.join("src/sub"));
 
     // Create files in subdirectories
     fs::write(temp_dir.join("src/subdir.txt"), "subdir content").unwrap();
@@ -319,7 +319,7 @@ fn test_extract_tar_gz_with_subdirectories() {
 fn test_extract_tar_gz_with_symlinks() {
     let temp_dir = std::env::temp_dir().join("llm-manager-test-extract-symlinks");
     let _ = fs::remove_dir_all(&temp_dir);
-    let _ = fs::create_dir_all(&temp_dir.join("src"));
+    let _ = fs::create_dir_all(temp_dir.join("src"));
 
     // Create a real file and a symlink to it
     fs::write(temp_dir.join("src/real_file.txt"), "real content").unwrap();
@@ -380,7 +380,7 @@ fn test_extract_archive_fails_on_nonexistent_archive() {
 fn test_walk_dir_recursive_finds_files() {
     let temp_dir = std::env::temp_dir().join("llm-manager-test-walk");
     let _ = fs::remove_dir_all(&temp_dir);
-    let _ = fs::create_dir_all(&temp_dir.join("subdir"));
+    let _ = fs::create_dir_all(temp_dir.join("subdir"));
 
     // Create test files
     fs::write(temp_dir.join("file1.txt"), "content1").unwrap();
@@ -403,7 +403,7 @@ fn test_walk_dir_recursive_finds_files() {
 fn test_walk_dir_recursive_respects_depth() {
     let temp_dir = std::env::temp_dir().join("llm-manager-test-walk-depth");
     let _ = fs::remove_dir_all(&temp_dir);
-    let _ = fs::create_dir_all(&temp_dir.join("level1").join("level2"));
+    let _ = fs::create_dir_all(temp_dir.join("level1").join("level2"));
 
     fs::write(temp_dir.join("root.txt"), "root").unwrap();
     fs::write(temp_dir.join("level1").join("l1.txt"), "l1").unwrap();

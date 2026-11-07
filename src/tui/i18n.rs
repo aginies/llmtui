@@ -82,13 +82,6 @@ pub fn set_language(lang: &str) {
     *current = Some(lang.to_string());
 }
 
-#[allow(dead_code)]
-pub fn reset_language() {
-    let mut current = CURRENT_LANG.lock().unwrap_or_else(|e| e.into_inner());
-    *current = None;
-}
-
-#[allow(dead_code)]
 pub fn get_language() -> String {
     let current = CURRENT_LANG.lock().unwrap_or_else(|e| e.into_inner());
     current.clone().unwrap_or_else(|| "en".to_string())
@@ -154,34 +147,19 @@ pub fn t_fmt(key: &str, args: &[String]) -> String {
     result
 }
 
+// Arguments must normalize to owned `String`s: heterogeneous values (usize,
+// &str, &dyn Error, …) unify, and `String` (unlike a `&dyn Display` slice)
+// is `Send + Sync`, so `t_fmt!` results can be awaited inside `tokio::spawn`.
 #[macro_export]
 macro_rules! t_fmt {
     ($key:expr $(,)?) => {
         $crate::tui::i18n::t($key).to_string()
     };
-    ($key:expr, $arg1:expr $(,)?) => {
-        $crate::tui::i18n::t_fmt($key, &[$arg1.to_string()])
-    };
-    ($key:expr, $arg1:expr, $arg2:expr $(,)?) => {
-        $crate::tui::i18n::t_fmt($key, &[$arg1.to_string(), $arg2.to_string()])
-    };
-    ($key:expr, $arg1:expr, $arg2:expr, $arg3:expr $(,)?) => {
-        $crate::tui::i18n::t_fmt(
-            $key,
-            &[$arg1.to_string(), $arg2.to_string(), $arg3.to_string()],
-        )
-    };
-    ($key:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr $(,)?) => {
-        $crate::tui::i18n::t_fmt(
-            $key,
-            &[
-                $arg1.to_string(),
-                $arg2.to_string(),
-                $arg3.to_string(),
-                $arg4.to_string(),
-            ],
-        )
-    };
+    ($key:expr, $($arg:expr),+ $(,)?) => {{
+        #[allow(clippy::cloned_ref_to_slice_refs)]
+        let args: &[String] = &[$($arg.to_string()),+];
+        $crate::tui::i18n::t_fmt($key, args)
+    }};
 }
 
 #[cfg(test)]

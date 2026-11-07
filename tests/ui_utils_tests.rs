@@ -62,14 +62,14 @@ fn md_renderer_code_block() {
     let md = "```python\nprint('hello')\n```\n";
     let lines = MdRenderer::render_markdown(md);
     // Code block should render as at least one line
-    assert!(lines.len() >= 1);
+    assert!(!lines.is_empty());
 }
 
 #[test]
 fn md_renderer_code_block_with_language() {
     let md = "```rust\nfn main() {}\n```\n";
     let lines = MdRenderer::render_markdown(md);
-    assert!(lines.len() >= 1);
+    assert!(!lines.is_empty());
 }
 
 // ── MdRenderer: headings ────────────────────────────────────────

@@ -25,7 +25,7 @@ pub enum PendingEvent {
     },
     Spawn {
         model: Option<DiscoveredModel>,
-        settings: ModelSettings,
+        settings: Box<ModelSettings>,
     },
     /// The ServerHandle is stored in `pending_kill` field (kept as Option
     /// because the main loop needs to take() it for the async kill).

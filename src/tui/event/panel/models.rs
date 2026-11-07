@@ -210,7 +210,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                         .pending_tx
                         .send(PendingEvent::Spawn {
                             model: Some(model.clone()),
-                            settings,
+                            settings: Box::new(settings),
                         })
                         .await;
                     app.loading.loading_phases =
@@ -255,7 +255,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             .pending_tx
                             .send(PendingEvent::Spawn {
                                 model: None,
-                                settings: settings.clone(),
+                                settings: Box::new(settings.clone()),
                             })
                             .await;
                         // Queue the load so it triggers once server is ready
@@ -274,7 +274,7 @@ pub async fn handle_models_key(app: &mut App, key: crossterm::event::KeyEvent) {
                             .pending_tx
                             .send(PendingEvent::Spawn {
                                 model: Some(model.clone()),
-                                settings,
+                                settings: Box::new(settings),
                             })
                             .await;
                         app.loading.loading_phases =

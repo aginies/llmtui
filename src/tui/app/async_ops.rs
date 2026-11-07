@@ -9,6 +9,8 @@ use std::sync::atomic::{AtomicBool, AtomicU8};
 
 use super::types::sub::{BenchTuneTaskHandle, SpawnTaskHandle};
 
+type SyncModels = Vec<(String, String, Option<String>, Option<String>)>;
+
 impl App {
     pub fn cancel_download(&mut self, idx: usize) {
         if idx >= self.download.download_progress.len() {
@@ -1462,7 +1464,7 @@ impl App {
     async fn sync_polling_task(
         host: String,
         port: u16,
-        sync_tx: tokio::sync::mpsc::Sender<Vec<(String, String, Option<String>, Option<String>)>>,
+        sync_tx: tokio::sync::mpsc::Sender<SyncModels>,
     ) {
         loop {
             if let Ok(models) = crate::backend::server::list_models(&host, port).await
@@ -1946,10 +1948,12 @@ impl App {
             self.ui.needs_full_redraw = true;
             self.ui.needs_redraw = true;
         } else {
-            self.add_log(
-                crate::t_fmt!("async.stop_failed", kill_res.unwrap_err()),
-                crate::config::LogLevel::Error,
-            );
+            if let Err(e) = &kill_res {
+                self.add_log(
+                    crate::t_fmt!("async.stop_failed", e),
+                    crate::config::LogLevel::Error,
+                );
+            }
             self.add_log(
                 crate::t_fmt!("log.kill_failed", pid),
                 crate::config::LogLevel::Error,
@@ -2552,26 +2556,26 @@ impl App {
                 Arc::new(Mutex::new(crate::serve_api::StreamSpeedTracker::default()));
             let speed_tracker_clone = speed_tracker.clone();
             let handle = tokio::spawn(async move {
-                let _ = crate::serve_api::start_api_server(
+                let _ = crate::serve_api::start_api_server(crate::serve_api::StartApiOptions {
                     addr,
                     api_key,
                     server_port,
-                    model_name_clone,
+                    model_name: model_name_clone,
                     pid,
-                    api_shutdown_rx,
-                    host_clone,
-                    tls_cfg_for_api,
-                    preset_name,
+                    shutdown_rx: api_shutdown_rx,
+                    host: host_clone,
+                    tls_config: tls_cfg_for_api,
+                    system_prompt_preset_name: preset_name,
                     web_search_config,
-                    log_cb_clone,
+                    log_callback: log_cb_clone,
                     log_rx,
-                    ws_port_for_api,
-                    ws_auth_for_api_clone,
-                    effective_ctx_for_api,
-                    chat_ui_for_api,
-                    transfer_for_api_clone,
-                    speed_tracker_clone,
-                )
+                    ws_port: ws_port_for_api,
+                    ws_auth: ws_auth_for_api_clone,
+                    effective_ctx: effective_ctx_for_api,
+                    chat_ui_enabled: chat_ui_for_api,
+                    transfer_enabled: transfer_for_api_clone,
+                    speed_tracker: speed_tracker_clone,
+                })
                 .await;
             });
             self.server.api_proxy_handle = Some(handle);

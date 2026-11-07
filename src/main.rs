@@ -346,7 +346,7 @@ async fn main() -> Result<()> {
                             app.process_pending_backend_deletion(backend, tag);
                         }
                         PendingEvent::Spawn { model, settings } => {
-                            app.process_pending_spawn(model, settings).await;
+                            app.process_pending_spawn(model, *settings).await;
                         }
                         PendingEvent::KillHandle { handle } => {
                             app.pending.pending_kill = Some(handle);
@@ -559,7 +559,7 @@ async fn main() -> Result<()> {
             }
 
             // Save config with UI state
-            app.config.active_panel = app.ui.active_panel;
+            app.config.active_panel = app.ui.active_panel.into();
             app.config.left_pct = app.ui.left_pct;
             app.config.server_settings_height = app.ui.server_settings_height;
             app.config.save().ok();

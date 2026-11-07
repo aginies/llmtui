@@ -12,7 +12,7 @@ use ratatui::{
     widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 
-use crate::models::BenchTuneParamValue;
+use crate::models::{BenchTuneParamValue, ListSort, SearchSort};
 
 pub mod app;
 pub mod colors;
@@ -25,7 +25,8 @@ pub mod render;
 pub mod settings;
 pub mod toast;
 
-/// Format a byte count into a human-readable size string.
+/// Format a byte count into a human-readable size string using binary units
+/// (base 1024, e.g. KiB/MiB/GiB).
 pub fn format_size(bytes: u64) -> String {
     let kb = 1024.0;
     let mb = kb * 1024.0;
@@ -35,13 +36,13 @@ pub fn format_size(bytes: u64) -> String {
     if s < kb {
         format!("{} B", bytes)
     } else if s < mb {
-        format!("{:.1} KB", s / kb)
+        format!("{:.1} KiB", s / kb)
     } else if s < gb {
-        format!("{:.1} MB", s / mb)
+        format!("{:.1} MiB", s / mb)
     } else if s < tb {
-        format!("{:.1} GB", s / gb)
+        format!("{:.1} GiB", s / gb)
     } else {
-        format!("{:.1} TB", s / tb)
+        format!("{:.1} TiB", s / tb)
     }
 }
 
@@ -74,6 +75,29 @@ pub fn format_context_k(context_length: u32, rope_yarn_enabled: bool, rope_scale
         context_length
     };
     format_number(effective as u64)
+}
+
+/// Localized display label for a HuggingFace search sort order.
+pub fn search_sort_label(sort: SearchSort) -> String {
+    match sort {
+        SearchSort::Relevance => crate::t!("models.sort.relevance").to_string(),
+        SearchSort::Downloads => crate::t!("models.sort.downloads").to_string(),
+        SearchSort::Likes => crate::t!("models.sort.likes").to_string(),
+        SearchSort::Trending => crate::t!("models.sort.trending").to_string(),
+        SearchSort::CreatedAt => crate::t!("models.sort.created").to_string(),
+    }
+}
+
+/// Localized display label for the local models list sort order.
+pub fn list_sort_label(sort: ListSort) -> String {
+    match sort {
+        ListSort::Name => crate::t!("models.list_sort.name").to_string(),
+        ListSort::Status => crate::t!("models.list_sort.status").to_string(),
+        ListSort::Params => crate::t!("models.list_sort.params").to_string(),
+        ListSort::Qual => crate::t!("models.list_sort.qual").to_string(),
+        ListSort::Context => crate::t!("models.list_sort.context").to_string(),
+        ListSort::Architecture => crate::t!("models.list_sort.architecture").to_string(),
+    }
 }
 
 /// Render a vertical scrollbar on the right edge of an area.

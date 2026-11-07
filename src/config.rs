@@ -20,7 +20,6 @@ use crate::models::{
     Backend, CacheType, CacheTypeK, CacheTypeV, LoadMode, Mirostat, NumMode, RopeScaling, Samplers,
     SplitMode,
 };
-use crate::tui::app::ActivePanel;
 pub use presets::PresetStore;
 
 /// Default system prompt used when no preset is selected.
@@ -129,7 +128,7 @@ pub struct Config {
     pub search_limit: u32,
     /// The last focused panel position (for restoring on next launch).
     #[serde(default)]
-    pub active_panel: crate::tui::app::ActivePanel,
+    pub active_panel: crate::models::PanelId,
     /// Left panel width percentage (20-80).
     #[serde(default = "default_left_pct")]
     pub left_pct: u16,
@@ -1247,7 +1246,7 @@ impl Default for Config {
             system_prompt_presets: Default::default(),
             rpc_workers: Vec::new(),
             search_limit: default_search_limit(),
-            active_panel: ActivePanel::Models,
+            active_panel: crate::models::PanelId::Models,
             left_pct: 55,
             server_settings_height: 9,
             language: default_language(),

@@ -62,7 +62,7 @@ fn test_normal_mode_has_content() {
     let mut app = make_app();
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
-    assert!(buffer.content.len() > 0);
+    assert!(!buffer.content.is_empty());
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn test_help_overlay_has_content() {
     app.ui.panel_help = true;
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
-    assert!(buffer.content.len() > 0);
+    assert!(!buffer.content.is_empty());
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn test_cmdline_overlay_has_title() {
     terminal.draw(|f| render(f, &mut app)).unwrap();
     // CmdLine renders a block with border - verify buffer has content
     let buffer = get_buffer(&mut terminal);
-    assert!(buffer.content.len() > 0);
+    assert!(!buffer.content.is_empty());
 }
 
 // ── About overlay ───────────────────────────────────────────────
@@ -251,7 +251,7 @@ fn test_about_overlay_has_content() {
     app.ui.global_mode = GlobalMode::About;
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
-    assert!(buffer.content.len() > 0);
+    assert!(!buffer.content.is_empty());
 }
 
 // ── Panel rendering ─────────────────────────────────────────────
@@ -604,7 +604,7 @@ fn test_status_bar_shows_in_normal_mode() {
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
     // Buffer should have content
-    assert!(buffer.content.len() > 0);
+    assert!(!buffer.content.is_empty());
 }
 
 #[test]
@@ -622,7 +622,7 @@ fn test_status_bar_shows_in_search_mode() {
     };
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
-    assert!(buffer.content.len() > 0);
+    assert!(!buffer.content.is_empty());
 }
 
 #[test]
@@ -631,7 +631,7 @@ fn test_status_bar_shows_in_settings() {
     app.ui.active_panel = ActivePanel::LlmSettings;
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
-    assert!(buffer.content.len() > 0);
+    assert!(!buffer.content.is_empty());
 }
 
 #[test]
@@ -640,7 +640,7 @@ fn test_status_bar_shows_when_log_expanded() {
     app.log.log_expanded = true;
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
-    assert!(buffer.content.len() > 0);
+    assert!(!buffer.content.is_empty());
 }
 
 #[test]
@@ -654,7 +654,7 @@ fn test_status_bar_shows_in_confirmation() {
     };
     let mut terminal = make_terminal(&mut app);
     let buffer = get_buffer(&mut terminal);
-    assert!(buffer.content.len() > 0);
+    assert!(!buffer.content.is_empty());
 }
 
 // ── Model list rendering ────────────────────────────────────────

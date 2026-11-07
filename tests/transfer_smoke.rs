@@ -5,7 +5,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
-use llm_manager::serve_api::{StreamSpeedTracker, WebSearchConfig, start_api_server};
+use llm_manager::serve_api::{StartApiOptions, StreamSpeedTracker, WebSearchConfig, start_api_server};
 use tokio::sync::Mutex as AsyncMutex;
 
 /// Serializes the tests that mutate the process-global `LLM_MANAGER_TRANSFER_DIR`
@@ -54,31 +54,31 @@ async fn boot(
     let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
     let (tx, rx) = tokio::sync::watch::channel(false);
     let handle = tokio::spawn(async move {
-        let _ = start_api_server(
+        let _ = start_api_server(StartApiOptions {
             addr,
-            Some("secret-key".to_string()),
-            backend_port,
-            "test-model".to_string(),
-            1,
-            rx,
-            "127.0.0.1".to_string(),
-            None,
-            String::new(),
-            Arc::new(std::sync::RwLock::new(WebSearchConfig {
+            api_key: Some("secret-key".to_string()),
+            server_port: backend_port,
+            model_name: "test-model".to_string(),
+            pid: 1,
+            shutdown_rx: rx,
+            host: "127.0.0.1".to_string(),
+            tls_config: None,
+            system_prompt_preset_name: String::new(),
+            web_search_config: Arc::new(std::sync::RwLock::new(WebSearchConfig {
                 engine: String::new(),
                 engine_url: String::new(),
                 enabled: false,
                 api_key: None,
             })),
-            Arc::new(std::sync::Mutex::new(None)),
-            None,
-            0,
-            None,
-            0,
-            false,
+            log_callback: Arc::new(std::sync::Mutex::new(None)),
+            log_rx: None,
+            ws_port: 0,
+            ws_auth: None,
+            effective_ctx: 0,
+            chat_ui_enabled: false,
             transfer_enabled,
-            Arc::new(std::sync::Mutex::new(StreamSpeedTracker::default())),
-        )
+            speed_tracker: Arc::new(std::sync::Mutex::new(StreamSpeedTracker::default())),
+        })
         .await;
     });
     // wait for the listener, then give axum a moment to start accepting
@@ -174,7 +174,7 @@ async fn transfer_api_smoke() {
         .unwrap();
     assert_eq!(r.status(), 200);
     let v: serde_json::Value = r.json().await.unwrap();
-    assert!(v["files"].as_array().unwrap().len() >= 1);
+    assert!(!v["files"].as_array().unwrap().is_empty());
 
     // Bad id rejected
     let r = client

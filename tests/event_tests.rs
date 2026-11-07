@@ -290,7 +290,7 @@ async fn test_ctrl_f10_all_panels_visible() {
 async fn test_ctrl_l_cycles_language() {
     let mut app = make_app();
     // Reset global i18n state to ensure clean slate
-    i18n::reset_language();
+    i18n::set_language("en");
     app.config.language = "en".to_string();
     // Verify app config starts at English
     assert_eq!(app.config.language, "en");
@@ -299,7 +299,7 @@ async fn test_ctrl_l_cycles_language() {
     // After cycling, language should be French
     assert_eq!(app.config.language, "fr");
     // Reset for other tests
-    i18n::reset_language();
+    i18n::set_language("en");
 }
 
 #[tokio::test]
@@ -323,7 +323,7 @@ async fn test_ctrl_k_kills_server() {
 #[tokio::test]
 async fn test_ctrl_k_no_server_logs_warning() {
     let mut app = make_app();
-    i18n::reset_language();
+    i18n::set_language("en");
     let key = make_key_with_mod(
         KeyCode::Char('k'),
         KeyModifiers::CONTROL | KeyModifiers::ALT,

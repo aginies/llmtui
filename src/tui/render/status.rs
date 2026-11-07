@@ -13,7 +13,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
         ModelsMode::List { sort_by } => format!(
             "{} | sort:{}",
             crate::t!("status.list"),
-            sort_by.label().to_lowercase()
+            crate::tui::list_sort_label(*sort_by).to_lowercase()
         ),
         ModelsMode::Search {
             results, sort_by, ..
@@ -21,7 +21,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
             "{} {} | sort:{}",
             crate::t!("status.search"),
             crate::t_fmt!("status.search_count", results.len()),
-            sort_by.label().to_lowercase()
+            crate::tui::search_sort_label(*sort_by).to_lowercase()
         ),
         ModelsMode::Files {
             model_id,
@@ -34,7 +34,7 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
                 crate::t_fmt!("status.files", files.len()),
                 model_id
             );
-            if let Some(result) = selected_result
+            if let Some(result) = selected_result.as_ref()
                 && let Some(ref created) = result.created_at
                 && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(created)
             {

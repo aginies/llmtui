@@ -32,7 +32,7 @@ impl App {
 
         // Sort search results by model_id length (longest first) for faster prefix matching
         let mut sorted_search: Vec<&crate::models::SearchResult> = search_results.iter().collect();
-        sorted_search.sort_by(|a, b| b.model_id.len().cmp(&a.model_id.len()));
+        sorted_search.sort_by_key(|a| std::cmp::Reverse(a.model_id.len()));
 
         for dir in dirs {
             crate::backend::hub::walk_dir_recursive(dir, 0, 10, &mut |entry| {

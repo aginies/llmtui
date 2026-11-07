@@ -839,7 +839,7 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                             .pending_tx
                             .send(PendingEvent::Spawn {
                                 model: Some(model),
-                                settings,
+                                settings: Box::new(settings),
                             })
                             .await;
                     }
@@ -1046,7 +1046,7 @@ pub(super) async fn handle_bench_tune_setup_key(app: &mut App, key: crossterm::e
                             .pending_tx
                             .send(PendingEvent::Spawn {
                                 model: Some(model),
-                                settings,
+                                settings: Box::new(settings),
                             })
                             .await;
                     }
@@ -1235,7 +1235,7 @@ async fn handle_search_key(app: &mut App, key: crossterm::event::KeyEvent) {
                                 selected_idx: Some(0),
                                 previous_query: query.clone(),
                                 previous_results: results.clone(),
-                                selected_result,
+                                selected_result: selected_result.map(Box::new),
                             };
                         }
                     }

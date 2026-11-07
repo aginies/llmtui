@@ -628,7 +628,7 @@ fn config_default_empty_model_overrides() {
         system_prompt_presets: PresetStore::new(),
         rpc_workers: Vec::new(),
         search_limit: 50,
-        active_panel: ActivePanel::Models,
+        active_panel: ActivePanel::Models.into(),
         left_pct: 55,
         server_settings_height: 9,
         language: "en".to_string(),

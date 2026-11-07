@@ -179,6 +179,8 @@ fn count_stream_tokens(
     }
 }
 
+type LogCallback = Arc<Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>>;
+
 #[derive(Clone)]
 pub struct ApiState {
     pub server_url: String,
@@ -194,7 +196,7 @@ pub struct ApiState {
     pub log_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<String>>>>,
     pub system_prompt_preset_name: String,
     pub web_search_config: Arc<RwLock<WebSearchConfig>>,
-    pub log_callback: Arc<Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>>,
+    pub log_callback: LogCallback,
     /// WebSocket dashboard port (0 = disabled). Exposed via /api/status so
     /// the web chat can connect to the WS metrics channel for full stats.
     pub ws_port: u16,
@@ -846,26 +848,51 @@ async fn chat_handler() -> impl IntoResponse {
     )
 }
 
+/// Bundled configuration for starting the API proxy server.
+pub struct StartApiOptions {
+    pub addr: SocketAddr,
+    pub api_key: Option<String>,
+    pub server_port: u16,
+    pub model_name: String,
+    pub pid: u32,
+    pub shutdown_rx: tokio::sync::watch::Receiver<bool>,
+    pub host: String,
+    pub tls_config: Option<axum_server::tls_rustls::RustlsConfig>,
+    pub system_prompt_preset_name: String,
+    pub web_search_config: Arc<RwLock<WebSearchConfig>>,
+    pub log_callback: LogCallback,
+    pub log_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<String>>>>,
+    pub ws_port: u16,
+    pub ws_auth: Option<String>,
+    pub effective_ctx: u32,
+    pub chat_ui_enabled: bool,
+    pub transfer_enabled: bool,
+    pub speed_tracker: Arc<Mutex<StreamSpeedTracker>>,
+}
+
 pub async fn start_api_server(
-    addr: SocketAddr,
-    api_key: Option<String>,
-    server_port: u16,
-    model_name: String,
-    pid: u32,
-    mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
-    host: String,
-    tls_config: Option<axum_server::tls_rustls::RustlsConfig>,
-    system_prompt_preset_name: String,
-    web_search_config: Arc<RwLock<WebSearchConfig>>,
-    log_callback: Arc<Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>>,
-    log_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<String>>>>,
-    ws_port: u16,
-    ws_auth: Option<String>,
-    effective_ctx: u32,
-    chat_ui_enabled: bool,
-    transfer_enabled: bool,
-    speed_tracker: Arc<Mutex<StreamSpeedTracker>>,
+    options: StartApiOptions,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let StartApiOptions {
+        addr,
+        api_key,
+        server_port,
+        model_name,
+        pid,
+        mut shutdown_rx,
+        host,
+        tls_config,
+        system_prompt_preset_name,
+        web_search_config,
+        log_callback,
+        log_rx,
+        ws_port,
+        ws_auth,
+        effective_ctx,
+        chat_ui_enabled,
+        transfer_enabled,
+        speed_tracker,
+    } = options;
     let bind = addr;
     let start_time = Instant::now();
     // No overall request timeout: it applies to the whole response, which

@@ -4,7 +4,7 @@
 
 **llm-manager** is a terminal UI (TUI) for managing local LLM models. It searches HuggingFace, downloads GGUF models, loads them via llama.cpp's `llama-server`, and lets you chat with them.
 
-**Stack:** Rust 2024, ratatui 0.29, crossterm 0.28, tokio, reqwest, axum.
+**Stack:** Rust 2024, ratatui 0.30, crossterm 0.28, tokio, reqwest, axum.
 
 ## Directory structure
 
@@ -58,7 +58,7 @@ pi-orchestrator/     # Pi coding-agent extension (TypeScript): `orchestrate` too
 ### i18n / Translation
 - **All user-facing strings MUST go through the i18n system.** No hardcoded English text in source code.
 - Use `t!("key")` for simple strings, `t_fmt!("key", args...)` for strings with placeholders.
-- UI strings live in `locales/<lang>.json` (en, fr, it). Add keys to ALL locale files, not just `en.json`.
+- UI strings live in `locales/<lang>.json` (en, fr, it, de). Add keys to ALL locale files, not just `en.json`.
 - If a key does not exist in the current language, it falls back to English, then to the key itself.
 - String key naming: dot-separated hierarchical keys matching the UI context (e.g. `dialog.exit.title`, `field.help.context`, `hints.nav`).
 - Technical/internal strings (error messages for logs, debug output) may remain in code. User-facing strings (panel titles, button labels, help text, tooltips, dialog messages, hints) MUST use `t!()`.

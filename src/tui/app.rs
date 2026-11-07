@@ -31,7 +31,7 @@ pub use types::App;
 
 impl App {
     pub fn new(config: Config) -> Self {
-        let active_panel = config.active_panel;
+        let active_panel: types::ActivePanel = config.active_panel.into();
         let left_pct = config.left_pct;
         let server_settings_height = config.server_settings_height;
         let mut log = VecDeque::new();
@@ -440,7 +440,7 @@ mod tests {
             system_prompt_presets: crate::config::PresetStore::new(),
             rpc_workers: Vec::new(),
             search_limit: 50,
-            active_panel: types::ActivePanel::Models,
+            active_panel: types::ActivePanel::Models.into(),
             left_pct: 55,
             server_settings_height: 9,
             language: "en".to_string(),

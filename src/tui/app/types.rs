@@ -4,7 +4,7 @@ use crate::config::Profile;
 use crate::models::Backend;
 use crate::models::{
     BenchTuneConfig, BenchTuneField, DiscoveredModel, ListSort, ModelSettings, ModelState,
-    SearchResult, SearchSort, ServerMetrics,
+    PanelId, SearchResult, SearchSort, ServerMetrics,
 };
 use ratatui::layout::Rect;
 use ratatui::text::Line;
@@ -76,6 +76,7 @@ pub struct ListPicker {
 
 impl ListPicker {
     /// Number of entries.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
@@ -116,6 +117,40 @@ pub enum ActivePanel {
     Downloads,
 }
 
+impl From<ActivePanel> for PanelId {
+    fn from(panel: ActivePanel) -> Self {
+        match panel {
+            ActivePanel::Models => PanelId::Models,
+            ActivePanel::Log => PanelId::Log,
+            ActivePanel::ServerSettings => PanelId::ServerSettings,
+            ActivePanel::LlmSettings => PanelId::LlmSettings,
+            ActivePanel::Profiles => PanelId::Profiles,
+            ActivePanel::SystemPromptPresets => PanelId::SystemPromptPresets,
+            ActivePanel::SearchReadme => PanelId::SearchReadme,
+            ActivePanel::ActiveModel => PanelId::ActiveModel,
+            ActivePanel::ModelInfo => PanelId::ModelInfo,
+            ActivePanel::Downloads => PanelId::Downloads,
+        }
+    }
+}
+
+impl From<PanelId> for ActivePanel {
+    fn from(panel: PanelId) -> Self {
+        match panel {
+            PanelId::Models => ActivePanel::Models,
+            PanelId::Log => ActivePanel::Log,
+            PanelId::ServerSettings => ActivePanel::ServerSettings,
+            PanelId::LlmSettings => ActivePanel::LlmSettings,
+            PanelId::Profiles => ActivePanel::Profiles,
+            PanelId::SystemPromptPresets => ActivePanel::SystemPromptPresets,
+            PanelId::SearchReadme => ActivePanel::SearchReadme,
+            PanelId::ActiveModel => ActivePanel::ActiveModel,
+            PanelId::ModelInfo => ActivePanel::ModelInfo,
+            PanelId::Downloads => ActivePanel::Downloads,
+        }
+    }
+}
+
 /// Mode for the models panel.
 #[derive(Debug, Clone)]
 pub enum ModelsMode {
@@ -140,7 +175,7 @@ pub enum ModelsMode {
         selected_idx: Option<usize>,
         previous_query: String,
         previous_results: Vec<SearchResult>,
-        selected_result: Option<SearchResult>,
+        selected_result: Option<Box<SearchResult>>,
     },
     /// Benchmark tuning mode: running bench_tune on a model.
     BenchTune,

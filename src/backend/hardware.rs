@@ -83,7 +83,7 @@ fn drm_card_paths() -> Vec<std::path::PathBuf> {
 
 /// Detect all GPU vendors by scanning /sys/class/drm/card*/device/vendor (Linux).
 /// Returns a Vec of unique vendors (preserves detection order, deduplicates).
-fn detect_gpu_vendors_linux_impl() -> Vec<GpuVendor> {
+fn detect_gpu_vendors_linux() -> Vec<GpuVendor> {
     let mut vendors = Vec::new();
     for card_path in drm_card_paths() {
         let vendor_path = card_path.join("device/vendor");
@@ -110,7 +110,7 @@ fn detect_gpu_vendors_linux_impl() -> Vec<GpuVendor> {
 
 /// Detect all GPU model names (one per GPU, Linux).
 /// For AMD GPUs, includes the GFX target version.
-fn detect_gpu_models_linux_impl() -> Vec<Option<String>> {
+fn detect_gpu_models_linux() -> Vec<Option<String>> {
     let card_paths = drm_card_paths();
     if card_paths.is_empty() {
         return Vec::new();
@@ -396,13 +396,13 @@ pub fn detect_gpu_models_macos() -> Vec<Option<String>> {
 /// Detect GPU vendors using platform-specific methods.
 #[cfg(target_os = "linux")]
 pub fn detect_gpu_vendors() -> Vec<GpuVendor> {
-    detect_gpu_vendors_linux_impl()
+    detect_gpu_vendors_linux()
 }
 
 /// Detect GPU models using platform-specific methods.
 #[cfg(target_os = "linux")]
 pub fn detect_gpu_models() -> Vec<Option<String>> {
-    detect_gpu_models_linux_impl()
+    detect_gpu_models_linux()
 }
 
 /// Detect GPU vendors using platform-specific methods.

@@ -495,13 +495,15 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         render_prompt_picker(
             f,
             f.area(),
-            entries,
-            *selected,
-            *editing,
-            edit_buffer,
-            *edit_cursor_pos,
-            *confirm_delete,
-            &mut app.picker.prompt_picker_scroll_offset,
+            PromptPickerCtx {
+                entries,
+                selected: *selected,
+                editing: *editing,
+                edit_buffer,
+                edit_cursor_pos: *edit_cursor_pos,
+                confirm_delete: *confirm_delete,
+                scroll_offset: &mut app.picker.prompt_picker_scroll_offset,
+            },
         );
         return true;
     }
@@ -593,12 +595,14 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         render_gpu_device_picker(
             f,
             f.area(),
-            entries,
-            *selected,
-            checked,
-            *loading,
-            error.as_deref(),
-            &mut app.picker.gpu_device_picker_scroll_offset,
+            GpuDevicePickerCtx {
+                entries,
+                selected: *selected,
+                checked,
+                loading: *loading,
+                error: error.as_deref(),
+                scroll_offset: &mut app.picker.gpu_device_picker_scroll_offset,
+            },
         );
         return true;
     }
@@ -624,16 +628,17 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         render_dashboard_picker(
             f,
             f.area(),
-            app,
-            *enabled,
-            port,
-            auth_key,
-            *tls_enabled,
-            tls_cert,
-            tls_key,
-            *selected_field,
-            *editing,
-            edit_buffer,
+            DashboardPickerCtx {
+                enabled: *enabled,
+                port,
+                auth_key,
+                tls_enabled: *tls_enabled,
+                tls_cert,
+                tls_key,
+                selected_field: *selected_field,
+                editing: *editing,
+                edit_buffer,
+            },
         );
         return true;
     }
@@ -654,16 +659,17 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         render_api_endpoint_picker(
             f,
             f.area(),
-            app,
-            *enabled,
-            port,
-            api_key,
-            *tls_enabled,
-            tls_cert,
-            tls_key,
-            *selected_field,
-            *editing,
-            edit_buffer,
+            ApiEndpointPickerCtx {
+                enabled: *enabled,
+                port,
+                api_key,
+                tls_enabled: *tls_enabled,
+                tls_cert,
+                tls_key,
+                selected_field: *selected_field,
+                editing: *editing,
+                edit_buffer,
+            },
         );
         return true;
     }
@@ -682,13 +688,15 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             f,
             f.area(),
             app,
-            scale,
-            freq_base,
-            freq_scale,
-            *selected_field,
-            *editing,
-            edit_buffer,
-            *edit_cursor_pos,
+            YarnRopePickerCtx {
+                scale,
+                freq_base,
+                freq_scale,
+                selected_field: *selected_field,
+                editing: *editing,
+                edit_buffer,
+                edit_cursor_pos: *edit_cursor_pos,
+            },
         );
         return true;
     }
@@ -707,13 +715,15 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
             f,
             f.area(),
             app,
-            host,
-            ws_port,
-            *api_port,
-            *llm_port,
-            auth_key,
-            *ws_enabled,
-            *tls_enabled,
+            DashboardUrlCtx {
+                host,
+                ws_port,
+                api_port: *api_port,
+                llm_port: *llm_port,
+                auth_key,
+                ws_enabled: *ws_enabled,
+                tls_enabled: *tls_enabled,
+            },
         );
         return true;
     }
@@ -758,16 +768,17 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         render_web_search_picker(
             f,
             f.area(),
-            app,
-            *enabled,
-            engine,
-            engine_url,
-            api_key.as_deref(),
-            *selected_field,
-            *engine_picker_selected,
-            *editing,
-            edit_buffer,
-            check_status,
+            WebSearchPickerCtx {
+                enabled: *enabled,
+                engine,
+                engine_url,
+                api_key: api_key.as_deref(),
+                selected_field: *selected_field,
+                engine_picker_selected: *engine_picker_selected,
+                editing: *editing,
+                edit_buffer,
+                check_status,
+            },
         );
         return true;
     }
@@ -788,16 +799,17 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
         render_llama_server_picker(
             f,
             f.area(),
-            app,
-            port,
-            *threads,
-            *threads_batch,
-            log_level,
-            *webui,
-            *selected_field,
-            *mode_picker_selected,
-            *editing,
-            edit_buffer,
+            LlamaServerPickerCtx {
+                port,
+                threads: *threads,
+                threads_batch: *threads_batch,
+                log_level,
+                webui: *webui,
+                selected_field: *selected_field,
+                mode_picker_selected: *mode_picker_selected,
+                editing: *editing,
+                edit_buffer,
+            },
         );
         return true;
     }
@@ -942,20 +954,30 @@ fn render_command_palette(
     f.render_widget(Paragraph::new(lines), inner);
 }
 
-fn render_web_search_picker(
-    f: &mut Frame,
-    area: Rect,
-    _app: &App,
+struct WebSearchPickerCtx<'a> {
     enabled: bool,
-    engine: &str,
-    engine_url: &str,
-    api_key: Option<&str>,
+    engine: &'a str,
+    engine_url: &'a str,
+    api_key: Option<&'a str>,
     selected_field: i32,
     engine_picker_selected: usize,
     editing: bool,
-    edit_buffer: &str,
-    check_status: &Option<crate::tui::app::WebSearchCheckStatus>,
-) {
+    edit_buffer: &'a str,
+    check_status: &'a Option<crate::tui::app::WebSearchCheckStatus>,
+}
+
+fn render_web_search_picker(f: &mut Frame, area: Rect, ctx: WebSearchPickerCtx<'_>) {
+    let WebSearchPickerCtx {
+        enabled,
+        engine,
+        engine_url,
+        api_key,
+        selected_field,
+        engine_picker_selected,
+        editing,
+        edit_buffer,
+        check_status,
+    } = ctx;
     let engines = ["searxng", "searlo"];
     let mut picker_lines: Vec<Line> = Vec::new();
 
@@ -1465,17 +1487,26 @@ fn render_profile_picker(
     );
 }
 
-fn render_prompt_picker(
-    f: &mut Frame,
-    area: Rect,
-    entries: &[(String, String)],
+struct PromptPickerCtx<'a> {
+    entries: &'a [(String, String)],
     selected: usize,
     editing: bool,
-    edit_buffer: &str,
-    _edit_cursor_pos: usize,
+    edit_buffer: &'a str,
+    edit_cursor_pos: usize,
     confirm_delete: bool,
-    scroll_offset: &mut usize,
-) {
+    scroll_offset: &'a mut usize,
+}
+
+fn render_prompt_picker(f: &mut Frame, area: Rect, ctx: PromptPickerCtx<'_>) {
+    let PromptPickerCtx {
+        entries,
+        selected,
+        editing,
+        edit_buffer,
+        edit_cursor_pos,
+        confirm_delete,
+        scroll_offset,
+    } = ctx;
     let title = Span::styled(
         crate::t!("dialog.prompt_picker.title"),
         Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
@@ -1509,7 +1540,7 @@ fn render_prompt_picker(
         picker_lines.push(Line::from(""));
         let content_lines: Vec<&str> = edit_buffer.split('\n').collect();
         let max_lines = picker_max_height(area).saturating_sub(8);
-        let cursor_pos = _edit_cursor_pos;
+        let cursor_pos = edit_cursor_pos;
         let mut current_char_idx = 0usize;
         for line in content_lines.iter().take(max_lines) {
             let line_chars: Vec<char> = line.chars().collect();
@@ -2500,20 +2531,30 @@ fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &st
     );
 }
 
-fn render_dashboard_picker(
-    f: &mut Frame,
-    area: Rect,
-    _app: &App,
+struct DashboardPickerCtx<'a> {
     enabled: bool,
-    port: &str,
-    auth_key: &str,
+    port: &'a str,
+    auth_key: &'a str,
     tls_enabled: bool,
-    tls_cert: &str,
-    tls_key: &str,
+    tls_cert: &'a str,
+    tls_key: &'a str,
     selected_field: i32,
     editing: bool,
-    edit_buffer: &str,
-) {
+    edit_buffer: &'a str,
+}
+
+fn render_dashboard_picker(f: &mut Frame, area: Rect, ctx: DashboardPickerCtx<'_>) {
+    let DashboardPickerCtx {
+        enabled,
+        port,
+        auth_key,
+        tls_enabled,
+        tls_cert,
+        tls_key,
+        selected_field,
+        editing,
+        edit_buffer,
+    } = ctx;
     let mut picker_lines: Vec<Line> = Vec::new();
     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
     picker_lines.push(Line::from(vec![
@@ -2639,20 +2680,30 @@ fn render_dashboard_picker(
     );
 }
 
-fn render_api_endpoint_picker(
-    f: &mut Frame,
-    area: Rect,
-    _app: &App,
+struct ApiEndpointPickerCtx<'a> {
     enabled: bool,
-    port: &str,
-    api_key: &str,
+    port: &'a str,
+    api_key: &'a str,
     tls_enabled: bool,
-    tls_cert: &str,
-    tls_key: &str,
+    tls_cert: &'a str,
+    tls_key: &'a str,
     selected_field: i32,
     editing: bool,
-    edit_buffer: &str,
-) {
+    edit_buffer: &'a str,
+}
+
+fn render_api_endpoint_picker(f: &mut Frame, area: Rect, ctx: ApiEndpointPickerCtx<'_>) {
+    let ApiEndpointPickerCtx {
+        enabled,
+        port,
+        api_key,
+        tls_enabled,
+        tls_cert,
+        tls_key,
+        selected_field,
+        editing,
+        edit_buffer,
+    } = ctx;
     let mut picker_lines: Vec<Line> = Vec::new();
 
     let enabled_marker = if selected_field == -1i32 { "> " } else { "  " };
@@ -2788,18 +2839,26 @@ fn render_api_endpoint_picker(
     );
 }
 
-fn render_dashboard_url(
-    f: &mut Frame,
-    area: Rect,
-    app: &App,
-    host: &str,
-    ws_port: &str,
+struct DashboardUrlCtx<'a> {
+    host: &'a str,
+    ws_port: &'a str,
     api_port: u16,
     llm_port: u16,
-    auth_key: &str,
+    auth_key: &'a str,
     ws_enabled: bool,
     tls_enabled: bool,
-) {
+}
+
+fn render_dashboard_url(f: &mut Frame, area: Rect, app: &App, ctx: DashboardUrlCtx<'_>) {
+    let DashboardUrlCtx {
+        host,
+        ws_port,
+        api_port,
+        llm_port,
+        auth_key,
+        ws_enabled,
+        tls_enabled,
+    } = ctx;
     let modal_area = Rect {
         x: 0,
         y: 0,
@@ -3650,18 +3709,26 @@ fn wrap_text(text: &str, max_width: usize) -> String {
     lines.join("\n")
 }
 
-fn render_yarn_rope_picker(
-    f: &mut Frame,
-    area: Rect,
-    app: &App,
-    scale: &str,
-    freq_base: &str,
-    freq_scale: &str,
+struct YarnRopePickerCtx<'a> {
+    scale: &'a str,
+    freq_base: &'a str,
+    freq_scale: &'a str,
     selected_field: i32,
     editing: bool,
-    edit_buffer: &str,
+    edit_buffer: &'a str,
     edit_cursor_pos: usize,
-) {
+}
+
+fn render_yarn_rope_picker(f: &mut Frame, area: Rect, app: &App, ctx: YarnRopePickerCtx<'_>) {
+    let YarnRopePickerCtx {
+        scale,
+        freq_base,
+        freq_scale,
+        selected_field,
+        editing,
+        edit_buffer,
+        edit_cursor_pos,
+    } = ctx;
     let mut picker_lines: Vec<Line> = Vec::new();
 
     let fields = [
@@ -3821,16 +3888,24 @@ fn render_chat_template_picker(
 /// Entry 0 is the special "(default) — all devices" option; selecting it (or
 /// leaving everything unchecked) means an empty `devices` list, i.e. let
 /// llama.cpp use all detected devices.
-fn render_gpu_device_picker(
-    f: &mut Frame,
-    area: Rect,
-    entries: &[(String, String)],
+struct GpuDevicePickerCtx<'a> {
+    entries: &'a [(String, String)],
     selected: usize,
-    checked: &[bool],
+    checked: &'a [bool],
     loading: bool,
-    error: Option<&str>,
-    scroll_offset: &mut usize,
-) {
+    error: Option<&'a str>,
+    scroll_offset: &'a mut usize,
+}
+
+fn render_gpu_device_picker(f: &mut Frame, area: Rect, ctx: GpuDevicePickerCtx<'_>) {
+    let GpuDevicePickerCtx {
+        entries,
+        selected,
+        checked,
+        loading,
+        error,
+        scroll_offset,
+    } = ctx;
     let mut blocks: Vec<Vec<Line>> = Vec::new();
 
     if let Some(err) = error {
@@ -3955,20 +4030,30 @@ fn render_chat_template_file_picker(
     );
 }
 
-fn render_llama_server_picker(
-    f: &mut Frame,
-    area: Rect,
-    _app: &App,
-    port: &str,
+struct LlamaServerPickerCtx<'a> {
+    port: &'a str,
     threads: u32,
     threads_batch: u32,
-    log_level: &str,
+    log_level: &'a str,
     webui: bool,
     selected_field: i32,
     mode_picker_selected: usize,
     editing: bool,
-    edit_buffer: &str,
-) {
+    edit_buffer: &'a str,
+}
+
+fn render_llama_server_picker(f: &mut Frame, area: Rect, ctx: LlamaServerPickerCtx<'_>) {
+    let LlamaServerPickerCtx {
+        port,
+        threads,
+        threads_batch,
+        log_level,
+        webui,
+        selected_field,
+        mode_picker_selected,
+        editing,
+        edit_buffer,
+    } = ctx;
     let mut picker_lines: Vec<Line> = Vec::new();
 
     let port_marker = if selected_field == -1i32 { "> " } else { "  " };

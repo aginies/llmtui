@@ -613,7 +613,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
             has_more,
             ..
         } => {
-            let sort_label = sort_by.label();
+            let sort_label = crate::tui::search_sort_label(*sort_by);
             let display_query = app.search.search_input.as_deref().unwrap_or(query);
             let title = if app.is_panel_visible(0) {
                 crate::t_fmt!(

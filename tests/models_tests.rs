@@ -99,11 +99,26 @@ fn search_sort_next_cycles_through_all() {
 
 #[test]
 fn search_sort_label_all() {
-    assert_eq!(SearchSort::Relevance.label(), "Relevance");
-    assert_eq!(SearchSort::Downloads.label(), "Downloads");
-    assert_eq!(SearchSort::Likes.label(), "Likes");
-    assert_eq!(SearchSort::Trending.label(), "Trending");
-    assert_eq!(SearchSort::CreatedAt.label(), "Created");
+    assert_eq!(
+        llm_manager::tui::search_sort_label(SearchSort::Relevance),
+        "Relevance"
+    );
+    assert_eq!(
+        llm_manager::tui::search_sort_label(SearchSort::Downloads),
+        "Downloads"
+    );
+    assert_eq!(
+        llm_manager::tui::search_sort_label(SearchSort::Likes),
+        "Likes"
+    );
+    assert_eq!(
+        llm_manager::tui::search_sort_label(SearchSort::Trending),
+        "Trending"
+    );
+    assert_eq!(
+        llm_manager::tui::search_sort_label(SearchSort::CreatedAt),
+        "Created"
+    );
 }
 
 // ── CacheQuantType cycling ──────────────────────────────────────

@@ -724,7 +724,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
             selected_idx,
             ..
         } => {
-            let mut lines = if let Some(r) = selected_result {
+            let mut lines = if let Some(r) = selected_result.as_ref() {
                 // If a file is selected, pass its info to override the repo size and extract params
                 let file_info = selected_idx
                     .and_then(|idx| files.get(idx).map(|(f, s, _): &(_, _, _)| (f.clone(), *s)));
@@ -831,7 +831,7 @@ pub fn get_info_lines(app: &mut App, width: u16) -> Vec<Line<'static>> {
     } else if let crate::tui::app::ModelsMode::Files {
         selected_result, ..
     } = &app.models_mode
-        && let Some(r) = selected_result
+        && let Some(r) = selected_result.as_ref()
     {
         let link_line = Line::from(vec![
             Span::styled("  https://huggingface.co/", Style::default().fg(CYAN)),

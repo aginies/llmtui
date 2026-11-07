@@ -13,7 +13,9 @@ pub struct InjectedPrompt {
     pub performed: bool,
 }
 
-fn log(cb: &std::sync::Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>, msg: String) {
+type LogCallback = std::sync::Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>;
+
+fn log(cb: &LogCallback, msg: String) {
     if let Some(c) = cb.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         c(msg);
     }
@@ -54,7 +56,7 @@ pub async fn build_injected_prompt(
     web_search_engine: &str,
     web_search_engine_url: &str,
     web_search_api_key: &str,
-    log_callback: &std::sync::Mutex<Option<Box<dyn Fn(String) + Send + Sync>>>,
+    log_callback: &LogCallback,
 ) -> InjectedPrompt {
     log(
         log_callback,

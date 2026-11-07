@@ -592,26 +592,26 @@ pub async fn serve_model(opts: ServeOptions) -> Result<()> {
         let chat_ui_for_api = config.default.chat_ui_enabled;
         let transfer_for_api = config.default.api_transfer_enabled;
         let handle = tokio::spawn(async move {
-            let result = crate::serve_api::start_api_server(
+            let result = crate::serve_api::start_api_server(crate::serve_api::StartApiOptions {
                 addr,
-                api_key_clone,
+                api_key: api_key_clone,
                 server_port,
                 model_name,
-                server_pid,
-                shutdown_rx_for_api,
-                host_clone,
-                tls_for_api,
-                preset_name,
+                pid: server_pid,
+                shutdown_rx: shutdown_rx_for_api,
+                host: host_clone,
+                tls_config: tls_for_api,
+                system_prompt_preset_name: preset_name,
                 web_search_config,
-                log_cb_clone,
-                api_log_rx,
-                ws_port_for_api,
-                ws_auth_for_api,
-                effective_ctx_for_api,
-                chat_ui_for_api,
-                transfer_for_api,
-                Arc::new(Mutex::new(crate::serve_api::StreamSpeedTracker::default())),
-            )
+                log_callback: log_cb_clone,
+                log_rx: api_log_rx,
+                ws_port: ws_port_for_api,
+                ws_auth: ws_auth_for_api,
+                effective_ctx: effective_ctx_for_api,
+                chat_ui_enabled: chat_ui_for_api,
+                transfer_enabled: transfer_for_api,
+                speed_tracker: Arc::new(Mutex::new(crate::serve_api::StreamSpeedTracker::default())),
+            })
             .await;
             let _ = api_done_tx.send(result.map_err(|e| e.to_string()));
         });

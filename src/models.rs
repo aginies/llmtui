@@ -33,16 +33,6 @@ impl SearchSort {
             SearchSort::CreatedAt => SearchSort::Relevance,
         }
     }
-
-    pub fn label(self) -> String {
-        match self {
-            SearchSort::Relevance => crate::t!("models.sort.relevance").to_string(),
-            SearchSort::Downloads => crate::t!("models.sort.downloads").to_string(),
-            SearchSort::Likes => crate::t!("models.sort.likes").to_string(),
-            SearchSort::Trending => crate::t!("models.sort.trending").to_string(),
-            SearchSort::CreatedAt => crate::t!("models.sort.created").to_string(),
-        }
-    }
 }
 
 /// Sort order for the local models list.
@@ -68,20 +58,25 @@ impl ListSort {
         }
     }
 
-    pub fn label(self) -> String {
-        match self {
-            ListSort::Name => crate::t!("models.list_sort.name").to_string(),
-            ListSort::Status => crate::t!("models.list_sort.status").to_string(),
-            ListSort::Params => crate::t!("models.list_sort.params").to_string(),
-            ListSort::Qual => crate::t!("models.list_sort.qual").to_string(),
-            ListSort::Context => crate::t!("models.list_sort.context").to_string(),
-            ListSort::Architecture => crate::t!("models.list_sort.architecture").to_string(),
-        }
-    }
-
     pub fn is_ascending(self) -> bool {
         matches!(self, ListSort::Name | ListSort::Architecture)
     }
+}
+
+/// Identity of a focused panel, persisted in config without depending on the TUI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum PanelId {
+    #[default]
+    Models,
+    Log,
+    ServerSettings,
+    LlmSettings,
+    Profiles,
+    SystemPromptPresets,
+    SearchReadme,
+    ActiveModel,
+    ModelInfo,
+    Downloads,
 }
 
 /// A model found via HuggingFace search.

@@ -21,7 +21,7 @@ fn make_app() -> App {
         system_prompt_presets: llm_manager::config::PresetStore::new(),
         rpc_workers: Vec::new(),
         search_limit: 50,
-        active_panel: llm_manager::tui::app::types::ActivePanel::Models,
+        active_panel: llm_manager::tui::app::types::ActivePanel::Models.into(),
         left_pct: 55,
         server_settings_height: 9,
         language: "en".to_string(),
