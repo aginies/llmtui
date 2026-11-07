@@ -50,6 +50,13 @@ impl App {
                         crate::t!("panel.help.models.quality_legend")
                     )),
                 ]),
+                Line::from(vec![
+                    Span::styled("F8", y),
+                    Span::raw(format!(
+                        "  {}",
+                        crate::t!("panel.help.models.ctx_proposal")
+                    )),
+                ]),
                 Line::from(""),
                 Line::from(crate::t!("panel.help.models.search_mode")),
                 Line::from(vec![
@@ -253,6 +260,10 @@ impl App {
                 Line::from(vec![
                     Span::styled("^T", y),
                     Span::raw(format!("  {}", crate::t!("panel.help.llm.llm_profiles"))),
+                ]),
+                Line::from(vec![
+                    Span::styled("F8", y),
+                    Span::raw(format!("  {}", crate::t!("panel.help.llm.ctx_proposal"))),
                 ]),
                 Line::from(vec![
                     Span::styled("^P", y),

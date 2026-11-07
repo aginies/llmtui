@@ -476,7 +476,7 @@ impl std::fmt::Display for CacheType {
 }
 
 /// KV cache quantization type.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 pub enum CacheQuantType {
     #[serde(rename = "f32")]
     F32,
@@ -1253,6 +1253,12 @@ pub struct GgufMetadata {
     pub arch: String,
     pub file_type: String,
     pub model_parameters: String,
+    /// Raw parameter count summed from tensor shapes (0 = unknown).
+    pub parameters: u64,
+    /// MoE total expert count (`<arch>.expert_count`); 0 = dense model.
+    pub expert_count: u32,
+    /// MoE experts used per token (`<arch>.expert_used_count`); 0 = unknown.
+    pub expert_used_count: u32,
     pub domain: String,
     pub capabilities: Vec<String>,
     pub tokenizer: String,
@@ -1355,8 +1361,25 @@ impl GgufMetadata {
         } else {
             "unknown".to_string()
         };
+        meta.parameters = header.parameters;
+        meta.expert_count = get_num_with_fallback("expert_count");
+        meta.expert_used_count = get_num_with_fallback("expert_used_count");
 
         Ok(meta)
+    }
+
+    /// Effective ("active") parameter count for size classification.
+    ///
+    /// MoE models only activate a fraction of their experts per token, so a
+    /// 35B-A3B model behaves like a ~3B model for compute/VRAM headroom
+    /// purposes. Dense models return the raw count.
+    pub fn active_parameters(&self) -> u64 {
+        if self.expert_count > 1 {
+            let used = self.expert_used_count.max(1) as u64;
+            self.parameters.saturating_mul(used) / self.expert_count as u64
+        } else {
+            self.parameters
+        }
     }
 
     /// Extract the architecture parameters used by the VRAM estimator.
@@ -1858,8 +1881,24 @@ const FIXED_VRAM_OVERHEAD_MIB: f64 = 300.0;
 /// Most modern decoder models use 4:1 GQA (e.g. 32 query / 8 KV heads).
 const FALLBACK_GQA_RATIO: f64 = 0.25;
 
-/// Compute-buffer overhead of an MTP (draft) speculative context, in MiB.
-const MTP_COMPUTE_OVERHEAD_MIB: f64 = 256.0;
+/// MTP (draft) speculative-decoding VRAM overhead in MiB per unit of
+/// `hidden_size`, per MTP (nextn) layer. Calibrated against measured usage on
+/// Qwen3.8-27B (hidden 5120, 1 nextn layer), two independent quants:
+///   Q8_K_L, ctx 108K, KV q8_0:  off 29.0 / d1 30.6 / d2 31.2 GiB
+///   Q6_K,   ctx 128K, KV f16:   off 28.1 / d1 29.7 / d2 30.3 / d3 30.9 GiB
+/// Both give +1.6 GiB for the first draft token and +0.6 GiB per extra one,
+/// independent of file size, context length and KV cache type — so the cost
+/// scales with architecture width, not quantization. Hence:
+///   base 1.0 GiB = 1024/5120 = 0.2 MiB per hidden unit,
+///   per-draft 0.6 GiB = 614/5120 ≈ 0.12 MiB per hidden unit.
+/// Tune these against measurements for other model families.
+const MTP_BASE_PER_HIDDEN_MIB: f64 = 0.2;
+const MTP_PER_DRAFT_PER_HIDDEN_MIB: f64 = 0.12;
+
+/// Fraction of total GPU VRAM the proposal picker may target. Leaves headroom
+/// for driver allocations and fragmentation so a proposal that "fits" on paper
+/// doesn't OOM at the edge (e.g. targets ~31 GiB of a 32 GiB card, not 32).
+const VRAM_SAFETY_FACTOR: f64 = 0.97;
 
 /// Architecture parameters that affect VRAM usage beyond the dense
 /// transformer assumption (every layer has a KV cache sized by
@@ -2025,9 +2064,15 @@ pub fn estimate_vram_mib(
         0.0
     };
 
-    // MTP draft context: one KV cache per nextn layer plus a compute buffer.
+    // MTP draft-context buffers: measured to be independent of context length
+    // and KV cache type; they scale with architecture width (hidden_size),
+    // the number of nextn layers, and the draft-token count. Calibrated on
+    // Qwen3.8-27B: see MTP_BASE_PER_HIDDEN_MIB / MTP_PER_DRAFT_PER_HIDDEN_MIB.
     let mtp_mib = if spec_enabled && arch.nextn_layers > 0 {
-        arch.nextn_layers as f64 * kv_mib_per_layer * slot_factor + MTP_COMPUTE_OVERHEAD_MIB
+        let draft = settings.draft_tokens as f64;
+        arch.nextn_layers as f64
+            * hidden_size
+            * (MTP_BASE_PER_HIDDEN_MIB + MTP_PER_DRAFT_PER_HIDDEN_MIB * draft)
     } else {
         0.0
     };
@@ -2214,9 +2259,14 @@ pub fn optimal_ctx_size(
         0.0
     };
 
-    // MTP compute overhead (fixed, independent of context length)
+    // MTP draft-context buffers — measured to be independent of context length
+    // and KV cache type; scale with hidden size, nextn layers and draft count
+    // (calibrated on Qwen3.8-27B). Higher draft counts leave less room for ctx.
     let mtp_fixed = if spec_enabled && arch.nextn_layers > 0 {
-        MTP_COMPUTE_OVERHEAD_MIB
+        let draft = settings.draft_tokens as f64;
+        arch.nextn_layers as f64
+            * hidden_size as f64
+            * (MTP_BASE_PER_HIDDEN_MIB + MTP_PER_DRAFT_PER_HIDDEN_MIB * draft)
     } else {
         0.0
     };
@@ -2225,9 +2275,11 @@ pub fn optimal_ctx_size(
     let fixed_costs = FIXED_VRAM_OVERHEAD_MIB + activation_mib + ssm_mib + mtp_fixed;
 
     // KV-related cost per token of context:
-    // (kv_layers + nextn_kv_layers) * 2 * n_embd_kv * kv_bytes / (1024*1024) * slot_factor
-    let nextn_kv_layers = if spec_enabled { arch.nextn_layers } else { 0 };
-    let total_kv_layers = kv_layers + nextn_kv_layers;
+    // kv_layers * 2 * n_embd_kv * kv_bytes / (1024*1024) * slot_factor.
+    // Measurements show the MTP draft context adds no per-token full-context
+    // KV (its overhead is context-independent and lives in mtp_fixed), so
+    // nextn layers are NOT added here.
+    let total_kv_layers = kv_layers;
     if total_kv_layers == 0 {
         return n_ctx_train;
     }
@@ -2270,6 +2322,391 @@ fn kv_quant_bytes(k_type: CacheQuantType, v_type: CacheQuantType) -> f64 {
         CacheQuantType::Turbo2 | CacheQuantType::Turbo3 | CacheQuantType::Turbo4 => 2.0,
     };
     (get_bytes(k_type) + get_bytes(v_type)) / 2.0
+}
+
+/// One row of the ctx / KV-cache / MTP proposal picker (F8).
+///
+/// Each proposal is a feasible combination that fits in the GPU VRAM:
+/// the maximum context length for a given K/V cache quantization pair,
+/// optionally with MTP speculative decoding enabled.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CtxProposal {
+    /// Maximum context length that fits VRAM with this K/V pair.
+    pub ctx: u32,
+    /// Proposed K cache type (always explicit, never `None`).
+    pub cache_k: CacheQuantType,
+    /// Proposed V cache type (never below q5).
+    pub cache_v: CacheQuantType,
+    /// MTP draft-token count for models with MTP layers; `None` otherwise.
+    pub mtp_draft_tokens: Option<u32>,
+    /// Estimated VRAM usage in MiB at the proposed ctx.
+    pub vram_mib: u64,
+    /// First proposal reaching the ctx target (≥ 100k or `n_ctx_train`).
+    pub recommended: bool,
+    /// Human-readable trade-off classification (best/balanced on quality,
+    /// ctx, performance). Computed across the whole proposal set.
+    pub note: ProposalNote,
+}
+
+/// Trade-off classification for a [`CtxProposal`], shown as a note in the
+/// picker. Derived from each proposal's normalized quality / ctx / perf
+/// scores relative to the rest of the set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ProposalNote {
+    /// Highest KV-cache precision (best output fidelity).
+    BestQuality,
+    /// Largest context window.
+    BestCtx,
+    /// Fastest generation (light KV cache + max MTP draft).
+    BestPerf,
+    /// Good output fidelity with a large context.
+    BalancedQualityCtx,
+    /// Good output fidelity with fast generation.
+    BalancedQualityPerf,
+    /// Large context with fast generation.
+    BalancedCtxPerf,
+    /// Middle-of-the-road compromise.
+    #[default]
+    Balanced,
+}
+
+/// Target context length for proposals (clamped to the model's native ctx).
+const PROPOSAL_TARGET_CTX: u32 = 100_000;
+
+/// Upper bound on MTP draft tokens offered in proposals (`--spec-draft-n-max`).
+const MAX_MTP_DRAFT: u32 = 6;
+
+/// Maximum number of proposal rows shown in the picker.
+const MAX_PROPOSALS: usize = 15;
+
+/// Parameter count at/above which a model is considered "big" for proposals.
+const BIG_MODEL_PARAMS: u64 = 27_000_000_000;
+
+/// MTP draft cap for big models (≥ 27B): each draft token eats context room
+/// and the primary goal for big models is a large usable ctx, so prefer 0..=3.
+const MAX_MTP_DRAFT_BIG: u32 = 3;
+
+/// Minimum context a proposal must offer for big models (≥ 27B) — below this
+/// the model is not usable in practice, so such proposals are dropped.
+const MIN_CTX_BIG_MODEL: u32 = 65_536;
+
+/// KV-cache quality ladder (K, V), descending quality. Constraints:
+/// - K is always set explicitly (never `None`)
+/// - V never goes below q5_0 (no q4 for V)
+/// - K and V are at most one quality step apart
+fn kv_quality_ladder() -> [(CacheQuantType, CacheQuantType); 10] {
+    use CacheQuantType::*;
+    [
+        (F16, F16),
+        (F16, Q8_0),
+        (Q8_0, Q8_0),
+        (Q8_0, Q5_1),
+        (Q5_1, Q5_1),
+        (Q5_1, Q5_0),
+        (Q5_0, Q5_0),
+        (Q4_1, Q5_0),
+        (Q4_0, Q5_0),
+        (Iq4Nl, Q5_0),
+    ]
+}
+
+/// Build the proposal strategy list: (K, V, MTP draft), best quality first.
+///
+/// Non-MTP models get the full 10-rung KV ladder (MTP makes no difference
+/// there). MTP models get a grid over several draft levels — always 0
+/// (disabled), 1, 2, plus the midpoint and the cap when they differ — across
+/// three KV tiers spanning the quality range (top / middle / bottom), so the
+/// user can trade ctx against speed at several points. Capped at
+/// [`MAX_PROPOSALS`] rows.
+fn proposal_strategies(
+    mtp_cap: Option<u32>,
+) -> Vec<(CacheQuantType, CacheQuantType, Option<u32>)> {
+    use CacheQuantType::*;
+    let ladder = kv_quality_ladder();
+    let cap = match mtp_cap {
+        None => return ladder.iter().map(|(k, v)| (*k, *v, None)).collect(),
+        Some(c) => c,
+    };
+
+    // Draft levels: 0 (off), 1, 2, midpoint and cap — deduped, ascending.
+    let mut levels: Vec<u32> = vec![0, 1, 2];
+    if cap >= 4 {
+        levels.push(cap / 2);
+    }
+    levels.push(cap);
+    levels.retain(|d| *d <= cap);
+    levels.sort_unstable();
+    levels.dedup();
+
+    // Three KV tiers spanning the quality range.
+    let tiers = [(F16, F16), (Q8_0, Q8_0), (Q4_0, Q5_0)];
+    let mut out = Vec::with_capacity(MAX_PROPOSALS);
+    for (k, v) in tiers {
+        // Highest draft first within a tier (perf-leaning, then ctx-leaning).
+        for d in levels.iter().rev() {
+            out.push((k, v, (*d > 0).then_some(*d)));
+        }
+    }
+    out.truncate(MAX_PROPOSALS);
+    out
+}
+
+/// Generate feasible ctx / KV-cache / MTP proposals for a model, ranked by
+/// quality (best first).
+///
+/// Each [`proposal_strategies()`] entry has its maximum fitting context solved
+/// with [`optimal_ctx_size()`]. Strategies whose weights + minimum KV cache
+/// already exceed VRAM are skipped — only feasible proposals are returned —
+/// and identical results are de-duplicated, so the list is at most
+/// [`MAX_PROPOSALS`] rows. Each surviving proposal is labelled with a
+/// trade-off [`ProposalNote`] by [`classify_proposals`].
+///
+/// `mtp_max_draft` enables MTP speculative decoding and caps the draft-token
+/// count offered (0 = disabled is always among the variants; the cap is
+/// clamped to `1..=6`, or `1..=3` for big models since each draft token eats
+/// context room and the primary goal there is a large usable ctx); pass `None`
+/// for models without MTP layers.
+///
+/// `model_params` is the effective (active) parameter count — for MoE models
+/// pass [`GgufMetadata::active_parameters()`] so e.g. a 35B-A3B model is
+/// treated as small (0 = unknown). For big models (≥ 27B active) proposals
+/// with less than 64k context are dropped as unusable.
+///
+/// Returns an empty vec when the VRAM budget or model metadata is unknown,
+/// or when the model is configured CPU-only.
+#[allow(clippy::too_many_arguments)]
+pub fn generate_ctx_proposals(
+    model_mib: u64,
+    settings: &ModelSettings,
+    total_layers: u32,
+    hidden_size: u32,
+    n_head: u32,
+    n_kv_head: u32,
+    gpu_mem_total_mib: u64,
+    arch: &ArchVramInfo,
+    n_ctx_train: u32,
+    model_params: u64,
+    mtp_max_draft: Option<u32>,
+) -> Vec<CtxProposal> {
+    if gpu_mem_total_mib == 0 || total_layers == 0 || hidden_size == 0 {
+        return Vec::new();
+    }
+    if matches!(settings.gpu_layers_mode, GpuLayersMode::Specific(0)) {
+        return Vec::new(); // CPU only — VRAM proposals make no sense.
+    }
+
+    let target = if n_ctx_train > 0 {
+        n_ctx_train.min(PROPOSAL_TARGET_CTX)
+    } else {
+        PROPOSAL_TARGET_CTX
+    };
+
+    // Big models (≥ 27B): keep MTP low (draft eats ctx) and require a usable
+    // minimum context.
+    let big_model = model_params >= BIG_MODEL_PARAMS;
+
+    // MTP draft-token ceiling for this model.
+    let mtp_cap = if arch.nextn_layers > 0 {
+        let hard_cap = if big_model {
+            MAX_MTP_DRAFT_BIG
+        } else {
+            MAX_MTP_DRAFT
+        };
+        mtp_max_draft.map(|d| d.clamp(1, hard_cap))
+    } else {
+        None
+    };
+
+    // Target only 97% of VRAM so proposals leave headroom for the driver and
+    // fragmentation instead of sitting exactly at the card's capacity.
+    let budget_mib = ((gpu_mem_total_mib as f64) * VRAM_SAFETY_FACTOR) as u64;
+
+    // Build settings for a KV pair at a given MTP draft count (0 = MTP off).
+    let build = |k: CacheQuantType, v: CacheQuantType, dt: u32| -> ModelSettings {
+        let mut s = settings.clone();
+        s.cache_type_k = Some(k);
+        s.cache_type_v = Some(v);
+        if dt > 0 {
+            s.spec_type = "draft-mtp".to_string();
+            s.draft_tokens = dt;
+        } else {
+            s.spec_type = String::new();
+            s.draft_tokens = 0;
+        }
+        s
+    };
+    // True when weights + fixed overhead + a minimal 128-token KV fit budget.
+    let fits_min = |s: &ModelSettings| -> bool {
+        let mut m = s.clone();
+        m.context_length = 128;
+        let v = estimate_vram_mib(
+            model_mib,
+            &m,
+            total_layers,
+            Some(hidden_size),
+            Some(n_head),
+            Some(n_kv_head),
+            budget_mib,
+            arch,
+        );
+        v > 0 && v <= budget_mib
+    };
+
+    let mut proposals: Vec<CtxProposal> = Vec::new();
+    let mut seen: std::collections::HashSet<(CacheQuantType, CacheQuantType, u32, u32)> =
+        std::collections::HashSet::new();
+
+    for (k, v, draft) in proposal_strategies(mtp_cap) {
+        let s = build(k, v, draft.unwrap_or(0));
+        if !fits_min(&s) {
+            continue; // Does not fit at all — skip this strategy.
+        }
+
+        // Solve max ctx within the 97% budget, round down to a 1k-token step.
+        let raw_ctx = optimal_ctx_size(
+            model_mib,
+            &s,
+            total_layers,
+            hidden_size,
+            n_head,
+            n_kv_head,
+            budget_mib,
+            arch,
+            n_ctx_train,
+        );
+        let ctx = ((raw_ctx / 1024) * 1024).max(128);
+
+        // Big models with a small context are not usable in practice — drop.
+        if big_model && ctx < MIN_CTX_BIG_MODEL {
+            continue;
+        }
+
+        let mut s_ctx = s.clone();
+        s_ctx.context_length = ctx;
+        let vram_mib = estimate_vram_mib(
+            model_mib,
+            &s_ctx,
+            total_layers,
+            Some(hidden_size),
+            Some(n_head),
+            Some(n_kv_head),
+            budget_mib,
+            arch,
+        );
+        if vram_mib > budget_mib {
+            continue; // Rounding or estimator drift pushed it over — skip.
+        }
+
+        // De-duplicate identical outcomes (e.g. MTP on/off for non-MTP models).
+        if !seen.insert((k, v, draft.unwrap_or(0), ctx)) {
+            continue;
+        }
+
+        proposals.push(CtxProposal {
+            ctx,
+            cache_k: k,
+            cache_v: v,
+            mtp_draft_tokens: draft,
+            vram_mib,
+            recommended: false,
+            note: ProposalNote::default(),
+        });
+    }
+
+    // Recommended = best-quality strategy (earliest in the set) that reaches
+    // the ctx target.
+    if let Some(idx) = proposals.iter().position(|p| p.ctx >= target) {
+        proposals[idx].recommended = true;
+    }
+
+    classify_proposals(&mut proposals);
+    proposals
+}
+
+/// Assign a trade-off [`ProposalNote`] to each proposal based on its
+/// normalized quality / ctx / performance scores relative to the set.
+///
+/// - quality  = average KV-cache element size (f16 highest, q4 lowest)
+/// - ctx      = context length
+/// - perf     = MTP draft depth + KV-cache lightness (less bandwidth = faster)
+///
+/// The dominant dimension yields a `Best*` note; when the top two are close
+/// the proposal is labelled `Balanced*` for that pair.
+fn classify_proposals(proposals: &mut [CtxProposal]) {
+    let n = proposals.len();
+    if n == 0 {
+        return;
+    }
+    if n == 1 {
+        proposals[0].note = ProposalNote::BestQuality;
+        return;
+    }
+
+    let quality: Vec<f64> = proposals
+        .iter()
+        .map(|p| kv_quant_bytes(p.cache_k, p.cache_v))
+        .collect();
+    let ctx: Vec<f64> = proposals.iter().map(|p| f64::from(p.ctx)).collect();
+    let perf: Vec<f64> = proposals
+        .iter()
+        .map(|p| {
+            let mtp = f64::from(p.mtp_draft_tokens.unwrap_or(0)) / f64::from(MAX_MTP_DRAFT);
+            // KV lightness: f16 (2.0 bytes) -> 0.0, q4 (0.5 bytes) -> 1.0.
+            let light = ((2.0 - kv_quant_bytes(p.cache_k, p.cache_v)) / 1.5).clamp(0.0, 1.0);
+            0.5 * mtp + 0.5 * light
+        })
+        .collect();
+
+    let qn = min_max_norm(&quality);
+    let cn = min_max_norm(&ctx);
+    let pn = min_max_norm(&perf);
+
+    // Dimension indices: 0 = quality, 1 = ctx, 2 = perf.
+    for (i, p) in proposals.iter_mut().enumerate() {
+        let mut dims = [(0usize, qn[i]), (1, cn[i]), (2, pn[i])];
+        dims.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        let (d0, s0) = dims[0];
+        let (d1, _s1) = dims[1];
+        let note = if s0 - dims[1].1 < 0.15 {
+            balanced_note(d0, d1)
+        } else {
+            best_note(d0)
+        };
+        p.note = note;
+    }
+}
+
+fn min_max_norm(v: &[f64]) -> Vec<f64> {
+    let mn = v.iter().cloned().fold(f64::INFINITY, f64::min);
+    let mx = v.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let range = mx - mn;
+    v.iter()
+        .map(|x| if range <= 1e-9 { 0.5 } else { (x - mn) / range })
+        .collect()
+}
+
+fn best_note(dim: usize) -> ProposalNote {
+    match dim {
+        0 => ProposalNote::BestQuality,
+        1 => ProposalNote::BestCtx,
+        _ => ProposalNote::BestPerf,
+    }
+}
+
+/// Balanced note for a pair of dimensions, named in canonical order
+/// (quality < ctx < perf) so the label is stable regardless of which of the
+/// two scored marginally higher.
+fn balanced_note(a: usize, b: usize) -> ProposalNote {
+    let (lo, hi) = if a <= b { (a, b) } else { (b, a) };
+    match (lo, hi) {
+        (0, 1) => ProposalNote::BalancedQualityCtx,
+        (0, 2) => ProposalNote::BalancedQualityPerf,
+        (1, 2) => ProposalNote::BalancedCtxPerf,
+        (0, 0) => ProposalNote::BestQuality,
+        (1, 1) => ProposalNote::BestCtx,
+        (2, 2) => ProposalNote::BestPerf,
+        _ => ProposalNote::Balanced,
+    }
 }
 
 impl ModelSettings {

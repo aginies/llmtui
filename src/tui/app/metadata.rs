@@ -120,6 +120,14 @@ impl App {
 
             self.search.gguf_metadata_cache.insert(key, meta);
         } else {
+            // Reset per-model metadata so a previous model's values (notably
+            // MTP `nextn_layers`) never leak into this model's estimates.
+            self.loading.model_total_layers = 0;
+            self.loading.model_hidden_size = 0;
+            self.loading.model_n_ctx_train = 0;
+            self.loading.model_n_head = 0;
+            self.loading.model_n_kv_head = 0;
+            self.loading.model_arch = crate::models::ArchVramInfo::default();
             self.add_log(
                 format!("Failed to parse GGUF metadata for {}", model.path.display()),
                 crate::config::LogLevel::Error,

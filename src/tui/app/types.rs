@@ -3,8 +3,8 @@ use crate::config::Config;
 use crate::config::Profile;
 use crate::models::Backend;
 use crate::models::{
-    BenchTuneConfig, BenchTuneField, DiscoveredModel, ListSort, ModelSettings, ModelState,
-    PanelId, SearchResult, SearchSort, ServerMetrics,
+    BenchTuneConfig, BenchTuneField, CtxProposal, DiscoveredModel, ListSort, ModelSettings,
+    ModelState, PanelId, SearchResult, SearchSort, ServerMetrics,
 };
 use ratatui::layout::Rect;
 use ratatui::text::Line;
@@ -208,6 +208,15 @@ pub enum GlobalMode {
     About,
     MaxConcurrentPicker {
         value: String,
+    },
+    /// F8 proposal picker: feasible ctx / KV-cache / MTP combinations ranked
+    /// by quality for the selected model.
+    CtxProposalPicker {
+        proposals: Vec<CtxProposal>,
+        selected: usize,
+        scroll_offset: usize,
+        model_name: String,
+        gpu_mem_mib: u64,
     },
     YarnRoPESettings {
         scale: String,

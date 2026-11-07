@@ -272,6 +272,7 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | `f` | Enter local filter mode (type to filter, `Esc` to cancel, `Enter` to confirm) |
 | `Ctrl+S` | Cycle list sort order (Name, Params, Qual, Context) |
 | `Ctrl+G` | Show GGUF filename explanation |
+| `F8` | Open ctx / KV-cache / MTP proposal picker for the selected model |
 | `Shift+A` | Open About modal |
 
 #### Search Mode (HuggingFace)
@@ -375,6 +376,7 @@ Dirty (changed) fields are highlighted with red names and a trailing `*`.
 | `Ctrl+R` | Reset settings (confirmation if dirty) |
 | `Ctrl+E` | Toggle current field (boolean fields) |
 | `Ctrl+X` | Toggle expert mode (reveals 17 additional parameters) |
+| `F8` | Open ctx / KV-cache / MTP proposal picker |
 | `t` | Open Tags modal |
 
 **Field-specific `Enter` actions:**
@@ -497,6 +499,7 @@ Models → (Server Settings / README / Profiles / Presets) → Active Model → 
 | `Ctrl+P` | Open Profile Picker modal |
 | `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
 | `Ctrl+G` | Show GGUF filename explanation (any panel) |
+| `F8` | Ctx / KV-cache / MTP proposal picker (Models & LLM Settings) |
 | `Ctrl+X` | Toggle expert mode (any panel) |
 | `Ctrl+L` | Cycle UI language (en → fr → it → en) |
 | `Ctrl+O` | Re-trigger onboarding wizard |

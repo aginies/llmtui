@@ -23,6 +23,96 @@ use crate::tui::settings;
 static OVERLAY_REGISTRY: std::sync::LazyLock<OverlayRegistry> =
     std::sync::LazyLock::new(OverlayRegistry::new);
 
+/// Open the F8 proposal picker: feasible ctx / KV-cache-type / MTP
+/// combinations for the selected model, ranked by quality, that fit
+/// in the detected GPU VRAM.
+fn open_ctx_proposal_picker(app: &mut App) {
+    let model = match app.selected_model() {
+        Some(m) => m.clone(),
+        None => {
+            app.add_log(
+                crate::t!("dialog.ctx_proposal.no_model"),
+                crate::config::LogLevel::Warning,
+            );
+            return;
+        }
+    };
+    // Parse + cache GGUF metadata for THIS model, then read it back from the
+    // cache so we never use another model's stale `loading.*` values.
+    app.update_model_metadata();
+    let cache_key = model.path.to_string_lossy().to_string();
+    let meta = match app.search.gguf_metadata_cache.get(&cache_key).cloned() {
+        Some(m) => m,
+        None => {
+            app.add_log(
+                crate::t!("dialog.ctx_proposal.no_metadata"),
+                crate::config::LogLevel::Warning,
+            );
+            return;
+        }
+    };
+    if meta.layers == 0 || meta.hidden_size == 0 {
+        app.add_log(
+            crate::t!("dialog.ctx_proposal.no_metadata"),
+            crate::config::LogLevel::Warning,
+        );
+        return;
+    }
+
+    // VRAM budget: live server metrics first, hardware detection fallback.
+    let mut gpu_mem_mib = app.metrics.gpu_mem_total / (1024 * 1024);
+    if gpu_mem_mib == 0 {
+        let vram = crate::backend::hardware::gpu_vram_gib_cached(
+            std::time::Duration::from_secs(30),
+            app.settings.backend,
+        );
+        gpu_mem_mib = vram.iter().map(|g| u64::from(*g) * 1024).sum();
+    }
+    if gpu_mem_mib == 0 {
+        app.add_log(
+            crate::t!("dialog.ctx_proposal.no_gpu"),
+            crate::config::LogLevel::Warning,
+        );
+        return;
+    }
+
+    // MTP is per-model: only propose draft tokens when THIS model's GGUF
+    // declares nextn (MTP) prediction layers. Models without MTP support get
+    // no MTP variant at all. The generator clamps the cap (6 normally, 3 for
+    // big dense models) using the model's active parameter count.
+    let arch = meta.arch_vram_info();
+    let mtp_max_draft = if arch.nextn_layers > 0 { Some(6) } else { None };
+
+    let proposals = crate::models::generate_ctx_proposals(
+        model.file_size / (1024 * 1024),
+        &app.settings,
+        meta.layers,
+        meta.hidden_size,
+        meta.n_head,
+        meta.n_kv_head,
+        gpu_mem_mib,
+        &arch,
+        meta.n_ctx_train,
+        meta.active_parameters(),
+        mtp_max_draft,
+    );
+    if proposals.is_empty() {
+        app.add_log(
+            crate::t!("dialog.ctx_proposal.no_fit"),
+            crate::config::LogLevel::Warning,
+        );
+        return;
+    }
+    let selected = proposals.iter().position(|p| p.recommended).unwrap_or(0);
+    app.ui.global_mode = GlobalMode::CtxProposalPicker {
+        proposals,
+        selected,
+        scroll_offset: 0,
+        model_name: model.display_name.clone(),
+        gpu_mem_mib,
+    };
+}
+
 pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
     debug!("Key: {:?}", key);
 
@@ -125,6 +215,20 @@ pub async fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 crate::config::LogLevel::Warning,
             );
         }
+        return;
+    }
+
+    // F8: ctx / KV-cache / MTP proposal picker (Models & LLM Settings panels)
+    if key.code == KeyCode::F(8)
+        && !key.modifiers.contains(KeyModifiers::CONTROL)
+        && !key.modifiers.contains(KeyModifiers::ALT)
+        && app.ui.global_mode == GlobalMode::Normal
+        && matches!(
+            app.ui.active_panel,
+            ActivePanel::Models | ActivePanel::LlmSettings
+        )
+    {
+        open_ctx_proposal_picker(app);
         return;
     }
 

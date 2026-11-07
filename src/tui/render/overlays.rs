@@ -214,11 +214,27 @@ fn render_picker_popup(
     footer: Option<Line>,
     scroll: Option<(usize, usize, usize)>,
 ) {
+    render_picker_popup_w(f, area, PICKER_WIDTH, title, help, lines, footer, scroll);
+}
+
+/// Like [`render_picker_popup`] but with an explicit popup width (clamped to
+/// the available area). Used by pickers whose rows are wider than the default.
+#[allow(clippy::too_many_arguments)]
+fn render_picker_popup_w(
+    f: &mut Frame,
+    area: Rect,
+    width: u16,
+    title: Span,
+    help: Option<Line>,
+    lines: Vec<Line>,
+    footer: Option<Line>,
+    scroll: Option<(usize, usize, usize)>,
+) {
     let help_block = usize::from(help.is_some()) * 2;
     let footer_block = usize::from(footer.is_some()) * 2;
     let content = lines.len() + help_block + footer_block;
     let h = (content + 4).clamp(10, picker_max_height(area)) as u16;
-    let w = PICKER_WIDTH.min(area.width);
+    let w = width.min(area.width);
     let h = h.min(area.height);
     let popup = Popup::new(area, w, h, title);
     let picker_area = popup.area();
@@ -570,6 +586,28 @@ pub fn render_overlays(f: &mut Frame, app: &mut App) -> bool {
 
     if let GlobalMode::MaxConcurrentPicker { value } = &app.ui.global_mode {
         render_max_concurrent_picker(f, f.area(), app, value);
+        return true;
+    }
+
+    if let GlobalMode::CtxProposalPicker {
+        proposals,
+        selected,
+        scroll_offset,
+        model_name,
+        gpu_mem_mib,
+    } = &mut app.ui.global_mode
+    {
+        render_ctx_proposal_picker(
+            f,
+            f.area(),
+            CtxProposalPickerCtx {
+                proposals,
+                selected: *selected,
+                model_name,
+                gpu_mem_mib: *gpu_mem_mib,
+                scroll_offset,
+            },
+        );
         return true;
     }
 
@@ -2473,6 +2511,134 @@ fn render_about_overlay(f: &mut Frame, area: Rect) {
         Paragraph::new(about_lines).alignment(Alignment::Center),
         popup.inner(),
     );
+}
+
+/// Borrowed view of [`GlobalMode::CtxProposalPicker`] for rendering.
+struct CtxProposalPickerCtx<'a> {
+    proposals: &'a [crate::models::CtxProposal],
+    selected: usize,
+    model_name: &'a str,
+    gpu_mem_mib: u64,
+    scroll_offset: &'a mut usize,
+}
+
+/// Localized label for a proposal's trade-off note.
+fn proposal_note_label(note: crate::models::ProposalNote) -> &'static str {
+    use crate::models::ProposalNote::*;
+    match note {
+        BestQuality => crate::t!("dialog.ctx_proposal.note.best_quality"),
+        BestCtx => crate::t!("dialog.ctx_proposal.note.best_ctx"),
+        BestPerf => crate::t!("dialog.ctx_proposal.note.best_perf"),
+        BalancedQualityCtx => crate::t!("dialog.ctx_proposal.note.balanced_quality_ctx"),
+        BalancedQualityPerf => crate::t!("dialog.ctx_proposal.note.balanced_quality_perf"),
+        BalancedCtxPerf => crate::t!("dialog.ctx_proposal.note.balanced_ctx_perf"),
+        Balanced => crate::t!("dialog.ctx_proposal.note.balanced"),
+    }
+}
+
+/// F8 proposal picker: feasible ctx / KV-cache / MTP combinations, best
+/// quality first. The ★ marks the first proposal reaching the ctx target.
+fn render_ctx_proposal_picker(f: &mut Frame, area: Rect, ctx: CtxProposalPickerCtx) {
+    let vram_total = crate::tui::format_size(ctx.gpu_mem_mib * 1024 * 1024);
+    let blocks: Vec<Vec<Line>> = ctx
+        .proposals
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let is_sel = i == ctx.selected;
+            let marker = if is_sel { "> " } else { "  " };
+            let base = if is_sel {
+                Style::default()
+                    .fg(BLACK)
+                    .bg(ACCENT)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(WHITE)
+            };
+            let star = if p.recommended {
+                Span::styled("★ ", Style::default().fg(GREEN).add_modifier(Modifier::BOLD))
+            } else {
+                Span::raw("  ")
+            };
+            let mut spans = vec![
+                Span::styled(marker, Style::default().fg(ACCENT)),
+                star,
+                Span::styled(
+                    format!("{} {}", crate::t!("dialog.ctx_proposal.ctx"), crate::tui::format_number(u64::from(p.ctx))),
+                    base,
+                ),
+                Span::styled(
+                    format!("  │ {} {}", crate::t!("dialog.ctx_proposal.cache_k"), p.cache_k),
+                    if is_sel { base } else { Style::default().fg(CYAN) },
+                ),
+                Span::styled(
+                    format!("  │ {} {}", crate::t!("dialog.ctx_proposal.cache_v"), p.cache_v),
+                    if is_sel { base } else { Style::default().fg(CYAN) },
+                ),
+            ];
+            if let Some(dt) = p.mtp_draft_tokens {
+                spans.push(Span::styled(
+                    format!("  │ {} {}", crate::t!("dialog.ctx_proposal.mtp"), dt),
+                    if is_sel { base } else { Style::default().fg(MAGENTA) },
+                ));
+            }
+            spans.push(Span::styled(
+                format!(
+                    "  │ {} {}/{}",
+                    crate::t!("dialog.ctx_proposal.vram"),
+                    crate::tui::format_size(p.vram_mib * 1024 * 1024),
+                    vram_total
+                ),
+                if is_sel { base } else { Style::default().fg(DIM_GRAY) },
+            ));
+            spans.push(Span::styled(
+                format!("  │ {}", proposal_note_label(p.note)),
+                if is_sel {
+                    base
+                } else {
+                    Style::default().fg(GREEN).add_modifier(Modifier::ITALIC)
+                },
+            ));
+            vec![Line::from(spans)]
+        })
+        .collect();
+    let (fit, off, _) = picker_block_window(area, &blocks, ctx.selected, ctx.scroll_offset, 2);
+    let lines: Vec<Line> = blocks
+        .iter()
+        .skip(off)
+        .take(fit)
+        .flatten()
+        .cloned()
+        .collect();
+    let scroll = if ctx.proposals.len() > fit {
+        Some((ctx.proposals.len(), off, fit))
+    } else {
+        None
+    };
+    let title = Span::styled(
+        crate::t_fmt!("dialog.ctx_proposal.title_model", ctx.model_name),
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+    );
+    let help = Line::from(Span::styled(
+        crate::t!("dialog.ctx_proposal.help"),
+        Style::default().fg(GRAY),
+    ));
+    let footer = Line::from(Span::styled(
+        crate::t!("dialog.ctx_proposal.legend"),
+        Style::default().fg(GRAY),
+    ));
+    // Size the popup to the widest proposal row so the trailing note is never
+    // clipped. +6 accounts for borders, padding and the scrollbar gutter. The
+    // title (model name) and legend are left to clip/wrap so a long model name
+    // can't blow up the width.
+    let content_w = blocks
+        .iter()
+        .flatten()
+        .map(|l| l.width())
+        .max()
+        .unwrap_or(0) as u16;
+    let width = content_w.saturating_add(6).max(PICKER_WIDTH);
+    render_picker_popup_w(f, area, width, title, Some(help), lines, Some(footer), scroll);
 }
 
 fn render_max_concurrent_picker(f: &mut Frame, area: Rect, app: &App, value: &str) {

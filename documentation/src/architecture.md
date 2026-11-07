@@ -490,6 +490,7 @@ Language switching persists the chosen language to `~/.config/llm-manager/config
 | `Ctrl+U` | Opens `DashboardUrl` modal (copies all URLs to clipboard) |
 | `Ctrl+X` | Toggle expert mode |
 | `Ctrl+G` | Opens `GgufNaming` overlay (GGUF filename explanation) |
+| `F8` | Opens `CtxProposalPicker` overlay (Models & LlmSettings: feasible ctx / KV-cache / MTP proposals that fit VRAM) |
 | `Ctrl+P` | Opens `ProfilePicker` overlay |
 | `Ctrl+L` | Cycles language: en → fr → it → en |
 | `Ctrl+O` | Opens `Onboarding` wizard (resets onboarding_complete) |

@@ -1076,7 +1076,8 @@ fn estimate_vram_hybrid_ssm_state() {
 
 #[test]
 fn estimate_vram_hybrid_mtp_draft_context() {
-    // MTP speculative decoding adds one KV cache per nextn layer.
+    // MTP speculative decoding adds the nextn-layer KV cache plus a compute
+    // buffer that scales with the draft-token count.
     let mut settings = hybrid_settings();
     let arch = ArchVramInfo {
         full_attention_interval: 4,
@@ -1107,8 +1108,27 @@ fn estimate_vram_hybrid_mtp_draft_context() {
         &arch,
     );
 
-    // 1 nextn layer * 32 MiB KV + 256 MiB compute overhead.
-    assert_eq!(with_spec - without_spec, 32 + 256);
+    // MTP cost at draft=2 (calibrated per hidden unit, hidden=4096, nextn=1):
+    // 4096 * (0.2 base + 0.12*2 per-draft) = 1802 MiB.
+    let delta = with_spec - without_spec;
+    assert!((1801..=1804).contains(&delta), "unexpected MTP delta {delta}");
+
+    // Each additional draft token costs more VRAM.
+    settings.draft_tokens = 4;
+    let with_spec4 = estimate_vram_mib(
+        4000,
+        &settings,
+        64,
+        Some(4096),
+        Some(32),
+        Some(8),
+        8192,
+        &arch,
+    );
+    assert!(
+        with_spec4 > with_spec,
+        "draft=4 ({with_spec4}) must cost more than draft=2 ({with_spec})"
+    );
 }
 
 #[test]
@@ -1731,5 +1751,391 @@ fn arch_to_chat_template_maps_to_builtin_names() {
                 template
             );
         }
+    }
+}
+
+// ── generate_ctx_proposals ─────────────────────────────────────
+
+fn proposal_base_settings() -> ModelSettings {
+    let mut s = ModelSettings::default();
+    s.gpu_layers_mode = GpuLayersMode::All;
+    s
+}
+
+/// Proposals for a small (8B) model — no big-model rules apply.
+fn proposals(
+    model_mib: u64,
+    gpu_mib: u64,
+    n_ctx_train: u32,
+    arch: &ArchVramInfo,
+    mtp: Option<u32>,
+) -> Vec<CtxProposal> {
+    proposals_sized(model_mib, gpu_mib, n_ctx_train, arch, 8_000_000_000, mtp)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn proposals_sized(
+    model_mib: u64,
+    gpu_mib: u64,
+    n_ctx_train: u32,
+    arch: &ArchVramInfo,
+    model_params: u64,
+    mtp: Option<u32>,
+) -> Vec<CtxProposal> {
+    generate_ctx_proposals(
+        model_mib,
+        &proposal_base_settings(),
+        32,
+        4096,
+        32,
+        8,
+        gpu_mib,
+        arch,
+        n_ctx_train,
+        model_params,
+        mtp,
+    )
+}
+
+#[test]
+fn ctx_proposals_empty_without_gpu_metadata_or_with_cpu_only() {
+    // No GPU info.
+    assert!(proposals(4000, 0, 131072, &ArchVramInfo::default(), None).is_empty());
+    // CPU-only settings.
+    let mut s = proposal_base_settings();
+    s.gpu_layers_mode = GpuLayersMode::Specific(0);
+    let p = generate_ctx_proposals(
+        4000,
+        &s,
+        32,
+        4096,
+        32,
+        8,
+        8192,
+        &ArchVramInfo::default(),
+        131072,
+        8_000_000_000,
+        None,
+    );
+    assert!(p.is_empty());
+}
+
+#[test]
+fn ctx_proposals_skip_infeasible_model() {
+    // 30 GiB model on an 8 GiB card: no rung fits.
+    assert!(proposals(30000, 8192, 131072, &ArchVramInfo::default(), None).is_empty());
+}
+
+#[test]
+fn ctx_proposals_ladder_order_and_constraints() {
+    let p = proposals(4000, 6144, 131072, &ArchVramInfo::default(), None);
+    assert_eq!(p.len(), 10, "full ladder feasible on 6 GiB with 4 GiB model");
+    // Best quality first.
+    assert_eq!(p[0].cache_k, CacheQuantType::F16);
+    assert_eq!(p[0].cache_v, CacheQuantType::F16);
+    // Context never decreases as quality degrades.
+    for w in p.windows(2) {
+        assert!(w[1].ctx >= w[0].ctx, "ctx must be non-decreasing down the ladder");
+    }
+    // V never goes to q4; K is always explicit (typed enum, never None by construction).
+    for pr in &p {
+        assert!(
+            matches!(
+                pr.cache_v,
+                CacheQuantType::F16 | CacheQuantType::Q8_0 | CacheQuantType::Q5_1 | CacheQuantType::Q5_0
+            ),
+            "V must never drop below q5: {:?}", pr.cache_v
+        );
+    }
+    // K and V stay within one ladder step: allowed pairs only.
+    let allowed = [
+        (CacheQuantType::F16, CacheQuantType::F16),
+        (CacheQuantType::F16, CacheQuantType::Q8_0),
+        (CacheQuantType::Q8_0, CacheQuantType::Q8_0),
+        (CacheQuantType::Q8_0, CacheQuantType::Q5_1),
+        (CacheQuantType::Q5_1, CacheQuantType::Q5_1),
+        (CacheQuantType::Q5_1, CacheQuantType::Q5_0),
+        (CacheQuantType::Q5_0, CacheQuantType::Q5_0),
+        (CacheQuantType::Q4_1, CacheQuantType::Q5_0),
+        (CacheQuantType::Q4_0, CacheQuantType::Q5_0),
+        (CacheQuantType::Iq4Nl, CacheQuantType::Q5_0),
+    ];
+    for pr in &p {
+        assert!(allowed.contains(&(pr.cache_k, pr.cache_v)), "unexpected K/V pair");
+    }
+    // Every proposal fits in VRAM.
+    for pr in &p {
+        assert!(pr.vram_mib <= 6144);
+    }
+    // None reaches the 100k target on this small budget.
+    assert!(!p.iter().any(|pr| pr.recommended));
+}
+
+#[test]
+fn ctx_proposals_capped_at_native_ctx() {
+    // Huge budget but native ctx of 8k: every rung is capped at 8k, so the
+    // rows differ only by quality/perf. Best quality is first and recommended.
+    let p = proposals(4000, 24576, 8192, &ArchVramInfo::default(), None);
+    assert!(!p.is_empty());
+    assert!(p.iter().all(|pr| pr.ctx == 8192), "all rows capped at native ctx");
+    assert!(p[0].recommended, "native cap is below target so first rung reaches it");
+    assert_eq!(p[0].cache_k, CacheQuantType::F16);
+    assert_eq!(p[0].cache_v, CacheQuantType::F16);
+}
+
+#[test]
+fn ctx_proposals_recommended_is_first_to_reach_target() {
+    // 16 GiB card, 4 GiB model: f16/f16 falls short of 100k, degraded rungs reach it.
+    let p = proposals(4000, 16384, 131072, &ArchVramInfo::default(), None);
+    assert!(!p.is_empty());
+    assert!(p.len() <= 10);
+    let rec = p.iter().filter(|pr| pr.recommended).count();
+    assert_eq!(rec, 1, "exactly one recommended proposal");
+    let idx = p.iter().position(|pr| pr.recommended).unwrap();
+    assert!(p[idx].ctx >= 100_000);
+    assert!(p[..idx].iter().all(|pr| pr.ctx < 100_000));
+    // ctx is rounded down to a 1024-token step.
+    for pr in &p {
+        assert_eq!(pr.ctx % 1024, 0);
+    }
+}
+
+#[test]
+fn ctx_proposals_mtp_only_for_nextn_models() {
+    // No MTP layers → no MTP in proposals even if a draft cap is provided.
+    let p = proposals(4000, 16384, 131072, &ArchVramInfo::default(), Some(5));
+    assert!(p.iter().all(|pr| pr.mtp_draft_tokens.is_none()));
+
+    // MTP model → the top tiers get both an MTP-on (perf) and MTP-off (ctx)
+    // variant, so the set mixes draft=5 and no-MTP rows.
+    let arch = ArchVramInfo {
+        nextn_layers: 1,
+        ..Default::default()
+    };
+    let p = proposals(4000, 16384, 131072, &arch, Some(5));
+    assert!(!p.is_empty());
+    assert!(p.iter().any(|pr| pr.mtp_draft_tokens == Some(5)), "perf variant present");
+    assert!(p.iter().any(|pr| pr.mtp_draft_tokens.is_none()), "ctx variant present");
+    // No draft ever exceeds the 1..=5 bound.
+    assert!(p.iter().all(|pr| pr.mtp_draft_tokens.is_none_or(|d| (1..=5).contains(&d))));
+}
+
+#[test]
+fn ctx_proposals_mtp_cap_respected_and_clamped() {
+    let arch = ArchVramInfo {
+        nextn_layers: 1,
+        ..Default::default()
+    };
+    // Cap of 3 → on-variants use draft ≤ 3.
+    let p = proposals(4000, 16384, 131072, &arch, Some(3));
+    assert_eq!(p.iter().filter_map(|pr| pr.mtp_draft_tokens).max(), Some(3));
+    // Cap above 6 is clamped to 6.
+    let p = proposals(4000, 16384, 131072, &arch, Some(9));
+    assert_eq!(p.iter().filter_map(|pr| pr.mtp_draft_tokens).max(), Some(6));
+}
+
+#[test]
+fn ctx_proposals_notes_assigned() {
+    let p = proposals(4000, 6144, 131072, &ArchVramInfo::default(), None);
+    assert!(p.len() >= 2);
+    // Highest-precision rung is labelled best quality.
+    assert_eq!(p[0].note, ProposalNote::BestQuality);
+    // Largest-ctx rung (last) is best ctx or a ctx/perf balance.
+    let last = p.last().unwrap().note;
+    assert!(matches!(
+        last,
+        ProposalNote::BestCtx | ProposalNote::BalancedCtxPerf | ProposalNote::BestPerf
+    ));
+}
+
+#[test]
+fn ctx_proposals_mtp_perf_label_appears() {
+    // An MTP model with a roomy budget should surface a performance-leaning
+    // label somewhere in the set (MTP-on variants), proving perf is separable.
+    let arch = ArchVramInfo {
+        nextn_layers: 1,
+        ..Default::default()
+    };
+    let p = proposals(4000, 24576, 131072, &arch, Some(5));
+    assert!(!p.is_empty());
+    assert!(
+        p.iter().any(|pr| matches!(
+            pr.note,
+            ProposalNote::BestPerf | ProposalNote::BalancedQualityPerf | ProposalNote::BalancedCtxPerf
+        )),
+        "expected at least one perf-related note, got {:?}",
+        p.iter().map(|pr| pr.note).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn estimate_vram_mtp_scales_with_draft_tokens() {
+    let arch = ArchVramInfo {
+        nextn_layers: 1,
+        ..Default::default()
+    };
+    let mut s = ModelSettings::default();
+    s.gpu_layers_mode = GpuLayersMode::All;
+    s.spec_type = "draft-mtp".to_string();
+    s.cache_type_k = Some(CacheQuantType::F16);
+    s.cache_type_v = Some(CacheQuantType::F16);
+    s.context_length = 32768;
+    s.draft_tokens = 1;
+    let lo = estimate_vram_mib(4000, &s, 32, Some(4096), Some(32), Some(8), 24576, &arch);
+    s.draft_tokens = 5;
+    let hi = estimate_vram_mib(4000, &s, 32, Some(4096), Some(32), Some(8), 24576, &arch);
+    assert!(hi > lo, "more draft tokens must cost more VRAM (lo={lo} hi={hi})");
+
+    // MTP off must be cheaper than MTP on at draft=1.
+    s.spec_type = String::new();
+    s.draft_tokens = 0;
+    let off = estimate_vram_mib(4000, &s, 32, Some(4096), Some(32), Some(8), 24576, &arch);
+    assert!(off < lo, "MTP off ({off}) must cost less than MTP on ({lo})");
+}
+
+#[test]
+fn optimal_ctx_shrinks_with_more_draft_tokens() {
+    let arch = ArchVramInfo {
+        nextn_layers: 1,
+        ..Default::default()
+    };
+    let mut s = ModelSettings::default();
+    s.gpu_layers_mode = GpuLayersMode::All;
+    s.spec_type = "draft-mtp".to_string();
+    s.draft_tokens = 1;
+    let ctx_lo = optimal_ctx_size(4000, &s, 32, 4096, 32, 8, 24576, &arch, 131072);
+    s.draft_tokens = 5;
+    let ctx_hi = optimal_ctx_size(4000, &s, 32, 4096, 32, 8, 24576, &arch, 131072);
+    assert!(
+        ctx_hi <= ctx_lo,
+        "higher draft count leaves less room for ctx (draft1={ctx_lo}, draft5={ctx_hi})"
+    );
+}
+
+#[test]
+fn ctx_proposals_offer_varied_mtp_levels() {
+    // The set must span several draft values (0, 1, 2, mid, cap), not just
+    // the maximum, and stay within the 15-row budget.
+    let arch = ArchVramInfo {
+        nextn_layers: 1,
+        ..Default::default()
+    };
+    let p = proposals(4000, 16384, 131072, &arch, Some(6));
+    assert!(p.len() <= 15, "at most 15 proposals, got {}", p.len());
+    let mut drafts: Vec<u32> = p.iter().filter_map(|pr| pr.mtp_draft_tokens).collect();
+    drafts.sort_unstable();
+    drafts.dedup();
+    assert!(drafts.contains(&1), "draft 1 missing: {drafts:?}");
+    assert!(drafts.contains(&2), "draft 2 missing: {drafts:?}");
+    assert!(drafts.contains(&6), "draft 6 (cap) missing: {drafts:?}");
+    assert!(
+        p.iter().any(|pr| pr.mtp_draft_tokens.is_none()),
+        "MTP-disabled (0) variant missing"
+    );
+}
+
+#[test]
+fn gguf_metadata_active_parameters_moe() {
+    // MoE: 35B total with 8 of 128 experts active ≈ 2.2B effective.
+    let moe = GgufMetadata {
+        parameters: 35_000_000_000,
+        expert_count: 128,
+        expert_used_count: 8,
+        ..Default::default()
+    };
+    let active = moe.active_parameters();
+    assert!(active < 27_000_000_000, "MoE must classify as small: {active}");
+    assert!((2_000_000_000..2_500_000_000).contains(&active), "got {active}");
+
+    // Dense model: active == total.
+    let dense = GgufMetadata {
+        parameters: 27_500_000_000,
+        ..Default::default()
+    };
+    assert_eq!(dense.active_parameters(), 27_500_000_000);
+}
+
+#[test]
+fn ctx_proposals_moe_model_uses_small_rules() {
+    // A 35B-A3B MoE (≈2.2B active) gets the small-model treatment: draft up
+    // to 6 and no 64k minimum-ctx filter.
+    let arch = ArchVramInfo {
+        nextn_layers: 1,
+        ..Default::default()
+    };
+    let p = proposals_sized(4000, 16384, 131072, &arch, 2_187_500_000, Some(6));
+    assert!(!p.is_empty());
+    assert_eq!(p.iter().filter_map(|pr| pr.mtp_draft_tokens).max(), Some(6));
+}
+
+#[test]
+fn ctx_proposals_big_model_mtp_capped_at_3() {
+    // Big model (≥ 27B): prefer small draft counts (0..=3) to protect ctx.
+    let arch = ArchVramInfo {
+        nextn_layers: 1,
+        ..Default::default()
+    };
+    let p = proposals_sized(4000, 16384, 131072, &arch, 27_500_000_000, Some(5));
+    assert!(!p.is_empty());
+    assert_eq!(
+        p.iter().filter_map(|pr| pr.mtp_draft_tokens).max(),
+        Some(3),
+        "big models must cap MTP draft at 3"
+    );
+    // The disabled (0) variant is still offered.
+    assert!(p.iter().any(|pr| pr.mtp_draft_tokens.is_none()));
+}
+
+#[test]
+fn ctx_proposals_big_model_drops_ctx_under_64k() {
+    // Tight budget: every tier solves to < 64k ctx. For a big model those are
+    // unusable and get dropped; a small model still gets the proposals.
+    let big = proposals_sized(
+        22500,
+        24576,
+        131072,
+        &ArchVramInfo::default(),
+        30_000_000_000,
+        None,
+    );
+    assert!(big.is_empty(), "big model must not propose ctx < 64k");
+
+    let small = proposals_sized(
+        22500,
+        24576,
+        131072,
+        &ArchVramInfo::default(),
+        8_000_000_000,
+        None,
+    );
+    assert!(!small.is_empty());
+    assert!(small.iter().all(|pr| pr.ctx < 65536));
+
+    // Roomy budget: a big model keeps only rows ≥ 64k.
+    let big_ok = proposals_sized(
+        4000,
+        24576,
+        131072,
+        &ArchVramInfo::default(),
+        30_000_000_000,
+        None,
+    );
+    assert!(!big_ok.is_empty());
+    assert!(big_ok.iter().all(|pr| pr.ctx >= 65536));
+}
+
+#[test]
+fn ctx_proposals_respect_vram_safety_margin() {
+    let total = 8192u64;
+    let p = proposals(4000, total, 131072, &ArchVramInfo::default(), None);
+    assert!(!p.is_empty());
+    let budget = ((total as f64) * 0.97) as u64;
+    for pr in &p {
+        assert!(
+            pr.vram_mib <= budget,
+            "proposal VRAM {} exceeds 97% budget {}",
+            pr.vram_mib,
+            budget
+        );
     }
 }

@@ -14,6 +14,7 @@ mod chat_template_picker;
 mod cmd_line;
 mod command_palette;
 mod confirmation;
+mod ctx_proposal_picker;
 mod dashboard_picker;
 mod dashboard_url;
 pub mod directory_picker;
@@ -41,6 +42,7 @@ pub use chat_template_picker::ChatTemplatePickerHandler;
 pub use cmd_line::CmdLineHandler;
 pub use command_palette::CommandPaletteHandler;
 pub use confirmation::ConfirmationHandler;
+pub use ctx_proposal_picker::CtxProposalPickerHandler;
 pub use dashboard_picker::DashboardPickerHandler;
 pub use dashboard_url::DashboardUrlHandler;
 pub use gguf_naming::GgufNamingHandler;
@@ -94,6 +96,7 @@ impl OverlayRegistry {
             Box::new(BackendPickerHandler),
             Box::new(GpuDevicePickerHandler),
             Box::new(MaxConcurrentPickerHandler),
+            Box::new(CtxProposalPickerHandler),
             Box::new(ConfirmationHandler),
             Box::new(RpcManagerHandler),
             Box::new(GgufNamingHandler),

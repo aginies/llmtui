@@ -201,6 +201,13 @@ pub fn render_status_bar(app: &App, panel_area: Rect) -> Vec<Line<'static>> {
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ));
     }
+    if matches!(app.ui.global_mode, GlobalMode::CtxProposalPicker { .. }) {
+        status_parts.push(Span::raw("  "));
+        status_parts.push(Span::styled(
+            crate::t!("status.ctx_proposal").to_string(),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ));
+    }
     if matches!(app.ui.global_mode, GlobalMode::RpcManager) {
         status_parts.push(Span::raw("  "));
         status_parts.push(Span::styled(
