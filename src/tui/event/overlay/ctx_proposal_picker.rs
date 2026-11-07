@@ -39,8 +39,8 @@ impl OverlayHandler for CtxProposalPickerHandler {
                     KeyCode::Enter => {
                         if let Some(p) = proposals.get(*selected).copied() {
                             app.settings.context_length = p.ctx;
-                            app.settings.cache_type_k = Some(p.cache_k);
-                            app.settings.cache_type_v = Some(p.cache_v);
+                            app.settings.cache_type_k = p.cache_k;
+                            app.settings.cache_type_v = p.cache_v;
                             if let Some(dt) = p.mtp_draft_tokens {
                                 app.settings.spec_type = "draft-mtp".to_string();
                                 app.settings.draft_tokens = dt;
@@ -48,12 +48,15 @@ impl OverlayHandler for CtxProposalPickerHandler {
                             app.ui.global_mode = GlobalMode::Normal;
                             sync_global_settings(app);
                             mark_settings_dirty(app, true);
+                            let off = || {
+                                crate::t!("dialog.ctx_proposal.cache_off").to_string()
+                            };
                             app.add_log(
                                 crate::t_fmt!(
                                     "dialog.ctx_proposal.applied",
                                     crate::tui::format_number(u64::from(p.ctx)),
-                                    p.cache_k.to_string(),
-                                    p.cache_v.to_string()
+                                    p.cache_k.map(|c| c.to_string()).unwrap_or_else(off),
+                                    p.cache_v.map(|c| c.to_string()).unwrap_or_else(off)
                                 ),
                                 crate::config::LogLevel::Info,
                             );

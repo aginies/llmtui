@@ -903,5 +903,6 @@
   "dialog.ctx_proposal.note.balanced_quality_ctx": "Balanced quality/CTX",
   "dialog.ctx_proposal.note.balanced_quality_perf": "Balanced quality/perf",
   "dialog.ctx_proposal.note.balanced_ctx_perf": "Balanced CTX/perf",
-  "dialog.ctx_proposal.note.balanced": "Balanced"
+  "dialog.ctx_proposal.note.balanced": "Balanced",
+  "dialog.ctx_proposal.cache_off": "off"
 }

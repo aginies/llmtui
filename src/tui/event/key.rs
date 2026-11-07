@@ -94,6 +94,7 @@ fn open_ctx_proposal_picker(app: &mut App) {
         &arch,
         meta.n_ctx_train,
         meta.active_parameters(),
+        meta.quant_bits(),
         mtp_max_draft,
     );
     if proposals.is_empty() {

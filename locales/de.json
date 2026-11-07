@@ -900,5 +900,6 @@
   "dialog.ctx_proposal.note.balanced_quality_ctx": "Ausgewogen Qualität/CTX",
   "dialog.ctx_proposal.note.balanced_quality_perf": "Ausgewogen Qualität/Tempo",
   "dialog.ctx_proposal.note.balanced_ctx_perf": "Ausgewogen CTX/Tempo",
-  "dialog.ctx_proposal.note.balanced": "Ausgewogen"
+  "dialog.ctx_proposal.note.balanced": "Ausgewogen",
+  "dialog.ctx_proposal.cache_off": "aus"
 }

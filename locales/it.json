@@ -904,5 +904,6 @@
   "dialog.ctx_proposal.note.balanced_quality_ctx": "Bilanciato qualità/CTX",
   "dialog.ctx_proposal.note.balanced_quality_perf": "Bilanciato qualità/prest.",
   "dialog.ctx_proposal.note.balanced_ctx_perf": "Bilanciato CTX/prest.",
-  "dialog.ctx_proposal.note.balanced": "Bilanciato"
+  "dialog.ctx_proposal.note.balanced": "Bilanciato",
+  "dialog.ctx_proposal.cache_off": "disattivato"
 }

@@ -903,5 +903,6 @@
   "dialog.ctx_proposal.note.balanced_quality_ctx": "Équilibre qualité/CTX",
   "dialog.ctx_proposal.note.balanced_quality_perf": "Équilibre qualité/perfs",
   "dialog.ctx_proposal.note.balanced_ctx_perf": "Équilibre CTX/perfs",
-  "dialog.ctx_proposal.note.balanced": "Équilibré"
+  "dialog.ctx_proposal.note.balanced": "Équilibré",
+  "dialog.ctx_proposal.cache_off": "désactivé"
 }

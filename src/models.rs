@@ -1368,6 +1368,32 @@ impl GgufMetadata {
         Ok(meta)
     }
 
+    /// Approximate bits-per-weight of the model's own quantization, parsed
+    /// from the GGUF file-type name ("Q8_0" → 8, "Q4_K_M" → 4, "IQ4_NL" → 4,
+    /// "F16"/"BF16" → 16, "F32" → 32). 0 = unknown.
+    pub fn quant_bits(&self) -> u32 {
+        let ft = self.file_type.to_uppercase();
+        if ft.starts_with("F32") {
+            return 32;
+        }
+        if ft.starts_with("BF16") || ft.starts_with("F16") {
+            return 16;
+        }
+        if ft.starts_with("MXFP4") || ft.starts_with("NVFP4") {
+            return 4;
+        }
+        // Qn_*, IQn_*, TQn_*: first digit run after the (I/T)Q prefix.
+        let rest = ft.strip_prefix('I').unwrap_or(&ft);
+        let rest = rest.strip_prefix('T').unwrap_or(rest);
+        if let Some(r) = rest.strip_prefix('Q') {
+            let digits: String = r.chars().take_while(|c| c.is_ascii_digit()).collect();
+            if let Ok(b) = digits.parse::<u32>() {
+                return b;
+            }
+        }
+        0
+    }
+
     /// Effective ("active") parameter count for size classification.
     ///
     /// MoE models only activate a fraction of their experts per token, so a
@@ -2333,10 +2359,11 @@ fn kv_quant_bytes(k_type: CacheQuantType, v_type: CacheQuantType) -> f64 {
 pub struct CtxProposal {
     /// Maximum context length that fits VRAM with this K/V pair.
     pub ctx: u32,
-    /// Proposed K cache type (always explicit, never `None`).
-    pub cache_k: CacheQuantType,
-    /// Proposed V cache type (never below q5).
-    pub cache_v: CacheQuantType,
+    /// Proposed K cache type; `None` = disabled (llama.cpp default, f16).
+    pub cache_k: Option<CacheQuantType>,
+    /// Proposed V cache type; `None` = disabled (llama.cpp default, f16).
+    /// Quantized rungs never go below the model's own weight quantization.
+    pub cache_v: Option<CacheQuantType>,
     /// MTP draft-token count for models with MTP layers; `None` otherwise.
     pub mtp_draft_tokens: Option<u32>,
     /// Estimated VRAM usage in MiB at the proposed ctx.
@@ -2390,39 +2417,59 @@ const MAX_MTP_DRAFT_BIG: u32 = 3;
 /// the model is not usable in practice, so such proposals are dropped.
 const MIN_CTX_BIG_MODEL: u32 = 65_536;
 
-/// KV-cache quality ladder (K, V), descending quality. Constraints:
-/// - K is always set explicitly (never `None`)
-/// - V never goes below q5_0 (no q4 for V)
-/// - K and V are at most one quality step apart
-fn kv_quality_ladder() -> [(CacheQuantType, CacheQuantType); 10] {
+/// Effective bits per element of a cache-type proposal.
+/// `None` (disabled) means llama.cpp's default, f16.
+fn cache_type_bits(t: Option<CacheQuantType>) -> u32 {
+    match t {
+        None => 16,
+        Some(CacheQuantType::F32) => 32,
+        Some(CacheQuantType::F16) | Some(CacheQuantType::BF16) => 16,
+        Some(CacheQuantType::Q8_0) => 8,
+        Some(CacheQuantType::Q5_0) | Some(CacheQuantType::Q5_1) => 5,
+        Some(CacheQuantType::Turbo2 | CacheQuantType::Turbo3 | CacheQuantType::Turbo4) => 16,
+        _ => 4, // Q4_0, Q4_1, Iq4Nl
+    }
+}
+
+/// KV-cache quality ladder (K, V), descending quality, filtered so cache
+/// quantization never drops below the model's own weight quantization
+/// (`floor_bits`): proposing a q4 KV cache for a Q8 model is nonsense — the
+/// cache would dominate the quality loss. Constraints:
+/// - first rung is Disabled/Disabled (llama.cpp default f16) — quantized
+///   caches are only meant for when the model + default cache don't fit VRAM
+/// - K and V stay within one quality step of each other
+/// - `floor_bits == 0` (unknown quant) keeps the full ladder
+fn kv_quality_ladder(floor_bits: u32) -> Vec<(Option<CacheQuantType>, Option<CacheQuantType>)> {
     use CacheQuantType::*;
-    [
-        (F16, F16),
-        (F16, Q8_0),
-        (Q8_0, Q8_0),
-        (Q8_0, Q5_1),
-        (Q5_1, Q5_1),
-        (Q5_1, Q5_0),
-        (Q5_0, Q5_0),
-        (Q4_1, Q5_0),
-        (Q4_0, Q5_0),
-        (Iq4Nl, Q5_0),
-    ]
+    let all: [(Option<CacheQuantType>, Option<CacheQuantType>); 10] = [
+        (None, None), // disabled = llama.cpp default (f16)
+        (Some(Q8_0), Some(Q8_0)),
+        (Some(Q8_0), Some(Q5_1)),
+        (Some(Q5_1), Some(Q5_1)),
+        (Some(Q5_1), Some(Q5_0)),
+        (Some(Q5_0), Some(Q5_0)),
+        (Some(Q5_0), Some(Q4_1)),
+        (Some(Q4_1), Some(Q4_1)),
+        (Some(Q4_0), Some(Q4_0)),
+        (Some(Iq4Nl), Some(Q4_0)),
+    ];
+    all.into_iter()
+        .filter(|(k, v)| cache_type_bits(*k) >= floor_bits && cache_type_bits(*v) >= floor_bits)
+        .collect()
 }
 
 /// Build the proposal strategy list: (K, V, MTP draft), best quality first.
 ///
-/// Non-MTP models get the full 10-rung KV ladder (MTP makes no difference
-/// there). MTP models get a grid over several draft levels — always 0
-/// (disabled), 1, 2, plus the midpoint and the cap when they differ — across
-/// three KV tiers spanning the quality range (top / middle / bottom), so the
-/// user can trade ctx against speed at several points. Capped at
-/// [`MAX_PROPOSALS`] rows.
+/// Non-MTP models get the full (floor-filtered) KV ladder — MTP makes no
+/// difference there. MTP models get a grid over several draft levels — always
+/// 0 (disabled), 1, 2, plus the midpoint and the cap when they differ —
+/// across up to three KV tiers spanning the filtered quality range (top /
+/// middle / bottom), so the user can trade ctx against speed at several
+/// points. Capped at [`MAX_PROPOSALS`] rows.
 fn proposal_strategies(
     mtp_cap: Option<u32>,
-) -> Vec<(CacheQuantType, CacheQuantType, Option<u32>)> {
-    use CacheQuantType::*;
-    let ladder = kv_quality_ladder();
+    ladder: &[(Option<CacheQuantType>, Option<CacheQuantType>)],
+) -> Vec<(Option<CacheQuantType>, Option<CacheQuantType>, Option<u32>)> {
     let cap = match mtp_cap {
         None => return ladder.iter().map(|(k, v)| (*k, *v, None)).collect(),
         Some(c) => c,
@@ -2438,10 +2485,13 @@ fn proposal_strategies(
     levels.sort_unstable();
     levels.dedup();
 
-    // Three KV tiers spanning the quality range.
-    let tiers = [(F16, F16), (Q8_0, Q8_0), (Q4_0, Q5_0)];
+    // Up to three KV tiers spanning the filtered quality range, deduped for
+    // short ladders (e.g. Q8 models only allow disabled and q8_0).
+    let mut tier_idx = vec![0, ladder.len() / 2, ladder.len() - 1];
+    tier_idx.dedup();
     let mut out = Vec::with_capacity(MAX_PROPOSALS);
-    for (k, v) in tiers {
+    for i in tier_idx {
+        let (k, v) = ladder[i];
         // Highest draft first within a tier (perf-leaning, then ctx-leaning).
         for d in levels.iter().rev() {
             out.push((k, v, (*d > 0).then_some(*d)));
@@ -2472,6 +2522,11 @@ fn proposal_strategies(
 /// treated as small (0 = unknown). For big models (≥ 27B active) proposals
 /// with less than 64k context are dropped as unusable.
 ///
+/// `model_quant_bits` is the model's own weight quantization in bits (e.g. 8
+/// for Q8_0, 0 = unknown): cache-type rungs below it are never proposed —
+/// the first rung is always Disabled (llama.cpp default f16) and quantized
+/// caches only appear as fallbacks for when the model doesn't fit otherwise.
+///
 /// Returns an empty vec when the VRAM budget or model metadata is unknown,
 /// or when the model is configured CPU-only.
 #[allow(clippy::too_many_arguments)]
@@ -2486,6 +2541,7 @@ pub fn generate_ctx_proposals(
     arch: &ArchVramInfo,
     n_ctx_train: u32,
     model_params: u64,
+    model_quant_bits: u32,
     mtp_max_draft: Option<u32>,
 ) -> Vec<CtxProposal> {
     if gpu_mem_total_mib == 0 || total_layers == 0 || hidden_size == 0 {
@@ -2522,10 +2578,10 @@ pub fn generate_ctx_proposals(
     let budget_mib = ((gpu_mem_total_mib as f64) * VRAM_SAFETY_FACTOR) as u64;
 
     // Build settings for a KV pair at a given MTP draft count (0 = MTP off).
-    let build = |k: CacheQuantType, v: CacheQuantType, dt: u32| -> ModelSettings {
+    let build = |k: Option<CacheQuantType>, v: Option<CacheQuantType>, dt: u32| -> ModelSettings {
         let mut s = settings.clone();
-        s.cache_type_k = Some(k);
-        s.cache_type_v = Some(v);
+        s.cache_type_k = k;
+        s.cache_type_v = v;
         if dt > 0 {
             s.spec_type = "draft-mtp".to_string();
             s.draft_tokens = dt;
@@ -2553,10 +2609,15 @@ pub fn generate_ctx_proposals(
     };
 
     let mut proposals: Vec<CtxProposal> = Vec::new();
-    let mut seen: std::collections::HashSet<(CacheQuantType, CacheQuantType, u32, u32)> =
-        std::collections::HashSet::new();
+    let mut seen: std::collections::HashSet<(
+        Option<CacheQuantType>,
+        Option<CacheQuantType>,
+        u32,
+        u32,
+    )> = std::collections::HashSet::new();
 
-    for (k, v, draft) in proposal_strategies(mtp_cap) {
+    let ladder = kv_quality_ladder(model_quant_bits);
+    for (k, v, draft) in proposal_strategies(mtp_cap, &ladder) {
         let s = build(k, v, draft.unwrap_or(0));
         if !fits_min(&s) {
             continue; // Does not fit at all — skip this strategy.
@@ -2644,7 +2705,12 @@ fn classify_proposals(proposals: &mut [CtxProposal]) {
 
     let quality: Vec<f64> = proposals
         .iter()
-        .map(|p| kv_quant_bytes(p.cache_k, p.cache_v))
+        .map(|p| {
+            kv_quant_bytes(
+                p.cache_k.unwrap_or(CacheQuantType::F16),
+                p.cache_v.unwrap_or(CacheQuantType::F16),
+            )
+        })
         .collect();
     let ctx: Vec<f64> = proposals.iter().map(|p| f64::from(p.ctx)).collect();
     let perf: Vec<f64> = proposals
@@ -2652,7 +2718,13 @@ fn classify_proposals(proposals: &mut [CtxProposal]) {
         .map(|p| {
             let mtp = f64::from(p.mtp_draft_tokens.unwrap_or(0)) / f64::from(MAX_MTP_DRAFT);
             // KV lightness: f16 (2.0 bytes) -> 0.0, q4 (0.5 bytes) -> 1.0.
-            let light = ((2.0 - kv_quant_bytes(p.cache_k, p.cache_v)) / 1.5).clamp(0.0, 1.0);
+            let light = ((2.0
+                - kv_quant_bytes(
+                    p.cache_k.unwrap_or(CacheQuantType::F16),
+                    p.cache_v.unwrap_or(CacheQuantType::F16),
+                ))
+                / 1.5)
+            .clamp(0.0, 1.0);
             0.5 * mtp + 0.5 * light
         })
         .collect();

@@ -2522,6 +2522,12 @@ struct CtxProposalPickerCtx<'a> {
     scroll_offset: &'a mut usize,
 }
 
+/// Display label for a proposed cache type; `None` = disabled (server default).
+fn cache_type_label(t: Option<crate::models::CacheQuantType>) -> String {
+    t.map(|v| v.to_string())
+        .unwrap_or_else(|| crate::t!("dialog.ctx_proposal.cache_off").to_string())
+}
+
 /// Localized label for a proposal's trade-off note.
 fn proposal_note_label(note: crate::models::ProposalNote) -> &'static str {
     use crate::models::ProposalNote::*;
@@ -2568,11 +2574,19 @@ fn render_ctx_proposal_picker(f: &mut Frame, area: Rect, ctx: CtxProposalPickerC
                     base,
                 ),
                 Span::styled(
-                    format!("  │ {} {}", crate::t!("dialog.ctx_proposal.cache_k"), p.cache_k),
+                    format!(
+                        "  │ {} {}",
+                        crate::t!("dialog.ctx_proposal.cache_k"),
+                        cache_type_label(p.cache_k)
+                    ),
                     if is_sel { base } else { Style::default().fg(CYAN) },
                 ),
                 Span::styled(
-                    format!("  │ {} {}", crate::t!("dialog.ctx_proposal.cache_v"), p.cache_v),
+                    format!(
+                        "  │ {} {}",
+                        crate::t!("dialog.ctx_proposal.cache_v"),
+                        cache_type_label(p.cache_v)
+                    ),
                     if is_sel { base } else { Style::default().fg(CYAN) },
                 ),
             ];

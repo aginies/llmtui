@@ -1782,6 +1782,19 @@ fn proposals_sized(
     model_params: u64,
     mtp: Option<u32>,
 ) -> Vec<CtxProposal> {
+    proposals_quant(model_mib, gpu_mib, n_ctx_train, arch, model_params, 0, mtp)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn proposals_quant(
+    model_mib: u64,
+    gpu_mib: u64,
+    n_ctx_train: u32,
+    arch: &ArchVramInfo,
+    model_params: u64,
+    quant_bits: u32,
+    mtp: Option<u32>,
+) -> Vec<CtxProposal> {
     generate_ctx_proposals(
         model_mib,
         &proposal_base_settings(),
@@ -1793,6 +1806,7 @@ fn proposals_sized(
         arch,
         n_ctx_train,
         model_params,
+        quant_bits,
         mtp,
     )
 }
@@ -1815,6 +1829,7 @@ fn ctx_proposals_empty_without_gpu_metadata_or_with_cpu_only() {
         &ArchVramInfo::default(),
         131072,
         8_000_000_000,
+        0,
         None,
     );
     assert!(p.is_empty());
@@ -1830,35 +1845,26 @@ fn ctx_proposals_skip_infeasible_model() {
 fn ctx_proposals_ladder_order_and_constraints() {
     let p = proposals(4000, 6144, 131072, &ArchVramInfo::default(), None);
     assert_eq!(p.len(), 10, "full ladder feasible on 6 GiB with 4 GiB model");
-    // Best quality first.
-    assert_eq!(p[0].cache_k, CacheQuantType::F16);
-    assert_eq!(p[0].cache_v, CacheQuantType::F16);
+    // First rung: cache disabled (llama.cpp default f16) = best quality.
+    assert_eq!(p[0].cache_k, None);
+    assert_eq!(p[0].cache_v, None);
     // Context never decreases as quality degrades.
     for w in p.windows(2) {
         assert!(w[1].ctx >= w[0].ctx, "ctx must be non-decreasing down the ladder");
     }
-    // V never goes to q4; K is always explicit (typed enum, never None by construction).
-    for pr in &p {
-        assert!(
-            matches!(
-                pr.cache_v,
-                CacheQuantType::F16 | CacheQuantType::Q8_0 | CacheQuantType::Q5_1 | CacheQuantType::Q5_0
-            ),
-            "V must never drop below q5: {:?}", pr.cache_v
-        );
-    }
     // K and V stay within one ladder step: allowed pairs only.
-    let allowed = [
-        (CacheQuantType::F16, CacheQuantType::F16),
-        (CacheQuantType::F16, CacheQuantType::Q8_0),
-        (CacheQuantType::Q8_0, CacheQuantType::Q8_0),
-        (CacheQuantType::Q8_0, CacheQuantType::Q5_1),
-        (CacheQuantType::Q5_1, CacheQuantType::Q5_1),
-        (CacheQuantType::Q5_1, CacheQuantType::Q5_0),
-        (CacheQuantType::Q5_0, CacheQuantType::Q5_0),
-        (CacheQuantType::Q4_1, CacheQuantType::Q5_0),
-        (CacheQuantType::Q4_0, CacheQuantType::Q5_0),
-        (CacheQuantType::Iq4Nl, CacheQuantType::Q5_0),
+    use CacheQuantType::*;
+    let allowed: [(Option<CacheQuantType>, Option<CacheQuantType>); 10] = [
+        (None, None),
+        (Some(Q8_0), Some(Q8_0)),
+        (Some(Q8_0), Some(Q5_1)),
+        (Some(Q5_1), Some(Q5_1)),
+        (Some(Q5_1), Some(Q5_0)),
+        (Some(Q5_0), Some(Q5_0)),
+        (Some(Q5_0), Some(Q4_1)),
+        (Some(Q4_1), Some(Q4_1)),
+        (Some(Q4_0), Some(Q4_0)),
+        (Some(Iq4Nl), Some(Q4_0)),
     ];
     for pr in &p {
         assert!(allowed.contains(&(pr.cache_k, pr.cache_v)), "unexpected K/V pair");
@@ -1872,6 +1878,56 @@ fn ctx_proposals_ladder_order_and_constraints() {
 }
 
 #[test]
+fn ctx_proposals_cache_floor_matches_model_quant() {
+    // Q8 model: only disabled and q8_0 rungs are acceptable — a q4/q5 cache
+    // for a Q8 LLM is nonsense.
+    let p = proposals_quant(4000, 6144, 131072, &ArchVramInfo::default(), 8_000_000_000, 8, None);
+    assert_eq!(p.len(), 2);
+    assert_eq!((p[0].cache_k, p[0].cache_v), (None, None));
+    assert_eq!(
+        (p[1].cache_k, p[1].cache_v),
+        (Some(CacheQuantType::Q8_0), Some(CacheQuantType::Q8_0))
+    );
+
+    // Q6 model: q5 rungs are below 6 bits — same floor as Q8.
+    let p = proposals_quant(4000, 6144, 131072, &ArchVramInfo::default(), 8_000_000_000, 6, None);
+    for pr in &p {
+        for c in [pr.cache_k, pr.cache_v].into_iter().flatten() {
+            assert_eq!(c, CacheQuantType::Q8_0, "Q6 model got sub-q8 cache {:?}", c);
+        }
+    }
+
+    // Q4 model: full ladder down to the q4 rungs.
+    let p = proposals_quant(4000, 6144, 131072, &ArchVramInfo::default(), 8_000_000_000, 4, None);
+    assert_eq!(p.len(), 10);
+    assert_eq!(p.last().unwrap().cache_k, Some(CacheQuantType::Iq4Nl));
+
+    // F16 model: only the disabled rung (no quantized cache below f16).
+    let p = proposals_quant(4000, 6144, 131072, &ArchVramInfo::default(), 8_000_000_000, 16, None);
+    assert_eq!(p.len(), 1);
+    assert_eq!((p[0].cache_k, p[0].cache_v), (None, None));
+}
+
+#[test]
+fn gguf_metadata_quant_bits_parses_file_types() {
+    let mk = |ft: &str| GgufMetadata {
+        file_type: ft.to_string(),
+        ..Default::default()
+    };
+    assert_eq!(mk("Q8_0").quant_bits(), 8);
+    assert_eq!(mk("Q4_K_M").quant_bits(), 4);
+    assert_eq!(mk("Q4_K_XL").quant_bits(), 4);
+    assert_eq!(mk("IQ4_NL").quant_bits(), 4);
+    assert_eq!(mk("Q6_K").quant_bits(), 6);
+    assert_eq!(mk("Q2_K").quant_bits(), 2);
+    assert_eq!(mk("F16").quant_bits(), 16);
+    assert_eq!(mk("BF16").quant_bits(), 16);
+    assert_eq!(mk("F32").quant_bits(), 32);
+    assert_eq!(mk("Q1_0").quant_bits(), 1);
+    assert_eq!(mk("").quant_bits(), 0);
+}
+
+#[test]
 fn ctx_proposals_capped_at_native_ctx() {
     // Huge budget but native ctx of 8k: every rung is capped at 8k, so the
     // rows differ only by quality/perf. Best quality is first and recommended.
@@ -1879,8 +1935,8 @@ fn ctx_proposals_capped_at_native_ctx() {
     assert!(!p.is_empty());
     assert!(p.iter().all(|pr| pr.ctx == 8192), "all rows capped at native ctx");
     assert!(p[0].recommended, "native cap is below target so first rung reaches it");
-    assert_eq!(p[0].cache_k, CacheQuantType::F16);
-    assert_eq!(p[0].cache_v, CacheQuantType::F16);
+    assert_eq!(p[0].cache_k, None);
+    assert_eq!(p[0].cache_v, None);
 }
 
 #[test]
