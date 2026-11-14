@@ -469,6 +469,7 @@ F-keys control panel visibility and focus. Each panel has a bit index (0-5):
 | `Ctrl+F4` | Model Info | 2 | Toggle Model Info visibility |
 | `F3` | LLM Settings | 3 | Focus LLM Settings |
 | `Ctrl+F3` | LLM Settings | 3 | Toggle LLM Settings visibility |
+| `Alt+F3` | LLM Settings | 3 | Toggle LLM Settings visibility |
 | `Ctrl+F5` | Active Model | 4 | Toggle Active Model visibility |
 | `F6` | Log | 5 | Focus Log |
 | `Ctrl+F6` | Log | 5 | Toggle Log visibility |
@@ -497,6 +498,7 @@ Models → (Server Settings / README / Profiles / Presets) → Active Model → 
 | `Ctrl+K` | Show CmdLine overlay (full server command) |
 | `Ctrl+Alt+K` | Kill running llama-server |
 | `Ctrl+P` | Open Profile Picker modal |
+| `Ctrl+Space` | Open Command Palette (fuzzy action finder) |
 | `Ctrl+U` | Open Dashboard URL modal (copy URL to clipboard) |
 | `Ctrl+G` | Show GGUF filename explanation (any panel) |
 | `F8` | Ctx / KV-cache / MTP proposal picker (Models & LLM Settings) |
@@ -525,6 +527,19 @@ All picker modals (Host, Backend, Profile, Prompt, Chat Template, etc.) share th
 | `Esc` | Cancel and close |
 
 The popup is 60 columns wide with content-based height, clamped to 80% of the terminal height.
+
+### Command Palette
+
+`Ctrl+Space` (Normal mode) opens the **Command Palette** — a fuzzy action finder over the TUI's actions: panel focus, overlays, and common commands.
+
+| Key | Action |
+|-----|--------|
+| Type | Filter actions (fuzzy subsequence match — `ks` matches "Kill llama-server") |
+| `↑` / `↓` | Navigate matches (wraps around) |
+| `Enter` | Run the selected action |
+| `Esc` | Close |
+
+Some actions only appear when relevant (e.g. "Kill llama-server" while a server is running, "Explain GGUF filename" when a filename is selected, "Focus Downloads panel" during a download). See [Command Palette](command-palette.md) for the full action list.
 
 ## Log Panel
 
@@ -628,6 +643,21 @@ Per-model tags can be edited in the LLM Settings panel. The Tags field opens an 
 
 MTP is an experimental feature that uses a draft model to predict multiple tokens in parallel, improving inference speed. When a model with MTP architecture is selected, the app automatically detects it and enables the `--draft-mtp` flag. The number of draft tokens is read from the GGUF metadata and displayed in the Model Info panel.
 
+## Ctx / KV-cache / MTP Proposal Picker (F8)
+
+Press `F8` with a model selected (in the **Models** or **LLM Settings** panel) to open the **proposal picker**: feasible context / KV-cache / MTP combinations that fit in the detected GPU VRAM, ranked by quality.
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` / `j` / `k` | Navigate proposals |
+| `Home` / `End` | Jump to first / last |
+| `Enter` | Apply the selected proposal (ctx, cache K/V types, MTP draft tokens) |
+| `Esc` / `q` | Cancel |
+
+Each row shows `ctx`, the proposed cache K/V types (`off` = server default), the MTP draft level (MTP models only), the estimated VRAM usage against the total, and a trade-off note (Best quality / Best CTX / Best performance / Balanced…). The ★ marks the recommended proposal — the first one reaching 100k ctx, clamped to the model's native context.
+
+See [Ctx Proposal Picker](ctx-proposal-picker.md) for the full generation rules (quality ladder, model-quantization floor, MTP variants, big-model filter).
+
 ## GGUF Metadata
 
 The Model Info panel shows parsed GGUF metadata including: architecture, layers, hidden size, context length, attention heads, KV heads, domain, capabilities, quantization, parameters (e.g., "7B", "405B"), tokenizer type, vocabulary size, and max context for VRAM. Metadata is parsed once and cached (debounced by file mtime).
@@ -715,7 +745,7 @@ The horizontal split between left panels (Models + Info) and right panels (Setti
 
 The current horizontal split percentage is shown in the status bar (e.g., `│ 55%`). While actively resizing, the indicator shows `│ 55% ← resize →`.
 
-You can toggle individual panels visibility using `F1`–`F6` keys or `Ctrl+F7`–`Ctrl+F9` to focus specific panels.
+You can toggle individual panels visibility using `Ctrl+F2`–`Ctrl+F6` (see [Panel Navigation (F-keys)](#panel-navigation-f-keys) above); plain `F1`/`F2`/`F3`/`F6` focus their panels.
 
 ![Panel Toggling](images/disabling_panels.png)
 

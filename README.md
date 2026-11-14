@@ -22,7 +22,7 @@ A terminal UI (TUI) for managing local LLM models with HuggingFace search, downl
 - Benchmark Tuning — auto-tune model parameters for optimal performance
 - Profiles & Presets — save and switch between named settings
 - Multi-backend — CPU, Vulkan, ROCm, CUDA
-- Web Search — SearXNG integration
+- Web Search — SearXNG & Searlo integration
 - Multi-language UI — English, French, Italian, German
 
 ## Quick Start

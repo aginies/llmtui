@@ -8,6 +8,7 @@
 
 ## Usage
 - [Usage](usage.md)
+- [Command Palette](command-palette.md)
 - [opencode](opencode.md)
 - [Web Chat](web-chat.md)
 - [Pi Orchestrator](pi-orchestrator.md)
@@ -31,6 +32,7 @@
 - [Cache](cache.md)
 - [Chat Templates](chat-templates.md)
 - [Speculative Decoding](speculative-decoding.md)
+- [Ctx / KV-cache / MTP Proposal Picker (F8)](ctx-proposal-picker.md)
 
 ## Web Search
 - [Web Search](web-search.md)
